@@ -1,0 +1,239 @@
+@import "tailwindcss";
+
+/* ─────────────────────────────────────────────
+   Royal Glow Design System — crazy4points V2
+   ───────────────────────────────────────────── */
+
+@theme {
+  /* Brand Colors */
+  --color-navy:      #0B1C3D;   /* Deep Navy — primary backgrounds, headlines */
+  --color-navy-dark: #07112A;   /* Deeper Navy — footer, dark sections */
+  --color-gold:      #C9A84C;   /* Champagne Gold — CTAs, accents, highlights */
+  --color-gold-dark: #A8893A;   /* Gold hover/active state */
+  --color-gold-light:#EDD98A;   /* Gold tint — subtle highlights */
+  --color-ivory:     #FAF7F2;   /* Warm Ivory — light section backgrounds */
+  --color-ivory-dark:#F0EBE3;   /* Slightly deeper ivory — card backgrounds */
+  --color-blush:     #F4E4E0;   /* Rose Blush — subtle accent sections */
+  --color-charcoal:  #2D2D2D;   /* Primary body text */
+  --color-slate:     #6B7280;   /* Secondary/muted text */
+  --color-slate-light:#9CA3AF;  /* Placeholder text */
+  --color-white:     #FFFFFF;
+
+  /* Typography */
+  --font-display: var(--font-playfair), Georgia, serif;
+  --font-body:    var(--font-lato), system-ui, sans-serif;
+  --font-ui:      var(--font-montserrat), system-ui, sans-serif;
+
+  /* Spacing Scale (augments Tailwind defaults) */
+  --spacing-18: 4.5rem;
+  --spacing-22: 5.5rem;
+  --spacing-30: 7.5rem;
+
+  /* Border Radius */
+  --radius-card: 0.75rem;
+  --radius-pill: 9999px;
+
+  /* Shadows */
+  --shadow-card: 0 4px 24px rgba(11, 28, 61, 0.08);
+  --shadow-card-hover: 0 8px 40px rgba(11, 28, 61, 0.14);
+  --shadow-gold: 0 2px 16px rgba(201, 168, 76, 0.3);
+}
+
+/* ─── Base Reset & Globals ─── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-body);
+  color: var(--color-charcoal);
+  background-color: var(--color-ivory);
+  line-height: 1.6;
+}
+
+/* ─── Typography Utilities ─── */
+.font-display  { font-family: var(--font-display); }
+.font-body     { font-family: var(--font-body); }
+.font-ui       { font-family: var(--font-ui); }
+
+/* Headings use Playfair Display */
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  color: var(--color-navy);
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+h5, h6 {
+  font-family: var(--font-ui);
+  color: var(--color-navy);
+  font-weight: 600;
+}
+
+p {
+  font-family: var(--font-body);
+  color: var(--color-charcoal);
+}
+
+/* ─── Royal Glow Component Classes ─── */
+
+/* Section container */
+.rg-section {
+  padding-top: 5rem;
+  padding-bottom: 5rem;
+}
+
+.rg-container {
+  max-width: 1280px;
+  margin-inline: auto;
+  padding-inline: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .rg-container {
+    padding-inline: 2rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .rg-container {
+    padding-inline: 3rem;
+  }
+}
+
+/* Section heading block */
+.rg-section-label {
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--color-gold);
+}
+
+.rg-section-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
+  font-weight: 700;
+  color: var(--color-navy);
+  margin-top: 0.5rem;
+}
+
+.rg-section-subtitle {
+  font-family: var(--font-body);
+  font-size: 1.0625rem;
+  color: var(--color-slate);
+  margin-top: 0.75rem;
+  max-width: 560px;
+}
+
+/* Cards */
+.rg-card {
+  background: var(--color-white);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+.rg-card:hover {
+  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-3px);
+}
+
+/* Buttons */
+.rg-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--color-gold);
+  color: var(--color-navy);
+  font-family: var(--font-ui);
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0.875rem 2rem;
+  border-radius: var(--radius-pill);
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+  text-decoration: none;
+}
+
+.rg-btn-primary:hover {
+  background: var(--color-gold-dark);
+  box-shadow: var(--shadow-gold);
+}
+
+.rg-btn-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: transparent;
+  color: var(--color-gold);
+  font-family: var(--font-ui);
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0.875rem 2rem;
+  border-radius: var(--radius-pill);
+  border: 2px solid var(--color-gold);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+  text-decoration: none;
+}
+
+.rg-btn-outline:hover {
+  background: var(--color-gold);
+  color: var(--color-navy);
+}
+
+/* Gold divider accent */
+.rg-gold-bar {
+  width: 3rem;
+  height: 3px;
+  background: var(--color-gold);
+  margin-top: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Pill / badge */
+.rg-badge {
+  display: inline-block;
+  font-family: var(--font-ui);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--radius-pill);
+  background: var(--color-gold-light);
+  color: var(--color-navy);
+}
+
+.rg-badge-navy {
+  background: var(--color-navy);
+  color: var(--color-gold);
+}
+
+/* Image placeholder skeleton */
+.rg-img-placeholder {
+  background: linear-gradient(135deg, var(--color-navy) 0%, #1a3560 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.rg-img-placeholder::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent 60%, rgba(11,28,61,0.6) 100%);
+}
