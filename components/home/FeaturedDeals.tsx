@@ -1,11 +1,11 @@
 export default function FeaturedDeals() {
   return (
-    <section className="rg-section bg-[var(--color-bg-soft)]">
-      <div className="rg-container">
-        <p className="rg-section-label">Deals</p>
-        <h2 className="rg-section-title">Featured Deals</h2>
-        <div className="rg-accent-bar" />
-        <div className="rg-placeholder h-64 mt-8">
+    <section className="bg-[var(--color-background-soft)] py-20">
+      <div className="rg-container px-6 md:px-8">
+        <h2 className="font-display text-3xl font-semibold text-[var(--color-primary)]">
+          Featured Deals
+        </h2>
+        <div className="mt-8 rounded-xl border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-8 py-10 font-ui text-sm font-medium uppercase tracking-[0.12em] text-[var(--color-text-secondary)]">
           Deals Placeholder
         </div>
       </div>

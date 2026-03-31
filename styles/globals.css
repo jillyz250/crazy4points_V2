@@ -1,222 +1,131 @@
 @import "tailwindcss";
 
-/* ─────────────────────────────────────────────
-   Royal Glow Design System — crazy4points V2
-   Light Theme
-   ───────────────────────────────────────────── */
+@theme inline {
+  /* Royal Glow colors */
+  --color-primary: #6B2D8F;
+  --color-primary-hover: #5A237A;
+  --color-accent: #D4AF37;
+  --color-background: #FFFFFF;
+  --color-background-soft: #F8F5FB;
+  --color-text-primary: #1A1A1A;
+  --color-text-secondary: #4A4A4A;
+  --color-border-soft: #E6DEEE;
 
-@theme {
-  /* Brand Colors */
-  --color-primary:        #6B2D8F;   /* Royal Glow Purple */
-  --color-primary-dark:   #541F72;   /* Purple hover/active */
-  --color-primary-light:  #EDE0F5;   /* Purple tint */
-  --color-accent:         #D4AF37;   /* Gold */
-  --color-accent-dark:    #B8961E;   /* Gold hover */
-  --color-accent-light:   #F5E9A8;   /* Gold tint */
+  /* Font tokens */
+  --font-display: var(--font-playfair), "Playfair Display", Georgia, serif;
+  --font-body: var(--font-lato), "Lato", system-ui, sans-serif;
+  --font-ui: var(--font-montserrat), "Montserrat", system-ui, sans-serif;
 
-  --color-bg:             #FFFFFF;   /* Primary background */
-  --color-bg-soft:        #F8F5FB;   /* Soft lavender tint */
-  --color-text:           #1A1A1A;   /* Primary text */
-  --color-text-subtle:    #4A4A4A;   /* Secondary text */
-  --color-text-muted:     #888888;   /* Placeholder / muted */
-  --color-border:         #E8E0F0;   /* Subtle borders */
-  --color-white:          #FFFFFF;
-
-  /* Typography */
-  --font-display: var(--font-playfair), Georgia, serif;
-  --font-body:    var(--font-lato), system-ui, sans-serif;
-  --font-ui:      var(--font-montserrat), system-ui, sans-serif;
-
-  /* Border Radius */
+  /* Spacing + radius + shadows */
+  --spacing-section: 5rem;   /* py-20 */
+  --spacing-subsection: 2.5rem; /* py-10 */
+  --radius-ui: 0.375rem;
   --radius-card: 0.75rem;
-  --radius-pill: 9999px;
-
-  /* Shadows */
-  --shadow-card:       0 2px 16px rgba(107, 45, 143, 0.07);
-  --shadow-card-hover: 0 6px 32px rgba(107, 45, 143, 0.13);
+  --shadow-soft: 0 2px 8px rgba(26, 26, 26, 0.04);
 }
 
-/* ─── Base Reset & Globals ─── */
-*, *::before, *::after {
+* {
   box-sizing: border-box;
 }
 
-html {
-  scroll-behavior: smooth;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+html,
+body {
+  margin: 0;
+  padding: 0;
 }
 
 body {
   font-family: var(--font-body);
-  color: var(--color-text);
-  background-color: var(--color-bg);
+  background: var(--color-background);
+  color: var(--color-text-primary);
   line-height: 1.6;
 }
 
-/* ─── Typography ─── */
-h1, h2, h3, h4 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: var(--font-display);
-  color: var(--color-text);
+  color: var(--color-primary);
   line-height: 1.2;
-  font-weight: 700;
-}
-
-h5, h6 {
-  font-family: var(--font-ui);
-  color: var(--color-text);
-  font-weight: 600;
+  margin: 0;
 }
 
 p {
-  font-family: var(--font-body);
-  color: var(--color-text-subtle);
+  margin: 0;
+  color: var(--color-text-secondary);
 }
 
-/* ─── Layout Utilities ─── */
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--color-primary);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+}
+
 .rg-container {
-  max-width: 1280px;
+  max-width: 80rem;
   margin-inline: auto;
   padding-inline: 1.5rem;
 }
 
 @media (min-width: 768px) {
-  .rg-container { padding-inline: 2rem; }
+  .rg-container {
+    padding-inline: 2rem;
+  }
 }
 
-@media (min-width: 1280px) {
-  .rg-container { padding-inline: 3rem; }
+.rg-major-section {
+  padding-block: var(--spacing-section);
 }
 
-.rg-section {
-  padding-top: 5rem;
-  padding-bottom: 5rem;
+.rg-sub-section {
+  padding-block: var(--spacing-subsection);
 }
 
-/* ─── Section Headings ─── */
-.rg-section-label {
-  font-family: var(--font-ui);
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  color: var(--color-primary);
-}
-
-.rg-section-title {
-  font-family: var(--font-display);
-  font-size: clamp(1.75rem, 3vw, 2.5rem);
-  font-weight: 700;
-  color: var(--color-text);
-  margin-top: 0.5rem;
-}
-
-.rg-section-subtitle {
-  font-family: var(--font-body);
-  font-size: 1.0625rem;
-  color: var(--color-text-subtle);
-  margin-top: 0.75rem;
-  max-width: 560px;
-}
-
-/* ─── Divider ─── */
-.rg-accent-bar {
-  width: 3rem;
-  height: 3px;
-  background: var(--color-accent);
-  margin-top: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-/* ─── Cards ─── */
-.rg-card {
-  background: var(--color-white);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
-  overflow: hidden;
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
-}
-
-.rg-card:hover {
-  box-shadow: var(--shadow-card-hover);
-  transform: translateY(-2px);
-}
-
-/* ─── Buttons ─── */
 .rg-btn-primary {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: center;
+  border-radius: var(--radius-ui);
   background: var(--color-primary);
-  color: var(--color-white);
+  color: #FFFFFF;
   font-family: var(--font-ui);
-  font-size: 0.875rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  padding: 0.875rem 2rem;
-  border-radius: var(--radius-pill);
-  border: none;
-  cursor: pointer;
-  transition: background 0.2s ease;
-  text-decoration: none;
+  font-weight: 500;
+  padding: 0.625rem 1rem;
+  transition: background-color 0.2s ease;
 }
 
 .rg-btn-primary:hover {
-  background: var(--color-primary-dark);
+  background: var(--color-primary-hover);
+  color: #FFFFFF;
 }
 
-.rg-btn-outline {
+.rg-btn-secondary {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  background: transparent;
-  color: var(--color-primary);
-  font-family: var(--font-ui);
-  font-size: 0.875rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  padding: 0.875rem 2rem;
-  border-radius: var(--radius-pill);
-  border: 2px solid var(--color-primary);
-  cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease;
-  text-decoration: none;
-}
-
-.rg-btn-outline:hover {
-  background: var(--color-primary);
-  color: var(--color-white);
-}
-
-/* ─── Badge ─── */
-.rg-badge {
-  display: inline-block;
-  font-family: var(--font-ui);
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 0.25rem 0.75rem;
-  border-radius: var(--radius-pill);
-  background: var(--color-primary-light);
-  color: var(--color-primary);
-}
-
-/* ─── Placeholder Block ─── */
-.rg-placeholder {
-  background: var(--color-bg-soft);
-  border: 2px dashed var(--color-border);
-  border-radius: var(--radius-card);
-  display: flex;
-  align-items: center;
   justify-content: center;
-  color: var(--color-text-muted);
+  border-radius: var(--radius-ui);
+  border: 2px solid var(--color-primary);
+  color: var(--color-primary);
   font-family: var(--font-ui);
-  font-size: 0.875rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-weight: 500;
+  padding: 0.625rem 1rem;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.rg-btn-secondary:hover {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
 }
