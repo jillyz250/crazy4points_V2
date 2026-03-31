@@ -10,17 +10,15 @@ const navLinks = [
 
 export default function Header() {
   return (
-    <header className="sticky top-0 z-50 bg-[var(--color-navy)] shadow-md">
+    <header className="sticky top-0 z-50 bg-[var(--color-white)] border-b border-[var(--color-border)]">
       <div className="rg-container">
         <div className="flex items-center justify-between h-16 md:h-20">
 
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 group">
-            <span
-              className="font-display text-2xl md:text-3xl font-bold text-[var(--color-white)] tracking-tight leading-none"
-            >
+          <Link href="/" className="flex items-center group">
+            <span className="font-display text-2xl font-bold text-[var(--color-text)] tracking-tight leading-none">
               crazy4
-              <span className="text-[var(--color-gold)] group-hover:text-[var(--color-gold-light)] transition-colors">
+              <span className="text-[var(--color-primary)] group-hover:text-[var(--color-primary-dark)] transition-colors">
                 points
               </span>
             </span>
@@ -32,7 +30,7 @@ export default function Header() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="font-ui text-sm font-600 uppercase tracking-widest text-[var(--color-white)] opacity-80 hover:opacity-100 hover:text-[var(--color-gold)] transition-all duration-200"
+                className="font-ui text-sm font-semibold uppercase tracking-widest text-[var(--color-text-subtle)] hover:text-[var(--color-primary)] transition-colors duration-200"
               >
                 {link.label}
               </Link>
@@ -55,9 +53,9 @@ export default function Header() {
               aria-label="Open menu"
               aria-expanded="false"
             >
-              <span className="block w-6 h-0.5 bg-[var(--color-white)] rounded-full" />
-              <span className="block w-6 h-0.5 bg-[var(--color-white)] rounded-full" />
-              <span className="block w-4 h-0.5 bg-[var(--color-white)] rounded-full self-end" />
+              <span className="block w-6 h-0.5 bg-[var(--color-text)] rounded-full" />
+              <span className="block w-6 h-0.5 bg-[var(--color-text)] rounded-full" />
+              <span className="block w-4 h-0.5 bg-[var(--color-text)] rounded-full self-end" />
             </button>
           </div>
 
