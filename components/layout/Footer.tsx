@@ -18,13 +18,26 @@ const footerNav = [
       { label: "Contact", href: "/contact" },
     ],
   },
+  {
+    heading: "Legal",
+    links: [
+      { label: "Privacy Policy", href: "/privacy" },
+      { label: "Terms of Service", href: "/terms" },
+      { label: "Affiliate Disclosure", href: "/affiliate-disclosure" },
+      { label: "Cookie Policy", href: "/cookie-policy" },
+      { label: "Do Not Sell My Info", href: "/do-not-sell" },
+      { label: "Accessibility", href: "/accessibility" },
+    ],
+  },
 ];
 
 export default function Footer() {
   return (
     <footer className="border-t border-[var(--color-border-soft)] bg-[var(--color-background-soft)]">
       <div className="rg-container px-6 py-20 md:px-8">
-        <div className="grid grid-cols-1 gap-10 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-10 md:grid-cols-4">
+
+          {/* Brand column */}
           <div>
             <Link href="/" className="inline-block">
               <span className="font-display text-2xl font-semibold text-[var(--color-text-primary)]">
@@ -36,6 +49,7 @@ export default function Footer() {
             </p>
           </div>
 
+          {/* Nav columns */}
           {footerNav.map((col) => (
             <div key={col.heading}>
               <h3 className="font-display text-lg font-semibold text-[var(--color-primary)]">
@@ -55,33 +69,33 @@ export default function Footer() {
               </ul>
             </div>
           ))}
+
         </div>
       </div>
 
+      {/* Legal bar */}
       <div className="border-t border-[var(--color-border-soft)]">
-        <div className="rg-container flex flex-col items-center justify-between gap-4 px-6 py-10 md:flex-row md:px-8">
+        <div className="rg-container flex flex-col items-center justify-between gap-4 px-6 py-6 md:flex-row md:px-8">
           <p className="font-body text-xs text-[var(--color-text-secondary)]">
-            © {new Date().getFullYear()} crazy4points. All rights reserved.
+            © {new Date().getFullYear()} crazy4points · ThankYouDeals Inc. · New York, USA
           </p>
-          <div className="flex items-center gap-6">
-            <Link
-              href="/privacy"
-              className="font-ui text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--color-text-secondary)] hover:text-[var(--color-accent)]"
-            >
-              Privacy Policy
-            </Link>
-            <Link
-              href="/terms"
-              className="font-ui text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--color-text-secondary)] hover:text-[var(--color-accent)]"
-            >
-              Terms of Use
-            </Link>
-            <Link
-              href="/disclosures"
-              className="font-ui text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--color-text-secondary)] hover:text-[var(--color-accent)]"
-            >
-              Disclosures
-            </Link>
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+            {[
+              { label: "Privacy", href: "/privacy" },
+              { label: "Terms", href: "/terms" },
+              { label: "Affiliate Disclosure", href: "/affiliate-disclosure" },
+              { label: "Cookie Policy", href: "/cookie-policy" },
+              { label: "Do Not Sell My Info", href: "/do-not-sell" },
+              { label: "Accessibility", href: "/accessibility" },
+            ].map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="font-ui text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] transition-colors"
+              >
+                {link.label}
+              </Link>
+            ))}
           </div>
         </div>
       </div>
