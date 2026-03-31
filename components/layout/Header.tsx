@@ -10,55 +10,50 @@ const navLinks = [
 
 export default function Header() {
   return (
-    <header className="sticky top-0 z-50 bg-[var(--color-white)] border-b border-[var(--color-border)]">
-      <div className="rg-container">
-        <div className="flex items-center justify-between h-16 md:h-20">
-
-          {/* Logo */}
+    <header className="sticky top-0 z-50 border-b border-[var(--color-border-soft)] bg-[var(--color-background)]">
+      <div className="rg-container px-6 md:px-8">
+        <div className="flex h-20 items-center justify-between">
           <Link href="/" className="flex items-center group">
-            <span className="font-display text-2xl font-bold text-[var(--color-text)] tracking-tight leading-none">
+            <span className="font-display text-2xl font-semibold tracking-tight text-[var(--color-text-primary)]">
               crazy4
-              <span className="text-[var(--color-primary)] group-hover:text-[var(--color-primary-dark)] transition-colors">
+              <span className="text-[var(--color-primary)] transition-colors group-hover:text-[var(--color-primary-hover)]">
                 points
               </span>
             </span>
           </Link>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-8" aria-label="Main navigation">
+          <nav className="hidden items-center gap-8 md:flex" aria-label="Main navigation">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className="font-ui text-sm font-semibold uppercase tracking-widest text-[var(--color-text-subtle)] hover:text-[var(--color-primary)] transition-colors duration-200"
+                className="group relative font-ui text-xs font-medium uppercase tracking-[0.14em] text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-primary)]"
               >
                 {link.label}
+                <span className="absolute -bottom-1 left-0 h-0.5 w-full origin-left scale-x-0 bg-[var(--color-accent)] transition-transform duration-200 group-hover:scale-x-100" />
               </Link>
             ))}
           </nav>
 
-          {/* CTA + Mobile menu */}
           <div className="flex items-center gap-4">
             <Link
               href="/decision-engine"
-              className="hidden md:inline-flex rg-btn-primary text-xs py-2.5 px-5"
+              className="hidden rounded-md bg-[var(--color-accent)] px-4 py-2.5 font-ui text-xs font-medium uppercase tracking-[0.12em] text-[var(--color-text-primary)] transition-colors hover:bg-[#c49f2f] md:inline-flex"
             >
               Decision Engine
             </Link>
 
-            {/* Mobile menu button — non-functional placeholder */}
             <button
               type="button"
-              className="md:hidden flex flex-col justify-center items-center w-10 h-10 gap-1.5"
+              className="flex h-10 w-10 flex-col items-center justify-center gap-1.5 md:hidden"
               aria-label="Open menu"
               aria-expanded="false"
             >
-              <span className="block w-6 h-0.5 bg-[var(--color-text)] rounded-full" />
-              <span className="block w-6 h-0.5 bg-[var(--color-text)] rounded-full" />
-              <span className="block w-4 h-0.5 bg-[var(--color-text)] rounded-full self-end" />
+              <span className="block h-0.5 w-6 rounded-full bg-[var(--color-text-primary)]" />
+              <span className="block h-0.5 w-6 rounded-full bg-[var(--color-text-primary)]" />
+              <span className="block h-0.5 w-4 self-end rounded-full bg-[var(--color-text-primary)]" />
             </button>
           </div>
-
         </div>
       </div>
     </header>
