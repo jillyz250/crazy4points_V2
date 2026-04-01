@@ -52,7 +52,7 @@ export default function PrivacyPolicyPage() {
           heading: '5. CCPA / CPRA Disclosures (California)',
           content: [
             'California residents have the right to:',
-            { type: 'list', items: ['Know what personal information we collect', 'Request deletion', 'Correct inaccurate information', 'Opt out of 'sharing' for cross-context behavioral advertising', "Limit use of sensitive personal information (we do not collect any)"] },
+            { type: 'list', items: ['Know what personal information we collect', 'Request deletion', 'Correct inaccurate information', 'Opt out of sharing for cross-context behavioral advertising', "Limit use of sensitive personal information (we do not collect any)"] },
             'You may exercise these rights by visiting our Do Not Sell or Share My Personal Information page or emailing support@thankyoudeals.com. We do not sell personal information.',
           ],
         },
@@ -87,7 +87,7 @@ export default function PrivacyPolicyPage() {
           content: ["We do not use automated decision-making that produces legal or similarly significant effects. Future personalization features will be optional and transparent."],
         },
         {
-          heading: '13. Children's Privacy',
+          heading: "13. Children's Privacy",
           content: ["The Site is not intended for children under 16. We do not knowingly collect information from children."],
         },
         {

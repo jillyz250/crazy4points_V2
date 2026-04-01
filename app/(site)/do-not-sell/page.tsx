@@ -29,7 +29,7 @@ export default function DoNotSellPage() {
           content: [
             'We collect limited personal information, which may include:',
             { type: 'list', items: ['Identifiers such as IP address', 'Device information', 'Browser type and settings', 'Online activity such as pages viewed and referral sources', "Cookie and tracking identifiers used for analytics or affiliate attribution"] },
-            'We do not sell personal information for monetary consideration. However, under California law, certain data practices — such as sharing identifiers with analytics or affiliate partners — may be considered a 'sale' or 'sharing' of personal information.',
+            "We do not sell personal information for monetary consideration. However, under California law, certain data practices — such as sharing identifiers with analytics or affiliate partners — may be considered a 'sale' or 'sharing' of personal information.",
           ],
         },
         {
@@ -42,7 +42,7 @@ export default function DoNotSellPage() {
         {
           heading: '4. Cookies, Analytics & Affiliate Tracking',
           content: [
-            'Some cookies used on our Site may be considered 'sharing' under California law. These include analytics cookies (e.g., Google Analytics), affiliate tracking cookies, and measurement tools used to attribute referrals.',
+            "Some cookies used on our Site may be considered 'sharing' under California law. These include analytics cookies (e.g., Google Analytics), affiliate tracking cookies, and measurement tools used to attribute referrals.",
             'You may opt out by:',
             { type: 'list', items: ['Using our cookie banner to decline non-essential cookies', 'Adjusting browser settings to block tracking', "Emailing us to request a CCPA opt-out"] },
           ],
@@ -59,7 +59,7 @@ export default function DoNotSellPage() {
           ],
         },
         {
-          heading: '7. Children's Data',
+          heading: "7. Children's Data",
           content: ["We do not knowingly collect personal information from children under 16. We do not sell or share personal information of minors."],
         },
         {

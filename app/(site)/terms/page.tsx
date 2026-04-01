@@ -24,7 +24,7 @@ export default function TermsPage() {
           heading: '2. Use of the Site',
           content: [
             'You may use the Site only for lawful purposes and in accordance with these Terms. You agree not to:',
-            { type: 'list', items: ['Access or use the Site for any unlawful purpose', 'Attempt to interfere with the Site's operation', 'Scrape, copy, or reproduce content without permission', 'Use automated tools (bots, crawlers) without authorization', "Attempt to gain unauthorized access to systems or data"] },
+            { type: 'list', items: ['Access or use the Site for any unlawful purpose', "Attempt to interfere with the Site's operation", 'Scrape, copy, or reproduce content without permission', 'Use automated tools (bots, crawlers) without authorization', "Attempt to gain unauthorized access to systems or data"] },
             'We reserve the right to suspend or terminate access at any time, without notice, for any reason, including violation of these Terms.',
           ],
         },
