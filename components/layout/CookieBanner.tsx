@@ -44,13 +44,12 @@ export default function CookieBanner() {
         🍪 We use cookies
       </p>
       <p className="mt-1 text-sm leading-relaxed text-[var(--color-text-secondary)]">
-        We use cookies for analytics and affiliate tracking to improve your
-        experience. You can accept all cookies or decline non-essential ones.{" "}
+        We use cookies for analytics and affiliate tracking.{" "}
         <Link
           href="/cookie-policy"
           className="underline underline-offset-2 hover:text-[var(--color-primary)]"
         >
-          Learn more
+          Cookie Policy
         </Link>
         .
       </p>
