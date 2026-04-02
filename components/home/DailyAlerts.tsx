@@ -31,7 +31,7 @@ export default function DailyAlerts() {
               Top Alerts
             </h2>
             <span className="font-ui text-xs text-[var(--color-text-secondary)] tracking-wide">
-              {formatAlertDate(ALERTS_DATE)}
+              Updated {formatAlertDate(ALERTS_DATE)}
             </span>
           </div>
           <Link
