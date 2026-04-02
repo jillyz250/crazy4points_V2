@@ -1,4 +1,5 @@
 import HomeHero from "@/components/home/HomeHero";
+import DailyAlerts from "@/components/home/DailyAlerts";
 import FeaturedDestinations from "@/components/home/FeaturedDestinations";
 import FeaturedDeals from "@/components/home/FeaturedDeals";
 import FeaturedGuides from "@/components/home/FeaturedGuides";
@@ -14,6 +15,7 @@ export const metadata: Metadata = {
 export default function HomePage() {
   return (
     <>
+      <DailyAlerts />
       <HomeHero />
       <FeaturedDestinations />
       <FeaturedDeals />
