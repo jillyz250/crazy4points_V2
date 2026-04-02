@@ -1,7 +1,10 @@
+"use client";
+
+import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
 
 const navLinks = [
-  { label: "Destinations", href: "/destinations" },
   { label: "Deals", href: "/deals" },
   { label: "Guides", href: "/guides" },
   { label: "Tools", href: "/tools" },
@@ -9,17 +12,29 @@ const navLinks = [
 ];
 
 export default function Header() {
+  const [logoError, setLogoError] = useState(false);
+
   return (
     <header className="sticky top-0 z-50 border-b border-[var(--color-border-soft)] bg-[var(--color-background)]">
       <div className="rg-container px-6 md:px-8">
         <div className="flex h-20 items-center justify-between">
-          <Link href="/" className="flex items-center group">
-            <span className="font-display text-2xl font-semibold tracking-tight text-[var(--color-text-primary)]">
-              crazy4
-              <span className="text-[var(--color-primary)] transition-colors group-hover:text-[var(--color-primary-hover)]">
-                points
+          <Link href="/" className="flex items-center">
+            {logoError ? (
+              <span className="font-display text-2xl font-semibold tracking-tight text-[var(--color-text-primary)]">
+                crazy4
+                <span className="text-[var(--color-primary)]">points</span>
               </span>
-            </span>
+            ) : (
+              <Image
+                src="/crazy4points-logo.png"
+                alt="Crazy4Points logo"
+                width={130}
+                height={40}
+                priority
+                className="h-auto w-[100px] md:w-[130px]"
+                onError={() => setLogoError(true)}
+              />
+            )}
           </Link>
 
           <nav className="hidden items-center gap-8 md:flex" aria-label="Main navigation">
