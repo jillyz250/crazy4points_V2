@@ -53,9 +53,9 @@ export default function Header() {
           <div className="flex items-center gap-4">
             <Link
               href="/decision-engine"
-              className="hidden rounded-md bg-[var(--color-accent)] px-4 py-2.5 font-ui text-xs font-medium uppercase tracking-[0.12em] text-[var(--color-text-primary)] transition-colors hover:bg-[#c49f2f] md:inline-flex"
+              className="hidden animate-pulse-slow items-center gap-2 rounded-full bg-[var(--color-accent)] px-5 py-2.5 font-ui text-xs font-bold uppercase tracking-[0.12em] text-[var(--color-primary)] shadow-[0_0_12px_rgba(245,195,0,0.4)] transition-all hover:scale-105 hover:bg-[var(--color-accent-hover)] hover:shadow-[0_0_20px_rgba(245,195,0,0.6)] md:inline-flex"
             >
-              Decision Engine
+              🎰 Spin the Engine
             </Link>
 
             <button

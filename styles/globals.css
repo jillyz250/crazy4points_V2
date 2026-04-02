@@ -4,7 +4,8 @@
   /* Royal Glow colors */
   --color-primary: #6B2D8F;
   --color-primary-hover: #5A237A;
-  --color-accent: #D4AF37;
+  --color-accent: #F5C300;
+  --color-accent-hover: #E0B000;
   --color-background: #FFFFFF;
   --color-background-soft: #F8F5FB;
   --color-text-primary: #1A1A1A;
@@ -128,4 +129,13 @@ button {
 .rg-btn-secondary:hover {
   color: var(--color-accent);
   border-color: var(--color-accent);
+}
+
+@keyframes pulse-slow {
+  0%, 100% { box-shadow: 0 0 12px rgba(245, 195, 0, 0.4); }
+  50% { box-shadow: 0 0 22px rgba(245, 195, 0, 0.7); }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 2.5s ease-in-out infinite;
 }
