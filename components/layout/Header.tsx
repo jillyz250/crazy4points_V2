@@ -11,8 +11,12 @@ const navLinks = [
   { label: "About", href: "/about" },
 ];
 
+const PRIMARY_LOGO_SRC = "/crazy4points.png";
+const FALLBACK_LOGO_SRC = "/crazy4points-logo.png";
+
 export default function Header() {
   const [logoError, setLogoError] = useState(false);
+  const [logoSrc, setLogoSrc] = useState(PRIMARY_LOGO_SRC);
 
   return (
     <header className="sticky top-0 z-50 border-b border-[var(--color-border-soft)] bg-[var(--color-background)]">
@@ -26,13 +30,20 @@ export default function Header() {
               </span>
             ) : (
               <Image
-                src="/crazy4points.png"
+                src={logoSrc}
                 alt="Crazy4Points logo"
                 width={130}
                 height={40}
                 priority
                 className="h-auto w-[100px] md:w-[130px]"
-                onError={() => setLogoError(true)}
+                onError={() => {
+                  if (logoSrc === PRIMARY_LOGO_SRC) {
+                    setLogoSrc(FALLBACK_LOGO_SRC);
+                    return;
+                  }
+
+                  setLogoError(true);
+                }}
               />
             )}
           </Link>
