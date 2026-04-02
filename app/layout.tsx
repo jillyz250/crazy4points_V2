@@ -10,6 +10,10 @@ export const metadata: Metadata = {
   description:
     "The intelligent travel rewards platform. Track transfer bonuses, find sweet spots, and get a ranked action plan for your points and miles — right now.",
   metadataBase: new URL("https://crazy4points.com"),
+  icons: {
+    icon: "/c4p-favicon.png",
+    apple: "/c4p-favicon.png",
+  },
 };
 
 export default function RootLayout({
