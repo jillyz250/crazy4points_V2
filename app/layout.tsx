@@ -11,8 +11,14 @@ export const metadata: Metadata = {
     "The intelligent travel rewards platform. Track transfer bonuses, find sweet spots, and get a ranked action plan for your points and miles — right now.",
   metadataBase: new URL("https://crazy4points.com"),
   icons: {
-    icon: "/c4p-favicon.png",
-    apple: "/c4p-favicon.png",
+    icon: [
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+    ],
+    apple: { url: "/favicon-64x64.png", sizes: "64x64", type: "image/png" },
+  },
+  other: {
+    "theme-color": "#6B2D8F",
   },
 };
 
