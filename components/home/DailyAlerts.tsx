@@ -28,7 +28,7 @@ export default function DailyAlerts() {
         <div className="mb-4 flex items-baseline justify-between gap-4">
           <div className="flex items-baseline gap-3">
             <h2 className="font-display text-lg font-semibold text-[var(--color-primary)]">
-              Today&apos;s Alerts
+              Top Alerts
             </h2>
             <span className="font-ui text-xs text-[var(--color-text-secondary)] tracking-wide">
               {formatAlertDate(ALERTS_DATE)}
