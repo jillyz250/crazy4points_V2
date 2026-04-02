@@ -5,10 +5,10 @@ import Link from "next/link";
 import { useState } from "react";
 
 const navLinks = [
-  { label: "Deals", href: "/deals" },
-  { label: "Guides", href: "/guides" },
   { label: "Tools", href: "/tools" },
+  { label: "Newsletter", href: "/newsletter" },
   { label: "About", href: "/about" },
+  { label: "Contact", href: "/contact" },
 ];
 
 export default function Header() {
@@ -31,7 +31,7 @@ export default function Header() {
                 width={130}
                 height={40}
                 priority
-                className="h-auto w-[100px] md:w-[130px]"
+                className="h-auto w-[140px] md:w-[180px]"
                 onError={() => setLogoError(true)}
               />
             )}
