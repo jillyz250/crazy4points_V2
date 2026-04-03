@@ -1,3 +1,4 @@
+// Sanity schema for the Alerts content type
 import { defineType, defineField } from 'sanity'
 
 export default defineType({
@@ -256,3 +257,9 @@ export default defineType({
     },
   },
 })
+
+// FUTURE PHASE — Card Benefits Tracker
+// Card-specific benefits (Chase Sapphire Reserve, Amex Platinum, etc.)
+// belong in a separate `card` schema, not in alerts.
+// Do not add card-level fields to this schema.
+// See: crazy4points-alerts-system-spec.md — Future Phase section
