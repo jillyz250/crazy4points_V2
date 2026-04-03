@@ -22,6 +22,10 @@ export async function sanityFetch<T>(
 
   const url = `https://${projectId}.api.sanity.io/v2024-01-01/data/query/${dataset}?query=${encodedQuery}${paramString ? `&${paramString}` : ''}`
 
+  // DEBUG — remove before launch
+  console.log('[sanityFetch] projectId:', projectId, '| dataset:', dataset, '| token set:', !!token)
+  console.log('[sanityFetch] query:', query.trim().slice(0, 120))
+
   const headers: Record<string, string> = {}
   if (token) headers['Authorization'] = `Bearer ${token}`
 
