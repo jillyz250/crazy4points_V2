@@ -3,7 +3,7 @@
 export const PROGRAMS = [
   { slug: 'chase',       name: 'Chase' },
   { slug: 'amex',        name: 'American Express' },
-  { slug: 'citi',        name: 'Citi' },
+  { slug: 'citi',        name: 'Citi ThankYou Points' },
   { slug: 'capital_one', name: 'Capital One' },
   { slug: 'hyatt',       name: 'World of Hyatt' },
   { slug: 'marriott',    name: 'Marriott Bonvoy' },

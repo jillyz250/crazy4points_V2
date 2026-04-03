@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import type { SanityAlert } from '@/lib/types'
+import { getProgramName } from '@/lib/programs'
 
 // Full literal class names — Tailwind v4 JIT does not support string interpolation
 const TYPE_BADGE: Record<string, { label: string; cls: string }> = {
@@ -21,21 +22,6 @@ const TYPE_BADGE: Record<string, { label: string; cls: string }> = {
   industry_news:       { label: 'Industry News',     cls: 'bg-slate-100 text-slate-600' },
 }
 
-const PROGRAM_LABELS: Record<string, string> = {
-  chase:        'Chase',
-  amex:         'Amex',
-  citi:         'Citi',
-  capital_one:  'Capital One',
-  hyatt:        'Hyatt',
-  marriott:     'Marriott',
-  hilton:       'Hilton',
-  ihg:          'IHG',
-  united:       'United',
-  delta:        'Delta',
-  aa:           'AA',
-  southwest:    'Southwest',
-  flying_blue:  'Flying Blue',
-}
 
 const ACTION_LABELS: Record<string, string> = {
   book:     'Book Now',
@@ -66,7 +52,7 @@ export default function AlertCard({ alert }: { alert: SanityAlert }) {
 
   const programLabels = alert.programs
     .slice(0, 3)
-    .map((p) => PROGRAM_LABELS[p] ?? p)
+    .map((p) => getProgramName(p))
   const extraPrograms = alert.programs.length - 3
 
   return (
