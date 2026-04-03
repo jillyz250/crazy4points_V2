@@ -90,6 +90,7 @@ export default defineType({
           { title: 'Chase Ultimate Rewards', value: 'chase' },
           { title: 'Amex Membership Rewards', value: 'amex' },
           { title: 'Citi ThankYou', value: 'citi' },
+          { title: 'Citibank', value: 'citibank' },
           { title: 'Capital One Venture', value: 'capital_one' },
           { title: 'World of Hyatt', value: 'hyatt' },
           { title: 'Marriott Bonvoy', value: 'marriott' },
