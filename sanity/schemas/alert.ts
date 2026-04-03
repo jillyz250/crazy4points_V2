@@ -244,16 +244,9 @@ export default defineType({
     select: {
       title: 'title',
       subtitle: 'type',
-      isApproved: 'isApproved',
     },
-    prepare({ title, subtitle, isApproved }: { title: string; subtitle: string; isApproved: boolean }) {
-      return {
-        title,
-        subtitle,
-        media: isApproved
-          ? ({ renderDefault }: { renderDefault: (props: unknown) => unknown }) => renderDefault({ icon: '✅' })
-          : undefined,
-      }
+    prepare({ title, subtitle }: { title: string; subtitle: string }) {
+      return { title, subtitle }
     },
   },
 })
