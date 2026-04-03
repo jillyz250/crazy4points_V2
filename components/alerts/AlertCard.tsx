@@ -50,40 +50,54 @@ export default function AlertCard({ alert }: { alert: SanityAlert }) {
   const isExpired = endLabel === 'Expired'
   const isExpiringSoon = endLabel?.startsWith('Expires in') || endLabel === 'Expires today' || endLabel === 'Expires tomorrow'
 
-  const programLabels = alert.programs
-    .slice(0, 3)
-    .map((p) => getProgramName(p))
+  const visiblePrograms = alert.programs.slice(0, 3)
   const extraPrograms = alert.programs.length - 3
 
   return (
-    <Link
-      href={`/alerts/${alert.slug.current}`}
-      className="group flex flex-col gap-3 rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] p-5 shadow-[var(--shadow-soft)] transition-shadow hover:shadow-md"
-    >
+    <div className="group relative flex flex-col gap-3 rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] p-5 shadow-[var(--shadow-soft)] transition-shadow hover:shadow-md">
+      {/* Full-bleed card link — sits behind interactive elements */}
+      <Link
+        href={`/alerts/${alert.slug.current}`}
+        className="absolute inset-0 z-0 rounded-[var(--radius-card)]"
+        aria-label={alert.title}
+      />
+
       {/* Type badge */}
-      <span className={`self-start rounded-full px-2.5 py-0.5 font-ui text-[10px] font-semibold uppercase tracking-[0.1em] ${badge.cls}`}>
+      <span className={`relative z-10 self-start rounded-full px-2.5 py-0.5 font-ui text-[10px] font-semibold uppercase tracking-[0.1em] ${badge.cls}`}>
         {badge.label}
       </span>
 
       {/* Title */}
-      <h3 className="font-display text-base font-semibold leading-snug text-[var(--color-primary)] group-hover:underline">
+      <h3 className="relative z-10 font-display text-base font-semibold leading-snug text-[var(--color-primary)] group-hover:underline">
         {alert.title}
       </h3>
 
       {/* Summary */}
-      <p className="line-clamp-2 font-body text-sm text-[var(--color-text-secondary)]">
+      <p className="relative z-10 line-clamp-2 font-body text-sm text-[var(--color-text-secondary)]">
         {alert.summary}
       </p>
 
-      {/* Programs */}
-      {programLabels.length > 0 && (
-        <p className="font-ui text-xs text-[var(--color-text-secondary)]">
-          {programLabels.join(', ')}
-          {extraPrograms > 0 && ` +${extraPrograms} more`}
-        </p>
+      {/* Programs — individual clickable pills */}
+      {visiblePrograms.length > 0 && (
+        <div className="relative z-10 flex flex-wrap gap-1.5">
+          {visiblePrograms.map((slug) => (
+            <Link
+              key={slug}
+              href={`/programs/${slug}`}
+              className="rounded-full border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-2 py-0.5 font-ui text-[10px] font-medium text-[var(--color-primary)] hover:border-[var(--color-primary)]"
+            >
+              {getProgramName(slug)}
+            </Link>
+          ))}
+          {extraPrograms > 0 && (
+            <span className="rounded-full border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-2 py-0.5 font-ui text-[10px] font-medium text-[var(--color-text-secondary)]">
+              +{extraPrograms} more
+            </span>
+          )}
+        </div>
       )}
 
-      <div className="mt-auto flex items-center justify-between gap-2 pt-1">
+      <div className="relative z-10 mt-auto flex items-center justify-between gap-2 pt-1">
         {/* End date */}
         {endLabel && (
           <span className={`font-ui text-xs font-medium ${isExpired ? 'text-slate-400' : isExpiringSoon ? 'text-red-600' : 'text-[var(--color-text-secondary)]'}`}>
@@ -96,6 +110,6 @@ export default function AlertCard({ alert }: { alert: SanityAlert }) {
           {ACTION_LABELS[alert.actionType] ?? alert.actionType} →
         </span>
       </div>
-    </Link>
+    </div>
   )
 }
