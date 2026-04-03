@@ -1,3 +1,4 @@
+// Sanity schema for the Alerts content type
 import { defineType, defineField } from 'sanity'
 
 export default defineType({
