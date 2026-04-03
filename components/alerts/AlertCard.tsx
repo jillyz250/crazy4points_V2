@@ -23,13 +23,6 @@ const TYPE_BADGE: Record<string, { label: string; cls: string }> = {
 }
 
 
-const ACTION_LABELS: Record<string, string> = {
-  book:     'Book Now',
-  transfer: 'Transfer',
-  apply:    'Apply',
-  monitor:  'Monitor',
-  learn:    'Learn More',
-}
 
 function formatEndDate(endDate: string | null): string | null {
   if (!endDate) return null
@@ -105,10 +98,6 @@ export default function AlertCard({ alert }: { alert: SanityAlert }) {
           </span>
         )}
 
-        {/* Action type */}
-        <span className="ml-auto font-ui text-xs font-semibold uppercase tracking-[0.1em] text-[var(--color-primary)]">
-          {ACTION_LABELS[alert.actionType] ?? alert.actionType} →
-        </span>
       </div>
     </div>
   )
