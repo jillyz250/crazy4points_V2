@@ -5,4 +5,5 @@ export default defineCliConfig({
     projectId: 'dpsyv6ox',
     dataset: 'production',
   },
+  studioHost: 'crazy4points',
 })
