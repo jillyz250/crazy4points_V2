@@ -74,6 +74,11 @@ export default function Footer() {
 
       {/* Legal bar */}
       <div className="border-t border-[var(--color-border-soft)]">
+        <div className="rg-container px-6 pt-5 pb-1 md:px-8">
+          <p className="text-center font-body text-[11px] leading-relaxed text-[var(--color-text-secondary)] opacity-70">
+            Content on Crazy4Points is for informational purposes only. We are not affiliated with any bank, airline, or hotel loyalty program. Always verify details directly with your card issuer.
+          </p>
+        </div>
         <div className="rg-container flex flex-col items-center justify-between gap-4 px-6 py-6 md:flex-row md:px-8">
           <p className="font-body text-xs text-[var(--color-text-secondary)]">
             © {new Date().getFullYear()} crazy4points · ThankYouDeals Inc. · New York, USA
