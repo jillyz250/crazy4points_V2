@@ -32,20 +32,6 @@ const ACTION_DISPLAY: Record<string, { label: string; cls: string }> = {
   learn:    { label: 'Just Know This', cls: 'bg-slate-100 text-slate-600' },
 }
 
-const CONFIDENCE_BADGE: Record<string, string> = {
-  high:   'bg-green-50 text-green-700 border border-green-200',
-  medium: 'bg-yellow-50 text-yellow-700 border border-yellow-200',
-  low:    'bg-red-50 text-red-700 border border-red-200',
-}
-
-const SCORE_LABELS: Record<number, string> = {
-  1: 'Low',
-  2: 'Moderate',
-  3: 'Medium',
-  4: 'High',
-  5: 'Very High',
-}
-
 // ── Helper: date range with days remaining ───────────────────────────────────
 
 function formatDateRange(
@@ -71,33 +57,6 @@ function formatDateRange(
   else daysRemaining = `${days} days left`
 
   return { startStr, endStr, daysRemaining }
-}
-
-// ── Sub-component: score dots ─────────────────────────────────────────────────
-
-function ScoreDots({ score, label }: { score: number; label: string }) {
-  return (
-    <div>
-      <p className="font-ui text-xs font-semibold uppercase tracking-[0.1em] text-[var(--color-text-secondary)]">
-        {label}
-      </p>
-      <div className="mt-1.5 flex items-center gap-1">
-        {[1, 2, 3, 4, 5].map((i) => (
-          <span
-            key={i}
-            className={`h-2.5 w-2.5 rounded-full ${
-              i <= score
-                ? 'bg-[var(--color-primary)]'
-                : 'bg-[var(--color-border-soft)]'
-            }`}
-          />
-        ))}
-        <span className="ml-2 font-ui text-sm font-semibold text-[var(--color-text-primary)]">
-          {score}/5 — {SCORE_LABELS[score] ?? score}
-        </span>
-      </div>
-    </div>
-  )
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -198,72 +157,6 @@ export default function AlertDetail({
             )}
           </div>
         </header>
-
-        {/* ── Details section ── */}
-        <section
-          aria-label="Alert details"
-          className="mb-10 rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] p-6"
-        >
-          <h2 className="mb-5 font-display text-xl font-semibold text-[var(--color-primary)]">
-            Details
-          </h2>
-
-          <div className="flex flex-col gap-5">
-            {/* Scores row */}
-            <div className="grid gap-5 sm:grid-cols-2">
-              <ScoreDots score={alert.impactScore} label="Impact Score" />
-              <ScoreDots score={alert.valueScore} label="Value Score" />
-            </div>
-
-            {/* Confidence */}
-            <div>
-              <p className="font-ui text-xs font-semibold uppercase tracking-[0.1em] text-[var(--color-text-secondary)]">
-                Confidence Level
-              </p>
-              <span
-                className={`mt-1.5 inline-block rounded-full px-3 py-0.5 font-ui text-xs font-semibold capitalize ${
-                  CONFIDENCE_BADGE[alert.confidenceLevel] ?? 'bg-slate-100 text-slate-600'
-                }`}
-              >
-                {alert.confidenceLevel}
-              </span>
-            </div>
-
-            {/* Impact justification */}
-            <div>
-              <p className="font-ui text-xs font-semibold uppercase tracking-[0.1em] text-[var(--color-text-secondary)]">
-                Why This Matters
-              </p>
-              <p className="mt-1.5 font-body text-sm leading-relaxed text-[var(--color-text-primary)]">
-                {alert.impactJustification}
-              </p>
-            </div>
-
-            {/* Source */}
-            {alert.source && (
-              <div>
-                <p className="font-ui text-xs font-semibold uppercase tracking-[0.1em] text-[var(--color-text-secondary)]">
-                  Source
-                </p>
-                {alert.source.startsWith('http') ? (
-                  <a
-                    href={alert.source}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-1.5 block font-body text-sm text-[var(--color-primary)] underline hover:text-[var(--color-primary-hover)]"
-                  >
-                    {alert.source}
-                  </a>
-                ) : (
-                  <p className="mt-1.5 font-body text-sm text-[var(--color-text-primary)]">
-                    {alert.source}
-                  </p>
-                )}
-              </div>
-            )}
-
-          </div>
-        </section>
 
         {/* ── Description section ── */}
         <section aria-label="Full description" className="mb-10">
