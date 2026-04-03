@@ -12,9 +12,14 @@ interface AlertSlug {
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const alerts = await sanityFetch<AlertSlug[]>(
-    `*[_type == "alert" && isApproved == true]{ "slug": slug.current, publishedAt }`
-  )
+  let alerts: AlertSlug[] = []
+  try {
+    alerts = await sanityFetch<AlertSlug[]>(
+      `*[_type == "alert" && isApproved == true]{ "slug": slug.current, publishedAt }`
+    )
+  } catch {
+    // Sanity unavailable — sitemap still returns static and program URLs
+  }
 
   const staticPages: MetadataRoute.Sitemap = [
     {
