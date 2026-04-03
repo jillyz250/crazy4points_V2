@@ -49,13 +49,16 @@ export const getHomepageSlots = `*[_type == "homepageSlot"] | order(slotNumber a
   }
 }`
 
-// 7. Single alert by slug
+// 7. Single alert by slug — includes description (Portable Text) and full relatedAlerts fields
 export const getAlertBySlug = `*[_type == "alert" && slug.current == $slug][0] {
-  _id, title, slug, summary, type, programs, actionType,
+  _id, title, slug, summary, description, type, programs, actionType,
   startDate, endDate, publishedAt, confidenceLevel,
   impactScore, impactJustification, valueScore, rarityScore,
   isApproved, approvedAt, source,
   relatedAlerts[]-> {
-    _id, title, slug, summary, type
+    _id, title, slug, summary, type, programs, actionType,
+    startDate, endDate, publishedAt, confidenceLevel,
+    impactScore, impactJustification, valueScore, rarityScore,
+    isApproved, approvedAt, source
   }
 }`

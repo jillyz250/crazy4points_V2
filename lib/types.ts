@@ -3,6 +3,7 @@ export interface SanityAlert {
   title: string
   slug: { current: string }
   summary: string
+  description?: Array<Record<string, unknown>> // Portable Text blocks
   type: string
   programs: string[]
   actionType: string
@@ -23,5 +24,18 @@ export interface SanityAlert {
     slug: { current: string }
     summary: string
     type: string
+    programs: string[]
+    actionType: string
+    startDate: string
+    endDate: string | null
+    publishedAt: string
+    confidenceLevel: string
+    impactScore: number
+    impactJustification: string
+    valueScore: number
+    rarityScore?: number
+    isApproved: boolean
+    approvedAt?: string
+    source?: string
   }>
 }
