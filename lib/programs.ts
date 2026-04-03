@@ -13,7 +13,9 @@ export const PROGRAMS = [
   { slug: 'delta',       name: 'Delta SkyMiles' },
   { slug: 'aa',          name: 'American Airlines AAdvantage' },
   { slug: 'southwest',   name: 'Southwest Rapid Rewards' },
-  { slug: 'flying_blue', name: 'Air France-KLM Flying Blue' },
+  { slug: 'flying_blue',    name: 'Air France-KLM Flying Blue' },
+  { slug: 'virgin_atlantic', name: 'Virgin Atlantic Flying Club' },
+  { slug: 'avianca',         name: 'Avianca LifeMiles' },
 ]
 
 export const PROGRAM_SLUGS = PROGRAMS.map((p) => p.slug)
