@@ -16,6 +16,7 @@ export const PROGRAMS = [
   { slug: 'flying_blue',    name: 'Air France-KLM Flying Blue' },
   { slug: 'virgin_atlantic', name: 'Virgin Atlantic Flying Club' },
   { slug: 'avianca',         name: 'Avianca LifeMiles' },
+  { slug: 'choice',          name: 'Choice Privileges' },
 ]
 
 export const PROGRAM_SLUGS = PROGRAMS.map((p) => p.slug)

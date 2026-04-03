@@ -102,6 +102,7 @@ export default defineType({
           { title: 'Air France/KLM Flying Blue', value: 'flying_blue' },
           { title: 'Virgin Atlantic Flying Club', value: 'virgin_atlantic' },
           { title: 'Avianca LifeMiles', value: 'avianca' },
+          { title: 'Choice Privileges', value: 'choice' },
         ],
       },
     }),
