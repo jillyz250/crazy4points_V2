@@ -23,14 +23,6 @@ const TYPE_BADGE: Record<string, { label: string; cls: string }> = {
   industry_news:      { label: 'Industry News',       cls: 'bg-slate-100 text-slate-600' },
 }
 
-// Per-spec action type display labels (detail page only — different from AlertCard)
-const ACTION_DISPLAY: Record<string, { label: string; cls: string }> = {
-  book:     { label: 'View Offer', cls: 'bg-[var(--color-accent)] text-white' },
-  transfer: { label: 'View Offer', cls: 'bg-[var(--color-accent)] text-white' },
-  apply:    { label: 'View Offer', cls: 'bg-[var(--color-accent)] text-white' },
-  monitor:  { label: 'Watch This',     cls: 'bg-amber-100 text-amber-800' },
-  learn:    { label: 'Just Know This', cls: 'bg-slate-100 text-slate-600' },
-}
 
 // ── Helper: date range with days remaining ───────────────────────────────────
 
@@ -69,7 +61,6 @@ export default function AlertDetail({
   finalScore: number
 }) {
   const typeBadge = TYPE_BADGE[alert.type] ?? { label: alert.type, cls: 'bg-slate-100 text-slate-600' }
-  const actionDisplay = ACTION_DISPLAY[alert.actionType] ?? { label: alert.actionType, cls: 'bg-slate-100 text-slate-600' }
   const { startStr, endStr, daysRemaining } = formatDateRange(alert.startDate, alert.endDate)
   const isExpired = daysRemaining === 'Expired'
   const hasDescription = Array.isArray(alert.description) && alert.description.length > 0
@@ -97,11 +88,6 @@ export default function AlertDetail({
               className={`rounded-full px-3 py-1 font-ui text-[10px] font-semibold uppercase tracking-[0.1em] ${typeBadge.cls}`}
             >
               {typeBadge.label}
-            </span>
-            <span
-              className={`rounded-full px-3 py-1 font-ui text-[10px] font-semibold uppercase tracking-[0.1em] ${actionDisplay.cls}`}
-            >
-              {actionDisplay.label}
             </span>
           </div>
 
