@@ -77,6 +77,7 @@ export default function AlertCard({ alert }: { alert: SanityAlert }) {
             <Link
               key={slug}
               href={`/programs/${slug}`}
+              onClick={(e) => e.stopPropagation()}
               className="rounded-full border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-2 py-0.5 font-ui text-[10px] font-medium text-[var(--color-primary)] hover:border-[var(--color-primary)]"
             >
               {getProgramName(slug)}
