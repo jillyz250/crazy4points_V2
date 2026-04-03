@@ -25,9 +25,9 @@ const TYPE_BADGE: Record<string, { label: string; cls: string }> = {
 
 // Per-spec action type display labels (detail page only — different from AlertCard)
 const ACTION_DISPLAY: Record<string, { label: string; cls: string }> = {
-  book:     { label: 'Do This Now',    cls: 'bg-[var(--color-accent)] text-white' },
-  transfer: { label: 'Do This Now',    cls: 'bg-[var(--color-accent)] text-white' },
-  apply:    { label: 'Do This Now',    cls: 'bg-[var(--color-accent)] text-white' },
+  book:     { label: 'View Offer', cls: 'bg-[var(--color-accent)] text-white' },
+  transfer: { label: 'View Offer', cls: 'bg-[var(--color-accent)] text-white' },
+  apply:    { label: 'View Offer', cls: 'bg-[var(--color-accent)] text-white' },
   monitor:  { label: 'Watch This',     cls: 'bg-amber-100 text-amber-800' },
   learn:    { label: 'Just Know This', cls: 'bg-slate-100 text-slate-600' },
 }
