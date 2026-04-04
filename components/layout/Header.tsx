@@ -14,6 +14,7 @@ const navLinks = [
 
 export default function Header() {
   const [logoError, setLogoError] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <header className="sticky top-0 z-50 border-b border-[var(--color-border-soft)] bg-[var(--color-background)]">
@@ -61,9 +62,10 @@ export default function Header() {
 
             <button
               type="button"
-              className="flex h-10 w-10 flex-col items-center justify-center gap-1.5 md:hidden"
-              aria-label="Open menu"
-              aria-expanded="false"
+              className="flex h-11 w-11 flex-col items-center justify-center gap-1.5 md:hidden"
+              aria-label={menuOpen ? "Close menu" : "Open menu"}
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((o) => !o)}
             >
               <span className="block h-0.5 w-6 rounded-full bg-[var(--color-text-primary)]" />
               <span className="block h-0.5 w-6 rounded-full bg-[var(--color-text-primary)]" />
@@ -72,6 +74,24 @@ export default function Header() {
           </div>
         </div>
       </div>
+
+      {menuOpen && (
+        <nav
+          className="border-t border-[var(--color-border-soft)] bg-[var(--color-background)] md:hidden"
+          aria-label="Mobile navigation"
+        >
+          {navLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              onClick={() => setMenuOpen(false)}
+              className="flex min-h-[44px] items-center border-b border-[var(--color-border-soft)] px-6 font-ui text-sm font-medium uppercase tracking-[0.14em] text-[var(--color-text-secondary)]"
+            >
+              {link.label}
+            </Link>
+          ))}
+        </nav>
+      )}
     </header>
   );
 }
