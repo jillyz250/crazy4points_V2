@@ -22,64 +22,63 @@ type Filters = {
   whoIsGoing: string | null
 }
 
-// ─── Filter options ───────────────────────────────────────────────────────────
+// ─── Filter constants (no emojis) ─────────────────────────────────────────────
 
 const MONTHS = [
-  { label: 'Jan', value: 'jan' }, { label: 'Feb', value: 'feb' },
-  { label: 'Mar', value: 'mar' }, { label: 'Apr', value: 'apr' },
-  { label: 'May', value: 'may' }, { label: 'Jun', value: 'jun' },
-  { label: 'Jul', value: 'jul' }, { label: 'Aug', value: 'aug' },
-  { label: 'Sep', value: 'sep' }, { label: 'Oct', value: 'oct' },
-  { label: 'Nov', value: 'nov' }, { label: 'Dec', value: 'dec' },
-  { label: '🎲 Surprise Me', value: 'surprise' },
+  { label: 'January',   value: 'jan' }, { label: 'February',  value: 'feb' },
+  { label: 'March',     value: 'mar' }, { label: 'April',     value: 'apr' },
+  { label: 'May',       value: 'may' }, { label: 'June',      value: 'jun' },
+  { label: 'July',      value: 'jul' }, { label: 'August',    value: 'aug' },
+  { label: 'September', value: 'sep' }, { label: 'October',   value: 'oct' },
+  { label: 'November',  value: 'nov' }, { label: 'December',  value: 'dec' },
+  { label: 'Surprise Me', value: 'surprise' },
 ]
 
 const CONTINENTS = [
-  { label: 'North America', value: 'north_america' },
+  { label: 'North America',   value: 'north_america'   },
   { label: 'Central America', value: 'central_america' },
-  { label: 'South America', value: 'south_america' },
-  { label: 'Caribbean', value: 'caribbean' },
-  { label: 'Europe', value: 'europe' },
-  { label: 'Asia', value: 'asia' },
-  { label: 'Middle East', value: 'middle_east' },
-  { label: 'Africa', value: 'africa' },
-  { label: 'South Pacific', value: 'south_pacific' },
-  { label: '🎲 Surprise Me', value: 'surprise' },
+  { label: 'South America',   value: 'south_america'   },
+  { label: 'Caribbean',       value: 'caribbean'       },
+  { label: 'Europe',          value: 'europe'          },
+  { label: 'Asia',            value: 'asia'            },
+  { label: 'Middle East',     value: 'middle_east'     },
+  { label: 'Africa',          value: 'africa'          },
+  { label: 'South Pacific',   value: 'south_pacific'   },
+  { label: 'Surprise Me',     value: 'surprise'        },
 ]
 
 const VIBES = [
-  { label: 'Beach', value: 'beach' },
-  { label: 'City', value: 'city' },
-  { label: 'History', value: 'history' },
-  { label: 'Nature', value: 'nature' },
-  { label: 'Adventure', value: 'adventure' },
-  { label: 'Luxury', value: 'luxury' },
-  { label: 'Family', value: 'family' },
-  { label: '🎲 Surprise Me', value: 'surprise' },
+  { label: 'Beach',       value: 'beach'     },
+  { label: 'City',        value: 'city'      },
+  { label: 'History',     value: 'history'   },
+  { label: 'Nature',      value: 'nature'    },
+  { label: 'Adventure',   value: 'adventure' },
+  { label: 'Luxury',      value: 'luxury'    },
+  { label: 'Family',      value: 'family'    },
+  { label: 'Surprise Me', value: 'surprise'  },
 ]
 
 const TRIP_LENGTHS = [
-  { label: 'Short (2–4 days)', value: 'short' },
-  { label: 'Medium (5–7 days)', value: 'medium' },
-  { label: 'Long (8+ days)', value: 'long' },
-  { label: '🎲 Surprise Me', value: 'surprise' },
+  { label: 'Short (2–4 days)',  value: 'short'    },
+  { label: 'Medium (5–7 days)', value: 'medium'   },
+  { label: 'Long (8+ days)',    value: 'long'     },
+  { label: 'Surprise Me',       value: 'surprise' },
 ]
 
 const WHO_GOING = [
-  { label: 'Solo', value: 'solo' },
-  { label: 'Couple', value: 'couple' },
-  { label: 'Family', value: 'family' },
-  { label: 'Group', value: 'group' },
-  { label: '🎲 Surprise Me', value: 'surprise' },
+  { label: 'Solo',        value: 'solo'     },
+  { label: 'Couple',      value: 'couple'   },
+  { label: 'Family',      value: 'family'   },
+  { label: 'Group',       value: 'group'    },
+  { label: 'Surprise Me', value: 'surprise' },
 ]
 
-// Sample destination names used for reel cycling animation
 const REEL_NAMES = [
-  'Paris', 'Tokyo', 'Bali', 'Cancún', 'Rome', 'Santorini', 'Maldives',
+  'Paris', 'Tokyo', 'Bali', 'Cancun', 'Rome', 'Santorini', 'Maldives',
   'New York', 'Kyoto', 'Dubai', 'Barcelona', 'Maui', 'Sydney', 'Cape Town',
   'Lisbon', 'Phuket', 'Vienna', 'Havana', 'Nairobi', 'Istanbul',
   'Amsterdam', 'Tulum', 'Fiji', 'Prague', 'Buenos Aires', 'Marrakech',
-  'Iceland', 'Patagonia', 'Amalfi', 'Colombo',
+  'Iceland', 'Patagonia', 'Amalfi', 'Colombo', 'Bora Bora', 'Queenstown',
 ]
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -87,7 +86,7 @@ const REEL_NAMES = [
 function resolveFilter(value: string | null, options: { value: string }[]): string | null {
   if (!value) return null
   if (value === 'surprise') {
-    const real = options.filter((o) => o.value !== 'surprise')
+    const real = options.filter(o => o.value !== 'surprise')
     return real[Math.floor(Math.random() * real.length)].value
   }
   return value
@@ -105,32 +104,60 @@ const VIBE_LABELS: Record<string, string> = {
   adventure: 'Adventure', luxury: 'Luxury', family: 'Family',
 }
 
-// ─── Web Audio sounds ─────────────────────────────────────────────────────────
+function getFilterSummary(filters: Filters): string {
+  const parts: string[] = []
+  const check = (v: string | null, opts: { label: string; value: string }[]) => {
+    if (!v) return
+    const m = opts.find(o => o.value === v)
+    if (m) parts.push(m.label)
+  }
+  check(filters.month, MONTHS)
+  check(filters.continent, CONTINENTS)
+  check(filters.vibe, VIBES)
+  check(filters.tripLength, TRIP_LENGTHS)
+  check(filters.whoIsGoing, WHO_GOING)
+  return parts.join(' · ')
+}
+
+// ─── Web Audio ────────────────────────────────────────────────────────────────
 
 function playSpinSound(ctx: AudioContext): () => void {
   let active = true
-  let timeout: ReturnType<typeof setTimeout>
-
-  function tick(interval: number) {
+  let t: ReturnType<typeof setTimeout>
+  function tick() {
     if (!active) return
     const osc = ctx.createOscillator()
     const gain = ctx.createGain()
     osc.type = 'square'
-    osc.frequency.value = 80 + Math.random() * 120
-    gain.gain.setValueAtTime(0.08, ctx.currentTime)
+    osc.frequency.value = 80 + Math.random() * 100
+    gain.gain.setValueAtTime(0.07, ctx.currentTime)
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.04)
     osc.connect(gain)
     gain.connect(ctx.destination)
     osc.start(ctx.currentTime)
     osc.stop(ctx.currentTime + 0.04)
-    timeout = setTimeout(() => tick(interval), interval)
+    t = setTimeout(tick, 55)
   }
-  tick(55)
-  return () => { active = false; clearTimeout(timeout) }
+  tick()
+  return () => { active = false; clearTimeout(t) }
+}
+
+function playReelStop(ctx: AudioContext) {
+  const osc = ctx.createOscillator()
+  const gain = ctx.createGain()
+  osc.type = 'triangle'
+  osc.frequency.setValueAtTime(190, ctx.currentTime)
+  osc.frequency.exponentialRampToValueAtTime(44, ctx.currentTime + 0.18)
+  gain.gain.setValueAtTime(0.38, ctx.currentTime)
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.22)
+  osc.connect(gain)
+  gain.connect(ctx.destination)
+  osc.start(ctx.currentTime)
+  osc.stop(ctx.currentTime + 0.22)
 }
 
 function playWinSound(ctx: AudioContext) {
-  const notes = [523.25, 659.25, 783.99, 1046.5] // C5 E5 G5 C6
+  const notes = [523.25, 659.25, 783.99, 1046.5]
   notes.forEach((freq, i) => {
     setTimeout(() => {
       const osc = ctx.createOscillator()
@@ -138,122 +165,123 @@ function playWinSound(ctx: AudioContext) {
       osc.type = 'sine'
       osc.frequency.value = freq
       gain.gain.setValueAtTime(0, ctx.currentTime)
-      gain.gain.linearRampToValueAtTime(0.35, ctx.currentTime + 0.02)
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5)
+      gain.gain.linearRampToValueAtTime(0.32, ctx.currentTime + 0.02)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.55)
       osc.connect(gain)
       gain.connect(ctx.destination)
       osc.start(ctx.currentTime)
-      osc.stop(ctx.currentTime + 0.5)
-    }, i * 140)
+      osc.stop(ctx.currentTime + 0.55)
+    }, i * 150)
   })
 }
 
-// ─── SlotReel component ───────────────────────────────────────────────────────
+// ─── SlotReel ─────────────────────────────────────────────────────────────────
 
-type ReelProps = {
+function SlotReel({
+  spinning, stopping, stopIndex, finalValue, flashing,
+}: {
   spinning: boolean
-  stopDelay: number   // ms after spin starts that this reel stops
+  stopping: boolean
+  stopIndex: number
   finalValue: string
-  onStop?: () => void
-}
-
-function SlotReel({ spinning, stopDelay, finalValue, onStop }: ReelProps) {
+  flashing: boolean
+}) {
   const [display, setDisplay] = useState('?')
   const [phase, setPhase] = useState<'idle' | 'fast' | 'slow' | 'stopped'>('idle')
-  const fastRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const slowRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const stopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const slowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
-    if (!spinning) {
-      // Reset when a new spin starts being prepared
-      if (phase !== 'idle') return
-      setDisplay('?')
-      return
-    }
+    if (intervalRef.current) clearInterval(intervalRef.current)
 
-    setPhase('fast')
-
-    // Fast phase
-    fastRef.current = setInterval(() => {
-      setDisplay(REEL_NAMES[Math.floor(Math.random() * REEL_NAMES.length)])
-    }, 65)
-
-    // Slow-down phase starts 400ms before stop
-    slowTimerRef.current = setTimeout(() => {
-      if (fastRef.current) clearInterval(fastRef.current)
-      setPhase('slow')
-      slowRef.current = setInterval(() => {
+    if (spinning) {
+      setPhase('fast')
+      intervalRef.current = setInterval(() => {
         setDisplay(REEL_NAMES[Math.floor(Math.random() * REEL_NAMES.length)])
-      }, 180)
-    }, stopDelay - 400)
+      }, 65)
+    } else if (stopping) {
+      const base = stopIndex * 330
 
-    // Full stop
-    stopTimerRef.current = setTimeout(() => {
-      if (slowRef.current) clearInterval(slowRef.current)
-      setDisplay(finalValue)
-      setPhase('stopped')
-      onStop?.()
-    }, stopDelay)
+      const slowTimer = setTimeout(() => {
+        if (intervalRef.current) clearInterval(intervalRef.current)
+        setPhase('slow')
+        intervalRef.current = setInterval(() => {
+          setDisplay(REEL_NAMES[Math.floor(Math.random() * REEL_NAMES.length)])
+        }, 200)
+      }, base)
 
-    return () => {
-      if (fastRef.current) clearInterval(fastRef.current)
-      if (slowRef.current) clearInterval(slowRef.current)
-      if (stopTimerRef.current) clearTimeout(stopTimerRef.current)
-      if (slowTimerRef.current) clearTimeout(slowTimerRef.current)
+      const stopTimer = setTimeout(() => {
+        if (intervalRef.current) clearInterval(intervalRef.current)
+        setDisplay(finalValue)
+        setPhase('stopped')
+      }, base + 380)
+
+      return () => {
+        clearTimeout(slowTimer)
+        clearTimeout(stopTimer)
+        if (intervalRef.current) clearInterval(intervalRef.current)
+      }
+    } else {
+      setPhase('idle')
+      setDisplay('?')
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spinning])
+
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spinning, stopping, stopIndex, finalValue])
 
   const isActive = phase === 'fast' || phase === 'slow'
+  const isStopped = phase === 'stopped'
 
   return (
     <div
       style={{
         flex: 1,
-        height: '72px',
-        background: '#0D0820',
-        border: '2px solid #D4AF37',
-        borderRadius: '6px',
+        height: '104px',
+        background: '#0C0818',
+        border: `2px solid ${flashing ? '#FFE87A' : '#C4A030'}`,
+        borderRadius: '8px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         overflow: 'hidden',
         position: 'relative',
-        boxShadow: phase === 'stopped' && finalValue !== '?'
-          ? 'inset 0 0 16px rgba(212,175,55,0.25), 0 0 12px rgba(212,175,55,0.3)'
-          : 'inset 0 0 10px rgba(0,0,0,0.5)',
-        transition: 'box-shadow 0.4s ease',
+        boxShadow: flashing
+          ? '0 0 32px rgba(255,228,100,0.8), inset 0 0 24px rgba(212,175,55,0.35)'
+          : isStopped
+            ? 'inset 0 0 14px rgba(212,175,55,0.1), 0 0 8px rgba(212,175,55,0.12)'
+            : 'inset 0 2px 14px rgba(0,0,0,0.65)',
+        transition: 'box-shadow 0.3s ease, border-color 0.2s ease',
+        animation: flashing ? 'reelThud 0.38s ease' : 'none',
       }}
     >
-      {/* Scan line overlay */}
+      {flashing && (
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 10,
+          background: 'linear-gradient(135deg, rgba(255,238,130,0.5) 0%, rgba(212,175,55,0.25) 100%)',
+          borderRadius: '6px', pointerEvents: 'none',
+        }} />
+      )}
+      {/* Scan lines */}
       <div style={{
         position: 'absolute', inset: 0, pointerEvents: 'none',
-        background: 'repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.08) 3px, rgba(0,0,0,0.08) 4px)',
+        background: 'repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px)',
         zIndex: 2,
       }} />
-      {/* Top/bottom gradient fade */}
-      <div style={{
-        position: 'absolute', top: 0, left: 0, right: 0, height: '20px', pointerEvents: 'none',
-        background: 'linear-gradient(to bottom, #0D0820, transparent)', zIndex: 3,
-      }} />
-      <div style={{
-        position: 'absolute', bottom: 0, left: 0, right: 0, height: '20px', pointerEvents: 'none',
-        background: 'linear-gradient(to top, #0D0820, transparent)', zIndex: 3,
-      }} />
+      {/* Top/bottom fade */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '24px', background: 'linear-gradient(to bottom, #0C0818, transparent)', zIndex: 3, pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '24px', background: 'linear-gradient(to top, #0C0818, transparent)', zIndex: 3, pointerEvents: 'none' }} />
 
       <span style={{
         fontFamily: 'var(--font-ui), Montserrat, sans-serif',
-        fontSize: isActive ? '13px' : '15px',
+        fontSize: isActive ? '12px' : (display.length > 12 ? '14px' : '17px'),
         fontWeight: 700,
-        color: phase === 'stopped' ? '#F5E88A' : isActive ? '#aaa' : '#666',
-        letterSpacing: '0.04em',
+        color: isStopped ? '#F5E88A' : isActive ? '#6A5A8A' : '#3A2858',
+        letterSpacing: isStopped ? '0.06em' : '0.02em',
         textAlign: 'center',
-        padding: '0 8px',
-        lineHeight: 1.2,
-        transition: 'color 0.3s ease, font-size 0.2s ease',
-        filter: isActive ? 'blur(0.6px)' : 'none',
+        padding: '0 10px',
+        lineHeight: 1.25,
+        transition: 'color 0.3s ease, font-size 0.15s ease',
+        filter: phase === 'fast' ? 'blur(0.7px)' : 'none',
         zIndex: 4,
         position: 'relative',
         maxWidth: '100%',
@@ -265,7 +293,7 @@ function SlotReel({ spinning, stopDelay, finalValue, onStop }: ReelProps) {
   )
 }
 
-// ─── Filter pill ──────────────────────────────────────────────────────────────
+// ─── Pill ─────────────────────────────────────────────────────────────────────
 
 function Pill({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) {
   return (
@@ -273,9 +301,9 @@ function Pill({ label, selected, onClick }: { label: string; selected: boolean; 
       type="button"
       onClick={onClick}
       style={{
-        padding: '4px 12px',
+        padding: '5px 14px',
         borderRadius: '999px',
-        border: selected ? '1.5px solid #D4AF37' : '1.5px solid #6B2D8F',
+        border: selected ? '1.5px solid #C4A030' : '1.5px solid #6B2D8F',
         background: selected ? '#D4AF37' : 'white',
         color: selected ? '#1A1A1A' : '#6B2D8F',
         fontFamily: 'var(--font-ui), Montserrat, sans-serif',
@@ -283,8 +311,8 @@ function Pill({ label, selected, onClick }: { label: string; selected: boolean; 
         fontWeight: 600,
         cursor: 'pointer',
         whiteSpace: 'nowrap',
-        transition: 'all 0.15s ease',
         flexShrink: 0,
+        transition: 'all 0.15s ease',
       }}
     >
       {label}
@@ -292,7 +320,7 @@ function Pill({ label, selected, onClick }: { label: string; selected: boolean; 
   )
 }
 
-// ─── Filter row ───────────────────────────────────────────────────────────────
+// ─── FilterRow ────────────────────────────────────────────────────────────────
 
 function FilterRow({
   label, options, value, onChange,
@@ -303,22 +331,17 @@ function FilterRow({
   onChange: (v: string | null) => void
 }) {
   return (
-    <div style={{ marginBottom: '10px' }}>
+    <div style={{ marginBottom: '18px' }}>
       <div style={{
         fontFamily: 'var(--font-ui), Montserrat, sans-serif',
-        fontSize: '10px',
-        fontWeight: 700,
-        letterSpacing: '0.1em',
-        textTransform: 'uppercase',
-        color: '#D4AF37',
-        marginBottom: '5px',
+        fontSize: '10px', fontWeight: 700,
+        letterSpacing: '0.12em', textTransform: 'uppercase',
+        color: '#6B2D8F', marginBottom: '8px',
       }}>
         {label}
       </div>
-      <div style={{
-        display: 'flex', flexWrap: 'wrap', gap: '5px',
-      }}>
-        {options.map((o) => (
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+        {options.map(o => (
           <Pill
             key={o.value}
             label={o.label}
@@ -331,31 +354,154 @@ function FilterRow({
   )
 }
 
-// ─── Result card ──────────────────────────────────────────────────────────────
+// ─── FilterModal ──────────────────────────────────────────────────────────────
 
-function ResultCard({ dest, index, visible }: { dest: Destination; index: number; visible: boolean }) {
+function FilterModal({
+  open, filters, setFilter, onDone, onClear,
+}: {
+  open: boolean
+  filters: Filters
+  setFilter: (k: keyof Filters, v: string | null) => void
+  onDone: () => void
+  onClear: () => void
+}) {
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    document.body.style.overflow = open ? 'hidden' : ''
+    return () => { document.body.style.overflow = '' }
+  }, [open])
+
+  if (!open) return null
+
   return (
     <div
       style={{
-        background: 'white',
-        border: '1.5px solid #E6DEEE',
-        borderRadius: '12px',
-        padding: '20px 24px',
-        boxShadow: '0 4px 16px rgba(107,45,143,0.1)',
-        opacity: visible ? 1 : 0,
-        transform: visible ? 'translateY(0)' : 'translateY(24px)',
-        transition: `opacity 0.5s ease ${index * 0.2}s, transform 0.5s ease ${index * 0.2}s`,
-        flex: '1 1 280px',
-        maxWidth: '340px',
+        position: 'fixed', inset: 0, zIndex: 200,
+        background: 'rgba(18, 6, 36, 0.68)',
+        backdropFilter: 'blur(5px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '20px',
       }}
+      onClick={onDone}
     >
-      {/* Index badge */}
+      <div
+        style={{
+          background: 'white',
+          borderRadius: '18px',
+          border: '1.5px solid #E6DEEE',
+          maxWidth: '580px',
+          width: '100%',
+          maxHeight: '88vh',
+          overflowY: 'auto',
+          padding: '28px 28px 24px',
+          boxShadow: '0 24px 64px rgba(0,0,0,0.28)',
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+          marginBottom: '22px', paddingBottom: '18px',
+          borderBottom: '1px solid #F0EAF8',
+        }}>
+          <div>
+            <h2 style={{
+              fontFamily: 'var(--font-display), "Playfair Display", serif',
+              fontSize: '22px', fontWeight: 700, color: '#6B2D8F',
+              margin: '0 0 5px 0',
+            }}>
+              Set Your Filters
+            </h2>
+            <p style={{
+              fontFamily: 'var(--font-body), Lato, sans-serif',
+              fontSize: '13px', color: '#6A5A8A', margin: 0,
+            }}>
+              All filters are optional — leave blank to spin freely.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onDone}
+            style={{
+              width: '32px', height: '32px', borderRadius: '50%',
+              border: '1px solid #E6DEEE', background: 'white',
+              color: '#6B2D8F', fontSize: '20px', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0, marginLeft: '12px', fontFamily: 'system-ui',
+              lineHeight: 1, fontWeight: 300,
+            }}
+          >
+            ×
+          </button>
+        </div>
+
+        <FilterRow label="Month"        options={MONTHS}       value={filters.month}       onChange={v => setFilter('month', v)}      />
+        <FilterRow label="Continent"    options={CONTINENTS}   value={filters.continent}   onChange={v => setFilter('continent', v)}  />
+        <FilterRow label="Vibe"         options={VIBES}        value={filters.vibe}        onChange={v => setFilter('vibe', v)}       />
+        <FilterRow label="Trip Length"  options={TRIP_LENGTHS} value={filters.tripLength}  onChange={v => setFilter('tripLength', v)} />
+        <FilterRow label="Who Is Going" options={WHO_GOING}    value={filters.whoIsGoing}  onChange={v => setFilter('whoIsGoing', v)} />
+
+        {/* Footer */}
+        <div style={{
+          display: 'flex', gap: '10px', justifyContent: 'flex-end',
+          marginTop: '8px', paddingTop: '18px',
+          borderTop: '1px solid #F0EAF8',
+        }}>
+          <button
+            type="button"
+            onClick={onClear}
+            style={{
+              padding: '10px 22px', borderRadius: '999px',
+              border: '1.5px solid #E6DEEE', background: 'white',
+              color: '#6A5A8A', fontFamily: 'var(--font-ui)', fontSize: '12px',
+              fontWeight: 600, cursor: 'pointer',
+            }}
+          >
+            Clear All
+          </button>
+          <button
+            type="button"
+            onClick={onDone}
+            style={{
+              padding: '10px 28px', borderRadius: '999px',
+              border: 'none',
+              background: 'linear-gradient(135deg, #F5E170, #D4AF37)',
+              color: '#1A0A2E', fontFamily: 'var(--font-ui)', fontSize: '12px',
+              fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
+              cursor: 'pointer',
+              boxShadow: '0 2px 12px rgba(212,175,55,0.45)',
+            }}
+          >
+            Apply Filters
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── ResultCard ───────────────────────────────────────────────────────────────
+
+function ResultCard({ dest, index, visible }: { dest: Destination; index: number; visible: boolean }) {
+  return (
+    <div style={{
+      background: 'white',
+      border: '1.5px solid #E6DEEE',
+      borderRadius: '14px',
+      padding: '22px 24px',
+      boxShadow: '0 4px 20px rgba(107,45,143,0.08)',
+      opacity: visible ? 1 : 0,
+      transform: visible ? 'translateY(0)' : 'translateY(30px)',
+      transition: `opacity 0.55s ease ${index * 0.18}s, transform 0.55s ease ${index * 0.18}s`,
+      flex: '1 1 260px',
+      maxWidth: '340px',
+    }}>
       <div style={{
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-        width: '28px', height: '28px', borderRadius: '50%',
+        width: '26px', height: '26px', borderRadius: '50%',
         background: 'linear-gradient(135deg, #6B2D8F, #8B3DAF)',
-        color: '#D4AF37', fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px',
-        marginBottom: '12px',
+        color: '#D4AF37', fontFamily: 'var(--font-ui)', fontWeight: 700,
+        fontSize: '12px', marginBottom: '10px',
       }}>
         {index + 1}
       </div>
@@ -363,7 +509,7 @@ function ResultCard({ dest, index, visible }: { dest: Destination; index: number
       <h3 style={{
         fontFamily: 'var(--font-display), "Playfair Display", serif',
         fontSize: '20px', fontWeight: 700, color: '#6B2D8F',
-        margin: '0 0 4px 0',
+        margin: '0 0 3px 0',
       }}>
         {dest.title}
       </h3>
@@ -371,7 +517,7 @@ function ResultCard({ dest, index, visible }: { dest: Destination; index: number
       {(dest.country || dest.continent) && (
         <p style={{
           fontFamily: 'var(--font-body), Lato, sans-serif',
-          fontSize: '13px', color: '#4A4A4A', margin: '0 0 12px 0',
+          fontSize: '12px', color: '#6A5A8A', margin: '0 0 12px 0', fontWeight: 500,
         }}>
           {[dest.country, dest.continent ? CONTINENT_LABELS[dest.continent] : null]
             .filter(Boolean).join(' · ')}
@@ -380,7 +526,7 @@ function ResultCard({ dest, index, visible }: { dest: Destination; index: number
 
       {dest.vibe && dest.vibe.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: '12px' }}>
-          {dest.vibe.map((v) => (
+          {dest.vibe.map(v => (
             <span key={v} style={{
               padding: '3px 10px', borderRadius: '999px',
               background: '#F8F5FB', border: '1px solid #E6DEEE',
@@ -396,96 +542,90 @@ function ResultCard({ dest, index, visible }: { dest: Destination; index: number
       {dest.summary && (
         <p style={{
           fontFamily: 'var(--font-body), Lato, sans-serif',
-          fontSize: '14px', lineHeight: 1.6, color: '#1A1A1A',
-          margin: '0 0 16px 0',
+          fontSize: '14px', lineHeight: 1.65, color: '#2A1A3A',
+          margin: '0 0 18px 0',
         }}>
           {dest.summary}
         </p>
       )}
 
-      <Link
-        href={`/destinations/${dest.slug}`}
-        style={{
-          display: 'inline-block',
-          padding: '8px 20px',
-          borderRadius: '6px',
-          background: 'linear-gradient(135deg, #6B2D8F, #8B3DAF)',
-          color: 'white',
-          fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 700,
-          letterSpacing: '0.08em', textTransform: 'uppercase',
-          textDecoration: 'none',
-          transition: 'opacity 0.15s ease',
-        }}
-      >
-        Explore →
-      </Link>
+      {dest.slug && (
+        <Link
+          href={`/destinations/${dest.slug}`}
+          style={{
+            display: 'inline-block', padding: '9px 22px',
+            borderRadius: '999px',
+            background: 'linear-gradient(135deg, #6B2D8F, #8B3DAF)',
+            color: 'white', fontFamily: 'var(--font-ui)', fontSize: '11px',
+            fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
+            textDecoration: 'none',
+          }}
+        >
+          View Destination
+        </Link>
+      )}
     </div>
   )
 }
 
-// ─── Pull handle SVG ──────────────────────────────────────────────────────────
+// ─── PullHandle ───────────────────────────────────────────────────────────────
 
 function PullHandle({ pulled, onClick }: { pulled: boolean; onClick: () => void }) {
   return (
     <div
       onClick={onClick}
-      title="Pull to spin!"
+      role="button"
+      aria-label="Pull to spin"
       style={{
-        position: 'absolute',
-        right: '-52px',
-        top: '24px',
-        width: '44px',
-        cursor: 'pointer',
-        userSelect: 'none',
-        zIndex: 10,
+        position: 'absolute', right: '-58px', top: '32px',
+        width: '44px', cursor: 'pointer', userSelect: 'none', zIndex: 10,
       }}
     >
-      {/* Mount bracket */}
       <div style={{
-        width: '18px',
-        height: '14px',
-        background: 'linear-gradient(90deg, #B8922A, #D4AF37)',
-        borderRadius: '3px 3px 0 0',
+        width: '18px', height: '14px',
+        background: 'linear-gradient(90deg, #A87820, #D4AF37, #A87820)',
+        borderRadius: '4px 4px 0 0',
         margin: '0 auto',
-        border: '1px solid #A07820',
+        boxShadow: '0 2px 5px rgba(0,0,0,0.35)',
       }} />
-      {/* Rod + ball */}
       <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
         transformOrigin: 'top center',
-        transform: pulled ? 'rotate(28deg)' : 'rotate(0deg)',
-        transition: 'transform 0.25s cubic-bezier(0.4,0,0.2,1)',
+        transform: pulled ? 'rotate(24deg)' : 'rotate(0deg)',
+        transition: 'transform 0.22s cubic-bezier(0.4,0,0.2,1)',
       }}>
         <div style={{
-          width: '10px',
-          height: '80px',
-          background: 'linear-gradient(90deg, #A07820, #F0CE48, #A07820)',
-          borderRadius: '5px',
+          width: '8px', height: '82px',
+          background: 'linear-gradient(90deg, #987018, #F0CE48, #D4AF37, #987018)',
+          borderRadius: '4px',
         }} />
         <div style={{
-          width: '30px',
-          height: '30px',
-          borderRadius: '50%',
-          background: 'radial-gradient(circle at 38% 35%, #FFE87A, #D4AF37 55%, #8A6010)',
-          border: '2px solid #A07820',
-          boxShadow: '0 3px 8px rgba(0,0,0,0.35)',
-          marginTop: '-2px',
+          width: '30px', height: '30px', borderRadius: '50%',
+          background: 'radial-gradient(circle at 35% 32%, #FFF0A0, #D4AF37 55%, #8A6010)',
+          border: '1.5px solid #A87820',
+          boxShadow: '0 3px 9px rgba(0,0,0,0.4), inset 0 1px 2px rgba(255,255,255,0.4)',
+          marginTop: '-1px',
         }} />
-      </div>
-      {/* Label */}
-      <div style={{
-        textAlign: 'center',
-        fontFamily: 'var(--font-ui)', fontSize: '8px', fontWeight: 700,
-        letterSpacing: '0.08em', color: '#D4AF37',
-        marginTop: '6px', textTransform: 'uppercase',
-      }}>
-        Pull
       </div>
     </div>
   )
 }
+
+// ─── Corner positions ─────────────────────────────────────────────────────────
+
+const CORNER_LIGHTS = [
+  { top: '14px', left: '14px' },
+  { top: '14px', right: '14px' },
+  { bottom: '14px', left: '14px' },
+  { bottom: '14px', right: '14px' },
+] as const
+
+const RIVETS = [
+  { left: '-8px', top: '30%' },
+  { left: '-8px', top: '62%' },
+  { right: '-8px', top: '30%' },
+  { right: '-8px', top: '62%' },
+] as const
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
@@ -494,370 +634,404 @@ export default function DecisionEnginePage() {
     month: null, continent: null, vibe: null, tripLength: null, whoIsGoing: null,
   })
   const [spinning, setSpinning] = useState(false)
+  const [stopping, setStopping] = useState(false)
   const [handlePulled, setHandlePulled] = useState(false)
   const [reelValues, setReelValues] = useState(['?', '?', '?'])
+  const [reelFlashing, setReelFlashing] = useState([false, false, false])
   const [results, setResults] = useState<Destination[]>([])
   const [cardsVisible, setCardsVisible] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [modalOpen, setModalOpen] = useState(false)
 
   const audioCtxRef = useRef<AudioContext | null>(null)
-  const stopSpinSoundRef = useRef<(() => void) | null>(null)
-  const spinningRef = useRef(false)
+  const stopSpinRef = useRef<(() => void) | null>(null)
+  const busyRef = useRef(false)
 
-  function getAudioCtx(): AudioContext {
+  function getCtx(): AudioContext {
     if (!audioCtxRef.current) {
-      audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()
+      audioCtxRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
     }
-    if (audioCtxRef.current.state === 'suspended') {
-      audioCtxRef.current.resume()
-    }
+    if (audioCtxRef.current.state === 'suspended') audioCtxRef.current.resume()
     return audioCtxRef.current
   }
 
   const setFilter = useCallback((key: keyof Filters, value: string | null) => {
-    setFilters((f) => ({ ...f, [key]: value }))
+    setFilters(f => ({ ...f, [key]: value }))
+  }, [])
+
+  const clearFilters = useCallback(() => {
+    setFilters({ month: null, continent: null, vibe: null, tripLength: null, whoIsGoing: null })
   }, [])
 
   const handleSpin = useCallback(async () => {
-    if (spinningRef.current) return
-    spinningRef.current = true
+    if (busyRef.current) return
+    busyRef.current = true
+
     setSpinning(true)
+    setStopping(false)
     setCardsVisible(false)
     setResults([])
-    setError(null)
+    setReelValues(['?', '?', '?'])
+    setReelFlashing([false, false, false])
 
-    // Handle animation
     setHandlePulled(true)
-    setTimeout(() => setHandlePulled(false), 500)
+    setTimeout(() => setHandlePulled(false), 480)
 
-    // Sound
-    const ctx = getAudioCtx()
-    stopSpinSoundRef.current = playSpinSound(ctx)
+    const ctx = getCtx()
+    stopSpinRef.current = playSpinSound(ctx)
 
-    // Resolve surprise filters
     const resolved = {
-      month: resolveFilter(filters.month, MONTHS),
-      continent: resolveFilter(filters.continent, CONTINENTS),
-      vibe: resolveFilter(filters.vibe, VIBES),
+      month:      resolveFilter(filters.month,      MONTHS),
+      continent:  resolveFilter(filters.continent,  CONTINENTS),
+      vibe:       resolveFilter(filters.vibe,       VIBES),
       tripLength: resolveFilter(filters.tripLength, TRIP_LENGTHS),
       whoIsGoing: resolveFilter(filters.whoIsGoing, WHO_GOING),
     }
 
-    // API call (with 2s minimum spin time)
     const [apiResult] = await Promise.all([
       fetch('/api/decision-engine', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(resolved),
-      }).then((r) => r.json()).catch(() => ({ destinations: [] })),
-      new Promise((resolve) => setTimeout(resolve, 2000)),
+      }).then(r => r.json()).catch(() => ({ destinations: [] })),
+      new Promise(resolve => setTimeout(resolve, 2000)),
     ])
 
     const dests: Destination[] = apiResult.destinations ?? []
-
-    // Pad to 3 if needed
     while (dests.length < 3) {
       dests.push({ title: '—', slug: '', country: null, continent: null, vibe: null, summary: null })
     }
 
+    // Kick off stop sequence — set reelValues + stopping atomically
     setReelValues([dests[0].title, dests[1].title, dests[2].title])
+    setSpinning(false)
+    setStopping(true)
 
-    // Reels stop one by one — delays from NOW (spin started 2s ago, so these are relative to reel stop start)
-    // Reel 1: 600ms, Reel 2: 1100ms, Reel 3: 1600ms (relative to when we set spinning)
-    // We control this via stopDelay props on SlotReel
+    // Reel i stops at i*330 + 380ms after stopping=true
+    // i=0 → 380ms  i=1 → 710ms  i=2 → 1040ms  (660ms total span — within 1s)
+    ;[0, 1, 2].forEach(i => {
+      const stopAt = i * 330 + 380
 
-    // Stop spin sound when last reel stops
-    setTimeout(() => {
-      stopSpinSoundRef.current?.()
-    }, 1600)
+      setTimeout(() => {
+        playReelStop(getCtx())
+        setReelFlashing(prev => { const n = [...prev]; n[i] = true; return n })
+      }, stopAt)
 
-    // Win chime after last reel
-    setTimeout(() => {
-      playWinSound(getAudioCtx())
-    }, 1750)
+      setTimeout(() => {
+        setReelFlashing(prev => { const n = [...prev]; n[i] = false; return n })
+      }, stopAt + 420)
+    })
 
-    // Show cards after all reels done
+    // Stop spin sound when first reel thuds
+    setTimeout(() => stopSpinRef.current?.(), 380)
+
+    // Win chime after all reels stop
+    setTimeout(() => playWinSound(getCtx()), 1120)
+
+    // Slide up cards
     setTimeout(() => {
       setResults(dests)
       setCardsVisible(true)
-      setSpinning(false)
-      spinningRef.current = false
-    }, 2400)
+    }, 1700)
+
+    // Full reset
+    setTimeout(() => {
+      setStopping(false)
+      busyRef.current = false
+    }, 2200)
   }, [filters])
 
-  // Reel stop delays (ms after spin = true)
-  const REEL_STOPS = [600, 1100, 1600]
+  const canSpin = !spinning && !stopping
+  const activeCount = Object.values(filters).filter(Boolean).length
+  const filterSummary = getFilterSummary(filters)
 
   return (
     <>
-      {/* Inline keyframes */}
       <style>{`
         @keyframes marqueeScroll {
-          0%   { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
+          from { transform: translateX(0); }
+          to   { transform: translateX(-50%); }
+        }
+        @keyframes reelThud {
+          0%   { transform: scale(1) translateY(0); }
+          28%  { transform: scale(1.03) translateY(-3px); }
+          62%  { transform: scale(0.985) translateY(2px); }
+          100% { transform: scale(1) translateY(0); }
+        }
+        @keyframes spinIdle {
+          0%, 100% { box-shadow: 0 4px 22px rgba(212,175,55,0.42); }
+          50%       { box-shadow: 0 6px 38px rgba(212,175,55,0.7), 0 0 0 9px rgba(212,175,55,0.1); }
         }
         @keyframes machinePulse {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(212,175,55,0); }
-          50%       { box-shadow: 0 0 28px 4px rgba(212,175,55,0.18); }
+          0%, 100% { box-shadow: 0 10px 50px rgba(70,15,120,0.28), 0 0 0 1px rgba(196,160,48,0.12); }
+          50%       { box-shadow: 0 14px 62px rgba(70,15,120,0.45), 0 0 0 1px rgba(196,160,48,0.32); }
         }
         @keyframes lightBlink {
           0%, 100% { opacity: 1; }
-          50%       { opacity: 0.3; }
-        }
-        @keyframes cardSlideIn {
-          from { opacity: 0; transform: translateY(30px); }
-          to   { opacity: 1; transform: translateY(0); }
+          50%       { opacity: 0.22; }
         }
       `}</style>
 
-      <main
-        className="rg-major-section !pt-8"
-        style={{ background: 'var(--color-background-soft)', minHeight: '100vh' }}
-      >
-        <div className="rg-container" style={{ maxWidth: '860px' }}>
+      <main className="rg-major-section !pt-8" style={{ background: '#FAF9F6', minHeight: '100vh' }}>
+        <div className="rg-container" style={{ maxWidth: '920px' }}>
 
-          {/* Page headline */}
-          <div style={{ textAlign: 'center', marginBottom: '36px' }}>
+          {/* Headline */}
+          <div style={{ textAlign: 'center', marginBottom: '28px' }}>
             <h1 style={{
               fontFamily: 'var(--font-display), "Playfair Display", serif',
-              fontSize: 'clamp(1.5rem, 4vw, 2.2rem)',
-              fontWeight: 700,
-              color: 'var(--color-primary)',
-              margin: '0 0 10px 0',
-              lineHeight: 1.25,
+              fontSize: 'clamp(1.6rem, 4vw, 2.4rem)', fontWeight: 700,
+              color: '#6B2D8F', margin: '0 0 10px 0', lineHeight: 1.2,
             }}>
               Not sure where to go?
             </h1>
             <p style={{
               fontFamily: 'var(--font-body), Lato, sans-serif',
-              fontSize: '16px', color: 'var(--color-text-secondary)',
-              margin: 0,
+              fontSize: '16px', color: '#4A4A4A', margin: 0,
             }}>
-              Let us help you decide. Set your filters, pull the handle, and spin your next adventure.
+              Let us help you decide. Set your filters and spin for your next adventure.
             </p>
           </div>
 
-          {/* ── Slot Machine ───────────────────────────────────────────────── */}
-          <div style={{ position: 'relative', maxWidth: '620px', margin: '0 auto 48px' }}>
+          {/* Filter trigger */}
+          <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+            <button
+              type="button"
+              onClick={() => setModalOpen(true)}
+              style={{
+                padding: '10px 28px', borderRadius: '999px',
+                border: activeCount > 0 ? 'none' : '2px solid #D4AF37',
+                background: activeCount > 0
+                  ? 'linear-gradient(135deg, #F5E170, #D4AF37)'
+                  : 'white',
+                color: activeCount > 0 ? '#1A0A2E' : '#6B2D8F',
+                fontFamily: 'var(--font-ui), Montserrat, sans-serif',
+                fontSize: '12px', fontWeight: 700,
+                letterSpacing: '0.09em', textTransform: 'uppercase',
+                cursor: 'pointer',
+                boxShadow: activeCount > 0
+                  ? '0 3px 14px rgba(212,175,55,0.5)'
+                  : '0 2px 8px rgba(107,45,143,0.1)',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              {activeCount > 0 ? `${activeCount} Filter${activeCount > 1 ? 's' : ''} Active — Edit` : 'Set Your Filters'}
+            </button>
 
-            {/* Machine body */}
+            {filterSummary && (
+              <p style={{
+                fontFamily: 'var(--font-body)', fontSize: '13px',
+                color: '#6A5A8A', marginTop: '10px', marginBottom: 0,
+              }}>
+                Filtering by: {filterSummary}
+              </p>
+            )}
+          </div>
+
+          {/* ── Machine ───────────────────────────────────────────────────── */}
+          <div style={{ position: 'relative', maxWidth: '800px', margin: '0 auto 56px' }}>
+
             <div style={{
-              background: 'linear-gradient(160deg, #7B2FA0 0%, #5A1878 50%, #3D0F55 100%)',
-              borderRadius: '20px 20px 16px 16px',
-              border: '3px solid #D4AF37',
-              boxShadow: '0 8px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
-              animation: 'machinePulse 4s ease-in-out infinite',
-              overflow: 'visible',
+              background: `
+                radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+                linear-gradient(158deg, #9035BE 0%, #7428A8 38%, #6018A0 68%, #5210A0 100%)
+              `,
+              backgroundSize: '22px 22px, 100% 100%',
+              borderRadius: '22px 22px 18px 18px',
+              border: '3px solid #C4A030',
+              animation: 'machinePulse 5s ease-in-out infinite',
               position: 'relative',
+              overflow: 'visible',
             }}>
 
-              {/* Decorative corner lights */}
-              {[{t:'12px',l:'12px'},{t:'12px',r:'12px'},{b:'12px',l:'12px'},{b:'12px',r:'12px'}].map((pos, i) => (
+              {/* Side rivets */}
+              {RIVETS.map((pos, i) => (
                 <div key={i} style={{
-                  position: 'absolute', ...pos as any,
-                  width: '10px', height: '10px', borderRadius: '50%',
-                  background: i % 2 === 0 ? '#FFD700' : '#FF6B35',
-                  boxShadow: '0 0 8px currentColor',
-                  animation: `lightBlink ${1.2 + i * 0.3}s ease-in-out infinite`,
+                  position: 'absolute', ...pos,
+                  width: '14px', height: '14px', borderRadius: '50%',
+                  background: 'radial-gradient(circle at 35% 32%, #FFE080, #D4AF37, #8A6010)',
+                  border: '1px solid #A07820',
+                  boxShadow: '0 2px 5px rgba(0,0,0,0.4)',
+                  transform: 'translateY(-50%)',
                   zIndex: 5,
                 }} />
               ))}
 
-              {/* ── Marquee header ── */}
+              {/* Corner lights */}
+              {CORNER_LIGHTS.map((pos, i) => (
+                <div key={i} style={{
+                  position: 'absolute', ...pos,
+                  width: '9px', height: '9px', borderRadius: '50%',
+                  background: i % 2 === 0 ? '#FFD700' : '#D4AF37',
+                  boxShadow: `0 0 7px ${i % 2 === 0 ? '#FFD700' : '#D4AF37'}`,
+                  animation: `lightBlink ${1.1 + i * 0.35}s ease-in-out infinite`,
+                  zIndex: 5,
+                }} />
+              ))}
+
+              {/* Marquee */}
               <div style={{
-                background: 'linear-gradient(90deg, #1A0A2E, #2D1050, #1A0A2E)',
-                borderRadius: '16px 16px 0 0',
-                borderBottom: '2px solid #D4AF37',
+                background: 'linear-gradient(90deg, #0E0622, #1A0838, #0E0622)',
+                borderRadius: '18px 18px 0 0',
+                borderBottom: '2px solid #C4A030',
                 padding: '10px 0',
                 overflow: 'hidden',
-                position: 'relative',
               }}>
-                {/* Marquee lights row */}
-                <div style={{
-                  display: 'flex', justifyContent: 'space-around',
-                  padding: '0 16px', marginBottom: '8px',
-                }}>
-                  {Array.from({ length: 16 }).map((_, i) => (
+                {/* Light row */}
+                <div style={{ display: 'flex', justifyContent: 'space-around', padding: '0 20px', marginBottom: '8px' }}>
+                  {Array.from({ length: 22 }).map((_, i) => (
                     <div key={i} style={{
-                      width: '6px', height: '6px', borderRadius: '50%',
-                      background: i % 3 === 0 ? '#D4AF37' : i % 3 === 1 ? '#FF6B35' : '#6B2D8F',
-                      boxShadow: '0 0 4px currentColor',
-                      animation: `lightBlink ${0.8 + (i % 4) * 0.2}s ease-in-out infinite`,
+                      width: '5px', height: '5px', borderRadius: '50%',
+                      background: i % 4 === 0 ? '#FFD700' : i % 4 === 1 ? '#D4AF37' : i % 4 === 2 ? '#8B3DAF' : '#C4A030',
+                      boxShadow: '0 0 3px currentColor',
+                      animation: `lightBlink ${0.7 + (i % 5) * 0.2}s ease-in-out infinite`,
                     }} />
                   ))}
                 </div>
                 {/* Scrolling text */}
                 <div style={{ overflow: 'hidden' }}>
                   <div style={{
-                    display: 'flex', gap: '60px',
-                    animation: 'marqueeScroll 14s linear infinite',
-                    width: 'max-content',
+                    display: 'inline-flex',
+                    whiteSpace: 'nowrap',
+                    animation: 'marqueeScroll 18s linear infinite',
+                    fontFamily: 'var(--font-ui), Montserrat, sans-serif',
+                    fontSize: '11px', fontWeight: 800,
+                    letterSpacing: '0.22em', color: '#F0CF50',
+                    textTransform: 'uppercase',
                   }}>
-                    {[0, 1].map((n) => (
-                      <div key={n} style={{
-                        display: 'flex', alignItems: 'center', gap: '20px',
-                        fontFamily: 'var(--font-ui), Montserrat, sans-serif',
-                        fontSize: '13px', fontWeight: 800,
-                        letterSpacing: '0.18em', color: '#F5E170',
-                        textTransform: 'uppercase', whiteSpace: 'nowrap',
+                    {[0, 1].map(n => (
+                      <span key={n} style={{ paddingRight: '80px' }}>
+                        DECISION ENGINE &nbsp;&middot;&nbsp; CRAZY4POINTS &nbsp;&middot;&nbsp; SPIN YOUR NEXT ADVENTURE
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Reel window */}
+              <div style={{ padding: '24px 26px 20px' }}>
+                <div style={{
+                  background: '#0C0818',
+                  border: '3px solid #C4A030',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  boxShadow: 'inset 0 4px 28px rgba(0,0,0,0.72)',
+                  position: 'relative',
+                }}>
+                  {/* Win line */}
+                  <div style={{
+                    position: 'absolute', top: '50%', left: '16px', right: '16px',
+                    height: '1px', background: 'rgba(212,175,55,0.18)',
+                    transform: 'translateY(-50%)', pointerEvents: 'none', zIndex: 1,
+                  }} />
+
+                  {/* Reel labels */}
+                  <div style={{ display: 'flex', gap: '12px', marginBottom: '8px' }}>
+                    {['I', 'II', 'III'].map(r => (
+                      <div key={r} style={{
+                        flex: 1, textAlign: 'center',
+                        fontFamily: 'var(--font-ui)', fontSize: '9px', fontWeight: 700,
+                        letterSpacing: '0.16em', color: '#3A2858',
                       }}>
-                        <span>✈️</span>
-                        <span>Decision Engine</span>
-                        <span>🧳</span>
-                        <span>crazy4points</span>
-                        <span>🗺️</span>
-                        <span>Spin Your Next Adventure</span>
-                        <span>✈️</span>
-                        <span>Decision Engine</span>
-                        <span>🧳</span>
-                        <span>crazy4points</span>
-                        <span>🗺️</span>
-                        <span>Spin Your Next Adventure</span>
+                        {r}
                       </div>
                     ))}
                   </div>
-                </div>
-              </div>
 
-              {/* ── Reel window ── */}
-              <div style={{ padding: '20px 20px 16px' }}>
-                <div style={{
-                  background: '#0D0820',
-                  border: '3px solid #D4AF37',
-                  borderRadius: '10px',
-                  padding: '12px',
-                  boxShadow: 'inset 0 4px 20px rgba(0,0,0,0.6)',
-                }}>
-                  {/* Reel label */}
-                  <div style={{
-                    display: 'flex', justifyContent: 'space-around',
-                    marginBottom: '8px',
-                  }}>
-                    {['Destination 1', 'Destination 2', 'Destination 3'].map((l) => (
-                      <span key={l} style={{
-                        fontFamily: 'var(--font-ui)', fontSize: '8px', fontWeight: 700,
-                        letterSpacing: '0.12em', textTransform: 'uppercase',
-                        color: '#5A4A7A', flex: 1, textAlign: 'center',
-                      }}>{l}</span>
-                    ))}
-                  </div>
                   {/* Reels */}
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    {[0, 1, 2].map((i) => (
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    {[0, 1, 2].map(i => (
                       <SlotReel
                         key={i}
                         spinning={spinning}
-                        stopDelay={REEL_STOPS[i]}
+                        stopping={stopping}
+                        stopIndex={i}
                         finalValue={reelValues[i]}
+                        flashing={reelFlashing[i]}
                       />
                     ))}
                   </div>
-                  {/* Center line indicator */}
-                  <div style={{
-                    display: 'flex', alignItems: 'center', gap: '6px',
-                    marginTop: '8px',
-                  }}>
-                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#D4AF37', flexShrink: 0, boxShadow: '0 0 6px #D4AF37' }} />
-                    <div style={{ flex: 1, height: '1px', background: 'rgba(212,175,55,0.3)' }} />
-                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#D4AF37', flexShrink: 0, boxShadow: '0 0 6px #D4AF37' }} />
+
+                  {/* Bottom accent line */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px' }}>
+                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#C4A030', flexShrink: 0, boxShadow: '0 0 5px #C4A030' }} />
+                    <div style={{ flex: 1, height: '1px', background: 'rgba(196,160,48,0.22)' }} />
+                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#C4A030', flexShrink: 0, boxShadow: '0 0 5px #C4A030' }} />
                   </div>
                 </div>
               </div>
 
-              {/* ── Filter panel ── */}
-              <div style={{
-                margin: '0 16px',
-                background: 'rgba(0,0,0,0.25)',
-                borderRadius: '10px',
-                border: '1px solid rgba(212,175,55,0.25)',
-                padding: '16px',
-              }}>
-                <FilterRow label="Month" options={MONTHS} value={filters.month} onChange={(v) => setFilter('month', v)} />
-                <FilterRow label="Continent" options={CONTINENTS} value={filters.continent} onChange={(v) => setFilter('continent', v)} />
-                <FilterRow label="Vibe" options={VIBES} value={filters.vibe} onChange={(v) => setFilter('vibe', v)} />
-                <FilterRow label="Trip Length" options={TRIP_LENGTHS} value={filters.tripLength} onChange={(v) => setFilter('tripLength', v)} />
-                <FilterRow label="Who's Going" options={WHO_GOING} value={filters.whoIsGoing} onChange={(v) => setFilter('whoIsGoing', v)} />
-              </div>
-
-              {/* ── SPIN button ── */}
-              <div style={{ padding: '20px 16px 24px', display: 'flex', justifyContent: 'center' }}>
+              {/* SPIN button */}
+              <div style={{ padding: '0 26px 30px', display: 'flex', justifyContent: 'center' }}>
                 <button
                   type="button"
                   onClick={handleSpin}
-                  disabled={spinning}
+                  disabled={!canSpin}
                   style={{
-                    padding: '14px 48px',
+                    padding: '16px 80px',
                     borderRadius: '999px',
-                    background: spinning
-                      ? 'linear-gradient(135deg, #888, #555)'
-                      : 'linear-gradient(135deg, #F5E170 0%, #D4AF37 50%, #B8922A 100%)',
                     border: 'none',
-                    color: spinning ? '#ccc' : '#1A0A2E',
+                    background: canSpin
+                      ? 'linear-gradient(135deg, #F8EB80 0%, #D4AF37 50%, #B89228 100%)'
+                      : 'linear-gradient(135deg, #7A7A7A, #4A4A4A)',
+                    color: canSpin ? '#1A0A2E' : '#999',
                     fontFamily: 'var(--font-ui), Montserrat, sans-serif',
-                    fontSize: '16px',
-                    fontWeight: 900,
-                    letterSpacing: '0.18em',
-                    textTransform: 'uppercase',
-                    cursor: spinning ? 'not-allowed' : 'pointer',
-                    boxShadow: spinning ? 'none' : '0 4px 20px rgba(212,175,55,0.5)',
-                    transition: 'all 0.2s ease',
-                    transform: spinning ? 'scale(0.97)' : 'scale(1)',
+                    fontSize: '20px', fontWeight: 900,
+                    letterSpacing: '0.24em', textTransform: 'uppercase',
+                    cursor: canSpin ? 'pointer' : 'not-allowed',
+                    animation: canSpin ? 'spinIdle 2.8s ease-in-out infinite' : 'none',
+                    boxShadow: canSpin ? '0 4px 22px rgba(212,175,55,0.4)' : 'none',
+                    transition: 'background 0.2s ease, color 0.2s ease',
                   }}
                 >
-                  {spinning ? '⏳ Spinning…' : '🎰 SPIN'}
+                  {spinning || stopping ? 'SPINNING' : 'SPIN'}
                 </button>
               </div>
 
             </div>{/* /machine body */}
 
-            {/* Pull handle — hidden on mobile */}
+            {/* Handle — desktop only */}
             <div className="hidden md:block">
-              <PullHandle pulled={handlePulled} onClick={handleSpin} />
+              <PullHandle pulled={handlePulled} onClick={canSpin ? handleSpin : () => {}} />
             </div>
 
           </div>{/* /machine outer */}
 
-          {/* ── Result cards ─────────────────────────────────────────────── */}
+          {/* Result cards */}
           {results.length > 0 && (
-            <div style={{ marginBottom: '32px' }}>
+            <div style={{ marginBottom: '44px' }}>
               <h2 style={{
-                fontFamily: 'var(--font-display)', fontSize: '1.4rem', fontWeight: 700,
-                color: 'var(--color-primary)', textAlign: 'center', marginBottom: '24px',
+                fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 700,
+                color: '#6B2D8F', textAlign: 'center', marginBottom: '28px',
               }}>
-                Your Next Adventures Await
+                Your Next Adventures
               </h2>
-              <div style={{
-                display: 'flex', flexWrap: 'wrap', gap: '20px', justifyContent: 'center',
-              }}>
-                {results.map((dest, i) => (
-                  dest.slug ? (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', justifyContent: 'center' }}>
+                {results.map((dest, i) =>
+                  dest.title !== '—' ? (
                     <ResultCard key={i} dest={dest} index={i} visible={cardsVisible} />
                   ) : null
-                ))}
+                )}
               </div>
             </div>
           )}
 
-          {/* Error */}
-          {error && (
-            <p style={{
-              textAlign: 'center', color: '#c0392b',
-              fontFamily: 'var(--font-body)', fontSize: '14px',
-            }}>{error}</p>
-          )}
-
           {/* Disclaimer */}
           <p style={{
-            textAlign: 'center',
-            fontFamily: 'var(--font-body), Lato, sans-serif',
-            fontSize: '11px', color: 'var(--color-text-secondary)',
-            marginBottom: '16px', lineHeight: 1.5,
+            textAlign: 'center', fontFamily: 'var(--font-body)', fontSize: '11px',
+            color: '#9A8AAA', marginBottom: '16px', lineHeight: 1.5,
           }}>
             This is a travel planning tool only. No purchase or prize is involved.
           </p>
 
         </div>
       </main>
+
+      <FilterModal
+        open={modalOpen}
+        filters={filters}
+        setFilter={setFilter}
+        onDone={() => setModalOpen(false)}
+        onClear={clearFilters}
+      />
     </>
   )
 }
