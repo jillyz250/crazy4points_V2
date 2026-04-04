@@ -44,11 +44,11 @@ export default async function AlertsPage({
   const sorted = sortAlerts(alerts)
 
   return (
-    <section className="rg-major-section">
+    <section className="rg-major-section !pt-8">
       <div className="rg-container">
-        <div className="mb-8">
+        <div className="mb-6">
           <h1 className="font-display text-4xl font-bold">Alerts</h1>
-          <p className="mt-2 font-body text-[var(--color-text-secondary)]">
+          <p className="mt-2 mb-5 font-body text-[var(--color-text-secondary)]">
             Live transfer bonuses, limited-time offers, and program changes — sorted by urgency.
           </p>
         </div>

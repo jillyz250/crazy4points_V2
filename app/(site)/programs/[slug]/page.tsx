@@ -60,7 +60,7 @@ export default async function ProgramPage({
   const programName = getProgramName(slug)
 
   return (
-    <section className="rg-major-section">
+    <section className="rg-major-section !pt-8">
       <div className="rg-container">
 
         {/* Header */}
