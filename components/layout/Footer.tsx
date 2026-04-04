@@ -14,7 +14,7 @@ const footerNav = [
     links: [
       { label: "About", href: "/about" },
       { label: "Newsletter", href: "/newsletter" },
-      { label: "Contact", href: "/contact" },
+      { label: "Contact", href: "mailto:support@thankyoudeals.com" },
     ],
   },
   {
