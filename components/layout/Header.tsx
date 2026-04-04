@@ -105,7 +105,7 @@ export default function Header() {
               </span>
               <Link
                 href="/decision-engine"
-                className="rounded-[var(--radius-ui)] bg-[#D4AF37] px-4 py-2 font-ui text-xs font-bold uppercase tracking-[0.1em] text-[#1A1A1A] shadow-[0_2px_8px_rgba(212,175,55,0.4)] transition-all duration-200 hover:brightness-105 hover:shadow-[0_4px_14px_rgba(212,175,55,0.55)]"
+                className="rounded-full bg-[#F0C040] px-4 py-2 font-ui text-xs font-bold uppercase tracking-[0.1em] text-[#1A1A1A] shadow-[0_2px_8px_rgba(240,192,64,0.4)] transition-all duration-200 hover:brightness-105 hover:shadow-[0_4px_14px_rgba(240,192,64,0.55)]"
               >
                 Decision Engine
               </Link>
