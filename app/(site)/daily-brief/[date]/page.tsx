@@ -57,7 +57,7 @@ export default async function DailyBriefArchivePage({
   const dateLabel = formatDate(dateStr)
 
   return (
-    <section className="rg-major-section">
+    <section className="rg-major-section !pt-8">
       <div className="rg-container">
 
         {/* Header */}

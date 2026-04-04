@@ -47,7 +47,7 @@ export default async function DailyBriefPage() {
   })
 
   return (
-    <section className="rg-major-section">
+    <section className="rg-major-section !pt-8">
       <div className="rg-container">
 
         {/* Header */}
