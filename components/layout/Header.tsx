@@ -62,14 +62,14 @@ export default function Header() {
 
             <button
               type="button"
-              className="flex h-11 w-11 flex-col items-center justify-center gap-1.5 md:hidden"
+              className="flex h-11 w-11 flex-col items-center justify-center gap-1.5 text-[var(--color-text-primary)] md:hidden"
               aria-label={menuOpen ? "Close menu" : "Open menu"}
               aria-expanded={menuOpen}
               onClick={() => setMenuOpen((o) => !o)}
             >
-              <span className="block h-0.5 w-6 rounded-full bg-[var(--color-text-primary)]" />
-              <span className="block h-0.5 w-6 rounded-full bg-[var(--color-text-primary)]" />
-              <span className="block h-0.5 w-4 self-end rounded-full bg-[var(--color-text-primary)]" />
+              <span className="block h-0.5 w-6 bg-current" />
+              <span className="block h-0.5 w-6 bg-current" />
+              <span className="block h-0.5 w-6 bg-current" />
             </button>
           </div>
         </div>
