@@ -10,7 +10,8 @@
  */
 
 import { createClient } from '@sanity/client'
-import 'dotenv/config'
+import dotenv from 'dotenv'
+dotenv.config({ path: '.env.local' })
 
 const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID
 const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET || 'production'
