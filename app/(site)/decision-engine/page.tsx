@@ -12,6 +12,9 @@ type Destination = {
   continent: string | null
   vibe: string[] | null
   summary: string | null
+  weatherByMonth?: Record<string, string> | null
+  tripLength?: string[] | null
+  whoIsGoing?: string[] | null
 }
 
 type Filters = {
@@ -102,6 +105,19 @@ const CONTINENT_LABELS: Record<string, string> = {
 const VIBE_LABELS: Record<string, string> = {
   beach: 'Beach', city: 'City', history: 'History', nature: 'Nature',
   adventure: 'Adventure', luxury: 'Luxury', family: 'Family',
+}
+
+const MONTH_ORDER = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec']
+const MONTH_SHORT: Record<string, string> = {
+  jan: 'Jan', feb: 'Feb', mar: 'Mar', apr: 'Apr',
+  may: 'May', jun: 'Jun', jul: 'Jul', aug: 'Aug',
+  sep: 'Sep', oct: 'Oct', nov: 'Nov', dec: 'Dec',
+}
+const WHO_LABELS: Record<string, string> = {
+  solo: 'Solo', couple: 'Couple', family: 'Family', group: 'Group',
+}
+const TRIP_LABELS: Record<string, string> = {
+  short: 'Short (2–4 days)', medium: 'Medium (5–7 days)', long: 'Long (8+ days)',
 }
 
 function getFilterSummary(filters: Filters): string {
@@ -488,57 +504,246 @@ function FilterModal({
   )
 }
 
-// ─── ResultCard ───────────────────────────────────────────────────────────────
+// ─── Shared badge helpers ─────────────────────────────────────────────────────
 
-function ResultCard({ dest, index, visible }: { dest: Destination; index: number; visible: boolean }) {
+function GoldBadge({ label }: { label: string }) {
+  return (
+    <span style={{
+      padding: '4px 12px', borderRadius: '999px',
+      background: 'linear-gradient(135deg, #F5E170, #D4AF37)',
+      color: '#1A0A2E',
+      fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 600,
+      whiteSpace: 'nowrap',
+    }}>{label}</span>
+  )
+}
+
+function PurpleBadge({ label }: { label: string }) {
+  return (
+    <span style={{
+      padding: '4px 12px', borderRadius: '999px',
+      background: '#F3EEF9', border: '1.5px solid #6B2D8F',
+      color: '#6B2D8F',
+      fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 600,
+      whiteSpace: 'nowrap',
+    }}>{label}</span>
+  )
+}
+
+function InfoSection({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div style={{
+        fontFamily: 'var(--font-ui)', fontSize: '10px', fontWeight: 700,
+        letterSpacing: '0.12em', textTransform: 'uppercase',
+        color: '#9A7ACC', marginBottom: '8px',
+      }}>{label}</div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>{children}</div>
+    </div>
+  )
+}
+
+function LockIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#B0A0C0" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <rect x="3" y="11" width="18" height="11" rx="2"/>
+      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+    </svg>
+  )
+}
+
+// ─── WinnerCard ───────────────────────────────────────────────────────────────
+
+function WinnerCard({ dest, visible }: { dest: Destination; visible: boolean }) {
+  const greatMonths = MONTH_ORDER.filter(m => dest.weatherByMonth?.[m] === 'great')
+  const goodMonths  = MONTH_ORDER.filter(m => dest.weatherByMonth?.[m] === 'good')
+  const hasWeather  = greatMonths.length > 0 || goodMonths.length > 0
+
   return (
     <div style={{
       background: 'white',
       border: '1.5px solid #E6DEEE',
-      borderRadius: '14px',
-      padding: '22px 24px',
-      boxShadow: '0 4px 20px rgba(107,45,143,0.08)',
+      borderTop: '4px solid #D4AF37',
+      borderRadius: '16px',
+      padding: '28px 32px 24px',
+      boxShadow: '0 6px 28px rgba(107,45,143,0.1)',
       opacity: visible ? 1 : 0,
       transform: visible ? 'translateY(0)' : 'translateY(30px)',
-      transition: `opacity 0.55s ease ${index * 0.18}s, transform 0.55s ease ${index * 0.18}s`,
-      flex: '1 1 260px',
-      maxWidth: '340px',
+      transition: 'opacity 0.6s ease, transform 0.6s ease',
+      maxWidth: '780px',
+      margin: '0 auto',
     }}>
+      {/* Label */}
       <div style={{
-        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-        width: '26px', height: '26px', borderRadius: '50%',
-        background: 'linear-gradient(135deg, #6B2D8F, #8B3DAF)',
-        color: '#D4AF37', fontFamily: 'var(--font-ui)', fontWeight: 700,
-        fontSize: '12px', marginBottom: '10px',
+        fontFamily: 'var(--font-ui)', fontSize: '10px', fontWeight: 700,
+        letterSpacing: '0.14em', textTransform: 'uppercase',
+        color: '#D4AF37', marginBottom: '10px',
       }}>
-        {index + 1}
+        Your Next Adventure
       </div>
 
-      <h3 style={{
+      {/* Headline + subtitle */}
+      <h2 style={{
         fontFamily: 'var(--font-display), "Playfair Display", serif',
-        fontSize: '20px', fontWeight: 700, color: '#6B2D8F',
-        margin: '0 0 3px 0',
+        fontSize: 'clamp(1.6rem, 4vw, 2.2rem)', fontWeight: 700,
+        color: '#6B2D8F', margin: '0 0 6px 0', lineHeight: 1.15,
       }}>
         {dest.title}
-      </h3>
-
+      </h2>
       {(dest.country || dest.continent) && (
         <p style={{
           fontFamily: 'var(--font-body), Lato, sans-serif',
-          fontSize: '12px', color: '#6A5A8A', margin: '0 0 12px 0', fontWeight: 500,
+          fontSize: '14px', color: '#6A5A8A', margin: '0 0 18px 0', fontWeight: 500,
         }}>
           {[dest.country, dest.continent ? CONTINENT_LABELS[dest.continent] : null]
             .filter(Boolean).join(' · ')}
         </p>
       )}
 
+      {/* Summary */}
+      {dest.summary && (
+        <p style={{
+          fontFamily: 'var(--font-body), Lato, sans-serif',
+          fontSize: '15px', lineHeight: 1.75, color: '#2A1A3A',
+          margin: '0 0 24px 0',
+        }}>
+          {dest.summary}
+        </p>
+      )}
+
+      {/* Divider */}
+      <div style={{ borderTop: '1px solid #F0EAF8', marginBottom: '22px' }} />
+
+      {/* Info grid — 2 cols on desktop, 1 on mobile */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+        gap: '20px',
+        marginBottom: '24px',
+      }}>
+        {dest.vibe && dest.vibe.length > 0 && (
+          <InfoSection label="The Vibe">
+            {dest.vibe.map(v => <GoldBadge key={v} label={VIBE_LABELS[v] ?? v} />)}
+          </InfoSection>
+        )}
+
+        {dest.whoIsGoing && dest.whoIsGoing.length > 0 && (
+          <InfoSection label="Perfect For">
+            {dest.whoIsGoing.map(w => <PurpleBadge key={w} label={WHO_LABELS[w] ?? w} />)}
+          </InfoSection>
+        )}
+
+        {hasWeather && (
+          <InfoSection label="Best Time to Visit">
+            {greatMonths.map(m => <GoldBadge key={m} label={MONTH_SHORT[m]} />)}
+            {goodMonths.map(m  => <PurpleBadge key={m} label={MONTH_SHORT[m]} />)}
+          </InfoSection>
+        )}
+
+        {dest.tripLength && dest.tripLength.length > 0 && (
+          <InfoSection label="Recommended Trip">
+            {dest.tripLength.map(t => <PurpleBadge key={t} label={TRIP_LABELS[t] ?? t} />)}
+          </InfoSection>
+        )}
+      </div>
+
+      {/* View CTA */}
+      {dest.slug && (
+        <Link
+          href={`/destinations/${dest.slug}`}
+          style={{
+            display: 'inline-block', padding: '11px 28px',
+            borderRadius: '999px',
+            background: 'linear-gradient(135deg, #6B2D8F, #8B3DAF)',
+            color: 'white', fontFamily: 'var(--font-ui)', fontSize: '12px',
+            fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
+            textDecoration: 'none',
+            boxShadow: '0 3px 12px rgba(107,45,143,0.3)',
+            marginBottom: '24px',
+          }}
+        >
+          View Full Destination
+        </Link>
+      )}
+
+      {/* Divider */}
+      <div style={{ borderTop: '1px solid #F0EAF8', margin: '4px 0 18px' }} />
+
+      {/* Coming soon */}
+      <div style={{ opacity: 0.6 }}>
+        <div style={{
+          fontFamily: 'var(--font-ui)', fontSize: '10px', fontWeight: 700,
+          letterSpacing: '0.12em', textTransform: 'uppercase',
+          color: '#9A7ACC', marginBottom: '12px',
+        }}>
+          More Coming Soon
+        </div>
+        {['Hotel options + points costs', 'Best award redemptions', 'Current transfer bonuses'].map(item => (
+          <div key={item} style={{
+            display: 'flex', alignItems: 'center', gap: '10px',
+            padding: '9px 0',
+            borderBottom: '1px solid #F5F0FF',
+          }}>
+            <LockIcon />
+            <span style={{
+              fontFamily: 'var(--font-body)', fontSize: '13px',
+              color: '#6A5A8A', flex: 1,
+            }}>
+              {item}
+            </span>
+            <span style={{
+              padding: '2px 9px', borderRadius: '999px',
+              border: '1px solid #D4C8E8', color: '#9A8AAA',
+              fontFamily: 'var(--font-ui)', fontSize: '10px', fontWeight: 600,
+            }}>
+              Coming Soon
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── AlternativeCard ──────────────────────────────────────────────────────────
+
+function AlternativeCard({ dest, visible, index }: { dest: Destination; visible: boolean; index: number }) {
+  return (
+    <div style={{
+      background: 'white',
+      border: '1.5px solid #E6DEEE',
+      borderRadius: '12px',
+      padding: '18px 20px',
+      boxShadow: '0 2px 12px rgba(107,45,143,0.06)',
+      opacity: visible ? 1 : 0,
+      transform: visible ? 'translateY(0)' : 'translateY(20px)',
+      transition: `opacity 0.5s ease ${0.3 + index * 0.15}s, transform 0.5s ease ${0.3 + index * 0.15}s`,
+      flex: '1 1 220px',
+      maxWidth: '340px',
+    }}>
+      <h3 style={{
+        fontFamily: 'var(--font-display), "Playfair Display", serif',
+        fontSize: '17px', fontWeight: 700, color: '#6B2D8F',
+        margin: '0 0 3px 0',
+      }}>
+        {dest.title}
+      </h3>
+      {(dest.country || dest.continent) && (
+        <p style={{
+          fontFamily: 'var(--font-body)', fontSize: '12px',
+          color: '#6A5A8A', margin: '0 0 10px 0', fontWeight: 500,
+        }}>
+          {[dest.country, dest.continent ? CONTINENT_LABELS[dest.continent] : null]
+            .filter(Boolean).join(' · ')}
+        </p>
+      )}
       {dest.vibe && dest.vibe.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: '12px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '14px' }}>
           {dest.vibe.map(v => (
             <span key={v} style={{
-              padding: '3px 10px', borderRadius: '999px',
+              padding: '3px 9px', borderRadius: '999px',
               background: '#F8F5FB', border: '1px solid #E6DEEE',
-              fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 600,
+              fontFamily: 'var(--font-ui)', fontSize: '10px', fontWeight: 600,
               color: '#6B2D8F',
             }}>
               {VIBE_LABELS[v] ?? v}
@@ -546,27 +751,13 @@ function ResultCard({ dest, index, visible }: { dest: Destination; index: number
           ))}
         </div>
       )}
-
-      {dest.summary && (
-        <p style={{
-          fontFamily: 'var(--font-body), Lato, sans-serif',
-          fontSize: '14px', lineHeight: 1.65, color: '#2A1A3A',
-          margin: '0 0 18px 0',
-        }}>
-          {dest.summary}
-        </p>
-      )}
-
       {dest.slug && (
         <Link
           href={`/destinations/${dest.slug}`}
           style={{
-            display: 'inline-block', padding: '9px 22px',
-            borderRadius: '999px',
-            background: 'linear-gradient(135deg, #6B2D8F, #8B3DAF)',
-            color: 'white', fontFamily: 'var(--font-ui)', fontSize: '11px',
-            fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
-            textDecoration: 'none',
+            fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 700,
+            color: '#6B2D8F', textDecoration: 'none',
+            letterSpacing: '0.06em', textTransform: 'uppercase',
           }}
         >
           View Destination
@@ -1057,19 +1248,31 @@ export default function DecisionEnginePage() {
           {/* Result cards */}
           {results.length > 0 && (
             <div style={{ marginBottom: '44px' }}>
-              <h2 style={{
-                fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 700,
-                color: '#6B2D8F', textAlign: 'center', marginBottom: '28px',
-              }}>
-                Your Next Adventures
-              </h2>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', justifyContent: 'center' }}>
-                {results.map((dest, i) =>
-                  dest.title !== '—' ? (
-                    <ResultCard key={i} dest={dest} index={i} visible={cardsVisible} />
-                  ) : null
-                )}
-              </div>
+              {/* Winner */}
+              {results[0] && results[0].title !== '—' && (
+                <WinnerCard dest={results[0]} visible={cardsVisible} />
+              )}
+
+              {/* Alternatives */}
+              {results.filter((d, i) => i > 0 && d.title !== '—').length > 0 && (
+                <div style={{ marginTop: '40px' }}>
+                  <h3 style={{
+                    fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 700,
+                    letterSpacing: '0.18em', textTransform: 'uppercase',
+                    color: '#9A7ACC', textAlign: 'center', marginBottom: '20px',
+                  }}>
+                    Other Great Options
+                  </h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', maxWidth: '700px', margin: '0 auto' }}>
+                    {results[1] && results[1].title !== '—' && (
+                      <AlternativeCard dest={results[1]} visible={cardsVisible} index={0} />
+                    )}
+                    {results[2] && results[2].title !== '—' && (
+                      <AlternativeCard dest={results[2]} visible={cardsVisible} index={1} />
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

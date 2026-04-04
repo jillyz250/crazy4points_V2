@@ -20,6 +20,9 @@ type ResultDestination = {
   continent: string | null
   vibe: string[] | null
   summary: string | null
+  weatherByMonth: Record<string, string> | null
+  tripLength: string[] | null
+  whoIsGoing: string[] | null
 }
 
 function shuffle<T>(arr: T[]): T[] {
@@ -111,6 +114,9 @@ export async function POST(req: NextRequest) {
       continent: d.continent,
       vibe: d.vibe,
       summary: d.summary,
+      weatherByMonth: d.weatherByMonth ?? null,
+      tripLength: d.tripLength ?? null,
+      whoIsGoing: d.whoIsGoing ?? null,
     }))
 
     return NextResponse.json({ destinations: top3 })
