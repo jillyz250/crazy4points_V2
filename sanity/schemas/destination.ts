@@ -67,17 +67,26 @@ export default defineType({
       },
     }),
     defineField({
-      name: 'weather',
-      title: 'Weather',
-      type: 'string',
-      options: {
-        list: [
-          { title: 'Warm',  value: 'warm' },
-          { title: 'Cool',  value: 'cool' },
-          { title: 'Mixed', value: 'mixed' },
-        ],
-        layout: 'radio',
-      },
+      name: 'weatherByMonth',
+      title: 'Weather by Month',
+      type: 'object',
+      fields: [
+        'jan', 'feb', 'mar', 'apr', 'may', 'jun',
+        'jul', 'aug', 'sep', 'oct', 'nov', 'dec',
+      ].map((m) => ({
+        name: m,
+        title: m.charAt(0).toUpperCase() + m.slice(1),
+        type: 'string',
+        options: {
+          list: [
+            { title: 'Great', value: 'great' },
+            { title: 'Good',  value: 'good'  },
+            { title: 'Mixed', value: 'mixed' },
+            { title: 'Poor',  value: 'poor'  },
+          ],
+          layout: 'radio',
+        },
+      })),
     }),
     defineField({
       name: 'tripLength',
