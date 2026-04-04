@@ -13,16 +13,16 @@ import { createClient } from '@sanity/client'
 import 'dotenv/config'
 
 const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID
-const dataset   = process.env.NEXT_PUBLIC_SANITY_DATASET ?? 'production'
-const token     = process.env.SANITY_API_TOKEN
+const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET || 'production'
+const token = process.env.SANITY_API_TOKEN
 
-if (!projectId) {
-  console.error('❌  NEXT_PUBLIC_SANITY_PROJECT_ID is not set in .env.local')
-  process.exit(1)
-}
-if (!token) {
-  console.error('❌  SANITY_API_TOKEN is not set in .env.local')
-  process.exit(1)
+if (!projectId || !dataset || !token) {
+  const missing = [
+    !projectId && 'NEXT_PUBLIC_SANITY_PROJECT_ID',
+    !dataset   && 'NEXT_PUBLIC_SANITY_DATASET',
+    !token     && 'SANITY_API_TOKEN',
+  ].filter(Boolean).join(', ')
+  throw new Error(`❌  Missing required environment variables: ${missing}`)
 }
 
 const client = createClient({
