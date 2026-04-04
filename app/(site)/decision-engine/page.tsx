@@ -259,57 +259,69 @@ function SlotReel({
 
   const isActive = phase === 'fast' || phase === 'slow'
   const isStopped = phase === 'stopped'
+  const isIdle = phase === 'idle'
+
+  const stoppedGlow = '0 0 22px rgba(240,192,64,0.8), 0 0 8px rgba(240,192,64,0.45)'
 
   return (
     <div
       style={{
         flex: 1,
-        height: '104px',
-        background: '#F8F8F8',
-        border: `2px solid ${flashing ? '#FFE87A' : '#C4A030'}`,
-        borderRadius: '8px',
+        height: '118px',
+        background: 'linear-gradient(180deg, #0D001C 0%, #0A0014 50%, #0D001C 100%)',
+        border: `1.5px solid ${flashing ? 'rgba(255,232,100,0.9)' : 'rgba(196,160,48,0.28)'}`,
+        borderRadius: '6px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         overflow: 'hidden',
         position: 'relative',
         boxShadow: flashing
-          ? '0 0 28px rgba(255,220,80,0.85), inset 0 0 18px rgba(212,175,55,0.25)'
+          ? '0 0 32px rgba(255,220,80,0.9), inset 0 0 22px rgba(212,175,55,0.2)'
           : isStopped
-            ? '0 0 10px rgba(212,175,55,0.2), inset 0 1px 4px rgba(107,45,143,0.06)'
-            : 'inset 0 2px 8px rgba(107,45,143,0.08)',
+            ? `inset 0 0 16px rgba(10,0,20,0.6), 0 0 8px rgba(212,175,55,0.15)`
+            : 'inset 0 0 20px rgba(10,0,20,0.7)',
         transition: 'box-shadow 0.3s ease, border-color 0.2s ease',
         animation: flashing ? 'reelThud 0.38s ease' : 'none',
+        backgroundImage: `
+          radial-gradient(rgba(212,175,55,0.07) 1px, transparent 1px),
+          radial-gradient(rgba(120,50,200,0.09) 1px, transparent 1px)
+        `,
+        backgroundSize: '28px 28px, 17px 17px',
+        backgroundPosition: '3px 3px, 9px 9px',
       }}
     >
       {/* Gold flash overlay */}
       {flashing && (
         <div style={{
           position: 'absolute', inset: 0, zIndex: 10,
-          background: 'linear-gradient(135deg, rgba(255,238,100,0.55) 0%, rgba(212,175,55,0.28) 100%)',
-          borderRadius: '6px', pointerEvents: 'none',
+          background: 'linear-gradient(135deg, rgba(255,238,100,0.45) 0%, rgba(212,175,55,0.22) 100%)',
+          borderRadius: '4px', pointerEvents: 'none',
         }} />
       )}
-      {/* Top/bottom soft fade */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '20px', background: 'linear-gradient(to bottom, #F8F8F8, transparent)', zIndex: 3, pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '20px', background: 'linear-gradient(to top, #F8F8F8, transparent)', zIndex: 3, pointerEvents: 'none' }} />
+      {/* Top/bottom fade to dark */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '22px', background: 'linear-gradient(to bottom, #0A0014, transparent)', zIndex: 3, pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '22px', background: 'linear-gradient(to top, #0A0014, transparent)', zIndex: 3, pointerEvents: 'none' }} />
 
       <span style={{
         fontFamily: 'var(--font-ui), Montserrat, sans-serif',
-        fontSize: isActive ? '12px' : (display.length > 12 ? '14px' : '17px'),
+        fontSize: isIdle ? '40px' : isActive ? '11px' : (display.length > 12 ? '13px' : '17px'),
         fontWeight: 700,
-        color: isStopped ? '#4A0072' : isActive ? '#A890C8' : '#C0A8D8',
-        letterSpacing: isStopped ? '0.06em' : '0.02em',
+        color: isIdle ? '#D4AF37' : isStopped ? '#F0C040' : '#7A5A20',
+        letterSpacing: isStopped ? '0.05em' : isIdle ? '0.02em' : '0.01em',
         textAlign: 'center',
-        padding: '0 10px',
-        lineHeight: 1.25,
-        transition: 'color 0.3s ease, font-size 0.15s ease',
-        filter: phase === 'fast' ? 'blur(0.6px)' : 'none',
+        padding: '0 8px',
+        lineHeight: 1.2,
+        transition: 'color 0.3s ease, font-size 0.2s ease',
+        filter: phase === 'fast' ? 'blur(0.7px)' : 'none',
         zIndex: 4,
         position: 'relative',
         maxWidth: '100%',
         wordBreak: 'break-word',
-        animation: celebrating && isStopped ? 'textPop 0.5s ease' : 'none',
+        textShadow: isStopped ? stoppedGlow : 'none',
+        animation: isIdle
+          ? 'goldGlow 1.8s ease-in-out infinite'
+          : (celebrating && isStopped ? 'textPop 0.5s ease' : 'none'),
       }}>
         {display}
       </span>
@@ -776,36 +788,47 @@ function PullHandle({ pulled, onClick }: { pulled: boolean; onClick: () => void 
       role="button"
       aria-label="Pull to spin"
       style={{
-        position: 'absolute', right: '-58px', top: '32px',
-        width: '44px', cursor: 'pointer', userSelect: 'none', zIndex: 10,
+        position: 'absolute', right: '-66px', top: '16px',
+        width: '48px', cursor: 'pointer', userSelect: 'none', zIndex: 10,
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
       }}
     >
-      <div style={{
-        width: '18px', height: '14px',
-        background: 'linear-gradient(90deg, #A87820, #D4AF37, #A87820)',
-        borderRadius: '4px 4px 0 0',
-        margin: '0 auto',
-        boxShadow: '0 2px 5px rgba(0,0,0,0.35)',
-      }} />
+      {/* Moving arm (sphere + bar) — pivots around bottom connector */}
       <div style={{
         display: 'flex', flexDirection: 'column', alignItems: 'center',
-        transformOrigin: 'top center',
-        transform: pulled ? 'rotate(24deg)' : 'rotate(0deg)',
-        transition: 'transform 0.22s cubic-bezier(0.4,0,0.2,1)',
+        transformOrigin: 'bottom center',
+        transform: pulled ? 'rotate(26deg)' : 'rotate(0deg)',
+        transition: 'transform 0.24s cubic-bezier(0.4,0,0.2,1)',
       }}>
+        {/* Large gold sphere at top */}
         <div style={{
-          width: '8px', height: '82px',
-          background: 'linear-gradient(90deg, #987018, #F0CE48, #D4AF37, #987018)',
-          borderRadius: '4px',
+          width: '40px', height: '40px', borderRadius: '50%',
+          background: 'radial-gradient(circle at 32% 28%, #FFFBCC 0%, #F5E170 18%, #D4AF37 50%, #A07820 76%, #704A08 100%)',
+          border: '2px solid #A07820',
+          boxShadow: '0 5px 16px rgba(0,0,0,0.55), inset 0 1px 3px rgba(255,255,255,0.55), 0 0 10px rgba(212,175,55,0.3)',
+          flexShrink: 0,
+          marginBottom: '-2px',
         }} />
+        {/* Gold bar */}
         <div style={{
-          width: '30px', height: '30px', borderRadius: '50%',
-          background: 'radial-gradient(circle at 35% 32%, #FFF0A0, #D4AF37 55%, #8A6010)',
-          border: '1.5px solid #A87820',
-          boxShadow: '0 3px 9px rgba(0,0,0,0.4), inset 0 1px 2px rgba(255,255,255,0.4)',
-          marginTop: '-1px',
+          width: '11px', height: '92px',
+          background: 'linear-gradient(90deg, #7A5010, #E8C030 32%, #F0CE48 50%, #D4AF37 68%, #7A5010)',
+          borderRadius: '5.5px',
+          boxShadow: '2px 0 8px rgba(0,0,0,0.4), inset 1px 0 2px rgba(255,245,150,0.25)',
+          flexShrink: 0,
         }} />
       </div>
+      {/* Bottom connector — fixed, attaches to machine */}
+      <div style={{
+        width: '26px', height: '20px',
+        background: 'linear-gradient(90deg, #906010, #E0BC38, #906010)',
+        borderRadius: '0 0 8px 8px',
+        boxShadow: '0 4px 10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,240,140,0.25)',
+        border: '1.5px solid #704808',
+        borderTop: 'none',
+        flexShrink: 0,
+        marginTop: '-1px',
+      }} />
     </div>
   )
 }
@@ -969,8 +992,16 @@ export default function DecisionEnginePage() {
           50%       { box-shadow: 0 6px 38px rgba(212,175,55,0.7), 0 0 0 9px rgba(212,175,55,0.1); }
         }
         @keyframes machinePulse {
-          0%, 100% { box-shadow: 0 10px 50px rgba(70,15,120,0.28), 0 0 0 1px rgba(196,160,48,0.12); }
-          50%       { box-shadow: 0 14px 62px rgba(70,15,120,0.45), 0 0 0 1px rgba(196,160,48,0.32); }
+          0%, 100% { opacity: 0.72; }
+          50%       { opacity: 1; }
+        }
+        @keyframes goldGlow {
+          0%, 100% { text-shadow: 0 0 18px rgba(240,192,64,0.75), 0 0 8px rgba(240,192,64,0.45), 0 2px 4px rgba(0,0,0,0.5); }
+          50%       { text-shadow: 0 0 32px rgba(240,192,64,1.0), 0 0 18px rgba(240,192,64,0.7), 0 2px 4px rgba(0,0,0,0.5); }
+        }
+        @keyframes crownGlow {
+          0%, 100% { text-shadow: 0 0 22px rgba(240,192,64,0.65), 0 0 8px rgba(240,192,64,0.35), 0 2px 5px rgba(0,0,0,0.55); }
+          50%       { text-shadow: 0 0 38px rgba(240,192,64,0.95), 0 0 18px rgba(240,192,64,0.55), 0 2px 5px rgba(0,0,0,0.55); }
         }
         @keyframes lightBlink {
           0%, 100% { opacity: 1; }
@@ -1049,40 +1080,43 @@ export default function DecisionEnginePage() {
           </div>
 
           {/* ── Machine ───────────────────────────────────────────────────── */}
-          <div style={{ position: 'relative', maxWidth: '800px', margin: '0 auto 56px' }}>
+          <div style={{ position: 'relative', maxWidth: '740px', margin: '0 auto 56px' }}>
 
+            {/* Purple glow backdrop */}
             <div style={{
-              background: `
-                radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
-                linear-gradient(165deg, #B565D8 0%, #9040C8 32%, #7B2FBE 62%, #6A28B0 100%)
-              `,
-              backgroundSize: '22px 22px, 100% 100%',
-              borderRadius: '22px 22px 18px 18px',
-              border: '3px solid #C4A030',
+              position: 'absolute', left: '8%', right: '8%', top: '15%', bottom: '-8px',
+              background: 'radial-gradient(ellipse at 50% 45%, rgba(90,26,154,0.50) 0%, transparent 68%)',
               animation: 'machinePulse 5s ease-in-out infinite',
-              position: 'relative',
+              pointerEvents: 'none', zIndex: 0,
+              filter: 'blur(10px)',
+            }} />
+
+            {/* Machine body */}
+            <div style={{
+              position: 'relative', zIndex: 1,
+              borderRadius: '26px 26px 12px 12px',
+              background: `
+                radial-gradient(ellipse at 18% 20%, rgba(130,65,210,0.20) 0%, transparent 44%),
+                radial-gradient(ellipse at 82% 80%, rgba(65,10,130,0.28) 0%, transparent 44%),
+                radial-gradient(rgba(255,255,255,0.038) 1px, transparent 1px),
+                linear-gradient(175deg, #5A1A9A 0%, #3E0C72 25%, #3B0A6B 52%, #4C0E8C 78%, #3B0A6B 100%)
+              `,
+              backgroundSize: '100% 100%, 100% 100%, 20px 20px, 100% 100%',
+              boxShadow: `
+                0 0 0 2.5px #D4AF37,
+                0 0 0 5px #F0C040,
+                0 0 0 7.5px #B8960C,
+                0 0 0 9px rgba(184,150,12,0.12)
+              `,
               overflow: 'visible',
             }}>
 
-              {/* Side rivets */}
-              {RIVETS.map((pos, i) => (
-                <div key={i} style={{
-                  position: 'absolute', ...pos,
-                  width: '14px', height: '14px', borderRadius: '50%',
-                  background: 'radial-gradient(circle at 35% 32%, #FFE080, #D4AF37, #8A6010)',
-                  border: '1px solid #A07820',
-                  boxShadow: '0 2px 5px rgba(0,0,0,0.4)',
-                  transform: 'translateY(-50%)',
-                  zIndex: 5,
-                }} />
-              ))}
-
-              {/* Celebration: gold flash + confetti */}
+              {/* Celebration overlay + confetti */}
               {celebrating && (
                 <>
                   <div style={{
                     position: 'absolute', inset: 0, zIndex: 8,
-                    borderRadius: '22px 22px 18px 18px',
+                    borderRadius: '26px 26px 12px 12px',
                     background: 'rgba(212,175,55,0.18)',
                     animation: 'machineCelebFlash 0.7s ease forwards',
                     pointerEvents: 'none',
@@ -1090,153 +1124,239 @@ export default function DecisionEnginePage() {
                   {CONFETTI_PIECES.map((c, i) => (
                     <div key={i} style={{
                       position: 'absolute',
-                      left: `${c.left}%`,
-                      top: '0px',
-                      width: `${c.size}px`,
-                      height: `${c.size}px`,
+                      left: `${c.left}%`, top: '0px',
+                      width: `${c.size}px`, height: `${c.size}px`,
                       background: c.color,
                       borderRadius: c.round ? '50%' : '2px',
                       animation: `confettiFall 1.6s ease-in ${c.delay}ms forwards`,
-                      pointerEvents: 'none',
-                      zIndex: 15,
+                      pointerEvents: 'none', zIndex: 15,
                     }} />
                   ))}
                 </>
               )}
 
-              {/* Corner lights */}
-              {CORNER_LIGHTS.map((pos, i) => (
-                <div key={i} style={{
-                  position: 'absolute', ...pos,
-                  width: '9px', height: '9px', borderRadius: '50%',
-                  background: i % 2 === 0 ? '#FFD700' : '#D4AF37',
-                  boxShadow: `0 0 7px ${i % 2 === 0 ? '#FFD700' : '#D4AF37'}`,
-                  animation: `lightBlink ${1.1 + i * 0.35}s ease-in-out infinite`,
-                  zIndex: 5,
-                }} />
-              ))}
-
-              {/* Marquee */}
+              {/* ── Crown ── */}
               <div style={{
-                background: 'linear-gradient(90deg, #0E0622, #1A0838, #0E0622)',
-                borderRadius: '18px 18px 0 0',
-                borderBottom: '2px solid #C4A030',
-                padding: '10px 0',
-                overflow: 'hidden',
+                borderRadius: '20px 20px 0 0',
+                borderBottom: '2px solid rgba(212,175,55,0.42)',
+                padding: '22px 36px 18px',
+                background: 'linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.01) 100%)',
+                textAlign: 'center',
+                position: 'relative',
               }}>
-                {/* Light row */}
-                <div style={{ display: 'flex', justifyContent: 'space-around', padding: '0 20px', marginBottom: '8px' }}>
-                  {Array.from({ length: 22 }).map((_, i) => (
+                {/* Top corner lights */}
+                {([{ left: '20px', top: '20px' }, { right: '20px', top: '20px' }] as const).map((pos, i) => (
+                  <div key={i} style={{
+                    position: 'absolute', ...pos,
+                    width: '10px', height: '10px', borderRadius: '50%',
+                    background: i === 0 ? '#FFD700' : '#F0C040',
+                    boxShadow: `0 0 9px ${i === 0 ? '#FFD700' : '#F0C040'}`,
+                    animation: `lightBlink ${1.0 + i * 0.45}s ease-in-out infinite`,
+                  }} />
+                ))}
+
+                {/* Light row under crown text */}
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '7px', marginBottom: '10px' }}>
+                  {Array.from({ length: 14 }).map((_, i) => (
                     <div key={i} style={{
                       width: '5px', height: '5px', borderRadius: '50%',
-                      background: i % 4 === 0 ? '#FFD700' : i % 4 === 1 ? '#D4AF37' : i % 4 === 2 ? '#8B3DAF' : '#C4A030',
-                      boxShadow: '0 0 3px currentColor',
-                      animation: `lightBlink ${0.7 + (i % 5) * 0.2}s ease-in-out infinite`,
+                      background: i % 3 === 0 ? '#FFD700' : i % 3 === 1 ? '#D4AF37' : '#C4A030',
+                      boxShadow: '0 0 4px currentColor',
+                      animation: `lightBlink ${0.7 + (i % 5) * 0.18}s ease-in-out infinite`,
                     }} />
                   ))}
                 </div>
-                {/* Scrolling text */}
-                <div style={{ overflow: 'hidden' }}>
-                  <div style={{
-                    display: 'inline-flex',
-                    whiteSpace: 'nowrap',
-                    animation: 'marqueeScroll 18s linear infinite',
-                    fontFamily: 'var(--font-ui), Montserrat, sans-serif',
-                    fontSize: '11px', fontWeight: 800,
-                    letterSpacing: '0.22em', color: '#F0CF50',
-                    textTransform: 'uppercase',
-                  }}>
-                    {[0, 1].map(n => (
-                      <span key={n} style={{ paddingRight: '80px' }}>
-                        DECISION ENGINE &nbsp;&middot;&nbsp; CRAZY4POINTS &nbsp;&middot;&nbsp; SPIN YOUR NEXT ADVENTURE
-                      </span>
-                    ))}
-                  </div>
+
+                {/* CRAZY4POINTS title */}
+                <div style={{
+                  fontFamily: 'var(--font-display), "Playfair Display", serif',
+                  fontSize: 'clamp(20px, 3.8vw, 30px)',
+                  fontWeight: 700,
+                  color: '#F0C040',
+                  letterSpacing: '0.10em',
+                  textTransform: 'uppercase',
+                  animation: 'crownGlow 3s ease-in-out infinite',
+                  lineHeight: 1.1,
+                  marginBottom: '6px',
+                }}>
+                  CRAZY4POINTS
+                </div>
+                {/* Tagline */}
+                <div style={{
+                  fontFamily: 'var(--font-display), "Playfair Display", serif',
+                  fontSize: '13px',
+                  fontStyle: 'italic',
+                  color: '#D4AF37',
+                  opacity: 0.88,
+                  textShadow: '0 0 12px rgba(212,175,55,0.5)',
+                  letterSpacing: '0.03em',
+                }}>
+                  Stop wondering. Start going.
                 </div>
               </div>
 
-              {/* Reel window */}
-              <div style={{ padding: '24px 26px 20px' }}>
+              {/* Gold separator bar */}
+              <div style={{
+                height: '3px',
+                background: 'linear-gradient(90deg, transparent 0%, #B8960C 12%, #D4AF37 30%, #F0C040 50%, #D4AF37 70%, #B8960C 88%, transparent 100%)',
+              }} />
+
+              {/* ── Reel section ── */}
+              <div style={{ padding: '20px 26px 18px' }}>
+
+                {/* Gold cap bar above window */}
                 <div style={{
-                  background: '#2E1268',
+                  height: '9px',
+                  background: 'linear-gradient(90deg, #7A5010, #C4A030 22%, #F0C040 50%, #C4A030 78%, #7A5010)',
+                  borderRadius: '5px 5px 0 0',
+                  boxShadow: '0 -1px 0 rgba(255,240,160,0.18), 0 0 14px rgba(212,175,55,0.5)',
+                }} />
+
+                {/* Reel window */}
+                <div style={{
+                  background: '#0A0014',
                   border: '3px solid #C4A030',
-                  borderRadius: '12px',
-                  padding: '16px',
-                  boxShadow: 'inset 0 4px 20px rgba(0,0,0,0.35)',
+                  borderTop: 'none',
+                  borderBottom: 'none',
+                  padding: '14px 12px 16px',
                   position: 'relative',
+                  backgroundImage: `
+                    radial-gradient(rgba(212,175,55,0.065) 1px, transparent 1px),
+                    radial-gradient(rgba(120,50,200,0.08) 1px, transparent 1px)
+                  `,
+                  backgroundSize: '32px 32px, 19px 19px',
+                  backgroundPosition: '0 0, 11px 11px',
                 }}>
                   {/* Win line */}
                   <div style={{
-                    position: 'absolute', top: '50%', left: '16px', right: '16px',
+                    position: 'absolute', top: '50%', left: '12px', right: '12px',
                     height: '1px', background: 'rgba(212,175,55,0.18)',
                     transform: 'translateY(-50%)', pointerEvents: 'none', zIndex: 1,
                   }} />
 
                   {/* Reel labels */}
-                  <div style={{ display: 'flex', gap: '12px', marginBottom: '8px' }}>
+                  <div style={{ display: 'flex', gap: '0', marginBottom: '8px' }}>
                     {['I', 'II', 'III'].map(r => (
                       <div key={r} style={{
                         flex: 1, textAlign: 'center',
                         fontFamily: 'var(--font-ui)', fontSize: '9px', fontWeight: 700,
-                        letterSpacing: '0.16em', color: '#9A7ACC',
+                        letterSpacing: '0.16em', color: 'rgba(212,175,55,0.45)',
                       }}>
                         {r}
                       </div>
                     ))}
                   </div>
 
-                  {/* Reels */}
-                  <div style={{ display: 'flex', gap: '12px' }}>
-                    {[0, 1, 2].map(i => (
-                      <SlotReel
-                        key={i}
-                        spinning={spinning}
-                        stopping={stopping}
-                        stopIndex={i}
-                        finalValue={reelValues[i]}
-                        flashing={reelFlashing[i]}
-                        celebrating={celebrating}
-                      />
-                    ))}
+                  {/* Reels with gold dividers */}
+                  <div style={{ display: 'flex', alignItems: 'stretch' }}>
+                    {[0, 1, 2].flatMap(i => {
+                      const items = [(
+                        <SlotReel
+                          key={`reel-${i}`}
+                          spinning={spinning}
+                          stopping={stopping}
+                          stopIndex={i}
+                          finalValue={reelValues[i]}
+                          flashing={reelFlashing[i]}
+                          celebrating={celebrating}
+                        />
+                      )]
+                      if (i < 2) {
+                        items.push(
+                          <div key={`div-${i}`} style={{
+                            width: '3px',
+                            margin: '0 10px',
+                            background: 'linear-gradient(180deg, rgba(196,160,48,0.12) 0%, #C4A030 25%, #D4AF37 50%, #C4A030 75%, rgba(196,160,48,0.12) 100%)',
+                            borderRadius: '2px',
+                            flexShrink: 0,
+                            alignSelf: 'stretch',
+                          }} />
+                        )
+                      }
+                      return items
+                    })}
                   </div>
+                </div>
 
-                  {/* Bottom accent line */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px' }}>
-                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#C4A030', flexShrink: 0, boxShadow: '0 0 5px #C4A030' }} />
-                    <div style={{ flex: 1, height: '1px', background: 'rgba(196,160,48,0.22)' }} />
-                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#C4A030', flexShrink: 0, boxShadow: '0 0 5px #C4A030' }} />
-                  </div>
+                {/* Gold cap bar below window */}
+                <div style={{
+                  height: '9px',
+                  background: 'linear-gradient(90deg, #7A5010, #C4A030 22%, #F0C040 50%, #C4A030 78%, #7A5010)',
+                  borderRadius: '0 0 5px 5px',
+                  boxShadow: '0 4px 14px rgba(212,175,55,0.45)',
+                }} />
+
+              </div>{/* /reel section */}
+
+              {/* ── SPIN button ── */}
+              <div style={{ padding: '6px 26px 24px', display: 'flex', justifyContent: 'center' }}>
+                {/* Purple oval ring */}
+                <div style={{
+                  padding: '5px',
+                  borderRadius: '999px',
+                  background: 'rgba(80,20,140,0.65)',
+                  boxShadow: '0 0 20px rgba(80,20,140,0.55), inset 0 1px 0 rgba(255,255,255,0.07)',
+                }}>
+                  <button
+                    type="button"
+                    onClick={handleSpin}
+                    disabled={!canSpin}
+                    style={{
+                      padding: '15px 70px',
+                      borderRadius: '999px',
+                      border: 'none',
+                      background: canSpin
+                        ? 'linear-gradient(135deg, #F8EB80 0%, #E8C830 38%, #C9A227 65%, #D4AF37 100%)'
+                        : 'linear-gradient(135deg, #555, #333)',
+                      color: canSpin ? '#1A0A2E' : '#888',
+                      fontFamily: 'var(--font-ui), Montserrat, sans-serif',
+                      fontSize: '20px', fontWeight: 900,
+                      letterSpacing: '0.24em', textTransform: 'uppercase',
+                      cursor: canSpin ? 'pointer' : 'not-allowed',
+                      animation: canSpin ? 'spinIdle 2.8s ease-in-out infinite' : 'none',
+                      boxShadow: canSpin
+                        ? '0 4px 20px rgba(212,175,55,0.55), inset 0 1px 0 rgba(255,248,190,0.5)'
+                        : 'none',
+                      transition: 'background 0.2s ease, color 0.2s ease',
+                    }}
+                  >
+                    {spinning || stopping ? 'SPINNING' : 'SPIN'}
+                  </button>
                 </div>
               </div>
 
-              {/* SPIN button */}
-              <div style={{ padding: '0 26px 30px', display: 'flex', justifyContent: 'center' }}>
-                <button
-                  type="button"
-                  onClick={handleSpin}
-                  disabled={!canSpin}
-                  style={{
-                    padding: '16px 80px',
-                    borderRadius: '999px',
-                    border: 'none',
-                    background: canSpin
-                      ? 'linear-gradient(135deg, #F8EB80 0%, #D4AF37 50%, #B89228 100%)'
-                      : 'linear-gradient(135deg, #7A7A7A, #4A4A4A)',
-                    color: canSpin ? '#1A0A2E' : '#999',
-                    fontFamily: 'var(--font-ui), Montserrat, sans-serif',
-                    fontSize: '20px', fontWeight: 900,
-                    letterSpacing: '0.24em', textTransform: 'uppercase',
-                    cursor: canSpin ? 'pointer' : 'not-allowed',
-                    animation: canSpin ? 'spinIdle 2.8s ease-in-out infinite' : 'none',
-                    boxShadow: canSpin ? '0 4px 22px rgba(212,175,55,0.4)' : 'none',
-                    transition: 'background 0.2s ease, color 0.2s ease',
-                  }}
-                >
-                  {spinning || stopping ? 'SPINNING' : 'SPIN'}
-                </button>
-              </div>
+              {/* Bottom corner lights */}
+              {([{ left: '20px', bottom: '78px' }, { right: '20px', bottom: '78px' }] as const).map((pos, i) => (
+                <div key={i} style={{
+                  position: 'absolute', ...pos,
+                  width: '9px', height: '9px', borderRadius: '50%',
+                  background: i === 0 ? '#D4AF37' : '#FFD700',
+                  boxShadow: `0 0 8px ${i === 0 ? '#D4AF37' : '#FFD700'}`,
+                  animation: `lightBlink ${1.7 + i * 0.55}s ease-in-out infinite`,
+                  zIndex: 5,
+                }} />
+              ))}
 
             </div>{/* /machine body */}
+
+            {/* ── Feet ── */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-around',
+              padding: '0 16%',
+              position: 'relative', zIndex: 1,
+            }}>
+              {[0, 1].map(i => (
+                <div key={i} style={{
+                  width: '84px', height: '22px',
+                  background: 'linear-gradient(180deg, #C4A030 0%, #A87820 45%, #8A6010 100%)',
+                  borderRadius: '0 0 14px 14px',
+                  boxShadow: '0 6px 16px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,240,140,0.30)',
+                  border: '1.5px solid #704808',
+                  borderTop: 'none',
+                }} />
+              ))}
+            </div>
 
             {/* Handle — desktop only */}
             <div className="hidden md:block">
