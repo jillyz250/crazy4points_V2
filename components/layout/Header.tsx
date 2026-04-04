@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const toolsItems = [
   { label: "Transfer Bonus Tracker", comingSoon: true, href: null },
@@ -11,10 +11,86 @@ const toolsItems = [
   { label: "Card Benefits Search", comingSoon: true, href: null },
 ];
 
+const REEL_EMOJIS = ["✈️", "🌴", "🎰", "🗺️", "🧳"];
+
+function SlotReel({ fast }: { fast: boolean }) {
+  const [idx, setIdx] = useState(0);
+  const [sliding, setSliding] = useState(false);
+  const busyRef = useRef(false);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (!busyRef.current) {
+        busyRef.current = true;
+        setSliding(true);
+      }
+    }, fast ? 380 : 1150);
+    return () => clearInterval(id);
+  }, [fast]);
+
+  function handleTransitionEnd() {
+    setIdx((i) => (i + 1) % REEL_EMOJIS.length);
+    setSliding(false);
+    busyRef.current = false;
+  }
+
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        position: "relative",
+        width: "1.35rem",
+        height: "1.2rem",
+        overflow: "hidden",
+        verticalAlign: "middle",
+      }}
+    >
+      <span
+        onTransitionEnd={handleTransitionEnd}
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          height: "200%",
+          transform: sliding ? "translateY(-50%)" : "translateY(0)",
+          transition: sliding ? "transform 260ms ease-in-out" : "none",
+        }}
+      >
+        <span
+          style={{
+            height: "50%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "0.85rem",
+            lineHeight: 1,
+            userSelect: "none",
+          }}
+        >
+          {REEL_EMOJIS[idx]}
+        </span>
+        <span
+          style={{
+            height: "50%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "0.85rem",
+            lineHeight: 1,
+            userSelect: "none",
+          }}
+        >
+          {REEL_EMOJIS[(idx + 1) % REEL_EMOJIS.length]}
+        </span>
+      </span>
+    </span>
+  );
+}
+
 export default function Header() {
   const [logoError, setLogoError] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
+  const [spinFast, setSpinFast] = useState(false);
 
   return (
     <header className="sticky top-0 z-50 border-b border-[var(--color-border-soft)] bg-[var(--color-background)]">
@@ -53,7 +129,7 @@ export default function Header() {
             <div className="group relative">
               <button
                 type="button"
-                className="flex items-center gap-1 font-ui text-xs font-medium uppercase tracking-[0.14em] text-[var(--color-text-secondary)] hover:text-[var(--color-primary)]"
+                className="flex items-center gap-1 font-ui !text-xs font-medium uppercase tracking-[0.14em] text-[var(--color-text-secondary)] hover:text-[var(--color-primary)]"
               >
                 Tools
                 <svg className="h-3 w-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -97,11 +173,28 @@ export default function Header() {
           </nav>
 
           <div className="flex items-center gap-4">
+            {/* Slot machine CTA — desktop only */}
             <Link
               href="/decision-engine"
-              className="hidden animate-pulse-slow items-center gap-2 rounded-full bg-[var(--color-accent)] px-5 py-2.5 font-ui text-xs font-bold uppercase tracking-[0.12em] text-[var(--color-primary)] shadow-[0_0_12px_rgba(245,195,0,0.4)] transition-all hover:scale-105 hover:bg-[var(--color-accent-hover)] hover:shadow-[0_0_20px_rgba(245,195,0,0.6)] md:inline-flex"
+              onMouseEnter={() => setSpinFast(true)}
+              onMouseLeave={() => setSpinFast(false)}
+              className="hidden md:inline-flex items-center gap-2.5 rounded-lg border-2 border-[var(--color-accent)] bg-[var(--color-primary)] px-3.5 py-[0.45rem] font-ui text-[11px] font-bold uppercase tracking-[0.1em] text-white shadow-[0_3px_10px_rgba(107,45,143,0.4)] transition-shadow duration-200 hover:shadow-[0_5px_18px_rgba(107,45,143,0.6)]"
             >
-              🎰 Spin the Engine
+              {/* Reel window */}
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: "4px",
+                  border: "1.5px solid rgba(212,175,55,0.7)",
+                  background: "rgba(0,0,0,0.25)",
+                  padding: "2px 5px",
+                }}
+              >
+                <SlotReel fast={spinFast} />
+              </span>
+              Spin the Decision Engine
             </Link>
 
             <button
