@@ -156,8 +156,9 @@ function playReelStop(ctx: AudioContext) {
   osc.stop(ctx.currentTime + 0.22)
 }
 
-function playWinSound(ctx: AudioContext) {
-  const notes = [523.25, 659.25, 783.99, 1046.5]
+function playCelebrationSound(ctx: AudioContext) {
+  // Ascending 6-note chime — bright and celebratory
+  const notes = [523.25, 659.25, 783.99, 880, 1046.5, 1318.5]
   notes.forEach((freq, i) => {
     setTimeout(() => {
       const osc = ctx.createOscillator()
@@ -165,26 +166,37 @@ function playWinSound(ctx: AudioContext) {
       osc.type = 'sine'
       osc.frequency.value = freq
       gain.gain.setValueAtTime(0, ctx.currentTime)
-      gain.gain.linearRampToValueAtTime(0.32, ctx.currentTime + 0.02)
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.55)
+      gain.gain.linearRampToValueAtTime(0.28, ctx.currentTime + 0.015)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5)
       osc.connect(gain)
       gain.connect(ctx.destination)
       osc.start(ctx.currentTime)
-      osc.stop(ctx.currentTime + 0.55)
-    }, i * 150)
+      osc.stop(ctx.currentTime + 0.5)
+    }, i * 115)
   })
 }
+
+// ─── Confetti pieces (deterministic, no Math.random) ─────────────────────────
+
+const CONFETTI_PIECES = Array.from({ length: 30 }, (_, i) => ({
+  left: ((i * 13 + 4) % 88) + 5,
+  size: 6 + (i % 4) * 2,
+  color: ['#D4AF37', '#F5E170', '#C4A030', '#FFD700', '#8B3DAF', '#B060D0'][i % 6],
+  round: i % 3 !== 0,
+  delay: (i % 6) * 55,
+}))
 
 // ─── SlotReel ─────────────────────────────────────────────────────────────────
 
 function SlotReel({
-  spinning, stopping, stopIndex, finalValue, flashing,
+  spinning, stopping, stopIndex, finalValue, flashing, celebrating,
 }: {
   spinning: boolean
   stopping: boolean
   stopIndex: number
   finalValue: string
   flashing: boolean
+  celebrating: boolean
 }) {
   const [display, setDisplay] = useState('?')
   const [phase, setPhase] = useState<'idle' | 'fast' | 'slow' | 'stopped'>('idle')
@@ -237,7 +249,7 @@ function SlotReel({
       style={{
         flex: 1,
         height: '104px',
-        background: '#0C0818',
+        background: '#F8F8F8',
         border: `2px solid ${flashing ? '#FFE87A' : '#C4A030'}`,
         borderRadius: '8px',
         display: 'flex',
@@ -246,46 +258,42 @@ function SlotReel({
         overflow: 'hidden',
         position: 'relative',
         boxShadow: flashing
-          ? '0 0 32px rgba(255,228,100,0.8), inset 0 0 24px rgba(212,175,55,0.35)'
+          ? '0 0 28px rgba(255,220,80,0.85), inset 0 0 18px rgba(212,175,55,0.25)'
           : isStopped
-            ? 'inset 0 0 14px rgba(212,175,55,0.1), 0 0 8px rgba(212,175,55,0.12)'
-            : 'inset 0 2px 14px rgba(0,0,0,0.65)',
+            ? '0 0 10px rgba(212,175,55,0.2), inset 0 1px 4px rgba(107,45,143,0.06)'
+            : 'inset 0 2px 8px rgba(107,45,143,0.08)',
         transition: 'box-shadow 0.3s ease, border-color 0.2s ease',
         animation: flashing ? 'reelThud 0.38s ease' : 'none',
       }}
     >
+      {/* Gold flash overlay */}
       {flashing && (
         <div style={{
           position: 'absolute', inset: 0, zIndex: 10,
-          background: 'linear-gradient(135deg, rgba(255,238,130,0.5) 0%, rgba(212,175,55,0.25) 100%)',
+          background: 'linear-gradient(135deg, rgba(255,238,100,0.55) 0%, rgba(212,175,55,0.28) 100%)',
           borderRadius: '6px', pointerEvents: 'none',
         }} />
       )}
-      {/* Scan lines */}
-      <div style={{
-        position: 'absolute', inset: 0, pointerEvents: 'none',
-        background: 'repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px)',
-        zIndex: 2,
-      }} />
-      {/* Top/bottom fade */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '24px', background: 'linear-gradient(to bottom, #0C0818, transparent)', zIndex: 3, pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '24px', background: 'linear-gradient(to top, #0C0818, transparent)', zIndex: 3, pointerEvents: 'none' }} />
+      {/* Top/bottom soft fade */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '20px', background: 'linear-gradient(to bottom, #F8F8F8, transparent)', zIndex: 3, pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '20px', background: 'linear-gradient(to top, #F8F8F8, transparent)', zIndex: 3, pointerEvents: 'none' }} />
 
       <span style={{
         fontFamily: 'var(--font-ui), Montserrat, sans-serif',
         fontSize: isActive ? '12px' : (display.length > 12 ? '14px' : '17px'),
         fontWeight: 700,
-        color: isStopped ? '#F5E88A' : isActive ? '#6A5A8A' : '#3A2858',
+        color: isStopped ? '#4A0072' : isActive ? '#A890C8' : '#C0A8D8',
         letterSpacing: isStopped ? '0.06em' : '0.02em',
         textAlign: 'center',
         padding: '0 10px',
         lineHeight: 1.25,
         transition: 'color 0.3s ease, font-size 0.15s ease',
-        filter: phase === 'fast' ? 'blur(0.7px)' : 'none',
+        filter: phase === 'fast' ? 'blur(0.6px)' : 'none',
         zIndex: 4,
         position: 'relative',
         maxWidth: '100%',
         wordBreak: 'break-word',
+        animation: celebrating && isStopped ? 'textPop 0.5s ease' : 'none',
       }}>
         {display}
       </span>
@@ -638,6 +646,7 @@ export default function DecisionEnginePage() {
   const [handlePulled, setHandlePulled] = useState(false)
   const [reelValues, setReelValues] = useState(['?', '?', '?'])
   const [reelFlashing, setReelFlashing] = useState([false, false, false])
+  const [celebrating, setCelebrating] = useState(false)
   const [results, setResults] = useState<Destination[]>([])
   const [cardsVisible, setCardsVisible] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
@@ -668,6 +677,7 @@ export default function DecisionEnginePage() {
 
     setSpinning(true)
     setStopping(false)
+    setCelebrating(false)
     setCardsVisible(false)
     setResults([])
     setReelValues(['?', '?', '?'])
@@ -701,13 +711,14 @@ export default function DecisionEnginePage() {
       dests.push({ title: '—', slug: '', country: null, continent: null, vibe: null, summary: null })
     }
 
-    // Kick off stop sequence — set reelValues + stopping atomically
-    setReelValues([dests[0].title, dests[1].title, dests[2].title])
+    // All 3 reels show the #1 result — one clear winner
+    const winner = dests[0]
+    setReelValues([winner.title, winner.title, winner.title])
     setSpinning(false)
     setStopping(true)
 
     // Reel i stops at i*330 + 380ms after stopping=true
-    // i=0 → 380ms  i=1 → 710ms  i=2 → 1040ms  (660ms total span — within 1s)
+    // i=0 → 380ms  i=1 → 710ms  i=2 → 1040ms  (660ms total span)
     ;[0, 1, 2].forEach(i => {
       const stopAt = i * 330 + 380
 
@@ -724,8 +735,13 @@ export default function DecisionEnginePage() {
     // Stop spin sound when first reel thuds
     setTimeout(() => stopSpinRef.current?.(), 380)
 
-    // Win chime after all reels stop
-    setTimeout(() => playWinSound(getCtx()), 1120)
+    // Celebration: starts when last reel stops (1040ms), lasts ~1.8s
+    setTimeout(() => {
+      playCelebrationSound(getCtx())
+      setCelebrating(true)
+    }, 1100)
+
+    setTimeout(() => setCelebrating(false), 2900)
 
     // Slide up cards
     setTimeout(() => {
@@ -768,6 +784,21 @@ export default function DecisionEnginePage() {
         @keyframes lightBlink {
           0%, 100% { opacity: 1; }
           50%       { opacity: 0.22; }
+        }
+        @keyframes textPop {
+          0%   { transform: scale(1); }
+          40%  { transform: scale(1.15); }
+          100% { transform: scale(1); }
+        }
+        @keyframes confettiFall {
+          0%   { transform: translateY(0) rotate(0deg);   opacity: 1; }
+          75%  { opacity: 1; }
+          100% { transform: translateY(220px) rotate(380deg); opacity: 0; }
+        }
+        @keyframes machineCelebFlash {
+          0%   { opacity: 0; }
+          25%  { opacity: 1; }
+          100% { opacity: 0; }
         }
       `}</style>
 
@@ -831,8 +862,8 @@ export default function DecisionEnginePage() {
 
             <div style={{
               background: `
-                radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
-                linear-gradient(158deg, #9035BE 0%, #7428A8 38%, #6018A0 68%, #5210A0 100%)
+                radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+                linear-gradient(165deg, #B565D8 0%, #9040C8 32%, #7B2FBE 62%, #6A28B0 100%)
               `,
               backgroundSize: '22px 22px, 100% 100%',
               borderRadius: '22px 22px 18px 18px',
@@ -854,6 +885,33 @@ export default function DecisionEnginePage() {
                   zIndex: 5,
                 }} />
               ))}
+
+              {/* Celebration: gold flash + confetti */}
+              {celebrating && (
+                <>
+                  <div style={{
+                    position: 'absolute', inset: 0, zIndex: 8,
+                    borderRadius: '22px 22px 18px 18px',
+                    background: 'rgba(212,175,55,0.18)',
+                    animation: 'machineCelebFlash 0.7s ease forwards',
+                    pointerEvents: 'none',
+                  }} />
+                  {CONFETTI_PIECES.map((c, i) => (
+                    <div key={i} style={{
+                      position: 'absolute',
+                      left: `${c.left}%`,
+                      top: '0px',
+                      width: `${c.size}px`,
+                      height: `${c.size}px`,
+                      background: c.color,
+                      borderRadius: c.round ? '50%' : '2px',
+                      animation: `confettiFall 1.6s ease-in ${c.delay}ms forwards`,
+                      pointerEvents: 'none',
+                      zIndex: 15,
+                    }} />
+                  ))}
+                </>
+              )}
 
               {/* Corner lights */}
               {CORNER_LIGHTS.map((pos, i) => (
@@ -909,11 +967,11 @@ export default function DecisionEnginePage() {
               {/* Reel window */}
               <div style={{ padding: '24px 26px 20px' }}>
                 <div style={{
-                  background: '#0C0818',
+                  background: '#2E1268',
                   border: '3px solid #C4A030',
                   borderRadius: '12px',
                   padding: '16px',
-                  boxShadow: 'inset 0 4px 28px rgba(0,0,0,0.72)',
+                  boxShadow: 'inset 0 4px 20px rgba(0,0,0,0.35)',
                   position: 'relative',
                 }}>
                   {/* Win line */}
@@ -929,7 +987,7 @@ export default function DecisionEnginePage() {
                       <div key={r} style={{
                         flex: 1, textAlign: 'center',
                         fontFamily: 'var(--font-ui)', fontSize: '9px', fontWeight: 700,
-                        letterSpacing: '0.16em', color: '#3A2858',
+                        letterSpacing: '0.16em', color: '#9A7ACC',
                       }}>
                         {r}
                       </div>
@@ -946,6 +1004,7 @@ export default function DecisionEnginePage() {
                         stopIndex={i}
                         finalValue={reelValues[i]}
                         flashing={reelFlashing[i]}
+                        celebrating={celebrating}
                       />
                     ))}
                   </div>
