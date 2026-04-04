@@ -5,11 +5,9 @@ import Link from "next/link";
 import { useState } from "react";
 
 const navLinks = [
+  { label: "Alerts", href: "/alerts", highlight: true },
   { label: "Tools", href: "/tools" },
-  { label: "Alerts", href: "/alerts" },
   { label: "Newsletter", href: "/newsletter" },
-  { label: "About", href: "/about" },
-  { label: "Contact", href: "/contact" },
 ];
 
 export default function Header() {
@@ -44,7 +42,7 @@ export default function Header() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="group relative font-ui text-xs font-medium uppercase tracking-[0.14em] text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-primary)]"
+                className={`group relative font-ui text-xs uppercase tracking-[0.14em] transition-colors hover:text-[var(--color-primary)] ${link.highlight ? "font-semibold !text-red-600" : "font-medium text-[var(--color-text-secondary)]"}`}
               >
                 {link.label}
                 <span className="absolute -bottom-1 left-0 h-0.5 w-full origin-left scale-x-0 bg-[var(--color-accent)] transition-transform duration-200 group-hover:scale-x-100" />
@@ -85,7 +83,7 @@ export default function Header() {
               key={link.href}
               href={link.href}
               onClick={() => setMenuOpen(false)}
-              className="flex min-h-[44px] items-center border-b border-[var(--color-border-soft)] px-6 font-ui text-sm font-medium uppercase tracking-[0.14em] text-[var(--color-text-secondary)]"
+              className={`flex min-h-[44px] items-center border-b border-[var(--color-border-soft)] px-6 font-ui text-sm uppercase tracking-[0.14em] ${link.highlight ? "font-semibold !text-red-600" : "font-medium text-[var(--color-text-secondary)]"}`}
             >
               {link.label}
             </Link>
