@@ -6,13 +6,11 @@
  *   npm install @sanity/client dotenv
  *
  * Run:
- *   npx ts-node scripts/import-destinations.ts
+ *   node scripts/import-destinations.mjs
  */
 
 import { createClient } from '@sanity/client'
-import dotenv from 'dotenv'
-
-dotenv.config({ path: '.env.local' })
+import 'dotenv/config'
 
 const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID
 const dataset   = process.env.NEXT_PUBLIC_SANITY_DATASET ?? 'production'
@@ -35,7 +33,7 @@ const client = createClient({
   useCdn: false,
 })
 
-function slugify(title: string): string {
+function slugify(title) {
   return title
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
@@ -44,25 +42,7 @@ function slugify(title: string): string {
 
 // ── Destination definitions ───────────────────────────────────────────────────
 
-type Vibe       = 'beach' | 'city' | 'history' | 'nature' | 'adventure' | 'luxury' | 'family'
-type Weather    = 'warm' | 'cool' | 'mixed'
-type TripLength = 'short' | 'medium' | 'long'
-type WhoIsGoing = 'solo' | 'couple' | 'family' | 'group'
-type Continent  = 'caribbean' | 'north_america' | 'central_america' | 'south_america' | 'europe' | 'asia' | 'middle_east' | 'africa' | 'south_pacific'
-
-interface Destination {
-  title: string
-  continent: Continent
-  country: string
-  region: string
-  vibe: Vibe[]
-  weather: Weather
-  tripLength: TripLength[]
-  whoIsGoing: WhoIsGoing[]
-  summary: string
-}
-
-const destinations: Destination[] = [
+const destinations = [
 
   // ── Caribbean (10) ──────────────────────────────────────────────────────────
 
@@ -1115,7 +1095,7 @@ async function run() {
       created++
     } catch (err) {
       console.error(`  ❌  ${dest.title}`)
-      console.error(`      ${err instanceof Error ? err.message : String(err)}`)
+      console.error(`      ${err?.message ?? String(err)}`)
       failed++
     }
   }
