@@ -100,12 +100,12 @@ export default function Header() {
           <div className="flex items-center gap-4">
             {/* Two-part CTA — desktop only */}
             <div className="hidden md:inline-flex items-center gap-2">
-              <span className="font-display text-sm italic text-[#6A0DAD]">
+              <span className="font-display text-[13px] italic tracking-wide text-[var(--color-primary)]">
                 Spin the
               </span>
               <Link
                 href="/decision-engine"
-                className="rounded-full bg-[#F0C040] px-4 py-2 font-ui text-xs font-bold uppercase tracking-[0.1em] text-[#1A1A1A] shadow-[0_2px_8px_rgba(240,192,64,0.4)] transition-all duration-200 hover:brightness-105 hover:shadow-[0_4px_14px_rgba(240,192,64,0.55)]"
+                className="cta-engine-btn rounded-lg px-4 py-[0.45rem] font-ui text-[11px] font-bold uppercase tracking-[0.12em] text-[#1A1A1A]"
               >
                 Decision Engine
               </Link>
