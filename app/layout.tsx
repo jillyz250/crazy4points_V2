@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import { Analytics } from "@vercel/analytics/next";
 import { playfair, lato, montserrat } from "@/lib/fonts";
 import "@/styles/globals.css";
 
@@ -47,6 +48,7 @@ export default function RootLayout({
       </Script>
       <body className="min-h-full flex flex-col bg-[var(--color-background)] text-[var(--color-text-primary)]">
         {children}
+        <Analytics />
       </body>
     </html>
   );
