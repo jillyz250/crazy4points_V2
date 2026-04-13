@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { playfair, lato, montserrat } from "@/lib/fonts";
 import "@/styles/globals.css";
 
@@ -32,6 +33,18 @@ export default function RootLayout({
       lang="en"
       className={`${playfair.variable} ${lato.variable} ${montserrat.variable} h-full antialiased`}
     >
+      <Script
+        src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA4_ID}`}
+        strategy="afterInteractive"
+      />
+      <Script id="google-analytics" strategy="afterInteractive">
+        {`
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', '${process.env.NEXT_PUBLIC_GA4_ID}');
+        `}
+      </Script>
       <body className="min-h-full flex flex-col bg-[var(--color-background)] text-[var(--color-text-primary)]">
         {children}
       </body>
