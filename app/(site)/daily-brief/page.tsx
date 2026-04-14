@@ -1,10 +1,9 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import { sanityFetch } from '@/lib/sanityClient'
-import { getActiveAlerts, getAlertsByDate } from '@/lib/queries'
-import type { SanityAlert } from '@/lib/types'
-import { computeFinalScore } from '@/lib/scoring'
-import AlertsGrid from '@/components/alerts/AlertsGrid'
+import { createAdminClient } from '@/utils/supabase/server'
+import { getActiveAlerts } from '@/utils/supabase/queries'
+import type { Alert } from '@/utils/supabase/queries'
+import AlertsGridSB from '@/components/alerts/AlertsGridSB'
 
 export const revalidate = 60
 
@@ -13,31 +12,29 @@ export const metadata: Metadata = {
   description: "Today's top travel rewards alerts, scored and ranked.",
 }
 
-type ScoredAlert = SanityAlert & { finalScore: number }
-
-function withScores(alerts: SanityAlert[]): ScoredAlert[] {
-  return alerts.map((a) => ({ ...a, finalScore: computeFinalScore(a) }))
+function byScore(a: Alert, b: Alert): number {
+  return (
+    (b.impact_score + b.value_score + b.rarity_score) -
+    (a.impact_score + a.value_score + a.rarity_score)
+  )
 }
 
 export default async function DailyBriefPage() {
-  const today     = new Date().toISOString().slice(0, 10)
-  const dateStart = `${today}T00:00:00.000Z`
-  const dateEnd   = `${today}T23:59:59.999Z`
+  const supabase = createAdminClient()
+  const allAlerts = await getActiveAlerts(supabase)
 
-  const [activeAlerts, todayAlerts] = await Promise.all([
-    sanityFetch<SanityAlert[]>(getActiveAlerts),
-    sanityFetch<SanityAlert[]>(getAlertsByDate, { dateStart, dateEnd }),
-  ])
+  const todayStart = new Date()
+  todayStart.setHours(0, 0, 0, 0)
 
-  const todayIds = new Set(todayAlerts.map((a) => a._id))
+  const newToday = allAlerts
+    .filter((a) => a.published_at && new Date(a.published_at) >= todayStart)
+    .sort(byScore)
 
-  const newToday: ScoredAlert[] = withScores(todayAlerts).sort(
-    (a, b) => b.finalScore - a.finalScore
-  )
+  const todayIds = new Set(newToday.map((a) => a.id))
 
-  const stillActive: ScoredAlert[] = withScores(
-    activeAlerts.filter((a) => !todayIds.has(a._id))
-  ).sort((a, b) => b.finalScore - a.finalScore)
+  const stillActive = allAlerts
+    .filter((a) => !todayIds.has(a.id))
+    .sort(byScore)
 
   const dateLabel = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
@@ -74,14 +71,14 @@ export default async function DailyBriefPage() {
               No new alerts today — check back later.
             </p>
           ) : (
-            <AlertsGrid alerts={newToday} />
+            <AlertsGridSB alerts={newToday} />
           )}
         </div>
 
         {/* Section 2 — Still Active */}
         <div>
           <h2 className="mb-6 font-display text-2xl font-semibold">Still Active</h2>
-          <AlertsGrid alerts={stillActive} />
+          <AlertsGridSB alerts={stillActive} />
         </div>
 
       </div>
