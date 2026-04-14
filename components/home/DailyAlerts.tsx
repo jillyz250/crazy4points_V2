@@ -1,7 +1,10 @@
 import Link from "next/link";
-import { dailyAlerts, ALERTS_DATE, type DailyAlert, type AlertColor } from "@/data/daily-alerts";
+import type { Alert, AlertType } from "@/utils/supabase/queries";
 
 // Full literal class names required — Tailwind v4 JIT does not support string interpolation
+type AlertColor = "red" | "orange" | "yellow" | "green" | "purple" | "blue";
+type AlertTag = "Live Today" | "Expires Soon" | "Devaluation" | "New Deal" | "Sweet Spot" | "Watch";
+
 const colorMap: Record<AlertColor, { border: string; badge: string }> = {
   red:    { border: "border-l-red-500",    badge: "bg-red-50 text-red-700" },
   orange: { border: "border-l-orange-400", badge: "bg-orange-50 text-orange-700" },
@@ -11,16 +14,46 @@ const colorMap: Record<AlertColor, { border: string; badge: string }> = {
   blue:   { border: "border-l-blue-500",   badge: "bg-blue-50 text-blue-700" },
 };
 
-function formatAlertDate(iso: string): string {
-  const [year, month, day] = iso.split("-").map(Number);
-  const months = ["January","February","March","April","May","June",
-                  "July","August","September","October","November","December"];
-  return `${months[month - 1]} ${day}, ${year}`;
+const TYPE_META: Record<AlertType, { color: AlertColor; tag: AlertTag }> = {
+  transfer_bonus:     { color: "green",  tag: "New Deal" },
+  limited_time_offer: { color: "orange", tag: "Expires Soon" },
+  award_availability: { color: "blue",   tag: "New Deal" },
+  status_promo:       { color: "purple", tag: "New Deal" },
+  glitch:             { color: "red",    tag: "Live Today" },
+  devaluation:        { color: "red",    tag: "Devaluation" },
+  program_change:     { color: "orange", tag: "Watch" },
+  partner_change:     { color: "orange", tag: "Watch" },
+  category_change:    { color: "yellow", tag: "Watch" },
+  earn_rate_change:   { color: "orange", tag: "Devaluation" },
+  status_change:      { color: "purple", tag: "Watch" },
+  policy_change:      { color: "orange", tag: "Watch" },
+  sweet_spot:         { color: "green",  tag: "Sweet Spot" },
+  industry_news:      { color: "blue",   tag: "Watch" },
+};
+
+function formatDeadline(endDate: string | null): string {
+  if (!endDate) return "✅ Ongoing";
+  const end = new Date(endDate);
+  const now = new Date();
+  const daysLeft = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  const formatted = end.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  if (daysLeft <= 3) return `🚨 Expires ${formatted} — ${daysLeft} day${daysLeft === 1 ? "" : "s"} left`;
+  if (daysLeft <= 14) return `⏰ Expires ${formatted} — ${daysLeft} days left`;
+  return `⏳ Expires ${formatted}`;
 }
 
-export default function DailyAlerts() {
-  const topAlerts = dailyAlerts.slice(0, 4);
+function formatUpdatedDate(): string {
+  const now = new Date();
+  const months = ["January","February","March","April","May","June",
+                  "July","August","September","October","November","December"];
+  return `${months[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`;
+}
 
+interface Props {
+  alerts: Alert[];
+}
+
+export default function DailyAlerts({ alerts }: Props) {
   return (
     <section className="border-b border-[var(--color-border-soft)] bg-[var(--color-background)] py-6">
       <div className="rg-container">
@@ -31,19 +64,19 @@ export default function DailyAlerts() {
               Top Alerts
             </h2>
             <span className="font-ui text-xs text-[var(--color-text-secondary)] tracking-wide">
-              Updated {formatAlertDate(ALERTS_DATE)}
+              Updated {formatUpdatedDate()}
             </span>
           </div>
           <Link
             href="/daily-brief"
-            className="font-ui text-xs font-medium uppercase tracking-[0.1em] text-[var(--color-primary)] transition-colors hover:text-[var(--color-accent)]"
+            className="font-ui text-xs font-medium uppercase tracking-[0.1em] text-[var(--color-primary)] transition-colors hover:text-[var(--color-acc)]"
           >
             View Daily Brief →
           </Link>
         </div>
 
         <div className="flex gap-3 overflow-x-auto pb-2 md:grid md:grid-cols-2 md:overflow-visible md:pb-0 lg:grid-cols-4">
-          {topAlerts.map((alert) => (
+          {alerts.map((alert) => (
             <AlertCard key={alert.id} alert={alert} />
           ))}
         </div>
@@ -53,8 +86,10 @@ export default function DailyAlerts() {
   );
 }
 
-function AlertCard({ alert }: { alert: DailyAlert }) {
-  const colors = colorMap[alert.color];
+function AlertCard({ alert }: { alert: Alert }) {
+  const meta = TYPE_META[alert.type] ?? { color: "purple" as AlertColor, tag: "Watch" as AlertTag };
+  const colors = colorMap[meta.color];
+  const deadline = formatDeadline(alert.end_date);
 
   const card = (
     <div
@@ -63,7 +98,7 @@ function AlertCard({ alert }: { alert: DailyAlert }) {
       <span
         className={`self-start rounded-full px-2 py-0.5 font-ui text-[10px] font-semibold uppercase tracking-[0.1em] ${colors.badge}`}
       >
-        {alert.tag}
+        {meta.tag}
       </span>
 
       <h3 className="font-display text-sm font-semibold leading-snug text-[var(--color-text-primary)]">
@@ -71,23 +106,18 @@ function AlertCard({ alert }: { alert: DailyAlert }) {
       </h3>
 
       <p className="mt-auto font-body text-xs text-[var(--color-text-secondary)]">
-        {alert.deadline}
+        {deadline}
       </p>
 
-      {alert.href && (
-        <span className="font-ui text-[10px] font-medium tracking-wide text-[var(--color-primary)]">
-          See details →
-        </span>
-      )}
+      <span className="font-ui text-[10px] font-medium tracking-wide text-[var(--color-primary)]">
+        See details →
+      </span>
     </div>
   );
 
-  if (alert.href) {
-    return (
-      <Link href={alert.href} className="block">
-        {card}
-      </Link>
-    );
-  }
-  return card;
+  return (
+    <Link href={`/alerts/${alert.slug}`} className="block">
+      {card}
+    </Link>
+  );
 }
