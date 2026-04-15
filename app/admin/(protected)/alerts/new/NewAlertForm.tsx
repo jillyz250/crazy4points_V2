@@ -145,6 +145,18 @@ export default function NewAlertForm({ programs }: Props) {
         />
       </div>
 
+      {/* History Note */}
+      <div style={fieldStyle}>
+        <label htmlFor="history_note" style={labelStyle}>History Note</label>
+        <textarea
+          id="history_note"
+          name="history_note"
+          rows={2}
+          placeholder="e.g. Last bonus was 50% in June 2025"
+          style={{ ...inputStyle, resize: 'vertical' }}
+        />
+      </div>
+
       {/* Start Date */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
         <div>

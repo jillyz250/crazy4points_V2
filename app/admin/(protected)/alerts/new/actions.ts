@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { createAdminClient } from '@/utils/supabase/server'
 import { createAlert } from '@/utils/supabase/queries'
 import type { AlertInsert, AlertType, AlertStatus, AlertActionType, ConfidenceLevel } from '@/utils/supabase/queries'
+import { logPublishEvent } from '@/utils/ai/logPublishEvent'
 
 function toSlug(title: string): string {
   return (
@@ -26,6 +27,7 @@ export async function createAlertAction(formData: FormData) {
   const start_date = (formData.get('start_date') as string) || null
   const end_date = (formData.get('end_date') as string) || null
   const action_type = formData.get('action_type') as AlertActionType
+  const history_note = (formData.get('history_note') as string) || null
   const confidence_level = formData.get('confidence_level') as ConfidenceLevel
   const source_url = (formData.get('source_url') as string) || null
 
@@ -48,21 +50,22 @@ export async function createAlertAction(formData: FormData) {
     impact_justification: '',
     value_score: 5,
     rarity_score: 5,
+    history_note,
     registration_required: false,
     created_by: null,
     approved_by: null,
     last_verified: null,
   }
 
-  console.log('[createAlertAction] payload:', JSON.stringify(alertData, null, 2))
-
   const supabase = createAdminClient()
+  const alert = await createAlert(supabase, alertData)
 
-  try {
-    await createAlert(supabase, alertData)
-  } catch (err) {
-    console.log('[createAlertAction] caught error:', JSON.stringify(err, null, 2))
-    throw err
+  if (status === 'published') {
+    try {
+      await logPublishEvent(alert)
+    } catch {
+      // Non-blocking — history logging failure should not prevent redirect
+    }
   }
 
   redirect('/admin/alerts')
