@@ -1,19 +1,12 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import { sanityFetch } from '@/lib/sanityClient'
-import { getAlertsByProgram } from '@/lib/queries'
-import type { SanityAlert } from '@/lib/types'
-import { computeFinalScore } from '@/lib/scoring'
-import { PROGRAM_SLUGS, getProgramName } from '@/lib/programs'
-import AlertsGrid from '@/components/alerts/AlertsGrid'
-import ProgramStatusToggle from '@/components/programs/ProgramStatusToggle'
+import { createClient } from '@/utils/supabase/server'
+import { getAlertsByProgramSlug } from '@/utils/supabase/queries'
+import type { Alert } from '@/utils/supabase/queries'
+import AlertsGridSB from '@/components/alerts/AlertsGridSB'
 
 export const revalidate = 60
-
-export function generateStaticParams() {
-  return PROGRAM_SLUGS.map((slug) => ({ slug }))
-}
 
 export async function generateMetadata({
   params,
@@ -21,12 +14,26 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>
 }): Promise<Metadata> {
   const { slug } = await params
-  if (!PROGRAM_SLUGS.includes(slug)) return { title: 'Not Found — crazy4points' }
-  const name = getProgramName(slug)
-  return {
-    title: `${name} Alerts — crazy4points`,
-    description: `Live travel rewards alerts tagged with ${name}.`,
+  try {
+    const supabase = await createClient()
+    const { program } = await getAlertsByProgramSlug(supabase, slug)
+    return {
+      title: `${program.name} Alerts — crazy4points`,
+      description: `All travel rewards alerts for ${program.name} — active deals, transfer bonuses, and archived history.`,
+    }
+  } catch {
+    return { title: 'Program — crazy4points' }
   }
+}
+
+function matchesSearch(alert: Alert, query: string): boolean {
+  const q = query.toLowerCase()
+  return (
+    alert.title.toLowerCase().includes(q) ||
+    (alert.summary?.toLowerCase().includes(q) ?? false) ||
+    (alert.description?.toLowerCase().includes(q) ?? false) ||
+    alert.type.toLowerCase().includes(q)
+  )
 }
 
 export default async function ProgramPage({
@@ -34,41 +41,75 @@ export default async function ProgramPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>
-  searchParams: Promise<{ status?: string }>
+  searchParams: Promise<{ q?: string; show?: string }>
 }) {
   const { slug } = await params
-  const { status: rawStatus } = await searchParams
+  const { q = '', show = 'active' } = await searchParams
 
-  if (!PROGRAM_SLUGS.includes(slug)) notFound()
+  const supabase = await createClient()
 
-  const status: 'active' | 'all' =
-    rawStatus === 'all' ? 'all' : 'active'
+  let program
+  let allAlerts: Alert[]
 
-  const raw = await sanityFetch<SanityAlert[]>(getAlertsByProgram, { program: slug })
+  try {
+    const result = await getAlertsByProgramSlug(supabase, slug)
+    program = result.program
+    allAlerts = result.alerts
+  } catch {
+    notFound()
+  }
 
   const now = new Date()
 
-  const filtered =
-    status === 'active'
-      ? raw.filter((a) => !a.endDate || new Date(a.endDate) > now)
-      : raw
+  // Split active vs expired
+  const active = allAlerts.filter(
+    (a) => !a.end_date || new Date(a.end_date) > now
+  )
+  const expired = allAlerts.filter(
+    (a) => a.end_date && new Date(a.end_date) <= now
+  )
 
-  const alerts = filtered
-    .map((a) => ({ ...a, finalScore: computeFinalScore(a) }))
-    .sort((a, b) => b.finalScore - a.finalScore)
+  const displayList = show === 'all' ? allAlerts : show === 'expired' ? expired : active
 
-  const programName = getProgramName(slug)
+  const filtered = q ? displayList.filter((a) => matchesSearch(a, q)) : displayList
+
+  const tabStyle = (active: boolean) => ({
+    display: 'inline-block' as const,
+    padding: '0.35rem 0.9rem',
+    borderRadius: 'var(--radius-ui)',
+    fontSize: '0.8125rem',
+    fontWeight: 600 as const,
+    fontFamily: 'var(--font-ui)',
+    textDecoration: 'none',
+    background: active ? 'var(--color-primary)' : 'transparent',
+    color: active ? '#fff' : 'var(--color-text-secondary)',
+    border: `1px solid ${active ? 'var(--color-primary)' : 'var(--color-border-soft)'}`,
+  })
+
+  const hrefWith = (updates: Record<string, string>) => {
+    const params = new URLSearchParams()
+    if (q) params.set('q', q)
+    params.set('show', show)
+    Object.entries(updates).forEach(([k, v]) => {
+      if (v) params.set(k, v)
+      else params.delete(k)
+    })
+    return `/programs/${slug}?${params.toString()}`
+  }
 
   return (
     <section className="rg-major-section !pt-8">
       <div className="rg-container">
 
         {/* Header */}
-        <div className="mb-10 flex flex-wrap items-start justify-between gap-4">
+        <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="font-display text-4xl font-bold">{programName}</h1>
+            <p className="mb-1 font-ui text-xs font-semibold uppercase tracking-[0.1em] text-[var(--color-text-secondary)]">
+              {program.type.replace(/_/g, ' ')}
+            </p>
+            <h1 className="font-display text-4xl font-bold">{program.name}</h1>
             <p className="mt-1 font-body text-sm text-[var(--color-text-secondary)]">
-              All alerts tagged with this program
+              {allAlerts.length} alert{allAlerts.length !== 1 ? 's' : ''} on record
             </p>
           </div>
           <Link
@@ -79,19 +120,53 @@ export default async function ProgramPage({
           </Link>
         </div>
 
-        {/* Status toggle */}
-        <div className="mb-8">
-          <ProgramStatusToggle slug={slug} status={status} />
+        {/* Search */}
+        <form method="GET" action={`/programs/${slug}`} style={{ marginBottom: '1.25rem' }}>
+          <input type="hidden" name="show" value={show} />
+          <input
+            name="q"
+            type="search"
+            defaultValue={q}
+            placeholder={`Search ${program.name} alerts…`}
+            style={{
+              width: '100%',
+              maxWidth: '480px',
+              padding: '0.5rem 0.875rem',
+              border: '1px solid var(--color-border-soft)',
+              borderRadius: 'var(--radius-ui)',
+              fontSize: '0.9375rem',
+              fontFamily: 'var(--font-body)',
+              background: 'var(--color-background)',
+              color: 'var(--color-text-primary)',
+            }}
+          />
+        </form>
+
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
+          <a href={hrefWith({ show: 'active' })} style={tabStyle(show === 'active')}>
+            Active ({active.length})
+          </a>
+          <a href={hrefWith({ show: 'expired' })} style={tabStyle(show === 'expired')}>
+            Expired ({expired.length})
+          </a>
+          <a href={hrefWith({ show: 'all' })} style={tabStyle(show === 'all')}>
+            All ({allAlerts.length})
+          </a>
         </div>
 
-        {/* Alerts */}
-        {alerts.length === 0 ? (
-          <p className="font-body text-sm text-[var(--color-text-secondary)]">
-            No alerts found for this program.
+        {/* Results */}
+        {q && (
+          <p className="mb-4 font-body text-sm text-[var(--color-text-secondary)]">
+            {filtered.length} result{filtered.length !== 1 ? 's' : ''} for &ldquo;{q}&rdquo;
+            {' '}
+            <a href={`/programs/${slug}?show=${show}`} style={{ color: 'var(--color-primary)', textDecoration: 'underline', fontSize: 'inherit' }}>
+              Clear search
+            </a>
           </p>
-        ) : (
-          <AlertsGrid alerts={alerts} />
         )}
+
+        <AlertsGridSB alerts={filtered} />
 
       </div>
     </section>

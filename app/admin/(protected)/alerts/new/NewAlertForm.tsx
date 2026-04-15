@@ -3,7 +3,19 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createAlertAction } from './actions'
-import type { Program } from '@/utils/supabase/queries'
+import type { Program, ProgramType } from '@/utils/supabase/queries'
+
+const PROGRAM_TYPE_LABELS: Record<ProgramType, string> = {
+  credit_card: 'Credit Card',
+  airline: 'Airline',
+  hotel: 'Hotel',
+  car_rental: 'Car Rental',
+  cruise: 'Cruise',
+  shopping_portal: 'Shopping Portal',
+  travel_portal: 'Travel Portal',
+  lounge_network: 'Lounge Network',
+  ota: 'OTA',
+}
 
 const ALERT_TYPES = [
   { value: 'transfer_bonus', label: 'Transfer Bonus' },
@@ -65,6 +77,23 @@ export default function NewAlertForm({ programs }: Props) {
   const router = useRouter()
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set())
+
+  function toggleTag(id: string) {
+    setSelectedTags(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const grouped = programs.reduce<Record<string, typeof programs>>((acc, p) => {
+    const key = p.type as string
+    if (!acc[key]) acc[key] = []
+    acc[key].push(p)
+    return acc
+  }, {})
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -183,6 +212,68 @@ export default function NewAlertForm({ programs }: Props) {
       <div style={fieldStyle}>
         <label htmlFor="source_url" style={labelStyle}>Source URL</label>
         <input id="source_url" name="source_url" type="url" style={inputStyle} placeholder="https://" />
+      </div>
+
+      {/* Tagged Programs */}
+      <div style={{ ...fieldStyle, marginBottom: '1.5rem' }}>
+        <div style={labelStyle}>Tag Programs</div>
+        <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', marginBottom: '0.75rem', fontFamily: 'var(--font-body)' }}>
+          Select all programs this alert is relevant to (United, Chase, El Al, etc.)
+        </p>
+        {Array.from(selectedTags).map(id => (
+          <input key={id} type="hidden" name="tagged_program_ids" value={id} />
+        ))}
+        <div style={{
+          border: '1px solid var(--color-border-soft)',
+          borderRadius: 'var(--radius-card)',
+          maxHeight: '280px',
+          overflowY: 'auto',
+          background: 'var(--color-background)',
+        }}>
+          {Object.entries(grouped).map(([type, progs]) => (
+            <div key={type}>
+              <div style={{
+                padding: '0.4rem 0.75rem',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                fontFamily: 'var(--font-ui)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                color: 'var(--color-text-secondary)',
+                background: 'var(--color-background-soft)',
+                borderBottom: '1px solid var(--color-border-soft)',
+              }}>
+                {PROGRAM_TYPE_LABELS[type as ProgramType] ?? type}
+              </div>
+              {progs.map(p => (
+                <label key={p.id} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.375rem 0.75rem',
+                  cursor: 'pointer',
+                  borderBottom: '1px solid var(--color-border-soft)',
+                  fontSize: '0.9rem',
+                  fontFamily: 'var(--font-body)',
+                  background: selectedTags.has(p.id) ? '#f5eeff' : 'transparent',
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedTags.has(p.id)}
+                    onChange={() => toggleTag(p.id)}
+                    style={{ accentColor: 'var(--color-primary)' }}
+                  />
+                  {p.name}
+                </label>
+              ))}
+            </div>
+          ))}
+        </div>
+        {selectedTags.size > 0 && (
+          <p style={{ fontSize: '0.8125rem', color: 'var(--color-primary)', marginTop: '0.5rem', fontFamily: 'var(--font-body)' }}>
+            {selectedTags.size} program{selectedTags.size !== 1 ? 's' : ''} tagged
+          </p>
+        )}
       </div>
 
       {error && (

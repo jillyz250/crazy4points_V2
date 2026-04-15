@@ -2,7 +2,7 @@
 
 import { redirect } from 'next/navigation'
 import { createAdminClient } from '@/utils/supabase/server'
-import { updateAlert } from '@/utils/supabase/queries'
+import { updateAlert, setAlertPrograms } from '@/utils/supabase/queries'
 import type { AlertUpdate, AlertType, AlertStatus, AlertActionType, ConfidenceLevel } from '@/utils/supabase/queries'
 import { logPublishEvent } from '@/utils/ai/logPublishEvent'
 
@@ -42,6 +42,10 @@ export async function updateAlertAction(id: string, formData: FormData) {
 
   const supabase = createAdminClient()
   const alert = await updateAlert(supabase, id, alertData)
+
+  // Sync alert_programs junction table
+  const taggedIds = (formData.getAll('tagged_program_ids') as string[]).filter(Boolean)
+  await setAlertPrograms(supabase, id, taggedIds)
 
   if (status === 'published') {
     try {

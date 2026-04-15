@@ -397,6 +397,101 @@ export async function getAllPrograms(supabase: SupabaseClient): Promise<Program[
 }
 
 /**
+ * Fetch the program_ids currently tagged on an alert via alert_programs.
+ */
+export async function getAlertPrograms(
+  supabase: SupabaseClient,
+  alertId: string
+): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('alert_programs')
+    .select('program_id')
+    .eq('alert_id', alertId)
+
+  if (error) throw error
+  return (data ?? []).map((r: { program_id: string }) => r.program_id)
+}
+
+/**
+ * Replace all alert_programs rows for an alert with the given program IDs.
+ * Deletes existing rows then inserts fresh ones. Pass an empty array to clear.
+ */
+export async function setAlertPrograms(
+  supabase: SupabaseClient,
+  alertId: string,
+  programIds: string[]
+): Promise<void> {
+  const { error: deleteError } = await supabase
+    .from('alert_programs')
+    .delete()
+    .eq('alert_id', alertId)
+
+  if (deleteError) throw deleteError
+
+  if (programIds.length === 0) return
+
+  const rows = programIds.map((program_id) => ({
+    alert_id: alertId,
+    program_id,
+    role: 'tagged',
+  }))
+
+  const { error: insertError } = await supabase
+    .from('alert_programs')
+    .insert(rows)
+
+  if (insertError) throw insertError
+}
+
+/**
+ * Fetch all alerts associated with a program slug (via alert_programs or
+ * primary_program_id). Returns all statuses — active, expired, draft — for
+ * the public program page which archives everything permanently.
+ */
+export async function getAlertsByProgramSlug(
+  supabase: SupabaseClient,
+  programSlug: string
+): Promise<{ program: Program; alerts: Alert[] }> {
+  // 1. Resolve the program
+  const { data: program, error: progError } = await supabase
+    .from('programs')
+    .select('*')
+    .eq('slug', programSlug)
+    .single()
+
+  if (progError) throw progError
+
+  // 2. Fetch alerts via junction table
+  const { data: junction, error: jError } = await supabase
+    .from('alert_programs')
+    .select('alert_id')
+    .eq('program_id', program.id)
+
+  if (jError) throw jError
+
+  const junctionIds = (junction ?? []).map((r: { alert_id: string }) => r.alert_id)
+
+  // 3. Fetch alerts by primary_program_id OR junction membership
+  let query = supabase
+    .from('alerts')
+    .select('*')
+    .eq('status', 'published' satisfies AlertStatus)
+    .order('published_at', { ascending: false, nullsFirst: false })
+
+  if (junctionIds.length > 0) {
+    query = query.or(`primary_program_id.eq.${program.id},id.in.(${junctionIds.join(',')})`)
+  } else {
+    query = query.eq('primary_program_id', program.id)
+  }
+
+  const { data: alerts, error: alertError } = await query
+
+  if (alertError) throw alertError
+
+  return { program: program as Program, alerts: (alerts ?? []) as Alert[] }
+}
+
+/**
  * Toggle the is_active flag on a program.
  */
 export async function toggleProgramActive(
