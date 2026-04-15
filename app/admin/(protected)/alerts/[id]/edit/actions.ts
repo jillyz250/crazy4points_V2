@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { createAdminClient } from '@/utils/supabase/server'
 import { updateAlert } from '@/utils/supabase/queries'
 import type { AlertUpdate, AlertType, AlertStatus, AlertActionType, ConfidenceLevel } from '@/utils/supabase/queries'
+import { logPublishEvent } from '@/utils/ai/logPublishEvent'
 
 export async function updateAlertAction(id: string, formData: FormData) {
   const title = formData.get('title') as string
@@ -15,6 +16,7 @@ export async function updateAlertAction(id: string, formData: FormData) {
   const start_date = (formData.get('start_date') as string) || null
   const end_date = (formData.get('end_date') as string) || null
   const action_type = formData.get('action_type') as AlertActionType
+  const history_note = (formData.get('history_note') as string) || null
   const confidence_level = formData.get('confidence_level') as ConfidenceLevel
   const source_url = (formData.get('source_url') as string) || null
   const existing_published_at = (formData.get('existing_published_at') as string) || null
@@ -33,12 +35,21 @@ export async function updateAlertAction(id: string, formData: FormData) {
       status === 'published'
         ? existing_published_at ?? new Date().toISOString()
         : null,
+    history_note,
     source_url,
     confidence_level,
   }
 
   const supabase = createAdminClient()
-  await updateAlert(supabase, id, alertData)
+  const alert = await updateAlert(supabase, id, alertData)
+
+  if (status === 'published') {
+    try {
+      await logPublishEvent(alert)
+    } catch {
+      // Non-blocking — history logging failure should not prevent redirect
+    }
+  }
 
   redirect('/admin/alerts')
 }

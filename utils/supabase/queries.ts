@@ -63,6 +63,7 @@ export interface Alert {
   rarity_score: number
   computed_score: number | null
   score_last_computed_at: string | null
+  history_note: string | null
   registration_required: boolean
   created_by: string | null
   approved_by: string | null
@@ -117,6 +118,24 @@ export type HomepageSlotWithAlert = HomepageSlot & {
 
 export type AlertInsert = Omit<Alert, 'id' | 'created_at' | 'updated_at' | 'computed_score' | 'score_last_computed_at'>
 export type AlertUpdate = Partial<Omit<Alert, 'id' | 'created_at' | 'updated_at'>>
+
+export interface AlertHistory {
+  id: string
+  alert_id: string
+  event: string
+  title: string | null
+  type: AlertType | null
+  status: AlertStatus | null
+  start_date: string | null
+  end_date: string | null
+  confidence_level: ConfidenceLevel | null
+  source_url: string | null
+  primary_program_id: string | null
+  ai_summary: string | null
+  created_at: string
+}
+
+export type AlertHistoryInsert = Omit<AlertHistory, 'id' | 'created_at'>
 
 // ─── Queries ─────────────────────────────────────────────────────────────────
 
@@ -244,10 +263,7 @@ export async function createAlert(
     .select()
     .single()
 
-  if (error) {
-    console.log('[createAlert] error:', JSON.stringify(error, null, 2))
-    throw error
-  }
+  if (error) throw error
   return data as Alert
 }
 
@@ -268,6 +284,24 @@ export async function updateAlert(
 
   if (error) throw error
   return data as Alert
+}
+
+/**
+ * Insert a row into alert_history and return the created record.
+ * Use createAdminClient() to bypass RLS.
+ */
+export async function logAlertHistory(
+  supabase: SupabaseClient,
+  data: AlertHistoryInsert
+): Promise<AlertHistory> {
+  const { data: row, error } = await supabase
+    .from('alert_history')
+    .insert(data)
+    .select()
+    .single()
+
+  if (error) throw error
+  return row as AlertHistory
 }
 
 /**
