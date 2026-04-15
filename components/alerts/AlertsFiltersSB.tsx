@@ -6,19 +6,38 @@ import type { Program } from '@/utils/supabase/queries'
 
 const TYPES = [
   { label: 'All Types', value: '' },
+  // Earning & Bonuses
+  { label: 'Sign-Up Bonus', value: 'signup_bonus' },
   { label: 'Transfer Bonus', value: 'transfer_bonus' },
-  { label: 'Limited Time Offer', value: 'limited_time_offer' },
+  { label: 'Referral Bonus', value: 'referral_bonus' },
+  { label: 'Milestone Bonus', value: 'milestone_bonus' },
+  { label: 'Shopping Portal Bonus', value: 'shopping_portal_bonus' },
+  { label: 'Dining Bonus', value: 'dining_bonus' },
+  { label: 'Buy Points / Miles', value: 'point_purchase' },
+  // Redemptions
   { label: 'Award Availability', value: 'award_availability' },
+  { label: 'Award Sale', value: 'award_sale' },
+  { label: 'Sweet Spot', value: 'sweet_spot' },
+  { label: 'Companion Pass', value: 'companion_pass' },
+  // Card Offers
+  { label: 'Limited Time Offer', value: 'limited_time_offer' },
+  { label: 'Retention Offer', value: 'retention_offer' },
+  { label: 'Card Credit / Perk', value: 'card_credit' },
+  { label: 'Card Refresh', value: 'card_refresh' },
+  // Status
   { label: 'Status Promo', value: 'status_promo' },
+  // Warnings
   { label: 'Glitch', value: 'glitch' },
   { label: 'Devaluation', value: 'devaluation' },
+  { label: 'Fee Change', value: 'fee_change' },
+  // Program Changes
   { label: 'Program Change', value: 'program_change' },
   { label: 'Partner Change', value: 'partner_change' },
   { label: 'Category Change', value: 'category_change' },
   { label: 'Earn Rate Change', value: 'earn_rate_change' },
   { label: 'Status Change', value: 'status_change' },
   { label: 'Policy Change', value: 'policy_change' },
-  { label: 'Sweet Spot', value: 'sweet_spot' },
+  // News
   { label: 'Industry News', value: 'industry_news' },
 ]
 

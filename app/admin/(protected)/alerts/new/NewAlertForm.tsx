@@ -18,14 +18,32 @@ const PROGRAM_TYPE_LABELS: Record<ProgramType, string> = {
 }
 
 const ALERT_TYPES = [
+  // ── Earning & Bonuses ──
+  { value: 'signup_bonus', label: 'Sign-Up Bonus' },
   { value: 'transfer_bonus', label: 'Transfer Bonus' },
+  { value: 'referral_bonus', label: 'Referral Bonus' },
+  { value: 'milestone_bonus', label: 'Milestone Bonus' },
+  { value: 'shopping_portal_bonus', label: 'Shopping Portal Bonus' },
+  { value: 'dining_bonus', label: 'Dining Bonus' },
+  { value: 'point_purchase', label: 'Buy Points / Miles' },
+  // ── Redemptions ──
   { value: 'award_availability', label: 'Award Availability' },
-  { value: 'limited_time_offer', label: 'Limited Time Offer' },
+  { value: 'award_sale', label: 'Award Sale' },
   { value: 'sweet_spot', label: 'Sweet Spot' },
-  { value: 'program_change', label: 'Program Change' },
+  { value: 'companion_pass', label: 'Companion Pass' },
+  // ── Card Offers ──
+  { value: 'limited_time_offer', label: 'Limited Time Offer' },
+  { value: 'retention_offer', label: 'Retention Offer' },
+  { value: 'card_credit', label: 'Card Credit / Perk' },
+  { value: 'card_refresh', label: 'Card Refresh' },
+  // ── Status & Promos ──
   { value: 'status_promo', label: 'Status Promo' },
+  // ── Warnings ──
   { value: 'glitch', label: 'Glitch' },
   { value: 'devaluation', label: 'Devaluation' },
+  { value: 'fee_change', label: 'Fee Change' },
+  // ── Program Changes ──
+  { value: 'program_change', label: 'Program Change' },
   { value: 'partner_change', label: 'Partner Change' },
   { value: 'category_change', label: 'Category Change' },
   { value: 'earn_rate_change', label: 'Earn Rate Change' },

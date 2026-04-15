@@ -16,6 +16,18 @@ export type AlertType =
   | 'policy_change'
   | 'sweet_spot'
   | 'industry_news'
+  | 'signup_bonus'
+  | 'referral_bonus'
+  | 'retention_offer'
+  | 'shopping_portal_bonus'
+  | 'point_purchase'
+  | 'award_sale'
+  | 'companion_pass'
+  | 'dining_bonus'
+  | 'fee_change'
+  | 'card_refresh'
+  | 'milestone_bonus'
+  | 'card_credit'
 
 export type AlertStatus =
   | 'draft'

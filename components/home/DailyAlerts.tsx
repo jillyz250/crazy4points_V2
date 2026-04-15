@@ -15,20 +15,39 @@ const colorMap: Record<AlertColor, { border: string; badge: string }> = {
 };
 
 const TYPE_META: Record<AlertType, { color: AlertColor; tag: AlertTag }> = {
-  transfer_bonus:     { color: "green",  tag: "New Deal" },
-  limited_time_offer: { color: "orange", tag: "Expires Soon" },
-  award_availability: { color: "blue",   tag: "New Deal" },
-  status_promo:       { color: "purple", tag: "New Deal" },
-  glitch:             { color: "red",    tag: "Live Today" },
-  devaluation:        { color: "red",    tag: "Devaluation" },
-  program_change:     { color: "orange", tag: "Watch" },
-  partner_change:     { color: "orange", tag: "Watch" },
-  category_change:    { color: "yellow", tag: "Watch" },
-  earn_rate_change:   { color: "orange", tag: "Devaluation" },
-  status_change:      { color: "purple", tag: "Watch" },
-  policy_change:      { color: "orange", tag: "Watch" },
-  sweet_spot:         { color: "green",  tag: "Sweet Spot" },
-  industry_news:      { color: "blue",   tag: "Watch" },
+  // Earning & Bonuses
+  signup_bonus:          { color: "purple", tag: "New Deal" },
+  transfer_bonus:        { color: "green",  tag: "New Deal" },
+  referral_bonus:        { color: "purple", tag: "New Deal" },
+  milestone_bonus:       { color: "blue",   tag: "New Deal" },
+  shopping_portal_bonus: { color: "green",  tag: "New Deal" },
+  dining_bonus:          { color: "orange", tag: "New Deal" },
+  point_purchase:        { color: "blue",   tag: "New Deal" },
+  // Redemptions
+  award_availability:    { color: "blue",   tag: "New Deal" },
+  award_sale:            { color: "blue",   tag: "Expires Soon" },
+  sweet_spot:            { color: "green",  tag: "Sweet Spot" },
+  companion_pass:        { color: "green",  tag: "New Deal" },
+  // Card Offers
+  limited_time_offer:    { color: "orange", tag: "Expires Soon" },
+  retention_offer:       { color: "red",    tag: "Live Today" },
+  card_credit:           { color: "green",  tag: "New Deal" },
+  card_refresh:          { color: "purple", tag: "New Deal" },
+  // Status
+  status_promo:          { color: "purple", tag: "New Deal" },
+  // Warnings
+  glitch:                { color: "red",    tag: "Live Today" },
+  devaluation:           { color: "red",    tag: "Devaluation" },
+  fee_change:            { color: "red",    tag: "Watch" },
+  // Program Changes
+  program_change:        { color: "orange", tag: "Watch" },
+  partner_change:        { color: "orange", tag: "Watch" },
+  category_change:       { color: "yellow", tag: "Watch" },
+  earn_rate_change:      { color: "orange", tag: "Devaluation" },
+  status_change:         { color: "purple", tag: "Watch" },
+  policy_change:         { color: "orange", tag: "Watch" },
+  // News
+  industry_news:         { color: "blue",   tag: "Watch" },
 };
 
 function formatDeadline(endDate: string | null): string {
