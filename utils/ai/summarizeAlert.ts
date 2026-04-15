@@ -8,6 +8,7 @@ import type { AlertType, ConfidenceLevel } from '@/utils/supabase/queries'
 export interface AlertSummaryInput {
   title: string
   type: AlertType
+  description: string | null
   programName: string | null
   start_date: string | null
   end_date: string | null
@@ -53,12 +54,13 @@ export async function summarizeAlert(input: AlertSummaryInput): Promise<string> 
     `Program: ${input.programName ?? 'N/A'}`,
     `Dates: ${dateRange || 'N/A'}`,
     `Confidence: ${input.confidence_level}`,
-  ].join('\n')
+    input.description ? `Description: ${input.description}` : null,
+  ].filter(Boolean).join('\n')
 
   try {
     const client = new Anthropic({ apiKey })
     const message = await client.messages.create({
-      model: 'claude-haiku-4-5',
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 120,
       messages: [{ role: 'user', content: prompt }],
     })

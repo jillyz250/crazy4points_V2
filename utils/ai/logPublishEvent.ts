@@ -14,6 +14,7 @@ export async function logPublishEvent(
   const aiSummary = await summarizeAlert({
     title: alert.title,
     type: alert.type,
+    description: alert.description,
     programName,
     start_date: alert.start_date,
     end_date: alert.end_date,
