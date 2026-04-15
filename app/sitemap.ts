@@ -1,56 +1,49 @@
 import type { MetadataRoute } from 'next'
-import { sanityFetch } from '@/lib/sanityClient'
-import { PROGRAM_SLUGS } from '@/lib/programs'
+import { createClient } from '@/utils/supabase/server'
 
 export const revalidate = 3600
 
 const BASE_URL = 'https://crazy4points.com'
 
-interface AlertSlug {
-  slug: string
-  publishedAt: string
-}
-
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  let alerts: AlertSlug[] = []
+  let alertEntries: MetadataRoute.Sitemap = []
+  let programEntries: MetadataRoute.Sitemap = []
+
   try {
-    alerts = await sanityFetch<AlertSlug[]>(
-      `*[_type == "alert" && isApproved == true]{ "slug": slug.current, publishedAt }`
-    )
+    const supabase = await createClient()
+
+    const { data: alerts } = await supabase
+      .from('alerts')
+      .select('slug, published_at')
+      .eq('status', 'published')
+      .order('published_at', { ascending: false })
+
+    alertEntries = (alerts ?? []).map((a: { slug: string; published_at: string | null }) => ({
+      url: `${BASE_URL}/alerts/${a.slug}`,
+      lastModified: a.published_at ?? undefined,
+      changeFrequency: 'weekly' as const,
+      priority: 0.7,
+    }))
+
+    const { data: programs } = await supabase
+      .from('programs')
+      .select('slug')
+      .eq('is_active', true)
+
+    programEntries = (programs ?? []).map((p: { slug: string }) => ({
+      url: `${BASE_URL}/programs/${p.slug}`,
+      changeFrequency: 'daily' as const,
+      priority: 0.8,
+    }))
   } catch {
-    // Sanity unavailable — sitemap still returns static and program URLs
+    // Supabase unavailable — return static pages only
   }
 
   const staticPages: MetadataRoute.Sitemap = [
-    {
-      url: BASE_URL,
-      changeFrequency: 'daily',
-      priority: 1.0,
-    },
-    {
-      url: `${BASE_URL}/alerts`,
-      changeFrequency: 'hourly',
-      priority: 0.9,
-    },
-    {
-      url: `${BASE_URL}/daily-brief`,
-      changeFrequency: 'hourly',
-      priority: 0.9,
-    },
+    { url: BASE_URL, changeFrequency: 'daily', priority: 1.0 },
+    { url: `${BASE_URL}/alerts`, changeFrequency: 'hourly', priority: 0.9 },
+    { url: `${BASE_URL}/daily-brief`, changeFrequency: 'hourly', priority: 0.9 },
   ]
 
-  const programPages: MetadataRoute.Sitemap = PROGRAM_SLUGS.map((slug) => ({
-    url: `${BASE_URL}/programs/${slug}`,
-    changeFrequency: 'daily',
-    priority: 0.8,
-  }))
-
-  const alertPages: MetadataRoute.Sitemap = alerts.map((alert) => ({
-    url: `${BASE_URL}/alerts/${alert.slug}`,
-    lastModified: alert.publishedAt,
-    changeFrequency: 'weekly',
-    priority: 0.7,
-  }))
-
-  return [...staticPages, ...programPages, ...alertPages]
+  return [...staticPages, ...programEntries, ...alertEntries]
 }

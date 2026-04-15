@@ -397,6 +397,76 @@ export async function getAllPrograms(supabase: SupabaseClient): Promise<Program[
 }
 
 /**
+ * Fetch a single published alert by slug.
+ */
+export async function getAlertBySlug(
+  supabase: SupabaseClient,
+  slug: string
+): Promise<Alert> {
+  const { data, error } = await supabase
+    .from('alerts')
+    .select('*')
+    .eq('slug', slug)
+    .eq('status', 'published' satisfies AlertStatus)
+    .single()
+
+  if (error) throw error
+  return data as Alert
+}
+
+/**
+ * Fetch active (published, not expired) alerts with optional type and
+ * primary_program_id filters. Used by the public /alerts listing page.
+ */
+export async function getActiveAlertsByFilter(
+  supabase: SupabaseClient,
+  type?: string | null,
+  programId?: string | null
+): Promise<Alert[]> {
+  const now = new Date().toISOString()
+
+  let query = supabase
+    .from('alerts')
+    .select('*')
+    .eq('status', 'published' satisfies AlertStatus)
+    .or(`end_date.is.null,end_date.gt.${now}`)
+
+  if (type) query = query.eq('type', type)
+  if (programId) query = query.eq('primary_program_id', programId)
+
+  query = query
+    .order('end_date', { ascending: true, nullsFirst: false })
+    .order('computed_score', { ascending: false, nullsFirst: false })
+
+  const { data, error } = await query
+  if (error) throw error
+  return data as Alert[]
+}
+
+/**
+ * Fetch alerts published on a specific calendar date (UTC).
+ * Used by the /daily-brief/[date] archive page.
+ */
+export async function getAlertsByPublishDate(
+  supabase: SupabaseClient,
+  dateStr: string // YYYY-MM-DD
+): Promise<Alert[]> {
+  const start = `${dateStr}T00:00:00.000Z`
+  const end   = `${dateStr}T23:59:59.999Z`
+
+  const { data, error } = await supabase
+    .from('alerts')
+    .select('*')
+    .eq('status', 'published' satisfies AlertStatus)
+    .gte('published_at', start)
+    .lte('published_at', end)
+    .order('computed_score', { ascending: false, nullsFirst: false })
+
+  if (error) throw error
+  return data as Alert[]
+}
+
+/**
  * Fetch the program_ids currently tagged on an alert via alert_programs.
  */
 export async function getAlertPrograms(

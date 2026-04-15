@@ -1,18 +1,15 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import { sanityFetch } from '@/lib/sanityClient'
-import { getAlertsByDate } from '@/lib/queries'
-import type { SanityAlert } from '@/lib/types'
-import { computeFinalScore } from '@/lib/scoring'
-import AlertsGrid from '@/components/alerts/AlertsGrid'
+import { createClient } from '@/utils/supabase/server'
+import { getAlertsByPublishDate } from '@/utils/supabase/queries'
+import AlertsGridSB from '@/components/alerts/AlertsGridSB'
 
 export const revalidate = 60
 
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/
 
 function formatDate(dateStr: string): string {
-  // Parse as UTC noon to avoid timezone-shift display issues
   const date = new Date(`${dateStr}T12:00:00.000Z`)
   return new Intl.DateTimeFormat('en-US', { dateStyle: 'long' }).format(date)
 }
@@ -39,28 +36,17 @@ export default async function DailyBriefArchivePage({
 }) {
   const { date: dateStr } = await params
 
-  // Validate format
   if (!DATE_REGEX.test(dateStr)) notFound()
-
-  // Validate it's a real calendar date
   if (new Date(dateStr).toString() === 'Invalid Date') notFound()
 
-  const dateStart = `${dateStr}T00:00:00.000Z`
-  const dateEnd   = `${dateStr}T23:59:59.999Z`
-
-  const raw = await sanityFetch<SanityAlert[]>(getAlertsByDate, { dateStart, dateEnd })
-
-  const alerts = raw
-    .map((a) => ({ ...a, finalScore: computeFinalScore(a) }))
-    .sort((a, b) => b.finalScore - a.finalScore)
-
+  const supabase = await createClient()
+  const alerts = await getAlertsByPublishDate(supabase, dateStr)
   const dateLabel = formatDate(dateStr)
 
   return (
     <section className="rg-major-section !pt-8">
       <div className="rg-container">
 
-        {/* Header */}
         <div className="mb-10">
           <div className="mb-4 flex flex-wrap items-center gap-3">
             <Link
@@ -87,13 +73,12 @@ export default async function DailyBriefArchivePage({
           </span>
         </div>
 
-        {/* Alerts */}
         {alerts.length === 0 ? (
           <p className="font-body text-sm text-[var(--color-text-secondary)]">
             No alerts were published on this date.
           </p>
         ) : (
-          <AlertsGrid alerts={alerts} />
+          <AlertsGridSB alerts={alerts} />
         )}
 
       </div>
