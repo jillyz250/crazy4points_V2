@@ -47,7 +47,7 @@ export async function createAlertAction(formData: FormData) {
     source_url,
     confidence_level,
     impact_score: 5,
-    impact_justification: '',
+    impact_justification: 'Manually created',
     value_score: 5,
     rarity_score: 5,
     history_note,

@@ -515,7 +515,7 @@ export async function setAlertPrograms(
   const rows = programIds.map((program_id) => ({
     alert_id: alertId,
     program_id,
-    role: 'tagged',
+    role: 'secondary',
   }))
 
   const { error: insertError } = await supabase
