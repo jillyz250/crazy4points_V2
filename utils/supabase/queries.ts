@@ -41,6 +41,24 @@ export type ProgramType =
 
 export type MonitorTier = 'daily' | 'weekly' | 'monthly'
 
+export type SourceType = 'official_partner' | 'blog' | 'community' | 'social' | 'email'
+
+export interface Source {
+  id: string
+  name: string
+  url: string
+  type: SourceType
+  tier: number
+  is_active: boolean
+  scrape_frequency: string
+  notes: string | null
+  last_scraped_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type SourceWithFeedCount = Source & { feed_count: number }
+
 export interface Alert {
   id: string
   slug: string
@@ -324,4 +342,72 @@ export async function expireAlert(
 
   if (error) throw error
   return data as Alert
+}
+
+/**
+ * Fetch all sources with their feed count, ordered by tier then name.
+ */
+export async function getSources(supabase: SupabaseClient): Promise<SourceWithFeedCount[]> {
+  const { data, error } = await supabase
+    .from('sources')
+    .select(`
+      *,
+      source_feeds (id)
+    `)
+    .order('tier', { ascending: true })
+    .order('name', { ascending: true })
+
+  if (error) throw error
+
+  return (data ?? []).map((row: Source & { source_feeds: { id: string }[] }) => ({
+    ...row,
+    feed_count: row.source_feeds?.length ?? 0,
+  }))
+}
+
+/**
+ * Toggle the is_active flag on a source.
+ */
+export async function toggleSourceActive(
+  supabase: SupabaseClient,
+  id: string,
+  is_active: boolean
+): Promise<void> {
+  const { error } = await supabase
+    .from('sources')
+    .update({ is_active, updated_at: new Date().toISOString() })
+    .eq('id', id)
+
+  if (error) throw error
+}
+
+/**
+ * Fetch all programs with all columns, ordered by type then name.
+ * Used by the admin programs list.
+ */
+export async function getAllPrograms(supabase: SupabaseClient): Promise<Program[]> {
+  const { data, error } = await supabase
+    .from('programs')
+    .select('*')
+    .order('type', { ascending: true })
+    .order('name', { ascending: true })
+
+  if (error) throw error
+  return data as Program[]
+}
+
+/**
+ * Toggle the is_active flag on a program.
+ */
+export async function toggleProgramActive(
+  supabase: SupabaseClient,
+  id: string,
+  is_active: boolean
+): Promise<void> {
+  const { error } = await supabase
+    .from('programs')
+    .update({ is_active, updated_at: new Date().toISOString() })
+    .eq('id', id)
+
+  if (error) throw error
 }
