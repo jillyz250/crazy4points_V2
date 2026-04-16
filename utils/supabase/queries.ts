@@ -16,6 +16,18 @@ export type AlertType =
   | 'policy_change'
   | 'sweet_spot'
   | 'industry_news'
+  | 'signup_bonus'
+  | 'referral_bonus'
+  | 'retention_offer'
+  | 'shopping_portal_bonus'
+  | 'point_purchase'
+  | 'award_sale'
+  | 'companion_pass'
+  | 'dining_bonus'
+  | 'fee_change'
+  | 'card_refresh'
+  | 'milestone_bonus'
+  | 'card_credit'
 
 export type AlertStatus =
   | 'draft'
@@ -40,6 +52,24 @@ export type ProgramType =
   | 'ota'
 
 export type MonitorTier = 'daily' | 'weekly' | 'monthly'
+
+export type SourceType = 'official_partner' | 'blog' | 'community' | 'social' | 'email'
+
+export interface Source {
+  id: string
+  name: string
+  url: string
+  type: SourceType
+  tier: number
+  is_active: boolean
+  scrape_frequency: string
+  notes: string | null
+  last_scraped_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type SourceWithFeedCount = Source & { feed_count: number }
 
 export interface Alert {
   id: string
@@ -324,4 +354,237 @@ export async function expireAlert(
 
   if (error) throw error
   return data as Alert
+}
+
+/**
+ * Fetch all sources with their feed count, ordered by tier then name.
+ */
+export async function getSources(supabase: SupabaseClient): Promise<SourceWithFeedCount[]> {
+  const { data, error } = await supabase
+    .from('sources')
+    .select(`
+      *,
+      source_feeds (id)
+    `)
+    .order('tier', { ascending: true })
+    .order('name', { ascending: true })
+
+  if (error) throw error
+
+  return (data ?? []).map((row: Source & { source_feeds: { id: string }[] }) => ({
+    ...row,
+    feed_count: row.source_feeds?.length ?? 0,
+  }))
+}
+
+/**
+ * Toggle the is_active flag on a source.
+ */
+export async function toggleSourceActive(
+  supabase: SupabaseClient,
+  id: string,
+  is_active: boolean
+): Promise<void> {
+  const { error } = await supabase
+    .from('sources')
+    .update({ is_active, updated_at: new Date().toISOString() })
+    .eq('id', id)
+
+  if (error) throw error
+}
+
+/**
+ * Fetch all programs with all columns, ordered by type then name.
+ * Used by the admin programs list.
+ */
+export async function getAllPrograms(supabase: SupabaseClient): Promise<Program[]> {
+  const { data, error } = await supabase
+    .from('programs')
+    .select('*')
+    .order('type', { ascending: true })
+    .order('name', { ascending: true })
+
+  if (error) throw error
+  return data as Program[]
+}
+
+/**
+ * Fetch a single published alert by slug.
+ */
+export async function getAlertBySlug(
+  supabase: SupabaseClient,
+  slug: string
+): Promise<Alert> {
+  const { data, error } = await supabase
+    .from('alerts')
+    .select('*')
+    .eq('slug', slug)
+    .eq('status', 'published' satisfies AlertStatus)
+    .single()
+
+  if (error) throw error
+  return data as Alert
+}
+
+/**
+ * Fetch active (published, not expired) alerts with optional type and
+ * primary_program_id filters. Used by the public /alerts listing page.
+ */
+export async function getActiveAlertsByFilter(
+  supabase: SupabaseClient,
+  type?: string | null,
+  programId?: string | null
+): Promise<Alert[]> {
+  const now = new Date().toISOString()
+
+  let query = supabase
+    .from('alerts')
+    .select('*')
+    .eq('status', 'published' satisfies AlertStatus)
+    .or(`end_date.is.null,end_date.gt.${now}`)
+
+  if (type) query = query.eq('type', type)
+  if (programId) query = query.eq('primary_program_id', programId)
+
+  query = query
+    .order('end_date', { ascending: true, nullsFirst: false })
+    .order('computed_score', { ascending: false, nullsFirst: false })
+
+  const { data, error } = await query
+  if (error) throw error
+  return data as Alert[]
+}
+
+/**
+ * Fetch alerts published on a specific calendar date (UTC).
+ * Used by the /daily-brief/[date] archive page.
+ */
+export async function getAlertsByPublishDate(
+  supabase: SupabaseClient,
+  dateStr: string // YYYY-MM-DD
+): Promise<Alert[]> {
+  const start = `${dateStr}T00:00:00.000Z`
+  const end   = `${dateStr}T23:59:59.999Z`
+
+  const { data, error } = await supabase
+    .from('alerts')
+    .select('*')
+    .eq('status', 'published' satisfies AlertStatus)
+    .gte('published_at', start)
+    .lte('published_at', end)
+    .order('computed_score', { ascending: false, nullsFirst: false })
+
+  if (error) throw error
+  return data as Alert[]
+}
+
+/**
+ * Fetch the program_ids currently tagged on an alert via alert_programs.
+ */
+export async function getAlertPrograms(
+  supabase: SupabaseClient,
+  alertId: string
+): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('alert_programs')
+    .select('program_id')
+    .eq('alert_id', alertId)
+
+  if (error) throw error
+  return (data ?? []).map((r: { program_id: string }) => r.program_id)
+}
+
+/**
+ * Replace all alert_programs rows for an alert with the given program IDs.
+ * Deletes existing rows then inserts fresh ones. Pass an empty array to clear.
+ */
+export async function setAlertPrograms(
+  supabase: SupabaseClient,
+  alertId: string,
+  programIds: string[]
+): Promise<void> {
+  const { error: deleteError } = await supabase
+    .from('alert_programs')
+    .delete()
+    .eq('alert_id', alertId)
+
+  if (deleteError) throw deleteError
+
+  if (programIds.length === 0) return
+
+  const rows = programIds.map((program_id) => ({
+    alert_id: alertId,
+    program_id,
+    role: 'secondary',
+  }))
+
+  const { error: insertError } = await supabase
+    .from('alert_programs')
+    .insert(rows)
+
+  if (insertError) throw insertError
+}
+
+/**
+ * Fetch all alerts associated with a program slug (via alert_programs or
+ * primary_program_id). Returns all statuses — active, expired, draft — for
+ * the public program page which archives everything permanently.
+ */
+export async function getAlertsByProgramSlug(
+  supabase: SupabaseClient,
+  programSlug: string
+): Promise<{ program: Program; alerts: Alert[] }> {
+  // 1. Resolve the program
+  const { data: program, error: progError } = await supabase
+    .from('programs')
+    .select('*')
+    .eq('slug', programSlug)
+    .single()
+
+  if (progError) throw progError
+
+  // 2. Fetch alerts via junction table
+  const { data: junction, error: jError } = await supabase
+    .from('alert_programs')
+    .select('alert_id')
+    .eq('program_id', program.id)
+
+  if (jError) throw jError
+
+  const junctionIds = (junction ?? []).map((r: { alert_id: string }) => r.alert_id)
+
+  // 3. Fetch alerts by primary_program_id OR junction membership
+  let query = supabase
+    .from('alerts')
+    .select('*')
+    .eq('status', 'published' satisfies AlertStatus)
+    .order('published_at', { ascending: false, nullsFirst: false })
+
+  if (junctionIds.length > 0) {
+    query = query.or(`primary_program_id.eq.${program.id},id.in.(${junctionIds.join(',')})`)
+  } else {
+    query = query.eq('primary_program_id', program.id)
+  }
+
+  const { data: alerts, error: alertError } = await query
+
+  if (alertError) throw alertError
+
+  return { program: program as Program, alerts: (alerts ?? []) as Alert[] }
+}
+
+/**
+ * Toggle the is_active flag on a program.
+ */
+export async function toggleProgramActive(
+  supabase: SupabaseClient,
+  id: string,
+  is_active: boolean
+): Promise<void> {
+  const { error } = await supabase
+    .from('programs')
+    .update({ is_active, updated_at: new Date().toISOString() })
+    .eq('id', id)
+
+  if (error) throw error
 }

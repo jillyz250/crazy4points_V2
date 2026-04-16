@@ -8,6 +8,7 @@ import type { AlertType, ConfidenceLevel } from '@/utils/supabase/queries'
 export interface AlertSummaryInput {
   title: string
   type: AlertType
+  description: string | null
   programName: string | null
   start_date: string | null
   end_date: string | null
@@ -32,6 +33,7 @@ function buildFallbackSummary(input: AlertSummaryInput): string {
 
 export async function summarizeAlert(input: AlertSummaryInput): Promise<string> {
   const apiKey = process.env.ANTHROPIC_API_KEY
+  console.log('[summarizeAlert] apiKey present:', !!apiKey, '| first 8 chars:', apiKey?.slice(0, 8))
   if (!apiKey) {
     return buildFallbackSummary(input)
   }
@@ -53,12 +55,13 @@ export async function summarizeAlert(input: AlertSummaryInput): Promise<string> 
     `Program: ${input.programName ?? 'N/A'}`,
     `Dates: ${dateRange || 'N/A'}`,
     `Confidence: ${input.confidence_level}`,
-  ].join('\n')
+    input.description ? `Description: ${input.description}` : null,
+  ].filter(Boolean).join('\n')
 
   try {
     const client = new Anthropic({ apiKey })
     const message = await client.messages.create({
-      model: 'claude-haiku-4-5',
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 120,
       messages: [{ role: 'user', content: prompt }],
     })
@@ -68,7 +71,8 @@ export async function summarizeAlert(input: AlertSummaryInput): Promise<string> 
       return block.text.trim()
     }
     return buildFallbackSummary(input)
-  } catch {
+  } catch (err) {
+    console.error('[summarizeAlert] Anthropic call failed:', err)
     return buildFallbackSummary(input)
   }
 }

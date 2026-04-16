@@ -1,14 +1,21 @@
+import NewsletterSignup from './NewsletterSignup'
+
 export default function CTASection() {
   return (
     <section className="bg-[var(--color-background-soft)] py-20">
       <div className="rg-container px-6 md:px-8">
-        <h2 className="font-display text-3xl font-semibold text-[var(--color-primary)]">
-          Decision Engine
-        </h2>
-        <div className="mt-8 rounded-xl border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-8 py-10 font-ui text-sm font-medium uppercase tracking-[0.12em] text-[var(--color-text-secondary)]">
-          Tools Placeholder
+        <div className="text-center">
+          <h2 className="font-display text-3xl font-semibold text-[var(--color-primary)]">
+            Never Miss a Deal
+          </h2>
+          <p className="mt-3 font-body text-[var(--color-text-secondary)]">
+            Get the best travel rewards alerts delivered to your inbox every morning.
+          </p>
+        </div>
+        <div className="mt-8">
+          <NewsletterSignup />
         </div>
       </div>
     </section>
-  );
+  )
 }

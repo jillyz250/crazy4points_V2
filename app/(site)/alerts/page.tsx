@@ -1,10 +1,9 @@
 import { Suspense } from 'react'
 import type { Metadata } from 'next'
-import { sanityFetch } from '@/lib/sanityClient'
-import { getAlertsByFilter } from '@/lib/queries'
-import type { SanityAlert } from '@/lib/types'
-import AlertsGrid from '@/components/alerts/AlertsGrid'
-import AlertsFilters from '@/components/alerts/AlertsFilters'
+import { createClient } from '@/utils/supabase/server'
+import { getActiveAlertsByFilter, getPrograms } from '@/utils/supabase/queries'
+import AlertsGridSB from '@/components/alerts/AlertsGridSB'
+import AlertsFiltersSB from '@/components/alerts/AlertsFiltersSB'
 
 export const revalidate = 60
 
@@ -13,35 +12,26 @@ export const metadata: Metadata = {
   description: 'Live travel rewards alerts — transfer bonuses, limited-time offers, devaluations, and more.',
 }
 
-function sortAlerts(alerts: SanityAlert[]): SanityAlert[] {
-  const now = new Date()
-  const sevenDaysOut = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
-
-  const group = (a: SanityAlert): number => {
-    const end = a.endDate ? new Date(a.endDate) : null
-    const start = a.startDate ? new Date(a.startDate) : null
-    if (end && end < now) return 3           // expired
-    if (start && start > now) return 2       // upcoming
-    if (end && end <= sevenDaysOut) return 0 // expiring soon (active)
-    return 1                                 // active
-  }
-
-  return [...alerts].sort((a, b) => group(a) - group(b))
-}
-
 export default async function AlertsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ program?: string; type?: string }>
+  searchParams: Promise<{ type?: string; program?: string }>
 }) {
-  const { program, type } = await searchParams
+  const { type, program: programSlug } = await searchParams
+  const supabase = await createClient()
 
-  const alerts = await sanityFetch<SanityAlert[]>(getAlertsByFilter, {
-    program: program ?? null,
-    type: type ?? null,
-  })
+  // Resolve program slug → ID if provided
+  let programId: string | undefined
+  if (programSlug) {
+    const programs = await getPrograms(supabase)
+    const match = programs.find((p) => p.slug === programSlug)
+    programId = match?.id
+  }
 
-  const sorted = sortAlerts(alerts)
+  const [alerts, programs] = await Promise.all([
+    getActiveAlertsByFilter(supabase, type, programId),
+    getPrograms(supabase),
+  ])
 
   return (
     <section className="rg-major-section !pt-8">
@@ -53,12 +43,15 @@ export default async function AlertsPage({
           </p>
         </div>
 
-        {/* AlertsFilters uses useSearchParams — must be wrapped in Suspense */}
         <Suspense fallback={<div className="mb-8 h-10" />}>
-          <AlertsFilters program={program ?? null} type={type ?? null} />
+          <AlertsFiltersSB
+            programs={programs}
+            selectedProgram={programSlug ?? null}
+            selectedType={type ?? null}
+          />
         </Suspense>
 
-        <AlertsGrid alerts={sorted} />
+        <AlertsGridSB alerts={alerts} />
       </div>
     </section>
   )

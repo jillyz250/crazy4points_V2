@@ -4,12 +4,30 @@
 - Next.js 16 (App Router), React 19, TypeScript
 - Tailwind CSS v4 (no config file — tokens defined in `styles/globals.css` via `@theme inline`)
 - Fonts loaded via `next/font/google` in `lib/fonts.ts`
+- **Supabase** — all data (alerts, programs, subscribers). No Sanity. Do not reference or reinstall Sanity.
+- **Resend** — transactional email (newsletter signups, welcome emails)
+- **Anthropic SDK** — Claude Haiku (`claude-haiku-4-5-20251001`) for AI alert summaries on publish
 - Deployed on Vercel, connected to `jillyz250/crazy4points_V2` on GitHub
 - Live at: https://crazy4points.com
 
+## Database — Supabase Tables
+- `alerts` — all alert content (title, slug, type, summary, ai_summary, status, etc.)
+- `programs` — loyalty programs (Chase UR, Amex MR, etc.)
+- `alert_programs` — junction table linking alerts to programs (role: 'primary' | 'secondary')
+- `alert_history` — publish log + AI-generated summaries
+- `sources` — alert data sources for Claude Scout
+- `subscribers` — newsletter subscribers (email, first_name, active)
+
+## Key Utility Files
+- `utils/supabase/server.ts` — `createAdminClient()` (service role) and `createClient()` (SSR)
+- `utils/supabase/queries.ts` — all Supabase query functions
+- `utils/ai/summarizeAlert.ts` — calls Claude Haiku to generate alert summaries
+- `utils/ai/logPublishEvent.ts` — triggered on publish, calls summarizeAlert
+
 ## Folder Structure
 - `app/` — root layout + metadata in `app/layout.tsx`; pages live under `app/(site)/`
-- `components/` — organized by section: `layout/`, `home/`, `destinations/`, `legal/`
+- `app/admin/(protected)/` — admin pages (alerts, programs, sources, homepage)
+- `components/` — organized by section: `layout/`, `home/`, `destinations/`, `legal/`, `alerts/`, `programs/`
 - `lib/fonts.ts` — font definitions (Playfair Display, Lato, Montserrat)
 - `styles/globals.css` — all design tokens + global base styles
 - `public/` — static assets

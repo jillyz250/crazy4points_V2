@@ -10,6 +10,16 @@ export default function AdminDashboard() {
             Manage Alerts
           </Link>
         </li>
+        <li>
+          <Link href="/admin/sources" className="rg-btn-primary" style={{ display: 'inline-block' }}>
+            Manage Sources
+          </Link>
+        </li>
+        <li>
+          <Link href="/admin/programs" className="rg-btn-primary" style={{ display: 'inline-block' }}>
+            Manage Programs
+          </Link>
+        </li>
       </ul>
     </div>
   )

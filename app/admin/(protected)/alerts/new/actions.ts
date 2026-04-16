@@ -2,7 +2,7 @@
 
 import { redirect } from 'next/navigation'
 import { createAdminClient } from '@/utils/supabase/server'
-import { createAlert } from '@/utils/supabase/queries'
+import { createAlert, setAlertPrograms } from '@/utils/supabase/queries'
 import type { AlertInsert, AlertType, AlertStatus, AlertActionType, ConfidenceLevel } from '@/utils/supabase/queries'
 import { logPublishEvent } from '@/utils/ai/logPublishEvent'
 
@@ -47,7 +47,7 @@ export async function createAlertAction(formData: FormData) {
     source_url,
     confidence_level,
     impact_score: 5,
-    impact_justification: '',
+    impact_justification: 'Manually created',
     value_score: 5,
     rarity_score: 5,
     history_note,
@@ -59,6 +59,12 @@ export async function createAlertAction(formData: FormData) {
 
   const supabase = createAdminClient()
   const alert = await createAlert(supabase, alertData)
+
+  // Sync alert_programs junction table
+  const taggedIds = (formData.getAll('tagged_program_ids') as string[]).filter(Boolean)
+  if (taggedIds.length > 0) {
+    await setAlertPrograms(supabase, alert.id, taggedIds)
+  }
 
   if (status === 'published') {
     try {
