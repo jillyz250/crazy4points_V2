@@ -5,7 +5,8 @@ import FeaturedDeals from "@/components/home/FeaturedDeals";
 import FeaturedGuides from "@/components/home/FeaturedGuides";
 import CTASection from "@/components/home/CTASection";
 import { createAdminClient } from "@/utils/supabase/server";
-import { getActiveAlerts } from "@/utils/supabase/queries";
+import { getHomepageAlerts, getActiveAlerts } from "@/utils/supabase/queries";
+import type { Alert } from "@/utils/supabase/queries";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -16,15 +17,27 @@ export const metadata: Metadata = {
 
 export default async function HomePage() {
   const supabase = createAdminClient();
-  const allAlerts = await getActiveAlerts(supabase);
+  const [pinnedSlots, allActive] = await Promise.all([
+    getHomepageAlerts(supabase),
+    getActiveAlerts(supabase),
+  ]);
 
-  // Sort by composite score (impact + value + rarity), take top 4
-  const topAlerts = [...allAlerts]
+  // Build the 4 homepage alerts: pinned slots first, fill gaps with top scored
+  const pinnedAlerts = pinnedSlots
+    .sort((a, b) => a.slot_number - b.slot_number)
+    .map((s) => s.alerts)
+    .filter((a): a is Alert => a !== null);
+
+  const pinnedIds = new Set(pinnedAlerts.map((a) => a.id));
+
+  const fallbacks = [...allActive]
+    .filter((a) => !pinnedIds.has(a.id))
     .sort((a, b) =>
       (b.impact_score + b.value_score + b.rarity_score) -
       (a.impact_score + a.value_score + a.rarity_score)
-    )
-    .slice(0, 4);
+    );
+
+  const topAlerts = [...pinnedAlerts, ...fallbacks].slice(0, 4);
 
   return (
     <>

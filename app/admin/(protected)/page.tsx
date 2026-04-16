@@ -20,6 +20,11 @@ export default function AdminDashboard() {
             Manage Programs
           </Link>
         </li>
+        <li>
+          <Link href="/admin/homepage" className="rg-btn-primary" style={{ display: 'inline-block' }}>
+            Homepage Pin Slots
+          </Link>
+        </li>
       </ul>
     </div>
   )

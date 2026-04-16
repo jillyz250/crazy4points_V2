@@ -588,3 +588,45 @@ export async function toggleProgramActive(
 
   if (error) throw error
 }
+
+/**
+ * Fetch all 4 homepage_slots (including empty ones) with their joined alert.
+ * Used by the admin homepage page.
+ */
+export async function getAllHomepageSlots(
+  supabase: SupabaseClient
+): Promise<HomepageSlotWithAlert[]> {
+  const { data, error } = await supabase
+    .from('homepage_slots')
+    .select(`
+      *,
+      alerts (*)
+    `)
+    .order('slot_number', { ascending: true })
+
+  if (error) throw error
+  return data as HomepageSlotWithAlert[]
+}
+
+/**
+ * Pin or unpin an alert in a homepage slot.
+ * Pass null for alertId to clear the slot.
+ */
+export async function upsertHomepageSlot(
+  supabase: SupabaseClient,
+  slotNumber: number,
+  alertId: string | null
+): Promise<void> {
+  const now = new Date().toISOString()
+  const { error } = await supabase
+    .from('homepage_slots')
+    .update({
+      alert_id: alertId,
+      is_pinned: alertId !== null,
+      pinned_at: alertId !== null ? now : null,
+      updated_at: now,
+    })
+    .eq('slot_number', slotNumber)
+
+  if (error) throw error
+}
