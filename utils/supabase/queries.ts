@@ -428,7 +428,8 @@ export async function getAlertBySlug(
 
 /**
  * Fetch active (published, not expired) alerts with optional type and
- * primary_program_id filters. Used by the public /alerts listing page.
+ * program filters. Checks both primary_program_id and the alert_programs
+ * junction table so all linked alerts appear. Used by the public /alerts page.
  */
 export async function getActiveAlertsByFilter(
   supabase: SupabaseClient,
@@ -437,6 +438,18 @@ export async function getActiveAlertsByFilter(
 ): Promise<AlertWithPrograms[]> {
   const now = new Date().toISOString()
 
+  // When filtering by program, resolve all alert_ids linked via junction table
+  let junctionIds: string[] = []
+  if (programId) {
+    const { data: junction, error: jError } = await supabase
+      .from('alert_programs')
+      .select('alert_id')
+      .eq('program_id', programId)
+
+    if (jError) throw jError
+    junctionIds = (junction ?? []).map((r: { alert_id: string }) => r.alert_id)
+  }
+
   let query = supabase
     .from('alerts')
     .select('*, alert_programs(*, programs(*))')
@@ -444,7 +457,14 @@ export async function getActiveAlertsByFilter(
     .or(`end_date.is.null,end_date.gt.${now}`)
 
   if (type) query = query.eq('type', type)
-  if (programId) query = query.eq('primary_program_id', programId)
+
+  if (programId) {
+    if (junctionIds.length > 0) {
+      query = query.or(`primary_program_id.eq.${programId},id.in.(${junctionIds.join(',')})`)
+    } else {
+      query = query.eq('primary_program_id', programId)
+    }
+  }
 
   query = query
     .order('end_date', { ascending: true, nullsFirst: false })
