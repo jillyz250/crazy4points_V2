@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import type { Metadata } from 'next'
-import { createClient } from '@/utils/supabase/server'
+import { createAdminClient } from '@/utils/supabase/server'
 import { getActiveAlertsByFilter, getPrograms } from '@/utils/supabase/queries'
 import AlertsGridSB from '@/components/alerts/AlertsGridSB'
 import AlertsFiltersSB from '@/components/alerts/AlertsFiltersSB'
@@ -18,7 +18,7 @@ export default async function AlertsPage({
   searchParams: Promise<{ type?: string; program?: string }>
 }) {
   const { type, program: programSlug } = await searchParams
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   // Resolve program slug → ID if provided
   let programId: string | undefined

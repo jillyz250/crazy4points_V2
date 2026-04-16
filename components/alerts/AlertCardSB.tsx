@@ -77,9 +77,9 @@ export default function AlertCardSB({ alert }: { alert: AlertWithPrograms }) {
       </span>
 
       {/* Program pills */}
-      {alert.alert_programs.length > 0 && (
+      {(alert.alert_programs?.length ?? 0) > 0 && (
         <div className="relative z-10 flex flex-wrap gap-1">
-          {alert.alert_programs.map((ap) => (
+          {(alert.alert_programs ?? []).map((ap) => (
             <span
               key={ap.id}
               className={`rounded-full px-2 py-0.5 font-ui text-[10px] bg-[var(--color-background-soft)] ${

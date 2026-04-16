@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import { createClient } from '@/utils/supabase/server'
+import { createAdminClient } from '@/utils/supabase/server'
 import { getAlertsByProgramSlug } from '@/utils/supabase/queries'
 import type { AlertWithPrograms } from '@/utils/supabase/queries'
 import AlertsGridSB from '@/components/alerts/AlertsGridSB'
@@ -15,7 +15,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params
   try {
-    const supabase = await createClient()
+    const supabase = createAdminClient()
     const { program } = await getAlertsByProgramSlug(supabase, slug)
     return {
       title: `${program.name} Alerts — crazy4points`,
@@ -46,7 +46,7 @@ export default async function ProgramPage({
   const { slug } = await params
   const { q = '', show = 'active' } = await searchParams
 
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   let program
   let allAlerts: AlertWithPrograms[]
