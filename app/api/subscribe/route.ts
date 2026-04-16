@@ -13,17 +13,37 @@ export async function POST(req: NextRequest) {
 
   const supabase = createAdminClient()
 
-  // Save to Supabase
-  const { error: dbError } = await supabase
-    .from('subscribers')
-    .insert({ email: email.toLowerCase().trim(), first_name: firstName?.trim() || null })
+  const normalizedEmail = email.toLowerCase().trim()
 
-  if (dbError) {
-    if (dbError.code === '23505') {
+  // Check if subscriber already exists
+  const { data: existing } = await supabase
+    .from('subscribers')
+    .select('id, active')
+    .eq('email', normalizedEmail)
+    .single()
+
+  if (existing) {
+    if (existing.active) {
       return NextResponse.json({ error: 'You\'re already subscribed!' }, { status: 409 })
     }
-    console.error('[subscribe] DB error:', dbError)
-    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
+    // Reactivate unsubscribed user
+    const { error: reactivateError } = await supabase
+      .from('subscribers')
+      .update({ active: true, first_name: firstName?.trim() || null })
+      .eq('id', existing.id)
+    if (reactivateError) {
+      console.error('[subscribe] Reactivate error:', reactivateError)
+      return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
+    }
+  } else {
+    // New subscriber
+    const { error: dbError } = await supabase
+      .from('subscribers')
+      .insert({ email: normalizedEmail, first_name: firstName?.trim() || null })
+    if (dbError) {
+      console.error('[subscribe] DB error:', dbError)
+      return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
+    }
   }
 
   // Send welcome email
