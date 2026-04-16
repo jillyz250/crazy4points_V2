@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import type { Alert } from '@/utils/supabase/queries'
+import type { AlertWithPrograms } from '@/utils/supabase/queries'
 
 // Full literal class names — Tailwind v4 JIT does not support string interpolation
 const TYPE_BADGE: Record<string, { label: string; cls: string }> = {
@@ -53,7 +53,7 @@ function formatEndDate(endDate: string | null): string | null {
   return `Expires ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
 }
 
-export default function AlertCardSB({ alert }: { alert: Alert }) {
+export default function AlertCardSB({ alert }: { alert: AlertWithPrograms }) {
   const badge = TYPE_BADGE[alert.type] ?? { label: alert.type, cls: 'bg-slate-100 text-slate-600' }
   const endLabel = formatEndDate(alert.end_date)
   const isExpired = endLabel === 'Expired'
@@ -75,6 +75,24 @@ export default function AlertCardSB({ alert }: { alert: Alert }) {
       <span className={`relative z-10 self-start rounded-full px-2.5 py-0.5 font-ui text-[10px] font-semibold uppercase tracking-[0.1em] ${badge.cls}`}>
         {badge.label}
       </span>
+
+      {/* Program pills */}
+      {alert.alert_programs.length > 0 && (
+        <div className="relative z-10 flex flex-wrap gap-1">
+          {alert.alert_programs.map((ap) => (
+            <span
+              key={ap.id}
+              className={`rounded-full px-2 py-0.5 font-ui text-[10px] bg-[var(--color-background-soft)] ${
+                ap.role === 'primary'
+                  ? 'text-[var(--color-primary)] font-medium'
+                  : 'text-[var(--color-text-secondary)]'
+              }`}
+            >
+              {ap.programs.name}
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Title */}
       <h3 className="relative z-10 font-display text-base font-semibold leading-snug text-[var(--color-primary)] group-hover:underline">

@@ -3,7 +3,7 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import { createClient } from '@/utils/supabase/server'
 import { getAlertsByProgramSlug } from '@/utils/supabase/queries'
-import type { Alert } from '@/utils/supabase/queries'
+import type { AlertWithPrograms } from '@/utils/supabase/queries'
 import AlertsGridSB from '@/components/alerts/AlertsGridSB'
 
 export const revalidate = 60
@@ -26,7 +26,7 @@ export async function generateMetadata({
   }
 }
 
-function matchesSearch(alert: Alert, query: string): boolean {
+function matchesSearch(alert: AlertWithPrograms, query: string): boolean {
   const q = query.toLowerCase()
   return (
     alert.title.toLowerCase().includes(q) ||
@@ -49,7 +49,7 @@ export default async function ProgramPage({
   const supabase = await createClient()
 
   let program
-  let allAlerts: Alert[]
+  let allAlerts: AlertWithPrograms[]
 
   try {
     const result = await getAlertsByProgramSlug(supabase, slug)

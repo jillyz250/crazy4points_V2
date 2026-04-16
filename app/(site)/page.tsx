@@ -6,7 +6,7 @@ import FeaturedGuides from "@/components/home/FeaturedGuides";
 import CTASection from "@/components/home/CTASection";
 import { createAdminClient } from "@/utils/supabase/server";
 import { getHomepageAlerts, getActiveAlerts } from "@/utils/supabase/queries";
-import type { Alert } from "@/utils/supabase/queries";
+import type { AlertWithPrograms } from "@/utils/supabase/queries";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -26,7 +26,7 @@ export default async function HomePage() {
   const pinnedAlerts = pinnedSlots
     .sort((a, b) => a.slot_number - b.slot_number)
     .map((s) => s.alerts)
-    .filter((a): a is Alert => a !== null);
+    .filter((a): a is AlertWithPrograms => a !== null);
 
   const pinnedIds = new Set(pinnedAlerts.map((a) => a.id));
 

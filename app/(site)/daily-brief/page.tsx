@@ -2,7 +2,7 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import { createAdminClient } from '@/utils/supabase/server'
 import { getActiveAlerts } from '@/utils/supabase/queries'
-import type { Alert } from '@/utils/supabase/queries'
+import type { AlertWithPrograms } from '@/utils/supabase/queries'
 import AlertsGridSB from '@/components/alerts/AlertsGridSB'
 
 export const revalidate = 60
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   description: "Today's top travel rewards alerts, scored and ranked.",
 }
 
-function byScore(a: Alert, b: Alert): number {
+function byScore(a: AlertWithPrograms, b: AlertWithPrograms): number {
   return (
     (b.impact_score + b.value_score + b.rarity_score) -
     (a.impact_score + a.value_score + a.rarity_score)

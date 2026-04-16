@@ -1,7 +1,7 @@
-import type { Alert } from '@/utils/supabase/queries'
+import type { AlertWithPrograms } from '@/utils/supabase/queries'
 import AlertCardSB from './AlertCardSB'
 
-export default function AlertsGridSB({ alerts }: { alerts: Alert[] }) {
+export default function AlertsGridSB({ alerts }: { alerts: AlertWithPrograms[] }) {
   if (alerts.length === 0) {
     return (
       <div className="py-20 text-center">

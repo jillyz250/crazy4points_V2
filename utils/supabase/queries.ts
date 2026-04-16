@@ -173,19 +173,19 @@ export type AlertHistoryInsert = Omit<AlertHistory, 'id' | 'created_at'>
  * Fetch all non-expired, published alerts ordered by soonest expiry then
  * highest computed score.
  */
-export async function getActiveAlerts(supabase: SupabaseClient): Promise<Alert[]> {
+export async function getActiveAlerts(supabase: SupabaseClient): Promise<AlertWithPrograms[]> {
   const now = new Date().toISOString()
 
   const { data, error } = await supabase
     .from('alerts')
-    .select('*')
+    .select('*, alert_programs(*, programs(*))')
     .eq('status', 'published' satisfies AlertStatus)
     .or(`end_date.is.null,end_date.gt.${now}`)
     .order('end_date', { ascending: true, nullsFirst: false })
     .order('computed_score', { ascending: false, nullsFirst: false })
 
   if (error) throw error
-  return data as Alert[]
+  return data as AlertWithPrograms[]
 }
 
 /**
@@ -434,12 +434,12 @@ export async function getActiveAlertsByFilter(
   supabase: SupabaseClient,
   type?: string | null,
   programId?: string | null
-): Promise<Alert[]> {
+): Promise<AlertWithPrograms[]> {
   const now = new Date().toISOString()
 
   let query = supabase
     .from('alerts')
-    .select('*')
+    .select('*, alert_programs(*, programs(*))')
     .eq('status', 'published' satisfies AlertStatus)
     .or(`end_date.is.null,end_date.gt.${now}`)
 
@@ -452,7 +452,7 @@ export async function getActiveAlertsByFilter(
 
   const { data, error } = await query
   if (error) throw error
-  return data as Alert[]
+  return data as AlertWithPrograms[]
 }
 
 /**
@@ -462,20 +462,20 @@ export async function getActiveAlertsByFilter(
 export async function getAlertsByPublishDate(
   supabase: SupabaseClient,
   dateStr: string // YYYY-MM-DD
-): Promise<Alert[]> {
+): Promise<AlertWithPrograms[]> {
   const start = `${dateStr}T00:00:00.000Z`
   const end   = `${dateStr}T23:59:59.999Z`
 
   const { data, error } = await supabase
     .from('alerts')
-    .select('*')
+    .select('*, alert_programs(*, programs(*))')
     .eq('status', 'published' satisfies AlertStatus)
     .gte('published_at', start)
     .lte('published_at', end)
     .order('computed_score', { ascending: false, nullsFirst: false })
 
   if (error) throw error
-  return data as Alert[]
+  return data as AlertWithPrograms[]
 }
 
 /**
@@ -533,7 +533,7 @@ export async function setAlertPrograms(
 export async function getAlertsByProgramSlug(
   supabase: SupabaseClient,
   programSlug: string
-): Promise<{ program: Program; alerts: Alert[] }> {
+): Promise<{ program: Program; alerts: AlertWithPrograms[] }> {
   // 1. Resolve the program
   const { data: program, error: progError } = await supabase
     .from('programs')
@@ -556,7 +556,7 @@ export async function getAlertsByProgramSlug(
   // 3. Fetch alerts by primary_program_id OR junction membership
   let query = supabase
     .from('alerts')
-    .select('*')
+    .select('*, alert_programs(*, programs(*))')
     .eq('status', 'published' satisfies AlertStatus)
     .order('published_at', { ascending: false, nullsFirst: false })
 
@@ -570,7 +570,7 @@ export async function getAlertsByProgramSlug(
 
   if (alertError) throw alertError
 
-  return { program: program as Program, alerts: (alerts ?? []) as Alert[] }
+  return { program: program as Program, alerts: (alerts ?? []) as AlertWithPrograms[] }
 }
 
 /**
