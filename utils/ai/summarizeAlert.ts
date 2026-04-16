@@ -33,6 +33,7 @@ function buildFallbackSummary(input: AlertSummaryInput): string {
 
 export async function summarizeAlert(input: AlertSummaryInput): Promise<string> {
   const apiKey = process.env.ANTHROPIC_API_KEY
+  console.log('[summarizeAlert] apiKey present:', !!apiKey, '| first 8 chars:', apiKey?.slice(0, 8))
   if (!apiKey) {
     return buildFallbackSummary(input)
   }
@@ -70,7 +71,8 @@ export async function summarizeAlert(input: AlertSummaryInput): Promise<string> 
       return block.text.trim()
     }
     return buildFallbackSummary(input)
-  } catch {
+  } catch (err) {
+    console.error('[summarizeAlert] Anthropic call failed:', err)
     return buildFallbackSummary(input)
   }
 }
