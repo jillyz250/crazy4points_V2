@@ -1,15 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { Resend } from 'resend'
 import { createAdminClient } from '@/utils/supabase/server'
-import { getSources, getAllPrograms } from '@/utils/supabase/queries'
+import {
+  getSources,
+  getAllPrograms,
+  getRecentIntelItems,
+  incrementSourceProduced,
+} from '@/utils/supabase/queries'
 import { runScout } from '@/utils/ai/runScout'
-import { buildBriefEmail } from '@/utils/ai/briefEmail'
-import type { AlertType, IntelItemInsert } from '@/utils/supabase/queries'
+import type { AlertType, IntelItemInsert, IntelConfidence, RecentIntelItem } from '@/utils/supabase/queries'
+import type { ScoutFinding } from '@/utils/ai/runScout'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+// Boost to 'high' when cross-source corroboration exists within 48h
+function applyConfidenceBoost(
+  findings: ScoutFinding[],
+  recentItems: RecentIntelItem[]
+): ScoutFinding[] {
+  const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
+  return findings.map((f) => {
+    if (f.confidence === 'high') return f
+    const programs = f.programs ?? []
+    const corroborated = recentItems.some(
+      (r) =>
+        r.created_at >= cutoff &&
+        r.alert_type === f.alert_type &&
+        r.source_type !== f.source_type &&
+        (r.programs ?? []).some((p) => programs.includes(p))
+    )
+    return corroborated ? { ...f, confidence: 'high' as IntelConfidence } : f
+  })
+}
+
+// True if this finding is a clear cross-day duplicate (same headline or same program+type)
+function isDuplicateOfRecent(f: ScoutFinding, recentItems: RecentIntelItem[]): boolean {
+  const programs = f.programs ?? []
+  return recentItems.some(
+    (r) =>
+      r.headline.toLowerCase() === f.headline.toLowerCase() ||
+      (f.alert_type !== null &&
+        r.alert_type === f.alert_type &&
+        (r.programs ?? []).some((p) => programs.includes(p)))
+  )
+}
 
 export async function POST(req: NextRequest) {
-  // Accept both cron (Vercel sends Authorization header) and manual trigger (INTEL_API_SECRET)
   const authHeader = req.headers.get('authorization')
   const manualSecret = req.headers.get('x-intel-secret')
   const isCron = authHeader === `Bearer ${process.env.CRON_SECRET}`
@@ -21,7 +54,6 @@ export async function POST(req: NextRequest) {
 
   const supabase = createAdminClient()
 
-  // Load active sources
   const sources = await getSources(supabase)
   const activeSources = sources.filter((s) => s.is_active)
 
@@ -29,12 +61,36 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: 'No active sources' })
   }
 
-  // Run Claude Scout
-  const findings = await runScout(activeSources)
-  console.log(`[run-scout] ${findings.length} findings from ${activeSources.length} sources`)
+  // Load recent intel for dedup + confidence boost
+  const recentItems = await getRecentIntelItems(supabase, 7)
+  const recentHeadlines = recentItems.map((r) => r.headline)
 
-  // Write to intel_items (skip insert if no findings)
-  let inserted: Array<{ id: string; headline: string; raw_text: string | null; source_name: string; source_url: string | null; confidence: string; alert_type: string | null; programs: string[] | null; expires_at: string | null }> = []
+  // Run Claude Scout, passing known headlines so it skips already-seen stories
+  let findings = await runScout(activeSources, recentHeadlines)
+  console.log(`[run-scout] ${findings.length} raw findings from ${activeSources.length} sources`)
+
+  // Filter findings that are obvious cross-day duplicates
+  const deduped = findings.filter((f) => !isDuplicateOfRecent(f, recentItems))
+  const dedupedCount = findings.length - deduped.length
+  console.log(`[run-scout] ${dedupedCount} findings filtered as cross-day duplicates`)
+
+  // Boost confidence where corroborated across source types
+  findings = applyConfidenceBoost(deduped, recentItems)
+  const boostedCount = findings.filter((f, i) => f.confidence !== deduped[i]?.confidence).length
+  console.log(`[run-scout] ${boostedCount} findings confidence-boosted`)
+
+  // Write to intel_items
+  let inserted: Array<{
+    id: string
+    headline: string
+    raw_text: string | null
+    source_name: string
+    source_url: string | null
+    confidence: string
+    alert_type: string | null
+    programs: string[] | null
+    expires_at: string | null
+  }> = []
 
   if (findings.length > 0) {
     const items: IntelItemInsert[] = findings.map((f) => ({
@@ -61,6 +117,12 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Update source performance stats (items_produced + last_scraped_at per active source)
+  for (const source of activeSources) {
+    const count = findings.filter((f) => f.source_name === source.name).length
+    await incrementSourceProduced(supabase, source.name, count)
+  }
+
   // Build program slug → id map
   const allPrograms = await getAllPrograms(supabase)
   const programSlugMap = new Map(allPrograms.map((p) => [p.slug, p.id]))
@@ -70,16 +132,32 @@ export async function POST(req: NextRequest) {
   const highConfItems = inserted.filter((i) => i.confidence === 'high' && i.alert_type)
 
   for (const item of highConfItems) {
-    // Resolve program slugs to IDs
     const programIds = (item.programs ?? [])
       .map((slug: string) => programSlugMap.get(slug))
       .filter(Boolean) as string[]
     const primaryProgramId = programIds[0] ?? null
 
-    // Find the matching finding for description/start_date
+    // Skip staging if a pending_review alert already exists for this program+type (7-day window)
+    if (primaryProgramId && item.alert_type) {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+      const { data: existing } = await supabase
+        .from('alerts')
+        .select('id')
+        .eq('status', 'pending_review')
+        .eq('primary_program_id', primaryProgramId)
+        .eq('type', item.alert_type)
+        .gte('created_at', sevenDaysAgo)
+        .limit(1)
+
+      if (existing && existing.length > 0) {
+        console.log(`[run-scout] Skipping duplicate staging for: ${item.headline}`)
+        await supabase.from('intel_items').update({ dedup_count: 1 }).eq('id', item.id)
+        continue
+      }
+    }
+
     const finding = findings.find((f) => f.headline === item.headline)
 
-    // Generate history note from recent published alerts for this program
     let historyNote: string | null = null
     if (primaryProgramId) {
       const { data: recent } = await supabase
@@ -134,7 +212,6 @@ export async function POST(req: NextRequest) {
       continue
     }
 
-    // Link additional programs via junction table
     if (programIds.length > 1) {
       await supabase.from('alert_programs').insert(
         programIds.slice(1).map((pid) => ({
@@ -149,25 +226,12 @@ export async function POST(req: NextRequest) {
     staged.push(alert.id)
   }
 
-  // Send daily brief email
-  const date = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
-  const html = buildBriefEmail(findings, date)
-
-  const { error: emailError } = await resend.emails.send({
-    from: 'crazy4points Scout <onboarding@resend.dev>',
-    to: 'jillzeller6@gmail.com',
-    subject: `crazy4points Daily Brief — ${date}`,
-    html,
-  })
-
-  if (emailError) {
-    console.error('[run-scout] Resend error:', emailError)
-  }
-
   return NextResponse.json({
     sources_scanned: activeSources.length,
-    findings: findings.length,
+    findings_raw: findings.length + dedupedCount,
+    findings_new: findings.length,
+    deduped: dedupedCount,
+    boosted: boostedCount,
     staged: staged.length,
-    email_sent: !emailError,
   })
 }

@@ -1,4 +1,13 @@
-import type { ScoutFinding } from './runScout'
+// Minimal interface satisfied by both ScoutFinding (in-memory) and IntelItem (DB row)
+export interface BriefFinding {
+  headline: string
+  raw_text?: string | null
+  source_name: string
+  source_url?: string | null
+  confidence: 'high' | 'medium' | 'low'
+  alert_type?: string | null
+  programs?: string[] | null
+}
 
 const URGENCY: Record<string, { label: string; color: string }> = {
   high:   { label: 'HIGH',   color: '#c0392b' },
@@ -6,7 +15,7 @@ const URGENCY: Record<string, { label: string; color: string }> = {
   low:    { label: 'LOW',    color: '#555555' },
 }
 
-function findingCard(f: ScoutFinding): string {
+function findingCard(f: BriefFinding): string {
   const badge = URGENCY[f.confidence] ?? URGENCY.low
   const source = f.source_url
     ? `<a href="${f.source_url}" style="color:#D4AF37;">${f.source_name}</a>`
@@ -23,12 +32,12 @@ function findingCard(f: ScoutFinding): string {
     </div>`
 }
 
-export function buildBriefEmail(findings: ScoutFinding[], date: string): string {
+export function buildBriefEmail(findings: BriefFinding[], date: string): string {
   const high   = findings.filter((f) => f.confidence === 'high')
   const medium = findings.filter((f) => f.confidence === 'medium')
   const low    = findings.filter((f) => f.confidence === 'low')
 
-  const section = (title: string, items: ScoutFinding[]) =>
+  const section = (title: string, items: BriefFinding[]) =>
     items.length === 0 ? '' : `
       <h2 style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#D4AF37;margin:24px 0 10px;">${title}</h2>
       ${items.map(findingCard).join('')}`

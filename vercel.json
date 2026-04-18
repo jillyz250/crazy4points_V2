@@ -3,6 +3,10 @@
     {
       "path": "/api/run-scout",
       "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/build-brief",
+      "schedule": "30 10 * * *"
     }
   ]
 }
