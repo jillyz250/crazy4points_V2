@@ -148,7 +148,7 @@ export type HomepageSlotWithAlert = HomepageSlot & {
   alerts: Alert | null
 }
 
-export type AlertInsert = Omit<Alert, 'id' | 'created_at' | 'updated_at' | 'computed_score' | 'score_last_computed_at'>
+export type AlertInsert = Omit<Alert, 'id' | 'created_at' | 'updated_at' | 'computed_score' | 'score_last_computed_at' | 'approved_at' | 'source_intel_id'>
 export type AlertUpdate = Partial<Omit<Alert, 'id' | 'created_at' | 'updated_at'>>
 
 export interface AlertHistory {
