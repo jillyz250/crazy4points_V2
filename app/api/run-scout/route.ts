@@ -33,31 +33,32 @@ export async function POST(req: NextRequest) {
   const findings = await runScout(activeSources)
   console.log(`[run-scout] ${findings.length} findings from ${activeSources.length} sources`)
 
-  if (findings.length === 0) {
-    return NextResponse.json({ message: 'No findings today', sources: activeSources.length })
-  }
+  // Write to intel_items (skip insert if no findings)
+  let inserted: Array<{ id: string; headline: string; raw_text: string | null; source_name: string; source_url: string | null; confidence: string; alert_type: string | null; programs: string[] | null; expires_at: string | null }> = []
 
-  // Write to intel_items
-  const items: IntelItemInsert[] = findings.map((f) => ({
-    source_url: f.source_url ?? null,
-    source_type: f.source_type,
-    source_name: f.source_name,
-    raw_text: f.raw_text ?? null,
-    headline: f.headline,
-    confidence: f.confidence,
-    alert_type: (f.alert_type as AlertType) ?? null,
-    programs: f.programs ?? null,
-    expires_at: f.expires_at ?? null,
-  }))
+  if (findings.length > 0) {
+    const items: IntelItemInsert[] = findings.map((f) => ({
+      source_url: f.source_url ?? null,
+      source_type: f.source_type,
+      source_name: f.source_name,
+      raw_text: f.raw_text ?? null,
+      headline: f.headline,
+      confidence: f.confidence,
+      alert_type: (f.alert_type as AlertType) ?? null,
+      programs: f.programs ?? null,
+      expires_at: f.expires_at ?? null,
+    }))
 
-  const { data: inserted, error: intelError } = await supabase
-    .from('intel_items')
-    .insert(items)
-    .select()
+    const { data, error: intelError } = await supabase
+      .from('intel_items')
+      .insert(items)
+      .select()
 
-  if (intelError) {
-    console.error('[run-scout] intel_items insert error:', intelError)
-    return NextResponse.json({ error: 'DB error' }, { status: 500 })
+    if (intelError) {
+      console.error('[run-scout] intel_items insert error:', intelError)
+    } else {
+      inserted = data ?? []
+    }
   }
 
   // Build program slug → id map
