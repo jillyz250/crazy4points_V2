@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { Source, AlertType, IntelConfidence } from '@/utils/supabase/queries'
+import { fetchFirecrawl } from './firecrawl'
 
 export interface ScoutFinding {
   source_url?: string
@@ -53,18 +54,33 @@ async function fetchReddit(subreddit: string): Promise<string> {
     .slice(0, 3000)
 }
 
-async function fetchSource(source: Source): Promise<string> {
+async function fetchPlainHtml(url: string): Promise<string> {
   try {
-    if (source.type === 'community') return await fetchReddit(source.url)
-    if (source.type === 'blog') return await fetchRSS(source.url)
-    // Official pages: best-effort plain fetch
-    const res = await fetch(source.url, {
+    const res = await fetch(url, {
       headers: { 'User-Agent': 'crazy4points-scout/1.0' },
       signal: AbortSignal.timeout(10000),
     })
     if (!res.ok) return ''
     const text = await res.text()
     return text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 2000)
+  } catch {
+    return ''
+  }
+}
+
+async function fetchSource(source: Source): Promise<string> {
+  try {
+    if (source.type === 'community') return await fetchReddit(source.url)
+    if (source.type === 'blog') return await fetchRSS(source.url)
+
+    // Official pages: prefer Firecrawl (renders JS) when flagged, fall back to plain fetch
+    if (source.use_firecrawl) {
+      const md = await fetchFirecrawl(source.url)
+      if (md.length > 100) return md
+      console.warn(`[runScout] Firecrawl returned empty for ${source.name}, falling back to plain fetch`)
+    }
+
+    return await fetchPlainHtml(source.url)
   } catch {
     return ''
   }

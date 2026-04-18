@@ -67,6 +67,7 @@ export interface Source {
   last_scraped_at: string | null
   items_produced: number
   items_approved: number
+  use_firecrawl: boolean
   created_at: string
   updated_at: string
 }
