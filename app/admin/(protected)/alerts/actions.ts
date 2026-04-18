@@ -2,7 +2,7 @@
 
 import { redirect } from 'next/navigation'
 import { createAdminClient } from '@/utils/supabase/server'
-import { updateAlert, expireAlert } from '@/utils/supabase/queries'
+import { updateAlert, expireAlert, incrementSourceApproved } from '@/utils/supabase/queries'
 
 export async function publishAlertAction(id: string) {
   const supabase = createAdminClient()
@@ -15,11 +15,15 @@ export async function publishAlertAction(id: string) {
 
 export async function approveIntelAlertAction(id: string) {
   const supabase = createAdminClient()
-  await updateAlert(supabase, id, {
+  const alert = await updateAlert(supabase, id, {
     status: 'published',
     published_at: new Date().toISOString(),
     approved_at: new Date().toISOString(),
   })
+  // Track approval back to the originating source (non-blocking)
+  if (alert.source_intel_id) {
+    await incrementSourceApproved(supabase, alert.source_intel_id).catch(() => {})
+  }
   redirect('/admin/alerts')
 }
 

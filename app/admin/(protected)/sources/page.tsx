@@ -46,6 +46,9 @@ export default async function AdminSourcesPage() {
                 <th style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)' }}>Feeds</th>
                 <th style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)' }}>Active</th>
                 <th style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)' }}>Last Scraped</th>
+                <th style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)', textAlign: 'center' }}>Produced</th>
+                <th style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)', textAlign: 'center' }}>Approved</th>
+                <th style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)', textAlign: 'center' }}>Rate</th>
                 <th style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)' }}>Notes</th>
               </tr>
             </thead>
@@ -109,6 +112,30 @@ export default async function AdminSourcesPage() {
                       {source.last_scraped_at
                         ? new Date(source.last_scraped_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                         : '—'}
+                    </td>
+                    <td style={{ padding: '0.625rem 0.75rem', color: 'var(--color-text-secondary)', textAlign: 'center' }}>
+                      {source.items_produced}
+                    </td>
+                    <td style={{ padding: '0.625rem 0.75rem', color: 'var(--color-text-secondary)', textAlign: 'center' }}>
+                      {source.items_approved}
+                    </td>
+                    <td style={{ padding: '0.625rem 0.75rem', textAlign: 'center' }}>
+                      {source.items_produced > 0 ? (
+                        <span style={{
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          color: (() => {
+                            const rate = source.items_approved / source.items_produced
+                            if (rate >= 0.5) return '#1e7e34'
+                            if (rate >= 0.2) return '#b45309'
+                            return '#c0392b'
+                          })(),
+                        }}>
+                          {Math.round(source.items_approved / source.items_produced * 100)}%
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.75rem' }}>—</span>
+                      )}
                     </td>
                     <td style={{ padding: '0.625rem 0.75rem', color: 'var(--color-text-secondary)', maxWidth: '16rem' }}>
                       <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>

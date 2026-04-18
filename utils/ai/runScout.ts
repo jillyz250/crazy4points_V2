@@ -70,7 +70,10 @@ async function fetchSource(source: Source): Promise<string> {
   }
 }
 
-export async function runScout(sources: Source[]): Promise<ScoutFinding[]> {
+export async function runScout(
+  sources: Source[],
+  recentHeadlines: string[] = []
+): Promise<ScoutFinding[]> {
   const client = new Anthropic()
 
   // Fetch all sources in parallel
@@ -90,6 +93,10 @@ export async function runScout(sources: Source[]): Promise<ScoutFinding[]> {
 
   const today = new Date().toISOString().split('T')[0]
 
+  const knownSection = recentHeadlines.length > 0
+    ? `\nALREADY KNOWN (last 7 days — skip unless there is a major new development):\n${recentHeadlines.map((h) => `- ${h}`).join('\n')}\n`
+    : ''
+
   const message = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 4000,
@@ -107,7 +114,7 @@ RULES:
 - Skip findings that are clearly old news (>7 days) or evergreen advice articles
 - programs array: use slugs like "chase-ur", "amex-mr", "citi-thankyou", "capital-one", "hyatt", "aa-aadvantage", "united-mileageplus", "delta-skymiles", "marriott-bonvoy", "hilton-honors", "ihg"
 - alert_type must be one of: transfer_bonus, limited_time_offer, award_availability, status_promo, glitch, devaluation, program_change, partner_change, category_change, earn_rate_change, policy_change, sweet_spot, industry_news, signup_bonus, award_sale, companion_pass, fee_change, card_refresh
-
+${knownSection}
 Respond with ONLY a valid JSON array of findings. No prose, no markdown, just the array.
 
 Schema per finding:

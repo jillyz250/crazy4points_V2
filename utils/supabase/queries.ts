@@ -65,6 +65,8 @@ export interface Source {
   scrape_frequency: string
   notes: string | null
   last_scraped_at: string | null
+  items_produced: number
+  items_approved: number
   created_at: string
   updated_at: string
 }
@@ -186,9 +188,12 @@ export interface IntelItem {
   expires_at: string | null
   processed: boolean
   alert_id: string | null
+  dedup_count: number
 }
 
-export type IntelItemInsert = Omit<IntelItem, 'id' | 'created_at' | 'processed' | 'alert_id'>
+export type RecentIntelItem = Pick<IntelItem, 'id' | 'headline' | 'source_type' | 'programs' | 'alert_type' | 'created_at'>
+
+export type IntelItemInsert = Omit<IntelItem, 'id' | 'created_at' | 'processed' | 'alert_id' | 'dedup_count'>
 
 // ─── Queries ─────────────────────────────────────────────────────────────────
 
@@ -647,6 +652,49 @@ export async function getAlertsByProgramSlug(
   if (alertError) throw alertError
 
   return { program: program as Program, alerts: (alerts ?? []) as AlertWithPrograms[] }
+}
+
+/**
+ * Fetch intel_items created within the last N days, returning only the fields
+ * needed for cross-day dedup and confidence-boost checks.
+ */
+export async function getRecentIntelItems(
+  supabase: SupabaseClient,
+  days = 7
+): Promise<RecentIntelItem[]> {
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+  const { data, error } = await supabase
+    .from('intel_items')
+    .select('id, headline, source_type, programs, alert_type, created_at')
+    .gte('created_at', since)
+  if (error) throw error
+  return (data ?? []) as RecentIntelItem[]
+}
+
+/**
+ * Increment items_produced (and update last_scraped_at) for a source by name.
+ * Uses the increment_source_produced RPC to avoid a read-modify-write race.
+ */
+export async function incrementSourceProduced(
+  supabase: SupabaseClient,
+  sourceName: string,
+  count: number
+): Promise<void> {
+  await supabase.rpc('increment_source_produced', {
+    p_source_name: sourceName,
+    p_count: count,
+  })
+}
+
+/**
+ * Increment items_approved for the source that produced a given intel_item.
+ * Uses the increment_source_approved RPC which joins on source_name.
+ */
+export async function incrementSourceApproved(
+  supabase: SupabaseClient,
+  intelItemId: string
+): Promise<void> {
+  await supabase.rpc('increment_source_approved', { p_intel_id: intelItemId })
 }
 
 /**
