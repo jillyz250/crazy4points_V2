@@ -30,31 +30,33 @@ export default function AboutPage() {
               About Me
             </h1>
 
-            <p className="mt-6 font-body text-lg leading-relaxed text-[var(--color-text-primary)]">
-              Hi, I&rsquo;m Jill. Somewhere between saving a few hundred dollars on a cruise by getting the credit card, and a free lie-flat seat to Europe on United, I became completely obsessed with miles and points.
+            <div className="mt-4" />
+
+            <p className="mt-4 font-body text-base leading-relaxed text-[var(--color-text-primary)]">
+              Hi, I&rsquo;m Jill. Somewhere between saving a few hundred dollars on a cruise by getting the credit card, and a free lie flat seat to Europe on United, I became completely obsessed with miles and points.
             </p>
 
-            <p className="mt-5 font-body text-base leading-relaxed text-[var(--color-text-secondary)]">
-              Over the years I&rsquo;ve used points to visit places like Napa, France, Greece, Jamaica, the Bahamas, and Arizona — sometimes premium cabins and luxury hotels, other times smart economy trips that punched way above their price. The goal has always been the same: get more than you paid for.
+            <p className="mt-4 font-body text-base leading-relaxed text-[var(--color-text-primary)]">
+              Over the years I have used points to visit places like Napa, France, Greece, Jamaica, the Bahamas and Arizona. Sometimes premium cabins and luxury hotels, other times smart economy trips that punched way above their price. The goal has always been the same. Get more than you paid for.
             </p>
 
-            <p className="mt-5 font-body text-base leading-relaxed text-[var(--color-text-secondary)]">
-              Friends and family come to me when they want to take a better trip than they thought was possible. I enjoy the research, the strategy, and the satisfaction of finding opportunities most people miss.
+            <p className="mt-4 font-body text-base leading-relaxed text-[var(--color-text-primary)]">
+              Friends and family come to me when they want to take a better trip than they thought was possible. I enjoy the research and the strategy and the satisfaction of finding opportunities most people miss.
             </p>
 
-            <p className="mt-5 font-body text-base leading-relaxed text-[var(--color-text-secondary)]">
-              I bought the Crazy4Points domain more than fifteen years ago. Life got busy and the idea sat on the shelf. Now that my kids are older and AI has changed what&rsquo;s possible, it finally feels like the right time to build the site I always imagined.
+            <p className="mt-4 font-body text-base leading-relaxed text-[var(--color-text-primary)]">
+              I bought the Crazy4Points domain more than fifteen years ago. Life got busy and the idea sat on the shelf. Now that my kids are older and AI has changed what is possible, it finally feels like the right time to build the site I always imagined.
             </p>
 
-            <p className="mt-5 font-body text-base leading-relaxed text-[var(--color-text-secondary)]">
-              Crazy4Points is built on everything I&rsquo;ve learned. Real strategies. Practical tools. A clear and simple approach to using points, miles, and credit card benefits in a way that actually works.
+            <p className="mt-4 font-body text-base leading-relaxed text-[var(--color-text-primary)]">
+              Crazy4Points is built on everything I have learned. Real strategies. Practical tools. A clear and simple approach to using points, miles and credit card benefits in a way that actually works.
             </p>
 
-            <blockquote className="mt-8 border-l-4 border-[var(--color-accent)] bg-[var(--color-background-soft)] py-4 pl-6 pr-4">
-              <p className="font-display text-xl italic leading-snug text-[var(--color-primary)] md:text-2xl">
-                I never pay full price for travel. You don&rsquo;t have to either.
-              </p>
-            </blockquote>
+            <div className="mt-4" />
+
+            <p className="mt-4 font-body text-base font-bold italic leading-relaxed text-[var(--color-text-primary)]">
+              I never pay full price for travel. You don&rsquo;t have to either.
+            </p>
           </div>
 
         </div>
