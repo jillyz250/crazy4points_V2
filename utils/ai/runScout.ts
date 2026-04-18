@@ -1,0 +1,147 @@
+import Anthropic from '@anthropic-ai/sdk'
+import type { Source, AlertType, IntelConfidence } from '@/utils/supabase/queries'
+
+export interface ScoutFinding {
+  source_url?: string
+  source_type: 'official' | 'blog' | 'reddit' | 'social'
+  source_name: string
+  raw_text?: string
+  headline: string
+  description?: string
+  confidence: IntelConfidence
+  alert_type?: AlertType
+  programs?: string[]
+  start_date?: string
+  expires_at?: string
+}
+
+interface SourceContent {
+  source: Source
+  content: string
+}
+
+async function fetchRSS(url: string): Promise<string> {
+  const res = await fetch(url, {
+    headers: { 'User-Agent': 'crazy4points-scout/1.0' },
+    signal: AbortSignal.timeout(10000),
+  })
+  if (!res.ok) return ''
+  const text = await res.text()
+  // Strip XML tags, keep readable content (titles + descriptions)
+  return text
+    .replace(/<!\[CDATA\[/g, '')
+    .replace(/\]\]>/g, '')
+    .replace(/<(?!title|description)[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .slice(0, 3000)
+}
+
+async function fetchReddit(subreddit: string): Promise<string> {
+  const name = subreddit.replace('https://www.reddit.com/r/', '').replace('/', '')
+  const res = await fetch(
+    `https://www.reddit.com/r/${name}/hot.json?limit=25&t=day`,
+    { headers: { 'User-Agent': 'crazy4points-scout/1.0' }, signal: AbortSignal.timeout(10000) }
+  )
+  if (!res.ok) return ''
+  const json = await res.json()
+  const posts = json?.data?.children ?? []
+  return posts
+    .map((p: { data: { title: string; score: number; selftext?: string } }) =>
+      `[${p.data.score}] ${p.data.title}${p.data.selftext ? ': ' + p.data.selftext.slice(0, 200) : ''}`
+    )
+    .join('\n')
+    .slice(0, 3000)
+}
+
+async function fetchSource(source: Source): Promise<string> {
+  try {
+    if (source.type === 'community') return await fetchReddit(source.url)
+    if (source.type === 'blog') return await fetchRSS(source.url)
+    // Official pages: best-effort plain fetch
+    const res = await fetch(source.url, {
+      headers: { 'User-Agent': 'crazy4points-scout/1.0' },
+      signal: AbortSignal.timeout(10000),
+    })
+    if (!res.ok) return ''
+    const text = await res.text()
+    return text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 2000)
+  } catch {
+    return ''
+  }
+}
+
+export async function runScout(sources: Source[]): Promise<ScoutFinding[]> {
+  const client = new Anthropic()
+
+  // Fetch all sources in parallel
+  const contents: SourceContent[] = await Promise.all(
+    sources
+      .filter((s) => s.is_active)
+      .map(async (source) => ({
+        source,
+        content: await fetchSource(source),
+      }))
+  )
+
+  const sourceSummaries = contents
+    .filter((c) => c.content.length > 50)
+    .map((c) => `### ${c.source.name} (${c.source.type})\n${c.content}`)
+    .join('\n\n---\n\n')
+
+  const today = new Date().toISOString().split('T')[0]
+
+  const message = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 4000,
+    messages: [
+      {
+        role: 'user',
+        content: `You are Claude Scout, an intelligence agent for crazy4points.com — a loyalty points & miles alert site.
+
+Today is ${today}. Analyze the following source content and extract actionable intel items about loyalty programs (transfer bonuses, award chart changes, promos, devaluations, new partners, limited-time offers, etc.).
+
+RULES:
+- Only report concrete, specific findings — no vague "program X may change" speculation
+- confidence: "high" = official source or 3+ credible blogs confirming; "medium" = 1–2 credible sources; "low" = Reddit rumor/speculation
+- Deduplicate: if the same story appears in multiple sources, output ONE finding with the highest confidence
+- Skip findings that are clearly old news (>7 days) or evergreen advice articles
+- programs array: use slugs like "chase-ur", "amex-mr", "citi-thankyou", "capital-one", "hyatt", "aa-aadvantage", "united-mileageplus", "delta-skymiles", "marriott-bonvoy", "hilton-honors", "ihg"
+- alert_type must be one of: transfer_bonus, limited_time_offer, award_availability, status_promo, glitch, devaluation, program_change, partner_change, category_change, earn_rate_change, policy_change, sweet_spot, industry_news, signup_bonus, award_sale, companion_pass, fee_change, card_refresh
+
+Respond with ONLY a valid JSON array of findings. No prose, no markdown, just the array.
+
+Schema per finding:
+{
+  "headline": "string (clear, specific, action-oriented)",
+  "description": "string (2–3 sentences: what it is, why it matters, what to do — written for a travel rewards enthusiast)",
+  "source_name": "string",
+  "source_type": "official|blog|reddit|social",
+  "source_url": "string|null",
+  "raw_text": "string (1–2 sentence excerpt from source)",
+  "confidence": "high|medium|low",
+  "alert_type": "string|null",
+  "programs": ["slug1", "slug2"],
+  "start_date": "ISO date string|null (when the promo/offer begins, if mentioned)",
+  "expires_at": "ISO date string|null (when it ends or expires, if mentioned)"
+}
+
+SOURCE CONTENT:
+${sourceSummaries}`,
+      },
+    ],
+  })
+
+  const raw = message.content[0].type === 'text' ? message.content[0].text.trim() : '[]'
+  console.log('[runScout] Claude raw response (first 500):', raw.slice(0, 500))
+
+  // Strip markdown code fences if present
+  const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
+
+  try {
+    const findings = JSON.parse(cleaned)
+    return Array.isArray(findings) ? findings : []
+  } catch {
+    console.error('[runScout] Failed to parse Claude response:', cleaned.slice(0, 300))
+    return []
+  }
+}

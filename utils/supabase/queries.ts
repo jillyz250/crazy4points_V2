@@ -97,6 +97,8 @@ export interface Alert {
   registration_required: boolean
   created_by: string | null
   approved_by: string | null
+  approved_at: string | null
+  source_intel_id: string | null
   last_verified: string | null
   created_at: string
   updated_at: string
@@ -166,6 +168,27 @@ export interface AlertHistory {
 }
 
 export type AlertHistoryInsert = Omit<AlertHistory, 'id' | 'created_at'>
+
+export type IntelSourceType = 'official' | 'blog' | 'reddit' | 'social'
+export type IntelConfidence = 'high' | 'medium' | 'low'
+
+export interface IntelItem {
+  id: string
+  created_at: string
+  source_url: string | null
+  source_type: IntelSourceType
+  source_name: string
+  raw_text: string | null
+  headline: string
+  confidence: IntelConfidence
+  alert_type: AlertType | null
+  programs: string[] | null
+  expires_at: string | null
+  processed: boolean
+  alert_id: string | null
+}
+
+export type IntelItemInsert = Omit<IntelItem, 'id' | 'created_at' | 'processed' | 'alert_id'>
 
 // ─── Queries ─────────────────────────────────────────────────────────────────
 
@@ -265,6 +288,39 @@ export async function getAllAlerts(supabase: SupabaseClient): Promise<Alert[]> {
 
   if (error) throw error
   return data as Alert[]
+}
+
+export type AlertWithIntel = Alert & {
+  intel: Pick<IntelItem, 'source_name' | 'source_type' | 'confidence' | 'raw_text' | 'source_url'> | null
+}
+
+export async function getPendingReviewAlerts(supabase: SupabaseClient): Promise<AlertWithIntel[]> {
+  const { data: alerts, error } = await supabase
+    .from('alerts')
+    .select('*')
+    .eq('status', 'pending_review')
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  if (!alerts || alerts.length === 0) return []
+
+  const intelIds = alerts.map((a) => a.source_intel_id).filter(Boolean)
+
+  if (intelIds.length === 0) {
+    return alerts.map((a) => ({ ...a, intel: null }))
+  }
+
+  const { data: intelItems } = await supabase
+    .from('intel_items')
+    .select('id, source_name, source_type, confidence, raw_text, source_url')
+    .in('id', intelIds)
+
+  const intelMap = new Map((intelItems ?? []).map((i) => [i.id, i]))
+
+  return alerts.map((a) => ({
+    ...a,
+    intel: a.source_intel_id ? (intelMap.get(a.source_intel_id) ?? null) : null,
+  }))
 }
 
 /**
