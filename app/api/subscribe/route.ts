@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
 
   // Send welcome email
   const { error: emailError } = await resend.emails.send({
-    from: 'Crazy4Points <onboarding@resend.dev>',
+    from: process.env.RESEND_FROM ?? 'intel@mail.crazy4points.com',
     to: email,
     subject: "You're in! Welcome to Crazy4Points",
     html: `
