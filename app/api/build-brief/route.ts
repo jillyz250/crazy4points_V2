@@ -6,7 +6,7 @@ import type { BriefFinding } from '@/utils/ai/briefEmail'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
-export async function POST(req: NextRequest) {
+export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
   const manualSecret = req.headers.get('x-intel-secret')
   const isCron = authHeader === `Bearer ${process.env.CRON_SECRET}`
