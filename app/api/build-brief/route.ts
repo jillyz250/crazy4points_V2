@@ -313,6 +313,18 @@ export async function GET(req: NextRequest) {
           } catch (err) {
             console.error('[build-brief] fact-check write failed for alert', alertId, err)
           }
+
+          // Populate the email-chip summary so the daily brief shows "⚠ N
+          // unverified" without needing to open admin first.
+          const openUnsupported = finalClaims.filter((c) => !c.supported && !c.acknowledged)
+          const existingMeta = approveMetaByIntelId[intel.id as string] ?? {}
+          approveMetaByIntelId[intel.id as string] = {
+            ...existingMeta,
+            factCheck: {
+              openClaimCount: openUnsupported.length,
+              likelyWrongCount: openUnsupported.filter((c) => c.web_verdict === 'likely_wrong').length,
+            },
+          }
         }
 
         const programNames: string[] = []
