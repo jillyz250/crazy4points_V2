@@ -301,7 +301,19 @@ export function buildBriefEmail(
     <div style="background:linear-gradient(135deg,#0d1b3e 0%,#6B2D8F 100%);border-radius:12px;padding:28px 24px;margin-bottom:24px;">
       <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.12em;color:#D4AF37;text-transform:uppercase;">Daily Intelligence Brief</p>
       <h1 style="margin:0 0 4px;font-size:24px;font-weight:700;color:#fff;">crazy4points</h1>
-      <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.7);">${date} · ${findings.length} finding${findings.length !== 1 ? 's' : ''}</p>
+      <p style="margin:0 0 ${plan ? '12' : '0'}px;font-size:13px;color:rgba(255,255,255,0.7);">${date} · ${findings.length} finding${findings.length !== 1 ? 's' : ''}</p>
+      ${plan ? (() => {
+        const parts: string[] = []
+        if (plan.approve.length) parts.push(`<strong style="color:#fff;">${plan.approve.length}</strong> to approve`)
+        if (plan.newsletter_candidates.length) parts.push(`<strong style="color:#fff;">${plan.newsletter_candidates.length}</strong> newsletter pick${plan.newsletter_candidates.length !== 1 ? 's' : ''}`)
+        const replaceCount = plan.featured_slots.filter((s) => s.action === 'replace').length
+        if (replaceCount) parts.push(`<strong style="color:#fff;">${replaceCount}</strong> slot replacement${replaceCount !== 1 ? 's' : ''}`)
+        if (plan.blog_ideas.length) parts.push(`<strong style="color:#fff;">${plan.blog_ideas.length}</strong> blog idea${plan.blog_ideas.length !== 1 ? 's' : ''}`)
+        if (plan.reject.length) parts.push(`<strong style="color:#fff;">${plan.reject.length}</strong> to reject`)
+        return parts.length
+          ? `<p style="margin:0;font-size:13px;color:rgba(255,255,255,0.75);line-height:1.5;">${parts.join(' · ')}</p>`
+          : ''
+      })() : ''}
     </div>
 
     ${editorialSections}
