@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
   const [intelRes, recentRes, slotsRes, programsRes] = await Promise.all([
     supabase
       .from('intel_items')
-      .select('id, headline, raw_text, source_name, source_url, confidence, alert_type, programs')
+      .select('id, headline, raw_text, source_name, source_url, confidence, alert_type, programs, expires_at')
       .gte('created_at', since24h)
       .order('confidence', { ascending: false })
       .order('created_at', { ascending: false }),
@@ -189,6 +189,32 @@ export async function GET(req: NextRequest) {
     for (const a of plan.approve) {
       const intel = intelById.get(a.intel_id)
       if (!intel) continue
+
+      // Seed meta from the raw intel so badges + deadline chip render even if
+      // the writer call or pending-alert lookup later fails.
+      const intelSlugs = (intel.programs as string[] | null) ?? []
+      const seedProgramNames = intelSlugs
+        .map((slug) => programBySlug.get(slug)?.name)
+        .filter((n): n is string => typeof n === 'string')
+      approveMetaByIntelId[intel.id as string] = {
+        endDate: (intel.expires_at as string | null) ?? null,
+        programNames: seedProgramNames,
+      }
+
+      // Also try to resolve the staged alert id up-front so Review & Publish
+      // links survive even when the writer call itself fails.
+      {
+        const { data: existingAlert } = await supabase
+          .from('alerts')
+          .select('id')
+          .eq('source_intel_id', intel.id as string)
+          .maybeSingle()
+        if (existingAlert?.id) {
+          const alertId = existingAlert.id as string
+          alertIdByIntelId[intel.id as string] = alertId
+          approveMetaByIntelId[intel.id as string].alertId = alertId
+        }
+      }
 
       const draft = await writeAlertDraft({
         intel: {
