@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
   const html = buildBriefEmail(findings, date)
 
   const { error: emailError } = await resend.emails.send({
-    from: process.env.RESEND_FROM ?? 'intel@mail.crazy4points.com',
+    from: process.env.RESEND_FROM ?? 'crazy4points <intel@crazy4points.com>',
     to: process.env.BRIEF_RECIPIENT ?? 'jillzeller6@gmail.com',
     subject: `crazy4points Daily Brief — ${date}`,
     html,
