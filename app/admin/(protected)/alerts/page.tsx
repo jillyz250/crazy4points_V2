@@ -73,6 +73,33 @@ export default async function AdminAlertsPage() {
                           "{intel.raw_text.slice(0, 200)}{intel.raw_text.length > 200 ? '…' : ''}"
                         </p>
                       )}
+                      {(() => {
+                        const claims = Array.isArray(alert.fact_check_claims)
+                          ? (alert.fact_check_claims as Array<{ claim: string; supported: boolean; severity: string; source_excerpt: string | null }>)
+                          : []
+                        const unsupported = claims.filter((c) => !c.supported && c.severity === 'high')
+                        if (unsupported.length === 0) return null
+                        return (
+                          <div style={{
+                            marginTop: '0.625rem',
+                            padding: '0.5rem 0.75rem',
+                            background: '#fdecea',
+                            border: '1px solid #f5c6cb',
+                            borderRadius: 'var(--radius-ui)',
+                            fontSize: '0.8125rem',
+                            color: '#7a1f1f',
+                          }}>
+                            <p style={{ fontWeight: 600, marginBottom: '0.25rem' }}>
+                              ⚠ Unverified claims ({unsupported.length}) — check before publishing:
+                            </p>
+                            <ul style={{ margin: 0, paddingLeft: '1.25rem' }}>
+                              {unsupported.map((c, i) => (
+                                <li key={i}>{c.claim}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )
+                      })()}
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexShrink: 0 }}>
                       <Link
