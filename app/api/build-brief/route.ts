@@ -9,6 +9,9 @@ import {
   type PlanRecentAlert,
   type PlanHomepageSlot,
 } from '@/utils/ai/generateEditorialPlan'
+import { writeAlertDraft, type WriteDraftProgram } from '@/utils/ai/writeAlertDraft'
+import type { ApproveMeta } from '@/utils/ai/briefEmail'
+import { updateAlert, setAlertPrograms } from '@/utils/supabase/queries'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -26,7 +29,7 @@ export async function GET(req: NextRequest) {
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
   const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
 
-  const [intelRes, recentRes, slotsRes] = await Promise.all([
+  const [intelRes, recentRes, slotsRes, programsRes] = await Promise.all([
     supabase
       .from('intel_items')
       .select('id, headline, raw_text, source_name, source_url, confidence, alert_type, programs')
@@ -43,6 +46,7 @@ export async function GET(req: NextRequest) {
       .from('homepage_slots')
       .select('slot_number, alert_id, alerts(id, title, end_date)')
       .order('slot_number', { ascending: true }),
+    supabase.from('programs').select('id, slug, name, type'),
   ])
 
   if (intelRes.error) {
@@ -56,6 +60,10 @@ export async function GET(req: NextRequest) {
   if (slotsRes.error) {
     console.error('[build-brief] homepage_slots fetch failed:', slotsRes.error)
     return NextResponse.json({ error: 'DB error (slots)' }, { status: 500 })
+  }
+  if (programsRes.error) {
+    console.error('[build-brief] programs fetch failed:', programsRes.error)
+    return NextResponse.json({ error: 'DB error (programs)' }, { status: 500 })
   }
 
   const items = intelRes.data ?? []
@@ -164,6 +172,127 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Writer pass — for every approve-recommended intel, polish the pending_review alert
+  const allPrograms = (programsRes.data ?? []) as WriteDraftProgram[]
+  const programBySlug = new Map(allPrograms.map((p) => [p.slug, p]))
+  const intelById = new Map(items.map((i) => [i.id as string, i]))
+
+  let drafts_written = 0
+  const alertIdByIntelId: Record<string, string> = {}
+  const approveMetaByIntelId: Record<string, ApproveMeta> = {}
+  if (plan && plan.approve.length) {
+    const recentSamples = recentAlertRows.slice(0, 3).map((r) => ({
+      title: (r.title as string) ?? '',
+      summary: '',
+    }))
+
+    for (const a of plan.approve) {
+      const intel = intelById.get(a.intel_id)
+      if (!intel) continue
+
+      const draft = await writeAlertDraft({
+        intel: {
+          intel_id: intel.id as string,
+          headline: intel.headline as string,
+          raw_text: (intel.raw_text as string | null) ?? null,
+          source_name: intel.source_name as string,
+          source_url: (intel.source_url as string | null) ?? null,
+          alert_type: intel.alert_type,
+          programs: intel.programs as string[] | null,
+        },
+        programs: allPrograms,
+        recent_samples: recentSamples,
+      })
+      if (!draft) continue
+
+      const { data: pending } = await supabase
+        .from('alerts')
+        .select('id')
+        .eq('source_intel_id', intel.id as string)
+        .eq('status', 'pending_review')
+        .maybeSingle()
+      if (!pending) continue
+      const alertId = pending.id as string
+      alertIdByIntelId[intel.id as string] = alertId
+
+      const primaryId = draft.primary_program_slug
+        ? programBySlug.get(draft.primary_program_slug)?.id ?? null
+        : null
+      const secondaryIds = draft.secondary_program_slugs
+        .map((s) => programBySlug.get(s)?.id)
+        .filter((x): x is string => typeof x === 'string')
+
+      try {
+        await updateAlert(supabase, alertId, {
+          title: draft.title,
+          summary: draft.summary,
+          description: draft.description,
+          action_type: draft.action_type,
+          primary_program_id: primaryId,
+          start_date: draft.start_date,
+          end_date: draft.end_date,
+        })
+        await setAlertPrograms(supabase, alertId, secondaryIds)
+        drafts_written++
+
+        const programNames: string[] = []
+        if (draft.primary_program_slug) {
+          const p = programBySlug.get(draft.primary_program_slug)
+          if (p) programNames.push(p.name)
+        }
+        for (const slug of draft.secondary_program_slugs) {
+          const p = programBySlug.get(slug)
+          if (p) programNames.push(p.name)
+        }
+        approveMetaByIntelId[intel.id as string] = {
+          alertId,
+          endDate: draft.end_date,
+          programNames,
+        }
+      } catch (err) {
+        console.error('[build-brief] writer update failed for alert', alertId, err)
+      }
+    }
+  }
+
+  // Persist content ideas (blog_ideas + newsletter_candidates) for the admin pipeline
+  let content_ideas_inserted = 0
+  if (plan && briefId) {
+    const rows: Array<Record<string, unknown>> = []
+
+    for (const b of plan.blog_ideas) {
+      rows.push({
+        type: 'blog',
+        title: b.title,
+        pitch: b.pitch,
+        source: 'editorial_plan',
+        source_brief_id: briefId,
+      })
+    }
+
+    for (const c of plan.newsletter_candidates ?? []) {
+      rows.push({
+        type: 'newsletter',
+        title: c.headline,
+        pitch: c.angle,
+        source: 'editorial_plan',
+        source_brief_id: briefId,
+        source_intel_id: c.intel_id,
+        source_alert_id: alertIdByIntelId[c.intel_id] ?? null,
+      })
+    }
+
+    // Insert one at a time so a dedupe conflict on one row doesn't abort the others
+    for (const row of rows) {
+      const { error: ideasErr } = await supabase.from('content_ideas').insert(row)
+      if (!ideasErr) {
+        content_ideas_inserted++
+      } else if (ideasErr.code !== '23505') {
+        console.warn('[build-brief] content_idea insert failed:', ideasErr.message)
+      }
+    }
+  }
+
   const date = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
     month: 'long',
@@ -176,6 +305,8 @@ export async function GET(req: NextRequest) {
     briefId,
     siteOrigin: 'https://crazy4points.com',
     recentAlertsById,
+    alertIdByIntelId,
+    approveMetaByIntelId,
   })
 
   const { error: emailError } = await resend.emails.send({
@@ -194,6 +325,8 @@ export async function GET(req: NextRequest) {
     findings_in_brief: findings.length,
     brief_id: briefId ?? null,
     plan_generated: plan !== null,
+    drafts_written,
+    content_ideas_inserted,
     email_sent: true,
     date,
   })

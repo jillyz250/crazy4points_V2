@@ -11,6 +11,7 @@ export type RejectReason =
   | 'low_quality'
   | 'rumor'
   | 'brand_excluded'
+  | 'missing_data'
 
 export type FeaturedSlot =
   | {
@@ -48,6 +49,11 @@ export interface EditorialPlan {
   blog_ideas: {
     title: string
     pitch: string
+  }[]
+  newsletter_candidates: {
+    intel_id: string
+    headline: string
+    angle: string
   }[]
 }
 
@@ -125,7 +131,10 @@ Brand excludes (always reject, reason_category='brand_excluded'):
 - Airline M&A speculation
 - Generic credit-score or personal-finance content
 - Refer-a-friend personal affiliate links
+
+Missing data (reject with reason_category='missing_data'):
 - Items with no identifiable loyalty program (programs[] is empty or null)
+- Items where raw_text is too thin to write an alert from — no numbers, dates, or concrete offer
 
 Quality bar (reject with reason_category='low_quality'):
 - Credit-card marketing dressed as news
@@ -156,6 +165,18 @@ For each slot:
 - 'replace' is only valid if you can name a suggested_alert_id FROM THE RECENT ALERTS LIST
 - If no strong replacement exists, use 'keep' — never leave a slot empty
 - If current_alert_id is null (empty slot), 'replace' with a strong recent alert
+
+═══════════════════════════════════════════════════════════
+NEWSLETTER CANDIDATES
+═══════════════════════════════════════════════════════════
+
+Pick the 2–5 APPROVED intel items that are strongest for the weekly newsletter.
+- Must be in your 'approve' list (don't propose rejected items).
+- Favor: deadlined offers still live in 5+ days, genuinely rare value, broad audience.
+- Skip: niche regional promos, anything expiring within 48h (too late for weekly cadence).
+- angle: 1 sentence in the expert-friend voice — why this is newsletter-worthy, not a recap.
+
+If no approved item qualifies, return [].
 
 ═══════════════════════════════════════════════════════════
 BLOG IDEAS
@@ -203,7 +224,7 @@ SCHEMA (output must validate against this)
       "intel_id": "<uuid>",
       "headline": "<headline>",
       "why_reject": "<1 sentence, professional>",
-      "reason_category": "duplicate" | "out_of_scope" | "low_quality" | "rumor" | "brand_excluded"
+      "reason_category": "duplicate" | "out_of_scope" | "low_quality" | "rumor" | "brand_excluded" | "missing_data"
     }
   ],
   "today_intel_notes": [
@@ -216,6 +237,9 @@ SCHEMA (output must validate against this)
   ],
   "blog_ideas": [
     { "title": "<post title>", "pitch": "<2–3 sentences: angle + why it ranks>" }
+  ],
+  "newsletter_candidates": [
+    { "intel_id": "<uuid from approve list>", "headline": "<headline>", "angle": "<1 sentence>" }
   ]
 }`
 
@@ -241,6 +265,12 @@ function validatePlan(plan: unknown, input: GenerateEditorialPlanInput): Editori
   if (!Array.isArray(p.today_intel_notes)) throw new Error('Missing today_intel_notes[]')
   if (!Array.isArray(p.featured_slots)) throw new Error('Missing featured_slots[]')
   if (!Array.isArray(p.blog_ideas)) throw new Error('Missing blog_ideas[]')
+  if (!Array.isArray(p.newsletter_candidates)) p.newsletter_candidates = []
+
+  const approvedIds = new Set(p.approve.map((a) => a.intel_id))
+  p.newsletter_candidates = p.newsletter_candidates.filter(
+    (c) => c && typeof c.intel_id === 'string' && approvedIds.has(c.intel_id)
+  )
 
   if (p.featured_slots.length !== FEATURED_SLOT_COUNT) {
     throw new Error(`featured_slots must have ${FEATURED_SLOT_COUNT} entries, got ${p.featured_slots.length}`)
