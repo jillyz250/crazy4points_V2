@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
   const html = buildBriefEmail(findings, date)
 
   const { error: emailError } = await resend.emails.send({
-    from: 'crazy4points Scout <onboarding@resend.dev>',
+    from: 'crazy4points Scout <alerts@mail.crazy4points.com>',
     to: 'jillzeller6@gmail.com',
     subject: `crazy4points Daily Brief — ${date}`,
     html,
