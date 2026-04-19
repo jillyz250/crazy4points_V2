@@ -42,8 +42,10 @@ function button(href: string, label: string, color = '#6B2D8F'): string {
   return `<a href="${href}" style="display:inline-block;padding:8px 16px;background:${color};color:#fff;text-decoration:none;border-radius:6px;font-weight:600;font-size:12px;margin-right:8px;">${label}</a>`
 }
 
-function sectionHeader(title: string): string {
-  return `<h2 style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#D4AF37;margin:28px 0 12px;">${title}</h2>`
+function sectionHeader(title: string, color = '#D4AF37'): string {
+  return `<div style="margin:32px 0 14px;background:${color};border-radius:6px;padding:10px 16px;">
+    <h2 style="margin:0;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#fff;">${title}</h2>
+  </div>`
 }
 
 function findingCard(f: BriefFinding, whyItMatters?: string): string {
@@ -202,7 +204,7 @@ export function buildBriefEmail(
   if (plan && briefId) {
     const newsletterIntelIds = new Set((plan.newsletter_candidates ?? []).map((c) => c.intel_id))
     const approveHtml = plan.approve.length
-      ? `${sectionHeader('✅ Approve These')}${plan.approve
+      ? `${sectionHeader('✅ Approve These', '#2f855a')}${plan.approve
           .map((a) => {
             const meta = approveMetaByIntelId[a.intel_id] ?? {}
             return approveCard(
@@ -227,7 +229,7 @@ export function buildBriefEmail(
             action: 'reject_all',
             target_id: 'ALL',
           })
-          return `${sectionHeader('🗑 Reject Queue')}${plan.reject.map((r) => rejectCard(siteOrigin, briefId, r)).join('')}
+          return `${sectionHeader('🗑 Reject Queue', '#b45309')}${plan.reject.map((r) => rejectCard(siteOrigin, briefId, r)).join('')}
             <div style="text-align:right;margin-top:8px;">
               ${button(actionUrl(siteOrigin, rejectAllToken), 'Reject All Pending', '#c0392b')}
             </div>`
@@ -235,7 +237,7 @@ export function buildBriefEmail(
       : ''
 
     const slotsHtml = plan.featured_slots.length
-      ? `${sectionHeader('⭐ Featured Deals Recommendations')}${plan.featured_slots
+      ? `${sectionHeader('⭐ Featured Deals Recommendations', '#D4AF37')}${plan.featured_slots
           .map((s) => {
             const currentTitle = s.current_alert_id
               ? recentAlertsById[s.current_alert_id]?.title ?? null
@@ -250,11 +252,11 @@ export function buildBriefEmail(
       : ''
 
     const blogHtml = plan.blog_ideas.length
-      ? `${sectionHeader('✍️ Blog Post Ideas')}${plan.blog_ideas.map(blogIdeaCard).join('')}`
+      ? `${sectionHeader('✍️ Blog Post Ideas', '#6B2D8F')}${plan.blog_ideas.map(blogIdeaCard).join('')}`
       : ''
 
     const newsletterHtml = plan.newsletter_candidates.length
-      ? `${sectionHeader('📧 Newsletter Picks')}${plan.newsletter_candidates
+      ? `${sectionHeader('📧 Newsletter Picks', '#0d1b3e')}${plan.newsletter_candidates
           .map((c) => {
             const queueToken = signBulkActionToken({
               brief_id: briefId,
