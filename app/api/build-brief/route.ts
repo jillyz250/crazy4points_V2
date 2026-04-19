@@ -10,7 +10,7 @@ import {
   type PlanHomepageSlot,
 } from '@/utils/ai/generateEditorialPlan'
 import { writeAlertDraft, type WriteDraftProgram } from '@/utils/ai/writeAlertDraft'
-import { verifyAlertDraft, highSeverityUnsupported } from '@/utils/ai/verifyAlertDraft'
+import { verifyAlertDraft, webVerifyClaims, highSeverityUnsupported } from '@/utils/ai/verifyAlertDraft'
 import type { ApproveMeta } from '@/utils/ai/briefEmail'
 import { updateAlert, setAlertPrograms } from '@/utils/supabase/queries'
 
@@ -191,6 +191,8 @@ export async function GET(req: NextRequest) {
   let writer_update_errors = 0
   let fact_checks_run = 0
   let fact_checks_flagged = 0
+  let web_verify_runs = 0
+  let web_verify_likely_wrong = 0
   const alertIdByIntelId: Record<string, string> = {}
   const approveMetaByIntelId: Record<string, ApproveMeta> = {}
   if (plan && plan.approve.length) {
@@ -288,9 +290,24 @@ export async function GET(req: NextRequest) {
         if (verify) {
           fact_checks_run++
           if (highSeverityUnsupported(verify.claims).length > 0) fact_checks_flagged++
+
+          // Phase 3.6 — for any claim the source didn't support, ask Sonnet
+          // (with web search) whether the web agrees. Never blocks publish:
+          // admin UI shows the verdict + snippet + URL so the human decides.
+          let finalClaims = verify.claims
+          const hasUnsupported = verify.claims.some((c) => !c.supported)
+          if (hasUnsupported) {
+            web_verify_runs++
+            finalClaims = await webVerifyClaims({
+              claims: verify.claims,
+              context: { title: draft.title, source_url: (intel.source_url as string | null) ?? null },
+            })
+            if (finalClaims.some((c) => c.web_verdict === 'likely_wrong')) web_verify_likely_wrong++
+          }
+
           try {
             await updateAlert(supabase, alertId, {
-              fact_check_claims: verify.claims,
+              fact_check_claims: finalClaims,
               fact_check_at: verify.checked_at,
             })
           } catch (err) {
@@ -394,7 +411,7 @@ export async function GET(req: NextRequest) {
       `[build-brief] writer stats — approves=${approve_count} drafts=${drafts_written} null=${writer_null_drafts} no_pending=${writer_no_pending_alert} errors=${writer_update_errors} success_rate=${writer_success_rate}`
     )
     console.log(
-      `[build-brief] fact-check stats — run=${fact_checks_run} flagged_high_severity=${fact_checks_flagged}`
+      `[build-brief] fact-check stats — run=${fact_checks_run} flagged_high_severity=${fact_checks_flagged} web_verify_runs=${web_verify_runs} web_likely_wrong=${web_verify_likely_wrong}`
     )
   }
 
@@ -414,6 +431,8 @@ export async function GET(req: NextRequest) {
     fact_check_stats: {
       run: fact_checks_run,
       flagged_high_severity: fact_checks_flagged,
+      web_verify_runs,
+      web_likely_wrong: web_verify_likely_wrong,
     },
     content_ideas_inserted,
     email_sent: true,
