@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
       .order('created_at', { ascending: false }),
     supabase
       .from('alerts')
-      .select('id, title, type, primary_program_id, published_at, end_date, alert_programs(program_id)')
+      .select('id, title, summary, type, primary_program_id, published_at, end_date, alert_programs(program_id)')
       .eq('status', 'published')
       .gte('published_at', since30d)
       .order('published_at', { ascending: false }),
@@ -140,11 +140,18 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Voice samples — recently published alerts Sonnet should match in tone
+  const voiceSamples = recentAlertRows.slice(0, 3).map((r) => ({
+    title: (r.title as string) ?? '',
+    summary: (r.summary as string) ?? '',
+  }))
+
   // Call Sonnet (best-effort — if it fails, fall back to the old layout)
   const plan = await generateEditorialPlan({
     today_intel: todayIntel,
     recent_alerts: recentAlerts,
     homepage_slots: homepageSlots,
+    voice_samples: voiceSamples,
   })
 
   // Persist the brief — even on plan failure, so actions log still works (empty plan)
@@ -181,10 +188,7 @@ export async function GET(req: NextRequest) {
   const alertIdByIntelId: Record<string, string> = {}
   const approveMetaByIntelId: Record<string, ApproveMeta> = {}
   if (plan && plan.approve.length) {
-    const recentSamples = recentAlertRows.slice(0, 3).map((r) => ({
-      title: (r.title as string) ?? '',
-      summary: '',
-    }))
+    const recentSamples = voiceSamples
 
     for (const a of plan.approve) {
       const intel = intelById.get(a.intel_id)
