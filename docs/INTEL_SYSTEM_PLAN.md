@@ -183,10 +183,10 @@ Separation lets you re-run the writer without re-scraping.
 - Source performance columns + admin view
 - Split cron: Collect (6am) / Analyze+Write+Send (6:30am)
 
-### Phase 2 — New source types (4–5 days)
-- Google Alerts setup + RSS collector generalization
-- IMAP email collector + `intel@crazy4points.com` setup
-- Firecrawl for official pages
+### Phase 2 — New source types (4–5 days) ✅ shipped (IMAP deferred to Phase 6)
+- Google Alerts setup + RSS collector generalization ✅ (37 alerts wired in, April 2026)
+- ~~IMAP email collector + `intel@crazy4points.com` setup~~ → moved to Phase 6
+- Firecrawl for official pages ✅ (migration 004 + `utils/ai/firecrawl.ts`)
 
 ### Phase 3 — WriterAgent (3 days)
 - `utils/ai/writerAgent.ts` with Sonnet 4.6
@@ -204,11 +204,12 @@ Separation lets you re-run the writer without re-scraping.
 - Sunday cron → draft
 - Resend broadcast with edit/approve flow
 
-### Phase 6 — Polish (2 days)
-- One-click email approve with tokens
+### Phase 6 — Polish (2–3 days)
+- One-click email approve with tokens (note: shipping in Phase 3 as part of the brief rewrite)
 - Alert expiry cron
 - Reddit OAuth upgrade
 - Public `/tip` submission form
+- IMAP email collector + `intel@crazy4points.com` (deferred from Phase 2) — captures Chase/Amex targeted offers and other login-walled program emails
 
 ---
 
