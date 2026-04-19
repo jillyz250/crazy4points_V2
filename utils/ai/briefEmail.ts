@@ -13,11 +13,19 @@ export interface BriefFinding {
   programs?: string[] | null
 }
 
+export interface ApproveMeta {
+  alertId?: string
+  endDate?: string | null
+  programNames?: string[]
+}
+
 export interface BriefContext {
   plan?: EditorialPlan | null
   briefId?: string
   siteOrigin?: string // e.g. https://crazy4points.com
   recentAlertsById?: Record<string, { id: string; title: string; type: string; end_date: string | null }>
+  alertIdByIntelId?: Record<string, string>
+  approveMetaByIntelId?: Record<string, ApproveMeta>
 }
 
 const URGENCY: Record<string, { label: string; color: string }> = {
@@ -56,17 +64,50 @@ function findingCard(f: BriefFinding, whyItMatters?: string): string {
     </div>`
 }
 
+function programBadge(name: string): string {
+  return `<span style="display:inline-block;padding:2px 8px;margin:0 4px 4px 0;background:#F8F5FB;border:1px solid #E6DEEE;border-radius:999px;font-size:11px;font-weight:600;color:#6B2D8F;">${name}</span>`
+}
+
+function deadlineChip(endDate: string | null | undefined): { html: string; urgent: boolean } {
+  if (!endDate) return { html: '', urgent: false }
+  const end = new Date(endDate)
+  if (isNaN(end.getTime())) return { html: '', urgent: false }
+  const now = Date.now()
+  const hoursLeft = (end.getTime() - now) / (60 * 60 * 1000)
+  if (hoursLeft < 0) {
+    return { html: `<span style="display:inline-block;padding:2px 8px;background:#fee2e2;color:#991b1b;border-radius:999px;font-size:11px;font-weight:700;">EXPIRED</span>`, urgent: false }
+  }
+  const urgent = hoursLeft <= 48
+  const label = urgent ? `⏰ ENDS ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()}` : `Ends ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+  const bg = urgent ? '#fef3c7' : '#f3f4f6'
+  const fg = urgent ? '#92400e' : '#4a4a4a'
+  return {
+    html: `<span style="display:inline-block;padding:2px 8px;background:${bg};color:${fg};border-radius:999px;font-size:11px;font-weight:700;">${label}</span>`,
+    urgent,
+  }
+}
+
 function approveCard(
   origin: string,
   briefId: string,
-  item: { intel_id: string; headline: string; why_publish: string }
+  item: { intel_id: string; headline: string; why_publish: string },
+  meta: ApproveMeta
 ): string {
-  const token = signBulkActionToken({ brief_id: briefId, action: 'approve', target_id: item.intel_id })
+  const reviewHref = meta.alertId ? `${origin}/admin/alerts/${meta.alertId}/edit` : null
+  const approveToken = signBulkActionToken({ brief_id: briefId, action: 'approve', target_id: item.intel_id })
+  const chip = deadlineChip(meta.endDate)
+  const borderColor = chip.urgent ? '#d97706' : '#2f855a'
+  const badges = (meta.programNames ?? []).map(programBadge).join('')
+  const chipsRow = chip.html || badges
+    ? `<div style="margin:0 0 8px;">${chip.html}${chip.html && badges ? ' ' : ''}${badges}</div>`
+    : ''
   return `
-    <div style="margin-bottom:14px;padding:16px;background:#fff;border-radius:8px;border-left:4px solid #2f855a;">
+    <div style="margin-bottom:14px;padding:16px;background:#fff;border-radius:8px;border-left:4px solid ${borderColor};">
       <p style="margin:0 0 6px;font-size:14px;font-weight:700;color:#1A1A1A;">${item.headline}</p>
+      ${chipsRow}
       <p style="margin:0 0 12px;font-size:13px;line-height:1.5;color:#4A4A4A;">${item.why_publish}</p>
-      ${button(actionUrl(origin, token), 'Approve &amp; Publish', '#2f855a')}
+      ${reviewHref ? button(reviewHref, 'Review &amp; Publish', '#6B2D8F') : ''}
+      ${button(actionUrl(origin, approveToken), 'Quick Publish', '#2f855a')}
     </div>`
 }
 
@@ -131,7 +172,14 @@ export function buildBriefEmail(
   date: string,
   ctx: BriefContext = {}
 ): string {
-  const { plan, briefId, siteOrigin = 'https://crazy4points.com', recentAlertsById = {} } = ctx
+  const {
+    plan,
+    briefId,
+    siteOrigin = 'https://crazy4points.com',
+    recentAlertsById = {},
+    alertIdByIntelId = {},
+    approveMetaByIntelId = {},
+  } = ctx
 
   const noteMap = new Map((plan?.today_intel_notes ?? []).map((n) => [n.intel_id, n.why_it_matters]))
 
@@ -149,7 +197,16 @@ export function buildBriefEmail(
   let editorialSections = ''
   if (plan && briefId) {
     const approveHtml = plan.approve.length
-      ? `${sectionHeader('✅ Approve These')}${plan.approve.map((a) => approveCard(siteOrigin, briefId, a)).join('')}`
+      ? `${sectionHeader('✅ Approve These')}${plan.approve
+          .map((a) => {
+            const meta = approveMetaByIntelId[a.intel_id] ?? {}
+            return approveCard(siteOrigin, briefId, a, {
+              alertId: meta.alertId ?? alertIdByIntelId[a.intel_id],
+              endDate: meta.endDate,
+              programNames: meta.programNames,
+            })
+          })
+          .join('')}`
       : ''
 
     const rejectHtml = plan.reject.length
@@ -209,12 +266,14 @@ export function buildBriefEmail(
 
     ${editorialSections}
 
-    ${sectionHeader("📰 Today's Intel")}
-    ${renderSection('🔴 High Confidence', high)}
-    ${renderSection('🟡 Medium Confidence', medium)}
-    ${renderSection('⚪ Low Confidence / Rumors', low)}
+    ${!plan ? `
+      ${sectionHeader("📰 Today's Intel")}
+      ${renderSection('🔴 High Confidence', high)}
+      ${renderSection('🟡 Medium Confidence', medium)}
+      ${renderSection('⚪ Low Confidence / Rumors', low)}
+    ` : ''}
 
-    ${findings.length === 0 ? '<p style="color:#888;text-align:center;padding:32px 0;">Nothing notable today.</p>' : ''}
+    ${findings.length === 0 && !plan ? '<p style="color:#888;text-align:center;padding:32px 0;">Nothing notable today.</p>' : ''}
 
     <div style="text-align:center;margin:28px 0 16px;">
       <a href="${siteOrigin}/admin/alerts" style="display:inline-block;padding:12px 28px;background:#6B2D8F;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;font-size:14px;">
