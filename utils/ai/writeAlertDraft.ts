@@ -77,11 +77,16 @@ SUMMARY
 - Never start with "This alert" or "crazy4points reports." Just write it.
 
 ═══════════════════════════════════════════════════════════
-DESCRIPTION (optional, longer)
+DESCRIPTION (required — always write this)
 ═══════════════════════════════════════════════════════════
 
-- Only fill if the raw_text contains meaningful detail beyond what fits in summary.
-- 2–4 short paragraphs max. Otherwise null.
+- ALWAYS produce a description. Never null.
+- 2–3 short paragraphs in the brand voice (sassy, funny, traveler-friend).
+- Paragraph 1: the offer in plain terms + why the reader should care. Lead with the payoff.
+- Paragraph 2: the smart play — concrete redemption angle, sweet spot, or who this is perfect for. One playful aside is fine; don't stack them.
+- Paragraph 3 (optional): the specific action + deadline. "Transfer before May 16" beats "act soon."
+- If raw_text is thin, still write 2 paragraphs — lean on the brand voice and general award-travel context rather than inventing facts. Never fabricate numbers, partners, or dates.
+- No headings, no bullet lists inside description. Just clean prose.
 
 ═══════════════════════════════════════════════════════════
 ACTION TYPE
