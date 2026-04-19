@@ -15,6 +15,11 @@ export interface VerifyClaim {
   supported: boolean
   severity: 'high' | 'low'
   source_excerpt: string | null
+  // Phase 3.6 — web search pass for claims where supported=false.
+  // Populated by webVerifyClaims() after the first grounding pass.
+  web_verdict?: 'likely_correct' | 'likely_wrong' | 'unverifiable' | null
+  web_evidence?: string | null
+  web_url?: string | null
 }
 
 export interface VerifyResult {
@@ -186,4 +191,143 @@ export async function verifyAlertDraft(args: {
 
 export function highSeverityUnsupported(claims: VerifyClaim[]): VerifyClaim[] {
   return claims.filter((c) => !c.supported && c.severity === 'high')
+}
+
+// ═══════════════════════════════════════════════════════════
+// Phase 3.6 — web search grounding for unsupported claims
+// ═══════════════════════════════════════════════════════════
+
+const WEB_VERIFY_PROMPT = `You are a travel-industry fact-checker with access to web search.
+The writer agent produced a draft; a first-pass verifier found factual claims in the draft that
+are NOT supported by the source article. Your job: search the web to determine whether each
+unsupported claim is likely correct, likely wrong, or unverifiable.
+
+═══════════════════════════════════════════════════════════
+HOW TO JUDGE
+═══════════════════════════════════════════════════════════
+
+Use the web_search tool to find authoritative corroboration for each claim:
+• Official program sites (chase.com, hilton.com, airline/hotel program pages) > blog posts
+• Current program pages > archived/outdated content
+• Multiple corroborating sources > single source
+• Prefer sources dated within the last 12 months when a number or date is in question
+
+For each claim, return a verdict:
+• "likely_correct" — authoritative source(s) agree with the claim
+• "likely_wrong" — authoritative source(s) contradict the claim (e.g. different number, different date)
+• "unverifiable" — no clear evidence either way, or only stale/conflicting sources
+
+ALWAYS include:
+• web_evidence: a short (under 300 char) paraphrase of what you found. Quote a number or date if relevant.
+• web_url: the single most authoritative URL you used. If you used multiple, pick the best one.
+
+Do NOT be overconfident. If the claim is a UI/procedural step ("click the transfer button"),
+the web rarely has good evidence — return "unverifiable" rather than guessing.
+
+═══════════════════════════════════════════════════════════
+OUTPUT
+═══════════════════════════════════════════════════════════
+
+After all searches are done, return a single JSON object. No prose, no markdown fences.
+
+{
+  "verdicts": [
+    {
+      "claim": "<exact claim text as given to you>",
+      "web_verdict": "likely_correct" | "likely_wrong" | "unverifiable",
+      "web_evidence": "<under 300 chars>",
+      "web_url": "<single URL, or null>"
+    }
+  ]
+}
+
+Return one verdict per input claim, in the same order.`
+
+interface WebVerdict {
+  claim: string
+  web_verdict: 'likely_correct' | 'likely_wrong' | 'unverifiable'
+  web_evidence: string | null
+  web_url: string | null
+}
+
+function findLastTextBlock(content: Anthropic.ContentBlock[]): string | null {
+  for (let i = content.length - 1; i >= 0; i--) {
+    const b = content[i]
+    if (b.type === 'text' && b.text.trim()) return b.text
+  }
+  return null
+}
+
+/**
+ * For each claim where supported=false, ask Sonnet (with web_search) to judge
+ * whether it's likely correct, likely wrong, or unverifiable. Returns the
+ * original claim array with web_verdict / web_evidence / web_url populated on
+ * unsupported claims. Supported claims pass through untouched.
+ *
+ * IMPORTANT: We never auto-block publish on "likely_wrong." Admin UI shows
+ * every verdict + snippet + URL so the human makes the final call.
+ */
+export async function webVerifyClaims(args: {
+  claims: VerifyClaim[]
+  context: { title: string; source_url: string | null }
+}): Promise<VerifyClaim[]> {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) return args.claims
+
+  const unsupported = args.claims.filter((c) => !c.supported)
+  if (unsupported.length === 0) return args.claims
+
+  const userContent = JSON.stringify(
+    {
+      alert_title: args.context.title,
+      original_source_url: args.context.source_url,
+      claims_to_verify: unsupported.map((c) => c.claim),
+    },
+    null,
+    2
+  )
+
+  try {
+    const client = new Anthropic({ apiKey })
+    const response = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 4000,
+      tools: [
+        { type: 'web_search_20250305', name: 'web_search', max_uses: Math.min(unsupported.length * 2, 10) },
+      ],
+      system: WEB_VERIFY_PROMPT,
+      messages: [{ role: 'user', content: userContent }],
+    })
+
+    const text = findLastTextBlock(response.content)
+    if (!text) return args.claims
+
+    const parsed = JSON.parse(extractJson(text)) as { verdicts?: WebVerdict[] }
+    if (!Array.isArray(parsed.verdicts)) return args.claims
+
+    const byClaim = new Map<string, WebVerdict>()
+    for (const v of parsed.verdicts) {
+      if (typeof v.claim === 'string') byClaim.set(v.claim.trim(), v)
+    }
+
+    return args.claims.map((c) => {
+      if (c.supported) return c
+      const v = byClaim.get(c.claim.trim())
+      if (!v) {
+        return { ...c, web_verdict: 'unverifiable' as const, web_evidence: null, web_url: null }
+      }
+      return {
+        ...c,
+        web_verdict:
+          v.web_verdict === 'likely_correct' || v.web_verdict === 'likely_wrong'
+            ? v.web_verdict
+            : 'unverifiable',
+        web_evidence: typeof v.web_evidence === 'string' ? v.web_evidence.slice(0, 400) : null,
+        web_url: typeof v.web_url === 'string' && /^https?:\/\//.test(v.web_url) ? v.web_url : null,
+      }
+    })
+  } catch (err) {
+    console.error('[webVerifyClaims] web-search pass failed:', err)
+    return args.claims
+  }
 }

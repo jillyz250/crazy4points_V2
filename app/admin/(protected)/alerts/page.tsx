@@ -74,28 +74,83 @@ export default async function AdminAlertsPage() {
                         </p>
                       )}
                       {(() => {
+                        type Claim = {
+                          claim: string
+                          supported: boolean
+                          severity: string
+                          source_excerpt: string | null
+                          web_verdict?: 'likely_correct' | 'likely_wrong' | 'unverifiable' | null
+                          web_evidence?: string | null
+                          web_url?: string | null
+                        }
                         const claims = Array.isArray(alert.fact_check_claims)
-                          ? (alert.fact_check_claims as Array<{ claim: string; supported: boolean; severity: string; source_excerpt: string | null }>)
+                          ? (alert.fact_check_claims as Claim[])
                           : []
-                        const unsupported = claims.filter((c) => !c.supported && c.severity === 'high')
+                        const unsupported = claims.filter((c) => !c.supported)
                         if (unsupported.length === 0) return null
+                        const verdictStyle = (v?: string | null) => {
+                          if (v === 'likely_correct') return { bg: '#e6f4ea', border: '#9ac4a7', color: '#1e5c2e', label: '✓ likely correct' }
+                          if (v === 'likely_wrong') return { bg: '#fdecea', border: '#f5c6cb', color: '#7a1f1f', label: '✗ likely wrong' }
+                          return { bg: '#fff8e1', border: '#fde68a', color: '#7a5a1f', label: '? unverifiable' }
+                        }
                         return (
                           <div style={{
                             marginTop: '0.625rem',
-                            padding: '0.5rem 0.75rem',
-                            background: '#fdecea',
-                            border: '1px solid #f5c6cb',
+                            padding: '0.625rem 0.75rem',
+                            background: '#fff8e1',
+                            border: '1px solid #fde68a',
                             borderRadius: 'var(--radius-ui)',
                             fontSize: '0.8125rem',
-                            color: '#7a1f1f',
+                            color: '#5a4210',
                           }}>
-                            <p style={{ fontWeight: 600, marginBottom: '0.25rem' }}>
-                              ⚠ Unverified claims ({unsupported.length}) — check before publishing:
+                            <p style={{ fontWeight: 600, marginBottom: '0.5rem' }}>
+                              Claims not found in source ({unsupported.length}) — web-search verdicts below:
                             </p>
-                            <ul style={{ margin: 0, paddingLeft: '1.25rem' }}>
-                              {unsupported.map((c, i) => (
-                                <li key={i}>{c.claim}</li>
-                              ))}
+                            <ul style={{ margin: 0, paddingLeft: '0', listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                              {unsupported.map((c, i) => {
+                                const v = verdictStyle(c.web_verdict)
+                                return (
+                                  <li key={i} style={{
+                                    padding: '0.5rem 0.625rem',
+                                    background: v.bg,
+                                    border: `1px solid ${v.border}`,
+                                    borderRadius: 'var(--radius-ui)',
+                                    color: v.color,
+                                  }}>
+                                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                      <span style={{
+                                        fontSize: '0.6875rem',
+                                        fontWeight: 700,
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.04em',
+                                        padding: '0.1rem 0.4rem',
+                                        background: v.color,
+                                        color: '#fff',
+                                        borderRadius: '3px',
+                                        flexShrink: 0,
+                                      }}>
+                                        {v.label}
+                                      </span>
+                                      <span style={{ fontWeight: 600 }}>{c.claim}</span>
+                                    </div>
+                                    {c.web_evidence && (
+                                      <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.75rem', fontStyle: 'italic' }}>
+                                        {c.web_evidence}
+                                      </p>
+                                    )}
+                                    {c.web_url && (
+                                      <a
+                                        href={c.web_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{ fontSize: '0.75rem', color: v.color, textDecoration: 'underline', wordBreak: 'break-all' }}
+                                      >
+                                        {c.web_url}
+                                      </a>
+                                    )}
+                                  </li>
+                                )
+                              })}
                             </ul>
                           </div>
                         )
