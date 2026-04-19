@@ -84,10 +84,16 @@ export interface PlanHomepageSlot {
   end_date: string | null
 }
 
+export interface PlanVoiceSample {
+  title: string
+  summary: string
+}
+
 export interface GenerateEditorialPlanInput {
   today_intel: PlanIntelItem[]
   recent_alerts: PlanRecentAlert[]
   homepage_slots: PlanHomepageSlot[]
+  voice_samples?: PlanVoiceSample[]
 }
 
 const SYSTEM_PROMPT = `You are the editorial director for crazy4points, a premium award travel intelligence site.
@@ -108,6 +114,11 @@ INPUTS (you will receive three JSON blocks)
 
 3. HOMEPAGE SLOTS — the 4 currently featured deals
    Fields per slot: { slot (1–4), current_alert_id, current_title, end_date }
+
+4. VOICE SAMPLES — up to 3 recently published alerts in the site's voice
+   Fields per sample: { title, summary }
+   These are the TONE REFERENCE. Match their rhythm, directness, and level of concreteness when you
+   write editorial_note, why_publish, why_it_matters, angle, and pitch fields.
 
 ═══════════════════════════════════════════════════════════
 YOUR TASK
@@ -303,6 +314,7 @@ export async function generateEditorialPlan(
       today_intel: input.today_intel,
       recent_alerts: input.recent_alerts,
       homepage_slots: input.homepage_slots,
+      voice_samples: (input.voice_samples ?? []).slice(0, 3),
     },
     null,
     2
