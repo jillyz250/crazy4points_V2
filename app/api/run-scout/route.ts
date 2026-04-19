@@ -42,7 +42,7 @@ function isDuplicateOfRecent(f: ScoutFinding, recentItems: RecentIntelItem[]): b
   )
 }
 
-export async function POST(req: NextRequest) {
+export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
   const manualSecret = req.headers.get('x-intel-secret')
   const isCron = authHeader === `Bearer ${process.env.CRON_SECRET}`
