@@ -242,13 +242,40 @@ export function buildBriefEmail(
       ? `${sectionHeader('✍️ Blog Post Ideas')}${plan.blog_ideas.map(blogIdeaCard).join('')}`
       : ''
 
+    const newsletterHtml = plan.newsletter_candidates.length
+      ? `${sectionHeader('📧 Newsletter Picks')}${plan.newsletter_candidates
+          .map((c) => {
+            const queueToken = signBulkActionToken({
+              brief_id: briefId,
+              action: 'queue_newsletter',
+              target_id: c.intel_id,
+            })
+            const dismissToken = signBulkActionToken({
+              brief_id: briefId,
+              action: 'dismiss_newsletter',
+              target_id: c.intel_id,
+            })
+            return `
+              <div style="margin-bottom:12px;padding:14px 16px;background:#fff;border-radius:8px;border-left:4px solid #0d1b3e;">
+                <p style="margin:0 0 6px;font-size:14px;font-weight:700;color:#1A1A1A;">${c.headline}</p>
+                <p style="margin:0 0 12px;font-size:13px;line-height:1.5;color:#4A4A4A;">${c.angle}</p>
+                ${button(actionUrl(siteOrigin, queueToken), 'Queue for Newsletter', '#0d1b3e')}
+                ${button(actionUrl(siteOrigin, dismissToken), 'Dismiss', '#6B7280')}
+              </div>`
+          })
+          .join('')}
+          <div style="text-align:right;margin-top:6px;">
+            <a href="${siteOrigin}/admin/content-ideas?type=newsletter" style="font-size:12px;color:#6B2D8F;font-weight:600;">Open newsletter queue →</a>
+          </div>`
+      : ''
+
     const editorialNote = plan.editorial_note
       ? `<div style="margin:0 0 28px;padding:18px 20px;background:#F8F5FB;border-left:4px solid #6B2D8F;border-radius:8px;">
           <p style="margin:0;font-size:14px;line-height:1.6;color:#1A1A1A;font-style:italic;">${plan.editorial_note}</p>
         </div>`
       : ''
 
-    editorialSections = `${editorialNote}${approveHtml}${slotsHtml}${blogHtml}${rejectHtml}`
+    editorialSections = `${editorialNote}${approveHtml}${newsletterHtml}${slotsHtml}${blogHtml}${rejectHtml}`
   }
 
   return `

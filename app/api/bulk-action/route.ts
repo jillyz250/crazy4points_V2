@@ -154,6 +154,34 @@ export async function GET(req: NextRequest) {
       return okPage('Queue cleared', `Rejected ${count} pending alert${count === 1 ? '' : 's'}.`)
     }
 
+    if (payload.action === 'queue_newsletter' || payload.action === 'dismiss_newsletter') {
+      const nextStatus = payload.action === 'queue_newsletter' ? 'queued' : 'dismissed'
+      const { data: idea, error: ideaErr } = await supabase
+        .from('content_ideas')
+        .select('id, status')
+        .eq('type', 'newsletter')
+        .eq('source_brief_id', payload.brief_id)
+        .eq('source_intel_id', payload.target_id)
+        .maybeSingle()
+      if (ideaErr) throw ideaErr
+      if (!idea) {
+        await logAction(supabase, payload.brief_id, { ...payload, result: 'noop', message: 'No matching content_idea' })
+        return errorPage('No matching newsletter idea found.', 404)
+      }
+      const { error: updErr } = await supabase
+        .from('content_ideas')
+        .update({ status: nextStatus, updated_at: new Date().toISOString() })
+        .eq('id', idea.id)
+      if (updErr) throw updErr
+      await logAction(supabase, payload.brief_id, { ...payload, result: 'ok' })
+      return okPage(
+        nextStatus === 'queued' ? 'Queued for newsletter' : 'Dismissed',
+        nextStatus === 'queued'
+          ? 'Added to the newsletter queue. Manage it in Content Ideas.'
+          : 'Dismissed from the newsletter queue.'
+      )
+    }
+
     if (payload.action === 'feature_replace') {
       if (!payload.slot) return errorPage('Missing slot number.', 400)
       await upsertHomepageSlot(supabase, payload.slot, payload.target_id)

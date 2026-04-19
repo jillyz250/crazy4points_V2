@@ -1,6 +1,12 @@
 import crypto from 'node:crypto'
 
-export type BulkActionKind = 'approve' | 'reject' | 'reject_all' | 'feature_replace'
+export type BulkActionKind =
+  | 'approve'
+  | 'reject'
+  | 'reject_all'
+  | 'feature_replace'
+  | 'queue_newsletter'
+  | 'dismiss_newsletter'
 
 export interface BulkActionPayload {
   brief_id: string
