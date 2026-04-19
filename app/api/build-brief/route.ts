@@ -185,6 +185,9 @@ export async function GET(req: NextRequest) {
   const intelById = new Map(items.map((i) => [i.id as string, i]))
 
   let drafts_written = 0
+  let writer_null_drafts = 0
+  let writer_no_pending_alert = 0
+  let writer_update_errors = 0
   const alertIdByIntelId: Record<string, string> = {}
   const approveMetaByIntelId: Record<string, ApproveMeta> = {}
   if (plan && plan.approve.length) {
@@ -233,7 +236,10 @@ export async function GET(req: NextRequest) {
         programs: allPrograms,
         recent_samples: recentSamples,
       })
-      if (!draft) continue
+      if (!draft) {
+        writer_null_drafts++
+        continue
+      }
 
       const { data: pending } = await supabase
         .from('alerts')
@@ -241,7 +247,10 @@ export async function GET(req: NextRequest) {
         .eq('source_intel_id', intel.id as string)
         .eq('status', 'pending_review')
         .maybeSingle()
-      if (!pending) continue
+      if (!pending) {
+        writer_no_pending_alert++
+        continue
+      }
       const alertId = pending.id as string
       alertIdByIntelId[intel.id as string] = alertId
 
@@ -280,6 +289,7 @@ export async function GET(req: NextRequest) {
           programNames,
         }
       } catch (err) {
+        writer_update_errors++
         console.error('[build-brief] writer update failed for alert', alertId, err)
       }
     }
@@ -351,11 +361,29 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Email send failed', details: emailError }, { status: 500 })
   }
 
+  const approve_count = plan?.approve.length ?? 0
+  const writer_success_rate = approve_count
+    ? Number((drafts_written / approve_count).toFixed(2))
+    : null
+  if (approve_count) {
+    console.log(
+      `[build-brief] writer stats — approves=${approve_count} drafts=${drafts_written} null=${writer_null_drafts} no_pending=${writer_no_pending_alert} errors=${writer_update_errors} success_rate=${writer_success_rate}`
+    )
+  }
+
   return NextResponse.json({
     findings_in_brief: findings.length,
     brief_id: briefId ?? null,
     plan_generated: plan !== null,
     drafts_written,
+    writer_stats: {
+      approve_count,
+      drafts_written,
+      null_drafts: writer_null_drafts,
+      no_pending_alert: writer_no_pending_alert,
+      update_errors: writer_update_errors,
+      success_rate: writer_success_rate,
+    },
     content_ideas_inserted,
     email_sent: true,
     date,

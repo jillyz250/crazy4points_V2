@@ -39,7 +39,13 @@ function actionUrl(origin: string, token: string): string {
 }
 
 function button(href: string, label: string, color = '#6B2D8F'): string {
-  return `<a href="${href}" style="display:inline-block;padding:8px 16px;background:${color};color:#fff;text-decoration:none;border-radius:6px;font-weight:600;font-size:12px;margin-right:8px;">${label}</a>`
+  // Bulletproof button — table-based so Outlook (which ignores background: on <a>)
+  // and conservative Gmail renderings still show a solid colored button.
+  return `<table role="presentation" border="0" cellspacing="0" cellpadding="0" style="display:inline-block;margin:0 8px 4px 0;vertical-align:middle;border-collapse:separate;">
+    <tr><td align="center" bgcolor="${color}" style="border-radius:6px;mso-padding-alt:8px 16px 8px 16px;">
+      <!--[if mso]>&nbsp;<![endif]--><a href="${href}" style="display:inline-block;padding:8px 16px;font-family:sans-serif;font-size:12px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:6px;background-color:${color};">${label}</a><!--[if mso]>&nbsp;<![endif]-->
+    </td></tr>
+  </table>`
 }
 
 function sectionHeader(title: string, color = '#D4AF37'): string {
