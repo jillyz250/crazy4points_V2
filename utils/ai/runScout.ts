@@ -86,9 +86,16 @@ async function fetchSource(source: Source): Promise<string> {
   }
 }
 
+export interface ScoutProgram {
+  slug: string
+  name: string
+  type: string // credit_card | airline | hotel | ...
+}
+
 export async function runScout(
   sources: Source[],
-  recentHeadlines: string[] = []
+  recentHeadlines: string[] = [],
+  programs: ScoutProgram[] = []
 ): Promise<ScoutFinding[]> {
   const client = new Anthropic()
 
@@ -113,6 +120,10 @@ export async function runScout(
     ? `\nALREADY KNOWN (last 7 days — skip unless there is a major new development):\n${recentHeadlines.map((h) => `- ${h}`).join('\n')}\n`
     : ''
 
+  const programList = programs.length > 0
+    ? programs.map((p) => `- ${p.slug} (${p.name}, ${p.type})`).join('\n')
+    : '- chase-ur, amex-mr, citi-thankyou, capital-one, hyatt, aa-aadvantage, united-mileageplus, delta-skymiles, marriott-bonvoy, hilton-honors, ihg'
+
   const message = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 4000,
@@ -128,7 +139,14 @@ RULES:
 - confidence: "high" = official source or 3+ credible blogs confirming; "medium" = 1–2 credible sources; "low" = Reddit rumor/speculation
 - Deduplicate: if the same story appears in multiple sources, output ONE finding with the highest confidence
 - Skip findings that are clearly old news (>7 days) or evergreen advice articles
-- programs array: use slugs like "chase-ur", "amex-mr", "citi-thankyou", "capital-one", "hyatt", "aa-aadvantage", "united-mileageplus", "delta-skymiles", "marriott-bonvoy", "hilton-honors", "ihg"
+- programs array: pick slugs ONLY from the PROGRAM LIST below. If the right slug isn't listed, omit it rather than invent one.
+- CO-BRANDED CARDS: tag BOTH the issuer AND the airline/hotel. Example: AA/Citi Aviator → ["citi-thankyou", "aa-aadvantage"]. Chase Hyatt card → ["chase-ur", "hyatt"].
+- TRANSFER BONUSES: tag both the source currency and the destination (e.g., Chase→Hyatt bonus → ["chase-ur", "hyatt"]).
+- AIRLINE/HOTEL AWARD SALES: always tag the operating loyalty program (e.g., SAS award sale → ["sas-eurobonus"] if listed).
+- Never return an empty programs array unless the finding truly has no loyalty angle.
+
+PROGRAM LIST (authoritative — use these slugs):
+${programList}
 - alert_type must be one of: transfer_bonus, limited_time_offer, award_availability, status_promo, glitch, devaluation, program_change, partner_change, category_change, earn_rate_change, policy_change, sweet_spot, industry_news, signup_bonus, award_sale, companion_pass, fee_change, card_refresh
 ${knownSection}
 Respond with ONLY a valid JSON array of findings. No prose, no markdown, just the array.

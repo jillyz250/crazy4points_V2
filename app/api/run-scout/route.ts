@@ -65,8 +65,12 @@ export async function GET(req: NextRequest) {
   const recentItems = await getRecentIntelItems(supabase, 7)
   const recentHeadlines = recentItems.map((r) => r.headline)
 
+  // Load the canonical program list so Scout tags with real DB slugs (fixes co-brand + SAS-style misses)
+  const programsForScout = await getAllPrograms(supabase)
+  const scoutPrograms = programsForScout.map((p) => ({ slug: p.slug, name: p.name, type: p.type }))
+
   // Run Claude Scout, passing known headlines so it skips already-seen stories
-  let findings = await runScout(activeSources, recentHeadlines)
+  let findings = await runScout(activeSources, recentHeadlines, scoutPrograms)
   console.log(`[run-scout] ${findings.length} raw findings from ${activeSources.length} sources`)
 
   // Filter findings that are obvious cross-day duplicates
@@ -123,9 +127,8 @@ export async function GET(req: NextRequest) {
     await incrementSourceProduced(supabase, source.name, count)
   }
 
-  // Build program slug → id map
-  const allPrograms = await getAllPrograms(supabase)
-  const programSlugMap = new Map(allPrograms.map((p) => [p.slug, p.id]))
+  // Build program slug → id map (reuse the list loaded above)
+  const programSlugMap = new Map(programsForScout.map((p) => [p.slug, p.id]))
 
   // Stage high-confidence items as pending_review alerts
   const staged: string[] = []

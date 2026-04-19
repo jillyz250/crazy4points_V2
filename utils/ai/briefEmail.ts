@@ -91,15 +91,19 @@ function approveCard(
   origin: string,
   briefId: string,
   item: { intel_id: string; headline: string; why_publish: string },
-  meta: ApproveMeta
+  meta: ApproveMeta,
+  isNewsletterPick = false
 ): string {
   const reviewHref = meta.alertId ? `${origin}/admin/alerts/${meta.alertId}/edit` : null
   const approveToken = signBulkActionToken({ brief_id: briefId, action: 'approve', target_id: item.intel_id })
   const chip = deadlineChip(meta.endDate)
   const borderColor = chip.urgent ? '#d97706' : '#2f855a'
   const badges = (meta.programNames ?? []).map(programBadge).join('')
-  const chipsRow = chip.html || badges
-    ? `<div style="margin:0 0 8px;">${chip.html}${chip.html && badges ? ' ' : ''}${badges}</div>`
+  const newsletterBadge = isNewsletterPick
+    ? `<span style="display:inline-block;padding:2px 8px;margin:0 4px 4px 0;background:#0d1b3e;color:#fff;border-radius:999px;font-size:11px;font-weight:600;">📧 Newsletter pick</span>`
+    : ''
+  const chipsRow = chip.html || badges || newsletterBadge
+    ? `<div style="margin:0 0 8px;">${chip.html}${chip.html && (badges || newsletterBadge) ? ' ' : ''}${newsletterBadge}${badges}</div>`
     : ''
   return `
     <div style="margin-bottom:14px;padding:16px;background:#fff;border-radius:8px;border-left:4px solid ${borderColor};">
@@ -196,15 +200,22 @@ export function buildBriefEmail(
   // Editorial sections (only when we have a plan + briefId)
   let editorialSections = ''
   if (plan && briefId) {
+    const newsletterIntelIds = new Set((plan.newsletter_candidates ?? []).map((c) => c.intel_id))
     const approveHtml = plan.approve.length
       ? `${sectionHeader('✅ Approve These')}${plan.approve
           .map((a) => {
             const meta = approveMetaByIntelId[a.intel_id] ?? {}
-            return approveCard(siteOrigin, briefId, a, {
-              alertId: meta.alertId ?? alertIdByIntelId[a.intel_id],
-              endDate: meta.endDate,
-              programNames: meta.programNames,
-            })
+            return approveCard(
+              siteOrigin,
+              briefId,
+              a,
+              {
+                alertId: meta.alertId ?? alertIdByIntelId[a.intel_id],
+                endDate: meta.endDate,
+                programNames: meta.programNames,
+              },
+              newsletterIntelIds.has(a.intel_id)
+            )
           })
           .join('')}`
       : ''
