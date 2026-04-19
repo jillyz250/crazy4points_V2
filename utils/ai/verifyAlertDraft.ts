@@ -20,6 +20,8 @@ export interface VerifyClaim {
   web_verdict?: 'likely_correct' | 'likely_wrong' | 'unverifiable' | null
   web_evidence?: string | null
   web_url?: string | null
+  // Phase 3.7 — admin can dismiss a claim after confirming it themselves.
+  acknowledged?: boolean
 }
 
 export interface VerifyResult {

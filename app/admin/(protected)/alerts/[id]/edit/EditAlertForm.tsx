@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { updateAlertAction } from './actions'
 import type { Alert, Program, ProgramType } from '@/utils/supabase/queries'
+import FactCheckWarnings from '@/components/admin/FactCheckWarnings'
 
 const PROGRAM_TYPE_LABELS: Record<ProgramType, string> = {
   credit_card: 'Credit Card',
@@ -145,6 +146,10 @@ export default function EditAlertForm({ alert, programs, taggedProgramIds }: Pro
     <form onSubmit={handleSubmit} style={{ maxWidth: '640px' }}>
       {/* Preserve published_at so update action can keep it unchanged */}
       <input type="hidden" name="existing_published_at" value={alert.published_at ?? ''} />
+
+      <div style={{ marginBottom: '1.25rem' }}>
+        <FactCheckWarnings alertId={alert.id} claims={alert.fact_check_claims} />
+      </div>
 
       {/* Title */}
       <div style={fieldStyle}>

@@ -17,6 +17,12 @@ export interface ApproveMeta {
   alertId?: string
   endDate?: string | null
   programNames?: string[]
+  // Phase 3.7 — fact-check summary shown as a chip on the approve card so
+  // you can triage straight from the email instead of opening admin first.
+  factCheck?: {
+    openClaimCount: number        // unsupported claims not yet acknowledged
+    likelyWrongCount: number      // subset flagged by web search as probably wrong
+  }
 }
 
 export interface BriefContext {
@@ -110,8 +116,21 @@ function approveCard(
   const newsletterBadge = isNewsletterPick
     ? `<span style="display:inline-block;padding:2px 8px;margin:0 4px 4px 0;background:#0d1b3e;color:#fff;border-radius:999px;font-size:11px;font-weight:600;">📧 Newsletter pick</span>`
     : ''
-  const chipsRow = chip.html || badges || newsletterBadge
-    ? `<div style="margin:0 0 8px;">${chip.html}${chip.html && (badges || newsletterBadge) ? ' ' : ''}${newsletterBadge}${badges}</div>`
+  const fc = meta.factCheck
+  const factCheckBadge = fc && fc.openClaimCount > 0
+    ? (() => {
+        const wrong = fc.likelyWrongCount > 0
+        const bg = wrong ? '#fdecea' : '#fff8e1'
+        const color = wrong ? '#7a1f1f' : '#7a5a1f'
+        const border = wrong ? '#f5c6cb' : '#fde68a'
+        const label = wrong
+          ? `⚠ ${fc.likelyWrongCount} likely wrong · ${fc.openClaimCount} unverified`
+          : `⚠ ${fc.openClaimCount} unverified claim${fc.openClaimCount === 1 ? '' : 's'}`
+        return `<span style="display:inline-block;padding:2px 8px;margin:0 4px 4px 0;background:${bg};color:${color};border:1px solid ${border};border-radius:999px;font-size:11px;font-weight:600;">${label}</span>`
+      })()
+    : ''
+  const chipsRow = chip.html || badges || newsletterBadge || factCheckBadge
+    ? `<div style="margin:0 0 8px;">${chip.html}${chip.html && (badges || newsletterBadge || factCheckBadge) ? ' ' : ''}${factCheckBadge}${newsletterBadge}${badges}</div>`
     : ''
   return `
     <div style="margin-bottom:14px;padding:16px;background:#fff;border-radius:8px;border-left:4px solid ${borderColor};">
