@@ -10,6 +10,7 @@ import {
   type PlanHomepageSlot,
 } from '@/utils/ai/generateEditorialPlan'
 import { writeAlertDraft, type WriteDraftProgram } from '@/utils/ai/writeAlertDraft'
+import { verifyAlertDraft, highSeverityUnsupported } from '@/utils/ai/verifyAlertDraft'
 import type { ApproveMeta } from '@/utils/ai/briefEmail'
 import { updateAlert, setAlertPrograms } from '@/utils/supabase/queries'
 
@@ -188,6 +189,8 @@ export async function GET(req: NextRequest) {
   let writer_null_drafts = 0
   let writer_no_pending_alert = 0
   let writer_update_errors = 0
+  let fact_checks_run = 0
+  let fact_checks_flagged = 0
   const alertIdByIntelId: Record<string, string> = {}
   const approveMetaByIntelId: Record<string, ApproveMeta> = {}
   if (plan && plan.approve.length) {
@@ -273,6 +276,27 @@ export async function GET(req: NextRequest) {
         })
         await setAlertPrograms(supabase, alertId, secondaryIds)
         drafts_written++
+
+        // Fact-check pass: ground every factual claim in the draft against
+        // the intel raw_text. Unsupported high-severity claims surface as
+        // red warnings in admin review before publish.
+        const verify = await verifyAlertDraft({
+          draft: { title: draft.title, summary: draft.summary, description: draft.description },
+          raw_text: (intel.raw_text as string | null) ?? null,
+          source_url: (intel.source_url as string | null) ?? null,
+        })
+        if (verify) {
+          fact_checks_run++
+          if (highSeverityUnsupported(verify.claims).length > 0) fact_checks_flagged++
+          try {
+            await updateAlert(supabase, alertId, {
+              fact_check_claims: verify.claims,
+              fact_check_at: verify.checked_at,
+            })
+          } catch (err) {
+            console.error('[build-brief] fact-check write failed for alert', alertId, err)
+          }
+        }
 
         const programNames: string[] = []
         if (draft.primary_program_slug) {
@@ -369,6 +393,9 @@ export async function GET(req: NextRequest) {
     console.log(
       `[build-brief] writer stats — approves=${approve_count} drafts=${drafts_written} null=${writer_null_drafts} no_pending=${writer_no_pending_alert} errors=${writer_update_errors} success_rate=${writer_success_rate}`
     )
+    console.log(
+      `[build-brief] fact-check stats — run=${fact_checks_run} flagged_high_severity=${fact_checks_flagged}`
+    )
   }
 
   return NextResponse.json({
@@ -383,6 +410,10 @@ export async function GET(req: NextRequest) {
       no_pending_alert: writer_no_pending_alert,
       update_errors: writer_update_errors,
       success_rate: writer_success_rate,
+    },
+    fact_check_stats: {
+      run: fact_checks_run,
+      flagged_high_severity: fact_checks_flagged,
     },
     content_ideas_inserted,
     email_sent: true,

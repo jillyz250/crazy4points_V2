@@ -103,6 +103,8 @@ export interface Alert {
   approved_at: string | null
   source_intel_id: string | null
   last_verified: string | null
+  fact_check_claims: unknown | null
+  fact_check_at: string | null
   created_at: string
   updated_at: string
 }
@@ -151,7 +153,7 @@ export type HomepageSlotWithAlert = HomepageSlot & {
   alerts: Alert | null
 }
 
-export type AlertInsert = Omit<Alert, 'id' | 'created_at' | 'updated_at' | 'computed_score' | 'score_last_computed_at' | 'approved_at' | 'source_intel_id'>
+export type AlertInsert = Omit<Alert, 'id' | 'created_at' | 'updated_at' | 'computed_score' | 'score_last_computed_at' | 'approved_at' | 'source_intel_id' | 'fact_check_claims' | 'fact_check_at'>
 export type AlertUpdate = Partial<Omit<Alert, 'id' | 'created_at' | 'updated_at'>>
 
 export interface AlertHistory {
