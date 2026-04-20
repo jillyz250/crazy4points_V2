@@ -16,6 +16,8 @@ import { updateAlert, setAlertPrograms } from '@/utils/supabase/queries'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
+export const maxDuration = 300
+
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
   const manualSecret = req.headers.get('x-intel-secret')
