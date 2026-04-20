@@ -138,9 +138,12 @@ function approveCard(
         const bg = wrong ? '#fdecea' : '#fff8e1'
         const color = wrong ? '#7a1f1f' : '#7a5a1f'
         const border = wrong ? '#f5c6cb' : '#fde68a'
+        const toVerify = fc.openClaimCount - fc.likelyWrongCount
         const label = wrong
-          ? `⚠ ${fc.likelyWrongCount} likely wrong · ${fc.openClaimCount} unverified`
-          : `⚠ ${fc.openClaimCount} unverified claim${fc.openClaimCount === 1 ? '' : 's'}`
+          ? toVerify > 0
+            ? `⚠ ${fc.likelyWrongCount} likely wrong · ${toVerify} to verify`
+            : `⚠ ${fc.likelyWrongCount} likely wrong`
+          : `⚠ ${fc.openClaimCount} to verify`
         const chipStyle = `display:inline-block;padding:2px 8px;margin:0 4px 4px 0;background:${bg};color:${color};border:1px solid ${border};border-radius:999px;font-size:11px;font-weight:600;text-decoration:none;`
         return reviewHref
           ? `<a href="${reviewHref}#fact-check" style="${chipStyle}">${label}</a>`
@@ -318,8 +321,18 @@ export function buildBriefEmail(
       return 0
     })
 
+    const approveLegend = sortedApprove.length
+      ? `<p style="margin:-8px 0 12px;font-size:11px;color:#888;line-height:1.5;">
+          <span style="display:inline-block;width:8px;height:8px;background:#D4AF37;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>gold = newsletter pick
+          &nbsp;·&nbsp;
+          <span style="display:inline-block;width:8px;height:8px;background:#2f855a;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>green = standard approve
+          &nbsp;·&nbsp;
+          <span style="display:inline-block;width:8px;height:8px;background:#d97706;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>amber = under 48h
+        </p>`
+      : ''
+
     const approveHtml = sortedApprove.length
-      ? `${sectionHeader('✅ Approve These', '#2f855a')}${sortedApprove
+      ? `${sectionHeader('✅ Approve These', '#2f855a')}${approveLegend}${sortedApprove
           .map((a) => {
             const meta = approveMetaByIntelId[a.intel_id] ?? {}
             return approveCard(

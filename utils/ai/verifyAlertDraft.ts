@@ -49,6 +49,16 @@ DO NOT extract:
 • Brand-voice opinions ("this is a great deal", "don't sleep on this")
 • Generic award-travel truisms ("points are worth more when transferred")
 • Calls to action ("transfer before May 16" — that's a restatement of the dated claim)
+• Procedural/UI steps not central to the deal ("log in", "click transfer", "go to the
+  rewards page") — these are almost always unverifiable via web and rarely mislead readers
+• Restatements of the SAME fact in different words (extract once, not twice — if the
+  draft says "25% bonus" and "a 25 percent boost", that's one claim)
+• Interpretive framing ("rare", "hard to find", "limited availability") unless a specific
+  number is attached
+• Background context clearly labeled as such ("historically…", "usually…", "in the past…")
+
+Prefer FEWER, higher-quality claims over exhaustive extraction. A claim is only worth
+flagging if getting it wrong would actually mislead a reader or the owner.
 
 ═══════════════════════════════════════════════════════════
 GROUNDING
