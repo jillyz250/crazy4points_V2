@@ -3,7 +3,6 @@ import crypto from 'node:crypto'
 export type BulkActionKind =
   | 'approve'
   | 'reject'
-  | 'reject_all'
   | 'feature_replace'
   | 'queue_newsletter'
   | 'dismiss_newsletter'
@@ -11,7 +10,7 @@ export type BulkActionKind =
 export interface BulkActionPayload {
   brief_id: string
   action: BulkActionKind
-  target_id: string // intel_id for approve/reject, alert_id for feature_replace, 'ALL' for reject_all
+  target_id: string // intel_id for approve/reject, alert_id for feature_replace
   slot?: 1 | 2 | 3 | 4 // only for feature_replace
 }
 

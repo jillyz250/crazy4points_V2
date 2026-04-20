@@ -35,6 +35,7 @@ export async function GET(req: NextRequest) {
       .from('intel_items')
       .select('id, headline, raw_text, source_name, source_url, confidence, alert_type, programs, expires_at')
       .gte('created_at', since24h)
+      .is('rejected_at', null)
       .order('confidence', { ascending: false })
       .order('created_at', { ascending: false }),
     supabase
@@ -67,9 +68,25 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'DB error (programs)' }, { status: 500 })
   }
 
-  const items = intelRes.data ?? []
+  const allItems = intelRes.data ?? []
   const recentAlertRows = recentRes.data ?? []
   const slots = slotsRes.data ?? []
+
+  // Filter out intel items whose deal has already expired — they shouldn't
+  // clutter the Scout brief or get approved. The program archive page is the
+  // permanent home for expired offers.
+  const nowTs = Date.now()
+  const items = allItems.filter((row) => {
+    const exp = row.expires_at as string | null
+    if (!exp) return true
+    const t = new Date(exp).getTime()
+    if (isNaN(t)) return true
+    return t >= nowTs
+  })
+  const droppedExpired = allItems.length - items.length
+  if (droppedExpired > 0) {
+    console.log(`[build-brief] dropped ${droppedExpired} expired intel item(s) before Sonnet`)
+  }
 
   // Findings for the Today's Intel section (unchanged shape)
   const findings: BriefFinding[] = items.map((row) => ({
@@ -110,9 +127,24 @@ export async function GET(req: NextRequest) {
     }
   })
 
-  const recentAlertsById: Record<string, { id: string; title: string; type: string; end_date: string | null }> = {}
+  // Program-by-id lookup so featured-slot cards can show program names alongside
+  // titles. Built from the already-fetched programs list.
+  const programByIdMap = new Map<string, { name: string; slug: string }>()
+  for (const p of (programsRes.data ?? []) as { id: string; name: string; slug: string }[]) {
+    programByIdMap.set(p.id, { name: p.name, slug: p.slug })
+  }
+
+  const recentAlertsById: Record<string, { id: string; title: string; type: string; end_date: string | null; programs: { name: string; slug: string }[] }> = {}
   for (const a of recentAlerts) {
-    recentAlertsById[a.id] = { id: a.id, title: a.title, type: a.type, end_date: a.end_date }
+    recentAlertsById[a.id] = {
+      id: a.id,
+      title: a.title,
+      type: a.type,
+      end_date: a.end_date,
+      programs: a.programs
+        .map((id) => programByIdMap.get(id))
+        .filter((p): p is { name: string; slug: string } => !!p),
+    }
   }
 
   const homepageSlots: PlanHomepageSlot[] = [1, 2, 3, 4].map((n) => {
@@ -137,6 +169,7 @@ export async function GET(req: NextRequest) {
         title: s.current_title ?? '(untitled)',
         type: 'unknown',
         end_date: s.end_date,
+        programs: [],
       }
     }
   }
@@ -205,12 +238,16 @@ export async function GET(req: NextRequest) {
       // Seed meta from the raw intel so badges + deadline chip render even if
       // the writer call or pending-alert lookup later fails.
       const intelSlugs = (intel.programs as string[] | null) ?? []
-      const seedProgramNames = intelSlugs
-        .map((slug) => programBySlug.get(slug)?.name)
-        .filter((n): n is string => typeof n === 'string')
+      const seedPrograms = intelSlugs
+        .map((slug) => {
+          const p = programBySlug.get(slug)
+          return p ? { name: p.name, slug: p.slug } : null
+        })
+        .filter((x): x is { name: string; slug: string } => x !== null)
       approveMetaByIntelId[intel.id as string] = {
         endDate: (intel.expires_at as string | null) ?? null,
-        programNames: seedProgramNames,
+        programNames: seedPrograms.map((p) => p.name),
+        programs: seedPrograms,
       }
 
       // Also try to resolve the staged alert id up-front so Review & Publish
@@ -218,13 +255,15 @@ export async function GET(req: NextRequest) {
       {
         const { data: existingAlert } = await supabase
           .from('alerts')
-          .select('id')
+          .select('id, computed_score')
           .eq('source_intel_id', intel.id as string)
           .maybeSingle()
         if (existingAlert?.id) {
           const alertId = existingAlert.id as string
           alertIdByIntelId[intel.id as string] = alertId
           approveMetaByIntelId[intel.id as string].alertId = alertId
+          approveMetaByIntelId[intel.id as string].computedScore =
+            (existingAlert.computed_score as number | null) ?? null
         }
       }
 
@@ -327,19 +366,24 @@ export async function GET(req: NextRequest) {
           }
         }
 
-        const programNames: string[] = []
+        const draftPrograms: { name: string; slug: string }[] = []
         if (draft.primary_program_slug) {
           const p = programBySlug.get(draft.primary_program_slug)
-          if (p) programNames.push(p.name)
+          if (p) draftPrograms.push({ name: p.name, slug: p.slug })
         }
         for (const slug of draft.secondary_program_slugs) {
           const p = programBySlug.get(slug)
-          if (p) programNames.push(p.name)
+          if (p) draftPrograms.push({ name: p.name, slug: p.slug })
         }
+        // Merge with prior meta so factCheck + computedScore (set earlier in
+        // the loop) survive the writer-success update.
+        const priorMeta = approveMetaByIntelId[intel.id as string] ?? {}
         approveMetaByIntelId[intel.id as string] = {
+          ...priorMeta,
           alertId,
           endDate: draft.end_date,
-          programNames,
+          programNames: draftPrograms.map((p) => p.name),
+          programs: draftPrograms,
         }
       } catch (err) {
         writer_update_errors++
@@ -405,7 +449,7 @@ export async function GET(req: NextRequest) {
   const { error: emailError } = await resend.emails.send({
     from: process.env.RESEND_FROM ?? 'crazy4points <intel@crazy4points.com>',
     to: process.env.BRIEF_RECIPIENT ?? 'jillzeller6@gmail.com',
-    subject: `crazy4points Daily Brief — ${date}`,
+    subject: `Crazy4Points Daily Brief — ${date}`,
     html,
   })
 

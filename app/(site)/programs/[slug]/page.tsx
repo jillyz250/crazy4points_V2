@@ -5,6 +5,7 @@ import { createAdminClient } from '@/utils/supabase/server'
 import { getAlertsByProgramSlug } from '@/utils/supabase/queries'
 import type { AlertWithPrograms } from '@/utils/supabase/queries'
 import AlertsGridSB from '@/components/alerts/AlertsGridSB'
+import ExpiredAlertsList from '@/components/alerts/ExpiredAlertsList'
 
 export const revalidate = 60
 
@@ -69,9 +70,14 @@ export default async function ProgramPage({
     (a) => a.end_date && new Date(a.end_date) <= now
   )
 
-  const displayList = show === 'all' ? allAlerts : show === 'expired' ? expired : active
-
-  const filtered = q ? displayList.filter((a) => matchesSearch(a, q)) : displayList
+  const activeFiltered = q ? active.filter((a) => matchesSearch(a, q)) : active
+  const expiredFiltered = q ? expired.filter((a) => matchesSearch(a, q)) : expired
+  const filteredCount =
+    show === 'active'
+      ? activeFiltered.length
+      : show === 'expired'
+        ? expiredFiltered.length
+        : activeFiltered.length + expiredFiltered.length
 
   const tabStyle = (active: boolean) => ({
     display: 'inline-block' as const,
@@ -158,7 +164,7 @@ export default async function ProgramPage({
         {/* Results */}
         {q && (
           <p className="mb-4 font-body text-sm text-[var(--color-text-secondary)]">
-            {filtered.length} result{filtered.length !== 1 ? 's' : ''} for &ldquo;{q}&rdquo;
+            {filteredCount} result{filteredCount !== 1 ? 's' : ''} for &ldquo;{q}&rdquo;
             {' '}
             <a href={`/programs/${slug}?show=${show}`} style={{ color: 'var(--color-primary)', textDecoration: 'underline', fontSize: 'inherit' }}>
               Clear search
@@ -166,7 +172,32 @@ export default async function ProgramPage({
           </p>
         )}
 
-        <AlertsGridSB alerts={filtered} />
+        {show === 'active' && <AlertsGridSB alerts={activeFiltered} />}
+
+        {show === 'expired' && (
+          <div>
+            <h2 className="mb-4 font-display text-2xl font-bold">Archived alerts</h2>
+            <p className="mb-4 font-body text-sm text-[var(--color-text-secondary)]">
+              These offers have ended but live on here for reference. Click any title to open the original alert.
+            </p>
+            <ExpiredAlertsList alerts={expiredFiltered} />
+          </div>
+        )}
+
+        {show === 'all' && (
+          <>
+            <AlertsGridSB alerts={activeFiltered} />
+            {expiredFiltered.length > 0 && (
+              <div style={{ marginTop: '3rem' }}>
+                <h2 className="mb-3 font-display text-2xl font-bold">Archived alerts</h2>
+                <p className="mb-4 font-body text-sm text-[var(--color-text-secondary)]">
+                  Past offers for {program.name} — searchable, click to view the original.
+                </p>
+                <ExpiredAlertsList alerts={expiredFiltered} />
+              </div>
+            )}
+          </>
+        )}
 
       </div>
     </section>

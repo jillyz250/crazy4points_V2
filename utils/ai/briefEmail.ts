@@ -13,23 +13,36 @@ export interface BriefFinding {
   programs?: string[] | null
 }
 
+export interface ApproveMetaProgram {
+  name: string
+  slug: string
+}
+
 export interface ApproveMeta {
   alertId?: string
   endDate?: string | null
   programNames?: string[]
-  // Phase 3.7 — fact-check summary shown as a chip on the approve card so
-  // you can triage straight from the email instead of opening admin first.
+  programs?: ApproveMetaProgram[]
+  computedScore?: number | null
   factCheck?: {
-    openClaimCount: number        // unsupported claims not yet acknowledged
-    likelyWrongCount: number      // subset flagged by web search as probably wrong
+    openClaimCount: number
+    likelyWrongCount: number
   }
+}
+
+export interface RecentAlertCtx {
+  id: string
+  title: string
+  type: string
+  end_date: string | null
+  programs?: { name: string; slug: string }[]
 }
 
 export interface BriefContext {
   plan?: EditorialPlan | null
   briefId?: string
   siteOrigin?: string // e.g. https://crazy4points.com
-  recentAlertsById?: Record<string, { id: string; title: string; type: string; end_date: string | null }>
+  recentAlertsById?: Record<string, RecentAlertCtx>
   alertIdByIntelId?: Record<string, string>
   approveMetaByIntelId?: Record<string, ApproveMeta>
 }
@@ -78,8 +91,12 @@ function findingCard(f: BriefFinding, whyItMatters?: string): string {
     </div>`
 }
 
-function programBadge(name: string): string {
-  return `<span style="display:inline-block;padding:2px 8px;margin:0 4px 4px 0;background:#F8F5FB;border:1px solid #E6DEEE;border-radius:999px;font-size:11px;font-weight:600;color:#6B2D8F;">${name}</span>`
+function programBadge(name: string, origin?: string, slug?: string): string {
+  const inner = `<span style="display:inline-block;padding:2px 8px;margin:0 4px 4px 0;background:#F8F5FB;border:1px solid #E6DEEE;border-radius:999px;font-size:11px;font-weight:600;color:#6B2D8F;">${name}</span>`
+  if (origin && slug) {
+    return `<a href="${origin}/programs/${slug}" style="text-decoration:none;">${inner}</a>`
+  }
+  return inner
 }
 
 function deadlineChip(endDate: string | null | undefined): { html: string; urgent: boolean } {
@@ -103,19 +120,17 @@ function deadlineChip(endDate: string | null | undefined): { html: string; urgen
 
 function approveCard(
   origin: string,
-  briefId: string,
   item: { intel_id: string; headline: string; why_publish: string },
   meta: ApproveMeta,
   isNewsletterPick = false
 ): string {
   const reviewHref = meta.alertId ? `${origin}/admin/alerts/${meta.alertId}/edit` : null
-  const approveToken = signBulkActionToken({ brief_id: briefId, action: 'approve', target_id: item.intel_id })
   const chip = deadlineChip(meta.endDate)
-  const borderColor = chip.urgent ? '#d97706' : '#2f855a'
-  const badges = (meta.programNames ?? []).map(programBadge).join('')
-  const newsletterBadge = isNewsletterPick
-    ? `<span style="display:inline-block;padding:2px 8px;margin:0 4px 4px 0;background:#0d1b3e;color:#fff;border-radius:999px;font-size:11px;font-weight:600;">📧 Newsletter pick</span>`
-    : ''
+  const borderColor = isNewsletterPick ? '#D4AF37' : chip.urgent ? '#d97706' : '#2f855a'
+
+  const programs = meta.programs ?? (meta.programNames ?? []).map((name) => ({ name, slug: '' }))
+  const badges = programs.map((p) => programBadge(p.name, origin, p.slug || undefined)).join('')
+
   const fc = meta.factCheck
   const factCheckBadge = fc && fc.openClaimCount > 0
     ? (() => {
@@ -129,72 +144,118 @@ function approveCard(
         return `<span style="display:inline-block;padding:2px 8px;margin:0 4px 4px 0;background:${bg};color:${color};border:1px solid ${border};border-radius:999px;font-size:11px;font-weight:600;">${label}</span>`
       })()
     : ''
-  const chipsRow = chip.html || badges || newsletterBadge || factCheckBadge
-    ? `<div style="margin:0 0 8px;">${chip.html}${chip.html && (badges || newsletterBadge || factCheckBadge) ? ' ' : ''}${factCheckBadge}${newsletterBadge}${badges}</div>`
+
+  const chipsRow = chip.html || badges || factCheckBadge
+    ? `<div style="margin:0 0 8px;">${chip.html}${chip.html && (badges || factCheckBadge) ? ' ' : ''}${factCheckBadge}${badges}</div>`
     : ''
+
+  const newsletterRibbon = isNewsletterPick
+    ? `<div style="margin:-16px -16px 12px;padding:6px 16px;background:#0d1b3e;color:#fff;border-radius:8px 8px 0 0;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">📧 Newsletter Pick</div>`
+    : ''
+
+  const scoreLine = typeof meta.computedScore === 'number' && !isNaN(meta.computedScore)
+    ? `<p style="margin:0 0 8px;font-size:11px;font-weight:600;color:#888;letter-spacing:0.04em;text-transform:uppercase;">Score ${meta.computedScore.toFixed(1)}</p>`
+    : ''
+
   return `
-    <div style="margin-bottom:14px;padding:16px;background:#fff;border-radius:8px;border-left:4px solid ${borderColor};">
+    <div style="margin-bottom:14px;padding:16px;background:#fff;border-radius:8px;border-left:4px solid ${borderColor};overflow:hidden;">
+      ${newsletterRibbon}
       <p style="margin:0 0 6px;font-size:14px;font-weight:700;color:#1A1A1A;">${item.headline}</p>
+      ${scoreLine}
       ${chipsRow}
       <p style="margin:0 0 12px;font-size:13px;line-height:1.5;color:#4A4A4A;">${item.why_publish}</p>
       ${reviewHref ? button(reviewHref, 'Review &amp; Publish', '#6B2D8F') : ''}
-      ${button(actionUrl(origin, approveToken), 'Quick Publish', '#2f855a')}
     </div>`
+}
+
+const REASON_LABELS: Record<string, string> = {
+  duplicate: 'Duplicates',
+  out_of_scope: 'Out of scope',
+  low_quality: 'Low quality',
+  rumor: 'Rumors',
+  brand_excluded: 'Brand excluded',
+  missing_data: 'Missing data',
 }
 
 function rejectCard(
   origin: string,
-  briefId: string,
-  item: { intel_id: string; headline: string; why_reject: string; reason_category: string }
+  item: { intel_id: string; headline: string; why_reject: string }
 ): string {
-  const token = signBulkActionToken({ brief_id: briefId, action: 'reject', target_id: item.intel_id })
+  const reviewHref = `${origin}/admin/alerts?status=pending_review&intel=${encodeURIComponent(item.intel_id)}`
   return `
-    <div style="margin-bottom:10px;padding:12px 16px;background:#fff;border-radius:8px;border-left:4px solid #b45309;">
-      <p style="margin:0 0 4px;font-size:13px;font-weight:600;color:#1A1A1A;">${item.headline}</p>
-      <p style="margin:0 0 8px;font-size:12px;color:#4A4A4A;">
-        <span style="display:inline-block;padding:1px 6px;background:#f3e6d3;border-radius:3px;font-size:10px;font-weight:700;text-transform:uppercase;color:#92400e;margin-right:6px;">${item.reason_category.replace(/_/g, ' ')}</span>
-        ${item.why_reject}
-      </p>
-      ${button(actionUrl(origin, token), 'Reject', '#b45309')}
+    <div style="margin-bottom:6px;padding:8px 12px;background:#fff;border-radius:6px;border-left:3px solid #b45309;">
+      <p style="margin:0 0 2px;font-size:12px;font-weight:600;color:#1A1A1A;line-height:1.3;">${item.headline}</p>
+      <p style="margin:0 0 4px;font-size:11px;color:#4A4A4A;line-height:1.4;">${item.why_reject}</p>
+      <a href="${reviewHref}" style="font-size:11px;color:#b45309;font-weight:600;">Review &amp; Reject →</a>
     </div>`
+}
+
+function alertMetaLine(meta: RecentAlertCtx | null): string {
+  if (!meta) return ''
+  const parts: string[] = []
+  if (meta.programs && meta.programs.length) {
+    parts.push(meta.programs.map((p) => p.name).join(' · '))
+  }
+  if (meta.end_date) {
+    const d = new Date(meta.end_date)
+    if (!isNaN(d.getTime())) {
+      const now = Date.now()
+      const delta = d.getTime() - now
+      if (delta < 0) {
+        parts.push(`expired ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`)
+      } else {
+        parts.push(`ends ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`)
+      }
+    }
+  }
+  return parts.length
+    ? `<p style="margin:2px 0 0;font-size:11px;color:#6B7280;">${parts.join(' · ')}</p>`
+    : ''
 }
 
 function featuredSlotCard(
   origin: string,
-  briefId: string,
   slot: EditorialPlan['featured_slots'][number],
-  currentTitle: string | null,
-  suggestedTitle: string | null
+  currentMeta: RecentAlertCtx | null,
+  suggestedMeta: RecentAlertCtx | null
 ): string {
+  void origin // feature_replace action removed; origin retained for future wiring
   if (slot.action === 'keep') {
     return `
       <div style="margin-bottom:10px;padding:12px 16px;background:#fff;border-radius:8px;border-left:4px solid #888;">
         <p style="margin:0;font-size:12px;font-weight:700;color:#4A4A4A;text-transform:uppercase;letter-spacing:0.05em;">Slot ${slot.slot} · Keep</p>
-        <p style="margin:4px 0 4px;font-size:13px;color:#1A1A1A;">${currentTitle ?? '<em>empty</em>'}</p>
-        <p style="margin:0;font-size:12px;color:#4A4A4A;">${slot.reason}</p>
+        <p style="margin:4px 0 2px;font-size:13px;font-weight:600;color:#1A1A1A;">${currentMeta?.title ?? '<em>empty</em>'}</p>
+        ${alertMetaLine(currentMeta)}
+        <p style="margin:8px 0 0;font-size:12px;line-height:1.5;color:#4A4A4A;">${slot.reason}</p>
       </div>`
   }
-  const token = signBulkActionToken({
-    brief_id: briefId,
-    action: 'feature_replace',
-    target_id: slot.suggested_alert_id,
-    slot: slot.slot,
-  })
   return `
     <div style="margin-bottom:10px;padding:12px 16px;background:#fff;border-radius:8px;border-left:4px solid #6B2D8F;">
       <p style="margin:0;font-size:12px;font-weight:700;color:#6B2D8F;text-transform:uppercase;letter-spacing:0.05em;">Slot ${slot.slot} · Replace</p>
-      <p style="margin:4px 0 2px;font-size:12px;color:#888;"><s>${currentTitle ?? 'empty'}</s></p>
-      <p style="margin:0 0 4px;font-size:14px;font-weight:600;color:#1A1A1A;">→ ${suggestedTitle ?? slot.suggested_alert_id}</p>
-      <p style="margin:0 0 10px;font-size:12px;color:#4A4A4A;">${slot.reason}</p>
-      ${button(actionUrl(origin, token), 'Apply Replacement', '#6B2D8F')}
+      <p style="margin:6px 0 2px;font-size:12px;color:#888;"><s>${currentMeta?.title ?? 'empty'}</s></p>
+      ${currentMeta ? alertMetaLine(currentMeta) : ''}
+      <p style="margin:10px 0 2px;font-size:14px;font-weight:700;color:#1A1A1A;">→ ${suggestedMeta?.title ?? slot.suggested_alert_id}</p>
+      ${suggestedMeta ? alertMetaLine(suggestedMeta) : ''}
+      <p style="margin:10px 0 0;font-size:12px;line-height:1.5;color:#4A4A4A;">${slot.reason}</p>
     </div>`
 }
 
-function blogIdeaCard(item: { title: string; pitch: string }): string {
+function blogIdeaCard(
+  item: { title: string; pitch: string; priority?: 'hot' | 'evergreen'; why_now?: string },
+  siteOrigin: string
+): string {
+  const isHot = item.priority === 'hot'
+  const badge = isHot
+    ? `<span style="display:inline-block;padding:2px 8px;background:#FEE2E2;color:#B91C1C;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:0.3px;">🔥 HOT</span>`
+    : `<span style="display:inline-block;padding:2px 8px;background:#F8F5FB;color:#6B2D8F;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:0.3px;">📁 EVERGREEN</span>`
+  const border = isHot ? '#D4AF37' : '#E6DEEE'
   return `
-    <div style="margin-bottom:10px;padding:12px 16px;background:#fff;border-radius:8px;border-left:4px solid #D4AF37;">
-      <p style="margin:0 0 6px;font-size:14px;font-weight:700;color:#1A1A1A;">${item.title}</p>
-      <p style="margin:0;font-size:13px;line-height:1.5;color:#4A4A4A;">${item.pitch}</p>
+    <div style="margin-bottom:8px;padding:10px 14px;background:#fff;border-radius:8px;border-left:3px solid ${border};">
+      <div style="margin:0 0 4px;">${badge}</div>
+      <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#1A1A1A;line-height:1.3;">${item.title}</p>
+      <p style="margin:0 0 4px;font-size:12px;line-height:1.45;color:#4A4A4A;">${item.pitch}</p>
+      ${item.why_now ? `<p style="margin:0 0 6px;font-size:11px;line-height:1.4;color:#888;"><em>${item.why_now}</em></p>` : ''}
+      <a href="${siteOrigin}/admin/content-ideas?type=blog" style="font-size:11px;color:#6B2D8F;font-weight:600;">Draft this post →</a>
     </div>`
 }
 
@@ -228,18 +289,46 @@ export function buildBriefEmail(
   let editorialSections = ''
   if (plan && briefId) {
     const newsletterIntelIds = new Set((plan.newsletter_candidates ?? []).map((c) => c.intel_id))
-    const approveHtml = plan.approve.length
-      ? `${sectionHeader('✅ Approve These', '#2f855a')}${plan.approve
+
+    // Priority sort: newsletter picks first, then urgent (<=48h), then other
+    // deadlined items (earliest first), then the rest in Sonnet's order.
+    const approvePriority = (intelId: string, endDate: string | null | undefined): number => {
+      const isNewsletter = newsletterIntelIds.has(intelId)
+      if (!endDate) return isNewsletter ? 1 : 4
+      const t = new Date(endDate).getTime()
+      if (isNaN(t)) return isNewsletter ? 1 : 4
+      const hoursLeft = (t - Date.now()) / (60 * 60 * 1000)
+      if (isNewsletter) return 0
+      if (hoursLeft > 0 && hoursLeft <= 48) return 2
+      return 3
+    }
+    const sortedApprove = [...plan.approve].sort((a, b) => {
+      const pa = approvePriority(a.intel_id, approveMetaByIntelId[a.intel_id]?.endDate)
+      const pb = approvePriority(b.intel_id, approveMetaByIntelId[b.intel_id]?.endDate)
+      if (pa !== pb) return pa - pb
+      // Within same bucket, sort by end_date ascending (soonest first)
+      const ea = approveMetaByIntelId[a.intel_id]?.endDate
+      const eb = approveMetaByIntelId[b.intel_id]?.endDate
+      if (ea && eb) return new Date(ea).getTime() - new Date(eb).getTime()
+      if (ea) return -1
+      if (eb) return 1
+      return 0
+    })
+
+    const approveHtml = sortedApprove.length
+      ? `${sectionHeader('✅ Approve These', '#2f855a')}${sortedApprove
           .map((a) => {
             const meta = approveMetaByIntelId[a.intel_id] ?? {}
             return approveCard(
               siteOrigin,
-              briefId,
               a,
               {
                 alertId: meta.alertId ?? alertIdByIntelId[a.intel_id],
                 endDate: meta.endDate,
                 programNames: meta.programNames,
+                programs: meta.programs,
+                computedScore: meta.computedScore,
+                factCheck: meta.factCheck,
               },
               newsletterIntelIds.has(a.intel_id)
             )
@@ -249,71 +338,96 @@ export function buildBriefEmail(
 
     const rejectHtml = plan.reject.length
       ? (() => {
-          const rejectAllToken = signBulkActionToken({
-            brief_id: briefId,
-            action: 'reject_all',
-            target_id: 'ALL',
-          })
-          return `${sectionHeader('🗑 Reject Queue', '#b45309')}${plan.reject.map((r) => rejectCard(siteOrigin, briefId, r)).join('')}
-            <div style="text-align:right;margin-top:8px;">
-              ${button(actionUrl(siteOrigin, rejectAllToken), 'Reject All Pending', '#c0392b')}
-            </div>`
+          const COLLAPSE_THRESHOLD = 5
+          const total = plan.reject.length
+          const adminUrl = `${siteOrigin}/admin/alerts?status=pending_review`
+
+          // Group by reason_category for display
+          const byReason = new Map<string, typeof plan.reject>()
+          for (const r of plan.reject) {
+            const list = byReason.get(r.reason_category) ?? []
+            list.push(r)
+            byReason.set(r.reason_category, list)
+          }
+
+          if (total > COLLAPSE_THRESHOLD) {
+            const parts = Array.from(byReason.entries())
+              .map(([cat, items]) => `${items.length} ${REASON_LABELS[cat] ?? cat.replace(/_/g, ' ')}`)
+              .join(', ')
+            return `${sectionHeader('🗑 Reject Queue', '#b45309')}
+              <div style="margin:0 0 20px;padding:12px 16px;background:#fff;border-radius:8px;border-left:3px solid #b45309;">
+                <p style="margin:0 0 6px;font-size:13px;color:#1A1A1A;font-weight:600;">${total} items to clear</p>
+                <p style="margin:0 0 8px;font-size:12px;color:#4A4A4A;line-height:1.5;">${parts}</p>
+                <a href="${adminUrl}" style="font-size:12px;color:#b45309;font-weight:600;">Review in admin →</a>
+              </div>`
+          }
+
+          const orderedReasons = ['duplicate', 'out_of_scope', 'low_quality', 'rumor', 'brand_excluded', 'missing_data']
+          const grouped = orderedReasons
+            .filter((cat) => byReason.has(cat))
+            .map((cat) => {
+              const items = byReason.get(cat)!
+              const label = REASON_LABELS[cat] ?? cat.replace(/_/g, ' ')
+              return `<p style="margin:12px 0 6px;font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:0.4px;">${label} · ${items.length}</p>
+                ${items.map((r) => rejectCard(siteOrigin, r)).join('')}`
+            })
+            .join('')
+
+          return `${sectionHeader('🗑 Reject Queue', '#b45309')}${grouped}`
         })()
       : ''
 
     const slotsHtml = plan.featured_slots.length
-      ? `${sectionHeader('⭐ Featured Deals Recommendations', '#D4AF37')}${plan.featured_slots
+      ? `${sectionHeader('⭐ Homepage Slots', '#D4AF37')}${plan.featured_slots
           .map((s) => {
-            const currentTitle = s.current_alert_id
-              ? recentAlertsById[s.current_alert_id]?.title ?? null
+            const currentMeta = s.current_alert_id
+              ? recentAlertsById[s.current_alert_id] ?? null
               : null
-            const suggestedTitle =
+            const suggestedMeta =
               s.action === 'replace'
-                ? recentAlertsById[s.suggested_alert_id]?.title ?? null
+                ? recentAlertsById[s.suggested_alert_id] ?? null
                 : null
-            return featuredSlotCard(siteOrigin, briefId, s, currentTitle, suggestedTitle)
-          })
-          .join('')}`
-      : ''
-
-    const blogHtml = plan.blog_ideas.length
-      ? `${sectionHeader('✍️ Blog Post Ideas', '#6B2D8F')}${plan.blog_ideas.map(blogIdeaCard).join('')}`
-      : ''
-
-    const newsletterHtml = plan.newsletter_candidates.length
-      ? `${sectionHeader('📧 Newsletter Picks', '#0d1b3e')}${plan.newsletter_candidates
-          .map((c) => {
-            const queueToken = signBulkActionToken({
-              brief_id: briefId,
-              action: 'queue_newsletter',
-              target_id: c.intel_id,
-            })
-            const dismissToken = signBulkActionToken({
-              brief_id: briefId,
-              action: 'dismiss_newsletter',
-              target_id: c.intel_id,
-            })
-            return `
-              <div style="margin-bottom:12px;padding:14px 16px;background:#fff;border-radius:8px;border-left:4px solid #0d1b3e;">
-                <p style="margin:0 0 6px;font-size:14px;font-weight:700;color:#1A1A1A;">${c.headline}</p>
-                <p style="margin:0 0 12px;font-size:13px;line-height:1.5;color:#4A4A4A;">${c.angle}</p>
-                ${button(actionUrl(siteOrigin, queueToken), 'Queue for Newsletter', '#0d1b3e')}
-                ${button(actionUrl(siteOrigin, dismissToken), 'Dismiss', '#6B7280')}
-              </div>`
+            return featuredSlotCard(siteOrigin, s, currentMeta, suggestedMeta)
           })
           .join('')}
           <div style="text-align:right;margin-top:6px;">
-            <a href="${siteOrigin}/admin/content-ideas?type=newsletter" style="font-size:12px;color:#6B2D8F;font-weight:600;">Open newsletter queue →</a>
+            <a href="${siteOrigin}/admin/homepage" style="font-size:12px;color:#6B2D8F;font-weight:600;">Open homepage manager →</a>
           </div>`
       : ''
 
-    const editorialNote = plan.editorial_note
-      ? `<div style="margin:0 0 28px;padding:18px 20px;background:#F8F5FB;border-left:4px solid #6B2D8F;border-radius:8px;">
-          <p style="margin:0;font-size:14px;line-height:1.6;color:#1A1A1A;font-style:italic;">${plan.editorial_note}</p>
+    const sortedBlogIdeas = [...plan.blog_ideas].sort((a, b) => {
+      const aHot = a.priority === 'hot' ? 0 : 1
+      const bHot = b.priority === 'hot' ? 0 : 1
+      return aHot - bHot
+    })
+    const blogHtml = sortedBlogIdeas.length
+      ? `${sectionHeader('✍️ Blog Post Ideas', '#6B2D8F')}${sortedBlogIdeas.map((i) => blogIdeaCard(i, siteOrigin)).join('')}`
+      : ''
+
+    // Newsletter picks are now tagged inline on the approve cards (gold ribbon
+     // + "Newsletter Pick" chip). Approved items auto-queue into admin for
+     // weekly review, so no dedicated section is needed here.
+    const newsletterHint = plan.newsletter_candidates.length
+      ? `<div style="margin:0 0 20px;padding:10px 14px;background:#F8F5FB;border-radius:6px;font-size:12px;color:#4A4A4A;text-align:center;">
+          ${plan.newsletter_candidates.length} of today's approves also tagged for the newsletter —
+          <a href="${siteOrigin}/admin/content-ideas?type=newsletter" style="color:#6B2D8F;font-weight:600;">open the newsletter queue</a>.
         </div>`
       : ''
 
-    editorialSections = `${editorialNote}${approveHtml}${newsletterHtml}${slotsHtml}${blogHtml}${rejectHtml}`
+    // Split editorial note into short paragraphs on sentence boundaries so it
+    // stays scannable even if Sonnet emits one dense blob.
+    const noteSentences = (plan.editorial_note ?? '')
+      .split(/(?<=[.!?])\s+/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+    const editorialNote = noteSentences.length
+      ? `<div style="margin:0 0 28px;padding:18px 20px;background:#F8F5FB;border-left:4px solid #6B2D8F;border-radius:8px;">
+          <p style="margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#6B2D8F;">Why today matters</p>
+          ${noteSentences.map((s) => `<p style="margin:0 0 8px;font-size:15px;line-height:1.55;color:#1A1A1A;">${s}</p>`).join('')}
+        </div>`
+      : ''
+
+    editorialSections = `${editorialNote}${slotsHtml}${approveHtml}${newsletterHint}${blogHtml}${rejectHtml}`
   }
 
   return `
@@ -324,21 +438,30 @@ export function buildBriefEmail(
   <div style="max-width:640px;margin:0 auto;padding:24px 16px;">
 
     <div style="background:linear-gradient(135deg,#0d1b3e 0%,#6B2D8F 100%);border-radius:12px;padding:28px 24px;margin-bottom:24px;">
-      <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.12em;color:#D4AF37;text-transform:uppercase;">Daily Intelligence Brief</p>
-      <h1 style="margin:0 0 4px;font-size:24px;font-weight:700;color:#fff;">crazy4points</h1>
-      <p style="margin:0 0 ${plan ? '12' : '0'}px;font-size:13px;color:rgba(255,255,255,0.7);">${date} · ${findings.length} finding${findings.length !== 1 ? 's' : ''}</p>
+      <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.12em;color:#D4AF37;text-transform:uppercase;">Crazy4Points Daily Brief</p>
+      <h1 style="margin:0 0 10px;font-size:24px;font-weight:700;color:#fff;">${date}</h1>
+      ${plan?.tagline ? `<p style="margin:0 0 14px;font-size:16px;font-weight:600;color:#fff;line-height:1.4;">${plan.tagline}</p>` : ''}
       ${plan ? (() => {
-        const parts: string[] = []
-        if (plan.approve.length) parts.push(`<strong style="color:#fff;">${plan.approve.length}</strong> to approve`)
-        if (plan.newsletter_candidates.length) parts.push(`<strong style="color:#fff;">${plan.newsletter_candidates.length}</strong> newsletter pick${plan.newsletter_candidates.length !== 1 ? 's' : ''}`)
-        const replaceCount = plan.featured_slots.filter((s) => s.action === 'replace').length
-        if (replaceCount) parts.push(`<strong style="color:#fff;">${replaceCount}</strong> slot replacement${replaceCount !== 1 ? 's' : ''}`)
-        if (plan.blog_ideas.length) parts.push(`<strong style="color:#fff;">${plan.blog_ideas.length}</strong> blog idea${plan.blog_ideas.length !== 1 ? 's' : ''}`)
-        if (plan.reject.length) parts.push(`<strong style="color:#fff;">${plan.reject.length}</strong> to reject`)
-        return parts.length
-          ? `<p style="margin:0;font-size:13px;color:rgba(255,255,255,0.75);line-height:1.5;">${parts.join(' · ')}</p>`
+        const radarParts: string[] = []
+        if (plan.top_move && plan.top_move.trim()) {
+          radarParts.push(`🎯 <strong style="color:#fff;">${plan.top_move}</strong>`)
+        }
+        const endDates = Object.values(approveMetaByIntelId)
+          .map((m) => (m.endDate ? new Date(m.endDate) : null))
+          .filter((d): d is Date => d !== null && !isNaN(d.getTime()))
+        const now = Date.now()
+        const weekMs = 7 * 24 * 60 * 60 * 1000
+        const expiringThisWeek = endDates.filter((d) => {
+          const delta = d.getTime() - now
+          return delta > 0 && delta <= weekMs
+        }).length
+        const alreadyExpired = endDates.filter((d) => d.getTime() < now).length
+        if (expiringThisWeek) radarParts.push(`⏰ ${expiringThisWeek} expire${expiringThisWeek !== 1 ? '' : 's'} this week`)
+        if (alreadyExpired) radarParts.push(`⚠ ${alreadyExpired} already expired`)
+        return radarParts.length
+          ? `<p style="margin:0;font-size:13px;color:rgba(255,255,255,0.92);line-height:1.55;">${radarParts.join(' · ')}</p>`
           : ''
-      })() : ''}
+      })() : `<p style="margin:0;font-size:13px;color:rgba(255,255,255,0.7);">${findings.length} finding${findings.length !== 1 ? 's' : ''}</p>`}
     </div>
 
     ${editorialSections}
