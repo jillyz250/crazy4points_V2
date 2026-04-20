@@ -3,7 +3,6 @@ import { Resend } from 'resend'
 import { createAdminClient } from '@/utils/supabase/server'
 import { buildBriefEmail } from '@/utils/ai/briefEmail'
 import type { BriefFinding } from '@/utils/ai/briefEmail'
-import { renderBriefPdf } from '@/utils/ai/briefPdf'
 import {
   generateEditorialPlan,
   type PlanIntelItem,
@@ -403,28 +402,11 @@ export async function GET(req: NextRequest) {
     approveMetaByIntelId,
   })
 
-  // Best-effort PDF archive — failures shouldn't block the email
-  let pdfAttachment: { filename: string; content: Buffer } | null = null
-  try {
-    const pdfBuffer = await renderBriefPdf({
-      date,
-      findingsCount: findings.length,
-      plan: briefId ? plan : null,
-      approveMetaByIntelId,
-      recentAlertsById,
-    })
-    const isoDate = new Date().toISOString().slice(0, 10)
-    pdfAttachment = { filename: `crazy4points-brief-${isoDate}.pdf`, content: pdfBuffer }
-  } catch (err) {
-    console.error('[build-brief] PDF render failed:', err)
-  }
-
   const { error: emailError } = await resend.emails.send({
     from: process.env.RESEND_FROM ?? 'crazy4points <intel@crazy4points.com>',
     to: process.env.BRIEF_RECIPIENT ?? 'jillzeller6@gmail.com',
     subject: `crazy4points Daily Brief — ${date}`,
     html,
-    ...(pdfAttachment ? { attachments: [pdfAttachment] } : {}),
   })
 
   if (emailError) {
