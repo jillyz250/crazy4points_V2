@@ -42,6 +42,8 @@ function isDuplicateOfRecent(f: ScoutFinding, recentItems: RecentIntelItem[]): b
   )
 }
 
+export const maxDuration = 300
+
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
   const manualSecret = req.headers.get('x-intel-secret')
