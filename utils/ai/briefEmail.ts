@@ -138,10 +138,16 @@ function approveCard(
         const bg = wrong ? '#fdecea' : '#fff8e1'
         const color = wrong ? '#7a1f1f' : '#7a5a1f'
         const border = wrong ? '#f5c6cb' : '#fde68a'
+        const toVerify = fc.openClaimCount - fc.likelyWrongCount
         const label = wrong
-          ? `⚠ ${fc.likelyWrongCount} likely wrong · ${fc.openClaimCount} unverified`
-          : `⚠ ${fc.openClaimCount} unverified claim${fc.openClaimCount === 1 ? '' : 's'}`
-        return `<span style="display:inline-block;padding:2px 8px;margin:0 4px 4px 0;background:${bg};color:${color};border:1px solid ${border};border-radius:999px;font-size:11px;font-weight:600;">${label}</span>`
+          ? toVerify > 0
+            ? `⚠ ${fc.likelyWrongCount} likely wrong · ${toVerify} to verify`
+            : `⚠ ${fc.likelyWrongCount} likely wrong`
+          : `⚠ ${fc.openClaimCount} to verify`
+        const chipStyle = `display:inline-block;padding:2px 8px;margin:0 4px 4px 0;background:${bg};color:${color};border:1px solid ${border};border-radius:999px;font-size:11px;font-weight:600;text-decoration:none;`
+        return reviewHref
+          ? `<a href="${reviewHref}#fact-check" style="${chipStyle}">${label}</a>`
+          : `<span style="${chipStyle}">${label}</span>`
       })()
     : ''
 
@@ -315,8 +321,18 @@ export function buildBriefEmail(
       return 0
     })
 
+    const approveLegend = sortedApprove.length
+      ? `<p style="margin:-8px 0 12px;font-size:11px;color:#888;line-height:1.5;">
+          <span style="display:inline-block;width:8px;height:8px;background:#D4AF37;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>gold = newsletter pick
+          &nbsp;·&nbsp;
+          <span style="display:inline-block;width:8px;height:8px;background:#2f855a;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>green = standard approve
+          &nbsp;·&nbsp;
+          <span style="display:inline-block;width:8px;height:8px;background:#d97706;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>amber = under 48h
+        </p>`
+      : ''
+
     const approveHtml = sortedApprove.length
-      ? `${sectionHeader('✅ Approve These', '#2f855a')}${sortedApprove
+      ? `${sectionHeader('✅ Approve These', '#2f855a')}${approveLegend}${sortedApprove
           .map((a) => {
             const meta = approveMetaByIntelId[a.intel_id] ?? {}
             return approveCard(
@@ -442,25 +458,34 @@ export function buildBriefEmail(
       <h1 style="margin:0 0 10px;font-size:24px;font-weight:700;color:#fff;">${date}</h1>
       ${plan?.tagline ? `<p style="margin:0 0 14px;font-size:16px;font-weight:600;color:#fff;line-height:1.4;">${plan.tagline}</p>` : ''}
       ${plan ? (() => {
-        const radarParts: string[] = []
-        if (plan.top_move && plan.top_move.trim()) {
-          radarParts.push(`🎯 <strong style="color:#fff;">${plan.top_move}</strong>`)
-        }
+        const topMoveHtml = plan.top_move && plan.top_move.trim()
+          ? `<p style="margin:0 0 8px;font-size:13px;color:rgba(255,255,255,0.95);line-height:1.5;">🎯 <strong style="color:#fff;">${plan.top_move}</strong></p>`
+          : ''
         const endDates = Object.values(approveMetaByIntelId)
           .map((m) => (m.endDate ? new Date(m.endDate) : null))
           .filter((d): d is Date => d !== null && !isNaN(d.getTime()))
         const now = Date.now()
-        const weekMs = 7 * 24 * 60 * 60 * 1000
-        const expiringThisWeek = endDates.filter((d) => {
+        const dayMs = 24 * 60 * 60 * 1000
+        const in48h = endDates.filter((d) => {
           const delta = d.getTime() - now
-          return delta > 0 && delta <= weekMs
+          return delta > 0 && delta <= 2 * dayMs
         }).length
-        const alreadyExpired = endDates.filter((d) => d.getTime() < now).length
-        if (expiringThisWeek) radarParts.push(`⏰ ${expiringThisWeek} expire${expiringThisWeek !== 1 ? '' : 's'} this week`)
-        if (alreadyExpired) radarParts.push(`⚠ ${alreadyExpired} already expired`)
-        return radarParts.length
-          ? `<p style="margin:0;font-size:13px;color:rgba(255,255,255,0.92);line-height:1.55;">${radarParts.join(' · ')}</p>`
+        const in7d = endDates.filter((d) => {
+          const delta = d.getTime() - now
+          return delta > 2 * dayMs && delta <= 7 * dayMs
+        }).length
+        const in30d = endDates.filter((d) => {
+          const delta = d.getTime() - now
+          return delta > 7 * dayMs && delta <= 30 * dayMs
+        }).length
+        const radarParts: string[] = []
+        if (in48h) radarParts.push(`🔥 ${in48h} in 48h`)
+        if (in7d) radarParts.push(`⏰ ${in7d} this week`)
+        if (in30d) radarParts.push(`📅 ${in30d} this month`)
+        const radarHtml = radarParts.length
+          ? `<p style="margin:0;font-size:12px;color:rgba(255,255,255,0.85);line-height:1.5;">Deadline radar · ${radarParts.join(' · ')}</p>`
           : ''
+        return `${topMoveHtml}${radarHtml}`
       })() : `<p style="margin:0;font-size:13px;color:rgba(255,255,255,0.7);">${findings.length} finding${findings.length !== 1 ? 's' : ''}</p>`}
     </div>
 

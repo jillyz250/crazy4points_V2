@@ -353,9 +353,13 @@ export async function GET(req: NextRequest) {
             console.error('[build-brief] fact-check write failed for alert', alertId, err)
           }
 
-          // Populate the email-chip summary so the daily brief shows "⚠ N
-          // unverified" without needing to open admin first.
-          const openUnsupported = finalClaims.filter((c) => !c.supported && !c.acknowledged)
+          // Populate the email-chip summary. Filter to high-severity only so the
+          // chip flags claims that could actually mislead a reader; low-severity
+          // descriptive color (geography, property counts) and 'unverifiable'
+          // procedural steps stay in the admin view but don't spam the email.
+          const openUnsupported = finalClaims.filter(
+            (c) => !c.supported && !c.acknowledged && c.severity === 'high'
+          )
           const existingMeta = approveMetaByIntelId[intel.id as string] ?? {}
           approveMetaByIntelId[intel.id as string] = {
             ...existingMeta,

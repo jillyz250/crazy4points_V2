@@ -205,6 +205,9 @@ RULES:
 
 REASON FIELD — this is the key change:
 The 'reason' must make an active CASE, not a passive default.
+Each slot's reason MUST stand alone. Do NOT reference other slots ("companion to slot 2",
+"alongside the Hyatt story"). Do NOT reuse rationale from another slot. If two slots share
+a theme, each still explains itself independently.
 
 For KEEP: review today's approved intel and all recent alerts, then justify WHY this deal is still
 stronger than anything new. Name the comparison explicitly.

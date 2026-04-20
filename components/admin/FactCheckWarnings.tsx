@@ -39,7 +39,7 @@ export default function FactCheckWarnings({
   if (unsupported.length === 0) return null
 
   return (
-    <div style={{
+    <div id="fact-check" style={{
       marginTop: '0.625rem',
       padding: '0.625rem 0.75rem',
       background: '#fff8e1',
