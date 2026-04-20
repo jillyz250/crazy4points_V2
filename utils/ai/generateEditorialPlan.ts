@@ -3,7 +3,7 @@
  * for the day's intel brief. Never import from client components.
  */
 import Anthropic from '@anthropic-ai/sdk'
-import { BRAND_VOICE, FEATURED_SLOT_COUNT, FEATURED_SLOT_EXPIRY_WINDOW_DAYS } from './editorialRules'
+import { BRAND_VOICE, FEATURED_SLOT_COUNT } from './editorialRules'
 
 export type RejectReason =
   | 'duplicate'
@@ -29,6 +29,8 @@ export type FeaturedSlot =
     }
 
 export interface EditorialPlan {
+  tagline: string
+  top_move: string
   editorial_note: string
   approve: {
     intel_id: string
@@ -49,6 +51,8 @@ export interface EditorialPlan {
   blog_ideas: {
     title: string
     pitch: string
+    priority: 'hot' | 'evergreen'
+    why_now: string
   }[]
   newsletter_candidates: {
     intel_id: string
@@ -152,10 +156,25 @@ Quality bar (reject with reason_category='low_quality'):
 - Opinion pieces without concrete value
 - Vague "tips" without a specific offer or deadline
 
-Rejection reasons must be short and professional, never snarky. Examples:
-- "Duplicate framing of the Hyatt alert from April 10."
-- "Generic credit-score content, not actionable for our audience."
-- "Opinion piece, no concrete offer or deadline."
+APPROVE copy: the "why_publish" field is ONE short sentence, in the sassy/funny expert-friend voice.
+Lead with the reader value, not the source. Concrete > clever. Match the brand's tone (warm, dry, a
+little cheeky) — not press-release prose.
+Good examples:
+- "Amex is finally admitting 175k was always the offer — get it before they blink."
+- "40% to LifeMiles is the sweet spot for Star Alliance biz — rare and short-lived."
+- "Hyatt's award chart got quietly worse, and this is the polite heads-up."
+Avoid:
+- Hype words like "incredible", "massive", "huge", "don't miss", "unbeatable"
+- Recapping the source ("According to One Mile at a Time…")
+- Vague generics ("Great value for travelers.")
+
+Rejection reasons: short, sassy, fair. One sentence, in-voice (expert-friend, a
+little dry). Never mean, never punching down on the source — critique the content,
+not the author. Examples:
+- "We already said our piece on this Hyatt nerf — duplicate of the April 10 alert."
+- "Generic credit-score content, and our readers are past that chapter."
+- "Opinion piece with no real offer behind it — pass."
+- "Rumor without a second source — file it under maybe-next-week."
 
 ═══════════════════════════════════════════════════════════
 TODAY'S INTEL NOTES
@@ -171,11 +190,32 @@ FEATURED SLOTS
 
 You MUST return exactly ${FEATURED_SLOT_COUNT} entries, one per slot (1, 2, 3, 4).
 
-For each slot:
-- If current alert is expired OR end_date is within ${FEATURED_SLOT_EXPIRY_WINDOW_DAYS} days → lean toward 'replace'
-- 'replace' is only valid if you can name a suggested_alert_id FROM THE RECENT ALERTS LIST
-- If no strong replacement exists, use 'keep' — never leave a slot empty
-- If current_alert_id is null (empty slot), 'replace' with a strong recent alert
+Homepage slots are the 4 MOST IMPORTANT actionable alerts the site's reader sees first.
+The bar is high: they should be the best-in-class deals currently live.
+
+RULES:
+- REPLACE ONLY IF the current alert is EXPIRED (end_date is in the past) OR the slot is EMPTY
+  (current_alert_id is null).
+- Do NOT replace just because end_date is approaching. "Ends in 3 days" is a feature, not a flaw —
+  urgency is what a featured slot is FOR.
+- When replacing, suggested_alert_id MUST come from the RECENT ALERTS list.
+- If the slot is expired/empty AND no strong replacement exists, use 'keep' with the current alert
+  (even if expired) and explain why — prefer marking it stale to leaving a slot invisible.
+- Otherwise → KEEP.
+
+REASON FIELD — this is the key change:
+The 'reason' must make an active CASE, not a passive default.
+
+For KEEP: review today's approved intel and all recent alerts, then justify WHY this deal is still
+stronger than anything new. Name the comparison explicitly.
+Good: "Still the strongest Hyatt play live. Today's 40% Marriott bonus is close, but Marriott lacks
+       Hyatt's award-chart value."
+Bad:  "Still performing well." "No better option."
+
+For REPLACE: justify why the incoming alert deserves a top-4 slot AND why the outgoing one is done.
+Good: "Current is expired (ended Apr 18). Incoming Amex 175k Platinum is the highest sign-up bonus
+       of the year — a clear #1 slot."
+Bad:  "Expired, replacing." "Newer is better."
 
 ═══════════════════════════════════════════════════════════
 NEWSLETTER CANDIDATES
@@ -195,18 +235,68 @@ BLOG IDEAS
 
 Produce exactly 2–3 items.
 
-These are EVERGREEN angles inspired by today's intel — not news recaps.
+Angles are inspired by today's intel but should stand on their own — no news recaps.
 Good angles: "How to maximize the Chase→Hyatt sweet spots in 2026",
             "Why an Alaska MVP status run still pencils out",
             "The 5 under-the-radar Aeroplan partners most people miss".
 Avoid: news recaps, "top 10" clickbait, anything tied to a deal that expires.
 
+FIELDS per blog idea:
+- title: sassy, specific, under 70 chars. Match brand voice (funny + expert-friend). No clickbait.
+  Good: "The Aeroplan partners nobody talks about but should"
+  Bad:  "Top 10 travel tips you need to know" / "Understanding Aeroplan partners"
+- pitch: 1–2 SHORT sentences. Hook the reader, don't summarize the article. Full draft happens
+  in admin. Sassy tone, same rules as why_publish.
+- priority: 'hot' | 'evergreen'
+  - 'hot' = directly tied to today's intel pattern or trending signal; rank up
+  - 'evergreen' = standalone angle that's always relevant; rank lower
+  At most ONE idea per brief should be 'hot'. Prefer evergreen if nothing truly hot surfaces.
+- why_now: one short sentence — WHY this ranks now. For hot, tie to today's intel. For evergreen,
+  tie to a recurring reader pain point.
+  Good (hot):       "Three separate Aeroplan bonuses surfaced today — reader search volume is up."
+  Good (evergreen): "Every week a new subscriber asks about Hyatt sweet spots."
+
 ═══════════════════════════════════════════════════════════
-EDITORIAL NOTE (TOP OF BRIEF)
+TAGLINE (header line, one per day)
 ═══════════════════════════════════════════════════════════
 
-One or two punchy sentences summarizing the day's signal. What's the standout? What should the owner
-care about before anything else? Written in-voice.
+A short, sassy, FUNNY header line that always starts with "Crazy time."
+Address the reader as "Jill" when it adds personality.
+Use "Crazy4Points" (capital C and P) if you name the brand — never "crazy4points" or "Crazy4points".
+8–14 words max. Must be on-voice (sassy + funny, expert-friend, never mean, never obnoxious).
+
+Examples of the tone target:
+- "Crazy time, Jill. Amex is flinging points around like confetti again."
+- "Crazy time. Three deals expire before Friday. Caffeinate and triage."
+- "Crazy time. The airlines blinked first — cheap awards are back."
+
+If the day is quiet, still start with "Crazy time." but lean into the slow-news energy.
+- "Crazy time, Jill. A suspiciously quiet Monday. Nap, then newsletter."
+
+═══════════════════════════════════════════════════════════
+TOP MOVE (the single most important action)
+═══════════════════════════════════════════════════════════
+
+One short sentence. The ONE thing the owner should do first after reading. Start with a verb.
+Pulled from the day's approve list — reference a real program/offer so it's actionable.
+
+Good:
+- "Queue the Amex Platinum 175k offer — expires Friday."
+- "Publish the United→Marriott bonus before the weekend rush."
+- "Skip straight to the newsletter queue — today's approve list is light."
+
+Bad (too vague): "Review today's items." "Clear the queue."
+
+═══════════════════════════════════════════════════════════
+EDITORIAL NOTE (below the header)
+═══════════════════════════════════════════════════════════
+
+3–4 SHORT sentences. Scannable — NOT one long paragraph. Each sentence stands on its own.
+Lead with the punchline (the standout theme of the day), then 1–2 sentences of supporting context,
+then optionally a closer (what to watch tomorrow, or a wink).
+Written in-voice (sassy + funny, expert-friend). Address Jill directly when it adds warmth.
+Do NOT use italics, markdown, or emoji in the prose — plain text only.
+Do NOT recap every item — pick the theme.
 If the day is quiet, say so honestly — don't invent urgency.
 
 ═══════════════════════════════════════════════════════════
@@ -226,7 +316,9 @@ SCHEMA (output must validate against this)
 ═══════════════════════════════════════════════════════════
 
 {
-  "editorial_note": "<1–2 sentences, in-voice>",
+  "tagline": "<sassy one-liner starting with 'Crazy time.' — 8-14 words, may address Jill, may mention Crazy4Points>",
+  "top_move": "<one short sentence, starts with a verb, names a real offer/program>",
+  "editorial_note": "<3–4 short sentences, plain text, scannable, on-voice>",
   "approve": [
     { "intel_id": "<uuid>", "headline": "<cleaned headline>", "why_publish": "<1 sentence>" }
   ],
@@ -247,7 +339,12 @@ SCHEMA (output must validate against this)
     { "slot": 2, "action": "replace", "current_alert_id": "<uuid or null>", "suggested_alert_id": "<uuid from RECENT ALERTS>", "reason": "<1 sentence>" }
   ],
   "blog_ideas": [
-    { "title": "<post title>", "pitch": "<2–3 sentences: angle + why it ranks>" }
+    {
+      "title": "<sassy post title, under 70 chars>",
+      "pitch": "<1–2 short sentences, sassy hook>",
+      "priority": "hot" | "evergreen",
+      "why_now": "<one short sentence on why this ranks now>"
+    }
   ],
   "newsletter_candidates": [
     { "intel_id": "<uuid from approve list>", "headline": "<headline>", "angle": "<1 sentence>" }
@@ -270,6 +367,10 @@ function extractJson(text: string): string {
 function validatePlan(plan: unknown, input: GenerateEditorialPlanInput): EditorialPlan {
   const p = plan as EditorialPlan
   if (!p || typeof p !== 'object') throw new Error('Plan is not an object')
+  if (typeof p.tagline !== 'string' || p.tagline.trim().length === 0) {
+    p.tagline = 'Crazy time, Jill. Brief incoming.'
+  }
+  if (typeof p.top_move !== 'string') p.top_move = ''
   if (typeof p.editorial_note !== 'string') throw new Error('Missing editorial_note')
   if (!Array.isArray(p.approve)) throw new Error('Missing approve[]')
   if (!Array.isArray(p.reject)) throw new Error('Missing reject[]')

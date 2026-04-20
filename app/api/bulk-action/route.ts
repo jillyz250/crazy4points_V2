@@ -94,8 +94,8 @@ export async function GET(req: NextRequest) {
     return errorPage(`This link has expired. One-click actions are valid for ${TOKEN_TTL_HOURS} hours.`, 410)
   }
 
-  // Replay protection — reject_all is idempotent-ish so allow re-run
-  if (payload.action !== 'reject_all') {
+  // Replay protection
+  {
     if (await alreadyProcessed(supabase, payload.brief_id, payload.action, payload.target_id)) {
       return okPage('Already done', 'This action was already applied from a previous click.')
     }
@@ -125,10 +125,17 @@ export async function GET(req: NextRequest) {
     }
 
     if (payload.action === 'reject') {
+      // Always stamp the intel item as rejected so it doesn't re-surface
+      // tomorrow, even if no alert was ever staged (medium/low confidence).
+      await supabase
+        .from('intel_items')
+        .update({ rejected_at: new Date().toISOString() })
+        .eq('id', payload.target_id)
+
       const alert = await findPendingAlertByIntelId(supabase, payload.target_id)
       if (!alert) {
-        await logAction(supabase, payload.brief_id, { ...payload, result: 'noop', message: 'No linked alert' })
-        return okPage('Nothing to reject', 'No pending alert was linked to that intel.')
+        await logAction(supabase, payload.brief_id, { ...payload, result: 'ok', message: 'intel marked rejected (no linked alert)' })
+        return okPage('Rejected', 'This intel is marked rejected and will not re-surface.')
       }
       if (alert.status !== 'pending_review') {
         await logAction(supabase, payload.brief_id, { ...payload, result: 'noop', message: `status=${alert.status}` })
@@ -139,22 +146,7 @@ export async function GET(req: NextRequest) {
       return okPage('Rejected', 'The alert has been rejected and will not be published.')
     }
 
-    if (payload.action === 'reject_all') {
-      const { data: pending } = await supabase
-        .from('alerts')
-        .select('id, source_intel_id')
-        .eq('status', 'pending_review')
-
-      let count = 0
-      for (const a of pending ?? []) {
-        await updateAlert(supabase, a.id, { status: 'rejected' })
-        count++
-      }
-      await logAction(supabase, payload.brief_id, { ...payload, result: 'ok', message: `rejected ${count}` })
-      return okPage('Queue cleared', `Rejected ${count} pending alert${count === 1 ? '' : 's'}.`)
-    }
-
-    if (payload.action === 'queue_newsletter' || payload.action === 'dismiss_newsletter') {
+if (payload.action === 'queue_newsletter' || payload.action === 'dismiss_newsletter') {
       const nextStatus = payload.action === 'queue_newsletter' ? 'queued' : 'dismissed'
       const { data: idea, error: ideaErr } = await supabase
         .from('content_ideas')

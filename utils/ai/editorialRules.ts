@@ -37,4 +37,3 @@ OFF-LIMITS:
 • Anything that sounds mean, preachy, or smug`
 
 export const FEATURED_SLOT_COUNT = 4
-export const FEATURED_SLOT_EXPIRY_WINDOW_DAYS = 3

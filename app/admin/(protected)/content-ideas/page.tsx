@@ -18,6 +18,10 @@ interface ContentIdeaRow {
   notes: string | null
   created_at: string
   updated_at: string
+  source_alert?: {
+    end_date: string | null
+    computed_score: number | null
+  } | null
 }
 
 const STATUS_COLORS: Record<IdeaStatus, { bg: string; fg: string; label: string }> = {
@@ -46,7 +50,7 @@ export default async function ContentIdeasPage({
 
   let query = supabase
     .from('content_ideas')
-    .select('*')
+    .select('*, source_alert:alerts!source_alert_id(end_date, computed_score)')
     .order('created_at', { ascending: false })
 
   if (typeFilter === 'newsletter' || typeFilter === 'blog') {
@@ -62,8 +66,33 @@ export default async function ContentIdeasPage({
   if (error) throw error
   const ideas = (data ?? []) as ContentIdeaRow[]
 
-  const newsletter = ideas.filter((i) => i.type === 'newsletter')
-  const blog = ideas.filter((i) => i.type === 'blog')
+  // Priority rank: urgent deadlines first, then highest score, then newest.
+  // Expired/no-date fall to the bottom of their status bucket.
+  const now = Date.now()
+  const rankScore = (i: ContentIdeaRow): number => {
+    const end = i.source_alert?.end_date ? new Date(i.source_alert.end_date).getTime() : null
+    if (end !== null && !isNaN(end)) {
+      const hoursLeft = (end - now) / (60 * 60 * 1000)
+      if (hoursLeft > 0 && hoursLeft <= 48) return 0 // urgent
+      if (hoursLeft > 48 && hoursLeft <= 24 * 7) return 1 // this week
+      if (hoursLeft > 24 * 7) return 2 // later
+      return 4 // expired
+    }
+    return 3 // no deadline
+  }
+  const sortIdeas = (list: ContentIdeaRow[]) =>
+    [...list].sort((a, b) => {
+      const ra = rankScore(a)
+      const rb = rankScore(b)
+      if (ra !== rb) return ra - rb
+      const sa = a.source_alert?.computed_score ?? -Infinity
+      const sb = b.source_alert?.computed_score ?? -Infinity
+      if (sa !== sb) return sb - sa
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    })
+
+  const newsletter = sortIdeas(ideas.filter((i) => i.type === 'newsletter'))
+  const blog = sortIdeas(ideas.filter((i) => i.type === 'blog'))
 
   return (
     <div>
@@ -129,9 +158,23 @@ function IdeaSection({ title, ideas }: { title: string; ideas: ContentIdeaRow[] 
   )
 }
 
+function rankLabel(idea: ContentIdeaRow): { label: string; bg: string; fg: string } | null {
+  const end = idea.source_alert?.end_date ? new Date(idea.source_alert.end_date) : null
+  if (end && !isNaN(end.getTime())) {
+    const hoursLeft = (end.getTime() - Date.now()) / (60 * 60 * 1000)
+    if (hoursLeft < 0) return { label: 'Expired', bg: '#fee2e2', fg: '#991b1b' }
+    if (hoursLeft <= 48) return { label: `⏰ Ends ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`, bg: '#fef3c7', fg: '#92400e' }
+    if (hoursLeft <= 24 * 7) return { label: `Ends ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`, bg: '#f3f4f6', fg: '#4a4a4a' }
+    return { label: `Ends ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`, bg: '#f3f4f6', fg: '#6b7280' }
+  }
+  return null
+}
+
 function IdeaCard({ idea }: { idea: ContentIdeaRow }) {
   const color = STATUS_COLORS[idea.status]
   const actions = NEXT_STATUS[idea.status] ?? []
+  const rank = rankLabel(idea)
+  const score = idea.source_alert?.computed_score
   return (
     <div
       style={{
@@ -161,6 +204,43 @@ function IdeaCard({ idea }: { idea: ContentIdeaRow }) {
           {color.label}
         </span>
       </div>
+
+      {(rank || typeof score === 'number') && (
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.625rem' }}>
+          {rank && (
+            <span
+              style={{
+                padding: '0.125rem 0.5rem',
+                borderRadius: '999px',
+                background: rank.bg,
+                color: rank.fg,
+                fontSize: '0.6875rem',
+                fontWeight: 700,
+                fontFamily: 'var(--font-ui)',
+              }}
+            >
+              {rank.label}
+            </span>
+          )}
+          {typeof score === 'number' && !isNaN(score) && (
+            <span
+              style={{
+                padding: '0.125rem 0.5rem',
+                borderRadius: '999px',
+                background: '#F8F5FB',
+                color: '#6B2D8F',
+                fontSize: '0.6875rem',
+                fontWeight: 700,
+                fontFamily: 'var(--font-ui)',
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+              }}
+            >
+              Score {score.toFixed(1)}
+            </span>
+          )}
+        </div>
+      )}
 
       <p style={{ margin: '0 0 0.75rem', color: 'var(--color-text-secondary)', fontSize: '0.9375rem', lineHeight: 1.5 }}>
         {idea.pitch}
