@@ -225,24 +225,34 @@ function featuredSlotCard(
   currentMeta: RecentAlertCtx | null,
   suggestedMeta: RecentAlertCtx | null
 ): string {
-  void origin // feature_replace action removed; origin retained for future wiring
   if (slot.action === 'keep') {
+    // Condensed: KEEP slots are quiet context. One tight card, muted reason.
     return `
-      <div style="margin-bottom:10px;padding:12px 16px;background:#fff;border-radius:8px;border-left:4px solid #888;">
-        <p style="margin:0;font-size:12px;font-weight:700;color:#4A4A4A;text-transform:uppercase;letter-spacing:0.05em;">Slot ${slot.slot} · Keep</p>
-        <p style="margin:4px 0 2px;font-size:13px;font-weight:600;color:#1A1A1A;">${currentMeta?.title ?? '<em>empty</em>'}</p>
-        ${alertMetaLine(currentMeta)}
-        <p style="margin:8px 0 0;font-size:12px;line-height:1.5;color:#4A4A4A;">${slot.reason}</p>
+      <div style="margin-bottom:6px;padding:8px 12px;background:#fff;border-radius:6px;border-left:3px solid #D4D4D4;">
+        <p style="margin:0;font-size:13px;line-height:1.4;color:#1A1A1A;">
+          <span style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.05em;">Slot ${slot.slot} · Keep</span>
+          <span style="color:#888;">&nbsp;·&nbsp;</span>
+          <span style="font-weight:600;">${currentMeta?.title ?? '<em style="color:#888;">empty</em>'}</span>
+        </p>
+        <p style="margin:4px 0 0;font-size:11px;line-height:1.4;color:#888;">${slot.reason}</p>
       </div>`
   }
+  // Loud: REPLACE cards demand attention. Gold tint, bigger type, explicit
+  // Why-change block, and a Review button that opens the manual manager.
   return `
-    <div style="margin-bottom:10px;padding:12px 16px;background:#fff;border-radius:8px;border-left:4px solid #6B2D8F;">
-      <p style="margin:0;font-size:12px;font-weight:700;color:#6B2D8F;text-transform:uppercase;letter-spacing:0.05em;">Slot ${slot.slot} · Replace</p>
-      <p style="margin:6px 0 2px;font-size:12px;color:#888;"><s>${currentMeta?.title ?? 'empty'}</s></p>
+    <div style="margin:14px 0;padding:16px 18px;background:#FFF9E6;border-radius:10px;border:2px solid #D4AF37;">
+      <p style="margin:0 0 10px;font-size:13px;font-weight:800;color:#8A6D00;text-transform:uppercase;letter-spacing:0.08em;">🔄 Slot ${slot.slot} · Replace Requested</p>
+      <p style="margin:0 0 2px;font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.05em;">Currently featured</p>
+      <p style="margin:0 0 4px;font-size:13px;color:#888;"><s>${currentMeta?.title ?? 'empty'}</s></p>
       ${currentMeta ? alertMetaLine(currentMeta) : ''}
-      <p style="margin:10px 0 2px;font-size:14px;font-weight:700;color:#1A1A1A;">→ ${suggestedMeta?.title ?? slot.suggested_alert_id}</p>
+      <p style="margin:12px 0 2px;font-size:11px;color:#6B2D8F;text-transform:uppercase;letter-spacing:0.05em;font-weight:700;">Suggested replacement</p>
+      <p style="margin:0 0 4px;font-size:15px;font-weight:700;color:#1A1A1A;line-height:1.35;">${suggestedMeta?.title ?? slot.suggested_alert_id}</p>
       ${suggestedMeta ? alertMetaLine(suggestedMeta) : ''}
-      <p style="margin:10px 0 0;font-size:12px;line-height:1.5;color:#4A4A4A;">${slot.reason}</p>
+      <div style="margin:12px 0 10px;padding:10px 12px;background:#fff;border-radius:6px;border-left:3px solid #6B2D8F;">
+        <p style="margin:0 0 4px;font-size:10px;font-weight:700;color:#6B2D8F;text-transform:uppercase;letter-spacing:0.08em;">Why change</p>
+        <p style="margin:0;font-size:13px;line-height:1.5;color:#1A1A1A;">${slot.reason}</p>
+      </div>
+      <a href="${origin}/admin/homepage" style="display:inline-block;padding:8px 14px;background:#6B2D8F;color:#fff;font-size:12px;font-weight:700;text-decoration:none;border-radius:6px;">Review in Homepage Manager →</a>
     </div>`
 }
 
@@ -478,6 +488,10 @@ export function buildBriefEmail(
           const delta = d.getTime() - now
           return delta > 7 * dayMs && delta <= 30 * dayMs
         }).length
+        const in60d = endDates.filter((d) => {
+          const delta = d.getTime() - now
+          return delta > 30 * dayMs && delta <= 60 * dayMs
+        }).length
         const radarParts: string[] = []
         const addRadarPart = (count: number, window: string) => {
           if (!count) return
@@ -490,10 +504,10 @@ export function buildBriefEmail(
         addRadarPart(in48h, 'inside 48 hours')
         addRadarPart(in7d, 'this week')
         addRadarPart(in30d, 'within 30 days')
-        // Only surface the radar when deadline volume is worth flagging:
-        // any 48h expiry, 2+ this week, or 3+ total across windows.
-        const showRadar = in48h >= 1 || in7d >= 2 || in48h + in7d + in30d >= 3
-        const radarHtml = showRadar && radarParts.length
+        addRadarPart(in60d, 'within 2 months')
+        // Show the radar whenever any upcoming deadline exists. Prioritizes
+        // early visibility over terseness — Jill wants to queue proactively.
+        const radarHtml = radarParts.length
           ? `<p style="margin:0;font-size:12px;color:rgba(255,255,255,0.85);line-height:1.5;">${radarParts.join(', ')}.</p>`
           : ''
 
