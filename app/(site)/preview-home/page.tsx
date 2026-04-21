@@ -56,8 +56,8 @@ export default async function PreviewHomePage() {
       <div className="bg-yellow-100 px-4 py-2 text-center font-ui text-xs uppercase tracking-widest text-yellow-900">
         Preview route — not linked from site navigation
       </div>
-      <HomeHeroV2 lastUpdated={lastUpdated} />
       <RedAlertBar alerts={redAlerts} />
+      <HomeHeroV2 lastUpdated={lastUpdated} />
     </>
   );
 }
