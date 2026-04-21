@@ -34,7 +34,7 @@ export default function HomeHeroV2({ lastUpdated }: Props) {
             href="/alerts"
             className="mt-2 inline-flex items-center rounded-md bg-[var(--color-accent)] px-7 py-3.5 font-ui text-sm font-semibold uppercase tracking-[0.1em] text-[var(--color-primary)] shadow-sm transition hover:bg-[#c49f2f] hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)]"
           >
-            See Today&rsquo;s Alerts →
+            Start here →
           </Link>
 
           {timestamp && (
