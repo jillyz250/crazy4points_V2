@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/utils/supabase/server'
-import { updateAlert, incrementSourceApproved, upsertHomepageSlot } from '@/utils/supabase/queries'
+import { updateAlert, incrementSourceApproved } from '@/utils/supabase/queries'
 import { verifyBulkActionToken, type BulkActionKind } from '@/utils/ai/bulkActionToken'
 
 const TOKEN_TTL_HOURS = 48
@@ -42,7 +42,7 @@ async function findPendingAlertByIntelId(supabase: ReturnType<typeof createAdmin
 async function logAction(
   supabase: ReturnType<typeof createAdminClient>,
   briefId: string,
-  entry: { action: BulkActionKind; target_id: string; slot?: number; result: 'ok' | 'noop' | 'error'; message?: string }
+  entry: { action: BulkActionKind; target_id: string; result: 'ok' | 'noop' | 'error'; message?: string }
 ) {
   const { data: brief } = await supabase
     .from('daily_briefs')
@@ -172,13 +172,6 @@ if (payload.action === 'queue_newsletter' || payload.action === 'dismiss_newslet
           ? 'Added to the newsletter queue. Manage it in Content Ideas.'
           : 'Dismissed from the newsletter queue.'
       )
-    }
-
-    if (payload.action === 'feature_replace') {
-      if (!payload.slot) return errorPage('Missing slot number.', 400)
-      await upsertHomepageSlot(supabase, payload.slot, payload.target_id)
-      await logAction(supabase, payload.brief_id, { ...payload, result: 'ok' })
-      return okPage('Featured slot updated', `Slot ${payload.slot} now features the selected alert.`)
     }
 
     return errorPage('Unknown action.', 400)

@@ -35,5 +35,3 @@ OFF-LIMITS:
 • "Savvy travelers" / "insider" / "hack" / "game-changer" / "must-know"
 • Anything that sounds like a press release
 • Anything that sounds mean, preachy, or smug`
-
-export const FEATURED_SLOT_COUNT = 4

@@ -6,8 +6,6 @@ import type { BriefFinding } from '@/utils/ai/briefEmail'
 import {
   generateEditorialPlan,
   type PlanIntelItem,
-  type PlanRecentAlert,
-  type PlanHomepageSlot,
 } from '@/utils/ai/generateEditorialPlan'
 import { writeAlertDraft, type WriteDraftProgram } from '@/utils/ai/writeAlertDraft'
 import { verifyAlertDraft, webVerifyClaims, highSeverityUnsupported } from '@/utils/ai/verifyAlertDraft'
@@ -32,7 +30,7 @@ export async function GET(req: NextRequest) {
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
   const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
 
-  const [intelRes, recentRes, slotsRes, programsRes] = await Promise.all([
+  const [intelRes, recentRes, programsRes] = await Promise.all([
     supabase
       .from('intel_items')
       .select('id, headline, raw_text, source_name, source_url, confidence, alert_type, programs, expires_at')
@@ -42,14 +40,11 @@ export async function GET(req: NextRequest) {
       .order('created_at', { ascending: false }),
     supabase
       .from('alerts')
-      .select('id, title, summary, type, primary_program_id, published_at, end_date, alert_programs(program_id)')
+      .select('id, title, summary, published_at')
       .eq('status', 'published')
       .gte('published_at', since30d)
-      .order('published_at', { ascending: false }),
-    supabase
-      .from('homepage_slots')
-      .select('slot_number, alert_id, alerts(id, title, end_date)')
-      .order('slot_number', { ascending: true }),
+      .order('published_at', { ascending: false })
+      .limit(3),
     supabase.from('programs').select('id, slug, name, type'),
   ])
 
@@ -61,10 +56,6 @@ export async function GET(req: NextRequest) {
     console.error('[build-brief] recent alerts fetch failed:', recentRes.error)
     return NextResponse.json({ error: 'DB error (alerts)' }, { status: 500 })
   }
-  if (slotsRes.error) {
-    console.error('[build-brief] homepage_slots fetch failed:', slotsRes.error)
-    return NextResponse.json({ error: 'DB error (slots)' }, { status: 500 })
-  }
   if (programsRes.error) {
     console.error('[build-brief] programs fetch failed:', programsRes.error)
     return NextResponse.json({ error: 'DB error (programs)' }, { status: 500 })
@@ -72,7 +63,6 @@ export async function GET(req: NextRequest) {
 
   const allItems = intelRes.data ?? []
   const recentAlertRows = recentRes.data ?? []
-  const slots = slotsRes.data ?? []
 
   // Filter out intel items whose deal has already expired — they shouldn't
   // clutter the Scout brief or get approved. The program archive page is the
@@ -114,68 +104,6 @@ export async function GET(req: NextRequest) {
     raw_text: r.raw_text,
   }))
 
-  const recentAlerts: PlanRecentAlert[] = recentAlertRows.map((r) => {
-    const programIds = [
-      ...(r.primary_program_id ? [r.primary_program_id as string] : []),
-      ...((r.alert_programs ?? []) as { program_id: string }[]).map((ap) => ap.program_id),
-    ]
-    return {
-      id: r.id as string,
-      title: r.title as string,
-      type: r.type as string,
-      programs: Array.from(new Set(programIds)),
-      published_at: r.published_at as string | null,
-      end_date: r.end_date as string | null,
-    }
-  })
-
-  // Program-by-id lookup so featured-slot cards can show program names alongside
-  // titles. Built from the already-fetched programs list.
-  const programByIdMap = new Map<string, { name: string; slug: string }>()
-  for (const p of (programsRes.data ?? []) as { id: string; name: string; slug: string }[]) {
-    programByIdMap.set(p.id, { name: p.name, slug: p.slug })
-  }
-
-  const recentAlertsById: Record<string, { id: string; title: string; type: string; end_date: string | null; programs: { name: string; slug: string }[] }> = {}
-  for (const a of recentAlerts) {
-    recentAlertsById[a.id] = {
-      id: a.id,
-      title: a.title,
-      type: a.type,
-      end_date: a.end_date,
-      programs: a.programs
-        .map((id) => programByIdMap.get(id))
-        .filter((p): p is { name: string; slug: string } => !!p),
-    }
-  }
-
-  const homepageSlots: PlanHomepageSlot[] = [1, 2, 3, 4].map((n) => {
-    const row = slots.find((s) => s.slot_number === n)
-    const joinedRaw = row?.alerts as unknown
-    const joined = Array.isArray(joinedRaw)
-      ? ((joinedRaw[0] as { id: string; title: string; end_date: string | null } | undefined) ?? null)
-      : ((joinedRaw as { id: string; title: string; end_date: string | null } | null) ?? null)
-    return {
-      slot: n as 1 | 2 | 3 | 4,
-      current_alert_id: (row?.alert_id as string | null) ?? null,
-      current_title: joined?.title ?? null,
-      end_date: joined?.end_date ?? null,
-    }
-  })
-
-  // Also include current slot alerts in the lookup map so the email can show titles
-  for (const s of homepageSlots) {
-    if (s.current_alert_id && !recentAlertsById[s.current_alert_id]) {
-      recentAlertsById[s.current_alert_id] = {
-        id: s.current_alert_id,
-        title: s.current_title ?? '(untitled)',
-        type: 'unknown',
-        end_date: s.end_date,
-        programs: [],
-      }
-    }
-  }
-
   // Voice samples — recently published alerts Sonnet should match in tone
   const voiceSamples = recentAlertRows.slice(0, 3).map((r) => ({
     title: (r.title as string) ?? '',
@@ -185,8 +113,6 @@ export async function GET(req: NextRequest) {
   // Call Sonnet (best-effort — if it fails, fall back to the old layout)
   const plan = await generateEditorialPlan({
     today_intel: todayIntel,
-    recent_alerts: recentAlerts,
-    homepage_slots: homepageSlots,
     voice_samples: voiceSamples,
   })
 
@@ -447,7 +373,6 @@ export async function GET(req: NextRequest) {
     plan: briefId ? plan : null,
     briefId,
     siteOrigin: 'https://crazy4points.com',
-    recentAlertsById,
     alertIdByIntelId,
     approveMetaByIntelId,
   })
