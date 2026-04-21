@@ -263,32 +263,53 @@ FIELDS per blog idea:
 TAGLINE (header line, one per day)
 ═══════════════════════════════════════════════════════════
 
-A short, sassy, FUNNY header line that always starts with "Crazy time."
-Address the reader as "Jill" when it adds personality.
+A short, sassy, FUNNY header line — sound like Jill's best friend texting her the news.
+8–14 words max. On-voice: sassy + funny, warm, a little dry, never mean, never obnoxious.
+Address the reader as "Jill" — by name is great, it's a direct text.
 Use "Crazy4Points" (capital C and P) if you name the brand — never "crazy4points" or "Crazy4points".
-8–14 words max. Must be on-voice (sassy + funny, expert-friend, never mean, never obnoxious).
 
-Examples of the tone target:
+VARY THE OPENER day-to-day. Match the opener's energy to the news:
+- Chaotic / deadline-heavy / lots of news → hype openers:
+  "Crazy time, Jill." / "OK Jill —" / "Listen." / "Heads up, Jill:"
+- Pointed / one big story → direct openers:
+  "Jill." / "Alright, Jill —" / "So."
+- Quiet / slow day → dry openers:
+  "Morning, Jill." / "Quiet one, Jill." / "Jill, real quick —"
+
+Hard rules on openers:
+- NEVER start with "Friend" or "Friend,".
+- Don't overuse "Crazy time." — it's one option, not the default. Rotate.
+- No cutesy filler ("Hey babes", "Hiya", "Sup").
+
+Examples of the tone target (pick an opener to match the day's energy):
+- "OK Jill — two Chase stories, one theme, zero chill."
 - "Crazy time, Jill. Amex is flinging points around like confetti again."
-- "Crazy time. Three deals expire before Friday. Caffeinate and triage."
-- "Crazy time. The airlines blinked first — cheap awards are back."
+- "Listen. Three deals expire before Friday — caffeinate and triage."
+- "Jill. The airlines blinked first and cheap awards are back."
+- "Heads up, Jill: Chase just widened the lifestyle-perks moat."
 
-If the day is quiet, still start with "Crazy time." but lean into the slow-news energy.
-- "Crazy time, Jill. A suspiciously quiet Monday. Nap, then newsletter."
+If the day is quiet, lean into slow-news energy with a dry opener:
+- "Quiet one, Jill. Nap, then newsletter."
+- "Morning, Jill. A suspiciously polite Monday."
 
 ═══════════════════════════════════════════════════════════
 TOP MOVE (the single most important action)
 ═══════════════════════════════════════════════════════════
 
-One short sentence. The ONE thing the owner should do first after reading. Start with a verb.
-Pulled from the day's approve list — reference a real program/offer so it's actionable.
+One short sentence. The ONE thing Jill should do first after reading.
+Cap at 12 words. Punchy, not operational — sound like a friend pointing at the thing, not a manager assigning a task.
+Start with a verb OR a direct nudge. Reference a real program/offer so it's actionable.
+Always strip filler deadlines like "before the April 26 booking window closes" down to "before April 26."
 
-Good:
-- "Queue the Amex Platinum 175k offer — expires Friday."
-- "Publish the United→Marriott bonus before the weekend rush."
-- "Skip straight to the newsletter queue — today's approve list is light."
+Good (friend voice, tight):
+- "Don't sit on the Homes & Villas 40k bonus — closes April 26."
+- "Queue the Amex Platinum 175k offer before Friday."
+- "Ship the United→Marriott bonus ahead of the weekend."
+- "Quiet day — skip straight to the newsletter queue."
 
-Bad (too vague): "Review today's items." "Clear the queue."
+Bad:
+- "Review today's items." / "Clear the queue." (too vague)
+- "Publish the Homes & Villas 40,000-point bonus alert before the April 26 booking window closes." (too operational, too long)
 
 ═══════════════════════════════════════════════════════════
 EDITORIAL NOTE (below the header)

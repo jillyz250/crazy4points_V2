@@ -459,7 +459,7 @@ export function buildBriefEmail(
       ${plan?.tagline ? `<p style="margin:0 0 14px;font-size:16px;font-weight:600;color:#fff;line-height:1.4;">${plan.tagline}</p>` : ''}
       ${plan ? (() => {
         const topMoveHtml = plan.top_move && plan.top_move.trim()
-          ? `<p style="margin:0 0 8px;font-size:13px;color:rgba(255,255,255,0.95);line-height:1.5;">🎯 <strong style="color:#fff;">${plan.top_move}</strong></p>`
+          ? `<p style="margin:0 0 8px;font-size:13px;color:rgba(255,255,255,0.95);line-height:1.5;">💎 <strong style="color:#fff;">${plan.top_move}</strong></p>`
           : ''
         const endDates = Object.values(approveMetaByIntelId)
           .map((m) => (m.endDate ? new Date(m.endDate) : null))
@@ -479,13 +479,36 @@ export function buildBriefEmail(
           return delta > 7 * dayMs && delta <= 30 * dayMs
         }).length
         const radarParts: string[] = []
-        if (in48h) radarParts.push(`🔥 ${in48h} in 48h`)
-        if (in7d) radarParts.push(`⏰ ${in7d} this week`)
-        if (in30d) radarParts.push(`📅 ${in30d} this month`)
-        const radarHtml = radarParts.length
-          ? `<p style="margin:0;font-size:12px;color:rgba(255,255,255,0.85);line-height:1.5;">Deadline radar · ${radarParts.join(' · ')}</p>`
+        const addRadarPart = (count: number, window: string) => {
+          if (!count) return
+          radarParts.push(
+            radarParts.length === 0
+              ? `${count} offer${count === 1 ? ' expires' : 's expire'} ${window}`
+              : `${count} more ${window}`,
+          )
+        }
+        addRadarPart(in48h, 'inside 48 hours')
+        addRadarPart(in7d, 'this week')
+        addRadarPart(in30d, 'within 30 days')
+        // Only surface the radar when deadline volume is worth flagging:
+        // any 48h expiry, 2+ this week, or 3+ total across windows.
+        const showRadar = in48h >= 1 || in7d >= 2 || in48h + in7d + in30d >= 3
+        const radarHtml = showRadar && radarParts.length
+          ? `<p style="margin:0;font-size:12px;color:rgba(255,255,255,0.85);line-height:1.5;">${radarParts.join(', ')}.</p>`
           : ''
-        return `${topMoveHtml}${radarHtml}`
+
+        // Fact-check heads-up — counts approved items with unresolved likely-wrong
+        // or open claims. Only shows when there's actual volume to flag.
+        const approvedIds = new Set((plan.approve ?? []).map((a) => a.intel_id))
+        const factCheckCount = Object.entries(approveMetaByIntelId).filter(([id, m]) => {
+          if (!approvedIds.has(id)) return false
+          const fc = m.factCheck
+          return fc ? fc.likelyWrongCount > 0 || fc.openClaimCount > 0 : false
+        }).length
+        const factCheckHtml = factCheckCount > 0
+          ? `<p style="margin:6px 0 0;font-size:12px;color:rgba(255,255,255,0.85);line-height:1.5;">Heads up: ${factCheckCount} of today's approves ${factCheckCount === 1 ? 'needs' : 'need'} a fact-check before you ship ${factCheckCount === 1 ? 'it' : 'them'}.</p>`
+          : ''
+        return `${topMoveHtml}${radarHtml}${factCheckHtml}`
       })() : `<p style="margin:0;font-size:13px;color:rgba(255,255,255,0.7);">${findings.length} finding${findings.length !== 1 ? 's' : ''}</p>`}
     </div>
 
