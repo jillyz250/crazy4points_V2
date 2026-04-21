@@ -34,7 +34,7 @@ export default function RedAlertBar({ alerts }: Props) {
             aria-hidden
             className="shrink-0 font-ui text-[11px] font-bold uppercase tracking-[0.15em] text-red-700"
           >
-            🔴 Red Alerts
+            🔥 Red Alerts
           </span>
 
           <div className="flex flex-1 items-center gap-2 overflow-x-auto md:gap-3">
