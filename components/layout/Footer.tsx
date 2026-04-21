@@ -4,9 +4,8 @@ const footerNav = [
   {
     heading: "Explore",
     links: [
-      { label: "Deals", href: "/deals" },
-      { label: "Guides", href: "/guides" },
-      { label: "Tools", href: "/tools" },
+      { label: "Alerts", href: "/alerts" },
+      { label: "Decision Engine", href: "/decision-engine" },
     ],
   },
   {
