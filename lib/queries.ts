@@ -38,17 +38,6 @@ export const getAlertsByFilter = `*[_type == "alert" && isApproved == true && ($
   isApproved, approvedAt, source
 }`
 
-// 6. Homepage slots with resolved alert references
-export const getHomepageSlots = `*[_type == "homepageSlot"] | order(slotNumber asc) {
-  slotNumber, isPinned, pinnedAt,
-  alert-> {
-    _id, title, slug, summary, type, programs, actionType,
-    startDate, endDate, publishedAt, confidenceLevel,
-    impactScore, impactJustification, valueScore, rarityScore,
-    isApproved, approvedAt, source
-  }
-}`
-
 // 7. Single alert by slug — includes description (Portable Text) and full relatedAlerts fields
 export const getAlertBySlug = `*[_type == "alert" && slug.current == $slug][0] {
   _id, title, slug, summary, description, type, programs, actionType,

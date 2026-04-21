@@ -3,7 +3,7 @@
  * for the day's intel brief. Never import from client components.
  */
 import Anthropic from '@anthropic-ai/sdk'
-import { BRAND_VOICE, FEATURED_SLOT_COUNT } from './editorialRules'
+import { BRAND_VOICE } from './editorialRules'
 
 export type RejectReason =
   | 'duplicate'
@@ -12,21 +12,6 @@ export type RejectReason =
   | 'rumor'
   | 'brand_excluded'
   | 'missing_data'
-
-export type FeaturedSlot =
-  | {
-      slot: 1 | 2 | 3 | 4
-      action: 'keep'
-      current_alert_id: string | null
-      reason: string
-    }
-  | {
-      slot: 1 | 2 | 3 | 4
-      action: 'replace'
-      current_alert_id: string | null
-      suggested_alert_id: string
-      reason: string
-    }
 
 export interface EditorialPlan {
   tagline: string
@@ -47,7 +32,6 @@ export interface EditorialPlan {
     intel_id: string
     why_it_matters: string
   }[]
-  featured_slots: FeaturedSlot[]
   blog_ideas: {
     title: string
     pitch: string
@@ -72,22 +56,6 @@ export interface PlanIntelItem {
   raw_text: string | null
 }
 
-export interface PlanRecentAlert {
-  id: string
-  title: string
-  type: string
-  programs: string[]
-  published_at: string | null
-  end_date: string | null
-}
-
-export interface PlanHomepageSlot {
-  slot: 1 | 2 | 3 | 4
-  current_alert_id: string | null
-  current_title: string | null
-  end_date: string | null
-}
-
 export interface PlanVoiceSample {
   title: string
   summary: string
@@ -95,8 +63,6 @@ export interface PlanVoiceSample {
 
 export interface GenerateEditorialPlanInput {
   today_intel: PlanIntelItem[]
-  recent_alerts: PlanRecentAlert[]
-  homepage_slots: PlanHomepageSlot[]
   voice_samples?: PlanVoiceSample[]
 }
 
@@ -105,21 +71,14 @@ Your voice is ${BRAND_VOICE}
 You are writing for the site's owner, who will scan this in one sitting and clear the editorial queue from email.
 
 ═══════════════════════════════════════════════════════════
-INPUTS (you will receive three JSON blocks)
+INPUTS (you will receive two JSON blocks)
 ═══════════════════════════════════════════════════════════
 
 1. TODAY'S INTEL — raw findings from the last 24h
    Fields per item: { intel_id, headline, source_name, source_url, confidence, alert_type, programs[], raw_text }
    Note: these are already deduplicated across the last 7 days. Do not re-dedupe.
 
-2. RECENT ALERTS — alerts published in the last 30 days (slim projection)
-   Fields per item: { id, title, type, programs[], published_at, end_date }
-   This is the POOL for featured-slot replacements. Never suggest a replacement that isn't in this list.
-
-3. HOMEPAGE SLOTS — the 4 currently featured deals
-   Fields per slot: { slot (1–4), current_alert_id, current_title, end_date }
-
-4. VOICE SAMPLES — up to 3 recently published alerts in the site's voice
+2. VOICE SAMPLES — up to 3 recently published alerts in the site's voice
    Fields per sample: { title, summary }
    These are the TONE REFERENCE. Match their rhythm, directness, and level of concreteness when you
    write editorial_note, why_publish, why_it_matters, angle, and pitch fields.
@@ -185,42 +144,6 @@ TODAY'S INTEL NOTES
 Every intel item — approved or rejected — gets an entry in today_intel_notes.
 The why_it_matters field is 1–2 sentences in the expert-friend voice. This is what the reader sees
 above the raw headline card in the email. Lead with value to the reader, not a recap of the source.
-
-═══════════════════════════════════════════════════════════
-FEATURED SLOTS
-═══════════════════════════════════════════════════════════
-
-You MUST return exactly ${FEATURED_SLOT_COUNT} entries, one per slot (1, 2, 3, 4).
-
-Homepage slots are the 4 MOST IMPORTANT actionable alerts the site's reader sees first.
-The bar is high: they should be the best-in-class deals currently live.
-
-RULES:
-- REPLACE ONLY IF the current alert is EXPIRED (end_date is in the past) OR the slot is EMPTY
-  (current_alert_id is null).
-- Do NOT replace just because end_date is approaching. "Ends in 3 days" is a feature, not a flaw —
-  urgency is what a featured slot is FOR.
-- When replacing, suggested_alert_id MUST come from the RECENT ALERTS list.
-- If the slot is expired/empty AND no strong replacement exists, use 'keep' with the current alert
-  (even if expired) and explain why — prefer marking it stale to leaving a slot invisible.
-- Otherwise → KEEP.
-
-REASON FIELD — this is the key change:
-The 'reason' must make an active CASE, not a passive default.
-Each slot's reason MUST stand alone. Do NOT reference other slots ("companion to slot 2",
-"alongside the Hyatt story"). Do NOT reuse rationale from another slot. If two slots share
-a theme, each still explains itself independently.
-
-For KEEP: review today's approved intel and all recent alerts, then justify WHY this deal is still
-stronger than anything new. Name the comparison explicitly.
-Good: "Still the strongest Hyatt play live. Today's 40% Marriott bonus is close, but Marriott lacks
-       Hyatt's award-chart value."
-Bad:  "Still performing well." "No better option."
-
-For REPLACE: justify why the incoming alert deserves a top-4 slot AND why the outgoing one is done.
-Good: "Current is expired (ended Apr 18). Incoming Amex 175k Platinum is the highest sign-up bonus
-       of the year — a clear #1 slot."
-Bad:  "Expired, replacing." "Newer is better."
 
 ═══════════════════════════════════════════════════════════
 NEWSLETTER CANDIDATES
@@ -363,7 +286,6 @@ If TODAY'S INTEL is empty:
 - approve: []
 - reject: []
 - today_intel_notes: []
-- featured_slots: still return all 4 (mostly 'keep')
 - blog_ideas: still produce 2–3
 - editorial_note: acknowledge the quiet day honestly
 
@@ -388,11 +310,6 @@ SCHEMA (output must validate against this)
   ],
   "today_intel_notes": [
     { "intel_id": "<uuid>", "why_it_matters": "<1–2 sentences, expert voice>" }
-  ],
-  "featured_slots": [
-    // exactly 4 entries, one per slot
-    { "slot": 1, "action": "keep", "current_alert_id": "<uuid or null>", "reason": "<1 sentence>" },
-    { "slot": 2, "action": "replace", "current_alert_id": "<uuid or null>", "suggested_alert_id": "<uuid from RECENT ALERTS>", "reason": "<1 sentence>" }
   ],
   "blog_ideas": [
     {
@@ -420,7 +337,7 @@ function extractJson(text: string): string {
   return trimmed
 }
 
-function validatePlan(plan: unknown, input: GenerateEditorialPlanInput): EditorialPlan {
+function validatePlan(plan: unknown): EditorialPlan {
   const p = plan as EditorialPlan
   if (!p || typeof p !== 'object') throw new Error('Plan is not an object')
   if (typeof p.tagline !== 'string' || p.tagline.trim().length === 0) {
@@ -431,7 +348,6 @@ function validatePlan(plan: unknown, input: GenerateEditorialPlanInput): Editori
   if (!Array.isArray(p.approve)) throw new Error('Missing approve[]')
   if (!Array.isArray(p.reject)) throw new Error('Missing reject[]')
   if (!Array.isArray(p.today_intel_notes)) throw new Error('Missing today_intel_notes[]')
-  if (!Array.isArray(p.featured_slots)) throw new Error('Missing featured_slots[]')
   if (!Array.isArray(p.blog_ideas)) throw new Error('Missing blog_ideas[]')
   if (!Array.isArray(p.newsletter_candidates)) p.newsletter_candidates = []
 
@@ -439,20 +355,6 @@ function validatePlan(plan: unknown, input: GenerateEditorialPlanInput): Editori
   p.newsletter_candidates = p.newsletter_candidates.filter(
     (c) => c && typeof c.intel_id === 'string' && approvedIds.has(c.intel_id)
   )
-
-  if (p.featured_slots.length !== FEATURED_SLOT_COUNT) {
-    throw new Error(`featured_slots must have ${FEATURED_SLOT_COUNT} entries, got ${p.featured_slots.length}`)
-  }
-
-  const recentAlertIds = new Set(input.recent_alerts.map((a) => a.id))
-  for (const fs of p.featured_slots) {
-    if (fs.action === 'replace') {
-      if (!fs.suggested_alert_id) throw new Error(`Slot ${fs.slot} replace missing suggested_alert_id`)
-      if (!recentAlertIds.has(fs.suggested_alert_id)) {
-        throw new Error(`Slot ${fs.slot} suggested_alert_id not in RECENT ALERTS`)
-      }
-    }
-  }
 
   return p
 }
@@ -469,8 +371,6 @@ export async function generateEditorialPlan(
   const userContent = JSON.stringify(
     {
       today_intel: input.today_intel,
-      recent_alerts: input.recent_alerts,
-      homepage_slots: input.homepage_slots,
       voice_samples: (input.voice_samples ?? []).slice(0, 3),
     },
     null,
@@ -494,7 +394,7 @@ export async function generateEditorialPlan(
 
     const jsonText = extractJson(block.text)
     const parsed = JSON.parse(jsonText)
-    return validatePlan(parsed, input)
+    return validatePlan(parsed)
   } catch (err) {
     console.error('[generateEditorialPlan] Sonnet call or validation failed:', err)
     return null

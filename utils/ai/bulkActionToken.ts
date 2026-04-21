@@ -3,15 +3,13 @@ import crypto from 'node:crypto'
 export type BulkActionKind =
   | 'approve'
   | 'reject'
-  | 'feature_replace'
   | 'queue_newsletter'
   | 'dismiss_newsletter'
 
 export interface BulkActionPayload {
   brief_id: string
   action: BulkActionKind
-  target_id: string // intel_id for approve/reject, alert_id for feature_replace
-  slot?: 1 | 2 | 3 | 4 // only for feature_replace
+  target_id: string // intel_id for approve/reject, alert_id for newsletter actions
 }
 
 function getSecret(): string {

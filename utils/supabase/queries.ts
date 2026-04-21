@@ -134,23 +134,8 @@ export interface AlertProgram {
   created_at: string
 }
 
-export interface HomepageSlot {
-  id: string
-  slot_number: number
-  alert_id: string | null
-  is_pinned: boolean
-  pinned_at: string | null
-  pinned_by: string | null
-  created_at: string
-  updated_at: string
-}
-
 export type AlertWithPrograms = Alert & {
   alert_programs: (AlertProgram & { programs: Program })[]
-}
-
-export type HomepageSlotWithAlert = HomepageSlot & {
-  alerts: Alert | null
 }
 
 export type AlertInsert = Omit<Alert, 'id' | 'created_at' | 'updated_at' | 'computed_score' | 'score_last_computed_at' | 'approved_at' | 'source_intel_id' | 'fact_check_claims' | 'fact_check_at'>
@@ -262,26 +247,6 @@ export async function getAlertsByProgram(
 
   if (error) throw error
   return data as Alert[]
-}
-
-/**
- * Fetch all homepage_slots that have an alert assigned, ordered by slot
- * number, including the full alert record.
- */
-export async function getHomepageAlerts(
-  supabase: SupabaseClient
-): Promise<HomepageSlotWithAlert[]> {
-  const { data, error } = await supabase
-    .from('homepage_slots')
-    .select(`
-      *,
-      alerts (*)
-    `)
-    .not('alert_id', 'is', null)
-    .order('slot_number', { ascending: true })
-
-  if (error) throw error
-  return data as HomepageSlotWithAlert[]
 }
 
 /**
@@ -716,44 +681,3 @@ export async function toggleProgramActive(
   if (error) throw error
 }
 
-/**
- * Fetch all 4 homepage_slots (including empty ones) with their joined alert.
- * Used by the admin homepage page.
- */
-export async function getAllHomepageSlots(
-  supabase: SupabaseClient
-): Promise<HomepageSlotWithAlert[]> {
-  const { data, error } = await supabase
-    .from('homepage_slots')
-    .select(`
-      *,
-      alerts (*)
-    `)
-    .order('slot_number', { ascending: true })
-
-  if (error) throw error
-  return data as HomepageSlotWithAlert[]
-}
-
-/**
- * Pin or unpin an alert in a homepage slot.
- * Pass null for alertId to clear the slot.
- */
-export async function upsertHomepageSlot(
-  supabase: SupabaseClient,
-  slotNumber: number,
-  alertId: string | null
-): Promise<void> {
-  const now = new Date().toISOString()
-  const { error } = await supabase
-    .from('homepage_slots')
-    .update({
-      alert_id: alertId,
-      is_pinned: alertId !== null,
-      pinned_at: alertId !== null ? now : null,
-      updated_at: now,
-    })
-    .eq('slot_number', slotNumber)
-
-  if (error) throw error
-}

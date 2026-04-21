@@ -30,19 +30,10 @@ export interface ApproveMeta {
   }
 }
 
-export interface RecentAlertCtx {
-  id: string
-  title: string
-  type: string
-  end_date: string | null
-  programs?: { name: string; slug: string }[]
-}
-
 export interface BriefContext {
   plan?: EditorialPlan | null
   briefId?: string
   siteOrigin?: string // e.g. https://crazy4points.com
-  recentAlertsById?: Record<string, RecentAlertCtx>
   alertIdByIntelId?: Record<string, string>
   approveMetaByIntelId?: Record<string, ApproveMeta>
 }
@@ -196,66 +187,6 @@ function rejectCard(
     </div>`
 }
 
-function alertMetaLine(meta: RecentAlertCtx | null): string {
-  if (!meta) return ''
-  const parts: string[] = []
-  if (meta.programs && meta.programs.length) {
-    parts.push(meta.programs.map((p) => p.name).join(' · '))
-  }
-  if (meta.end_date) {
-    const d = new Date(meta.end_date)
-    if (!isNaN(d.getTime())) {
-      const now = Date.now()
-      const delta = d.getTime() - now
-      if (delta < 0) {
-        parts.push(`expired ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`)
-      } else {
-        parts.push(`ends ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`)
-      }
-    }
-  }
-  return parts.length
-    ? `<p style="margin:2px 0 0;font-size:11px;color:#6B7280;">${parts.join(' · ')}</p>`
-    : ''
-}
-
-function featuredSlotCard(
-  origin: string,
-  slot: EditorialPlan['featured_slots'][number],
-  currentMeta: RecentAlertCtx | null,
-  suggestedMeta: RecentAlertCtx | null
-): string {
-  if (slot.action === 'keep') {
-    // Condensed: KEEP slots are quiet context. One tight card, muted reason.
-    return `
-      <div style="margin-bottom:6px;padding:8px 12px;background:#fff;border-radius:6px;border-left:3px solid #D4D4D4;">
-        <p style="margin:0;font-size:13px;line-height:1.4;color:#1A1A1A;">
-          <span style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.05em;">Slot ${slot.slot} · Keep</span>
-          <span style="color:#888;">&nbsp;·&nbsp;</span>
-          <span style="font-weight:600;">${currentMeta?.title ?? '<em style="color:#888;">empty</em>'}</span>
-        </p>
-        <p style="margin:4px 0 0;font-size:11px;line-height:1.4;color:#888;">${slot.reason}</p>
-      </div>`
-  }
-  // Loud: REPLACE cards demand attention. Gold tint, bigger type, explicit
-  // Why-change block, and a Review button that opens the manual manager.
-  return `
-    <div style="margin:14px 0;padding:16px 18px;background:#FFF9E6;border-radius:10px;border:2px solid #D4AF37;">
-      <p style="margin:0 0 10px;font-size:13px;font-weight:800;color:#8A6D00;text-transform:uppercase;letter-spacing:0.08em;">🔄 Slot ${slot.slot} · Replace Requested</p>
-      <p style="margin:0 0 2px;font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.05em;">Currently featured</p>
-      <p style="margin:0 0 4px;font-size:13px;color:#888;"><s>${currentMeta?.title ?? 'empty'}</s></p>
-      ${currentMeta ? alertMetaLine(currentMeta) : ''}
-      <p style="margin:12px 0 2px;font-size:11px;color:#6B2D8F;text-transform:uppercase;letter-spacing:0.05em;font-weight:700;">Suggested replacement</p>
-      <p style="margin:0 0 4px;font-size:15px;font-weight:700;color:#1A1A1A;line-height:1.35;">${suggestedMeta?.title ?? slot.suggested_alert_id}</p>
-      ${suggestedMeta ? alertMetaLine(suggestedMeta) : ''}
-      <div style="margin:12px 0 10px;padding:10px 12px;background:#fff;border-radius:6px;border-left:3px solid #6B2D8F;">
-        <p style="margin:0 0 4px;font-size:10px;font-weight:700;color:#6B2D8F;text-transform:uppercase;letter-spacing:0.08em;">Why change</p>
-        <p style="margin:0;font-size:13px;line-height:1.5;color:#1A1A1A;">${slot.reason}</p>
-      </div>
-      <a href="${origin}/admin/homepage" style="display:inline-block;padding:8px 14px;background:#6B2D8F;color:#fff;font-size:12px;font-weight:700;text-decoration:none;border-radius:6px;">Review in Homepage Manager →</a>
-    </div>`
-}
-
 type BlogPriority = 'hot' | 'sweet_spot' | 'evergreen' | 'deep_dive'
 
 const BLOG_BADGE_STYLES: Record<BlogPriority, { label: string; bg: string; fg: string; border: string }> = {
@@ -288,7 +219,6 @@ export function buildBriefEmail(
     plan,
     briefId,
     siteOrigin = 'https://crazy4points.com',
-    recentAlertsById = {},
     alertIdByIntelId = {},
     approveMetaByIntelId = {},
   } = ctx
@@ -435,23 +365,44 @@ export function buildBriefEmail(
         })()
       : ''
 
-    const slotsHtml = plan.featured_slots.length
-      ? `${sectionHeader('⭐ Homepage Slots', '#D4AF37')}${plan.featured_slots
-          .map((s) => {
-            const currentMeta = s.current_alert_id
-              ? recentAlertsById[s.current_alert_id] ?? null
-              : null
-            const suggestedMeta =
-              s.action === 'replace'
-                ? recentAlertsById[s.suggested_alert_id] ?? null
-                : null
-            return featuredSlotCard(siteOrigin, s, currentMeta, suggestedMeta)
-          })
-          .join('')}
-          <div style="text-align:right;margin-top:6px;">
-            <a href="${siteOrigin}/admin/homepage" style="font-size:12px;color:#6B2D8F;font-weight:600;">Open homepage manager →</a>
+    // 🚨 Red Alert Candidates — approved intel whose deadline will auto-surface
+    // them on the homepage red-alert bar (≤7 days out). Informational: tells you
+    // what's about to land up top. Homepage selection is fully automatic now.
+    const redAlertsHtml = (() => {
+      type RedAlert = { headline: string; days: number; endDate: string }
+      const approveMetas: RedAlert[] = plan.approve.flatMap((a) => {
+        const meta = approveMetaByIntelId[a.intel_id]
+        if (!meta?.endDate) return []
+        const d = new Date(meta.endDate)
+        if (isNaN(d.getTime())) return []
+        const days = Math.ceil((d.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+        if (days < 0 || days > 7) return []
+        return [{ headline: a.headline, days, endDate: meta.endDate }]
+      }).sort((a, b) => a.days - b.days)
+
+      if (!approveMetas.length) return ''
+
+      const rows = approveMetas
+        .map((m) => {
+          const d = new Date(m.endDate)
+          const dateLabel = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+          const urgency = m.days <= 1 ? '#c0392b' : '#b45309'
+          const urgencyLabel = m.days <= 1 ? 'CRITICAL' : 'URGENT'
+          const daysText = m.days === 0 ? 'ends today' : m.days === 1 ? 'ends tomorrow' : `${m.days}d left`
+          return `<div style="margin-bottom:6px;padding:8px 12px;background:#fff;border-radius:6px;border-left:3px solid ${urgency};">
+            <p style="margin:0 0 2px;font-size:10px;font-weight:700;color:${urgency};text-transform:uppercase;letter-spacing:0.08em;">${urgencyLabel} · ${daysText}</p>
+            <p style="margin:0;font-size:13px;font-weight:600;color:#1A1A1A;line-height:1.35;">${m.headline}</p>
+            <p style="margin:2px 0 0;font-size:11px;color:#6B7280;">ends ${dateLabel}</p>
           </div>`
-      : ''
+        })
+        .join('')
+
+      return `${sectionHeader('🚨 Red Alert Candidates', '#c0392b')}
+        <p style="margin:-12px 0 12px;font-size:12px;color:#4A4A4A;line-height:1.5;">
+          Approved items with deadlines inside 7 days. Once published, these auto-surface on the homepage red-alert bar.
+        </p>
+        ${rows}`
+    })()
 
     const blogRank: Record<string, number> = { hot: 0, sweet_spot: 1, deep_dive: 2, evergreen: 3 }
     const sortedBlogIdeas = [...plan.blog_ideas].sort((a, b) => {
@@ -476,7 +427,7 @@ export function buildBriefEmail(
         </div>`
       : ''
 
-    editorialSections = `${editorialNote}${slotsHtml}${approveHtml}${blogHtml}${rejectHtml}`
+    editorialSections = `${editorialNote}${redAlertsHtml}${approveHtml}${blogHtml}${rejectHtml}`
   }
 
   return `

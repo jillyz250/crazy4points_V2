@@ -21,11 +21,6 @@ export default function AdminDashboard() {
           </Link>
         </li>
         <li>
-          <Link href="/admin/homepage" className="rg-btn-primary" style={{ display: 'inline-block' }}>
-            Homepage Pin Slots
-          </Link>
-        </li>
-        <li>
           <Link href="/admin/content-ideas" className="rg-btn-primary" style={{ display: 'inline-block' }}>
             Content Pipeline
           </Link>
