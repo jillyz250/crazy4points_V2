@@ -5,7 +5,8 @@
       "name": "crazy4points V2 — Next.js Dev",
       "runtimeExecutable": "/usr/local/bin/node",
       "runtimeArgs": ["/usr/local/bin/npm", "run", "dev"],
-      "port": 3000
+      "port": 3000,
+      "autoPort": true
     }
   ]
 }
