@@ -44,7 +44,7 @@ export default function Footer() {
               </span>
             </Link>
             <p className="mt-4 max-w-sm font-body text-sm text-[var(--color-text-secondary)]">
-              Footer content placeholder.
+              The points game is messy. We make it make sense.
             </p>
           </div>
 
