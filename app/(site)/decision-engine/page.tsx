@@ -76,13 +76,17 @@ const WHO_GOING = [
   { label: 'Surprise Me', value: 'surprise' },
 ]
 
-const REEL_NAMES = [
-  'Paris', 'Tokyo', 'Bali', 'Cancun', 'Rome', 'Santorini', 'Maldives',
-  'New York', 'Kyoto', 'Dubai', 'Barcelona', 'Maui', 'Sydney', 'Cape Town',
-  'Lisbon', 'Phuket', 'Vienna', 'Havana', 'Nairobi', 'Istanbul',
-  'Amsterdam', 'Tulum', 'Fiji', 'Prague', 'Buenos Aires', 'Marrakech',
-  'Iceland', 'Patagonia', 'Amalfi', 'Colombo', 'Bora Bora', 'Queenstown',
-]
+// Classic slot machine fruits shown during the spin
+const FRUIT_SYMBOLS = ['🍒', '🍋', '🍇', '🍌', '🍎', '🍉', '🍊', '🍑', '⭐', '💎', '7️⃣']
+
+function fitFontSize(text: string): number {
+  const len = text.length
+  if (len <= 8)  return 20
+  if (len <= 11) return 17
+  if (len <= 14) return 14
+  if (len <= 18) return 12
+  return 10
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -224,7 +228,7 @@ function SlotReel({
     if (spinning) {
       setPhase('fast')
       intervalRef.current = setInterval(() => {
-        setDisplay(REEL_NAMES[Math.floor(Math.random() * REEL_NAMES.length)])
+        setDisplay(FRUIT_SYMBOLS[Math.floor(Math.random() * FRUIT_SYMBOLS.length)])
       }, 65)
     } else if (stopping) {
       const base = stopIndex * 330
@@ -233,7 +237,7 @@ function SlotReel({
         if (intervalRef.current) clearInterval(intervalRef.current)
         setPhase('slow')
         intervalRef.current = setInterval(() => {
-          setDisplay(REEL_NAMES[Math.floor(Math.random() * REEL_NAMES.length)])
+          setDisplay(FRUIT_SYMBOLS[Math.floor(Math.random() * FRUIT_SYMBOLS.length)])
         }, 200)
       }, base)
 
@@ -248,10 +252,9 @@ function SlotReel({
         clearTimeout(stopTimer)
         if (intervalRef.current) clearInterval(intervalRef.current)
       }
-    } else {
-      setPhase('idle')
-      setDisplay('?')
     }
+    // else: not spinning, not stopping — preserve whatever's displayed
+    // (either '?' on first load, or the winning destination after a spin)
 
     return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -305,10 +308,10 @@ function SlotReel({
 
       <span style={{
         fontFamily: 'var(--font-ui), Montserrat, sans-serif',
-        fontSize: isIdle ? '40px' : isActive ? '11px' : (display.length > 12 ? '13px' : '17px'),
+        fontSize: isIdle ? '40px' : isActive ? '34px' : `${fitFontSize(display)}px`,
         fontWeight: 700,
-        color: isIdle ? '#D4AF37' : isStopped ? '#F0C040' : '#7A5A20',
-        letterSpacing: isStopped ? '0.05em' : isIdle ? '0.02em' : '0.01em',
+        color: isIdle ? '#D4AF37' : isStopped ? '#FFFFFF' : '#F0C040',
+        letterSpacing: isStopped ? '0.04em' : isIdle ? '0.02em' : '0.01em',
         textAlign: 'center',
         padding: '0 8px',
         lineHeight: 1.2,
@@ -318,7 +321,9 @@ function SlotReel({
         position: 'relative',
         maxWidth: '100%',
         wordBreak: 'break-word',
-        textShadow: isStopped ? stoppedGlow : 'none',
+        textShadow: isStopped
+          ? '0 0 14px rgba(255,255,255,0.55), 0 0 4px rgba(212,175,55,0.35), 0 1px 2px rgba(0,0,0,0.5)'
+          : 'none',
         animation: isIdle
           ? 'goldGlow 1.8s ease-in-out infinite'
           : (celebrating && isStopped ? 'textPop 0.5s ease' : 'none'),

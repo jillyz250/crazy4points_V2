@@ -1,57 +1,309 @@
-import Link from "next/link";
-import type { Metadata } from "next";
+import Link from 'next/link'
+import { notFound } from 'next/navigation'
+import type { Metadata } from 'next'
+import { createAdminClient } from '@/utils/supabase/server'
 
-export const metadata: Metadata = {
-  title: "Destination",
-  description: "Award travel destination guide.",
-};
+type Weather = Record<string, 'great' | 'good' | 'mixed' | 'poor'>
 
-export default function DestinationDetailPage() {
+type Destination = {
+  slug: string
+  title: string
+  country: string | null
+  region: string | null
+  continent: string | null
+  summary_short: string | null
+  summary_long: string | null
+  vibe: string[] | null
+  trip_length: string[] | null
+  who_is_going: string[] | null
+  weather_by_month: Weather | null
+  is_unesco: boolean | null
+}
+
+const CONTINENT_LABELS: Record<string, string> = {
+  north_america: 'North America', central_america: 'Central America',
+  south_america: 'South America', caribbean: 'Caribbean',
+  europe: 'Europe', asia: 'Asia', middle_east: 'Middle East',
+  africa: 'Africa', south_pacific: 'South Pacific',
+}
+const VIBE_LABELS: Record<string, string> = {
+  beach: 'Beach', city: 'City', history: 'History', nature: 'Nature',
+  adventure: 'Adventure', luxury: 'Luxury', family: 'Family',
+}
+const WHO_LABELS: Record<string, string> = {
+  solo: 'Solo', couple: 'Couple', family: 'Family', group: 'Group',
+}
+const TRIP_LABELS: Record<string, string> = {
+  short: 'Short (2–4 days)', medium: 'Medium (5–7 days)', long: 'Long (8+ days)',
+}
+const MONTH_ORDER = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec']
+const MONTH_SHORT: Record<string, string> = {
+  jan:'Jan', feb:'Feb', mar:'Mar', apr:'Apr', may:'May', jun:'Jun',
+  jul:'Jul', aug:'Aug', sep:'Sep', oct:'Oct', nov:'Nov', dec:'Dec',
+}
+
+async function getDestination(slug: string): Promise<Destination | null> {
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from('destinations')
+    .select('slug, title, country, region, continent, summary_short, summary_long, vibe, trip_length, who_is_going, weather_by_month, is_unesco')
+    .eq('slug', slug)
+    .maybeSingle()
+  if (error) {
+    console.error('[destinations/[slug]] query failed:', error)
+    return null
+  }
+  return data as Destination | null
+}
+
+export async function generateMetadata(
+  { params }: { params: Promise<{ slug: string }> }
+): Promise<Metadata> {
+  const { slug } = await params
+  const dest = await getDestination(slug)
+  if (!dest) return { title: 'Destination not found' }
+  return {
+    title: `${dest.title} — crazy4points`,
+    description: dest.summary_short ?? 'Award travel destination guide.',
+  }
+}
+
+export default async function DestinationDetailPage(
+  { params }: { params: Promise<{ slug: string }> }
+) {
+  const { slug } = await params
+  const dest = await getDestination(slug)
+  if (!dest) notFound()
+
+  const weather = dest.weather_by_month ?? {}
+  const greatMonths = MONTH_ORDER.filter(m => weather[m] === 'great')
+  const goodMonths  = MONTH_ORDER.filter(m => weather[m] === 'good')
+  const continentLabel = dest.continent ? CONTINENT_LABELS[dest.continent] ?? dest.continent : null
+  const locationLine = [dest.country, continentLabel].filter(Boolean).join(' · ')
+
+  const paragraphs = (dest.summary_long ?? dest.summary_short ?? '')
+    .split(/\n{2,}/)
+    .map(p => p.trim())
+    .filter(Boolean)
+
   return (
     <>
-      {/* Breadcrumb + header */}
-      <section className="rg-section bg-[var(--color-bg-soft)] border-b border-[var(--color-border)]">
+      <style>{`
+        .destination-grid {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr);
+          gap: 32px;
+        }
+        @media (min-width: 900px) {
+          .destination-grid {
+            grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+            gap: 48px;
+          }
+        }
+      `}</style>
+      {/* Header */}
+      <section
+        className="rg-sub-section"
+        style={{
+          background: 'var(--color-background-soft)',
+          borderBottom: '1px solid var(--color-border-soft)',
+        }}
+      >
         <div className="rg-container">
-          <nav className="flex items-center gap-2 text-xs font-ui mb-6" aria-label="Breadcrumb">
-            <Link href="/" className="text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors">Home</Link>
-            <span className="text-[var(--color-border)]">/</span>
-            <Link href="/destinations" className="text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors">Destinations</Link>
-            <span className="text-[var(--color-border)]">/</span>
-            <span className="text-[var(--color-primary)]">Destination</span>
+          <nav
+            aria-label="Breadcrumb"
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              fontFamily: 'var(--font-ui)', fontSize: '12px',
+              marginBottom: '20px',
+            }}
+          >
+            <Link href="/" style={{ color: 'var(--color-text-secondary)' }}>Home</Link>
+            <span style={{ color: 'var(--color-border-soft)' }}>/</span>
+            <Link href="/decision-engine" style={{ color: 'var(--color-text-secondary)' }}>
+              Decision Engine
+            </Link>
+            <span style={{ color: 'var(--color-border-soft)' }}>/</span>
+            <span style={{ color: 'var(--color-primary)' }}>{dest.title}</span>
           </nav>
-          <p className="rg-section-label">Destination</p>
-          <h1 className="rg-section-title">Destination Detail</h1>
-          <div className="rg-accent-bar" />
+
+          <div style={{
+            fontFamily: 'var(--font-ui)', fontSize: '10px', fontWeight: 700,
+            letterSpacing: '0.14em', textTransform: 'uppercase',
+            color: 'var(--color-accent)', marginBottom: '10px',
+          }}>
+            Destination
+          </div>
+
+          <h1 style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: 'clamp(2rem, 5vw, 3rem)',
+            color: 'var(--color-primary)',
+            margin: '0 0 8px 0', lineHeight: 1.1,
+          }}>
+            {dest.title}
+          </h1>
+
+          {locationLine && (
+            <p style={{
+              fontFamily: 'var(--font-body)',
+              fontSize: '16px', color: 'var(--color-text-secondary)',
+              margin: 0,
+            }}>
+              {locationLine}
+              {dest.is_unesco && (
+                <span style={{
+                  marginLeft: '12px',
+                  fontFamily: 'var(--font-ui)', fontSize: '10px', fontWeight: 700,
+                  letterSpacing: '0.1em', textTransform: 'uppercase',
+                  background: 'var(--color-accent)', color: 'white',
+                  padding: '3px 8px', borderRadius: '4px',
+                }}>
+                  UNESCO
+                </span>
+              )}
+            </p>
+          )}
         </div>
       </section>
 
-      {/* Content placeholder */}
-      <section className="rg-section bg-[var(--color-bg)]">
-        <div className="rg-container">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2">
-              <div className="rg-placeholder h-80">
-                Destination Content Placeholder
-              </div>
+      {/* Body */}
+      <section className="rg-sub-section" style={{ background: 'var(--color-background)' }}>
+        <div className="rg-container destination-grid">
+          {/* Main column */}
+          <div>
+            {paragraphs.map((p, i) => (
+              <p
+                key={i}
+                style={{
+                  fontFamily: 'var(--font-body)',
+                  fontSize: '17px', lineHeight: 1.75,
+                  color: 'var(--color-text-primary)',
+                  margin: '0 0 20px 0',
+                }}
+              >
+                {p}
+              </p>
+            ))}
+
+            <div style={{ marginTop: '32px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+              <Link href="/decision-engine" className="rg-btn-secondary">
+                Spin again
+              </Link>
+              <Link href="/programs" className="rg-btn-primary">
+                Explore programs
+              </Link>
             </div>
-            <aside>
-              <div className="rg-placeholder h-64">
-                Sidebar Placeholder
-              </div>
-            </aside>
           </div>
-        </div>
-      </section>
 
-      {/* Related placeholder */}
-      <section className="rg-section bg-[var(--color-bg-soft)]">
-        <div className="rg-container">
-          <h2 className="rg-section-title mb-6">Related Destinations</h2>
-          <div className="rg-placeholder h-48">
-            Related Content Placeholder
-          </div>
+          {/* Sidebar */}
+          <aside style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {dest.vibe && dest.vibe.length > 0 && (
+              <SidebarBlock label="The Vibe">
+                <BadgeRow items={dest.vibe.map(v => VIBE_LABELS[v] ?? v)} tone="gold" />
+              </SidebarBlock>
+            )}
+
+            {dest.who_is_going && dest.who_is_going.length > 0 && (
+              <SidebarBlock label="Perfect For">
+                <BadgeRow items={dest.who_is_going.map(w => WHO_LABELS[w] ?? w)} tone="purple" />
+              </SidebarBlock>
+            )}
+
+            {dest.trip_length && dest.trip_length.length > 0 && (
+              <SidebarBlock label="Trip Length">
+                <BadgeRow items={dest.trip_length.map(t => TRIP_LABELS[t] ?? t)} tone="purple" />
+              </SidebarBlock>
+            )}
+
+            {(greatMonths.length > 0 || goodMonths.length > 0) && (
+              <SidebarBlock label="Best Months">
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(6, 1fr)',
+                  gap: '4px',
+                }}>
+                  {MONTH_ORDER.map(m => {
+                    const w = weather[m]
+                    const bg =
+                      w === 'great' ? 'var(--color-accent)' :
+                      w === 'good'  ? '#EADCC0' :
+                      w === 'mixed' ? '#F0EAF8' :
+                                      '#F5F5F5'
+                    const color =
+                      w === 'great' ? 'white' :
+                      w === 'good'  ? '#6B4A10' :
+                                      'var(--color-text-secondary)'
+                    return (
+                      <div
+                        key={m}
+                        style={{
+                          background: bg, color,
+                          fontFamily: 'var(--font-ui)', fontSize: '10px',
+                          fontWeight: 700, letterSpacing: '0.06em',
+                          textAlign: 'center', padding: '6px 0',
+                          borderRadius: '4px', textTransform: 'uppercase',
+                        }}
+                      >
+                        {MONTH_SHORT[m]}
+                      </div>
+                    )
+                  })}
+                </div>
+                <p style={{
+                  fontFamily: 'var(--font-body)', fontSize: '12px',
+                  color: 'var(--color-text-secondary)',
+                  margin: '10px 0 0 0',
+                }}>
+                  Gold = ideal · Cream = pleasant
+                </p>
+              </SidebarBlock>
+            )}
+          </aside>
         </div>
       </section>
     </>
-  );
+  )
+}
+
+function SidebarBlock({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{
+      background: 'var(--color-background-soft)',
+      border: '1px solid var(--color-border-soft)',
+      borderRadius: 'var(--radius-card)',
+      padding: '18px 20px',
+    }}>
+      <div style={{
+        fontFamily: 'var(--font-ui)', fontSize: '10px', fontWeight: 700,
+        letterSpacing: '0.14em', textTransform: 'uppercase',
+        color: 'var(--color-text-secondary)',
+        marginBottom: '12px',
+      }}>
+        {label}
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function BadgeRow({ items, tone }: { items: string[]; tone: 'gold' | 'purple' }) {
+  const bg = tone === 'gold' ? 'var(--color-accent)' : 'var(--color-primary)'
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+      {items.map(label => (
+        <span
+          key={label}
+          style={{
+            background: bg, color: 'white',
+            fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 600,
+            padding: '4px 10px', borderRadius: '999px',
+            letterSpacing: '0.03em',
+          }}
+        >
+          {label}
+        </span>
+      ))}
+    </div>
+  )
 }
