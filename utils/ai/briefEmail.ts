@@ -256,22 +256,26 @@ function featuredSlotCard(
     </div>`
 }
 
+type BlogPriority = 'hot' | 'sweet_spot' | 'evergreen' | 'deep_dive'
+
+const BLOG_BADGE_STYLES: Record<BlogPriority, { label: string; bg: string; fg: string; border: string }> = {
+  hot:        { label: '🔥 HOT',       bg: '#FEE2E2', fg: '#B91C1C', border: '#D4AF37' },
+  sweet_spot: { label: 'SWEET SPOT',   bg: '#FEF3C7', fg: '#92400E', border: '#E6DEEE' },
+  evergreen:  { label: 'EVERGREEN',    bg: '#F8F5FB', fg: '#6B2D8F', border: '#E6DEEE' },
+  deep_dive:  { label: 'DEEP DIVE',    bg: '#E0E7FF', fg: '#3730A3', border: '#E6DEEE' },
+}
+
 function blogIdeaCard(
-  item: { title: string; pitch: string; priority?: 'hot' | 'evergreen'; why_now?: string },
-  siteOrigin: string
+  item: { title: string; pitch: string; priority?: BlogPriority; why_now?: string }
 ): string {
-  const isHot = item.priority === 'hot'
-  const badge = isHot
-    ? `<span style="display:inline-block;padding:2px 8px;background:#FEE2E2;color:#B91C1C;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:0.3px;">🔥 HOT</span>`
-    : `<span style="display:inline-block;padding:2px 8px;background:#F8F5FB;color:#6B2D8F;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:0.3px;">📁 EVERGREEN</span>`
-  const border = isHot ? '#D4AF37' : '#E6DEEE'
+  const style = BLOG_BADGE_STYLES[item.priority ?? 'evergreen'] ?? BLOG_BADGE_STYLES.evergreen
+  const badge = `<span style="display:inline-block;padding:2px 8px;background:${style.bg};color:${style.fg};border-radius:999px;font-size:10px;font-weight:700;letter-spacing:0.3px;">${style.label}</span>`
   return `
-    <div style="margin-bottom:8px;padding:10px 14px;background:#fff;border-radius:8px;border-left:3px solid ${border};">
+    <div style="margin-bottom:8px;padding:10px 14px;background:#fff;border-radius:8px;border-left:3px solid ${style.border};">
       <div style="margin:0 0 4px;">${badge}</div>
       <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#1A1A1A;line-height:1.3;">${item.title}</p>
       <p style="margin:0 0 4px;font-size:12px;line-height:1.45;color:#4A4A4A;">${item.pitch}</p>
-      ${item.why_now ? `<p style="margin:0 0 6px;font-size:11px;line-height:1.4;color:#888;"><em>${item.why_now}</em></p>` : ''}
-      <a href="${siteOrigin}/admin/content-ideas?type=blog" style="font-size:11px;color:#6B2D8F;font-weight:600;">Draft this post →</a>
+      ${item.why_now ? `<p style="margin:0;font-size:11px;line-height:1.4;color:#888;"><em>${item.why_now}</em></p>` : ''}
     </div>`
 }
 
@@ -331,14 +335,33 @@ export function buildBriefEmail(
       return 0
     })
 
-    const approveLegend = sortedApprove.length
-      ? `<p style="margin:-8px 0 12px;font-size:11px;color:#888;line-height:1.5;">
-          <span style="display:inline-block;width:8px;height:8px;background:#D4AF37;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>gold = newsletter pick
-          &nbsp;·&nbsp;
-          <span style="display:inline-block;width:8px;height:8px;background:#2f855a;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>green = standard approve
-          &nbsp;·&nbsp;
-          <span style="display:inline-block;width:8px;height:8px;background:#d97706;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>amber = under 48h
-        </p>`
+    // Build legend dynamically — only show colors that apply to today's approve list.
+    const legendEntries: string[] = []
+    const has48hUrgent = sortedApprove.some((a) => {
+      const end = approveMetaByIntelId[a.intel_id]?.endDate
+      if (!end) return false
+      const t = new Date(end).getTime()
+      if (isNaN(t)) return false
+      const hoursLeft = (t - Date.now()) / (60 * 60 * 1000)
+      return hoursLeft > 0 && hoursLeft <= 48
+    })
+    const hasNewsletter = sortedApprove.some((a) => newsletterIntelIds.has(a.intel_id))
+    const hasStandard = sortedApprove.some((a) => {
+      if (newsletterIntelIds.has(a.intel_id)) return false
+      const end = approveMetaByIntelId[a.intel_id]?.endDate
+      if (!end) return true
+      const t = new Date(end).getTime()
+      if (isNaN(t)) return true
+      const hoursLeft = (t - Date.now()) / (60 * 60 * 1000)
+      return !(hoursLeft > 0 && hoursLeft <= 48)
+    })
+    const legendChip = (color: string, label: string) =>
+      `<span style="display:inline-block;width:8px;height:8px;background:${color};border-radius:2px;vertical-align:middle;margin-right:4px;"></span>${label}`
+    if (hasNewsletter) legendEntries.push(legendChip('#D4AF37', 'gold = newsletter pick'))
+    if (hasStandard) legendEntries.push(legendChip('#2f855a', 'green = standard approve'))
+    if (has48hUrgent) legendEntries.push(legendChip('#d97706', 'amber = under 48h'))
+    const approveLegend = legendEntries.length >= 2
+      ? `<p style="margin:-8px 0 12px;font-size:11px;color:#888;line-height:1.5;">${legendEntries.join(' &nbsp;·&nbsp; ')}</p>`
       : ''
 
     const approveHtml = sortedApprove.length
@@ -364,11 +387,7 @@ export function buildBriefEmail(
 
     const rejectHtml = plan.reject.length
       ? (() => {
-          const COLLAPSE_THRESHOLD = 5
-          const total = plan.reject.length
           const adminUrl = `${siteOrigin}/admin/alerts?status=pending_review`
-
-          // Group by reason_category for display
           const byReason = new Map<string, typeof plan.reject>()
           for (const r of plan.reject) {
             const list = byReason.get(r.reason_category) ?? []
@@ -376,30 +395,43 @@ export function buildBriefEmail(
             byReason.set(r.reason_category, list)
           }
 
-          if (total > COLLAPSE_THRESHOLD) {
-            const parts = Array.from(byReason.entries())
-              .map(([cat, items]) => `${items.length} ${REASON_LABELS[cat] ?? cat.replace(/_/g, ' ')}`)
-              .join(', ')
-            return `${sectionHeader('🗑 Reject Queue', '#b45309')}
-              <div style="margin:0 0 20px;padding:12px 16px;background:#fff;border-radius:8px;border-left:3px solid #b45309;">
-                <p style="margin:0 0 6px;font-size:13px;color:#1A1A1A;font-weight:600;">${total} items to clear</p>
-                <p style="margin:0 0 8px;font-size:12px;color:#4A4A4A;line-height:1.5;">${parts}</p>
-                <a href="${adminUrl}" style="font-size:12px;color:#b45309;font-weight:600;">Review in admin →</a>
-              </div>`
-          }
+          const missing = byReason.get('missing_data') ?? []
+          const rumors = byReason.get('rumor') ?? []
+          const autoClearCats = ['duplicate', 'out_of_scope', 'low_quality', 'brand_excluded']
+          const autoCleared = autoClearCats
+            .map((cat) => ({ cat, items: byReason.get(cat) ?? [] }))
+            .filter((x) => x.items.length > 0)
 
-          const orderedReasons = ['duplicate', 'out_of_scope', 'low_quality', 'rumor', 'brand_excluded', 'missing_data']
-          const grouped = orderedReasons
-            .filter((cat) => byReason.has(cat))
-            .map((cat) => {
-              const items = byReason.get(cat)!
-              const label = REASON_LABELS[cat] ?? cat.replace(/_/g, ' ')
-              return `<p style="margin:12px 0 6px;font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:0.4px;">${label} · ${items.length}</p>
-                ${items.map((r) => rejectCard(siteOrigin, r)).join('')}`
-            })
-            .join('')
+          // 🔍 INVESTIGATE — full cards for missing_data. Jill decides per-item.
+          const investigateBlock = missing.length
+            ? `${sectionHeader('🔍 Investigate', '#6B2D8F')}
+                <p style="margin:-12px 0 12px;font-size:12px;color:#4A4A4A;line-height:1.5;">
+                  These look promising but something's missing (deadline, value, source). Worth a look.
+                </p>
+                ${missing.map((r) => rejectCard(siteOrigin, r)).join('')}`
+            : ''
 
-          return `${sectionHeader('🗑 Reject Queue', '#b45309')}${grouped}`
+          // 👀 WATCHING — rumor headlines, one line each. Corroboration tracking is a future build.
+          const watchingBlock = rumors.length
+            ? `${sectionHeader('👀 Watching', '#6B2D8F')}
+                <p style="margin:-12px 0 12px;font-size:12px;color:#4A4A4A;line-height:1.5;">
+                  Unconfirmed. Keeping an eye out — if another source corroborates in a future brief, we'll promote it.
+                </p>
+                <div style="margin:0 0 20px;padding:10px 14px;background:#fff;border-radius:8px;border-left:3px solid #6B2D8F;">
+                  ${rumors.map((r) => `<p style="margin:0 0 4px;font-size:12px;color:#1A1A1A;line-height:1.35;">${r.headline}</p>`).join('')}
+                </div>`
+            : ''
+
+          // 🗑 AUTO-CLEARED — compact one-liner per category. No individual cards.
+          const autoBlock = autoCleared.length
+            ? `${sectionHeader('🗑 Auto-cleared', '#b45309')}
+                <div style="margin:0 0 20px;padding:10px 14px;background:#fff;border-radius:8px;border-left:3px solid #b45309;">
+                  ${autoCleared.map(({ cat, items }) => `<p style="margin:0 0 4px;font-size:12px;color:#4A4A4A;line-height:1.4;"><span style="font-weight:700;color:#1A1A1A;">${items.length}</span> ${REASON_LABELS[cat] ?? cat.replace(/_/g, ' ')}</p>`).join('')}
+                  <a href="${adminUrl}" style="display:inline-block;margin-top:6px;font-size:11px;color:#b45309;font-weight:600;">Review in admin →</a>
+                </div>`
+            : ''
+
+          return `${investigateBlock}${watchingBlock}${autoBlock}`
         })()
       : ''
 
@@ -421,26 +453,17 @@ export function buildBriefEmail(
           </div>`
       : ''
 
+    const blogRank: Record<string, number> = { hot: 0, sweet_spot: 1, deep_dive: 2, evergreen: 3 }
     const sortedBlogIdeas = [...plan.blog_ideas].sort((a, b) => {
-      const aHot = a.priority === 'hot' ? 0 : 1
-      const bHot = b.priority === 'hot' ? 0 : 1
-      return aHot - bHot
+      const ar = blogRank[a.priority ?? 'evergreen'] ?? 3
+      const br = blogRank[b.priority ?? 'evergreen'] ?? 3
+      return ar - br
     })
     const blogHtml = sortedBlogIdeas.length
-      ? `${sectionHeader('✍️ Blog Post Ideas', '#6B2D8F')}${sortedBlogIdeas.map((i) => blogIdeaCard(i, siteOrigin)).join('')}`
+      ? `${sectionHeader('✍️ Blog Post Ideas', '#6B2D8F')}${sortedBlogIdeas.map((i) => blogIdeaCard(i)).join('')}`
       : ''
 
-    // Newsletter picks are now tagged inline on the approve cards (gold ribbon
-     // + "Newsletter Pick" chip). Approved items auto-queue into admin for
-     // weekly review, so no dedicated section is needed here.
-    const newsletterHint = plan.newsletter_candidates.length
-      ? `<div style="margin:0 0 20px;padding:10px 14px;background:#F8F5FB;border-radius:6px;font-size:12px;color:#4A4A4A;text-align:center;">
-          ${plan.newsletter_candidates.length} of today's approves also tagged for the newsletter —
-          <a href="${siteOrigin}/admin/content-ideas?type=newsletter" style="color:#6B2D8F;font-weight:600;">open the newsletter queue</a>.
-        </div>`
-      : ''
-
-    // Split editorial note into short paragraphs on sentence boundaries so it
+// Split editorial note into short paragraphs on sentence boundaries so it
     // stays scannable even if Sonnet emits one dense blob.
     const noteSentences = (plan.editorial_note ?? '')
       .split(/(?<=[.!?])\s+/)
@@ -453,7 +476,7 @@ export function buildBriefEmail(
         </div>`
       : ''
 
-    editorialSections = `${editorialNote}${slotsHtml}${approveHtml}${newsletterHint}${blogHtml}${rejectHtml}`
+    editorialSections = `${editorialNote}${slotsHtml}${approveHtml}${blogHtml}${rejectHtml}`
   }
 
   return `

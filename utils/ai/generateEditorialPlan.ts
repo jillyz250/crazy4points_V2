@@ -51,7 +51,7 @@ export interface EditorialPlan {
   blog_ideas: {
     title: string
     pitch: string
-    priority: 'hot' | 'evergreen'
+    priority: 'hot' | 'sweet_spot' | 'evergreen' | 'deep_dive'
     why_now: string
   }[]
   newsletter_candidates: {
@@ -156,15 +156,17 @@ Quality bar (reject with reason_category='low_quality'):
 - Opinion pieces without concrete value
 - Vague "tips" without a specific offer or deadline
 
-APPROVE copy: the "why_publish" field is ONE short sentence, in the sassy/funny expert-friend voice.
+APPROVE copy: the "why_publish" field is ONE short sentence, in the sassy/funny best-friend voice.
 Lead with the reader value, not the source. Concrete > clever. Match the brand's tone (warm, dry, a
-little cheeky) — not press-release prose.
+little cheeky) — not press-release prose, not analyst-speak.
 Good examples:
 - "Amex is finally admitting 175k was always the offer — get it before they blink."
 - "40% to LifeMiles is the sweet spot for Star Alliance biz — rare and short-lived."
 - "Hyatt's award chart got quietly worse, and this is the polite heads-up."
 Avoid:
-- Hype words like "incredible", "massive", "huge", "don't miss", "unbeatable"
+- Hype words: "incredible", "massive", "huge", "don't miss", "unbeatable"
+- Analyst crutches: "worth watching", "worth knowing", "worth noting", "readers should",
+  "pay attention", "keep an eye on", "on the radar"
 - Recapping the source ("According to One Mile at a Time…")
 - Vague generics ("Great value for travelers.")
 
@@ -248,16 +250,23 @@ FIELDS per blog idea:
 - title: sassy, specific, under 70 chars. Match brand voice (funny + expert-friend). No clickbait.
   Good: "The Aeroplan partners nobody talks about but should"
   Bad:  "Top 10 travel tips you need to know" / "Understanding Aeroplan partners"
-- pitch: 1–2 SHORT sentences. Hook the reader, don't summarize the article. Full draft happens
-  in admin. Sassy tone, same rules as why_publish.
-- priority: 'hot' | 'evergreen'
+- pitch: 2–3 SHORT sentences. Hook the reader with the actual angle — not a summary.
+  Sassy tone, same rules as why_publish. Should read like the friend-expert teasing the
+  post, not a back-cover blurb.
+- priority: 'hot' | 'sweet_spot' | 'evergreen' | 'deep_dive'
   - 'hot' = directly tied to today's intel pattern or trending signal; rank up
-  - 'evergreen' = standalone angle that's always relevant; rank lower
-  At most ONE idea per brief should be 'hot'. Prefer evergreen if nothing truly hot surfaces.
-- why_now: one short sentence — WHY this ranks now. For hot, tie to today's intel. For evergreen,
-  tie to a recurring reader pain point.
-  Good (hot):       "Three separate Aeroplan bonuses surfaced today — reader search volume is up."
-  Good (evergreen): "Every week a new subscriber asks about Hyatt sweet spots."
+  - 'sweet_spot' = specific award-chart or redemption angle (e.g. "Hyatt cat-4 under 15k",
+    "Aeroplan to Japan in business for 75k"). Concrete program + concrete value.
+  - 'evergreen' = always-relevant how-to (card picks, earning basics, transfer strategy)
+  - 'deep_dive' = thorough explainer on one program/quirk (e.g. "how Amex MR transfer bonuses
+    actually work", "why BA Avios are weird on short-haul")
+  At most ONE idea per brief should be 'hot'. Mix the other three — don't default everything to evergreen.
+- why_now: one short sentence — WHY this ranks now. For hot, tie to today's intel. For sweet_spot,
+  tie to a current partner/chart quirk. For evergreen/deep_dive, tie to a recurring reader pain point.
+  Good (hot):        "Three separate Aeroplan bonuses surfaced today — reader search volume is up."
+  Good (sweet_spot): "Hyatt just added 3 cat-4s — the points math is absurd right now."
+  Good (evergreen):  "Every week a new subscriber asks which card to start with."
+  Good (deep_dive):  "Amex transfer bonuses confuse everyone — time to explain them once."
 
 ═══════════════════════════════════════════════════════════
 TAGLINE (header line, one per day)
@@ -388,8 +397,8 @@ SCHEMA (output must validate against this)
   "blog_ideas": [
     {
       "title": "<sassy post title, under 70 chars>",
-      "pitch": "<1–2 short sentences, sassy hook>",
-      "priority": "hot" | "evergreen",
+      "pitch": "<2–3 short sentences, sassy hook>",
+      "priority": "hot" | "sweet_spot" | "evergreen" | "deep_dive",
       "why_now": "<one short sentence on why this ranks now>"
     }
   ],
