@@ -1,52 +1,61 @@
-import HomeHero from "@/components/home/HomeHero";
-import DailyAlerts from "@/components/home/DailyAlerts";
-import FeaturedDestinations from "@/components/home/FeaturedDestinations";
-import FeaturedDeals from "@/components/home/FeaturedDeals";
-import FeaturedGuides from "@/components/home/FeaturedGuides";
-import CTASection from "@/components/home/CTASection";
+import HomeHeroV2 from "@/components/home/HomeHeroV2";
+import RedAlertBar from "@/components/home/RedAlertBar";
 import { createAdminClient } from "@/utils/supabase/server";
-import { getHomepageAlerts, getActiveAlerts } from "@/utils/supabase/queries";
-import type { AlertWithPrograms } from "@/utils/supabase/queries";
+import { getActiveAlerts, type AlertWithPrograms } from "@/utils/supabase/queries";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "crazy4points — Travel Smarter. Earn More. Go Farther.",
   description:
-    "Real-time transfer bonuses, sweet spots, and a ranked action plan for your Chase, Amex, Citi, and Capital One points. The intelligent travel rewards platform.",
+    "Alerts on the points moves actually worth caring about. We track the chaos so you don't have to.",
 };
+
+const MAX_RED_ALERTS = 5;
+
+function daysUntil(endDate: string | null): number | null {
+  if (!endDate) return null;
+  return Math.ceil((new Date(endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+}
+
+function selectRedAlerts(alerts: AlertWithPrograms[]): AlertWithPrograms[] {
+  const critical: AlertWithPrograms[] = [];
+  const urgent: AlertWithPrograms[] = [];
+  const rest: AlertWithPrograms[] = [];
+
+  for (const a of alerts) {
+    const d = daysUntil(a.end_date);
+    if (d !== null && d >= 0 && d <= 1) critical.push(a);
+    else if (d !== null && d >= 0 && d <= 7) urgent.push(a);
+    else rest.push(a);
+  }
+
+  const picked = [...critical, ...urgent, ...rest];
+  const seen = new Set<string>();
+  const deduped: AlertWithPrograms[] = [];
+  for (const a of picked) {
+    if (seen.has(a.id)) continue;
+    seen.add(a.id);
+    deduped.push(a);
+    if (deduped.length >= MAX_RED_ALERTS) break;
+  }
+  return deduped;
+}
 
 export default async function HomePage() {
   const supabase = createAdminClient();
-  const [pinnedSlots, allActive] = await Promise.all([
-    getHomepageAlerts(supabase),
-    getActiveAlerts(supabase),
-  ]);
+  const active = await getActiveAlerts(supabase);
 
-  // Build the 4 homepage alerts: pinned slots first, fill gaps with top scored
-  const pinnedAlerts = pinnedSlots
-    .sort((a, b) => a.slot_number - b.slot_number)
-    .map((s) => s.alerts)
-    .filter((a): a is AlertWithPrograms => a !== null);
+  const lastUpdated = active.length > 0
+    ? active.reduce((latest, a) =>
+        a.updated_at > latest ? a.updated_at : latest, active[0].updated_at)
+    : null;
 
-  const pinnedIds = new Set(pinnedAlerts.map((a) => a.id));
-
-  const fallbacks = [...allActive]
-    .filter((a) => !pinnedIds.has(a.id))
-    .sort((a, b) =>
-      (b.impact_score + b.value_score + b.rarity_score) -
-      (a.impact_score + a.value_score + a.rarity_score)
-    );
-
-  const topAlerts = [...pinnedAlerts, ...fallbacks].slice(0, 4);
+  const redAlerts = selectRedAlerts(active);
 
   return (
     <>
-      <DailyAlerts alerts={topAlerts} />
-      <HomeHero />
-      <FeaturedDestinations />
-      <FeaturedDeals />
-      <FeaturedGuides />
-      <CTASection />
+      <RedAlertBar alerts={redAlerts} />
+      <HomeHeroV2 lastUpdated={lastUpdated} />
     </>
   );
 }
