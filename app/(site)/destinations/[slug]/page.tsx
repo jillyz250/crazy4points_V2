@@ -18,6 +18,7 @@ type Destination = {
   who_is_going: string[] | null
   weather_by_month: Weather | null
   is_unesco: boolean | null
+  image_url: string | null
 }
 
 const CONTINENT_LABELS: Record<string, string> = {
@@ -46,7 +47,7 @@ async function getDestination(slug: string): Promise<Destination | null> {
   const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('destinations')
-    .select('slug, title, country, region, continent, summary_short, summary_long, vibe, trip_length, who_is_going, weather_by_month, is_unesco')
+    .select('slug, title, country, region, continent, summary_short, summary_long, vibe, trip_length, who_is_going, weather_by_month, is_unesco, image_url')
     .eq('slug', slug)
     .maybeSingle()
   if (error) {
@@ -100,7 +101,28 @@ export default async function DestinationDetailPage(
             gap: 48px;
           }
         }
+        .destination-hero {
+          width: 100%;
+          height: 280px;
+          background: linear-gradient(135deg, #6B2D8F 0%, #D4AF37 100%);
+          background-size: cover;
+          background-position: center;
+          border-bottom: 4px solid var(--color-accent);
+        }
+        @media (min-width: 900px) {
+          .destination-hero { height: 420px; }
+        }
       `}</style>
+
+      {dest.image_url && (
+        <div
+          className="destination-hero"
+          style={{ backgroundImage: `url(${dest.image_url})` }}
+          role="img"
+          aria-label={dest.title}
+        />
+      )}
+
       {/* Header */}
       <section
         className="rg-sub-section"
