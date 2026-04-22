@@ -70,6 +70,35 @@ export async function approveIntelAlertAction(id: string) {
   redirect('/admin/alerts')
 }
 
+export async function bulkApproveIntelAlertsAction(ids: string[]) {
+  if (!Array.isArray(ids) || ids.length === 0) return
+  const supabase = createAdminClient()
+  const now = new Date().toISOString()
+  for (const id of ids) {
+    const prev = await getAlertById(supabase, id).catch(() => null)
+    if (!prev) continue
+    if (prev.status === 'published') continue
+    await updateAlert(supabase, id, {
+      status: 'published',
+      published_at: now,
+      approved_at: now,
+    })
+    await trackSourceApprovalIfNeeded(supabase, prev, 'published')
+  }
+  revalidatePath('/admin/alerts')
+  redirect('/admin/alerts')
+}
+
+export async function bulkRejectAlertsAction(ids: string[]) {
+  if (!Array.isArray(ids) || ids.length === 0) return
+  const supabase = createAdminClient()
+  for (const id of ids) {
+    await updateAlert(supabase, id, { status: 'rejected' }).catch(() => {})
+  }
+  revalidatePath('/admin/alerts')
+  redirect('/admin/alerts')
+}
+
 export async function rejectAlertAction(id: string) {
   const supabase = createAdminClient()
   await updateAlert(supabase, id, { status: 'rejected' })

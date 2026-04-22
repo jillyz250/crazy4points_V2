@@ -2,8 +2,8 @@ import Link from 'next/link'
 import { createAdminClient } from '@/utils/supabase/server'
 import { getAllAlerts, getPendingReviewAlerts } from '@/utils/supabase/queries'
 import type { AlertStatus } from '@/utils/supabase/queries'
-import { publishAlertAction, expireAlertAction, approveIntelAlertAction, rejectAlertAction } from './actions'
-import FactCheckWarnings from '@/components/admin/FactCheckWarnings'
+import { publishAlertAction, expireAlertAction } from './actions'
+import PendingReviewBulk from '@/components/admin/PendingReviewBulk'
 
 const STATUS_BADGE: Record<AlertStatus, { label: string; bg: string; color: string }> = {
   published:      { label: 'Published',      bg: '#e6f4ea', color: '#1e7e34' },
@@ -11,12 +11,6 @@ const STATUS_BADGE: Record<AlertStatus, { label: string; bg: string; color: stri
   pending_review: { label: 'Pending Review', bg: '#fff8e1', color: '#b45309' },
   rejected:       { label: 'Rejected',       bg: '#fdecea', color: '#c0392b' },
   expired:        { label: 'Expired',        bg: '#f3f0f7', color: '#7c5cbf' },
-}
-
-const CONFIDENCE_COLOR: Record<string, string> = {
-  high:   '#1e7e34',
-  medium: '#b45309',
-  low:    '#c0392b',
 }
 
 export default async function AdminAlertsPage() {
@@ -35,91 +29,22 @@ export default async function AdminAlertsPage() {
         </Link>
       </div>
 
-      {/* Pending Review inbox */}
       {pendingAlerts.length > 0 && (
-        <div style={{ marginBottom: '2.5rem' }}>
-          <h2 style={{ fontSize: '1rem', fontFamily: 'var(--font-ui)', marginBottom: '1rem', color: '#b45309' }}>
-            Pending Review ({pendingAlerts.length})
-          </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {pendingAlerts.map((alert) => {
-              const intel = alert.intel
-              return (
-                <div key={alert.id} style={{
-                  border: '1px solid #fde68a',
-                  borderLeft: '4px solid #f59e0b',
-                  borderRadius: 'var(--radius-card)',
-                  background: '#fffbeb',
-                  padding: '1rem 1.25rem',
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontWeight: 600, marginBottom: '0.25rem', color: 'var(--color-text-primary)' }}>
-                        {alert.title}
-                      </p>
-                      {intel && (
-                        <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', marginBottom: '0.5rem' }}>
-                          <span style={{ fontWeight: 600, color: CONFIDENCE_COLOR[intel.confidence] }}>
-                            {intel.confidence.toUpperCase()}
-                          </span>
-                          {' · '}
-                          {intel.source_name}
-                          {intel.source_url && (
-                            <> · <a href={intel.source_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)' }}>source</a></>
-                          )}
-                        </p>
-                      )}
-                      {intel?.raw_text && (
-                        <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', fontStyle: 'italic', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-                          "{intel.raw_text.slice(0, 200)}{intel.raw_text.length > 200 ? '…' : ''}"
-                        </p>
-                      )}
-                      <FactCheckWarnings alertId={alert.id} claims={alert.fact_check_claims} />
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexShrink: 0 }}>
-                      <Link
-                        href={`/admin/alerts/${alert.id}/edit`}
-                        style={{ fontSize: '0.8125rem', color: 'var(--color-primary)', textDecoration: 'underline' }}
-                      >
-                        Edit
-                      </Link>
-                      <form action={approveIntelAlertAction.bind(null, alert.id)}>
-                        <button type="submit" style={{
-                          padding: '0.35rem 0.875rem',
-                          borderRadius: 'var(--radius-ui)',
-                          background: '#1e7e34',
-                          color: '#fff',
-                          border: 'none',
-                          cursor: 'pointer',
-                          fontSize: '0.8125rem',
-                          fontFamily: 'var(--font-ui)',
-                          fontWeight: 600,
-                        }}>
-                          Approve
-                        </button>
-                      </form>
-                      <form action={rejectAlertAction.bind(null, alert.id)}>
-                        <button type="submit" style={{
-                          padding: '0.35rem 0.875rem',
-                          borderRadius: 'var(--radius-ui)',
-                          background: '#fdecea',
-                          color: '#c0392b',
-                          border: '1px solid #f5c6cb',
-                          cursor: 'pointer',
-                          fontSize: '0.8125rem',
-                          fontFamily: 'var(--font-ui)',
-                          fontWeight: 600,
-                        }}>
-                          Reject
-                        </button>
-                      </form>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
+        <PendingReviewBulk
+          alerts={pendingAlerts.map((a) => ({
+            id: a.id,
+            title: a.title,
+            fact_check_claims: a.fact_check_claims,
+            intel: a.intel
+              ? {
+                  confidence: a.intel.confidence,
+                  source_name: a.intel.source_name,
+                  source_url: a.intel.source_url,
+                  raw_text: a.intel.raw_text,
+                }
+              : null,
+          }))}
+        />
       )}
 
       {/* All alerts table */}
