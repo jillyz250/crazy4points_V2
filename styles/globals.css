@@ -164,3 +164,31 @@ button {
     animation: cta-engine-pulse 1.8s ease-in-out infinite;
   }
 }
+
+/* Blog post body */
+.rg-prose h2 {
+  font-size: 1.5rem;
+  margin: 2rem 0 0.75rem;
+}
+.rg-prose h3 {
+  font-size: 1.25rem;
+  margin: 1.5rem 0 0.5rem;
+}
+.rg-prose p {
+  margin: 0 0 1.125rem;
+}
+.rg-prose ul,
+.rg-prose ol {
+  margin: 0 0 1.125rem;
+  padding-left: 1.5rem;
+}
+.rg-prose li {
+  margin: 0.25rem 0;
+}
+.rg-prose strong {
+  color: var(--color-text-primary);
+}
+.rg-prose a {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
