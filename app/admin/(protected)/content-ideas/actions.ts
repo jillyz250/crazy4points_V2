@@ -11,6 +11,37 @@ import { originalityCheck } from '@/utils/ai/originalityCheck'
 type IdeaStatus = 'new' | 'queued' | 'drafted' | 'published' | 'dismissed'
 const VALID: IdeaStatus[] = ['new', 'queued', 'drafted', 'published', 'dismissed']
 
+function slugify(title: string): string {
+  return title
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80)
+}
+
+async function uniqueSlug(
+  supabase: ReturnType<typeof createAdminClient>,
+  title: string,
+  ideaId: string,
+): Promise<string> {
+  const base = slugify(title) || 'post'
+  let candidate = base
+  for (let i = 0; i < 50; i++) {
+    const { data } = await supabase
+      .from('content_ideas')
+      .select('id')
+      .eq('slug', candidate)
+      .neq('id', ideaId)
+      .limit(1)
+      .maybeSingle()
+    if (!data) return candidate
+    candidate = `${base}-${i + 2}`
+  }
+  return `${base}-${Date.now()}`
+}
+
 export async function updateContentIdeaStatusAction(
   id: string,
   status: string
@@ -27,7 +58,7 @@ export async function updateContentIdeaStatusAction(
   if (status === 'published') {
     const { data: idea, error: fetchErr } = await supabase
       .from('content_ideas')
-      .select('article_body, written_at, fact_checked_at, fact_check_claims, voice_checked_at, voice_pass, originality_checked_at, originality_pass')
+      .select('title, type, slug, article_body, written_at, fact_checked_at, fact_check_claims, voice_checked_at, voice_pass, originality_checked_at, originality_pass')
       .eq('id', id)
       .single()
     if (fetchErr || !idea) throw new Error(fetchErr?.message ?? 'Idea not found')
@@ -49,6 +80,20 @@ export async function updateContentIdeaStatusAction(
     if (missing.length > 0) {
       throw new Error(`Cannot publish — ${missing.join('; ')}`)
     }
+
+    const now = new Date().toISOString()
+    const slug = idea.slug ?? (await uniqueSlug(supabase, idea.title, id))
+    const { error: pubErr } = await supabase
+      .from('content_ideas')
+      .update({ status, slug, published_at: now, updated_at: now })
+      .eq('id', id)
+    if (pubErr) throw pubErr
+    revalidatePath('/admin/content-ideas')
+    if (idea.type === 'blog') {
+      revalidatePath('/blog')
+      revalidatePath(`/blog/${slug}`)
+    }
+    return
   }
 
   const { error } = await supabase
