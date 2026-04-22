@@ -60,6 +60,13 @@ const SECTIONS: Section[] = [
     ],
   },
   {
+    title: 'Fact Checks',
+    description: 'Claim-level fact-check drill-down. Surface the approve flag rate and whether flags are checker noise or bad data.',
+    actions: [
+      { href: '/admin/fact-checks', label: 'View Fact Checks', variant: 'primary' },
+    ],
+  },
+  {
     title: 'System Errors',
     description: 'Background-job failures from scout, brief, and summarize. Resolve after investigating.',
     actions: [

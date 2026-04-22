@@ -407,6 +407,22 @@ export async function getSources(supabase: SupabaseClient): Promise<SourceWithFe
   }))
 }
 
+export async function listAlertsWithFactChecks(
+  supabase: SupabaseClient,
+  opts: { days?: number } = {},
+): Promise<Pick<Alert, 'id' | 'title' | 'status' | 'fact_check_claims' | 'fact_check_at' | 'approved_at' | 'created_at'>[]> {
+  const cutoff = new Date(Date.now() - (opts.days ?? 30) * 24 * 60 * 60 * 1000).toISOString()
+  const { data, error } = await supabase
+    .from('alerts')
+    .select('id, title, status, fact_check_claims, fact_check_at, approved_at, created_at')
+    .not('fact_check_at', 'is', null)
+    .gte('fact_check_at', cutoff)
+    .order('fact_check_at', { ascending: false })
+    .limit(200)
+  if (error) throw error
+  return (data ?? []) as Pick<Alert, 'id' | 'title' | 'status' | 'fact_check_claims' | 'fact_check_at' | 'approved_at' | 'created_at'>[]
+}
+
 export async function getLastFindingBySource(
   supabase: SupabaseClient,
 ): Promise<Map<string, string>> {
