@@ -6,6 +6,7 @@ import { writeArticleBody } from '@/utils/ai/writeArticleBody'
 import { verifyArticleBody } from '@/utils/ai/verifyArticleBody'
 import { webVerifyClaims } from '@/utils/ai/verifyAlertDraft'
 import { voiceCheckArticle } from '@/utils/ai/voiceCheckArticle'
+import { originalityCheck } from '@/utils/ai/originalityCheck'
 
 type IdeaStatus = 'new' | 'queued' | 'drafted' | 'published' | 'dismissed'
 const VALID: IdeaStatus[] = ['new', 'queued', 'drafted', 'published', 'dismissed']
@@ -18,6 +19,38 @@ export async function updateContentIdeaStatusAction(
     throw new Error(`Invalid status: ${status}`)
   }
   const supabase = createAdminClient()
+
+  // Publish gate: to flip to 'published', all four verification pills must be
+  // green. Written = has body + written_at. Fact-checked = checked and no
+  // high-severity unsupported claim. Voice = checked and voice_pass. Original
+  // = checked and originality_pass.
+  if (status === 'published') {
+    const { data: idea, error: fetchErr } = await supabase
+      .from('content_ideas')
+      .select('article_body, written_at, fact_checked_at, fact_check_claims, voice_checked_at, voice_pass, originality_checked_at, originality_pass')
+      .eq('id', id)
+      .single()
+    if (fetchErr || !idea) throw new Error(fetchErr?.message ?? 'Idea not found')
+
+    const missing: string[] = []
+    if (!idea.article_body || !idea.written_at) missing.push('article not drafted')
+    if (!idea.fact_checked_at) {
+      missing.push('fact-check not run')
+    } else {
+      const claims = Array.isArray(idea.fact_check_claims)
+        ? (idea.fact_check_claims as { supported?: boolean; severity?: string; acknowledged?: boolean }[])
+        : []
+      const openHigh = claims.some((c) => !c.supported && c.severity === 'high' && !c.acknowledged)
+      if (openHigh) missing.push('unresolved high-severity fact-check claim')
+    }
+    if (!idea.voice_checked_at || idea.voice_pass !== true) missing.push('voice check not passing')
+    if (!idea.originality_checked_at || idea.originality_pass !== true) missing.push('originality check not passing')
+
+    if (missing.length > 0) {
+      throw new Error(`Cannot publish — ${missing.join('; ')}`)
+    }
+  }
+
   const { error } = await supabase
     .from('content_ideas')
     .update({ status, updated_at: new Date().toISOString() })
@@ -74,6 +107,7 @@ export async function writeArticleAction(id: string): Promise<WriteArticleResult
       voice_pass: null,
       originality_checked_at: null,
       originality_notes: null,
+      originality_pass: null,
       updated_at: now,
     })
     .eq('id', id)
@@ -157,6 +191,38 @@ export async function checkArticleAction(id: string): Promise<CheckArticleResult
   revalidatePath('/admin/content-ideas')
   const factFlagged = grounded.filter((c) => !c.supported && c.severity === 'high').length
   return { ok: true, factFlagged, voicePass: voiceRes.pass }
+}
+
+export type OriginalityActionResult =
+  | { ok: true; pass: boolean; notes: string }
+  | { ok: false; error: string }
+
+export async function checkOriginalityAction(id: string): Promise<OriginalityActionResult> {
+  const supabase = createAdminClient()
+  const { data: idea, error: fetchErr } = await supabase
+    .from('content_ideas')
+    .select('id, title, article_body')
+    .eq('id', id)
+    .single()
+  if (fetchErr || !idea) return { ok: false, error: fetchErr?.message ?? 'Idea not found' }
+  if (!idea.article_body) return { ok: false, error: 'No article body to check — draft first.' }
+
+  const res = await originalityCheck({ title: idea.title, article_body: idea.article_body })
+  if (!res) return { ok: false, error: 'Originality check failed (see logs)' }
+
+  const { error: updateErr } = await supabase
+    .from('content_ideas')
+    .update({
+      originality_checked_at: res.checked_at,
+      originality_notes: res.notes,
+      originality_pass: res.pass,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+  if (updateErr) return { ok: false, error: updateErr.message }
+
+  revalidatePath('/admin/content-ideas')
+  return { ok: true, pass: res.pass, notes: res.notes }
 }
 
 export async function updateContentIdeaNotesAction(

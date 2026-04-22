@@ -3,6 +3,7 @@ import { createAdminClient } from '@/utils/supabase/server'
 import { updateContentIdeaStatusAction, updateContentIdeaNotesAction } from './actions'
 import WriteArticleButton from '@/components/admin/WriteArticleButton'
 import CheckArticleButton from '@/components/admin/CheckArticleButton'
+import CheckOriginalityButton from '@/components/admin/CheckOriginalityButton'
 
 type IdeaStatus = 'new' | 'queued' | 'drafted' | 'published' | 'dismissed'
 type IdeaType = 'newsletter' | 'blog'
@@ -30,6 +31,7 @@ interface ContentIdeaRow {
   voice_pass: boolean | null
   originality_checked_at: string | null
   originality_notes: string | null
+  originality_pass: boolean | null
   source_alert?: {
     end_date: string | null
     computed_score: number | null
@@ -218,10 +220,10 @@ function verificationPills(idea: ContentIdeaRow): VerificationPill[] {
     },
     {
       label: 'Original',
-      on: Boolean(idea.originality_checked_at),
+      on: Boolean(idea.originality_checked_at) && idea.originality_pass === true,
       hint: idea.originality_checked_at
         ? idea.originality_notes
-          ? `Originality: ${idea.originality_notes}`
+          ? `${idea.originality_pass ? 'PASS' : 'FAIL'} — ${idea.originality_notes}`
           : `Originality checked ${new Date(idea.originality_checked_at).toLocaleDateString()}`
         : 'Originality not checked yet',
     },
@@ -394,6 +396,7 @@ function IdeaCard({ idea }: { idea: ContentIdeaRow }) {
       <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
         <WriteArticleButton ideaId={idea.id} hasBody={Boolean(idea.article_body)} />
         <CheckArticleButton ideaId={idea.id} hasBody={Boolean(idea.article_body)} />
+        <CheckOriginalityButton ideaId={idea.id} hasBody={Boolean(idea.article_body)} />
         {actions.map((a) => (
           <form key={a.to} action={updateContentIdeaStatusAction.bind(null, idea.id, a.to)}>
             <button
