@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/utils/supabase/server'
+import { writeArticleBody } from '@/utils/ai/writeArticleBody'
 
 type IdeaStatus = 'new' | 'queued' | 'drafted' | 'published' | 'dismissed'
 const VALID: IdeaStatus[] = ['new', 'queued', 'drafted', 'published', 'dismissed']
@@ -20,6 +21,62 @@ export async function updateContentIdeaStatusAction(
     .eq('id', id)
   if (error) throw error
   revalidatePath('/admin/content-ideas')
+}
+
+export type WriteArticleResult =
+  | { ok: true }
+  | { ok: false; error: string }
+
+export async function writeArticleAction(id: string): Promise<WriteArticleResult> {
+  const supabase = createAdminClient()
+  const { data: idea, error: fetchErr } = await supabase
+    .from('content_ideas')
+    .select('id, type, title, pitch, source_alert_id')
+    .eq('id', id)
+    .single()
+  if (fetchErr || !idea) return { ok: false, error: fetchErr?.message ?? 'Idea not found' }
+  if (idea.type !== 'newsletter' && idea.type !== 'blog') {
+    return { ok: false, error: `Unsupported idea type: ${idea.type}` }
+  }
+
+  let sourceAlert = null
+  if (idea.source_alert_id) {
+    const { data: alert } = await supabase
+      .from('alerts')
+      .select('title, summary, description, end_date')
+      .eq('id', idea.source_alert_id)
+      .single()
+    if (alert) sourceAlert = alert
+  }
+
+  const draft = await writeArticleBody({
+    type: idea.type,
+    title: idea.title,
+    pitch: idea.pitch,
+    source_alert: sourceAlert,
+  })
+  if (!draft) return { ok: false, error: 'Writer returned no draft (check logs / API key)' }
+
+  const now = new Date().toISOString()
+  const { error: updateErr } = await supabase
+    .from('content_ideas')
+    .update({
+      article_body: draft.body,
+      written_by: draft.written_by,
+      written_at: now,
+      fact_checked_at: null,
+      fact_check_claims: null,
+      voice_checked_at: null,
+      voice_notes: null,
+      originality_checked_at: null,
+      originality_notes: null,
+      updated_at: now,
+    })
+    .eq('id', id)
+  if (updateErr) return { ok: false, error: updateErr.message }
+
+  revalidatePath('/admin/content-ideas')
+  return { ok: true }
 }
 
 export async function updateContentIdeaNotesAction(

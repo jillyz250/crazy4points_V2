@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { createAdminClient } from '@/utils/supabase/server'
 import { updateContentIdeaStatusAction, updateContentIdeaNotesAction } from './actions'
+import WriteArticleButton from '@/components/admin/WriteArticleButton'
 
 type IdeaStatus = 'new' | 'queued' | 'drafted' | 'published' | 'dismissed'
 type IdeaType = 'newsletter' | 'blog'
@@ -335,6 +336,30 @@ function IdeaCard({ idea }: { idea: ContentIdeaRow }) {
         {idea.pitch}
       </p>
 
+      {idea.article_body && (
+        <details style={{ margin: '0 0 0.75rem' }}>
+          <summary style={{ cursor: 'pointer', fontSize: '0.8125rem', fontFamily: 'var(--font-ui)', color: 'var(--color-primary)', fontWeight: 600 }}>
+            Article body ({idea.article_body.length.toLocaleString()} chars{idea.written_at ? ` · drafted ${new Date(idea.written_at).toLocaleString()}` : ''})
+          </summary>
+          <pre
+            style={{
+              marginTop: '0.5rem',
+              padding: '0.75rem 0.875rem',
+              background: 'var(--color-background-soft)',
+              border: '1px solid var(--color-border-soft)',
+              borderRadius: 'var(--radius-ui)',
+              fontFamily: 'var(--font-body)',
+              fontSize: '0.8125rem',
+              lineHeight: 1.55,
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+            }}
+          >
+            {idea.article_body}
+          </pre>
+        </details>
+      )}
+
       {idea.source_alert_id && (
         <p style={{ margin: '0 0 0.75rem', fontSize: '0.8125rem' }}>
           <Link href={`/admin/alerts/${idea.source_alert_id}/edit`} style={{ color: 'var(--color-primary)', fontWeight: 600 }}>
@@ -364,7 +389,8 @@ function IdeaCard({ idea }: { idea: ContentIdeaRow }) {
         </button>
       </form>
 
-      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+        <WriteArticleButton ideaId={idea.id} hasBody={Boolean(idea.article_body)} />
         {actions.map((a) => (
           <form key={a.to} action={updateContentIdeaStatusAction.bind(null, idea.id, a.to)}>
             <button
