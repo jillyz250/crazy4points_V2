@@ -182,7 +182,7 @@ export interface IntelItem {
 
 export type RecentIntelItem = Pick<IntelItem, 'id' | 'headline' | 'source_type' | 'programs' | 'alert_type' | 'created_at'>
 
-export type IntelItemInsert = Omit<IntelItem, 'id' | 'created_at' | 'processed' | 'alert_id' | 'dedup_count'>
+export type IntelItemInsert = Omit<IntelItem, 'id' | 'created_at' | 'processed' | 'alert_id' | 'dedup_count' | 'rejected_at'>
 
 // ─── Queries ─────────────────────────────────────────────────────────────────
 
