@@ -53,6 +53,13 @@ const SECTIONS: Section[] = [
     ],
   },
   {
+    title: 'Jobs',
+    description: 'Manually trigger scout or brief runs. Useful for testing a new source without waiting for the cron.',
+    actions: [
+      { href: '/admin/jobs', label: 'Run Jobs', variant: 'primary' },
+    ],
+  },
+  {
     title: 'System Errors',
     description: 'Background-job failures from scout, brief, and summarize. Resolve after investigating.',
     actions: [
