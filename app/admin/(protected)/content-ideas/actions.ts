@@ -3,6 +3,9 @@
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/utils/supabase/server'
 import { writeArticleBody } from '@/utils/ai/writeArticleBody'
+import { verifyArticleBody } from '@/utils/ai/verifyArticleBody'
+import { webVerifyClaims } from '@/utils/ai/verifyAlertDraft'
+import { voiceCheckArticle } from '@/utils/ai/voiceCheckArticle'
 
 type IdeaStatus = 'new' | 'queued' | 'drafted' | 'published' | 'dismissed'
 const VALID: IdeaStatus[] = ['new', 'queued', 'drafted', 'published', 'dismissed']
@@ -68,6 +71,7 @@ export async function writeArticleAction(id: string): Promise<WriteArticleResult
       fact_check_claims: null,
       voice_checked_at: null,
       voice_notes: null,
+      voice_pass: null,
       originality_checked_at: null,
       originality_notes: null,
       updated_at: now,
@@ -77,6 +81,82 @@ export async function writeArticleAction(id: string): Promise<WriteArticleResult
 
   revalidatePath('/admin/content-ideas')
   return { ok: true }
+}
+
+export type CheckArticleResult =
+  | { ok: true; factFlagged: number; voicePass: boolean }
+  | { ok: false; error: string }
+
+export async function checkArticleAction(id: string): Promise<CheckArticleResult> {
+  const supabase = createAdminClient()
+  const { data: idea, error: fetchErr } = await supabase
+    .from('content_ideas')
+    .select('id, title, article_body, source_alert_id, source_intel_id')
+    .eq('id', id)
+    .single()
+  if (fetchErr || !idea) return { ok: false, error: fetchErr?.message ?? 'Idea not found' }
+  if (!idea.article_body) return { ok: false, error: 'No article body to check — draft first.' }
+
+  // Build source text from the linked alert + (optional) raw intel, so the
+  // verifier has something to ground against beyond "the article itself."
+  let sourceText = ''
+  let sourceUrl: string | null = null
+  if (idea.source_alert_id) {
+    const { data: alert } = await supabase
+      .from('alerts')
+      .select('title, summary, description')
+      .eq('id', idea.source_alert_id)
+      .single()
+    if (alert) {
+      sourceText = [alert.title, alert.summary, alert.description].filter(Boolean).join('\n\n')
+    }
+  }
+  if (idea.source_intel_id) {
+    const { data: intel } = await supabase
+      .from('intel_items')
+      .select('raw_text, source_url')
+      .eq('id', idea.source_intel_id)
+      .single()
+    if (intel) {
+      if (intel.raw_text) sourceText = `${sourceText}\n\n${intel.raw_text}`.trim()
+      sourceUrl = intel.source_url ?? null
+    }
+  }
+
+  const [verifyRes, voiceRes] = await Promise.all([
+    verifyArticleBody({
+      title: idea.title,
+      article_body: idea.article_body,
+      source_text: sourceText || null,
+    }),
+    voiceCheckArticle({ title: idea.title, article_body: idea.article_body }),
+  ])
+  if (!verifyRes) return { ok: false, error: 'Fact-check call failed (see logs)' }
+  if (!voiceRes) return { ok: false, error: 'Voice-check call failed (see logs)' }
+
+  // Web-grounding pass for unsupported claims (same pattern as alerts).
+  const grounded = await webVerifyClaims({
+    claims: verifyRes.claims,
+    context: { title: idea.title, source_url: sourceUrl },
+  })
+
+  const now = new Date().toISOString()
+  const { error: updateErr } = await supabase
+    .from('content_ideas')
+    .update({
+      fact_checked_at: verifyRes.checked_at,
+      fact_check_claims: grounded,
+      voice_checked_at: voiceRes.checked_at,
+      voice_notes: voiceRes.notes,
+      voice_pass: voiceRes.pass,
+      updated_at: now,
+    })
+    .eq('id', id)
+  if (updateErr) return { ok: false, error: updateErr.message }
+
+  revalidatePath('/admin/content-ideas')
+  const factFlagged = grounded.filter((c) => !c.supported && c.severity === 'high').length
+  return { ok: true, factFlagged, voicePass: voiceRes.pass }
 }
 
 export async function updateContentIdeaNotesAction(
