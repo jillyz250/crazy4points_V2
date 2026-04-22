@@ -18,6 +18,15 @@ interface ContentIdeaRow {
   notes: string | null
   created_at: string
   updated_at: string
+  article_body: string | null
+  written_by: string | null
+  written_at: string | null
+  fact_checked_at: string | null
+  fact_check_claims: unknown
+  voice_checked_at: string | null
+  voice_notes: string | null
+  originality_checked_at: string | null
+  originality_notes: string | null
   source_alert?: {
     end_date: string | null
     computed_score: number | null
@@ -170,11 +179,89 @@ function rankLabel(idea: ContentIdeaRow): { label: string; bg: string; fg: strin
   return null
 }
 
+interface VerificationPill {
+  label: string
+  on: boolean
+  hint: string
+}
+
+function verificationPills(idea: ContentIdeaRow): VerificationPill[] {
+  const flagged = Array.isArray(idea.fact_check_claims)
+    ? (idea.fact_check_claims as { supported?: boolean }[]).some((c) => c && c.supported === false)
+    : false
+  return [
+    {
+      label: 'Written',
+      on: Boolean(idea.written_at && idea.article_body),
+      hint: idea.written_by ? `Written by ${idea.written_by}` : 'Article body not drafted yet',
+    },
+    {
+      label: 'Fact-checked',
+      on: Boolean(idea.fact_checked_at) && !flagged,
+      hint: idea.fact_checked_at
+        ? flagged
+          ? 'Fact-check ran but claims are flagged'
+          : `Fact-checked ${new Date(idea.fact_checked_at).toLocaleDateString()}`
+        : 'Not fact-checked yet',
+    },
+    {
+      label: 'On-brand voice',
+      on: Boolean(idea.voice_checked_at),
+      hint: idea.voice_checked_at
+        ? idea.voice_notes
+          ? `Voice: ${idea.voice_notes}`
+          : `Voice-checked ${new Date(idea.voice_checked_at).toLocaleDateString()}`
+        : 'Not voice-checked yet',
+    },
+    {
+      label: 'Original',
+      on: Boolean(idea.originality_checked_at),
+      hint: idea.originality_checked_at
+        ? idea.originality_notes
+          ? `Originality: ${idea.originality_notes}`
+          : `Originality checked ${new Date(idea.originality_checked_at).toLocaleDateString()}`
+        : 'Originality not checked yet',
+    },
+  ]
+}
+
+function VerificationRow({ pills }: { pills: VerificationPill[] }) {
+  return (
+    <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+      {pills.map((p) => (
+        <span
+          key={p.label}
+          title={p.hint}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.25rem',
+            padding: '0.1875rem 0.5rem',
+            borderRadius: '999px',
+            background: p.on ? '#DCFCE7' : '#F3F4F6',
+            color: p.on ? '#166534' : '#9CA3AF',
+            fontSize: '0.6875rem',
+            fontFamily: 'var(--font-ui)',
+            fontWeight: 700,
+            letterSpacing: '0.03em',
+            textTransform: 'uppercase',
+            border: `1px solid ${p.on ? '#86EFAC' : 'var(--color-border-soft)'}`,
+          }}
+        >
+          <span aria-hidden="true">{p.on ? '✓' : '○'}</span>
+          {p.label}
+        </span>
+      ))}
+    </div>
+  )
+}
+
 function IdeaCard({ idea }: { idea: ContentIdeaRow }) {
   const color = STATUS_COLORS[idea.status]
   const actions = NEXT_STATUS[idea.status] ?? []
   const rank = rankLabel(idea)
   const score = idea.source_alert?.computed_score
+  const pills = verificationPills(idea)
   return (
     <div
       style={{
@@ -241,6 +328,8 @@ function IdeaCard({ idea }: { idea: ContentIdeaRow }) {
           )}
         </div>
       )}
+
+      <VerificationRow pills={pills} />
 
       <p style={{ margin: '0 0 0.75rem', color: 'var(--color-text-secondary)', fontSize: '0.9375rem', lineHeight: 1.5 }}>
         {idea.pitch}
