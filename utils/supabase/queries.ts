@@ -177,6 +177,7 @@ export interface IntelItem {
   processed: boolean
   alert_id: string | null
   dedup_count: number
+  rejected_at: string | null
 }
 
 export type RecentIntelItem = Pick<IntelItem, 'id' | 'headline' | 'source_type' | 'programs' | 'alert_type' | 'created_at'>
@@ -515,6 +516,83 @@ export async function resolveSystemError(
   const { error } = await supabase
     .from('system_errors')
     .update({ resolved_at: new Date().toISOString() })
+    .eq('id', id)
+  if (error) throw error
+}
+
+// ── Intel Items (admin viewer) ───────────────────────────────────────────
+
+export type IntelStatusFilter = 'all' | 'unprocessed' | 'staged' | 'rejected'
+export type IntelWindow = '24h' | '7d' | '30d' | 'all'
+
+export interface IntelFilters {
+  window?: IntelWindow
+  confidence?: IntelConfidence | 'all'
+  status?: IntelStatusFilter
+  source?: string | 'all'
+}
+
+function windowCutoff(w: IntelWindow): string | null {
+  if (w === 'all') return null
+  const hours = w === '24h' ? 24 : w === '7d' ? 24 * 7 : 24 * 30
+  return new Date(Date.now() - hours * 60 * 60 * 1000).toISOString()
+}
+
+export async function listIntelItems(
+  supabase: SupabaseClient,
+  filters: IntelFilters = {},
+): Promise<IntelItem[]> {
+  const { window = '24h', confidence = 'all', status = 'all', source = 'all' } = filters
+  let q = supabase
+    .from('intel_items')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(200)
+
+  const cutoff = windowCutoff(window)
+  if (cutoff) q = q.gte('created_at', cutoff)
+  if (confidence !== 'all') q = q.eq('confidence', confidence)
+  if (source !== 'all') q = q.eq('source_name', source)
+
+  if (status === 'unprocessed') q = q.eq('processed', false).is('rejected_at', null)
+  else if (status === 'staged') q = q.eq('processed', true)
+  else if (status === 'rejected') q = q.not('rejected_at', 'is', null)
+
+  const { data, error } = await q
+  if (error) throw error
+  return (data ?? []) as IntelItem[]
+}
+
+export async function listIntelSourceNames(supabase: SupabaseClient): Promise<string[]> {
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+  const { data, error } = await supabase
+    .from('intel_items')
+    .select('source_name')
+    .gte('created_at', cutoff)
+  if (error) return []
+  const set = new Set<string>()
+  for (const row of data ?? []) set.add((row as { source_name: string }).source_name)
+  return Array.from(set).sort()
+}
+
+export async function rejectIntelItem(
+  supabase: SupabaseClient,
+  id: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('intel_items')
+    .update({ rejected_at: new Date().toISOString() })
+    .eq('id', id)
+  if (error) throw error
+}
+
+export async function unrejectIntelItem(
+  supabase: SupabaseClient,
+  id: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('intel_items')
+    .update({ rejected_at: null })
     .eq('id', id)
   if (error) throw error
 }
