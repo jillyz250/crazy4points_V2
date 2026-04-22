@@ -406,6 +406,36 @@ export async function getSources(supabase: SupabaseClient): Promise<SourceWithFe
   }))
 }
 
+export type SourceInsert = {
+  name: string
+  url: string
+  type: SourceType
+  tier: number
+  is_active?: boolean
+  scrape_frequency?: string
+  notes?: string | null
+  use_firecrawl?: boolean
+}
+
+export async function createSource(
+  supabase: SupabaseClient,
+  input: SourceInsert
+): Promise<Source> {
+  const { data, error } = await supabase
+    .from('sources')
+    .insert({
+      is_active: true,
+      scrape_frequency: 'daily',
+      use_firecrawl: false,
+      ...input,
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+  return data as Source
+}
+
 /**
  * Toggle the is_active flag on a source.
  */

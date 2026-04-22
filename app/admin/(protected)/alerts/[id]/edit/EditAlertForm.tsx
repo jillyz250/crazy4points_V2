@@ -5,62 +5,8 @@ import { useRouter } from 'next/navigation'
 import { updateAlertAction } from './actions'
 import type { Alert, Program, ProgramType } from '@/utils/supabase/queries'
 import FactCheckWarnings from '@/components/admin/FactCheckWarnings'
-
-const PROGRAM_TYPE_LABELS: Record<ProgramType, string> = {
-  credit_card: 'Credit Card',
-  airline: 'Airline',
-  hotel: 'Hotel',
-  car_rental: 'Car Rental',
-  cruise: 'Cruise',
-  shopping_portal: 'Shopping Portal',
-  travel_portal: 'Travel Portal',
-  lounge_network: 'Lounge Network',
-  ota: 'OTA',
-}
-
-const ALERT_TYPES = [
-  // ── Earning & Bonuses ──
-  { value: 'signup_bonus', label: 'Sign-Up Bonus' },
-  { value: 'transfer_bonus', label: 'Transfer Bonus' },
-  { value: 'referral_bonus', label: 'Referral Bonus' },
-  { value: 'milestone_bonus', label: 'Milestone Bonus' },
-  { value: 'shopping_portal_bonus', label: 'Shopping Portal Bonus' },
-  { value: 'dining_bonus', label: 'Dining Bonus' },
-  { value: 'point_purchase', label: 'Buy Points / Miles' },
-  // ── Redemptions ──
-  { value: 'award_availability', label: 'Award Availability' },
-  { value: 'award_sale', label: 'Award Sale' },
-  { value: 'sweet_spot', label: 'Sweet Spot' },
-  { value: 'companion_pass', label: 'Companion Pass' },
-  // ── Card Offers ──
-  { value: 'limited_time_offer', label: 'Limited Time Offer' },
-  { value: 'retention_offer', label: 'Retention Offer' },
-  { value: 'card_credit', label: 'Card Credit / Perk' },
-  { value: 'card_refresh', label: 'Card Refresh' },
-  // ── Status & Promos ──
-  { value: 'status_promo', label: 'Status Promo' },
-  // ── Warnings ──
-  { value: 'glitch', label: 'Glitch' },
-  { value: 'devaluation', label: 'Devaluation' },
-  { value: 'fee_change', label: 'Fee Change' },
-  // ── Program Changes ──
-  { value: 'program_change', label: 'Program Change' },
-  { value: 'partner_change', label: 'Partner Change' },
-  { value: 'category_change', label: 'Category Change' },
-  { value: 'earn_rate_change', label: 'Earn Rate Change' },
-  { value: 'status_change', label: 'Status Change' },
-  { value: 'policy_change', label: 'Policy Change' },
-  // ── News ──
-  { value: 'industry_news', label: 'Industry News' },
-] as const
-
-const ACTION_TYPES = [
-  { value: 'book', label: 'Book Now' },
-  { value: 'transfer', label: 'Transfer Points' },
-  { value: 'apply', label: 'Apply for Card' },
-  { value: 'monitor', label: 'Monitor This Deal' },
-  { value: 'learn', label: 'Learn More' },
-] as const
+import { ALERT_TYPES, ACTION_TYPES } from '@/lib/admin/alertTypes'
+import { PROGRAM_TYPE_LABELS, groupProgramsByType } from '@/lib/admin/programTypes'
 
 const inputStyle: React.CSSProperties = {
   width: '100%',
@@ -115,13 +61,7 @@ export default function EditAlertForm({ alert, programs, taggedProgramIds }: Pro
     })
   }
 
-  // Group programs by type for display
-  const grouped = programs.reduce<Record<string, typeof programs>>((acc, p) => {
-    const key = p.type as string
-    if (!acc[key]) acc[key] = []
-    acc[key].push(p)
-    return acc
-  }, {})
+  const grouped = groupProgramsByType(programs)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -130,9 +70,12 @@ export default function EditAlertForm({ alert, programs, taggedProgramIds }: Pro
 
     try {
       const formData = new FormData(e.currentTarget)
-      await updateAlertAction(alert.id, formData)
+      const result = await updateAlertAction(alert.id, formData)
+      if (result && !result.ok) {
+        setError(result.error)
+        setSubmitting(false)
+      }
     } catch (err) {
-      // redirect() throws internally — ignore NEXT_REDIRECT
       if (err instanceof Error && err.message.includes('NEXT_REDIRECT')) {
         router.push('/admin/alerts')
         return

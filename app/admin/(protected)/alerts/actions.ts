@@ -3,8 +3,29 @@
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/utils/supabase/server'
-import { updateAlert, expireAlert, incrementSourceApproved } from '@/utils/supabase/queries'
+import {
+  updateAlert,
+  expireAlert,
+  incrementSourceApproved,
+  getAlertById,
+} from '@/utils/supabase/queries'
+import type { Alert, AlertStatus } from '@/utils/supabase/queries'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import type { VerifyClaim } from '@/utils/ai/verifyAlertDraft'
+
+// Increment the source-approved counter whenever an alert from intel
+// transitions into a published/approved state — regardless of which button
+// triggered the transition. Keeps source approval metrics honest.
+async function trackSourceApprovalIfNeeded(
+  supabase: SupabaseClient,
+  prev: Pick<Alert, 'status' | 'source_intel_id'>,
+  nextStatus: AlertStatus,
+) {
+  if (nextStatus !== 'published') return
+  if (prev.status === 'published') return
+  if (!prev.source_intel_id) return
+  await incrementSourceApproved(supabase, prev.source_intel_id).catch(() => {})
+}
 
 export async function acknowledgeFactCheckClaimAction(alertId: string, claimIndex: number) {
   const supabase = createAdminClient()
@@ -28,24 +49,24 @@ export async function acknowledgeFactCheckClaimAction(alertId: string, claimInde
 
 export async function publishAlertAction(id: string) {
   const supabase = createAdminClient()
+  const prev = await getAlertById(supabase, id)
   await updateAlert(supabase, id, {
     status: 'published',
     published_at: new Date().toISOString(),
   })
+  await trackSourceApprovalIfNeeded(supabase, prev, 'published')
   redirect('/admin/alerts')
 }
 
 export async function approveIntelAlertAction(id: string) {
   const supabase = createAdminClient()
-  const alert = await updateAlert(supabase, id, {
+  const prev = await getAlertById(supabase, id)
+  await updateAlert(supabase, id, {
     status: 'published',
     published_at: new Date().toISOString(),
     approved_at: new Date().toISOString(),
   })
-  // Track approval back to the originating source (non-blocking)
-  if (alert.source_intel_id) {
-    await incrementSourceApproved(supabase, alert.source_intel_id).catch(() => {})
-  }
+  await trackSourceApprovalIfNeeded(supabase, prev, 'published')
   redirect('/admin/alerts')
 }
 
