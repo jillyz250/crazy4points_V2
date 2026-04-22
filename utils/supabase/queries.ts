@@ -406,6 +406,22 @@ export async function getSources(supabase: SupabaseClient): Promise<SourceWithFe
   }))
 }
 
+export async function getLastFindingBySource(
+  supabase: SupabaseClient,
+): Promise<Map<string, string>> {
+  const { data, error } = await supabase
+    .from('intel_items')
+    .select('source_name, created_at')
+    .order('created_at', { ascending: false })
+    .limit(2000)
+  if (error) return new Map()
+  const map = new Map<string, string>()
+  for (const row of (data ?? []) as { source_name: string; created_at: string }[]) {
+    if (!map.has(row.source_name)) map.set(row.source_name, row.created_at)
+  }
+  return map
+}
+
 export type SourceInsert = {
   name: string
   url: string

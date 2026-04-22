@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { createAdminClient } from '@/utils/supabase/server'
-import { getSources } from '@/utils/supabase/queries'
+import { getSources, getLastFindingBySource } from '@/utils/supabase/queries'
 import type { SourceType } from '@/utils/supabase/queries'
 import { toggleSourceAction } from './actions'
 
@@ -20,9 +20,31 @@ const TYPE_LABEL: Record<SourceType, string> = {
   email: 'Email',
 }
 
+function freshnessColor(iso: string | null | undefined): string {
+  if (!iso) return '#c0392b'
+  const ageMs = Date.now() - new Date(iso).getTime()
+  const hours = ageMs / (1000 * 60 * 60)
+  if (hours < 24) return '#1e7e34'
+  if (hours < 24 * 7) return '#b45309'
+  return '#c0392b'
+}
+
+function freshnessLabel(iso: string | null | undefined): string {
+  if (!iso) return 'never'
+  const ageMs = Date.now() - new Date(iso).getTime()
+  const hours = ageMs / (1000 * 60 * 60)
+  if (hours < 1) return `${Math.max(1, Math.round(ageMs / 60000))}m ago`
+  if (hours < 24) return `${Math.round(hours)}h ago`
+  const days = Math.round(hours / 24)
+  return `${days}d ago`
+}
+
 export default async function AdminSourcesPage() {
   const supabase = createAdminClient()
-  const sources = await getSources(supabase)
+  const [sources, lastFindings] = await Promise.all([
+    getSources(supabase),
+    getLastFindingBySource(supabase),
+  ])
 
   return (
     <div>
@@ -46,6 +68,7 @@ export default async function AdminSourcesPage() {
                 <th style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)' }}>Feeds</th>
                 <th style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)' }}>Active</th>
                 <th style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)' }}>Last Scraped</th>
+                <th style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)' }}>Last Finding</th>
                 <th style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)', textAlign: 'center' }}>Produced</th>
                 <th style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)', textAlign: 'center' }}>Approved</th>
                 <th style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)', textAlign: 'center' }}>Rate</th>
@@ -112,6 +135,21 @@ export default async function AdminSourcesPage() {
                       {source.last_scraped_at
                         ? new Date(source.last_scraped_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                         : '—'}
+                    </td>
+                    <td style={{ padding: '0.625rem 0.75rem' }}>
+                      {(() => {
+                        const iso = lastFindings.get(source.name) ?? null
+                        return (
+                          <span style={{
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            fontFamily: 'var(--font-ui)',
+                            color: freshnessColor(iso),
+                          }}>
+                            {freshnessLabel(iso)}
+                          </span>
+                        )
+                      })()}
                     </td>
                     <td style={{ padding: '0.625rem 0.75rem', color: 'var(--color-text-secondary)', textAlign: 'center' }}>
                       {source.items_produced}
