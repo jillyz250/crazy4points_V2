@@ -22,6 +22,7 @@ type DestinationRow = {
   weather_by_month: Record<string, string> | null
   trip_length: string[] | null
   who_is_going: string[] | null
+  image_url: string | null
 }
 
 function shuffle<T>(arr: T[]): T[] {
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
 
   let query = supabase
     .from('destinations')
-    .select('title, slug, country, continent, vibe, summary_short, weather_by_month, trip_length, who_is_going')
+    .select('title, slug, country, continent, vibe, summary_short, weather_by_month, trip_length, who_is_going, image_url')
 
   if (filters.continent)  query = query.eq('continent', filters.continent)
   if (filters.vibe)       query = query.contains('vibe', [filters.vibe])
@@ -76,6 +77,7 @@ export async function POST(request: Request) {
     weatherByMonth: r.weather_by_month,
     tripLength:     r.trip_length,
     whoIsGoing:     r.who_is_going,
+    imageUrl:       r.image_url,
   }))
 
   return NextResponse.json({ destinations })

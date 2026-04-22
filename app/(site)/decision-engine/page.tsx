@@ -15,6 +15,7 @@ type Destination = {
   weatherByMonth?: Record<string, string> | null
   tripLength?: string[] | null
   whoIsGoing?: string[] | null
+  imageUrl?: string | null
 }
 
 type Filters = {
@@ -582,7 +583,7 @@ function WinnerCard({ dest, visible }: { dest: Destination; visible: boolean }) 
       border: '1.5px solid #E6DEEE',
       borderTop: '4px solid #D4AF37',
       borderRadius: '16px',
-      padding: '28px 32px 24px',
+      overflow: 'hidden',
       boxShadow: '0 6px 28px rgba(107,45,143,0.1)',
       opacity: visible ? 1 : 0,
       transform: visible ? 'translateY(0)' : 'translateY(30px)',
@@ -590,6 +591,21 @@ function WinnerCard({ dest, visible }: { dest: Destination; visible: boolean }) 
       maxWidth: '780px',
       margin: '0 auto',
     }}>
+      {dest.imageUrl && (
+        <div
+          role="img"
+          aria-label={dest.title}
+          style={{
+            width: '100%',
+            height: '200px',
+            backgroundImage: `url(${dest.imageUrl})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            borderBottom: '1px solid #F0EAF8',
+          }}
+        />
+      )}
+      <div style={{ padding: '28px 32px 24px' }}>
       {/* Label */}
       <div style={{
         fontFamily: 'var(--font-ui)', fontSize: '10px', fontWeight: 700,
@@ -717,6 +733,7 @@ function WinnerCard({ dest, visible }: { dest: Destination; visible: boolean }) 
             </span>
           </div>
         ))}
+      </div>
       </div>
     </div>
   )

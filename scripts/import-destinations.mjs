@@ -1,1131 +1,329 @@
 /**
- * One-time import script — seeds 90 destination documents into Sanity.
- * Deletes all existing destination documents first, then reimports fresh.
- * 10 destinations per region, covering all 9 continents/regions.
+ * Stage 2 import — bulk destinations from OurAirports CSV.
+ * Dedupes by (municipality, iso_country), skips slugs already in Supabase,
+ * asks Claude Haiku to produce country name, continent, tags, summaries.
  *
- * Prerequisites:
- *   npm install @sanity/client dotenv
+ * Usage:
+ *   node scripts/import-destinations.mjs --limit=5 --dry-run    # preview
+ *   node scripts/import-destinations.mjs --limit=20             # small live batch
+ *   node scripts/import-destinations.mjs                        # full run
  *
- * Run:
- *   node scripts/import-destinations.mjs
+ * Flags:
+ *   --limit=N        Only process first N candidates
+ *   --dry-run        Skip Claude + DB writes; print candidate list
+ *   --skip-ai        Skip Claude; insert rows with empty enrichment (dev only)
+ *   --csv=PATH       Override CSV path (default: /tmp/airports.csv, auto-download)
+ *   --concurrency=N  Parallel Claude requests (default: 4)
  */
 
-import { createClient } from '@sanity/client'
-import dotenv from 'dotenv'
-dotenv.config({ path: '.env.local' })
+import Anthropic from '@anthropic-ai/sdk'
+import { createClient } from '@supabase/supabase-js'
+import { readFileSync, existsSync, writeFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 
-const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID
-const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET || 'production'
-const token = process.env.SANITY_API_TOKEN
+function loadEnvLocal() {
+  const candidates = [
+    resolve(process.cwd(), '.env.local'),
+    '/Users/jillzeller/Desktop/Github/crazy4points_V2/.env.local',
+  ]
+  const path = candidates.find(p => existsSync(p))
+  if (!path) return
+  const text = readFileSync(path, 'utf8')
+  for (const raw of text.split('\n')) {
+    const line = raw.trim()
+    if (!line || line.startsWith('#')) continue
+    const eq = line.indexOf('=')
+    if (eq < 0) continue
+    const key = line.slice(0, eq).trim()
+    let val = line.slice(eq + 1).trim()
+    if ((val.startsWith('"') && val.endsWith('"')) ||
+        (val.startsWith("'") && val.endsWith("'"))) {
+      val = val.slice(1, -1)
+    }
+    if (!process.env[key]) process.env[key] = val
+  }
+}
+loadEnvLocal()
 
-if (!projectId || !dataset || !token) {
-  const missing = [
-    !projectId && 'NEXT_PUBLIC_SANITY_PROJECT_ID',
-    !dataset   && 'NEXT_PUBLIC_SANITY_DATASET',
-    !token     && 'SANITY_API_TOKEN',
-  ].filter(Boolean).join(', ')
-  throw new Error(`❌  Missing required environment variables: ${missing}`)
+const HAIKU_MODEL = 'claude-haiku-4-5-20251001'
+const CSV_URL = 'https://davidmegginson.github.io/ourairports-data/airports.csv'
+
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
+const SUPABASE_URL      = process.env.NEXT_PUBLIC_SUPABASE_URL
+const SERVICE_KEY       = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+const args = Object.fromEntries(
+  process.argv.slice(2).map(a => {
+    const [k, v] = a.replace(/^--/, '').split('=')
+    return [k, v ?? true]
+  }),
+)
+const LIMIT       = args.limit ? Number(args.limit) : Infinity
+const DRY_RUN     = Boolean(args['dry-run'])
+const SKIP_AI     = Boolean(args['skip-ai'])
+const CSV_PATH    = args.csv || '/tmp/airports.csv'
+const CONCURRENCY = args.concurrency ? Number(args.concurrency) : 4
+
+const BRAND_VOICE = `sassy, funny, and smart — like the well-traveled friend who always knows the move.
+Playful but never obnoxious. Confident but never mean. We root for the reader.
+Use contractions (you'll, it's, don't). Short sentences. No emojis. No corporate hedging.
+A little wink is welcome. A lot of wink is exhausting — one playful aside max.`
+
+const CONTINENTS = new Set([
+  'north_america', 'central_america', 'south_america',
+  'caribbean', 'europe', 'asia', 'middle_east',
+  'africa', 'south_pacific',
+])
+const VIBES        = new Set(['beach', 'city', 'history', 'nature', 'adventure', 'luxury', 'family'])
+const TRIP_LENGTHS = new Set(['short', 'medium', 'long'])
+const WHO_GOING    = new Set(['solo', 'couple', 'family', 'group'])
+const WEATHER_VALS = new Set(['great', 'good', 'mixed', 'poor'])
+const MONTHS       = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec']
+
+function parseCsvLine(line) {
+  const out = []
+  let cur = ''
+  let inQuotes = false
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i]
+    if (c === '"') {
+      if (inQuotes && line[i + 1] === '"') { cur += '"'; i++ }
+      else inQuotes = !inQuotes
+    } else if (c === ',' && !inQuotes) {
+      out.push(cur); cur = ''
+    } else {
+      cur += c
+    }
+  }
+  out.push(cur)
+  return out
 }
 
-const client = createClient({
-  projectId,
-  dataset,
-  token,
-  apiVersion: '2024-01-01',
-  useCdn: false,
-})
+async function ensureCsv() {
+  if (existsSync(CSV_PATH)) return
+  console.log(`→ Downloading airports CSV → ${CSV_PATH}`)
+  const res = await fetch(CSV_URL)
+  if (!res.ok) throw new Error(`CSV download failed: ${res.status}`)
+  writeFileSync(CSV_PATH, await res.text())
+}
 
-function slugify(title) {
-  return title
+async function loadCandidates() {
+  await ensureCsv()
+  const text = readFileSync(CSV_PATH, 'utf8')
+  const lines = text.split('\n')
+  const header = parseCsvLine(lines[0])
+  const col = Object.fromEntries(header.map((h, i) => [h, i]))
+
+  const seen = new Set()
+  const out = []
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i]
+    if (!line.trim()) continue
+    const f = parseCsvLine(line)
+    const type          = f[col.type]
+    const sched         = f[col.scheduled_service]
+    const iata          = f[col.iata_code]
+    const municipality  = f[col.municipality]
+    const iso           = f[col.iso_country]
+
+    if (type !== 'large_airport') continue
+    if (sched !== 'yes') continue
+    if (!iata || !municipality || !iso) continue
+
+    const key = `${municipality}|${iso}`.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+
+    out.push({
+      title: municipality,
+      iso_country: iso,
+      iata,
+      latitude: parseFloat(f[col.latitude_deg]) || null,
+      longitude: parseFloat(f[col.longitude_deg]) || null,
+    })
+  }
+  return out
+}
+
+function slugify(s) {
+  return s
     .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
 }
 
-// ── Destination definitions ───────────────────────────────────────────────────
+function buildPrompt(dest) {
+  return `You are writing travel content for crazy4points, a loyalty-points travel site. Voice:
 
-const destinations = [
+${BRAND_VOICE}
 
-  // ── Caribbean (10) ──────────────────────────────────────────────────────────
+City: ${dest.title}
+ISO country code: ${dest.iso_country}
 
-  {
-    title: 'Turks and Caicos',
-    continent: 'caribbean',
-    country: 'Turks and Caicos',
-    region: 'Grace Bay, Providenciales',
-    vibe: ['beach', 'luxury'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'great', apr: 'great', may: 'good', jun: 'mixed', jul: 'mixed', aug: 'poor', sep: 'poor', oct: 'mixed', nov: 'good', dec: 'great' },
-    tripLength: ['medium', 'long'],
-    whoIsGoing: ['couple', 'family', 'group'],
-    summary: 'Home to Grace Bay Beach, consistently ranked among the best beaches in the world, Turks and Caicos delivers postcard-perfect turquoise water and powdery white sand. The island is a haven for luxury resorts, world-class diving, and blissful doing-nothing. It rewards both honeymooners and families looking for an effortless tropical escape.',
-  },
-  {
-    title: 'St. Lucia',
-    continent: 'caribbean',
-    country: 'St. Lucia',
-    region: 'Castries, Soufrière',
-    vibe: ['beach', 'nature', 'adventure', 'luxury'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'great', apr: 'great', may: 'good', jun: 'mixed', jul: 'good', aug: 'mixed', sep: 'poor', oct: 'poor', nov: 'mixed', dec: 'good' },
-    tripLength: ['medium', 'long'],
-    whoIsGoing: ['couple', 'solo'],
-    summary: 'St. Lucia stands apart in the Caribbean for its dramatic landscape — volcanic Piton peaks rising directly from the sea, dense rainforest, and geothermal hot springs. It combines raw natural beauty with refined resort experiences and is widely regarded as one of the most romantic islands in the region. Hikers, divers, and honeymooners all find something extraordinary here.',
-  },
-  {
-    title: 'Barbados',
-    continent: 'caribbean',
-    country: 'Barbados',
-    region: 'Bridgetown, Platinum Coast',
-    vibe: ['beach', 'history', 'luxury', 'family'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'great', apr: 'great', may: 'good', jun: 'mixed', jul: 'mixed', aug: 'mixed', sep: 'poor', oct: 'poor', nov: 'mixed', dec: 'great' },
-    tripLength: ['medium', 'long'],
-    whoIsGoing: ['couple', 'family', 'group'],
-    summary: 'Barbados blends British colonial heritage with Caribbean warmth in a way that feels polished and effortless. The west coast Platinum Coast is lined with calm turquoise water and upscale resorts, while Bridgetown offers UNESCO-listed architecture and a surprisingly vibrant food scene. Its stability, English-speaking culture, and excellent infrastructure make it one of the easiest Caribbean destinations to visit.',
-  },
-  {
-    title: 'Aruba',
-    continent: 'caribbean',
-    country: 'Aruba',
-    region: 'Palm Beach, Oranjestad',
-    vibe: ['beach', 'family', 'adventure'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'great', apr: 'great', may: 'great', jun: 'good', jul: 'good', aug: 'good', sep: 'good', oct: 'good', nov: 'great', dec: 'great' },
-    tripLength: ['medium'],
-    whoIsGoing: ['couple', 'family', 'group'],
-    summary: 'Aruba sits outside the hurricane belt and basks in nearly year-round sunshine and consistent trade winds, making it one of the most reliably beautiful beach destinations in the Caribbean. Eagle Beach regularly tops global beach rankings, and the water sports scene — kitesurfing, windsurfing, snorkeling — is exceptional. Oranjestad adds colorful Dutch colonial architecture and a walkable downtown.',
-  },
-  {
-    title: 'Jamaica',
-    continent: 'caribbean',
-    country: 'Jamaica',
-    region: 'Negril, Montego Bay, Port Antonio',
-    vibe: ['beach', 'nature', 'adventure', 'family'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'great', apr: 'great', may: 'good', jun: 'mixed', jul: 'good', aug: 'mixed', sep: 'poor', oct: 'mixed', nov: 'good', dec: 'great' },
-    tripLength: ['medium', 'long'],
-    whoIsGoing: ['couple', 'family', 'group', 'solo'],
-    summary: 'Jamaica is one of the most culturally rich islands in the Caribbean — reggae, jerk cooking, Rastafarian culture, and a deeply warm local character set it apart. Negril\'s Seven Mile Beach and the Blue Mountains offer two completely different Jamaicas in a single trip. It rewards travelers who go beyond the all-inclusive bubble to explore waterfalls, cliff bars, and countryside cooking.',
-  },
-  {
-    title: 'Puerto Rico',
-    continent: 'caribbean',
-    country: 'United States (Puerto Rico)',
-    region: 'San Juan, Rincon, Vieques',
-    vibe: ['city', 'history', 'beach', 'nature'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'great', apr: 'great', may: 'good', jun: 'mixed', jul: 'good', aug: 'mixed', sep: 'poor', oct: 'mixed', nov: 'good', dec: 'great' },
-    tripLength: ['short', 'medium'],
-    whoIsGoing: ['couple', 'family', 'group', 'solo'],
-    summary: 'Puerto Rico offers one of the most complete Caribbean experiences — Old San Juan is a stunning Spanish colonial city with cobblestone streets, colorful townhouses, and outstanding restaurants. The island also has bioluminescent bays, world-class surf breaks, and the wild beaches of Vieques accessible by short flight. As a US territory, it requires no passport for Americans and accepts US dollars.',
-  },
-  {
-    title: 'Antigua',
-    continent: 'caribbean',
-    country: 'Antigua and Barbuda',
-    region: 'St. John\'s, English Harbour',
-    vibe: ['beach', 'history', 'luxury'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'great', apr: 'great', may: 'good', jun: 'mixed', jul: 'mixed', aug: 'poor', sep: 'poor', oct: 'mixed', nov: 'good', dec: 'great' },
-    tripLength: ['medium', 'long'],
-    whoIsGoing: ['couple', 'group'],
-    summary: 'Antigua is famous for its 365 beaches — one for every day of the year — and its yachting culture centered around the historic English Harbour. Nelson\'s Dockyard, a beautifully preserved 18th-century British naval base, gives the island more historic character than most Caribbean destinations. It strikes an ideal balance between sophisticated and laid-back.',
-  },
-  {
-    title: 'Grenada',
-    continent: 'caribbean',
-    country: 'Grenada',
-    region: 'St. George\'s, Grand Anse',
-    vibe: ['beach', 'nature', 'adventure'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'great', apr: 'great', may: 'good', jun: 'mixed', jul: 'mixed', aug: 'mixed', sep: 'mixed', oct: 'mixed', nov: 'good', dec: 'great' },
-    tripLength: ['medium'],
-    whoIsGoing: ['couple', 'solo', 'group'],
-    summary: 'Known as the Spice Isle for its production of nutmeg, cinnamon, and cloves, Grenada is one of the Caribbean\'s most unspoiled and authentic destinations. Grand Anse Beach rivals the region\'s best, and the island\'s lush interior — waterfalls, rainforest, and spice plantations — rewards exploration. It\'s a favorite with divers thanks to the world\'s first underwater sculpture park.',
-  },
-  {
-    title: 'Cuba',
-    continent: 'caribbean',
-    country: 'Cuba',
-    region: 'Havana, Varadero, Trinidad',
-    vibe: ['city', 'history', 'beach'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'great', apr: 'great', may: 'mixed', jun: 'mixed', jul: 'mixed', aug: 'mixed', sep: 'poor', oct: 'poor', nov: 'good', dec: 'great' },
-    tripLength: ['medium', 'long'],
-    whoIsGoing: ['solo', 'couple', 'group'],
-    summary: 'Havana is one of the most visually arresting cities in the Western Hemisphere — crumbling Spanish colonial grandeur, vintage American cars, and an extraordinary music and arts scene preserved in amber by decades of isolation. Trinidad is a perfectly intact colonial town frozen in the 18th century. Cuba demands to be visited now, before it changes.',
-  },
-  {
-    title: 'Dominican Republic',
-    continent: 'caribbean',
-    country: 'Dominican Republic',
-    region: 'Punta Cana, Santo Domingo, Samaná',
-    vibe: ['beach', 'history', 'family', 'adventure'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'great', apr: 'great', may: 'mixed', jun: 'mixed', jul: 'good', aug: 'mixed', sep: 'poor', oct: 'poor', nov: 'mixed', dec: 'great' },
-    tripLength: ['medium', 'long'],
-    whoIsGoing: ['couple', 'family', 'group'],
-    summary: 'The Dominican Republic is the Caribbean\'s most visited destination, and for good reason — Punta Cana delivers consistently excellent all-inclusive resorts with miles of palm-lined beach, while Santo Domingo offers the oldest European city in the Americas. The Samaná Peninsula adds humpback whale watching, remote beaches, and a completely different, wilder side of the country.',
-  },
+Generate a JSON object with these EXACT keys and NO other text (no markdown, no backticks):
 
-  // ── North America (10) ──────────────────────────────────────────────────────
-
-  {
-    title: 'New York City',
-    continent: 'north_america',
-    country: 'United States',
-    region: 'New York',
-    vibe: ['city', 'history', 'family'],
-    weatherByMonth: { jan: 'mixed', feb: 'mixed', mar: 'mixed', apr: 'good', may: 'great', jun: 'great', jul: 'great', aug: 'great', sep: 'great', oct: 'great', nov: 'good', dec: 'mixed' },
-    tripLength: ['short', 'medium', 'long'],
-    whoIsGoing: ['solo', 'couple', 'family', 'group'],
-    summary: 'New York City is simply the greatest city on earth for the sheer density of what it offers — world-class museums, every cuisine imaginable, Broadway, iconic neighborhoods, and an electric energy that no other city quite replicates. It\'s ideal as a weekend break or a full week of deep exploration. The point redemption options are exceptional, with multiple premium hotel chains competing for the same real estate.',
-  },
-  {
-    title: 'Hawaii — Maui',
-    continent: 'north_america',
-    country: 'United States',
-    region: 'Hawaii',
-    vibe: ['beach', 'nature', 'adventure', 'luxury'],
-    weatherByMonth: { jan: 'good', feb: 'good', mar: 'good', apr: 'great', may: 'great', jun: 'great', jul: 'great', aug: 'great', sep: 'great', oct: 'great', nov: 'good', dec: 'good' },
-    tripLength: ['medium', 'long'],
-    whoIsGoing: ['couple', 'family', 'group', 'solo'],
-    summary: 'Maui earns its reputation as the most balanced Hawaiian island — Road to Hana, the sunrise hike on Haleakalā, and the world-class snorkeling of Molokini are all within reach of resorts on Ka\'anapali Beach. It works for luxury honeymoons, family beach weeks, and outdoor adventures in equal measure. The island is well-served by multiple airlines with direct mainland routes, making award redemptions relatively accessible.',
-  },
-  {
-    title: 'New Orleans',
-    continent: 'north_america',
-    country: 'United States',
-    region: 'Louisiana',
-    vibe: ['city', 'history', 'family'],
-    weatherByMonth: { jan: 'good', feb: 'good', mar: 'great', apr: 'great', may: 'great', jun: 'mixed', jul: 'mixed', aug: 'mixed', sep: 'mixed', oct: 'great', nov: 'great', dec: 'good' },
-    tripLength: ['short', 'medium'],
-    whoIsGoing: ['solo', 'couple', 'group'],
-    summary: 'New Orleans is unlike any other American city — a collision of French, Spanish, African, and Caribbean cultures that produced a uniquely American music, food, and festive spirit. The French Quarter, Garden District, and jazz clubs of Frenchmen Street reward slow, wandering exploration. It\'s a standout short-break destination with flights available from most US hubs.',
-  },
-  {
-    title: 'Banff National Park',
-    continent: 'north_america',
-    country: 'Canada',
-    region: 'Alberta',
-    vibe: ['nature', 'adventure', 'luxury'],
-    weatherByMonth: { jan: 'mixed', feb: 'mixed', mar: 'mixed', apr: 'mixed', may: 'good', jun: 'great', jul: 'great', aug: 'great', sep: 'great', oct: 'good', nov: 'mixed', dec: 'mixed' },
-    tripLength: ['medium', 'long'],
-    whoIsGoing: ['couple', 'family', 'group', 'solo'],
-    summary: 'Banff is one of the most visually spectacular destinations in North America — turquoise glacial lakes, Rocky Mountain peaks, and abundant wildlife make it feel like another world. The Fairmont Banff Springs and Fairmont Chateau Lake Louise offer classic luxury point redemption opportunities in stunning settings. Summer hiking and winter skiing make it viable as a year-round destination.',
-  },
-  {
-    title: 'Mexico City',
-    continent: 'north_america',
-    country: 'Mexico',
-    region: 'Distrito Federal',
-    vibe: ['city', 'history', 'family'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'great', apr: 'great', may: 'mixed', jun: 'mixed', jul: 'mixed', aug: 'mixed', sep: 'mixed', oct: 'good', nov: 'great', dec: 'great' },
-    tripLength: ['short', 'medium'],
-    whoIsGoing: ['solo', 'couple', 'group'],
-    summary: 'Mexico City has quietly become one of the world\'s great food and cultural capitals — the Frida Kahlo Museum, the Anthropology Museum, and the ancient pyramids of Teotihuacán are all within a short drive, while the restaurant scene in Polanco and Roma Norte rivals any global city. It is extraordinarily affordable for those paying with points for flights and hotels, and the air connectivity from the US is excellent.',
-  },
-  {
-    title: 'Sedona',
-    continent: 'north_america',
-    country: 'United States',
-    region: 'Arizona',
-    vibe: ['nature', 'adventure', 'luxury'],
-    weatherByMonth: { jan: 'good', feb: 'good', mar: 'great', apr: 'great', may: 'great', jun: 'great', jul: 'mixed', aug: 'mixed', sep: 'good', oct: 'great', nov: 'great', dec: 'good' },
-    tripLength: ['short', 'medium'],
-    whoIsGoing: ['couple', 'solo', 'group'],
-    summary: 'Sedona\'s red rock landscape is among the most dramatic in the American Southwest — towering sandstone formations lit gold at sunrise and sunset create an almost otherworldly setting. It has built a reputation as a wellness and spiritual destination, with world-class spa resorts, exceptional hiking, and a unique high-desert energy. Easy to pair with the Grand Canyon for a longer Arizona itinerary.',
-  },
-  {
-    title: 'Charleston',
-    continent: 'north_america',
-    country: 'United States',
-    region: 'South Carolina',
-    vibe: ['city', 'history', 'beach'],
-    weatherByMonth: { jan: 'good', feb: 'good', mar: 'good', apr: 'great', may: 'great', jun: 'great', jul: 'mixed', aug: 'mixed', sep: 'mixed', oct: 'great', nov: 'great', dec: 'good' },
-    tripLength: ['short', 'medium'],
-    whoIsGoing: ['couple', 'family', 'group'],
-    summary: 'Charleston is one of the most charming and historically rich cities in the American South — antebellum architecture, cobblestone streets, and a food scene that punches well above its size. The nearby beaches of Isle of Palms and Sullivan\'s Island add an easy beach extension to a city weekend. It\'s a perennial favorite for romantic getaways and group celebrations.',
-  },
-  {
-    title: 'San Francisco',
-    continent: 'north_america',
-    country: 'United States',
-    region: 'California',
-    vibe: ['city', 'history', 'nature'],
-    weatherByMonth: { jan: 'mixed', feb: 'mixed', mar: 'mixed', apr: 'good', may: 'great', jun: 'good', jul: 'mixed', aug: 'mixed', sep: 'great', oct: 'great', nov: 'good', dec: 'mixed' },
-    tripLength: ['short', 'medium'],
-    whoIsGoing: ['solo', 'couple', 'family', 'group'],
-    summary: 'San Francisco remains one of the most beautiful and distinctive American cities, defined by its hills, bay, fog, Victorian neighborhoods, and cultural diversity. The Golden Gate, Alcatraz, and Fisherman\'s Wharf are essential, but the real pleasure is wandering neighborhoods — the Mission, Hayes Valley, and Chinatown each feel like a different city. A natural gateway to Napa Valley and coastal California.',
-  },
-  {
-    title: 'Alaska — Denali and the Inside Passage',
-    continent: 'north_america',
-    country: 'United States',
-    region: 'Alaska',
-    vibe: ['nature', 'adventure'],
-    weatherByMonth: { jan: 'poor', feb: 'poor', mar: 'mixed', apr: 'mixed', may: 'good', jun: 'great', jul: 'great', aug: 'great', sep: 'good', oct: 'mixed', nov: 'poor', dec: 'poor' },
-    tripLength: ['long'],
-    whoIsGoing: ['couple', 'family', 'group', 'solo'],
-    summary: 'Alaska offers a scale of wilderness that simply doesn\'t exist elsewhere in North America — glaciers, grizzly bears, humpback whales, and Denali rising 20,000 feet above the tundra. The Inside Passage cruise route is one of the world\'s great itineraries and a natural fit for cruise loyalty point redemptions. Summer is the window, and it rewards longer trips to truly absorb the vastness.',
-  },
-  {
-    title: 'Tulum',
-    continent: 'north_america',
-    country: 'Mexico',
-    region: 'Quintana Roo',
-    vibe: ['beach', 'history', 'nature', 'adventure'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'great', apr: 'great', may: 'good', jun: 'mixed', jul: 'good', aug: 'mixed', sep: 'poor', oct: 'poor', nov: 'good', dec: 'great' },
-    tripLength: ['medium'],
-    whoIsGoing: ['solo', 'couple', 'group'],
-    summary: 'Tulum sits at a unique intersection of ancient Maya ruins perched above a Caribbean beach, world-class cenote diving, and a bohemian wellness travel scene. The hotel zone road is lined with eco-chic palapa resorts, and the Sian Ka\'an Biosphere Reserve begins just south of town. It is the most interesting beach destination on the Mexican Caribbean coast.',
-  },
-
-  // ── Central America (10) ────────────────────────────────────────────────────
-
-  {
-    title: 'Costa Rica — Manuel Antonio',
-    continent: 'central_america',
-    country: 'Costa Rica',
-    region: 'Puntarenas',
-    vibe: ['beach', 'nature', 'adventure', 'family'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'great', apr: 'good', may: 'mixed', jun: 'mixed', jul: 'mixed', aug: 'mixed', sep: 'mixed', oct: 'poor', nov: 'mixed', dec: 'great' },
-    tripLength: ['medium', 'long'],
-    whoIsGoing: ['couple', 'family', 'group', 'solo'],
-    summary: 'Manuel Antonio combines a small but spectacular national park — white-sand beaches, lush jungle, and playful monkeys within steps of your resort — with genuine luxury lodging on the Pacific coast. It is Costa Rica\'s most accessible slice of pura vida for travelers who want nature without roughing it. The biodiversity is extraordinary: sloths, toucans, and sea turtles in a single afternoon.',
-  },
-  {
-    title: 'Costa Rica — Arenal',
-    continent: 'central_america',
-    country: 'Costa Rica',
-    region: 'Alajuela Province',
-    vibe: ['nature', 'adventure'],
-    weatherByMonth: { jan: 'good', feb: 'great', mar: 'great', apr: 'great', may: 'mixed', jun: 'mixed', jul: 'mixed', aug: 'mixed', sep: 'mixed', oct: 'poor', nov: 'mixed', dec: 'good' },
-    tripLength: ['medium'],
-    whoIsGoing: ['couple', 'family', 'group', 'solo'],
-    summary: 'Arenal Volcano dominates the landscape of northwest Costa Rica with an almost perfect conical silhouette, and the surrounding region offers hot springs, zip-lining over cloud forest, and white-water rafting on the Sarapiquí River. La Fortuna is the base town, and the area pairs naturally with Manuel Antonio or Monteverde for a classic Costa Rica loop trip.',
-  },
-  {
-    title: 'Belize',
-    continent: 'central_america',
-    country: 'Belize',
-    region: 'Ambergris Caye, Cayo District',
-    vibe: ['beach', 'nature', 'adventure', 'history'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'great', apr: 'great', may: 'good', jun: 'mixed', jul: 'mixed', aug: 'mixed', sep: 'poor', oct: 'poor', nov: 'good', dec: 'great' },
-    tripLength: ['medium', 'long'],
-    whoIsGoing: ['couple', 'solo', 'group'],
-    summary: 'Belize offers one of the world\'s best diving and snorkeling experiences along the second-largest barrier reef in the world, plus accessible Maya ruins and jaguar-prowled jungle in the Cayo District. Ambergris Caye is the most developed island and a relaxed base for reef diving, while the Actun Tunichil Muknal cave requires a full day hike to an extraordinary underground Maya ceremonial site. It\'s a small country that overdelivers on adventure.',
-  },
-  {
-    title: 'Panama City and the Canal',
-    continent: 'central_america',
-    country: 'Panama',
-    region: 'Panama Province',
-    vibe: ['city', 'history', 'nature'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'great', apr: 'good', may: 'mixed', jun: 'mixed', jul: 'mixed', aug: 'mixed', sep: 'mixed', oct: 'poor', nov: 'mixed', dec: 'great' },
-    tripLength: ['short', 'medium'],
-    whoIsGoing: ['solo', 'couple', 'group'],
-    summary: 'Panama City is Central America\'s most modern and cosmopolitan capital, a striking skyline of glass towers rising alongside the historic Casco Viejo neighborhood with its crumbling Spanish colonial churches. The Panama Canal is one of the great engineering achievements of human history and can be watched from the Miraflores Locks in real time. The city is a natural hub for broader Central and South America travel.',
-  },
-  {
-    title: 'Antigua, Guatemala',
-    continent: 'central_america',
-    country: 'Guatemala',
-    region: 'Sacatepéquez',
-    vibe: ['history', 'city', 'adventure'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'great', apr: 'great', may: 'mixed', jun: 'mixed', jul: 'good', aug: 'mixed', sep: 'mixed', oct: 'mixed', nov: 'great', dec: 'great' },
-    tripLength: ['short', 'medium'],
-    whoIsGoing: ['solo', 'couple', 'group'],
-    summary: 'Antigua is one of the best-preserved Spanish colonial cities in the Americas, ringed by three volcanoes and featuring cobblestone streets, crumbling convents, and some of Central America\'s finest restaurants and boutique hotels. The Acatenango volcano trek — an overnight hike to watch Volcán de Fuego erupt at dawn — is one of the most memorable experiences in the region. It is a natural base for exploring Mayan culture throughout Guatemala.',
-  },
-  {
-    title: 'Lake Atitlán, Guatemala',
-    continent: 'central_america',
-    country: 'Guatemala',
-    region: 'Sololá',
-    vibe: ['nature', 'adventure', 'history'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'great', apr: 'great', may: 'mixed', jun: 'mixed', jul: 'good', aug: 'mixed', sep: 'mixed', oct: 'mixed', nov: 'great', dec: 'great' },
-    tripLength: ['medium'],
-    whoIsGoing: ['solo', 'couple', 'group'],
-    summary: 'Aldous Huxley once called Lake Atitlán "the most beautiful lake in the world" and it is difficult to argue — three volcanoes frame a deep caldera lake ringed by indigenous Maya villages, each with its own distinct identity and textile traditions. San Marcos offers yoga and wellness retreats, San Pedro draws backpackers, and Santiago Atitlán provides cultural depth. The altitude keeps the climate spring-like year-round.',
-  },
-  {
-    title: 'Honduras — Bay Islands',
-    continent: 'central_america',
-    country: 'Honduras',
-    region: 'Bay Islands',
-    vibe: ['beach', 'adventure', 'nature'],
-    weatherByMonth: { jan: 'mixed', feb: 'mixed', mar: 'great', apr: 'great', may: 'great', jun: 'good', jul: 'great', aug: 'great', sep: 'great', oct: 'mixed', nov: 'mixed', dec: 'mixed' },
-    tripLength: ['medium'],
-    whoIsGoing: ['solo', 'couple', 'group'],
-    summary: 'Roatán and Utila in Honduras\'s Bay Islands sit atop the Mesoamerican Barrier Reef and offer some of the most affordable and outstanding diving and snorkeling in the Western Hemisphere. Utila is a world-class and budget-friendly PADI certification hub, while Roatán delivers proper beach resort infrastructure for those who prefer comfort with their coral. The overall cost of a week here makes it exceptional value.',
-  },
-  {
-    title: 'Bocas del Toro, Panama',
-    continent: 'central_america',
-    country: 'Panama',
-    region: 'Bocas del Toro Province',
-    vibe: ['beach', 'nature', 'adventure'],
-    weatherByMonth: { jan: 'mixed', feb: 'great', mar: 'great', apr: 'great', may: 'mixed', jun: 'mixed', jul: 'mixed', aug: 'mixed', sep: 'great', oct: 'mixed', nov: 'mixed', dec: 'mixed' },
-    tripLength: ['medium'],
-    whoIsGoing: ['solo', 'couple', 'group'],
-    summary: 'Bocas del Toro is an archipelago of nine main islands off Panama\'s Caribbean coast, most of them covered in dense jungle and fringed with mangroves and coral reefs. Dolphin Bay, Red Frog Beach, and the caves of the Zapatillas Cayes are accessible by water taxi. The vibe is deliberately slow — hammocks, boat taxis, and sunset drinks on dock bars are the main activities.',
-  },
-  {
-    title: 'Nicoya Peninsula, Costa Rica',
-    continent: 'central_america',
-    country: 'Costa Rica',
-    region: 'Guanacaste',
-    vibe: ['beach', 'nature', 'adventure', 'luxury'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'great', apr: 'great', may: 'mixed', jun: 'mixed', jul: 'good', aug: 'mixed', sep: 'mixed', oct: 'poor', nov: 'mixed', dec: 'great' },
-    tripLength: ['medium', 'long'],
-    whoIsGoing: ['couple', 'family', 'solo'],
-    summary: 'The Nicoya Peninsula is home to some of Costa Rica\'s most spectacular Pacific beaches — Nosara, Santa Teresa, and Playa Conchal each attract different tribes of travelers from surfers to luxury seekers. This region is also a certified Blue Zone, one of five places in the world where people regularly live past 100, tied to its climate, diet, and pace of life. Award points go far here in luxury eco-resorts.',
-  },
-  {
-    title: 'El Salvador — Surf Coast',
-    continent: 'central_america',
-    country: 'El Salvador',
-    region: 'La Libertad',
-    vibe: ['beach', 'adventure', 'nature'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'great', apr: 'great', may: 'mixed', jun: 'mixed', jul: 'good', aug: 'mixed', sep: 'mixed', oct: 'mixed', nov: 'great', dec: 'great' },
-    tripLength: ['short', 'medium'],
-    whoIsGoing: ['solo', 'couple', 'group'],
-    summary: 'El Salvador\'s Pacific coast around La Libertad has quietly become one of Central America\'s premier surf destinations, with Punta Roca hosting world surfing championship events and beaches like El Tunco offering beginner-friendly breaks. The country is also home to the dramatic Ruta de las Flores, volcanoes you can hike and board down, and Mayan ruins at Joya de Cerén. It is the smallest and most underrated country in Central America.',
-  },
-
-  // ── South America (10) ──────────────────────────────────────────────────────
-
-  {
-    title: 'Patagonia',
-    continent: 'south_america',
-    country: 'Argentina / Chile',
-    region: 'Southern Cone',
-    vibe: ['nature', 'adventure'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'good', apr: 'mixed', may: 'poor', jun: 'poor', jul: 'poor', aug: 'poor', sep: 'mixed', oct: 'mixed', nov: 'good', dec: 'great' },
-    tripLength: ['long'],
-    whoIsGoing: ['solo', 'couple', 'group'],
-    summary: 'Patagonia is raw, windswept, and utterly magnificent — the Torres del Paine massif in Chile and the Fitz Roy range in Argentina represent some of the most dramatic mountain scenery on the planet. The W Trek and El Chaltén circuits are among the world\'s great multi-day hikes. It rewards travelers who are prepared for unpredictable weather and willing to invest in a longer trip to reach destinations that few places can rival.',
-  },
-  {
-    title: 'Buenos Aires',
-    continent: 'south_america',
-    country: 'Argentina',
-    region: 'Buenos Aires Province',
-    vibe: ['city', 'history'],
-    weatherByMonth: { jan: 'mixed', feb: 'mixed', mar: 'great', apr: 'great', may: 'good', jun: 'mixed', jul: 'mixed', aug: 'mixed', sep: 'good', oct: 'great', nov: 'great', dec: 'good' },
-    tripLength: ['medium', 'long'],
-    whoIsGoing: ['solo', 'couple', 'group'],
-    summary: 'Buenos Aires is South America\'s most European city — wide Haussmann-style boulevards, world-class steak and Malbec, tango shows in dimly lit milongas, and a passionate street art and theater scene. The neighborhoods of Palermo, San Telmo, and La Boca each have a distinct character. Argentina\'s currency situation historically makes cash transactions exceptional value for dollar-based travelers.',
-  },
-  {
-    title: 'Machu Picchu',
-    continent: 'south_america',
-    country: 'Peru',
-    region: 'Cusco Region',
-    vibe: ['history', 'adventure', 'nature'],
-    weatherByMonth: { jan: 'mixed', feb: 'mixed', mar: 'mixed', apr: 'good', may: 'great', jun: 'great', jul: 'great', aug: 'great', sep: 'great', oct: 'good', nov: 'mixed', dec: 'mixed' },
-    tripLength: ['medium', 'long'],
-    whoIsGoing: ['solo', 'couple', 'group', 'family'],
-    summary: 'Machu Picchu is one of the world\'s great bucket list destinations — the lost Inca citadel clinging to a ridge above the Sacred Valley, shrouded in morning mist, is as extraordinary in person as any photograph suggests. The four-day Inca Trail trek is among the world\'s most legendary hikes, but the train approach from Cusco via Aguas Calientes offers the same arrival for those preferring comfort. Cusco itself is a stunning Spanish colonial city built over Inca foundations.',
-  },
-  {
-    title: 'Rio de Janeiro',
-    continent: 'south_america',
-    country: 'Brazil',
-    region: 'Rio de Janeiro State',
-    vibe: ['city', 'beach', 'nature'],
-    weatherByMonth: { jan: 'mixed', feb: 'mixed', mar: 'good', apr: 'great', may: 'great', jun: 'great', jul: 'great', aug: 'great', sep: 'great', oct: 'good', nov: 'mixed', dec: 'mixed' },
-    tripLength: ['medium'],
-    whoIsGoing: ['solo', 'couple', 'group'],
-    summary: 'Rio is one of the most beautiful cities in the world by simple geography — dramatic granite peaks dropping into Atlantic beaches, with the Christ the Redeemer statue watching over it all from Corcovado. Copacabana and Ipanema are legendary, the neighborhood of Santa Teresa is charming and arty, and Sugarloaf Mountain offers a cable-car ride with unmatched panoramic views. It is a city best experienced with openness and local guidance.',
-  },
-  {
-    title: 'Galápagos Islands',
-    continent: 'south_america',
-    country: 'Ecuador',
-    region: 'Galápagos Province',
-    vibe: ['nature', 'adventure'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'great', apr: 'great', may: 'good', jun: 'good', jul: 'good', aug: 'good', sep: 'mixed', oct: 'good', nov: 'good', dec: 'great' },
-    tripLength: ['medium', 'long'],
-    whoIsGoing: ['solo', 'couple', 'family', 'group'],
-    summary: 'The Galápagos Islands are the gold standard of wildlife travel — marine iguanas, giant tortoises, blue-footed boobies, and swimming sea lions that have never learned to fear humans because of the islands\' near-total isolation from predators. Darwin\'s living laboratory is best explored by small-ship liveaboard cruise, where you visit multiple islands and snorkel with penguins and sharks. There is truly nowhere else on earth like it.',
-  },
-  {
-    title: 'Cartagena',
-    continent: 'south_america',
-    country: 'Colombia',
-    region: 'Bolívar',
-    vibe: ['city', 'history', 'beach', 'luxury'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'great', apr: 'great', may: 'mixed', jun: 'mixed', jul: 'good', aug: 'mixed', sep: 'mixed', oct: 'poor', nov: 'mixed', dec: 'great' },
-    tripLength: ['short', 'medium'],
-    whoIsGoing: ['couple', 'group', 'solo'],
-    summary: 'Cartagena\'s walled old city is one of the most beautifully preserved colonial settlements in Latin America — pastel-colored townhouses, bougainvillea-draped balconies, and cathedral squares create a backdrop that feels like a magical realist novel. The Rosario Islands offshore offer crystal-clear Caribbean water less than an hour by speedboat, and the city\'s boutique hotel scene within the walls has become genuinely world-class.',
-  },
-  {
-    title: 'Iguazu Falls',
-    continent: 'south_america',
-    country: 'Argentina / Brazil',
-    region: 'Misiones / Paraná',
-    vibe: ['nature', 'adventure', 'family'],
-    weatherByMonth: { jan: 'mixed', feb: 'mixed', mar: 'mixed', apr: 'good', may: 'great', jun: 'great', jul: 'great', aug: 'great', sep: 'great', oct: 'great', nov: 'great', dec: 'good' },
-    tripLength: ['short', 'medium'],
-    whoIsGoing: ['couple', 'family', 'group', 'solo'],
-    summary: 'Iguazu Falls is the largest waterfall system in the world — 275 individual falls spreading across nearly two miles, with the Devil\'s Throat at the center producing a roar and mist visible for miles. It is best experienced from both the Argentine and Brazilian sides over two days, as each offers a completely different perspective. Eleanor Roosevelt reportedly said upon first seeing it: "Poor Niagara."',
-  },
-  {
-    title: 'Lima',
-    continent: 'south_america',
-    country: 'Peru',
-    region: 'Lima Province',
-    vibe: ['city', 'history'],
-    weatherByMonth: { jan: 'good', feb: 'good', mar: 'good', apr: 'good', may: 'mixed', jun: 'mixed', jul: 'mixed', aug: 'mixed', sep: 'good', oct: 'good', nov: 'good', dec: 'good' },
-    tripLength: ['short', 'medium'],
-    whoIsGoing: ['solo', 'couple', 'group'],
-    summary: 'Lima has earned a reputation as the culinary capital of Latin America, home to some of the world\'s best restaurants including Central, Maido, and Astrid y Gastón, all drawing on Peru\'s extraordinary biodiversity across jungle, coast, and Andes. The Miraflores and Barranco neighborhoods are sophisticated and walkable, with clifftop ocean views and a thriving contemporary arts scene. It\'s an essential first or last stop on any Peru itinerary.',
-  },
-  {
-    title: 'Atacama Desert',
-    continent: 'south_america',
-    country: 'Chile',
-    region: 'Antofagasta Region',
-    vibe: ['nature', 'adventure'],
-    weatherByMonth: { jan: 'good', feb: 'good', mar: 'mixed', apr: 'great', may: 'great', jun: 'great', jul: 'great', aug: 'great', sep: 'great', oct: 'great', nov: 'great', dec: 'good' },
-    tripLength: ['medium'],
-    whoIsGoing: ['solo', 'couple', 'group'],
-    summary: 'The Atacama is the driest non-polar desert on earth and one of the most spectacular landscapes imaginable — salt flats, geysers at 14,000 feet, flamingo-filled lagoons, and skies so clear and dark that it hosts some of the world\'s leading astronomical observatories. San Pedro de Atacama is the small town hub, and Explora Atacama offers one of the most acclaimed luxury lodge experiences in South America.',
-  },
-  {
-    title: 'Medellín',
-    continent: 'south_america',
-    country: 'Colombia',
-    region: 'Antioquia',
-    vibe: ['city', 'history', 'nature'],
-    weatherByMonth: { jan: 'great', feb: 'good', mar: 'mixed', apr: 'mixed', may: 'mixed', jun: 'great', jul: 'great', aug: 'good', sep: 'mixed', oct: 'mixed', nov: 'mixed', dec: 'great' },
-    tripLength: ['short', 'medium'],
-    whoIsGoing: ['solo', 'couple', 'group'],
-    summary: 'Medellín\'s transformation from the world\'s most dangerous city to a celebrated model of urban innovation is one of the great comeback stories of our time. Today the City of Eternal Spring — named for its year-round 72-degree climate — is an exciting, creative, and affordable destination with excellent food, gondola-accessed hillside neighborhoods, and easy daytrips to the coffee region and Guatapé rock. It has become one of the most talked-about cities for digital nomads and adventurous travelers.',
-  },
-
-  // ── Europe (10) ─────────────────────────────────────────────────────────────
-
-  {
-    title: 'Amalfi Coast',
-    continent: 'europe',
-    country: 'Italy',
-    region: 'Campania',
-    vibe: ['beach', 'history', 'luxury'],
-    weatherByMonth: { jan: 'poor', feb: 'poor', mar: 'good', apr: 'good', may: 'great', jun: 'great', jul: 'great', aug: 'great', sep: 'great', oct: 'good', nov: 'mixed', dec: 'poor' },
-    tripLength: ['medium'],
-    whoIsGoing: ['couple', 'group'],
-    summary: 'The Amalfi Coast is Italy at its most cinematic — dramatically terraced lemon groves and pastel villages clinging to cliffs above the Tyrrhenian Sea, accessible only by winding coastal road or boat. Positano, Ravello, and the town of Amalfi itself each offer a slightly different version of this fantasy. It pairs naturally with Naples, Pompeii, and the island of Capri for one of Europe\'s most rewarding regional itineraries.',
-  },
-  {
-    title: 'Santorini',
-    continent: 'europe',
-    country: 'Greece',
-    region: 'South Aegean',
-    vibe: ['beach', 'history', 'luxury'],
-    weatherByMonth: { jan: 'mixed', feb: 'mixed', mar: 'good', apr: 'great', may: 'great', jun: 'great', jul: 'great', aug: 'great', sep: 'great', oct: 'good', nov: 'mixed', dec: 'mixed' },
-    tripLength: ['medium'],
-    whoIsGoing: ['couple'],
-    summary: 'Santorini is arguably the most photographed destination in Europe — the white cubist architecture and blue-domed churches of Oia perched above the caldera created by one of history\'s largest volcanic eruptions produce a view of almost impossible beauty. The wine produced from volcanic soil, the quality of the seafood, and the extraordinarily intimate cave-hotel experience make it a compelling destination beyond the Instagram. Best visited outside peak July-August.',
-  },
-  {
-    title: 'Barcelona',
-    continent: 'europe',
-    country: 'Spain',
-    region: 'Catalonia',
-    vibe: ['city', 'beach', 'history'],
-    weatherByMonth: { jan: 'good', feb: 'good', mar: 'good', apr: 'great', may: 'great', jun: 'great', jul: 'good', aug: 'mixed', sep: 'great', oct: 'great', nov: 'good', dec: 'good' },
-    tripLength: ['medium'],
-    whoIsGoing: ['solo', 'couple', 'family', 'group'],
-    summary: 'Barcelona is Europe\'s most complete city break — Gaudí\'s extraordinary architectural legacy, a world-class food scene from tapas to avant-garde restaurants, the Gothic Quarter\'s medieval streets, and Mediterranean beaches all within a compact, walkable city. The nightlife is legendary, the culture is Catalan rather than generically Spanish, and the city rewards both rushed weekends and longer exploration. It is one of the best-connected cities in Europe for award flights.',
-  },
-  {
-    title: 'Iceland',
-    continent: 'europe',
-    country: 'Iceland',
-    region: 'Capital and South Regions',
-    vibe: ['nature', 'adventure'],
-    weatherByMonth: { jan: 'mixed', feb: 'mixed', mar: 'mixed', apr: 'mixed', may: 'good', jun: 'great', jul: 'great', aug: 'great', sep: 'good', oct: 'mixed', nov: 'mixed', dec: 'mixed' },
-    tripLength: ['medium', 'long'],
-    whoIsGoing: ['solo', 'couple', 'group'],
-    summary: 'Iceland offers a concentration of natural phenomena found nowhere else — geysers, waterfalls, black sand beaches, lava fields, northern lights, and midnight sun within easy reach of Reykjavik. The Ring Road is a classic self-drive itinerary that delivers extraordinary variety over 10 days. It is also a natural stopover between North America and Europe, with Iceland Air and Transatlantic award tickets enabling a two-destination trip at minimal extra cost.',
-  },
-  {
-    title: 'Prague',
-    continent: 'europe',
-    country: 'Czech Republic',
-    region: 'Bohemia',
-    vibe: ['city', 'history'],
-    weatherByMonth: { jan: 'poor', feb: 'poor', mar: 'good', apr: 'good', may: 'great', jun: 'great', jul: 'great', aug: 'great', sep: 'great', oct: 'good', nov: 'mixed', dec: 'good' },
-    tripLength: ['short', 'medium'],
-    whoIsGoing: ['solo', 'couple', 'group'],
-    summary: 'Prague is the most visually intact medieval city in Central Europe — its historic center survived World War II nearly unscathed, leaving a skyline of Gothic spires, Baroque palaces, and Art Nouveau facades that feel like a fairy tale made real. Prague Castle, Charles Bridge at dawn, and the Old Town astronomical clock are all extraordinary, and the restaurant and craft beer scene has been quietly excellent for years. It is also one of the most affordable European capitals for those paying cash.',
-  },
-  {
-    title: 'Dubrovnik',
-    continent: 'europe',
-    country: 'Croatia',
-    region: 'Dubrovnik-Neretva County',
-    vibe: ['city', 'history', 'beach'],
-    weatherByMonth: { jan: 'mixed', feb: 'mixed', mar: 'good', apr: 'great', may: 'great', jun: 'great', jul: 'great', aug: 'great', sep: 'great', oct: 'good', nov: 'mixed', dec: 'mixed' },
-    tripLength: ['medium'],
-    whoIsGoing: ['solo', 'couple', 'group'],
-    summary: 'Dubrovnik\'s perfectly preserved medieval walled city jutting into the Adriatic is one of Europe\'s most dramatic and distinctive destinations. The city walls walk, the sea kayaking around the walls, and the cable car to Mount Srđ all deliver unforgettable perspectives. The Dalmatian Coast — Hvar, Korčula, Brač — is accessible by ferry and offers a two-week Adriatic itinerary that rivals anything in Italy or Greece.',
-  },
-  {
-    title: 'Scottish Highlands',
-    continent: 'europe',
-    country: 'United Kingdom',
-    region: 'Scotland',
-    vibe: ['nature', 'adventure', 'history'],
-    weatherByMonth: { jan: 'poor', feb: 'poor', mar: 'mixed', apr: 'good', may: 'great', jun: 'great', jul: 'great', aug: 'great', sep: 'good', oct: 'mixed', nov: 'poor', dec: 'poor' },
-    tripLength: ['medium', 'long'],
-    whoIsGoing: ['solo', 'couple', 'group'],
-    summary: 'The Scottish Highlands are wild, ancient, and hauntingly beautiful — Glencoe, Ben Nevis, the Isle of Skye\'s Quiraing and Fairy Pools, Loch Ness, and countless ruined castles across moorland that stretches to the horizon. The North Coast 500 is Scotland\'s answer to a coastal road trip, circling the far north in a journey that rewards taking time. Whisky distillery visits and genuine Highland hospitality complete the experience.',
-  },
-  {
-    title: 'Cinque Terre',
-    continent: 'europe',
-    country: 'Italy',
-    region: 'Liguria',
-    vibe: ['beach', 'history', 'nature'],
-    weatherByMonth: { jan: 'poor', feb: 'poor', mar: 'good', apr: 'great', may: 'great', jun: 'great', jul: 'good', aug: 'good', sep: 'great', oct: 'great', nov: 'mixed', dec: 'poor' },
-    tripLength: ['short', 'medium'],
-    whoIsGoing: ['solo', 'couple', 'group'],
-    summary: 'Cinque Terre — five centuries-old fishing villages clinging to impossibly steep cliffs above the Ligurian Sea — is one of Italy\'s most iconic coastal destinations. The clifftop trail connecting the villages offers some of the Mediterranean\'s most spectacular views, and the towns themselves, with their stacked pastel buildings, pesto from the source, and local white wine, are worth multiple days of exploration. Reached easily by train from Genoa or Florence.',
-  },
-  {
-    title: 'Amsterdam',
-    continent: 'europe',
-    country: 'Netherlands',
-    region: 'North Holland',
-    vibe: ['city', 'history'],
-    weatherByMonth: { jan: 'poor', feb: 'poor', mar: 'mixed', apr: 'great', may: 'great', jun: 'great', jul: 'great', aug: 'great', sep: 'great', oct: 'good', nov: 'mixed', dec: 'mixed' },
-    tripLength: ['short', 'medium'],
-    whoIsGoing: ['solo', 'couple', 'group'],
-    summary: 'Amsterdam is one of Europe\'s most livable and visitor-friendly cities — the canal ring, gabled merchant houses, world-class museums, and the best cycling infrastructure in the world combine to make it enormously pleasurable to explore. The Rijksmuseum, Van Gogh Museum, and Anne Frank House are among Europe\'s essential cultural experiences. It serves as an outstanding hub for broader Netherlands and Belgium itineraries.',
-  },
-  {
-    title: 'Lisbon',
-    continent: 'europe',
-    country: 'Portugal',
-    region: 'Lisbon District',
-    vibe: ['city', 'history', 'nature'],
-    weatherByMonth: { jan: 'good', feb: 'good', mar: 'great', apr: 'great', may: 'great', jun: 'great', jul: 'great', aug: 'great', sep: 'great', oct: 'great', nov: 'good', dec: 'good' },
-    tripLength: ['short', 'medium'],
-    whoIsGoing: ['solo', 'couple', 'group'],
-    summary: 'Lisbon has emerged as one of Europe\'s most beloved cities for good reason — it combines genuine history, extraordinary food and wine, stunning hilltop viewpoints, and a melancholy beauty in its fado music and azulejo-tiled buildings that feels utterly its own. Alfama, Mouraria, and Belém each tell a different chapter of a city that once ruled a global empire. The Algarve coast and Sintra\'s fairy-tale palaces are day trips away.',
-  },
-
-  // ── Asia (10) ───────────────────────────────────────────────────────────────
-
-  {
-    title: 'Bali',
-    continent: 'asia',
-    country: 'Indonesia',
-    region: 'Bali Province',
-    vibe: ['beach', 'nature', 'history', 'luxury'],
-    weatherByMonth: { jan: 'mixed', feb: 'mixed', mar: 'mixed', apr: 'good', may: 'great', jun: 'great', jul: 'great', aug: 'great', sep: 'great', oct: 'good', nov: 'mixed', dec: 'mixed' },
-    tripLength: ['medium', 'long'],
-    whoIsGoing: ['solo', 'couple', 'family', 'group'],
-    summary: 'Bali offers an extraordinary combination of rice terrace landscapes, Hindu temple culture, world-class surf, and a luxury resort scene that represents some of the best value in the world. Ubud in the highlands delivers spiritual depth and jungle retreats, while Seminyak and Canggu are modern, creative, and beach-adjacent. The island rewards both quick luxury escapes and longer cultural immersions, with exceptional point hotel options.',
-  },
-  {
-    title: 'Tokyo',
-    continent: 'asia',
-    country: 'Japan',
-    region: 'Kantō',
-    vibe: ['city', 'history', 'family'],
-    weatherByMonth: { jan: 'mixed', feb: 'mixed', mar: 'great', apr: 'great', may: 'great', jun: 'mixed', jul: 'mixed', aug: 'good', sep: 'mixed', oct: 'great', nov: 'great', dec: 'mixed' },
-    tripLength: ['medium', 'long'],
-    whoIsGoing: ['solo', 'couple', 'family', 'group'],
-    summary: 'Tokyo is the world\'s great megacity — simultaneously the most futuristic and most traditionally Japanese city on earth, with neighborhoods each operating as a distinct village within the larger whole. Shibuya, Shinjuku, Asakusa, and Yanaka offer completely different versions of Tokyo in a single trip. The food culture is unmatched anywhere on the planet, and the Japan Rail Pass makes the entire country easily accessible from this hub.',
-  },
-  {
-    title: 'Maldives',
-    continent: 'asia',
-    country: 'Maldives',
-    region: 'North Malé Atoll',
-    vibe: ['beach', 'luxury', 'nature'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'great', apr: 'great', may: 'mixed', jun: 'mixed', jul: 'mixed', aug: 'mixed', sep: 'mixed', oct: 'mixed', nov: 'good', dec: 'great' },
-    tripLength: ['medium'],
-    whoIsGoing: ['couple'],
-    summary: 'The Maldives is the definitive overwater-bungalow destination — individual resort islands in a vast Indian Ocean archipelago where turquoise lagoons and coral reefs surround private villas just above the water. It is one of the world\'s top luxury point redemption destinations, with major hotel chains operating flagship properties here. The marine life — manta rays, whale sharks, and brilliant reef fish — is extraordinary.',
-  },
-  {
-    title: 'Kyoto',
-    continent: 'asia',
-    country: 'Japan',
-    region: 'Kansai',
-    vibe: ['history', 'nature', 'city'],
-    weatherByMonth: { jan: 'mixed', feb: 'mixed', mar: 'great', apr: 'great', may: 'great', jun: 'mixed', jul: 'mixed', aug: 'good', sep: 'mixed', oct: 'great', nov: 'great', dec: 'mixed' },
-    tripLength: ['medium'],
-    whoIsGoing: ['solo', 'couple', 'family', 'group'],
-    summary: 'Kyoto preserves Japan\'s soul in a way no other city does — over 1,600 Buddhist temples and Shinto shrines, geisha districts still operating as they have for centuries, traditional machiya townhouses, and the Arashiyama bamboo grove create an experience of profound cultural depth. Cherry blossom season in April and autumn foliage in November transform the city into something otherworldly. It is Japan\'s most essential destination beyond Tokyo.',
-  },
-  {
-    title: 'Bangkok',
-    continent: 'asia',
-    country: 'Thailand',
-    region: 'Central Thailand',
-    vibe: ['city', 'history', 'family'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'good', apr: 'mixed', may: 'mixed', jun: 'mixed', jul: 'mixed', aug: 'mixed', sep: 'mixed', oct: 'mixed', nov: 'great', dec: 'great' },
-    tripLength: ['short', 'medium'],
-    whoIsGoing: ['solo', 'couple', 'family', 'group'],
-    summary: 'Bangkok is Southeast Asia\'s most dynamic and complex city — golden-spired temples alongside neon-lit street food markets, the Grand Palace and Wat Pho among the world\'s great temple complexes, and a rooftop bar and fine dining scene that rivals any global city. The Chao Phraya River provides a historic artery through the city, and Bangkok serves as the natural hub for broader Thailand travel including Chiang Mai, Phuket, and Koh Samui.',
-  },
-  {
-    title: 'Ha Long Bay',
-    continent: 'asia',
-    country: 'Vietnam',
-    region: 'Quảng Ninh Province',
-    vibe: ['nature', 'adventure'],
-    weatherByMonth: { jan: 'good', feb: 'great', mar: 'great', apr: 'great', may: 'good', jun: 'mixed', jul: 'mixed', aug: 'mixed', sep: 'mixed', oct: 'great', nov: 'great', dec: 'good' },
-    tripLength: ['short', 'medium'],
-    whoIsGoing: ['solo', 'couple', 'family', 'group'],
-    summary: 'Ha Long Bay\'s 1,600 limestone karst islands rising from emerald water is one of Southeast Asia\'s most iconic landscapes and a UNESCO World Heritage Site. A two or three-night junk boat cruise is the best way to experience it — kayaking through sea caves, swimming in secluded lagoons, and dining on fresh seafood as the sun sets over the karsts. It pairs naturally with Hanoi as part of a broader northern Vietnam itinerary.',
-  },
-  {
-    title: 'Singapore',
-    continent: 'asia',
-    country: 'Singapore',
-    region: 'City-State',
-    vibe: ['city', 'luxury', 'family'],
-    weatherByMonth: { jan: 'mixed', feb: 'good', mar: 'good', apr: 'good', may: 'good', jun: 'good', jul: 'great', aug: 'great', sep: 'good', oct: 'good', nov: 'mixed', dec: 'mixed' },
-    tripLength: ['short', 'medium'],
-    whoIsGoing: ['solo', 'couple', 'family', 'group'],
-    summary: 'Singapore is Asia\'s most efficient, safest, and arguably most exciting city-state — Gardens by the Bay, the Marina Bay Sands rooftop infinity pool, Hawker Centre street food culture, and world-class shopping and dining make it compelling for all types of travelers. It operates as Southeast Asia\'s hub airport, making it easy to extend into Indonesia, Malaysia, or the broader region. The Singapore Airlines Suites product is one of the world\'s greatest aviation experiences.',
-  },
-  {
-    title: 'Palawan, Philippines',
-    continent: 'asia',
-    country: 'Philippines',
-    region: 'Mimaropa',
-    vibe: ['beach', 'nature', 'adventure'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'great', apr: 'great', may: 'good', jun: 'mixed', jul: 'mixed', aug: 'poor', sep: 'poor', oct: 'mixed', nov: 'great', dec: 'great' },
-    tripLength: ['medium', 'long'],
-    whoIsGoing: ['solo', 'couple', 'group'],
-    summary: 'Palawan is consistently voted the world\'s best island for its combination of dramatic limestone karst cliffs, the world\'s longest underground river, and some of the most pristine coral reefs in Asia. El Nido\'s island-hopping circuits and Coron\'s World War II shipwreck diving are two completely different experiences on the same island chain. It remains largely undeveloped relative to its extraordinary natural beauty.',
-  },
-  {
-    title: 'Nepal — Kathmandu and the Himalayas',
-    continent: 'asia',
-    country: 'Nepal',
-    region: 'Bagmati Province and Gandaki Province',
-    vibe: ['history', 'adventure', 'nature'],
-    weatherByMonth: { jan: 'mixed', feb: 'mixed', mar: 'great', apr: 'great', may: 'great', jun: 'mixed', jul: 'poor', aug: 'poor', sep: 'mixed', oct: 'great', nov: 'great', dec: 'mixed' },
-    tripLength: ['long'],
-    whoIsGoing: ['solo', 'group'],
-    summary: 'Nepal offers two completely different worlds in a single country — Kathmandu\'s ancient temples, living goddess tradition, and UNESCO-protected Durbar Squares, and then the Himalayas themselves, home to eight of the world\'s ten highest peaks. The Everest Base Camp trek is one of the world\'s great physical and spiritual journeys. The Annapurna Circuit is a longer alternative offering tremendous diversity of landscape and culture.',
-  },
-  {
-    title: 'Sri Lanka',
-    continent: 'asia',
-    country: 'Sri Lanka',
-    region: 'Multiple Provinces',
-    vibe: ['history', 'nature', 'beach', 'adventure'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'great', apr: 'good', may: 'mixed', jun: 'mixed', jul: 'good', aug: 'good', sep: 'mixed', oct: 'mixed', nov: 'mixed', dec: 'great' },
-    tripLength: ['medium', 'long'],
-    whoIsGoing: ['solo', 'couple', 'family', 'group'],
-    summary: 'Sri Lanka packs extraordinary diversity into a small island — UNESCO-listed ancient cities like Sigiriya and Polonnaruwa, a UNESCO-protected hill country of tea plantations traversed by one of the world\'s great train journeys, leopard-dense Yala National Park, and beaches on both coasts. The cuisine is underrated and the warmth of Sri Lankan hospitality consistently surprises visitors. It is one of Asia\'s most rewarding destinations for longer independent travel.',
-  },
-
-  // ── Middle East (10) ────────────────────────────────────────────────────────
-
-  {
-    title: 'Dubai',
-    continent: 'middle_east',
-    country: 'United Arab Emirates',
-    region: 'Dubai Emirate',
-    vibe: ['city', 'luxury', 'adventure'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'great', apr: 'great', may: 'mixed', jun: 'poor', jul: 'poor', aug: 'poor', sep: 'mixed', oct: 'great', nov: 'great', dec: 'great' },
-    tripLength: ['short', 'medium'],
-    whoIsGoing: ['solo', 'couple', 'family', 'group'],
-    summary: 'Dubai is the world\'s most ambitious and audacious city — the Burj Khalifa, the Palm Jumeirah, an indoor ski slope in a shopping mall, and the world\'s largest choreographed fountain are only the beginning. As the most connected airport in the world, it is also a natural stopover destination, and both Emirates and Etihad offer spectacular first and business class products that are among the world\'s best point redemptions. The luxury hotel competition is unlike anywhere else.',
-  },
-  {
-    title: 'Petra, Jordan',
-    continent: 'middle_east',
-    country: 'Jordan',
-    region: 'Ma\'an Governorate',
-    vibe: ['history', 'adventure'],
-    weatherByMonth: { jan: 'mixed', feb: 'mixed', mar: 'great', apr: 'great', may: 'great', jun: 'mixed', jul: 'mixed', aug: 'mixed', sep: 'great', oct: 'great', nov: 'good', dec: 'mixed' },
-    tripLength: ['short', 'medium'],
-    whoIsGoing: ['solo', 'couple', 'group'],
-    summary: 'Petra is one of the world\'s great archaeological wonders — an ancient Nabataean city carved entirely from rose-red sandstone cliffs, accessed through a mile-long canyon called the Siq that suddenly reveals the iconic Treasury facade. The site is vast, with the Monastery, High Place of Sacrifice, and Royal Tombs all requiring a full day\'s hiking to explore properly. It is best combined with Wadi Rum and the Dead Sea as part of a Jordan circuit.',
-  },
-  {
-    title: 'Istanbul',
-    continent: 'middle_east',
-    country: 'Turkey',
-    region: 'Marmara Region',
-    vibe: ['city', 'history'],
-    weatherByMonth: { jan: 'mixed', feb: 'mixed', mar: 'good', apr: 'great', may: 'great', jun: 'great', jul: 'good', aug: 'good', sep: 'great', oct: 'great', nov: 'good', dec: 'mixed' },
-    tripLength: ['short', 'medium'],
-    whoIsGoing: ['solo', 'couple', 'group'],
-    summary: 'Istanbul is the only city in the world that straddles two continents, and its history as capital of both the Byzantine and Ottoman Empires has left an extraordinary architectural legacy — the Hagia Sophia, the Blue Mosque, Topkapi Palace, and the Grand Bazaar are among the world\'s great monuments. The Bosphorus strait provides a dramatic backdrop to a vibrant, modern city with world-class food and a sophisticated arts and nightlife scene.',
-  },
-  {
-    title: 'Muscat, Oman',
-    continent: 'middle_east',
-    country: 'Oman',
-    region: 'Muscat Governorate',
-    vibe: ['city', 'history', 'nature', 'adventure'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'great', apr: 'good', may: 'mixed', jun: 'poor', jul: 'poor', aug: 'poor', sep: 'mixed', oct: 'good', nov: 'great', dec: 'great' },
-    tripLength: ['medium'],
-    whoIsGoing: ['solo', 'couple', 'group'],
-    summary: 'Oman is the Middle East\'s most underrated destination — Muscat is a clean, safe, and genuinely welcoming capital city with the spectacular Sultan Qaboos Grand Mosque, a traditional old souk, and coastline that rivals the Mediterranean. The interior offers wadis for swimming and canyon hiking, and the desert landscape of the Wahiba Sands is accessible in a day from the capital. Oman consistently earns among the highest safety and hospitality ratings in the region.',
-  },
-  {
-    title: 'Tel Aviv',
-    continent: 'middle_east',
-    country: 'Israel',
-    region: 'Tel Aviv District',
-    vibe: ['city', 'beach', 'history'],
-    weatherByMonth: { jan: 'good', feb: 'good', mar: 'great', apr: 'great', may: 'great', jun: 'great', jul: 'mixed', aug: 'mixed', sep: 'great', oct: 'great', nov: 'good', dec: 'good' },
-    tripLength: ['short', 'medium'],
-    whoIsGoing: ['solo', 'couple', 'group'],
-    summary: 'Tel Aviv is one of the Mediterranean\'s most vibrant and unexpected cities — a UNESCO-listed White City of Bauhaus architecture, excellent beach, a food scene ranked among the world\'s best, and a nightlife culture that runs until sunrise. The short drive to Jerusalem adds one of the most historically and spiritually charged destinations on earth to the itinerary. Israel\'s small size makes it ideal for short, dense trips.',
-  },
-  {
-    title: 'Wadi Rum, Jordan',
-    continent: 'middle_east',
-    country: 'Jordan',
-    region: 'Aqaba Governorate',
-    vibe: ['adventure', 'nature'],
-    weatherByMonth: { jan: 'mixed', feb: 'mixed', mar: 'great', apr: 'great', may: 'great', jun: 'mixed', jul: 'mixed', aug: 'mixed', sep: 'great', oct: 'great', nov: 'good', dec: 'mixed' },
-    tripLength: ['short'],
-    whoIsGoing: ['solo', 'couple', 'group'],
-    summary: 'Wadi Rum is Mars on earth — vast ochre and crimson sandstone desert, towering rock formations carved by wind and time, and silence so complete it is disorienting. Bedouin desert camps offering transparent-bubble accommodation under some of the clearest night skies in the world have transformed it into a luxury adventure destination. It is the perfect one or two-night extension from Petra and Aqaba.',
-  },
-  {
-    title: 'Abu Dhabi',
-    continent: 'middle_east',
-    country: 'United Arab Emirates',
-    region: 'Abu Dhabi Emirate',
-    vibe: ['city', 'luxury', 'history', 'family'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'great', apr: 'great', may: 'mixed', jun: 'poor', jul: 'poor', aug: 'poor', sep: 'mixed', oct: 'great', nov: 'great', dec: 'great' },
-    tripLength: ['short', 'medium'],
-    whoIsGoing: ['couple', 'family', 'group'],
-    summary: 'Abu Dhabi offers a more refined and less frenetic alternative to Dubai — the Sheikh Zayed Grand Mosque is among the most beautiful buildings in the world, Saadiyat Island houses world-class museums including a Louvre outpost, and the F1 Grand Prix at Yas Marina Circuit draws an annual global crowd. Etihad Airways\' headquarters here makes it a natural connecting point for extraordinary first-class product redemptions to Asia and Australia.',
-  },
-  {
-    title: 'AlUla, Saudi Arabia',
-    continent: 'middle_east',
-    country: 'Saudi Arabia',
-    region: 'AlUla',
-    vibe: ['history', 'adventure', 'nature', 'luxury'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'good', apr: 'mixed', may: 'poor', jun: 'poor', jul: 'poor', aug: 'poor', sep: 'mixed', oct: 'good', nov: 'great', dec: 'great' },
-    tripLength: ['medium'],
-    whoIsGoing: ['solo', 'couple', 'group'],
-    summary: 'AlUla is Saudi Arabia\'s most extraordinary destination — the Nabataean ruins of Hegra, a UNESCO World Heritage Site predating Petra, sit amid a landscape of massive sandstone formations and ancient oasis valleys that has been dramatically opened to tourism. The Saudi government\'s investment in luxury desert camps and international arts programming has rapidly made it one of the world\'s most talked-about new destinations. Access is limited and the experience is genuinely unlike anywhere else.',
-  },
-  {
-    title: 'Doha, Qatar',
-    continent: 'middle_east',
-    country: 'Qatar',
-    region: 'Ad Dawhah',
-    vibe: ['city', 'luxury', 'history'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'great', apr: 'great', may: 'mixed', jun: 'poor', jul: 'poor', aug: 'poor', sep: 'mixed', oct: 'good', nov: 'great', dec: 'great' },
-    tripLength: ['short', 'medium'],
-    whoIsGoing: ['solo', 'couple', 'group'],
-    summary: 'Doha has transformed itself from a small Gulf trading port to a globally ambitious city with world-class museums, a striking skyline, and one of the world\'s great airlines as its national carrier. The Museum of Islamic Art, Katara Cultural Village, and the traditional Souq Waqif offer genuine cultural depth alongside ultra-modern luxury hotels. Qatar Airways\' Qsuites business class is widely regarded as the best in the sky and an outstanding points redemption.',
-  },
-  {
-    title: 'Dead Sea, Jordan',
-    continent: 'middle_east',
-    country: 'Jordan',
-    region: 'Balqa Governorate',
-    vibe: ['nature', 'luxury'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'great', apr: 'good', may: 'mixed', jun: 'poor', jul: 'poor', aug: 'poor', sep: 'mixed', oct: 'great', nov: 'great', dec: 'great' },
-    tripLength: ['short'],
-    whoIsGoing: ['couple', 'family', 'group'],
-    summary: 'The Dead Sea is the lowest point on earth and the saltiest large body of water on the planet — floating effortlessly on its hyper-saline surface is a genuinely surreal experience. The mineral-rich black mud has been used for therapeutic skin treatments for millennia, and the luxury spa resorts on the Jordanian side offer full wellness programs in a spectacular desert and sea setting. A natural add-on to any Petra and Wadi Rum Jordan itinerary.',
-  },
-
-  // ── Africa (10) ─────────────────────────────────────────────────────────────
-
-  {
-    title: 'Serengeti National Park',
-    continent: 'africa',
-    country: 'Tanzania',
-    region: 'Mara and Simiyu Regions',
-    vibe: ['nature', 'adventure', 'luxury'],
-    weatherByMonth: { jan: 'good', feb: 'good', mar: 'mixed', apr: 'mixed', may: 'good', jun: 'great', jul: 'great', aug: 'great', sep: 'great', oct: 'good', nov: 'mixed', dec: 'good' },
-    tripLength: ['medium', 'long'],
-    whoIsGoing: ['couple', 'family', 'group', 'solo'],
-    summary: 'The Serengeti is the greatest wildlife spectacle on earth — over 1.5 million wildebeest, zebra, and gazelle migrate in an endless cycle across a vast open savanna, pursued by lions, leopards, cheetahs, and crocodiles. The Great Migration river crossing at the Mara River between July and October is a defining natural event. A combination of the Serengeti and Ngorongoro Crater is the benchmark African safari experience.',
-  },
-  {
-    title: 'Cape Town',
-    continent: 'africa',
-    country: 'South Africa',
-    region: 'Western Cape',
-    vibe: ['city', 'nature', 'beach', 'adventure'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'great', apr: 'good', may: 'mixed', jun: 'mixed', jul: 'mixed', aug: 'mixed', sep: 'good', oct: 'great', nov: 'great', dec: 'great' },
-    tripLength: ['medium', 'long'],
-    whoIsGoing: ['solo', 'couple', 'family', 'group'],
-    summary: 'Cape Town is Africa\'s most spectacular city — Table Mountain rising above the Atlantic, Boulders Beach penguin colony, the Cape of Good Hope, and some of the world\'s great winelands within an hour\'s drive. The Victoria & Alfred Waterfront, the Bo-Kaap neighborhood, and the creative energy of Woodstock make the city itself endlessly engaging. It is also an outstanding natural gateway for combining a Winelands tour and the Garden Route.',
-  },
-  {
-    title: 'Marrakech',
-    continent: 'africa',
-    country: 'Morocco',
-    region: 'Marrakech-Safi',
-    vibe: ['city', 'history', 'luxury'],
-    weatherByMonth: { jan: 'good', feb: 'good', mar: 'great', apr: 'great', may: 'great', jun: 'mixed', jul: 'mixed', aug: 'mixed', sep: 'great', oct: 'great', nov: 'good', dec: 'good' },
-    tripLength: ['short', 'medium'],
-    whoIsGoing: ['solo', 'couple', 'group'],
-    summary: 'Marrakech is one of the world\'s great sensory experiences — the labyrinthine medina, the Djemaa el-Fna square\'s snake charmers and storytellers, hammam culture, and riads of extraordinary architectural beauty behind unmarked doorways. The city rewards getting deliberately lost and finding your way back through souks that sell everything from spices to leather goods to Berber carpets. The Atlas Mountains and Sahara Desert are within easy reach for extensions.',
-  },
-  {
-    title: 'Zanzibar',
-    continent: 'africa',
-    country: 'Tanzania',
-    region: 'Zanzibar Archipelago',
-    vibe: ['beach', 'history', 'nature'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'mixed', apr: 'poor', may: 'mixed', jun: 'great', jul: 'great', aug: 'great', sep: 'great', oct: 'good', nov: 'mixed', dec: 'mixed' },
-    tripLength: ['medium'],
-    whoIsGoing: ['couple', 'family', 'group'],
-    summary: 'Zanzibar is a Swahili spice island off Tanzania\'s coast with pristine turquoise water, white coral sand beaches, and the extraordinary UNESCO-listed Stone Town — a 19th-century Arab trading city of winding alleys, carved wooden doors, and layered Persian, Arab, Indian, and African culture. It\'s the obvious beach extension for any Tanzania safari and one of the Indian Ocean\'s most historically rich coastal destinations.',
-  },
-  {
-    title: 'Victoria Falls',
-    continent: 'africa',
-    country: 'Zimbabwe / Zambia',
-    region: 'Matabeleland North / Livingstone',
-    vibe: ['nature', 'adventure'],
-    weatherByMonth: { jan: 'mixed', feb: 'mixed', mar: 'mixed', apr: 'good', may: 'great', jun: 'great', jul: 'great', aug: 'great', sep: 'great', oct: 'good', nov: 'mixed', dec: 'mixed' },
-    tripLength: ['short', 'medium'],
-    whoIsGoing: ['solo', 'couple', 'family', 'group'],
-    summary: 'Victoria Falls is the world\'s largest waterfall by combined width and height — the indigenous name Mosi-oa-Tunya means "The Smoke That Thunders" and the spray is visible from 30 miles away. The falls can be viewed from both the Zimbabwe and Zambia sides, and the surrounding area offers bungee jumping from the Victoria Falls Bridge, white-water rafting on the Zambezi Gorge, and elephant-back safaris. It\'s an adrenaline hub set against one of nature\'s most extraordinary backdrops.',
-  },
-  {
-    title: 'Masai Mara National Reserve',
-    continent: 'africa',
-    country: 'Kenya',
-    region: 'Narok County',
-    vibe: ['nature', 'adventure', 'luxury'],
-    weatherByMonth: { jan: 'good', feb: 'good', mar: 'mixed', apr: 'mixed', may: 'good', jun: 'great', jul: 'great', aug: 'great', sep: 'great', oct: 'great', nov: 'mixed', dec: 'good' },
-    tripLength: ['medium', 'long'],
-    whoIsGoing: ['couple', 'family', 'group', 'solo'],
-    summary: 'The Masai Mara is Kenya\'s premier safari destination and the northern extension of the Tanzanian Serengeti ecosystem — the same wildebeest migration crosses the Mara River here between July and October in one of nature\'s most dramatic events. The Mara\'s open savanna supports extraordinary year-round big cat populations, and the luxury tented camp experience — watching lions hunt from your bathtub — sets the global standard for how a safari should feel.',
-  },
-  {
-    title: 'Cairo and Luxor',
-    continent: 'africa',
-    country: 'Egypt',
-    region: 'Cairo and Upper Egypt',
-    vibe: ['history', 'city', 'adventure'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'great', apr: 'good', may: 'mixed', jun: 'poor', jul: 'poor', aug: 'poor', sep: 'good', oct: 'great', nov: 'great', dec: 'great' },
-    tripLength: ['medium'],
-    whoIsGoing: ['solo', 'couple', 'group', 'family'],
-    summary: 'Egypt offers a concentration of ancient history found nowhere else on earth — the Pyramids of Giza and the Sphinx are among the world\'s last surviving ancient wonders, while the Valley of the Kings at Luxor contains 63 royal tombs including Tutankhamun\'s. A Nile cruise between Luxor and Aswan is one of travel\'s great classic journeys. Egypt has never been more accessible or more affordable for international visitors.',
-  },
-  {
-    title: 'Rwanda — Gorilla Trekking',
-    continent: 'africa',
-    country: 'Rwanda',
-    region: 'Northern Province',
-    vibe: ['nature', 'adventure'],
-    weatherByMonth: { jan: 'great', feb: 'mixed', mar: 'mixed', apr: 'poor', may: 'mixed', jun: 'great', jul: 'great', aug: 'great', sep: 'good', oct: 'mixed', nov: 'mixed', dec: 'great' },
-    tripLength: ['medium'],
-    whoIsGoing: ['solo', 'couple', 'group'],
-    summary: 'Rwanda\'s Volcanoes National Park offers one of travel\'s most profound experiences — trekking through dense bamboo forest to spend an hour in the presence of wild mountain gorillas in their natural habitat. Rwanda has also positioned itself as an ultra-luxury African safari destination, with Singita and One&Only operating flagship properties that represent bucket-list point redemption options. The country\'s rapid development and safety record make it one of Africa\'s most impressive destinations.',
-  },
-  {
-    title: 'Okavango Delta, Botswana',
-    continent: 'africa',
-    country: 'Botswana',
-    region: 'North-West District',
-    vibe: ['nature', 'adventure', 'luxury'],
-    weatherByMonth: { jan: 'mixed', feb: 'mixed', mar: 'mixed', apr: 'good', may: 'great', jun: 'great', jul: 'great', aug: 'great', sep: 'great', oct: 'good', nov: 'mixed', dec: 'mixed' },
-    tripLength: ['medium', 'long'],
-    whoIsGoing: ['couple', 'solo', 'group'],
-    summary: 'The Okavango Delta is one of Africa\'s most magical places — a vast inland delta in the Kalahari Desert where the Okavango River fans out across 6,000 square miles of floodplains, creating a labyrinth of channels, islands, and lagoons teeming with wildlife. Traditional mokoro canoe exploration at water level puts you eye-to-eye with hippos and elephants. Botswana\'s high-cost, low-volume tourism model protects this UNESCO World Heritage Site and ensures extraordinary exclusivity.',
-  },
-  {
-    title: 'Seychelles',
-    continent: 'africa',
-    country: 'Seychelles',
-    region: 'Mahé, Praslin, La Digue',
-    vibe: ['beach', 'nature', 'luxury'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'great', apr: 'great', may: 'good', jun: 'good', jul: 'good', aug: 'good', sep: 'good', oct: 'mixed', nov: 'mixed', dec: 'great' },
-    tripLength: ['medium', 'long'],
-    whoIsGoing: ['couple'],
-    summary: 'The Seychelles is the Indian Ocean\'s most exclusive archipelago — 115 granite and coral islands with beaches that consistently rank among the world\'s most beautiful, featuring the distinctive pale pink Coco de Mer boulders, lush tropical forest, and water of impossible clarity. The outer islands are home to some of the world\'s most secluded and expensive private island resorts, making it a primary destination for luxury point redemptions. Giant Aldabra tortoises roam freely on several islands.',
-  },
-
-  // ── South Pacific (10) ──────────────────────────────────────────────────────
-
-  {
-    title: 'Bora Bora',
-    continent: 'south_pacific',
-    country: 'French Polynesia',
-    region: 'Society Islands',
-    vibe: ['beach', 'luxury'],
-    weatherByMonth: { jan: 'mixed', feb: 'mixed', mar: 'mixed', apr: 'good', may: 'great', jun: 'great', jul: 'great', aug: 'great', sep: 'great', oct: 'good', nov: 'mixed', dec: 'mixed' },
-    tripLength: ['medium'],
-    whoIsGoing: ['couple'],
-    summary: 'Bora Bora is the global standard for overwater bungalow luxury — a dramatic extinct volcano ringed by a turquoise lagoon of almost impossible beauty, with reef sharks and rays visible from your bungalow\'s glass floor. The Four Seasons, St. Regis, and Conrad Bora Bora Nui are among the most aspirational luxury hotel points redemptions in the world. It is expensive by any measure, which makes points redemptions particularly valuable here.',
-  },
-  {
-    title: 'Fiji',
-    continent: 'south_pacific',
-    country: 'Fiji',
-    region: 'Viti Levu and Yasawa Islands',
-    vibe: ['beach', 'nature', 'family', 'adventure'],
-    weatherByMonth: { jan: 'mixed', feb: 'mixed', mar: 'mixed', apr: 'good', may: 'great', jun: 'great', jul: 'great', aug: 'great', sep: 'great', oct: 'good', nov: 'mixed', dec: 'mixed' },
-    tripLength: ['medium', 'long'],
-    whoIsGoing: ['couple', 'family', 'group'],
-    summary: 'Fiji\'s 333 islands span a range from family-friendly main-island resorts to remote private island experiences of extraordinary exclusivity. The Yasawa and Mamanuca island chains offer classic Pacific paradise — white sand, coral reefs, and the famous Fijian warmth that the country has built its tourism reputation on. The soft coral diving in the Somosomo Strait is considered among the world\'s best.',
-  },
-  {
-    title: 'New Zealand — South Island',
-    continent: 'south_pacific',
-    country: 'New Zealand',
-    region: 'South Island',
-    vibe: ['nature', 'adventure'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'great', apr: 'good', may: 'mixed', jun: 'mixed', jul: 'mixed', aug: 'mixed', sep: 'good', oct: 'great', nov: 'great', dec: 'great' },
-    tripLength: ['long'],
-    whoIsGoing: ['solo', 'couple', 'group'],
-    summary: 'New Zealand\'s South Island is the adventure capital of the Southern Hemisphere — Queenstown\'s adrenaline sports, Milford Sound\'s fiord grandeur, the Fox and Franz Josef Glaciers, and the Tongariro Alpine Crossing create a destination that seems to have been designed for maximum natural impact. The drive between Queenstown, Te Anau, and the West Coast is one of the world\'s great road trips, rivaling anything in Europe or North America.',
-  },
-  {
-    title: 'Sydney',
-    continent: 'south_pacific',
-    country: 'Australia',
-    region: 'New South Wales',
-    vibe: ['city', 'beach', 'nature'],
-    weatherByMonth: { jan: 'good', feb: 'good', mar: 'great', apr: 'great', may: 'great', jun: 'good', jul: 'good', aug: 'good', sep: 'great', oct: 'great', nov: 'great', dec: 'good' },
-    tripLength: ['medium', 'long'],
-    whoIsGoing: ['solo', 'couple', 'family', 'group'],
-    summary: 'Sydney is one of the world\'s great harbor cities — the Opera House and Harbour Bridge create an iconic skyline that has come to symbolize an entire continent\'s energy and optimism. Bondi Beach, Manly, and the Northern Beaches provide world-class urban surf culture within the city limits, while the Blue Mountains and Hunter Valley wine region are accessible on a long weekend. Qantas Points make Sydney a particularly strategic redemption gateway to the Asia-Pacific.',
-  },
-  {
-    title: 'Great Barrier Reef',
-    continent: 'south_pacific',
-    country: 'Australia',
-    region: 'Queensland',
-    vibe: ['nature', 'adventure', 'family'],
-    weatherByMonth: { jan: 'mixed', feb: 'mixed', mar: 'mixed', apr: 'good', may: 'great', jun: 'great', jul: 'great', aug: 'great', sep: 'great', oct: 'great', nov: 'mixed', dec: 'mixed' },
-    tripLength: ['medium', 'long'],
-    whoIsGoing: ['solo', 'couple', 'family', 'group'],
-    summary: 'The Great Barrier Reef is the world\'s largest living structure — 2,300 kilometers of coral reef, 1,500 species of fish, and sea turtles, dugongs, and migrating whales in a marine ecosystem of unparalleled biodiversity. Cairns and the Whitsunday Islands provide the primary access points, and the Whitsundays in particular — 74 tropical islands with Hill Inlet and Whitehaven Beach — rank among the Pacific\'s most spectacular anchorages.',
-  },
-  {
-    title: 'Tahiti and Moorea',
-    continent: 'south_pacific',
-    country: 'French Polynesia',
-    region: 'Society Islands',
-    vibe: ['beach', 'nature', 'luxury'],
-    weatherByMonth: { jan: 'mixed', feb: 'mixed', mar: 'mixed', apr: 'good', may: 'great', jun: 'great', jul: 'great', aug: 'great', sep: 'great', oct: 'good', nov: 'mixed', dec: 'mixed' },
-    tripLength: ['medium'],
-    whoIsGoing: ['couple', 'solo'],
-    summary: 'Tahiti is the beating heart of French Polynesia — a high volcanic island of dramatic waterfall-streaked peaks, black sand beaches, and a French Pacific culture expressed in outstanding food and unhurried sophistication. Moorea, a 30-minute ferry away, offers a more intimate version with Cook\'s Bay, whale watching, and hiking to extraordinary viewpoints over its dramatic caldera. Together they form the ideal introduction to the Society Islands before Bora Bora.',
-  },
-  {
-    title: 'Queenstown, New Zealand',
-    continent: 'south_pacific',
-    country: 'New Zealand',
-    region: 'Otago',
-    vibe: ['adventure', 'nature', 'luxury'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'great', apr: 'good', may: 'mixed', jun: 'good', jul: 'good', aug: 'good', sep: 'good', oct: 'great', nov: 'great', dec: 'great' },
-    tripLength: ['medium'],
-    whoIsGoing: ['solo', 'couple', 'group'],
-    summary: 'Queenstown sits on the edge of Lake Wakatipu beneath the jagged Remarkables mountain range and has built the world\'s most concentrated adventure sports industry around it — bungee jumping, skydiving, jet boating, white-water rafting, and skiing at nearby Coronet Peak and Cardrona. The food and wine scene has evolved significantly, with Central Otago Pinot Noir now internationally acclaimed. It is both the adventure capital and a surprisingly sophisticated destination.',
-  },
-  {
-    title: 'Cook Islands',
-    continent: 'south_pacific',
-    country: 'Cook Islands',
-    region: 'Rarotonga and Aitutaki',
-    vibe: ['beach', 'nature', 'luxury'],
-    weatherByMonth: { jan: 'mixed', feb: 'mixed', mar: 'mixed', apr: 'good', may: 'great', jun: 'great', jul: 'great', aug: 'great', sep: 'great', oct: 'good', nov: 'mixed', dec: 'mixed' },
-    tripLength: ['medium'],
-    whoIsGoing: ['couple', 'family'],
-    summary: 'The Cook Islands are among the Pacific\'s least-visited and most authentic island destinations — Rarotonga has a vibrant cultural scene and volcanic interior walking trails, while Aitutaki\'s lagoon is regularly cited as the most beautiful in the Pacific, a shallow turquoise expanse of coral gardens accessible by boat tour or private overwater bungalow. New Zealand citizenship ties give the island a level of infrastructure and safety that makes it accessible without sacrificing remoteness.',
-  },
-  {
-    title: 'Palau',
-    continent: 'south_pacific',
-    country: 'Palau',
-    region: 'Micronesia',
-    vibe: ['nature', 'adventure'],
-    weatherByMonth: { jan: 'great', feb: 'great', mar: 'great', apr: 'great', may: 'good', jun: 'mixed', jul: 'good', aug: 'good', sep: 'mixed', oct: 'mixed', nov: 'great', dec: 'great' },
-    tripLength: ['medium'],
-    whoIsGoing: ['solo', 'couple', 'group'],
-    summary: 'Palau is the world\'s premier dive destination — the Blue Corner, Blue Holes, and German Channel are legendary dive sites, and Jellyfish Lake, where millions of non-stinging jellyfish pulse in a landlocked marine lake, is one of snorkeling\'s truly surreal experiences. The Rock Islands are a UNESCO World Heritage Site and one of the Pacific\'s most beautiful seascapes. Palau has passed laws requiring all visitors to sign an environmental pledge, protecting its extraordinary marine ecosystem.',
-  },
-  {
-    title: 'Samoa',
-    continent: 'south_pacific',
-    country: 'Samoa',
-    region: 'Upolu and Savai\'i',
-    vibe: ['beach', 'nature', 'history'],
-    weatherByMonth: { jan: 'mixed', feb: 'mixed', mar: 'mixed', apr: 'good', may: 'great', jun: 'great', jul: 'great', aug: 'great', sep: 'great', oct: 'good', nov: 'mixed', dec: 'mixed' },
-    tripLength: ['medium'],
-    whoIsGoing: ['couple', 'family', 'group', 'solo'],
-    summary: 'Samoa is the most culturally authentic of the accessible Pacific island destinations — fa\'a Samoa, the Samoan way of life, is expressed in village fale homestays, Sunday \'umu feasts, traditional tattoo culture, and a genuine warmth toward visitors that goes beyond hospitality into genuine connection. To Sua Ocean Trench, the Papapapai-Uta Waterfall, and the Piula Cave Pool offer extraordinary natural experiences. It is the Pacific without the resort polish, and entirely better for it.',
-  },
-
-]
-
-// ── Delete existing + reimport ────────────────────────────────────────────────
-
-async function run() {
-  console.log(`\n🌍  Destination Import — Project: ${projectId}  |  Dataset: ${dataset}\n`)
-
-  // Step 1: delete all existing destination documents
-  console.log('🗑️   Querying existing destination documents...')
-  const existingIds = await client.fetch(`*[_type == "destination"]._id`)
-  console.log(`    Found ${existingIds.length} existing destination(s) to delete.`)
-
-  let deleted = 0
-  let deleteFailed = 0
-  for (const id of existingIds) {
-    try {
-      await client.delete(id)
-      deleted++
-    } catch (err) {
-      console.error(`  ❌  Failed to delete ${id}: ${err?.message ?? String(err)}`)
-      deleteFailed++
-    }
-  }
-  console.log(`    Deleted: ${deleted}  |  Failed: ${deleteFailed}\n`)
-
-  // Step 2: reimport all 90 destinations
-  console.log(`📥  Importing ${destinations.length} destinations...\n`)
-
-  let created = 0
-  let failed  = 0
-
-  for (const dest of destinations) {
-    const slug = slugify(dest.title)
-    const doc = {
-      _type: 'destination',
-      title: dest.title,
-      slug: { _type: 'slug', current: slug },
-      continent: dest.continent,
-      country: dest.country,
-      region: dest.region,
-      vibe: dest.vibe,
-      weatherByMonth: dest.weatherByMonth,
-      tripLength: dest.tripLength,
-      whoIsGoing: dest.whoIsGoing,
-      summary: dest.summary,
-    }
-
-    try {
-      const result = await client.create(doc)
-      console.log(`  ✅  [${dest.continent}] ${dest.title}`)
-      console.log(`      _id: ${result._id}  |  slug: ${slug}`)
-      created++
-    } catch (err) {
-      console.error(`  ❌  ${dest.title}`)
-      console.error(`      ${err?.message ?? String(err)}`)
-      failed++
-    }
-  }
-
-  console.log(`\n──────────────────────────────────────────────────────────`)
-  console.log(`  Deleted: ${deleted}  |  Created: ${created}  |  Failed: ${failed}  |  Total: ${destinations.length}`)
-  console.log(`\n  All destinations are live immediately upon creation.`)
-  console.log(`  Review and update in Sanity Studio as needed.\n`)
+{
+  "country": "full country name in English (e.g. United States, South Korea)",
+  "continent": "one of: north_america, central_america, south_america, caribbean, europe, asia, middle_east, africa, south_pacific",
+  "summary_short": "1-2 punchy sentences (max 240 chars) — the teaser on a card",
+  "summary_long": "2 short paragraphs (120-200 words total) — what the place feels like, what you'd do there, who it's for. Sassy tone, no clichés, no emojis.",
+  "vibe": array subset of ["beach","city","history","nature","adventure","luxury","family"] — pick 2-4,
+  "trip_length": array subset of ["short","medium","long"] — pick 1-3 that make sense,
+  "who_is_going": array subset of ["solo","couple","family","group"] — pick the traveler types this fits best (1-4),
+  "weather_by_month": object with keys jan feb mar apr may jun jul aug sep oct nov dec, each value one of "great" "good" "mixed" "poor"
 }
 
-run()
+If this city is not a meaningful travel destination (pure cargo/military hub, unknown), respond with:
+{"skip": true, "reason": "why"}
+
+Respond with ONLY the JSON object.`
+}
+
+function validateEnriched(e) {
+  const errs = []
+  if (typeof e.country !== 'string' || !e.country.trim()) errs.push('country empty')
+  if (!CONTINENTS.has(e.continent)) errs.push(`bad continent: ${e.continent}`)
+  if (typeof e.summary_short !== 'string' || !e.summary_short.trim()) errs.push('summary_short empty')
+  if (typeof e.summary_long !== 'string' || !e.summary_long.trim())   errs.push('summary_long empty')
+  if (!Array.isArray(e.vibe) || e.vibe.some(v => !VIBES.has(v))) errs.push(`bad vibe: ${JSON.stringify(e.vibe)}`)
+  if (!Array.isArray(e.trip_length) || e.trip_length.some(v => !TRIP_LENGTHS.has(v))) errs.push(`bad trip_length: ${JSON.stringify(e.trip_length)}`)
+  if (!Array.isArray(e.who_is_going) || e.who_is_going.some(v => !WHO_GOING.has(v))) errs.push(`bad who_is_going: ${JSON.stringify(e.who_is_going)}`)
+  if (!e.weather_by_month || typeof e.weather_by_month !== 'object') {
+    errs.push('weather_by_month missing')
+  } else {
+    for (const m of MONTHS) {
+      if (!WEATHER_VALS.has(e.weather_by_month[m])) {
+        errs.push(`weather.${m} invalid: ${e.weather_by_month[m]}`)
+      }
+    }
+  }
+  return errs
+}
+
+async function enrich(anthropic, dest) {
+  let backoff = 4000
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      const msg = await anthropic.messages.create({
+        model: HAIKU_MODEL,
+        max_tokens: 1024,
+        messages: [{ role: 'user', content: buildPrompt(dest) }],
+      })
+      const text = msg.content.map(c => c.type === 'text' ? c.text : '').join('').trim()
+      const jsonMatch = text.match(/\{[\s\S]*\}/)
+      if (!jsonMatch) throw new Error(`No JSON: ${text.slice(0, 200)}`)
+      return JSON.parse(jsonMatch[0])
+    } catch (err) {
+      const is429 = err?.status === 429 || /429|rate_limit/i.test(String(err?.message))
+      if (!is429 || attempt === 4) throw err
+      await new Promise(r => setTimeout(r, backoff))
+      backoff *= 2
+    }
+  }
+}
+
+async function main() {
+  console.log(`→ import-destinations (limit=${LIMIT === Infinity ? 'all' : LIMIT}, dry-run=${DRY_RUN}, skip-ai=${SKIP_AI}, concurrency=${CONCURRENCY})`)
+
+  if (!DRY_RUN && !SKIP_AI && !ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY missing.')
+  if (!DRY_RUN && (!SUPABASE_URL || !SERVICE_KEY)) throw new Error('Supabase env vars missing.')
+
+  const anthropic = !SKIP_AI ? new Anthropic({ apiKey: ANTHROPIC_API_KEY }) : null
+  const supabase  = !DRY_RUN ? createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } }) : null
+
+  const candidates = await loadCandidates()
+  console.log(`→ ${candidates.length} candidate cities from CSV`)
+
+  let existingSlugs = new Set()
+  if (supabase) {
+    const { data, error } = await supabase.from('destinations').select('slug')
+    if (error) throw error
+    existingSlugs = new Set((data ?? []).map(r => r.slug))
+    console.log(`→ ${existingSlugs.size} already in DB — will skip`)
+  }
+
+  const todo = candidates
+    .filter(c => !existingSlugs.has(slugify(c.title)))
+    .slice(0, LIMIT)
+
+  console.log(`→ ${todo.length} to process`)
+  if (DRY_RUN) {
+    console.log(`\nFirst 20 candidates:\n`)
+    todo.slice(0, 20).forEach((d, i) => console.log(`  ${i + 1}. ${d.title} (${d.iso_country}) — ${d.iata}`))
+    console.log(`\n(dry-run: no Claude calls, no DB writes)`)
+    return
+  }
+
+  let ok = 0, fail = 0, skipped = 0
+
+  async function processOne(dest, idx, total) {
+    const tag = `[${idx + 1}/${total}] ${dest.title} (${dest.iso_country})`
+    try {
+      let enriched = {
+        country: dest.iso_country, continent: 'europe',
+        summary_short: '', summary_long: '',
+        vibe: [], trip_length: [], who_is_going: [],
+        weather_by_month: {},
+      }
+
+      if (!SKIP_AI) {
+        let attempts = 0
+        let errs = []
+        while (attempts < 2) {
+          enriched = await enrich(anthropic, dest)
+          if (enriched.skip) {
+            console.log(`${tag} ↷ skip: ${enriched.reason}`)
+            skipped++
+            return
+          }
+          errs = validateEnriched(enriched)
+          if (!errs.length) break
+          attempts++
+        }
+        if (errs.length) throw new Error(errs.join('; '))
+      }
+
+      const row = {
+        slug:             slugify(dest.title),
+        title:            dest.title,
+        country:          enriched.country,
+        continent:        enriched.continent,
+        iata_code:        dest.iata,
+        latitude:         dest.latitude,
+        longitude:        dest.longitude,
+        is_unesco:        false,
+        summary_short:    enriched.summary_short,
+        summary_long:     enriched.summary_long,
+        vibe:             enriched.vibe,
+        trip_length:      enriched.trip_length,
+        who_is_going:     enriched.who_is_going,
+        weather_by_month: enriched.weather_by_month,
+      }
+
+      const { error } = await supabase.from('destinations').upsert(row, { onConflict: 'slug' })
+      if (error) throw error
+      console.log(`${tag} ✓ [${enriched.continent}] ${enriched.country}`)
+      ok++
+    } catch (err) {
+      fail++
+      console.error(`${tag} ✗ ${err.message ?? err}`)
+    }
+  }
+
+  let cursor = 0
+  const total = todo.length
+  const workers = Array.from({ length: CONCURRENCY }, async () => {
+    while (true) {
+      const i = cursor++
+      if (i >= total) return
+      await processOne(todo[i], i, total)
+    }
+  })
+  await Promise.all(workers)
+
+  console.log(`\nDone. ${ok} ok, ${skipped} skipped, ${fail} failed, ${total} total.`)
+  process.exit(fail > 0 ? 1 : 0)
+}
+
+main().catch(err => { console.error('Fatal:', err); process.exit(1) })
