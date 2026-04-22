@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { createAdminClient } from '@/utils/supabase/server'
 import { updateContentIdeaStatusAction, updateContentIdeaNotesAction } from './actions'
 import WriteArticleButton from '@/components/admin/WriteArticleButton'
+import CheckArticleButton from '@/components/admin/CheckArticleButton'
 
 type IdeaStatus = 'new' | 'queued' | 'drafted' | 'published' | 'dismissed'
 type IdeaType = 'newsletter' | 'blog'
@@ -26,6 +27,7 @@ interface ContentIdeaRow {
   fact_check_claims: unknown
   voice_checked_at: string | null
   voice_notes: string | null
+  voice_pass: boolean | null
   originality_checked_at: string | null
   originality_notes: string | null
   source_alert?: {
@@ -207,10 +209,10 @@ function verificationPills(idea: ContentIdeaRow): VerificationPill[] {
     },
     {
       label: 'On-brand voice',
-      on: Boolean(idea.voice_checked_at),
+      on: Boolean(idea.voice_checked_at) && idea.voice_pass === true,
       hint: idea.voice_checked_at
         ? idea.voice_notes
-          ? `Voice: ${idea.voice_notes}`
+          ? `${idea.voice_pass ? 'PASS' : 'FAIL'} — ${idea.voice_notes}`
           : `Voice-checked ${new Date(idea.voice_checked_at).toLocaleDateString()}`
         : 'Not voice-checked yet',
     },
@@ -391,6 +393,7 @@ function IdeaCard({ idea }: { idea: ContentIdeaRow }) {
 
       <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
         <WriteArticleButton ideaId={idea.id} hasBody={Boolean(idea.article_body)} />
+        <CheckArticleButton ideaId={idea.id} hasBody={Boolean(idea.article_body)} />
         {actions.map((a) => (
           <form key={a.to} action={updateContentIdeaStatusAction.bind(null, idea.id, a.to)}>
             <button
