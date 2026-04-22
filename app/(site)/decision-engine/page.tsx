@@ -272,8 +272,8 @@ function SlotReel({
       style={{
         flex: 1,
         height: '118px',
-        background: 'linear-gradient(180deg, #0D001C 0%, #0A0014 50%, #0D001C 100%)',
-        border: `1.5px solid ${flashing ? 'rgba(255,232,100,0.9)' : 'rgba(196,160,48,0.28)'}`,
+        backgroundColor: '#FFFFFF',
+        border: `1.5px solid ${flashing ? 'rgba(255,232,100,0.9)' : 'rgba(196,160,48,0.45)'}`,
         borderRadius: '6px',
         display: 'flex',
         alignItems: 'center',
@@ -283,16 +283,17 @@ function SlotReel({
         boxShadow: flashing
           ? '0 0 32px rgba(255,220,80,0.9), inset 0 0 22px rgba(212,175,55,0.2)'
           : isStopped
-            ? `inset 0 0 16px rgba(10,0,20,0.6), 0 0 8px rgba(212,175,55,0.15)`
-            : 'inset 0 0 20px rgba(10,0,20,0.7)',
+            ? `inset 0 0 10px rgba(107,45,143,0.08), 0 0 8px rgba(212,175,55,0.15)`
+            : 'inset 0 0 12px rgba(107,45,143,0.08)',
         transition: 'box-shadow 0.3s ease, border-color 0.2s ease',
         animation: flashing ? 'reelThud 0.38s ease' : 'none',
         backgroundImage: `
           radial-gradient(rgba(212,175,55,0.07) 1px, transparent 1px),
-          radial-gradient(rgba(120,50,200,0.09) 1px, transparent 1px)
+          radial-gradient(rgba(120,50,200,0.09) 1px, transparent 1px),
+          linear-gradient(180deg, #FFFFFF 0%, #FAF7FB 50%, #FFFFFF 100%)
         `,
-        backgroundSize: '28px 28px, 17px 17px',
-        backgroundPosition: '3px 3px, 9px 9px',
+        backgroundSize: '28px 28px, 17px 17px, 100% 100%',
+        backgroundPosition: '3px 3px, 9px 9px, 0 0',
       }}
     >
       {/* Gold flash overlay */}
@@ -303,15 +304,15 @@ function SlotReel({
           borderRadius: '4px', pointerEvents: 'none',
         }} />
       )}
-      {/* Top/bottom fade to dark */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '22px', background: 'linear-gradient(to bottom, #0A0014, transparent)', zIndex: 3, pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '22px', background: 'linear-gradient(to top, #0A0014, transparent)', zIndex: 3, pointerEvents: 'none' }} />
+      {/* Top/bottom fade to white */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '22px', background: 'linear-gradient(to bottom, #FFFFFF, transparent)', zIndex: 3, pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '22px', background: 'linear-gradient(to top, #FFFFFF, transparent)', zIndex: 3, pointerEvents: 'none' }} />
 
       <span style={{
         fontFamily: 'var(--font-ui), Montserrat, sans-serif',
         fontSize: isIdle ? '40px' : isActive ? '34px' : `${fitFontSize(display)}px`,
         fontWeight: 700,
-        color: isIdle ? '#D4AF37' : isStopped ? '#FFFFFF' : '#F0C040',
+        color: isIdle ? '#D4AF37' : isStopped ? '#6B2D8F' : '#C4A030',
         letterSpacing: isStopped ? '0.04em' : isIdle ? '0.02em' : '0.01em',
         textAlign: 'center',
         padding: '0 8px',
@@ -323,7 +324,7 @@ function SlotReel({
         maxWidth: '100%',
         wordBreak: 'break-word',
         textShadow: isStopped
-          ? '0 0 14px rgba(255,255,255,0.55), 0 0 4px rgba(212,175,55,0.35), 0 1px 2px rgba(0,0,0,0.5)'
+          ? '0 1px 2px rgba(107,45,143,0.15)'
           : 'none',
         animation: isIdle
           ? 'goldGlow 1.8s ease-in-out infinite'
@@ -1255,19 +1256,6 @@ export default function DecisionEnginePage() {
                     height: '1px', background: 'rgba(212,175,55,0.18)',
                     transform: 'translateY(-50%)', pointerEvents: 'none', zIndex: 1,
                   }} />
-
-                  {/* Reel labels */}
-                  <div style={{ display: 'flex', gap: '0', marginBottom: '8px' }}>
-                    {['I', 'II', 'III'].map(r => (
-                      <div key={r} style={{
-                        flex: 1, textAlign: 'center',
-                        fontFamily: 'var(--font-ui)', fontSize: '9px', fontWeight: 700,
-                        letterSpacing: '0.16em', color: 'rgba(212,175,55,0.45)',
-                      }}>
-                        {r}
-                      </div>
-                    ))}
-                  </div>
 
                   {/* Reels with gold dividers */}
                   <div style={{ display: 'flex', alignItems: 'stretch' }}>
