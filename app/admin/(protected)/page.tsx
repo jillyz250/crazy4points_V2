@@ -25,6 +25,13 @@ const SECTIONS: Section[] = [
     ],
   },
   {
+    title: 'Intel',
+    description: 'Raw findings from Claude Scout. Filter by confidence, source, and status; reject noise.',
+    actions: [
+      { href: '/admin/intel', label: 'View Intel', variant: 'primary' },
+    ],
+  },
+  {
     title: 'Programs',
     description: 'Loyalty programs (airlines, hotels, cards, portals) that alerts can be tagged against.',
     actions: [
