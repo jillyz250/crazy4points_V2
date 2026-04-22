@@ -5,6 +5,7 @@ import {
   getAllPrograms,
   getRecentIntelItems,
   incrementSourceProduced,
+  logSystemError,
 } from '@/utils/supabase/queries'
 import { runScout } from '@/utils/ai/runScout'
 import type { AlertType, IntelItemInsert, IntelConfidence, RecentIntelItem } from '@/utils/supabase/queries'
@@ -56,6 +57,7 @@ export async function GET(req: NextRequest) {
 
   const supabase = createAdminClient()
 
+  try {
   const sources = await getSources(supabase)
   const activeSources = sources.filter((s) => s.is_active)
 
@@ -239,4 +241,8 @@ export async function GET(req: NextRequest) {
     boosted: boostedCount,
     staged: staged.length,
   })
+  } catch (err) {
+    await logSystemError(supabase, 'scout', err)
+    throw err
+  }
 }

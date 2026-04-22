@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { href: '/admin/programs', label: 'Programs' },
   { href: '/admin/content-ideas', label: 'Content Ideas' },
   { href: '/admin/subscribers', label: 'Subscribers' },
+  { href: '/admin/errors', label: 'Errors' },
 ] as const
 
 function isActive(pathname: string, href: string): boolean {

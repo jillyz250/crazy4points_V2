@@ -10,7 +10,7 @@ import {
 import { writeAlertDraft, type WriteDraftProgram } from '@/utils/ai/writeAlertDraft'
 import { verifyAlertDraft, webVerifyClaims, highSeverityUnsupported } from '@/utils/ai/verifyAlertDraft'
 import type { ApproveMeta } from '@/utils/ai/briefEmail'
-import { updateAlert, setAlertPrograms } from '@/utils/supabase/queries'
+import { updateAlert, setAlertPrograms, logSystemError } from '@/utils/supabase/queries'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -27,6 +27,8 @@ export async function GET(req: NextRequest) {
   }
 
   const supabase = createAdminClient()
+
+  try {
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
   const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
 
@@ -425,4 +427,8 @@ export async function GET(req: NextRequest) {
     email_sent: true,
     date,
   })
+  } catch (err) {
+    await logSystemError(supabase, 'brief', err)
+    throw err
+  }
 }
