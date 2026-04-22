@@ -38,6 +38,13 @@ const SECTIONS: Section[] = [
       { href: '/admin/content-ideas', label: 'Content Ideas', variant: 'primary' },
     ],
   },
+  {
+    title: 'Subscribers',
+    description: 'Newsletter subscribers. Review active/inactive counts and deactivate individual addresses.',
+    actions: [
+      { href: '/admin/subscribers', label: 'Manage Subscribers', variant: 'primary' },
+    ],
+  },
 ]
 
 const cardStyle: React.CSSProperties = {
@@ -87,7 +94,7 @@ export default function AdminDashboard() {
           fontSize: '0.9375rem',
         }}
       >
-        Manage alerts, sources, programs, and the content pipeline.
+        Manage alerts, sources, programs, subscribers, and the content pipeline.
       </p>
 
       <div

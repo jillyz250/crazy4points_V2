@@ -417,6 +417,36 @@ export type SourceInsert = {
   use_firecrawl?: boolean
 }
 
+// ── Subscribers ──────────────────────────────────────────────────────────
+
+export type Subscriber = {
+  id: string
+  email: string
+  first_name: string | null
+  active: boolean
+}
+
+export async function listSubscribers(supabase: SupabaseClient): Promise<Subscriber[]> {
+  const { data, error } = await supabase
+    .from('subscribers')
+    .select('id, email, first_name, active')
+    .order('email', { ascending: true })
+  if (error) throw error
+  return (data ?? []) as Subscriber[]
+}
+
+export async function setSubscriberActive(
+  supabase: SupabaseClient,
+  id: string,
+  active: boolean,
+): Promise<void> {
+  const { error } = await supabase
+    .from('subscribers')
+    .update({ active })
+    .eq('id', id)
+  if (error) throw error
+}
+
 export async function createSource(
   supabase: SupabaseClient,
   input: SourceInsert
