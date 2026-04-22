@@ -2,6 +2,7 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import AdminNav from '@/components/admin/AdminNav'
+import ErrorsBanner from '@/components/admin/ErrorsBanner'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies()
@@ -39,6 +40,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <AdminNav />
         </div>
       </header>
+      <ErrorsBanner />
       <main style={{ padding: '2rem' }}>
         {children}
       </main>

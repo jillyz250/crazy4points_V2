@@ -45,6 +45,13 @@ const SECTIONS: Section[] = [
       { href: '/admin/subscribers', label: 'Manage Subscribers', variant: 'primary' },
     ],
   },
+  {
+    title: 'System Errors',
+    description: 'Background-job failures from scout, brief, and summarize. Resolve after investigating.',
+    actions: [
+      { href: '/admin/errors', label: 'View Errors', variant: 'primary' },
+    ],
+  },
 ]
 
 const cardStyle: React.CSSProperties = {

@@ -447,6 +447,78 @@ export async function setSubscriberActive(
   if (error) throw error
 }
 
+// ── System Errors ────────────────────────────────────────────────────────
+
+export type SystemError = {
+  id: string
+  source: string
+  message: string
+  stack: string | null
+  context: unknown
+  created_at: string
+  resolved_at: string | null
+}
+
+// Swallows failures so logging never breaks the caller (e.g. if table is missing).
+export async function logSystemError(
+  supabase: SupabaseClient,
+  source: string,
+  err: unknown,
+  context?: Record<string, unknown>,
+): Promise<void> {
+  const message = err instanceof Error ? err.message : String(err)
+  const stack = err instanceof Error ? err.stack ?? null : null
+  try {
+    await supabase.from('system_errors').insert({
+      source,
+      message,
+      stack,
+      context: context ?? null,
+    })
+  } catch {
+    // intentional: logging path must never throw
+  }
+}
+
+export async function listSystemErrors(
+  supabase: SupabaseClient,
+  opts: { onlyUnresolved?: boolean; limit?: number } = {},
+): Promise<SystemError[]> {
+  let q = supabase
+    .from('system_errors')
+    .select('id, source, message, stack, context, created_at, resolved_at')
+    .order('created_at', { ascending: false })
+    .limit(opts.limit ?? 100)
+  if (opts.onlyUnresolved) q = q.is('resolved_at', null)
+  const { data, error } = await q
+  if (error) {
+    const code = (error as { code?: string }).code
+    if (code === '42P01' || code === 'PGRST205') return []
+    throw error
+  }
+  return (data ?? []) as SystemError[]
+}
+
+export async function countUnresolvedSystemErrors(supabase: SupabaseClient): Promise<number> {
+  const { count, error } = await supabase
+    .from('system_errors')
+    .select('id', { count: 'exact', head: true })
+    .is('resolved_at', null)
+  if (error) return 0
+  return count ?? 0
+}
+
+export async function resolveSystemError(
+  supabase: SupabaseClient,
+  id: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('system_errors')
+    .update({ resolved_at: new Date().toISOString() })
+    .eq('id', id)
+  if (error) throw error
+}
+
 export async function createSource(
   supabase: SupabaseClient,
   input: SourceInsert
