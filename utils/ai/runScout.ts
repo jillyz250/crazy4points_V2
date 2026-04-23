@@ -140,8 +140,15 @@ RULES:
 - Deduplicate: if the same story appears in multiple sources, output ONE finding with the highest confidence
 - Skip findings that are clearly old news (>7 days) or evergreen advice articles
 - programs array: pick slugs ONLY from the PROGRAM LIST below. If the right slug isn't listed, omit it rather than invent one.
-- CO-BRANDED CARDS: tag BOTH the issuer AND the airline/hotel. Example: AA/Citi Aviator → ["citi-thankyou", "aa-aadvantage"]. Chase Hyatt card → ["chase-ur", "hyatt"].
-- TRANSFER BONUSES: tag both the source currency and the destination (e.g., Chase→Hyatt bonus → ["chase-ur", "hyatt"]).
+- PROGRAM ORDER MATTERS: the FIRST slug in the array becomes the alert's primary program; the rest become secondary. Pick primary using these rules:
+  • partner_change / alliance / acquisition: primary = the program whose status CHANGED (e.g., Hawaiian joins oneworld → primary = "atmos"; partners gaining access go secondary).
+  • transfer_bonus: primary = the source currency (the one transferring OUT), secondary = the destination. Example: Chase→Hyatt 30% bonus → ["chase-ur", "hyatt"].
+  • co-branded card news (new card, refresh, signup bonus): primary = the issuing bank/currency, secondary = the co-brand. Example: Chase Hyatt card refresh → ["chase-ur", "hyatt"].
+  • award sale / award availability / devaluation: primary = the operating loyalty program running the sale or being devalued.
+  • status_promo / earn_rate_change / policy_change: primary = the program making the change.
+  • industry_news with no single actor: primary = the program most central to the reader action.
+- CO-BRANDED CARDS: tag BOTH the issuer AND the airline/hotel (see order rule above).
+- TRANSFER BONUSES: tag both source and destination (see order rule above).
 - AIRLINE/HOTEL AWARD SALES: always tag the operating loyalty program (e.g., SAS award sale → ["sas-eurobonus"] if listed).
 - Never return an empty programs array unless the finding truly has no loyalty angle.
 
