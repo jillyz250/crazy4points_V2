@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { href: '/admin/intel', label: 'Intel' },
   { href: '/admin/programs', label: 'Programs' },
   { href: '/admin/content-ideas', label: 'Content Ideas' },
+  { href: '/admin/newsletter', label: 'Newsletter' },
   { href: '/admin/subscribers', label: 'Subscribers' },
   { href: '/admin/jobs', label: 'Jobs' },
   { href: '/admin/fact-checks', label: 'Fact Checks' },
