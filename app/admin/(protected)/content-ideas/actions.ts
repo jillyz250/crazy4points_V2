@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/utils/supabase/server'
+import { logSystemError } from '@/utils/supabase/queries'
 import { writeArticleBody } from '@/utils/ai/writeArticleBody'
 import { verifyArticleBody } from '@/utils/ai/verifyArticleBody'
 import { webVerifyClaims } from '@/utils/ai/verifyAlertDraft'
@@ -214,10 +215,23 @@ export async function checkArticleAction(id: string): Promise<CheckArticleResult
   if (!voiceRes) return { ok: false, error: 'Voice-check call failed (see logs)' }
 
   // Web-grounding pass for unsupported claims (same pattern as alerts).
-  const grounded = await webVerifyClaims({
-    claims: verifyRes.claims,
-    context: { title: idea.title, source_url: sourceUrl },
-  })
+  let grounded = verifyRes.claims
+  try {
+    grounded = await webVerifyClaims({
+      claims: verifyRes.claims,
+      context: { title: idea.title, source_url: sourceUrl },
+    })
+  } catch (err) {
+    await logSystemError(supabase, 'content-ideas:webVerifyClaims', err, {
+      idea_id: id,
+      title: idea.title,
+    })
+    grounded = verifyRes.claims.map((c) =>
+      c.supported
+        ? c
+        : { ...c, web_verdict: 'unverifiable' as const, web_evidence: null, web_url: null }
+    )
+  }
 
   const now = new Date().toISOString()
   const { error: updateErr } = await supabase

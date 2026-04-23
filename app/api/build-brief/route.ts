@@ -269,11 +269,27 @@ export async function GET(req: NextRequest) {
           const hasUnsupported = verify.claims.some((c) => !c.supported)
           if (hasUnsupported) {
             web_verify_runs++
-            finalClaims = await webVerifyClaims({
-              claims: verify.claims,
-              context: { title: draft.title, source_url: (intel.source_url as string | null) ?? null },
-            })
-            if (finalClaims.some((c) => c.web_verdict === 'likely_wrong')) web_verify_likely_wrong++
+            try {
+              finalClaims = await webVerifyClaims({
+                claims: verify.claims,
+                context: { title: draft.title, source_url: (intel.source_url as string | null) ?? null },
+              })
+              if (finalClaims.some((c) => c.web_verdict === 'likely_wrong')) web_verify_likely_wrong++
+            } catch (err) {
+              await logSystemError(supabase, 'build-brief:webVerifyClaims', err, {
+                alert_id: alertId,
+                intel_id: intel.id,
+                title: draft.title,
+                unsupported_count: verify.claims.filter((c) => !c.supported).length,
+              })
+              // Mark every unsupported claim as "checked but verdict unknown" so
+              // the UI can distinguish from "never checked" (missing field).
+              finalClaims = verify.claims.map((c) =>
+                c.supported
+                  ? c
+                  : { ...c, web_verdict: 'unverifiable' as const, web_evidence: null, web_url: null }
+              )
+            }
           }
 
           try {
