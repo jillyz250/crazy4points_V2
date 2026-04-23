@@ -108,10 +108,10 @@ If the reviser ever writes something *wrong* (e.g. misreads web evidence), it no
 - [ ] Show revision strip in approve card (briefEmail.ts)
 - [ ] Manual test on a known-wrong alert (re-run today's Hawaiian case)
 
-### Phase 2 — Loop to 2 iterations
-- [ ] Wrap phases 1–2 in a `while (likely_wrong && iter < 2)` loop
-- [ ] Track `revisions_*` counters on daily_briefs
-- [ ] Show final-loop unresolved flags differently ("Reviser couldn't fix")
+### Phase 2 — Loop to 2 iterations ✅ shipped 2026-04-23
+- [x] Wrap reviser in a `while (likely_wrong && iter < 2)` loop
+- [x] Track `revisions_run / succeeded / failed / resolved / persistent` counters in build-brief response
+- [x] Approve card revision strip goes amber when reviser ran but flags persist
 
 ### Phase 3 — Reliability polish
 - [ ] Standalone "Revise alert" admin button (same pattern as Re-run web verify) — sidesteps 300s budget when build-brief skips revise
