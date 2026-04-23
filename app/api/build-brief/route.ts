@@ -518,6 +518,13 @@ export async function GET(req: NextRequest) {
     siteOrigin: 'https://crazy4points.com',
     alertIdByIntelId,
     approveMetaByIntelId,
+    reviseCounters: {
+      run: revisions_run,
+      succeeded: revisions_succeeded,
+      failed: revisions_failed,
+      resolved: revisions_resolved,
+      persistent: revisions_persistent,
+    },
   })
 
   // Persist the rendered HTML so admin can preview a brief in-app without

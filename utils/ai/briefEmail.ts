@@ -45,6 +45,13 @@ export interface BriefContext {
   siteOrigin?: string // e.g. https://crazy4points.com
   alertIdByIntelId?: Record<string, string>
   approveMetaByIntelId?: Record<string, ApproveMeta>
+  reviseCounters?: {
+    run: number
+    succeeded: number
+    failed: number
+    resolved: number
+    persistent: number
+  }
 }
 
 const URGENCY: Record<string, { label: string; color: string }> = {
@@ -302,6 +309,7 @@ export function buildBriefEmail(
     siteOrigin = 'https://crazy4points.com',
     alertIdByIntelId = {},
     approveMetaByIntelId = {},
+    reviseCounters,
   } = ctx
 
   const noteMap = new Map((plan?.today_intel_notes ?? []).map((n) => [n.intel_id, n.why_it_matters]))
@@ -595,6 +603,11 @@ export function buildBriefEmail(
         Open Admin Dashboard
       </a>
     </div>
+
+    ${reviseCounters && reviseCounters.run > 0 ? `
+    <p style="font-size:11px;color:#888;text-align:center;margin:0 0 6px;line-height:1.5;">
+      Auto-revise: ${reviseCounters.run} alert${reviseCounters.run === 1 ? '' : 's'} revised · ${reviseCounters.resolved} resolved${reviseCounters.persistent > 0 ? ` · ${reviseCounters.persistent} still flagged` : ''}${reviseCounters.failed > 0 ? ` · ${reviseCounters.failed} failed` : ''}
+    </p>` : ''}
 
     <p style="font-size:11px;color:#aaa;text-align:center;margin:0;">
       crazy4points · Daily Scout Brief · <a href="${siteOrigin}" style="color:#aaa;">crazy4points.com</a>
