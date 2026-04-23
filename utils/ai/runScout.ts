@@ -147,7 +147,42 @@ RULES:
 
 PROGRAM LIST (authoritative — use these slugs):
 ${programList}
-- alert_type must be one of: transfer_bonus, limited_time_offer, award_availability, status_promo, glitch, devaluation, program_change, partner_change, category_change, earn_rate_change, policy_change, sweet_spot, industry_news, signup_bonus, award_sale, companion_pass, fee_change, card_refresh
+ALERT TYPE — pick exactly ONE from the 17 below. Definitions + tie-breakers:
+
+OFFERS (reader action: grab it now)
+• transfer_bonus     — Temporary % bonus when moving points between two programs. Always names source + destination. e.g. "Chase UR → Hyatt 30% bonus through May 16"
+• signup_bonus       — New-card or new-program enrollment welcome offer. Includes elevated SUBs. e.g. "Amex Gold 90k MR for $4k in 6mo"
+• referral_bonus     — Points earned for referring new cardholders/members.
+• retention_offer    — Offer given to EXISTING account holder to keep them (renewal bonus, save-me offer).
+• limited_time_offer — Time-boxed promo not covered by a more specific type above. Catch-all for deadline-driven offers that aren't transfer/signup/referral/retention.
+• status_promo       — Status match, fast-track, challenge, or temporary earn-toward-status promo.
+
+AVAILABILITY (reader action: book it)
+• award_availability — Specific flights/hotels newly openable as awards at normal rates. About INVENTORY, not price. e.g. "Cathay F LAX-HKG open for April dates"
+• sweet_spot         — Evergreen redemption analysis. Persistent good-value award. EDUCATIONAL, not time-sensitive.
+• glitch             — Pricing ERROR / mistake fare / system bug. Temporary, usually patched fast.
+
+CHANGES (reader action: adjust strategy)
+• devaluation        — Program makes points worth LESS: raised award prices, removed sweet spots, cut transfer ratios. Reader LOSES value.
+• earn_rate_change   — Base or bonus earn multipliers change on a card/program. e.g. "Citi Premier drops from 3x to 2x dining"
+• category_change    — Rotating/quarterly bonus categories added, removed, or changed. e.g. "Chase Freedom Q3 5% categories announced"
+• partner_change     — RELATIONSHIP between programs changes: alliance join/leave, transfer partner added/dropped, new co-brand, new booking channel. e.g. "Hawaiian joins oneworld"
+• program_change     — STRUCTURAL shift to a single program not captured by devaluation/earn/category/partner: rebrand, merger, replacement, major refresh. e.g. "HawaiianMiles replaced by Atmos Rewards"
+• status_change      — Qualification rules or benefits for STATUS tiers change (not a promo). e.g. "Delta raises MQD requirement"
+• policy_change      — Rules governing the program change: booking rules, cancellation, expiration, fuel surcharges, terms. NOT pricing, NOT partners, NOT earn rates.
+
+CONTEXT (reader action: stay informed)
+• industry_news      — Broader travel-industry news with no direct loyalty action. e.g. regulatory ruling, airline merger announcement, bankruptcy.
+
+TIE-BREAKERS (when multiple fit):
+1. If a more specific type applies, prefer it over catch-alls (limited_time_offer, program_change, industry_news).
+2. partner_change vs program_change: is the change ABOUT a relationship between programs (partner_change) or INSIDE one program (program_change)?
+3. devaluation vs program_change: if points are worth LESS → devaluation. If neutral/unclear → program_change.
+4. signup_bonus vs limited_time_offer: enrollment incentive ALWAYS wins even with a deadline.
+5. transfer_bonus vs limited_time_offer: any % bonus on transfers ALWAYS transfer_bonus.
+6. glitch vs limited_time_offer: intentional promo = limited_time_offer. Error / mistake fare = glitch.
+7. industry_news is the last resort — use only when no program-specific action is available.
+8. sweet_spot is for evergreen analysis. If the news is "this specific award is open right now" use award_availability.
 ${knownSection}
 Respond with ONLY a valid JSON array of findings. No prose, no markdown, just the array.
 
