@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { createAdminClient } from '@/utils/supabase/server'
+import { RebuildButton } from './RebuildButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -109,23 +110,18 @@ export default async function BriefsPage() {
                   </div>
                 </div>
                 {hasHtml ? (
-                  <Link
-                    href={`/admin/briefs/${b.id}`}
-                    className="rg-btn-primary"
-                    style={{ display: 'inline-block' }}
-                  >
-                    Preview
-                  </Link>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <Link
+                      href={`/admin/briefs/${b.id}`}
+                      className="rg-btn-primary"
+                      style={{ display: 'inline-block' }}
+                    >
+                      Preview
+                    </Link>
+                    <RebuildButton briefId={b.id} />
+                  </div>
                 ) : (
-                  <span
-                    style={{
-                      fontFamily: 'var(--font-ui)',
-                      fontSize: '0.75rem',
-                      color: '#b45309',
-                    }}
-                  >
-                    No HTML stored (pre-migration)
-                  </span>
+                  <RebuildButton briefId={b.id} />
                 )}
               </div>
             )
