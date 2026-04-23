@@ -181,19 +181,29 @@ function approveCard(
   // Reviser notes: show what the auto-reviser changed and why, so a stand-in
   // can see the draft has been corrected against web evidence. Green strip =
   // we caught something wrong and fixed it before you opened the email.
+  // Reviser outcome: green when flags are resolved; amber when reviser ran but
+  // some likely_wrong claim still remains after max iterations, so a stand-in
+  // knows to double-check before publishing.
   const revisionStrip = meta.revisions && meta.revisions.length > 0
     ? (() => {
+        const persistent = (fc?.likelyWrongCount ?? 0) > 0
+        const palette = persistent
+          ? { bg: '#fff8e1', border: '#fde68a', fg: '#7a5a1f', srcBorder: '#eccf73' }
+          : { bg: '#e6f4ea', border: '#b6e0c2', fg: '#1e5c2e', srcBorder: '#b6e0c2' }
+        const header = persistent
+          ? 'Auto-revised — some flags remain'
+          : 'Auto-revised for accuracy'
         const items = meta.revisions
           .slice(0, 3)
           .map((r) => {
             const src = r.source_url
-              ? ` <a href="${r.source_url}" style="color:#1e5c2e;text-decoration:none;border-bottom:1px solid #b6e0c2;">source</a>`
+              ? ` <a href="${r.source_url}" style="color:${palette.fg};text-decoration:none;border-bottom:1px solid ${palette.srcBorder};">source</a>`
               : ''
-            return `<li style="margin:0 0 4px;font-size:12px;line-height:1.4;color:#1e5c2e;">✎ ${r.reason}${src}</li>`
+            return `<li style="margin:0 0 4px;font-size:12px;line-height:1.4;color:${palette.fg};">✎ ${r.reason}${src}</li>`
           })
           .join('')
-        return `<div style="margin:0 0 12px;padding:8px 12px;background:#e6f4ea;border:1px solid #b6e0c2;border-radius:6px;">
-          <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#1e5c2e;letter-spacing:0.04em;text-transform:uppercase;">Auto-revised for accuracy</p>
+        return `<div style="margin:0 0 12px;padding:8px 12px;background:${palette.bg};border:1px solid ${palette.border};border-radius:6px;">
+          <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:${palette.fg};letter-spacing:0.04em;text-transform:uppercase;">${header}</p>
           <ul style="margin:0;padding:0 0 0 16px;">${items}</ul>
         </div>`
       })()

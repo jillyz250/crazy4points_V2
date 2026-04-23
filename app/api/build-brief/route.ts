@@ -160,6 +160,9 @@ export async function GET(req: NextRequest) {
   let revisions_run = 0
   let revisions_succeeded = 0
   let revisions_failed = 0
+  let revisions_resolved = 0
+  let revisions_persistent = 0
+  const REVISE_MAX_ITERS = 2
   const alertIdByIntelId: Record<string, string> = {}
   const approveMetaByIntelId: Record<string, ApproveMeta> = {}
   if (plan && plan.approve.length) {
@@ -296,45 +299,51 @@ export async function GET(req: NextRequest) {
             }
           }
 
-          // Phase 4 (brief-auto-revise) — if any claim came back likely_wrong,
-          // call the reviser to rewrite the draft to match web evidence, then
-          // re-run verify + webVerify on the revised copy so finalClaims + the
-          // chip reflect the corrected text. One-shot; loop lives in Phase 2.
+          // Phase 2 — loop the reviser up to REVISE_MAX_ITERS times. Each pass
+          // rewrites likely_wrong claims, persists the revised copy, then re-runs
+          // verify + webVerify so the next iteration sees fresh claims. Exit as
+          // soon as no likely_wrong remain. If still flagged after the cap, we
+          // persist what we have and let the existing chip surface the residual.
           let revisionLog: RevisionLogEntry[] = []
           let workingDraft = {
             title: draft.title,
             summary: draft.summary,
             description: draft.description,
           }
-          const likelyWrong = finalClaims.filter((c) => c.web_verdict === 'likely_wrong')
-          if (likelyWrong.length > 0) {
+          const initialLikelyWrong = finalClaims.filter((c) => c.web_verdict === 'likely_wrong').length
+          if (initialLikelyWrong > 0) {
             revisions_run++
-            try {
-              const revised = await reviseAlertDraft({
-                draft: workingDraft,
-                problem_claims: likelyWrong,
-                source_url: (intel.source_url as string | null) ?? null,
-                iter: 1,
-              })
-              workingDraft = revised.revised
-              revisionLog = revised.log
+            let iter = 0
+            let aborted = false
+            while (iter < REVISE_MAX_ITERS) {
+              const likelyWrong = finalClaims.filter((c) => c.web_verdict === 'likely_wrong')
+              if (likelyWrong.length === 0) break
+              iter++
+              try {
+                const revised = await reviseAlertDraft({
+                  draft: workingDraft,
+                  problem_claims: likelyWrong,
+                  source_url: (intel.source_url as string | null) ?? null,
+                  iter,
+                })
+                workingDraft = revised.revised
+                revisionLog = [...revisionLog, ...revised.log]
 
-              // Persist revised copy to the alert so admin review + site show
-              // the corrected text, not the overclaimed original.
-              await updateAlert(supabase, alertId, {
-                title: workingDraft.title,
-                summary: workingDraft.summary,
-                description: workingDraft.description,
-              })
+                // Persist revised copy after each iteration so admin review +
+                // the site always show the latest corrected text, even if a
+                // later iteration fails.
+                await updateAlert(supabase, alertId, {
+                  title: workingDraft.title,
+                  summary: workingDraft.summary,
+                  description: workingDraft.description,
+                })
 
-              // Re-verify the revised draft so the chip reflects reality. If
-              // this second pass fails, fall back to the pre-revision claims.
-              const reverify = await verifyAlertDraft({
-                draft: workingDraft,
-                raw_text: (intel.raw_text as string | null) ?? null,
-                source_url: (intel.source_url as string | null) ?? null,
-              })
-              if (reverify) {
+                const reverify = await verifyAlertDraft({
+                  draft: workingDraft,
+                  raw_text: (intel.raw_text as string | null) ?? null,
+                  source_url: (intel.source_url as string | null) ?? null,
+                })
+                if (!reverify) break
                 let reverified = reverify.claims
                 if (reverified.some((c) => !c.supported)) {
                   try {
@@ -349,25 +358,46 @@ export async function GET(req: NextRequest) {
                     await logSystemError(supabase, 'build-brief:webVerifyClaims:post-revise', err, {
                       alert_id: alertId,
                       intel_id: intel.id,
+                      iter,
                     })
                     reverified = reverified.map((c) =>
                       c.supported
                         ? c
                         : { ...c, web_verdict: 'unverifiable' as const, web_evidence: null, web_url: null }
                     )
+                    // web-verify failed — can't trust the next iteration's
+                    // likely_wrong read. Stop the loop and ship what we have.
+                    finalClaims = reverified
+                    aborted = true
+                    break
                   }
                 }
                 finalClaims = reverified
+              } catch (err) {
+                aborted = true
+                await logSystemError(supabase, 'build-brief:reviseAlertDraft', err, {
+                  alert_id: alertId,
+                  intel_id: intel.id,
+                  title: draft.title,
+                  likely_wrong_count: likelyWrong.length,
+                  iter,
+                })
+                break
               }
+            }
+
+            // Per-alert outcome after the loop:
+            //   succeeded = at least one iteration completed without throwing
+            //   resolved  = no likely_wrong remain in finalClaims
+            //   persistent = revised but flags still remain (reviser couldn't fix)
+            //   failed    = all iterations threw and we have no revisions
+            const residualLikelyWrong = finalClaims.some((c) => c.web_verdict === 'likely_wrong')
+            if (revisionLog.length > 0) {
               revisions_succeeded++
-            } catch (err) {
+              if (residualLikelyWrong) revisions_persistent++
+              else revisions_resolved++
+            } else if (aborted) {
               revisions_failed++
-              await logSystemError(supabase, 'build-brief:reviseAlertDraft', err, {
-                alert_id: alertId,
-                intel_id: intel.id,
-                title: draft.title,
-                likely_wrong_count: likelyWrong.length,
-              })
             }
           }
 
@@ -526,7 +556,7 @@ export async function GET(req: NextRequest) {
       `[build-brief] writer stats — approves=${approve_count} drafts=${drafts_written} null=${writer_null_drafts} no_pending=${writer_no_pending_alert} errors=${writer_update_errors} success_rate=${writer_success_rate}`
     )
     console.log(
-      `[build-brief] fact-check stats — run=${fact_checks_run} flagged_high_severity=${fact_checks_flagged} web_verify_runs=${web_verify_runs} web_likely_wrong=${web_verify_likely_wrong} revisions=${revisions_run}/${revisions_succeeded}ok/${revisions_failed}err`
+      `[build-brief] fact-check stats — run=${fact_checks_run} flagged_high_severity=${fact_checks_flagged} web_verify_runs=${web_verify_runs} web_likely_wrong=${web_verify_likely_wrong} revisions=${revisions_run} resolved=${revisions_resolved} persistent=${revisions_persistent} failed=${revisions_failed}`
     )
   }
 
@@ -551,6 +581,8 @@ export async function GET(req: NextRequest) {
       revisions_run,
       revisions_succeeded,
       revisions_failed,
+      revisions_resolved,
+      revisions_persistent,
     },
     content_ideas_inserted,
     email_sent: emailSent,
