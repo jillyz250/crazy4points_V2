@@ -75,12 +75,22 @@ function formatEndDate(endDate: string | null): string | null {
   return `Expires ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
 }
 
+const MAX_VISIBLE_PROGRAMS = 4
+
 export default function AlertCardSB({ alert }: { alert: AlertWithPrograms }) {
   const badge     = TYPE_BADGE[alert.type] ?? { label: alert.type, cls: 'bg-slate-100 text-slate-600' }
   const endLabel  = formatEndDate(alert.end_date)
   const isExpired = endLabel === 'Expired'
   const urgency   = getUrgencyTier(alert.end_date)
   const urg       = URGENCY[urgency]
+
+  // Primary program first, then secondaries in insertion order
+  const sortedPrograms = [...(alert.alert_programs ?? [])].sort((a, b) => {
+    if (a.role === b.role) return 0
+    return a.role === 'primary' ? -1 : 1
+  })
+  const visible = sortedPrograms.slice(0, MAX_VISIBLE_PROGRAMS)
+  const overflow = sortedPrograms.length - visible.length
 
   return (
     <div className={`group relative flex flex-col gap-3 rounded-[var(--radius-card)] border border-[var(--color-border-soft)] border-l-4 ${urg.border} ${urg.bg} p-5 shadow-[var(--shadow-soft)] transition-shadow hover:shadow-md`}>
@@ -96,10 +106,20 @@ export default function AlertCardSB({ alert }: { alert: AlertWithPrograms }) {
         {badge.label}
       </span>
 
-      {/* Program pills */}
-      {(alert.alert_programs?.length ?? 0) > 0 && (
+      {/* Title */}
+      <h3 className="relative z-10 font-display text-base font-semibold leading-snug text-[var(--color-primary)] group-hover:underline">
+        {alert.title}
+      </h3>
+
+      {/* Summary */}
+      <p className="relative z-10 line-clamp-2 font-body text-sm text-[var(--color-text-secondary)]">
+        {alert.summary}
+      </p>
+
+      {/* Program pills — bottom of card */}
+      {visible.length > 0 && (
         <div className="relative z-10 flex flex-wrap gap-1">
-          {(alert.alert_programs ?? []).map((ap) => (
+          {visible.map((ap) => (
             <span
               key={ap.id}
               className={`rounded-full px-2 py-0.5 font-ui text-[10px] bg-white/70 ${
@@ -111,18 +131,13 @@ export default function AlertCardSB({ alert }: { alert: AlertWithPrograms }) {
               {ap.programs.name}
             </span>
           ))}
+          {overflow > 0 && (
+            <span className="rounded-full px-2 py-0.5 font-ui text-[10px] bg-white/70 text-[var(--color-text-secondary)]">
+              +{overflow} more
+            </span>
+          )}
         </div>
       )}
-
-      {/* Title */}
-      <h3 className="relative z-10 font-display text-base font-semibold leading-snug text-[var(--color-primary)] group-hover:underline">
-        {alert.title}
-      </h3>
-
-      {/* Summary */}
-      <p className="relative z-10 line-clamp-2 font-body text-sm text-[var(--color-text-secondary)]">
-        {alert.summary}
-      </p>
 
       <div className="relative z-10 mt-auto flex items-center justify-between gap-2 pt-1">
         {endLabel && (
