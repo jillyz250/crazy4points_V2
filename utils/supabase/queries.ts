@@ -739,7 +739,7 @@ export async function getActiveAlertsByFilter(
   }
 
   query = query
-    .order('end_date', { ascending: true, nullsFirst: false })
+    .order('published_at', { ascending: false, nullsFirst: false })
     .order('computed_score', { ascending: false, nullsFirst: false })
 
   const { data, error } = await query
