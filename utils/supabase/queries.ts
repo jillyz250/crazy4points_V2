@@ -105,6 +105,7 @@ export interface Alert {
   last_verified: string | null
   fact_check_claims: unknown | null
   fact_check_at: string | null
+  revision_log: unknown | null
   created_at: string
   updated_at: string
 }
@@ -138,7 +139,7 @@ export type AlertWithPrograms = Alert & {
   alert_programs: (AlertProgram & { programs: Program })[]
 }
 
-export type AlertInsert = Omit<Alert, 'id' | 'created_at' | 'updated_at' | 'computed_score' | 'score_last_computed_at' | 'approved_at' | 'source_intel_id' | 'fact_check_claims' | 'fact_check_at'>
+export type AlertInsert = Omit<Alert, 'id' | 'created_at' | 'updated_at' | 'computed_score' | 'score_last_computed_at' | 'approved_at' | 'source_intel_id' | 'fact_check_claims' | 'fact_check_at' | 'revision_log'>
 export type AlertUpdate = Partial<Omit<Alert, 'id' | 'created_at' | 'updated_at'>>
 
 export interface AlertHistory {

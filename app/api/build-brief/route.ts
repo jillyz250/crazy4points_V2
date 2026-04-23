@@ -9,6 +9,7 @@ import {
 } from '@/utils/ai/generateEditorialPlan'
 import { writeAlertDraft, type WriteDraftProgram } from '@/utils/ai/writeAlertDraft'
 import { verifyAlertDraft, webVerifyClaims, highSeverityUnsupported } from '@/utils/ai/verifyAlertDraft'
+import { reviseAlertDraft, type RevisionLogEntry } from '@/utils/ai/reviseAlertDraft'
 import type { ApproveMeta } from '@/utils/ai/briefEmail'
 import { updateAlert, setAlertPrograms, logSystemError } from '@/utils/supabase/queries'
 
@@ -156,6 +157,9 @@ export async function GET(req: NextRequest) {
   let fact_checks_flagged = 0
   let web_verify_runs = 0
   let web_verify_likely_wrong = 0
+  let revisions_run = 0
+  let revisions_succeeded = 0
+  let revisions_failed = 0
   const alertIdByIntelId: Record<string, string> = {}
   const approveMetaByIntelId: Record<string, ApproveMeta> = {}
   if (plan && plan.approve.length) {
@@ -292,10 +296,86 @@ export async function GET(req: NextRequest) {
             }
           }
 
+          // Phase 4 (brief-auto-revise) — if any claim came back likely_wrong,
+          // call the reviser to rewrite the draft to match web evidence, then
+          // re-run verify + webVerify on the revised copy so finalClaims + the
+          // chip reflect the corrected text. One-shot; loop lives in Phase 2.
+          let revisionLog: RevisionLogEntry[] = []
+          let workingDraft = {
+            title: draft.title,
+            summary: draft.summary,
+            description: draft.description,
+          }
+          const likelyWrong = finalClaims.filter((c) => c.web_verdict === 'likely_wrong')
+          if (likelyWrong.length > 0) {
+            revisions_run++
+            try {
+              const revised = await reviseAlertDraft({
+                draft: workingDraft,
+                problem_claims: likelyWrong,
+                source_url: (intel.source_url as string | null) ?? null,
+                iter: 1,
+              })
+              workingDraft = revised.revised
+              revisionLog = revised.log
+
+              // Persist revised copy to the alert so admin review + site show
+              // the corrected text, not the overclaimed original.
+              await updateAlert(supabase, alertId, {
+                title: workingDraft.title,
+                summary: workingDraft.summary,
+                description: workingDraft.description,
+              })
+
+              // Re-verify the revised draft so the chip reflects reality. If
+              // this second pass fails, fall back to the pre-revision claims.
+              const reverify = await verifyAlertDraft({
+                draft: workingDraft,
+                raw_text: (intel.raw_text as string | null) ?? null,
+                source_url: (intel.source_url as string | null) ?? null,
+              })
+              if (reverify) {
+                let reverified = reverify.claims
+                if (reverified.some((c) => !c.supported)) {
+                  try {
+                    reverified = await webVerifyClaims({
+                      claims: reverified,
+                      context: {
+                        title: workingDraft.title,
+                        source_url: (intel.source_url as string | null) ?? null,
+                      },
+                    })
+                  } catch (err) {
+                    await logSystemError(supabase, 'build-brief:webVerifyClaims:post-revise', err, {
+                      alert_id: alertId,
+                      intel_id: intel.id,
+                    })
+                    reverified = reverified.map((c) =>
+                      c.supported
+                        ? c
+                        : { ...c, web_verdict: 'unverifiable' as const, web_evidence: null, web_url: null }
+                    )
+                  }
+                }
+                finalClaims = reverified
+              }
+              revisions_succeeded++
+            } catch (err) {
+              revisions_failed++
+              await logSystemError(supabase, 'build-brief:reviseAlertDraft', err, {
+                alert_id: alertId,
+                intel_id: intel.id,
+                title: draft.title,
+                likely_wrong_count: likelyWrong.length,
+              })
+            }
+          }
+
           try {
             await updateAlert(supabase, alertId, {
               fact_check_claims: finalClaims,
               fact_check_at: verify.checked_at,
+              revision_log: revisionLog.length > 0 ? revisionLog : null,
             })
           } catch (err) {
             console.error('[build-brief] fact-check write failed for alert', alertId, err)
@@ -320,6 +400,14 @@ export async function GET(req: NextRequest) {
                 web_verdict: c.web_verdict ?? null,
               })),
             },
+            revisions: revisionLog.length > 0
+              ? revisionLog.map((r) => ({
+                  reason: r.reason,
+                  source_url: r.source_url,
+                  before_claim: r.before_claim,
+                  after_claim: r.after_claim,
+                }))
+              : undefined,
           }
         }
 
@@ -438,7 +526,7 @@ export async function GET(req: NextRequest) {
       `[build-brief] writer stats — approves=${approve_count} drafts=${drafts_written} null=${writer_null_drafts} no_pending=${writer_no_pending_alert} errors=${writer_update_errors} success_rate=${writer_success_rate}`
     )
     console.log(
-      `[build-brief] fact-check stats — run=${fact_checks_run} flagged_high_severity=${fact_checks_flagged} web_verify_runs=${web_verify_runs} web_likely_wrong=${web_verify_likely_wrong}`
+      `[build-brief] fact-check stats — run=${fact_checks_run} flagged_high_severity=${fact_checks_flagged} web_verify_runs=${web_verify_runs} web_likely_wrong=${web_verify_likely_wrong} revisions=${revisions_run}/${revisions_succeeded}ok/${revisions_failed}err`
     )
   }
 
@@ -460,6 +548,9 @@ export async function GET(req: NextRequest) {
       flagged_high_severity: fact_checks_flagged,
       web_verify_runs,
       web_likely_wrong: web_verify_likely_wrong,
+      revisions_run,
+      revisions_succeeded,
+      revisions_failed,
     },
     content_ideas_inserted,
     email_sent: emailSent,

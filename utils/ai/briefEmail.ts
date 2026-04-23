@@ -31,6 +31,12 @@ export interface ApproveMeta {
     likelyWrongCount: number
     claims?: Array<{ text: string; severity: string; web_verdict?: string | null }>
   }
+  revisions?: Array<{
+    reason: string
+    source_url: string | null
+    before_claim: string
+    after_claim: string
+  }>
 }
 
 export interface BriefContext {
@@ -172,6 +178,27 @@ function approveCard(
       })()
     : ''
 
+  // Reviser notes: show what the auto-reviser changed and why, so a stand-in
+  // can see the draft has been corrected against web evidence. Green strip =
+  // we caught something wrong and fixed it before you opened the email.
+  const revisionStrip = meta.revisions && meta.revisions.length > 0
+    ? (() => {
+        const items = meta.revisions
+          .slice(0, 3)
+          .map((r) => {
+            const src = r.source_url
+              ? ` <a href="${r.source_url}" style="color:#1e5c2e;text-decoration:none;border-bottom:1px solid #b6e0c2;">source</a>`
+              : ''
+            return `<li style="margin:0 0 4px;font-size:12px;line-height:1.4;color:#1e5c2e;">✎ ${r.reason}${src}</li>`
+          })
+          .join('')
+        return `<div style="margin:0 0 12px;padding:8px 12px;background:#e6f4ea;border:1px solid #b6e0c2;border-radius:6px;">
+          <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#1e5c2e;letter-spacing:0.04em;text-transform:uppercase;">Auto-revised for accuracy</p>
+          <ul style="margin:0;padding:0 0 0 16px;">${items}</ul>
+        </div>`
+      })()
+    : ''
+
   const stepRibbon = stepNumber
     ? `<div style="margin:-16px -16px 12px;padding:6px 16px;background:#0d1b3e;color:#fff;border-radius:8px 8px 0 0;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">Alert #${stepNumber}</div>`
     : ''
@@ -202,6 +229,7 @@ function approveCard(
       ${sourceLine}
       ${scoreLine}
       ${chipsRow}
+      ${revisionStrip}
       ${claimPreview}
       <p style="margin:0 0 12px;font-size:13px;line-height:1.5;color:#4A4A4A;">${item.why_publish}</p>
       ${reviewHref ? button(reviewHref, 'Open to review →', '#6B2D8F') : ''}
@@ -344,6 +372,7 @@ export function buildBriefEmail(
                 sourceName: meta.sourceName,
                 sourceUrl: meta.sourceUrl,
                 factCheck: meta.factCheck,
+                revisions: meta.revisions,
               },
               idx + 1,
               orderReason

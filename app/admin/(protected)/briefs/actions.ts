@@ -77,7 +77,7 @@ export async function rebuildBriefHtmlAction(briefId: string): Promise<RebuildRe
   if (approveIntelIds.length > 0) {
     const { data: alertRows, error: alertErr } = await supabase
       .from('alerts')
-      .select('id, source_intel_id, end_date, computed_score, fact_check_claims, primary_program_id')
+      .select('id, source_intel_id, end_date, computed_score, fact_check_claims, revision_log, primary_program_id')
       .in('source_intel_id', approveIntelIds)
 
     if (alertErr) return { ok: false, error: `alerts: ${alertErr.message}` }
@@ -116,6 +116,22 @@ export async function rebuildBriefHtmlAction(briefId: string): Promise<RebuildRe
         (c) => !c.supported && !c.acknowledged && c.severity === 'high'
       )
       const programs = programsByAlertId.get(alertId) ?? []
+      const revisionLogRaw = Array.isArray(a.revision_log)
+        ? (a.revision_log as Array<{
+            reason?: string
+            source_url?: string | null
+            before_claim?: string
+            after_claim?: string
+          }>)
+        : []
+      const revisions = revisionLogRaw
+        .filter((r) => typeof r.reason === 'string' && r.reason.length > 0)
+        .map((r) => ({
+          reason: r.reason as string,
+          source_url: r.source_url ?? null,
+          before_claim: r.before_claim ?? '',
+          after_claim: r.after_claim ?? '',
+        }))
       approveMetaByIntelId[intelId] = {
         alertId,
         endDate: (a.end_date as string | null) ?? intel?.expires_at ?? null,
@@ -124,6 +140,7 @@ export async function rebuildBriefHtmlAction(briefId: string): Promise<RebuildRe
         computedScore: (a.computed_score as number | null) ?? null,
         sourceName: (intel?.source_name as string | null) ?? null,
         sourceUrl: (intel?.source_url as string | null) ?? null,
+        revisions: revisions.length > 0 ? revisions : undefined,
         factCheck:
           openUnsupported.length > 0
             ? {
