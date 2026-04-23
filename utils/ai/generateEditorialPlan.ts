@@ -16,6 +16,7 @@ export type RejectReason =
 export interface EditorialPlan {
   tagline: string
   top_move: string
+  top_move_intel_id: string | null
   editorial_note: string
   approve: {
     intel_id: string
@@ -115,13 +116,16 @@ Quality bar (reject with reason_category='low_quality'):
 - Opinion pieces without concrete value
 - Vague "tips" without a specific offer or deadline
 
-APPROVE copy: the "why_publish" field is ONE short sentence, in the sassy/funny best-friend voice.
+APPROVE copy: the "why_publish" field is THREE short sentences, in the sassy/funny best-friend voice.
+Structure (each sentence ≤20 words, same order every time):
+1. What changed — the concrete offer/news in plain terms (include the number, program, or deadline).
+2. Why it matters — the reader-value angle (who benefits, what this unlocks, what makes it rare).
+3. The move — the specific action, ideally tied to the deadline if there is one.
 Lead with the reader value, not the source. Concrete > clever. Match the brand's tone (warm, dry, a
 little cheeky) — not press-release prose, not analyst-speak.
 Good examples:
-- "Amex is finally admitting 175k was always the offer — get it before they blink."
-- "40% to LifeMiles is the sweet spot for Star Alliance biz — rare and short-lived."
-- "Hyatt's award chart got quietly worse, and this is the polite heads-up."
+- "Amex bumped the Platinum SUB to 175k through June 5. That's the highest public offer on record, back after a quiet spring. If you've been waiting, this is the window — don't stall past the 5th."
+- "Avianca LifeMiles is running a 40% transfer bonus from Amex and Capital One through Apr 29. That's the sweet spot for Star Alliance business-class redemptions, and these promos rarely stretch past a week. Transfer only the miles you have a booking ready for."
 Avoid:
 - Hype words: "incredible", "massive", "huge", "don't miss", "unbeatable"
 - Analyst crutches: "worth watching", "worth knowing", "worth noting", "readers should",
@@ -212,6 +216,25 @@ Hard rules on openers:
 - NEVER start with "Friend" or "Friend,".
 - Don't overuse "Crazy time." — it's one option, not the default. Rotate.
 - No cutesy filler ("Hey babes", "Hiya", "Sup").
+- GROUNDING: every concrete noun in the tagline (program name, perk, theme like
+  "lounges" / "bonuses" / "transfers") MUST appear in today's approve list or
+  editorial_note. Don't invent flavor themes that aren't in the brief.
+- NO THEME OVERLAP with top_move or editorial_note. Tagline = vibe/energy hook,
+  top_move = specific action on a DIFFERENT story, editorial_note = main theme.
+  The core noun/story in the tagline MUST differ from the first sentence of
+  editorial_note AND from the story named in top_move. Three paragraphs, three
+  different angles on today's news — not the same theme restated in three
+  voices.
+- ONE STORY ONLY in the tagline. Name at most one program, partnership, or
+  headline. Don't cover two stories with "and" — that's the editorial_note's job,
+  not the tagline's. If two stories feel equally tagline-worthy, pick the one
+  that top_move will NOT cover, and let top_move point at the other.
+- Don't start the tagline with "Heads up:" — that phrasing is reserved for the
+  fact-check warning line elsewhere in the email, and duplicating it reads
+  stuttery. Use a different opener ("Alright, Jill —", "Listen.", "Jill.",
+  "Morning, Jill.", etc.).
+- "Jill" appears AT MOST ONCE across tagline + top_move + the first sentence of
+  editorial_note combined. Warmth once, not three times in three inches.
 
 Examples of the tone target (pick an opener to match the day's energy):
 - "OK Jill — two Chase stories, one theme, zero chill."
@@ -253,14 +276,21 @@ this is Jill's friend continuing the text conversation, NOT a senior analyst's m
 
 STRUCTURE:
 - Sentence 1: the punchline — ONE theme of the day, stated with personality.
+  This MUST be the highest-stakes story (structural program change, rare value,
+  hard deadline) — NOT the catchiest flavor story. If you're tempted to lead
+  with lounges or a sale over a partnership/chart change, don't.
 - Sentence 2 (and optionally 3): texture the theme. Use other items as flavor, not a recap list.
 - Final sentence: a closer — a wink, what to watch tomorrow, or an honest "quiet day" call.
 
 MUST:
-- Address Jill directly ("you," "Jill," or a direct-you move) at least once. Warmth isn't optional.
 - Pick ONE theme. Don't name-check every story — that's a recap, not analysis.
+- Every program / perk / theme named MUST appear in today's approve list.
+  Don't invent flavor themes that aren't in the brief.
+- ≤20 words per sentence. Hard cap. If it doesn't fit, split it.
 - Plain text only. No italics, markdown, or emoji.
 - If the day is quiet, say so honestly — don't invent urgency.
+- Warmth note: "Jill" appears at most ONCE across tagline + top_move + editorial_note
+  combined. If tagline already said "Jill," don't say it again here. "You" is fine.
 
 NEVER use these analyst-speak crutches:
 - "paints a picture" / "paint a picture"
@@ -269,6 +299,17 @@ NEVER use these analyst-speak crutches:
 - "taken together" / "together they…"
 - "interesting to note" / "notably"
 - "solid but not fire-alarm territory" (retire — it's been used)
+- "actually worth a [second] look" / "worth a second look"
+- "X stories, one theme" / "two stories, one Y"
+- "programs are in motion" / "window to position yourself"
+- any closer ending in "is right now" or "the time is now"
+
+NEVER use hedging intensifier filler (these are AI-voice tells):
+- "actually" (as intensifier — "actually worth", "actually interesting")
+- "genuinely" ("genuinely backwards", "genuinely better")
+- "legitimately" ("legitimately better", "legitimately good")
+- "really" and "truly" as intensifiers
+If the claim needs an intensifier to land, the claim isn't strong enough — rewrite it.
 
 Good (on-voice):
 - "Chase is in its lifestyle-perks era, Jill, and it suits them. Plum Guide is the bigger deal; La Colombe is the free-lunch version. Nothing's on fire — but your Atmos holders should sit tight before applying for anything."
@@ -294,8 +335,9 @@ SCHEMA (output must validate against this)
 ═══════════════════════════════════════════════════════════
 
 {
-  "tagline": "<sassy one-liner starting with 'Crazy time.' — 8-14 words, may address Jill, may mention Crazy4Points>",
+  "tagline": "<sassy on-voice opener, 8-14 words, grounded in today's approves; rotate openers day to day (see TAGLINE section); may address Jill once>",
   "top_move": "<one short sentence, starts with a verb, names a real offer/program>",
+  "top_move_intel_id": "<intel_id of the approve the top_move points at — MUST be one of the intel_ids in approve[]; use null only if top_move is generic (e.g. 'Quiet day — skip to the newsletter queue')>",
   "editorial_note": "<3–4 short sentences, plain text, scannable, on-voice>",
   "approve": [
     { "intel_id": "<uuid>", "headline": "<cleaned headline>", "why_publish": "<1 sentence>" }
@@ -344,6 +386,9 @@ function validatePlan(plan: unknown): EditorialPlan {
     p.tagline = 'Crazy time, Jill. Brief incoming.'
   }
   if (typeof p.top_move !== 'string') p.top_move = ''
+  if (typeof p.top_move_intel_id !== 'string' || p.top_move_intel_id.trim().length === 0) {
+    p.top_move_intel_id = null
+  }
   if (typeof p.editorial_note !== 'string') throw new Error('Missing editorial_note')
   if (!Array.isArray(p.approve)) throw new Error('Missing approve[]')
   if (!Array.isArray(p.reject)) throw new Error('Missing reject[]')

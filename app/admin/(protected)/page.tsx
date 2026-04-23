@@ -53,6 +53,13 @@ const SECTIONS: Section[] = [
     ],
   },
   {
+    title: 'Daily Briefs',
+    description: 'Preview past daily briefs in-app. See exactly what the email looked like without relying on Resend delivery.',
+    actions: [
+      { href: '/admin/briefs', label: 'View Briefs', variant: 'primary' },
+    ],
+  },
+  {
     title: 'Jobs',
     description: 'Manually trigger scout or brief runs. Useful for testing a new source without waiting for the cron.',
     actions: [

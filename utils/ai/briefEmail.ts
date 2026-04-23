@@ -24,9 +24,12 @@ export interface ApproveMeta {
   programNames?: string[]
   programs?: ApproveMetaProgram[]
   computedScore?: number | null
+  sourceName?: string | null
+  sourceUrl?: string | null
   factCheck?: {
     openClaimCount: number
     likelyWrongCount: number
+    claims?: Array<{ text: string; severity: string; web_verdict?: string | null }>
   }
 }
 
@@ -113,11 +116,13 @@ function approveCard(
   origin: string,
   item: { intel_id: string; headline: string; why_publish: string },
   meta: ApproveMeta,
-  isNewsletterPick = false
+  stepNumber: number | null = null,
+  orderReason: string | null = null
 ): string {
   const reviewHref = meta.alertId ? `${origin}/admin/alerts/${meta.alertId}/edit` : null
   const chip = deadlineChip(meta.endDate)
-  const borderColor = isNewsletterPick ? '#D4AF37' : chip.urgent ? '#d97706' : '#2f855a'
+  const borderColor = chip.urgent ? '#d97706' : '#2f855a'
+  const anchorId = `alert-${stepNumber ?? 'x'}-${item.intel_id}`
 
   const programs = meta.programs ?? (meta.programNames ?? []).map((name) => ({ name, slug: '' }))
   const badges = programs.map((p) => programBadge(p.name, origin, p.slug || undefined)).join('')
@@ -146,22 +151,60 @@ function approveCard(
     ? `<div style="margin:0 0 8px;">${chip.html}${chip.html && (badges || factCheckBadge) ? ' ' : ''}${factCheckBadge}${badges}</div>`
     : ''
 
-  const newsletterRibbon = isNewsletterPick
-    ? `<div style="margin:-16px -16px 12px;padding:6px 16px;background:#0d1b3e;color:#fff;border-radius:8px 8px 0 0;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">📧 Newsletter Pick</div>`
+  // Claim preview under the fact-check chip. Shows up to 3 high-severity
+  // unsupported claims, truncated, so a stand-in can tell at a glance what
+  // needs verifying before hitting publish.
+  const claimPreview = fc && fc.claims && fc.claims.length > 0
+    ? (() => {
+        const show = fc.claims.slice(0, 3)
+        const more = fc.claims.length - show.length
+        const items = show
+          .map((c) => {
+            const truncated = c.text.length > 100 ? `${c.text.slice(0, 100)}…` : c.text
+            const marker = c.web_verdict === 'likely_wrong' ? '❌' : '•'
+            return `<li style="margin:0 0 4px;font-size:12px;line-height:1.4;color:#4A4A4A;">${marker} ${truncated}</li>`
+          })
+          .join('')
+        const moreLine = more > 0
+          ? `<li style="margin:0;font-size:11px;color:#888;font-style:italic;list-style:none;">…and ${more} more</li>`
+          : ''
+        return `<ul style="margin:0 0 12px;padding:8px 12px 8px 28px;background:#fff8e1;border:1px solid #fde68a;border-radius:6px;">${items}${moreLine}</ul>`
+      })()
+    : ''
+
+  const stepRibbon = stepNumber
+    ? `<div style="margin:-16px -16px 12px;padding:6px 16px;background:#0d1b3e;color:#fff;border-radius:8px 8px 0 0;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">Alert #${stepNumber}</div>`
     : ''
 
   const scoreLine = typeof meta.computedScore === 'number' && !isNaN(meta.computedScore)
     ? `<p style="margin:0 0 8px;font-size:11px;font-weight:600;color:#888;letter-spacing:0.04em;text-transform:uppercase;">Score ${meta.computedScore.toFixed(1)}</p>`
     : ''
 
+  const orderReasonLine = orderReason
+    ? `<p style="margin:0 0 8px;font-size:11px;font-weight:600;color:#6B2D8F;letter-spacing:0.04em;text-transform:uppercase;">${orderReason}</p>`
+    : ''
+
+  const sourceLine = meta.sourceName
+    ? (() => {
+        const src = meta.sourceUrl
+          ? `<a href="${meta.sourceUrl}" style="color:#6B2D8F;text-decoration:none;border-bottom:1px solid #E6DEEE;">${meta.sourceName}</a>`
+          : meta.sourceName
+        return `<p style="margin:0 0 8px;font-size:11px;color:#888;">Source: ${src}</p>`
+      })()
+    : ''
+
   return `
+    <a id="${anchorId}"></a>
     <div style="margin-bottom:14px;padding:16px;background:#fff;border-radius:8px;border-left:4px solid ${borderColor};overflow:hidden;">
-      ${newsletterRibbon}
+      ${stepRibbon}
+      ${orderReasonLine}
       <p style="margin:0 0 6px;font-size:14px;font-weight:700;color:#1A1A1A;">${item.headline}</p>
+      ${sourceLine}
       ${scoreLine}
       ${chipsRow}
+      ${claimPreview}
       <p style="margin:0 0 12px;font-size:13px;line-height:1.5;color:#4A4A4A;">${item.why_publish}</p>
-      ${reviewHref ? button(reviewHref, 'Review &amp; Publish', '#6B2D8F') : ''}
+      ${reviewHref ? button(reviewHref, 'Open to review →', '#6B2D8F') : ''}
     </div>`
 }
 
@@ -238,19 +281,19 @@ export function buildBriefEmail(
   // Editorial sections (only when we have a plan + briefId)
   let editorialSections = ''
   if (plan && briefId) {
-    const newsletterIntelIds = new Set((plan.newsletter_candidates ?? []).map((c) => c.intel_id))
-
-    // Priority sort: newsletter picks first, then urgent (<=48h), then other
-    // deadlined items (earliest first), then the rest in Sonnet's order.
+    // Priority sort: the item top_move points at is Alert #1 (the "start here"),
+    // then urgent (<=48h), then other deadlined items (earliest first), then
+    // the rest in Sonnet's order. Newsletter flag is NOT a daily-brief priority
+    // — that surfaces separately in admin on newsletter-build day.
+    const topMoveIntelId = plan.top_move_intel_id ?? null
     const approvePriority = (intelId: string, endDate: string | null | undefined): number => {
-      const isNewsletter = newsletterIntelIds.has(intelId)
-      if (!endDate) return isNewsletter ? 1 : 4
+      if (topMoveIntelId && intelId === topMoveIntelId) return -1
+      if (!endDate) return 3
       const t = new Date(endDate).getTime()
-      if (isNaN(t)) return isNewsletter ? 1 : 4
+      if (isNaN(t)) return 3
       const hoursLeft = (t - Date.now()) / (60 * 60 * 1000)
-      if (isNewsletter) return 0
-      if (hoursLeft > 0 && hoursLeft <= 48) return 2
-      return 3
+      if (hoursLeft > 0 && hoursLeft <= 48) return 1
+      return 2
     }
     const sortedApprove = [...plan.approve].sort((a, b) => {
       const pa = approvePriority(a.intel_id, approveMetaByIntelId[a.intel_id]?.endDate)
@@ -265,39 +308,30 @@ export function buildBriefEmail(
       return 0
     })
 
-    // Build legend dynamically — only show colors that apply to today's approve list.
-    const legendEntries: string[] = []
-    const has48hUrgent = sortedApprove.some((a) => {
-      const end = approveMetaByIntelId[a.intel_id]?.endDate
-      if (!end) return false
-      const t = new Date(end).getTime()
-      if (isNaN(t)) return false
-      const hoursLeft = (t - Date.now()) / (60 * 60 * 1000)
-      return hoursLeft > 0 && hoursLeft <= 48
-    })
-    const hasNewsletter = sortedApprove.some((a) => newsletterIntelIds.has(a.intel_id))
-    const hasStandard = sortedApprove.some((a) => {
-      if (newsletterIntelIds.has(a.intel_id)) return false
-      const end = approveMetaByIntelId[a.intel_id]?.endDate
-      if (!end) return true
-      const t = new Date(end).getTime()
-      if (isNaN(t)) return true
-      const hoursLeft = (t - Date.now()) / (60 * 60 * 1000)
-      return !(hoursLeft > 0 && hoursLeft <= 48)
-    })
-    const legendChip = (color: string, label: string) =>
-      `<span style="display:inline-block;width:8px;height:8px;background:${color};border-radius:2px;vertical-align:middle;margin-right:4px;"></span>${label}`
-    if (hasNewsletter) legendEntries.push(legendChip('#D4AF37', 'gold = newsletter pick'))
-    if (hasStandard) legendEntries.push(legendChip('#2f855a', 'green = standard approve'))
-    if (has48hUrgent) legendEntries.push(legendChip('#d97706', 'amber = under 48h'))
-    const approveLegend = legendEntries.length >= 2
-      ? `<p style="margin:-8px 0 12px;font-size:11px;color:#888;line-height:1.5;">${legendEntries.join(' &nbsp;·&nbsp; ')}</p>`
-      : ''
+    // Simple one-line instruction — any stand-in can follow top-down.
+    const approveLegend = `<p style="margin:-8px 0 12px;font-size:12px;color:#4A4A4A;line-height:1.5;">Work top-down. Click <strong>Review &amp; Publish</strong> on each. ⚠ chips mean a claim needs verifying before you publish.</p>`
 
     const approveHtml = sortedApprove.length
-      ? `${sectionHeader('✅ Approve These', '#2f855a')}${approveLegend}${sortedApprove
-          .map((a) => {
+      ? `<a id="approve"></a>${sectionHeader('✅ Step 1 · Review these alerts', '#2f855a')}${approveLegend}${sortedApprove
+          .map((a, idx) => {
             const meta = approveMetaByIntelId[a.intel_id] ?? {}
+            const priority = approvePriority(a.intel_id, meta.endDate)
+            let orderReason: string | null = null
+            if (priority === -1) {
+              orderReason = '💎 Biggest move today'
+            } else if (priority === 1 && meta.endDate) {
+              const hoursLeft = Math.max(
+                0,
+                Math.round((new Date(meta.endDate).getTime() - Date.now()) / (60 * 60 * 1000))
+              )
+              orderReason = hoursLeft <= 1 ? 'Ends within the hour' : `Ends in ${hoursLeft}h`
+            } else if (priority === 2 && meta.endDate) {
+              const daysLeft = Math.max(
+                0,
+                Math.ceil((new Date(meta.endDate).getTime() - Date.now()) / (24 * 60 * 60 * 1000))
+              )
+              orderReason = daysLeft === 0 ? 'Ends today' : daysLeft === 1 ? 'Ends tomorrow' : `Ends in ${daysLeft} days`
+            }
             return approveCard(
               siteOrigin,
               a,
@@ -307,9 +341,12 @@ export function buildBriefEmail(
                 programNames: meta.programNames,
                 programs: meta.programs,
                 computedScore: meta.computedScore,
+                sourceName: meta.sourceName,
+                sourceUrl: meta.sourceUrl,
                 factCheck: meta.factCheck,
               },
-              newsletterIntelIds.has(a.intel_id)
+              idx + 1,
+              orderReason
             )
           })
           .join('')}`
@@ -442,8 +479,11 @@ export function buildBriefEmail(
       <h1 style="margin:0 0 10px;font-size:24px;font-weight:700;color:#fff;">${date}</h1>
       ${plan?.tagline ? `<p style="margin:0 0 14px;font-size:16px;font-weight:600;color:#fff;line-height:1.4;">${plan.tagline}</p>` : ''}
       ${plan ? (() => {
+        const topMoveAnchor = plan.top_move_intel_id
+          ? `#alert-1-${plan.top_move_intel_id}`
+          : '#approve'
         const topMoveHtml = plan.top_move && plan.top_move.trim()
-          ? `<p style="margin:0 0 8px;font-size:13px;color:rgba(255,255,255,0.95);line-height:1.5;">💎 <strong style="color:#fff;">${plan.top_move}</strong></p>`
+          ? `<p style="margin:0 0 8px;font-size:13px;color:rgba(255,255,255,0.95);line-height:1.5;">💎 <a href="${topMoveAnchor}" style="color:#fff;font-weight:700;text-decoration:none;border-bottom:1px solid rgba(255,255,255,0.4);">${plan.top_move}</a></p>`
           : ''
         const endDates = Object.values(approveMetaByIntelId)
           .map((m) => (m.endDate ? new Date(m.endDate) : null))
@@ -494,7 +534,7 @@ export function buildBriefEmail(
           return fc ? fc.likelyWrongCount > 0 || fc.openClaimCount > 0 : false
         }).length
         const factCheckHtml = factCheckCount > 0
-          ? `<p style="margin:6px 0 0;font-size:12px;color:rgba(255,255,255,0.85);line-height:1.5;">Heads up: ${factCheckCount} of today's approves ${factCheckCount === 1 ? 'needs' : 'need'} a fact-check before you ship ${factCheckCount === 1 ? 'it' : 'them'}.</p>`
+          ? `<p style="margin:6px 0 0;font-size:12px;color:rgba(255,255,255,0.85);line-height:1.5;">⚠ <a href="${siteOrigin}/admin/fact-checks" style="color:#fff;text-decoration:none;border-bottom:1px solid rgba(255,255,255,0.4);">${factCheckCount} ${factCheckCount === 1 ? 'approve needs' : 'approves need'} a fact-check</a> before you ship ${factCheckCount === 1 ? 'it' : 'them'}.</p>`
           : ''
         return `${topMoveHtml}${radarHtml}${factCheckHtml}`
       })() : `<p style="margin:0;font-size:13px;color:rgba(255,255,255,0.7);">${findings.length} finding${findings.length !== 1 ? 's' : ''}</p>`}
