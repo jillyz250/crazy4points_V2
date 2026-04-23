@@ -57,14 +57,86 @@ A single JSON object matching the SCHEMA. No prose outside the JSON. No markdown
 TITLE
 ═══════════════════════════════════════════════════════════
 
-- Lead with the program and the offer.
-- Include the number (%, points, dollar amount) when known.
-- Include the deadline when known ("— ends April 30").
-- 60–90 characters ideally; hard cap 110.
-- Title-case. No emoji. No clickbait.
+The title is the #1 SEO signal AND the stand-in's scan cue. It is NOT where
+the brand voice lives — save sass for the summary and description. Write it
+straight, keyword-first, action-forward.
+
+────────────────────────────────────────
+DECISION TREE — pick ONE pattern
+────────────────────────────────────────
+
+Is there a specific program-level action the reader can take NOW
+(transfer bonus, award availability, card signup, earn/redeem promo)?
+├── YES → Pattern A
+└── NO → Is this news/industry change
+    (merger, policy shift, launch, devaluation, route announcement)?
+    ├── YES → Pattern B
+    └── NO → Pattern C (fallback)
+
+If the alert fits NONE of A/B/C, it's too vague — set title to the best
+descriptive lead noun you can and keep it short. Do not invent programs,
+numbers, or deadlines to force a pattern.
+
+Hybrid case (news + offer, like "Airline joins alliance, now bookable"):
+  use Pattern B front, Pattern A tail.
+  → "Hawaiian Joins oneworld — Now Bookable with Avios & AAdvantage"
+
+────────────────────────────────────────
+PATTERN A — Program/offer alert
+────────────────────────────────────────
+STRUCTURE: [Entity] — [Action verb] with [2–3 best programs]
 
 Good: "Chase → Hyatt 30% Transfer Bonus — Ends April 30"
-Bad:  "HUGE Chase Hyatt Bonus You Need to Know About!"
+Good: "Amex MR → Virgin Atlantic 30% Bonus — Ends May 16"
+Good: "Hilton Honors: 100% Points Bonus — Book by June 30"
+
+────────────────────────────────────────
+PATTERN B — News/industry alert
+────────────────────────────────────────
+STRUCTURE: [Entity] [News verb] [What changed] [— When/deadline]
+
+Good: "Hawaiian Airlines Joins oneworld — Effective April 22"
+Good: "IHG Acquires Ruby Hotels — Adds 20 Properties to One Rewards"
+Good: "TSA Extends REAL ID Deadline to 2027"
+Good: "Delta Devalues SkyMiles Award Chart — New Rates May 15"
+
+────────────────────────────────────────
+PATTERN C — Fallback (evergreen, analysis, rumor, explainer)
+────────────────────────────────────────
+STRUCTURE: [Topic/entity]: [specific hook]
+       OR: [Topic/entity] — [descriptor]
+
+Good: "Chase UR Transfer Partners: Best Values for 2026"
+Good: "Amex Platinum Refresh Rumored for Q3 2026"
+Good: "Maldives on Points: The 3 Programs Worth Using"
+Good: "Southwest Boarding Changes — What Actually Matters"
+
+Avoid weak fallback descriptors: "Explained," "What to Know,"
+"Everything You Need" — all vague, all bad SEO.
+
+────────────────────────────────────────
+UNIVERSAL RULES (apply to all three patterns)
+────────────────────────────────────────
+1. Front-load the searchable entity — airline/hotel/program/topic FIRST.
+2. Include concrete numbers (%, points, $) when the alert has them.
+3. Include deadline/date when known.
+4. When Pattern A or a hybrid names programs: exactly 2–3 programs,
+   never 4+, never generic "partners."
+   PROGRAM SELECTION ranked by:
+   a. US-audience relevance (AAdvantage, Alaska/Atmos, Chase UR & Amex MR
+      transfer partners). Drop programs that are technically eligible but
+      our readers don't actually earn in (e.g., Asia Miles for US→HI).
+   b. Sweet-spot quality (Avios short-haul, Hyatt hotel value, etc.).
+   c. Earnability through major US transfer currencies.
+5. LENGTH: 55–65 chars ideal. Google truncates at ~60 in SERP.
+   Hard cap: 75.
+6. Title-case. No emoji. No clickbait. No exclamation points.
+7. NO SASS in the title. Sass goes in the summary first sentence.
+
+Bad: "HUGE Chase Hyatt Bonus You Need to Know About!"   (clickbait)
+Bad: "Aloha! Hawaiian's in oneworld — time to book 🌺"  (sass + emoji)
+Bad: "Hawaiian Airlines Joins oneworld — Now Bookable with Avios, Asia Miles, Atmos, AAdvantage, and Alaska Miles"  (too long, too many programs)
+Bad: "The Hawaiian oneworld Thing: What to Know"         (vague fallback)
 
 ═══════════════════════════════════════════════════════════
 SUMMARY
