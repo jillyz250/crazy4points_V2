@@ -1,5 +1,6 @@
 'use client'
 
+import { useTransition } from 'react'
 import { acknowledgeFactCheckClaimAction } from '@/app/admin/(protected)/alerts/actions'
 
 // Mirrors VerifyClaim from utils/ai/verifyAlertDraft.ts. Duplicated here so
@@ -85,28 +86,11 @@ export default function FactCheckWarnings({
                     {v.label}
                   </span>
                   <span style={{ fontWeight: 600, flex: 1, minWidth: '12rem' }}>{claim.claim}</span>
-                  <form
-                    action={acknowledgeFactCheckClaimAction.bind(null, alertId, originalIndex)}
-                    style={{ flexShrink: 0 }}
-                  >
-                    <button
-                      type="submit"
-                      style={{
-                        fontSize: '0.6875rem',
-                        fontFamily: 'var(--font-ui)',
-                        fontWeight: 600,
-                        padding: '0.15rem 0.5rem',
-                        background: '#fff',
-                        border: `1px solid ${v.color}`,
-                        color: v.color,
-                        borderRadius: '3px',
-                        cursor: 'pointer',
-                      }}
-                      title="Mark as confirmed by you"
-                    >
-                      ✓ Mark verified
-                    </button>
-                  </form>
+                  <AckButton
+                    alertId={alertId}
+                    originalIndex={originalIndex}
+                    color={v.color}
+                  />
                 </div>
                 {claim.web_evidence && (
                   <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.75rem', fontStyle: 'italic' }}>
@@ -129,5 +113,48 @@ export default function FactCheckWarnings({
         </ul>
       )}
     </div>
+  )
+}
+
+// Inner button can't live inside a <form> because FactCheckWarnings itself
+// is rendered inside the EditAlertForm's outer <form>. Browsers disallow
+// nested forms — HTML parsing would strip the inner one and clicks would
+// submit the outer "Save Changes" form. Call the server action directly.
+function AckButton({
+  alertId,
+  originalIndex,
+  color,
+}: {
+  alertId: string
+  originalIndex: number
+  color: string
+}) {
+  const [isPending, startTransition] = useTransition()
+  return (
+    <button
+      type="button"
+      disabled={isPending}
+      onClick={() => {
+        startTransition(async () => {
+          await acknowledgeFactCheckClaimAction(alertId, originalIndex)
+        })
+      }}
+      style={{
+        fontSize: '0.6875rem',
+        fontFamily: 'var(--font-ui)',
+        fontWeight: 600,
+        padding: '0.15rem 0.5rem',
+        background: '#fff',
+        border: `1px solid ${color}`,
+        color,
+        borderRadius: '3px',
+        cursor: isPending ? 'wait' : 'pointer',
+        flexShrink: 0,
+        opacity: isPending ? 0.6 : 1,
+      }}
+      title="Mark as confirmed by you"
+    >
+      {isPending ? '…saving' : '✓ Mark verified'}
+    </button>
   )
 }
