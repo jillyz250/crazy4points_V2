@@ -178,6 +178,8 @@ export async function GET(req: NextRequest) {
         endDate: (intel.expires_at as string | null) ?? null,
         programNames: seedPrograms.map((p) => p.name),
         programs: seedPrograms,
+        sourceName: (intel.source_name as string | null) ?? null,
+        sourceUrl: (intel.source_url as string | null) ?? null,
       }
 
       // Also try to resolve the staged alert id up-front so Review & Publish
@@ -296,6 +298,11 @@ export async function GET(req: NextRequest) {
             factCheck: {
               openClaimCount: openUnsupported.length,
               likelyWrongCount: openUnsupported.filter((c) => c.web_verdict === 'likely_wrong').length,
+              claims: openUnsupported.slice(0, 3).map((c) => ({
+                text: c.claim,
+                severity: c.severity,
+                web_verdict: c.web_verdict ?? null,
+              })),
             },
           }
         }
@@ -379,16 +386,31 @@ export async function GET(req: NextRequest) {
     approveMetaByIntelId,
   })
 
-  const { error: emailError } = await resend.emails.send({
-    from: process.env.RESEND_FROM ?? 'crazy4points <intel@crazy4points.com>',
-    to: process.env.BRIEF_RECIPIENT ?? 'jillzeller6@gmail.com',
-    subject: `Crazy4Points Daily Brief — ${date}`,
-    html,
-  })
+  // Persist the rendered HTML so admin can preview a brief in-app without
+  // re-running the pipeline or relying on Resend delivery.
+  if (briefId) {
+    const { error: htmlErr } = await supabase
+      .from('daily_briefs')
+      .update({ brief_html: html })
+      .eq('id', briefId)
+    if (htmlErr) console.error('[build-brief] brief_html update failed:', htmlErr)
+  }
 
-  if (emailError) {
-    console.error('[build-brief] Resend error:', emailError)
-    return NextResponse.json({ error: 'Email send failed', details: emailError }, { status: 500 })
+  const skipEmail = req.nextUrl.searchParams.get('preview') === '1'
+  let emailSent = false
+  if (!skipEmail) {
+    const { error: emailError } = await resend.emails.send({
+      from: process.env.RESEND_FROM ?? 'crazy4points <intel@crazy4points.com>',
+      to: process.env.BRIEF_RECIPIENT ?? 'jillzeller6@gmail.com',
+      subject: `Crazy4Points Daily Brief — ${date}`,
+      html,
+    })
+
+    if (emailError) {
+      console.error('[build-brief] Resend error:', emailError)
+      return NextResponse.json({ error: 'Email send failed', details: emailError }, { status: 500 })
+    }
+    emailSent = true
   }
 
   const approve_count = plan?.approve.length ?? 0
@@ -424,7 +446,7 @@ export async function GET(req: NextRequest) {
       web_likely_wrong: web_verify_likely_wrong,
     },
     content_ideas_inserted,
-    email_sent: true,
+    email_sent: emailSent,
     date,
   })
   } catch (err) {
