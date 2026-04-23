@@ -2,6 +2,7 @@ import { createAdminClient } from '@/utils/supabase/server'
 import { getAllPrograms } from '@/utils/supabase/queries'
 import type { ProgramType, Program } from '@/utils/supabase/queries'
 import { toggleProgramAction } from './actions'
+import AddProgramForm from './AddProgramForm'
 
 const TYPE_LABEL: Record<ProgramType, string> = {
   credit_card:    'Credit Card',
@@ -66,9 +67,12 @@ export default async function AdminProgramsPage() {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
         <h1>Programs</h1>
-        <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', fontFamily: 'var(--font-ui)' }}>
-          {programs.length} total
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', fontFamily: 'var(--font-ui)' }}>
+            {programs.length} total
+          </span>
+          <AddProgramForm />
+        </div>
       </div>
 
       {programs.length === 0 ? (

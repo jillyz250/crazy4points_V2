@@ -211,13 +211,51 @@ points one-way. Transfer Chase UR to Avios and book now."
 DESCRIPTION (required — always write this)
 ═══════════════════════════════════════════════════════════
 
-- ALWAYS produce a description. Never null.
-- 2–3 short paragraphs in the brand voice (sassy, funny, traveler-friend).
-- Paragraph 1: the offer in plain terms + why the reader should care. Lead with the payoff.
-- Paragraph 2: the smart play — concrete redemption angle, sweet spot, or who this is perfect for. One playful aside is fine; don't stack them.
-- Paragraph 3 (optional): the specific action + deadline. "Transfer before May 16" beats "act soon."
-- If raw_text is thin, still write 2 paragraphs — lean on the brand voice and general award-travel context rather than inventing facts. Never fabricate numbers, partners, or dates.
-- No headings, no bullet lists inside description. Just clean prose.
+The 2–3 paragraph body on the public alert page. Where the brand voice
+lives MOST visibly. Where WHY (not WHAT) gets unpacked.
+
+DO NOT RECAP the title or summary. They said the news. Description goes
+deeper — or says less.
+
+STRUCTURE (reader journey, not news structure):
+
+Paragraph 1 — SETUP + STAKES
+Reader-centered opener. Who is this for? What were they thinking about
+before this landed? Voice-heavy. No news recap. This is where you make
+the reader feel seen ("If Hawaii's been lurking on your maybe-someday
+list…"), not where you restate the headline.
+
+Paragraph 2 — THE PLAY
+What the reader actually does. Use ONLY source-verified specifics
+(see NO FABRICATION). If you don't have a concrete sweet-spot or price
+from raw_text or the web evidence, describe the SHAPE of the opportunity
+honestly — do not invent an angle to sound smart. "Pricing across
+programs will vary" is true. "5k Avios inter-island" is invented unless
+the source says so.
+
+Paragraph 3 (optional) — THE HONEST CAVEAT
+What's still unclear, what's timing-sensitive, what's permanent vs.
+promotional. Shapes the reader's expectations. Close with voice.
+
+RULES:
+1. 2–3 paragraphs. ~120–220 words total. Longer = padding.
+2. Voice in EVERY paragraph, not just sprinkled. One clear voice moment
+   per paragraph minimum.
+3. Acknowledge source hedges UPFRONT, not buried. If the source says
+   "rolling out," that shapes para 2, not just para 3.
+4. Program-naming discipline matches summary: only name programs the
+   source confirms. Do not swap in "better for US audience" picks.
+5. No headings. No bullet lists. Prose only.
+6. FORBIDDEN stock phrases (blogger-speak, not brand voice):
+   "The most interesting angle here is…"
+   "It's worth noting that…"
+   "That said…"
+   "Interestingly…"
+   "Worth a look."
+   "Solid pick." / "Solid choice."
+   "We're talking [X] — the kind of [Y] that…"
+7. ALWAYS produce a description. Never null. If raw_text is thin, write
+   the shorter honest version (2 paragraphs, ~100 words) rather than pad.
 
 ═══════════════════════════════════════════════════════════
 ACTION TYPE

@@ -924,3 +924,32 @@ export async function toggleProgramActive(
   if (error) throw error
 }
 
+export async function createProgram(
+  supabase: SupabaseClient,
+  input: {
+    slug: string
+    name: string
+    type: ProgramType
+    tier?: string | null
+    monitor_tier?: MonitorTier | null
+    program_url?: string | null
+  }
+): Promise<Program> {
+  const { data, error } = await supabase
+    .from('programs')
+    .insert({
+      slug: input.slug,
+      name: input.name,
+      type: input.type,
+      tier: input.tier ?? null,
+      monitor_tier: input.monitor_tier ?? null,
+      program_url: input.program_url ?? null,
+      is_active: true,
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+  return data as Program
+}
+
