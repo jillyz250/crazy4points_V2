@@ -73,6 +73,7 @@ export async function rebuildBriefHtmlAction(briefId: string): Promise<RebuildRe
 
   const alertIdByIntelId: Record<string, string> = {}
   const approveMetaByIntelId: Record<string, ApproveMeta> = {}
+  const reviseCounters = { run: 0, succeeded: 0, failed: 0, resolved: 0, persistent: 0 }
 
   if (approveIntelIds.length > 0) {
     const { data: alertRows, error: alertErr } = await supabase
@@ -132,6 +133,13 @@ export async function rebuildBriefHtmlAction(briefId: string): Promise<RebuildRe
           before_claim: r.before_claim ?? '',
           after_claim: r.after_claim ?? '',
         }))
+      if (revisions.length > 0) {
+        reviseCounters.run++
+        reviseCounters.succeeded++
+        const stillWrong = claims.some((c) => c.web_verdict === 'likely_wrong')
+        if (stillWrong) reviseCounters.persistent++
+        else reviseCounters.resolved++
+      }
       approveMetaByIntelId[intelId] = {
         alertId,
         endDate: (a.end_date as string | null) ?? intel?.expires_at ?? null,
@@ -170,6 +178,7 @@ export async function rebuildBriefHtmlAction(briefId: string): Promise<RebuildRe
     siteOrigin: 'https://crazy4points.com',
     alertIdByIntelId,
     approveMetaByIntelId,
+    reviseCounters,
   })
 
   const { error: updErr } = await supabase

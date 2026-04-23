@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { createAdminClient } from '@/utils/supabase/server'
 import { listAlertsWithFactChecks } from '@/utils/supabase/queries'
 import { ReverifyButton } from './ReverifyButton'
+import { ReviseButton } from './ReviseButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -176,6 +177,7 @@ function AlertCard({
 }) {
   const unsupported = claims.filter((c) => !c.supported)
   const hasFlags = unsupported.length > 0
+  const hasLikelyWrong = claims.some((c) => c.web_verdict === 'likely_wrong')
 
   return (
     <div
@@ -201,6 +203,7 @@ function AlertCard({
         </div>
         <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'center', flexWrap: 'wrap' }}>
           {hasFlags && <ReverifyButton alertId={alertId} />}
+          {hasLikelyWrong && <ReviseButton alertId={alertId} />}
           <Link
             href={`/admin/alerts/${alertId}/edit`}
             style={{ fontSize: '0.8125rem', fontFamily: 'var(--font-ui)', color: 'var(--color-primary)' }}

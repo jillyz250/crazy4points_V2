@@ -113,9 +113,9 @@ If the reviser ever writes something *wrong* (e.g. misreads web evidence), it no
 - [x] Track `revisions_run / succeeded / failed / resolved / persistent` counters in build-brief response
 - [x] Approve card revision strip goes amber when reviser ran but flags persist
 
-### Phase 3 — Reliability polish
-- [ ] Standalone "Revise alert" admin button (same pattern as Re-run web verify) — sidesteps 300s budget when build-brief skips revise
-- [ ] Add revise counters to daily brief email footer ("3 alerts auto-revised today")
+### Phase 3 — Reliability polish ✅ shipped 2026-04-23
+- [x] Standalone "Revise alert" admin button (same pattern as Re-run web verify) — sidesteps 300s budget when build-brief skips revise
+- [x] Add revise counters to daily brief email footer ("3 alerts auto-revised today")
 
 ### Deferred (v2+)
 - Extend to `unverifiable` high-severity claims (more false-positive risk)
