@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { createAdminClient } from '@/utils/supabase/server'
 import { listAlertsWithFactChecks } from '@/utils/supabase/queries'
+import { ReverifyButton } from './ReverifyButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -198,12 +199,15 @@ function AlertCard({
             {claims.length} claim{claims.length !== 1 ? 's' : ''} · {unsupported.length} unsupported
           </span>
         </div>
-        <Link
-          href={`/admin/alerts/${alertId}/edit`}
-          style={{ fontSize: '0.8125rem', fontFamily: 'var(--font-ui)', color: 'var(--color-primary)' }}
-        >
-          Open alert →
-        </Link>
+        <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          {hasFlags && <ReverifyButton alertId={alertId} />}
+          <Link
+            href={`/admin/alerts/${alertId}/edit`}
+            style={{ fontSize: '0.8125rem', fontFamily: 'var(--font-ui)', color: 'var(--color-primary)' }}
+          >
+            Open alert →
+          </Link>
+        </div>
       </div>
       <div style={{ marginTop: '0.375rem', fontFamily: 'var(--font-body)', fontWeight: 600 }}>{title}</div>
 

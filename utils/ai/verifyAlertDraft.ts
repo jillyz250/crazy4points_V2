@@ -299,47 +299,52 @@ export async function webVerifyClaims(args: {
     2
   )
 
-  try {
-    const client = new Anthropic({ apiKey })
-    const response = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 4000,
-      tools: [
-        { type: 'web_search_20250305', name: 'web_search', max_uses: Math.min(unsupported.length * 2, 10) },
-      ],
-      system: WEB_VERIFY_PROMPT,
-      messages: [{ role: 'user', content: userContent }],
-    })
+  const client = new Anthropic({ apiKey })
+  const response = await client.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 4000,
+    tools: [
+      { type: 'web_search_20250305', name: 'web_search', max_uses: Math.min(unsupported.length * 2, 10) },
+    ],
+    system: WEB_VERIFY_PROMPT,
+    messages: [{ role: 'user', content: userContent }],
+  })
 
-    const text = findLastTextBlock(response.content)
-    if (!text) return args.claims
-
-    const parsed = JSON.parse(extractJson(text)) as { verdicts?: WebVerdict[] }
-    if (!Array.isArray(parsed.verdicts)) return args.claims
-
-    const byClaim = new Map<string, WebVerdict>()
-    for (const v of parsed.verdicts) {
-      if (typeof v.claim === 'string') byClaim.set(v.claim.trim(), v)
-    }
-
-    return args.claims.map((c) => {
-      if (c.supported) return c
-      const v = byClaim.get(c.claim.trim())
-      if (!v) {
-        return { ...c, web_verdict: 'unverifiable' as const, web_evidence: null, web_url: null }
-      }
-      return {
-        ...c,
-        web_verdict:
-          v.web_verdict === 'likely_correct' || v.web_verdict === 'likely_wrong'
-            ? v.web_verdict
-            : 'unverifiable',
-        web_evidence: typeof v.web_evidence === 'string' ? v.web_evidence.slice(0, 400) : null,
-        web_url: typeof v.web_url === 'string' && /^https?:\/\//.test(v.web_url) ? v.web_url : null,
-      }
-    })
-  } catch (err) {
-    console.error('[webVerifyClaims] web-search pass failed:', err)
-    return args.claims
+  const text = findLastTextBlock(response.content)
+  if (!text) {
+    throw new Error('webVerifyClaims: no text block in Sonnet response')
   }
+
+  const parsed = JSON.parse(extractJson(text)) as { verdicts?: WebVerdict[] }
+  if (!Array.isArray(parsed.verdicts)) {
+    throw new Error('webVerifyClaims: response missing verdicts array')
+  }
+
+  const byClaim = new Map<string, WebVerdict>()
+  for (const v of parsed.verdicts) {
+    if (typeof v.claim === 'string') byClaim.set(v.claim.trim(), v)
+  }
+
+  // Fallback: if claim-text lookup misses (Sonnet reformatted text), match by
+  // input position — verdicts are returned in the same order as claims_to_verify.
+  const byIndex = new Map<number, WebVerdict>()
+  parsed.verdicts.forEach((v, i) => byIndex.set(i, v))
+
+  let unsupportedIdx = 0
+  return args.claims.map((c) => {
+    if (c.supported) return c
+    const v = byClaim.get(c.claim.trim()) ?? byIndex.get(unsupportedIdx++)
+    if (!v) {
+      return { ...c, web_verdict: 'unverifiable' as const, web_evidence: null, web_url: null }
+    }
+    return {
+      ...c,
+      web_verdict:
+        v.web_verdict === 'likely_correct' || v.web_verdict === 'likely_wrong'
+          ? v.web_verdict
+          : 'unverifiable',
+      web_evidence: typeof v.web_evidence === 'string' ? v.web_evidence.slice(0, 400) : null,
+      web_url: typeof v.web_url === 'string' && /^https?:\/\//.test(v.web_url) ? v.web_url : null,
+    }
+  })
 }
