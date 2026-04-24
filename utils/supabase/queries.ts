@@ -36,7 +36,7 @@ export type AlertStatus =
   | 'rejected'
   | 'expired'
 
-export type AlertActionType = 'book' | 'transfer' | 'apply' | 'monitor' | 'learn'
+export type AlertActionType = 'book' | 'transfer' | 'apply' | 'status_match' | 'monitor' | 'learn'
 
 export type ConfidenceLevel = 'low' | 'medium' | 'high'
 
