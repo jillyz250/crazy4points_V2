@@ -9,6 +9,7 @@ import {
   bulkRejectAlertsAction,
 } from '@/app/admin/(protected)/alerts/actions'
 import FactCheckWarnings from '@/components/admin/FactCheckWarnings'
+import RegenerateButton from '@/components/admin/RegenerateButton'
 
 const CONFIDENCE_COLOR: Record<string, string> = {
   high: '#1e7e34',
@@ -218,6 +219,7 @@ export default function PendingReviewBulk({ alerts }: { alerts: PendingAlert[] }
                   >
                     Edit
                   </Link>
+                  <RegenerateButton alertId={alert.id} />
                   <form action={approveIntelAlertAction.bind(null, alert.id)}>
                     <button
                       type="submit"
