@@ -8,6 +8,7 @@ import {
   type PlanIntelItem,
 } from '@/utils/ai/generateEditorialPlan'
 import { writeAlertDraft, type WriteDraftProgram } from '@/utils/ai/writeAlertDraft'
+import { editAlertDraft } from '@/utils/ai/editAlertDraft'
 import { verifyAlertDraft, webVerifyClaims, highSeverityUnsupported } from '@/utils/ai/verifyAlertDraft'
 import { reviseAlertDraft, type RevisionLogEntry } from '@/utils/ai/reviseAlertDraft'
 import type { ApproveMeta } from '@/utils/ai/briefEmail'
@@ -153,6 +154,8 @@ export async function GET(req: NextRequest) {
   let writer_null_drafts = 0
   let writer_no_pending_alert = 0
   let writer_update_errors = 0
+  let editor_run = 0
+  let editor_null = 0
   let fact_checks_run = 0
   let fact_checks_flagged = 0
   let web_verify_runs = 0
@@ -222,6 +225,22 @@ export async function GET(req: NextRequest) {
       if (!draft) {
         writer_null_drafts++
         continue
+      }
+
+      // Editor pass (Phase 1, polish-only) — remove AI-tells, tighten voice.
+      // Does not change source facts. Never proposes value-add in this phase.
+      // Falls back to Writer draft on failure so the pipeline keeps moving.
+      editor_run++
+      const edited = await editAlertDraft({
+        title: draft.title,
+        summary: draft.summary,
+        description: draft.description,
+      })
+      if (!edited) {
+        editor_null++
+      } else {
+        draft.summary = edited.summary
+        draft.description = edited.description
       }
 
       const { data: pending } = await supabase
@@ -563,6 +582,9 @@ export async function GET(req: NextRequest) {
       `[build-brief] writer stats — approves=${approve_count} drafts=${drafts_written} null=${writer_null_drafts} no_pending=${writer_no_pending_alert} errors=${writer_update_errors} success_rate=${writer_success_rate}`
     )
     console.log(
+      `[build-brief] editor stats — run=${editor_run} null=${editor_null}`
+    )
+    console.log(
       `[build-brief] fact-check stats — run=${fact_checks_run} flagged_high_severity=${fact_checks_flagged} web_verify_runs=${web_verify_runs} web_likely_wrong=${web_verify_likely_wrong} revisions=${revisions_run} resolved=${revisions_resolved} persistent=${revisions_persistent} failed=${revisions_failed}`
     )
   }
@@ -579,6 +601,10 @@ export async function GET(req: NextRequest) {
       no_pending_alert: writer_no_pending_alert,
       update_errors: writer_update_errors,
       success_rate: writer_success_rate,
+    },
+    editor_stats: {
+      run: editor_run,
+      null: editor_null,
     },
     fact_check_stats: {
       run: fact_checks_run,

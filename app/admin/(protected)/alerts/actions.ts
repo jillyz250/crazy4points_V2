@@ -14,6 +14,7 @@ import {
 import type { Alert, AlertStatus } from '@/utils/supabase/queries'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { writeAlertDraft } from '@/utils/ai/writeAlertDraft'
+import { editAlertDraft } from '@/utils/ai/editAlertDraft'
 import { verifyAlertDraft, webVerifyClaims, type VerifyClaim } from '@/utils/ai/verifyAlertDraft'
 
 // Increment the source-approved counter whenever an alert from intel
@@ -182,6 +183,18 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
     return { ok: false, error: err instanceof Error ? err.message : String(err) }
   }
   if (!draft) return { ok: false, error: 'writeAlertDraft returned null' }
+
+  // Editor pass (Phase 1, polish-only) — strip AI-tells, tighten voice.
+  // Falls back to writer draft on failure so regenerate still produces output.
+  const edited = await editAlertDraft({
+    title: draft.title,
+    summary: draft.summary,
+    description: draft.description,
+  })
+  if (edited) {
+    draft.summary = edited.summary
+    draft.description = edited.description
+  }
 
   const primaryId = draft.primary_program_slug
     ? programBySlug.get(draft.primary_program_slug)?.id ?? null
