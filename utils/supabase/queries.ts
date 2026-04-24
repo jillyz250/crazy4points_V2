@@ -501,14 +501,33 @@ export async function logSystemError(
   err: unknown,
   context?: Record<string, unknown>,
 ): Promise<void> {
-  const message = err instanceof Error ? err.message : String(err)
+  // Supabase/Postgrest errors are plain objects — `String({})` gives "[object Object]".
+  // Extract .message if present, stash the full shape in context.error for debugging.
+  let message: string
+  let extra: Record<string, unknown> | null = null
+  if (err instanceof Error) {
+    message = err.message
+  } else if (err && typeof err === 'object') {
+    const e = err as { message?: unknown; code?: unknown; details?: unknown; hint?: unknown }
+    message = typeof e.message === 'string' && e.message
+      ? e.message
+      : (() => {
+          try { return JSON.stringify(err) } catch { return '[unserializable error]' }
+        })()
+    extra = { code: e.code ?? null, details: e.details ?? null, hint: e.hint ?? null }
+  } else {
+    message = String(err)
+  }
   const stack = err instanceof Error ? err.stack ?? null : null
+  const mergedContext = extra
+    ? { ...(context ?? {}), error: extra }
+    : context ?? null
   try {
     await supabase.from('system_errors').insert({
       source,
       message,
       stack,
-      context: context ?? null,
+      context: mergedContext,
     })
   } catch {
     // intentional: logging path must never throw
