@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import AdminNav from '@/components/admin/AdminNav'
 import ErrorsBanner from '@/components/admin/ErrorsBanner'
+import SidebarShell from '@/components/admin/SidebarShell'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies()
@@ -12,25 +13,27 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     redirect('/admin/login')
   }
 
+  const sidebar = (
+    <>
+      <Link href="/admin" className="admin-brand">
+        <span className="admin-brand-dot" />
+        <span className="admin-brand-name">crazy4points</span>
+        <span className="admin-brand-sub">admin</span>
+      </Link>
+      <AdminNav />
+      <form action="/api/admin-logout" method="post" className="admin-sidebar-footer">
+        <button type="submit" className="admin-btn admin-btn-ghost admin-btn-sm admin-sidebar-logout">
+          <span className="admin-sidebar-label">Log out</span>
+          <span className="admin-sidebar-icon" aria-hidden="true">⎋</span>
+        </button>
+      </form>
+    </>
+  )
+
   return (
-    <div className="admin admin-shell">
-      <aside className="admin-sidebar">
-        <Link href="/admin" className="admin-brand">
-          <span className="admin-brand-dot" />
-          <span className="admin-brand-name">crazy4points</span>
-          <span className="admin-brand-sub">admin</span>
-        </Link>
-        <AdminNav />
-        <form action="/api/admin-logout" method="post" className="admin-sidebar-footer">
-          <button type="submit" className="admin-btn admin-btn-ghost admin-btn-sm" style={{ width: '100%' }}>
-            Log out
-          </button>
-        </form>
-      </aside>
-      <div className="admin-main">
-        <ErrorsBanner />
-        <main className="admin-main-inner">{children}</main>
-      </div>
-    </div>
+    <SidebarShell sidebar={sidebar}>
+      <ErrorsBanner />
+      <main className="admin-main-inner">{children}</main>
+    </SidebarShell>
   )
 }
