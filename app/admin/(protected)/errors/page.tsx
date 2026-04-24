@@ -1,6 +1,9 @@
 import { createAdminClient } from '@/utils/supabase/server'
 import { listSystemErrors } from '@/utils/supabase/queries'
 import { resolveErrorAction } from './actions'
+import { PageHeader } from '@/components/admin/ui/PageHeader'
+import { Badge } from '@/components/admin/ui/Badge'
+import { EmptyState } from '@/components/admin/ui/EmptyState'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,29 +25,23 @@ export default async function ErrorsPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.5rem' }}>
-        <h1 style={{ margin: 0 }}>System Errors</h1>
-        <div style={{ display: 'flex', gap: '1.25rem', fontFamily: 'var(--font-ui)', fontSize: '0.875rem' }}>
-          <span>
-            <strong style={{ color: '#7a1f1f' }}>{unresolved.length}</strong>{' '}
-            <span style={{ color: 'var(--color-text-secondary)' }}>unresolved</span>
-          </span>
-          <span>
-            <strong style={{ color: 'var(--color-text-secondary)' }}>{resolved.length}</strong>{' '}
-            <span style={{ color: 'var(--color-text-secondary)' }}>resolved</span>
-          </span>
-        </div>
-      </div>
-      <p style={{ fontFamily: 'var(--font-body)', color: 'var(--color-text-secondary)', marginTop: '0.25rem', marginBottom: '1.5rem' }}>
-        Background-job failures (scout, brief, summarize, etc.). Resolve once you&rsquo;ve investigated.
-      </p>
+      <PageHeader
+        title="System Errors"
+        description="Background-job failures (scout, brief, summarize, etc.). Resolve once you've investigated."
+        actions={
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <Badge tone={unresolved.length > 0 ? 'danger' : 'neutral'}>
+              {unresolved.length} unresolved
+            </Badge>
+            <Badge tone="neutral">{resolved.length} resolved</Badge>
+          </div>
+        }
+      />
 
       {errors.length === 0 ? (
-        <p style={{ fontFamily: 'var(--font-body)', color: 'var(--color-text-secondary)' }}>
-          No errors logged. 🎉
-        </p>
+        <EmptyState title="No errors logged" description="You're in the clear." />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
           {errors.map((e) => (
             <ErrorCard key={e.id} err={e} />
           ))}
@@ -58,75 +55,47 @@ function ErrorCard({ err }: { err: Awaited<ReturnType<typeof import('@/utils/sup
   const isResolved = !!err.resolved_at
   return (
     <div
+      className="admin-card"
       style={{
-        border: '1px solid var(--color-border-soft)',
-        borderLeft: `3px solid ${isResolved ? 'var(--color-border-soft)' : '#7a1f1f'}`,
-        borderRadius: 'var(--radius-card)',
-        padding: '1rem 1.125rem',
-        background: 'var(--color-background)',
-        opacity: isResolved ? 0.65 : 1,
+        padding: '0.875rem 1rem',
+        borderLeft: `3px solid ${isResolved ? 'var(--admin-border)' : 'var(--admin-danger)'}`,
+        opacity: isResolved ? 0.7 : 1,
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '1rem' }}>
-        <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'baseline', flexWrap: 'wrap' }}>
-          <span
-            style={{
-              fontFamily: 'var(--font-ui)',
-              fontSize: '0.75rem',
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              padding: '0.125rem 0.5rem',
-              borderRadius: '999px',
-              background: 'var(--color-background-soft)',
-              color: 'var(--color-primary)',
-            }}
-          >
-            {err.source}
-          </span>
-          <span style={{ fontFamily: 'var(--font-ui)', fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <Badge tone={isResolved ? 'neutral' : 'danger'}>{err.source}</Badge>
+          <span style={{ fontSize: '0.75rem', color: 'var(--admin-text-subtle)' }}>
             {formatTime(err.created_at)}
           </span>
           {isResolved && (
-            <span style={{ fontFamily: 'var(--font-ui)', fontSize: '0.75rem', color: '#2E7D32' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--admin-success)' }}>
               ✓ resolved {formatTime(err.resolved_at!)}
             </span>
           )}
         </div>
         {!isResolved && (
           <form action={resolveErrorAction.bind(null, err.id)}>
-            <button
-              type="submit"
-              style={{
-                background: 'transparent',
-                border: '1px solid var(--color-border-soft)',
-                borderRadius: 'var(--radius-ui)',
-                padding: '0.25rem 0.625rem',
-                fontFamily: 'var(--font-ui)',
-                fontSize: '0.8125rem',
-                color: 'var(--color-text-secondary)',
-                cursor: 'pointer',
-              }}
-            >
+            <button type="submit" className="admin-btn admin-btn-secondary admin-btn-sm">
               Resolve
             </button>
           </form>
         )}
       </div>
-      <div style={{ marginTop: '0.5rem', fontFamily: 'var(--font-body)', fontSize: '0.9375rem', color: 'var(--color-text-primary)' }}>
+      <div style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: 'var(--admin-text)', fontFamily: 'var(--font-body)' }}>
         {err.message}
       </div>
       {err.stack && (
         <details style={{ marginTop: '0.5rem' }}>
-          <summary style={{ cursor: 'pointer', fontSize: '0.8125rem', color: 'var(--color-text-secondary)', fontFamily: 'var(--font-ui)' }}>
+          <summary style={{ cursor: 'pointer', fontSize: '0.75rem', color: 'var(--admin-text-muted)' }}>
             Stack trace
           </summary>
           <pre style={{
             marginTop: '0.5rem',
             padding: '0.625rem',
-            background: 'var(--color-background-soft)',
-            borderRadius: 'var(--radius-ui)',
-            fontSize: '0.75rem',
+            background: 'var(--admin-surface-alt)',
+            borderRadius: 'var(--admin-radius)',
+            fontSize: '0.6875rem',
             overflow: 'auto',
             whiteSpace: 'pre-wrap',
           }}>
@@ -136,15 +105,15 @@ function ErrorCard({ err }: { err: Awaited<ReturnType<typeof import('@/utils/sup
       )}
       {err.context != null && (
         <details style={{ marginTop: '0.375rem' }}>
-          <summary style={{ cursor: 'pointer', fontSize: '0.8125rem', color: 'var(--color-text-secondary)', fontFamily: 'var(--font-ui)' }}>
+          <summary style={{ cursor: 'pointer', fontSize: '0.75rem', color: 'var(--admin-text-muted)' }}>
             Context
           </summary>
           <pre style={{
             marginTop: '0.5rem',
             padding: '0.625rem',
-            background: 'var(--color-background-soft)',
-            borderRadius: 'var(--radius-ui)',
-            fontSize: '0.75rem',
+            background: 'var(--admin-surface-alt)',
+            borderRadius: 'var(--admin-radius)',
+            fontSize: '0.6875rem',
             overflow: 'auto',
           }}>
             {JSON.stringify(err.context, null, 2)}

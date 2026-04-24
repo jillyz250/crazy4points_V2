@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { regenerateAlertDraftAction } from '@/app/admin/(protected)/alerts/actions'
+import { reverifyAlertClaimsAction } from './actions'
 
-export default function RegenerateButton({ alertId }: { alertId: string }) {
+export function ReverifyButton({ alertId }: { alertId: string }) {
   const [isPending, startTransition] = useTransition()
   const [msg, setMsg] = useState<string | null>(null)
   const [isError, setIsError] = useState(false)
@@ -12,34 +12,34 @@ export default function RegenerateButton({ alertId }: { alertId: string }) {
     <div style={{ display: 'inline-flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
       <button
         type="button"
+        className="rg-btn-secondary"
         disabled={isPending}
-        className="admin-btn admin-btn-secondary admin-btn-sm"
+        style={{ fontSize: '0.75rem', padding: '0.25rem 0.625rem' }}
         onClick={() => {
-          if (!confirm('Regenerate this draft from the original source? This overwrites the current title, summary, description, and program tags with fresh AI output using the latest rules. Manual edits will be lost.')) return
           setMsg(null)
           setIsError(false)
           startTransition(async () => {
-            const r = await regenerateAlertDraftAction(alertId)
+            const r = await reverifyAlertClaimsAction(alertId)
             if (!r.ok) {
               setIsError(true)
               setMsg(r.error ?? 'Unknown error')
             } else if (r.verdictCounts) {
-              const { supported, likely_correct, likely_wrong, unverifiable } = r.verdictCounts
-              setMsg(`✓ ${supported} supported · ${likely_correct} correct · ${likely_wrong} wrong · ${unverifiable} unverifiable`)
+              const { likely_correct, likely_wrong, unverifiable } = r.verdictCounts
+              setMsg(`✓ ${likely_correct} correct · ${likely_wrong} wrong · ${unverifiable} unverifiable`)
             } else {
-              setMsg('✓ Regenerated')
+              setMsg('Done')
             }
           })
         }}
       >
-        {isPending ? 'Regenerating…' : 'Regenerate'}
+        {isPending ? 'Re-verifying…' : 'Re-run web verify'}
       </button>
       {msg && (
         <span
           style={{
             fontSize: '0.75rem',
             fontFamily: 'var(--font-ui)',
-            color: isError ? 'var(--admin-danger)' : 'var(--admin-success)',
+            color: isError ? '#c0392b' : '#1e5c2e',
           }}
         >
           {msg}
