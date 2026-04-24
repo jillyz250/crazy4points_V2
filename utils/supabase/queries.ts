@@ -988,3 +988,36 @@ export async function updateProgramOfficialFaqUrl(
   if (error) throw error
 }
 
+export interface ProgramFaqCache {
+  program_id: string
+  url: string
+  content: string
+  fetched_at: string
+}
+
+export async function getProgramFaqCache(
+  supabase: SupabaseClient,
+  programId: string
+): Promise<ProgramFaqCache | null> {
+  const { data, error } = await supabase
+    .from('program_faq_cache')
+    .select('program_id, url, content, fetched_at')
+    .eq('program_id', programId)
+    .maybeSingle()
+  if (error) throw error
+  return (data as ProgramFaqCache | null) ?? null
+}
+
+export async function upsertProgramFaqCache(
+  supabase: SupabaseClient,
+  row: { program_id: string; url: string; content: string }
+): Promise<void> {
+  const { error } = await supabase
+    .from('program_faq_cache')
+    .upsert(
+      { program_id: row.program_id, url: row.url, content: row.content, fetched_at: new Date().toISOString() },
+      { onConflict: 'program_id' }
+    )
+  if (error) throw error
+}
+
