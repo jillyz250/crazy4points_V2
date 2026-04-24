@@ -336,7 +336,7 @@ function validate(draft: unknown, programs: WriteDraftProgram[]): AlertDraft {
   if (!d || typeof d !== 'object') throw new Error('Draft not an object')
   if (typeof d.title !== 'string' || !d.title.trim()) throw new Error('Missing title')
   if (typeof d.summary !== 'string' || !d.summary.trim()) throw new Error('Missing summary')
-  if (!['book', 'transfer', 'apply', 'monitor', 'learn'].includes(d.action_type)) {
+  if (!['book', 'transfer', 'apply', 'status_match', 'monitor', 'learn'].includes(d.action_type)) {
     throw new Error(`Invalid action_type: ${d.action_type}`)
   }
 
