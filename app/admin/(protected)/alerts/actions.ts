@@ -16,6 +16,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { writeAlertDraft } from '@/utils/ai/writeAlertDraft'
 import { editAlertDraft } from '@/utils/ai/editAlertDraft'
 import { verifyAlertDraft, webVerifyClaims, type VerifyClaim } from '@/utils/ai/verifyAlertDraft'
+import { reviseAlertDraft, type RevisionLogEntry } from '@/utils/ai/reviseAlertDraft'
 
 // Increment the source-approved counter whenever an alert from intel
 // transitions into a published/approved state — regardless of which button
@@ -237,6 +238,7 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
 
   let finalClaims: VerifyClaim[] = []
   let checkedAt: string | null = null
+  let reviseLog: RevisionLogEntry[] = []
   try {
     const verify = await verifyAlertDraft({
       draft: { title: draft.title, summary: draft.summary, description: draft.description },
@@ -261,6 +263,78 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
           )
         }
       }
+
+      // Revise loop — parity with build-brief. Rewrite likely_wrong claims
+      // up to REGEN_REVISE_MAX_ITERS times. Each pass: revise → persist →
+      // re-verify → re-webVerify. Exits early if no likely_wrong remain.
+      const REGEN_REVISE_MAX_ITERS = 2
+      let workingDraft = {
+        title: draft.title,
+        summary: draft.summary,
+        description: draft.description,
+      }
+      let iter = 0
+      while (iter < REGEN_REVISE_MAX_ITERS) {
+        const likelyWrong = finalClaims.filter((c) => c.web_verdict === 'likely_wrong')
+        if (likelyWrong.length === 0) break
+        iter++
+        try {
+          const revised = await reviseAlertDraft({
+            draft: workingDraft,
+            problem_claims: likelyWrong,
+            source_url: (intel.source_url as string | null) ?? null,
+            iter,
+          })
+          workingDraft = revised.revised
+          reviseLog = [...reviseLog, ...revised.log]
+
+          await updateAlert(supabase, alertId, {
+            title: workingDraft.title,
+            summary: workingDraft.summary,
+            description: workingDraft.description,
+          })
+
+          const reverify = await verifyAlertDraft({
+            draft: workingDraft,
+            raw_text: (intel.raw_text as string | null) ?? null,
+            source_url: (intel.source_url as string | null) ?? null,
+          })
+          if (!reverify) break
+          let reverified = reverify.claims
+          checkedAt = reverify.checked_at
+          if (reverified.some((c) => !c.supported)) {
+            try {
+              reverified = await webVerifyClaims({
+                claims: reverified,
+                context: {
+                  title: workingDraft.title,
+                  source_url: (intel.source_url as string | null) ?? null,
+                },
+              })
+            } catch (err) {
+              await logSystemError(supabase, 'alerts:regenerate:webVerify:post-revise', err, {
+                alert_id: alertId,
+                iter,
+              })
+              reverified = reverified.map((c) =>
+                c.supported
+                  ? c
+                  : { ...c, web_verdict: 'unverifiable' as const, web_evidence: null, web_url: null }
+              )
+              finalClaims = reverified
+              break
+            }
+          }
+          finalClaims = reverified
+        } catch (err) {
+          await logSystemError(supabase, 'alerts:regenerate:reviseAlertDraft', err, {
+            alert_id: alertId,
+            iter,
+          })
+          break
+        }
+      }
+
       await updateAlert(supabase, alertId, {
         fact_check_claims: finalClaims,
         fact_check_at: checkedAt,
@@ -268,6 +342,28 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
     }
   } catch (err) {
     await logSystemError(supabase, 'alerts:regenerate:verify', err, { alert_id: alertId })
+  }
+
+  // Append any revise log entries to the revision_log we already wrote
+  // (which contains the 'regenerate' prev-snapshot entry).
+  if (reviseLog.length > 0) {
+    try {
+      const { data: fresh } = await supabase
+        .from('alerts')
+        .select('revision_log')
+        .eq('id', alertId)
+        .maybeSingle()
+      const current = Array.isArray(fresh?.revision_log)
+        ? (fresh!.revision_log as Array<Record<string, unknown>>)
+        : []
+      await updateAlert(supabase, alertId, {
+        revision_log: [...current, ...reviseLog],
+      })
+    } catch (err) {
+      await logSystemError(supabase, 'alerts:regenerate:revision_log_append', err, {
+        alert_id: alertId,
+      })
+    }
   }
 
   const verdictCounts = { likely_correct: 0, likely_wrong: 0, unverifiable: 0, supported: 0 }
