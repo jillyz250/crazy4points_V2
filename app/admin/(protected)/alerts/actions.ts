@@ -17,6 +17,7 @@ import { writeAlertDraft } from '@/utils/ai/writeAlertDraft'
 import { editAlertDraft } from '@/utils/ai/editAlertDraft'
 import { verifyAlertDraft, webVerifyClaims, type VerifyClaim } from '@/utils/ai/verifyAlertDraft'
 import { reviseAlertDraft, type RevisionLogEntry } from '@/utils/ai/reviseAlertDraft'
+import { enrichIntelContext } from '@/utils/ai/enrichIntelContext'
 
 function errMessage(err: unknown): string {
   if (err instanceof Error) return err.message
@@ -149,7 +150,7 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
       .select('id, headline, raw_text, source_name, source_url, alert_type, programs')
       .eq('id', alert.source_intel_id as string)
       .maybeSingle(),
-    supabase.from('programs').select('id, slug, name, type'),
+    supabase.from('programs').select('id, slug, name, type, official_faq_url'),
     supabase
       .from('alerts')
       .select('title, summary')
@@ -169,12 +170,31 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
     slug: p.slug as string,
     name: p.name as string,
     type: p.type as string,
+    official_faq_url: (p.official_faq_url as string | null) ?? null,
   }))
   const programBySlug = new Map(allPrograms.map((p) => [p.slug, p]))
   const recentSamples = (recentRes.data ?? []).map((r) => ({
     title: (r.title as string) ?? '',
     summary: (r.summary as string) ?? '',
   }))
+
+  // Pre-writer FAQ enrichment: fetch official FAQ pages for the programs
+  // Scout tagged on this intel. 24h cache + fail-soft — on any error we
+  // proceed with raw_text alone rather than block the regenerate.
+  const intelProgramSlugs = (intel.programs as string[] | null) ?? []
+  const intelPrograms = intelProgramSlugs
+    .map((slug) => programBySlug.get(slug))
+    .filter((p): p is typeof allPrograms[number] => !!p)
+  let extra_context: string | null = null
+  let faq_urls: string[] = []
+  try {
+    const enriched = await enrichIntelContext({ supabase, programs: intelPrograms })
+    extra_context = enriched.extra_context
+    faq_urls = enriched.fetched_urls
+  } catch (err) {
+    await logSystemError(supabase, 'alerts:regenerate:enrichIntelContext', err, { alert_id: alertId })
+    // swallow — enrichment is best-effort
+  }
 
   let draft
   try {
@@ -190,6 +210,7 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
       },
       programs: allPrograms,
       recent_samples: recentSamples,
+      extra_context,
     })
   } catch (err) {
     await logSystemError(supabase, 'alerts:regenerate:writeDraft', err, { alert_id: alertId })
@@ -229,6 +250,7 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
       summary: (alert.summary as string) ?? '',
       description: (alert.description as string | null) ?? null,
     },
+    faq_urls,
   }
 
   try {
