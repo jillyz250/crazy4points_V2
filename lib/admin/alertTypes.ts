@@ -40,6 +40,7 @@ export const ACTION_TYPES: readonly { value: AlertActionType; label: string }[] 
   { value: 'book', label: 'Book Now' },
   { value: 'transfer', label: 'Transfer Points' },
   { value: 'apply', label: 'Apply for Card' },
+  { value: 'status_match', label: 'Status Match' },
   { value: 'monitor', label: 'Monitor This Deal' },
   { value: 'learn', label: 'Learn More' },
 ] as const
