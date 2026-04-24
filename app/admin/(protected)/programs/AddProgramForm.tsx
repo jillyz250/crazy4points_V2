@@ -101,15 +101,6 @@ export default function AddProgramForm() {
         <label style={labelStyle}>Program URL</label>
         <input name="program_url" type="url" placeholder="https://…" className="admin-input" />
       </div>
-      <div style={{ gridColumn: '1 / -1' }}>
-        <label style={labelStyle}>Official FAQ / Terms URL</label>
-        <input
-          name="official_faq_url"
-          type="url"
-          placeholder="https://…/faq or …/terms (program's own site, not a blog)"
-          className="admin-input"
-        />
-      </div>
       {error && (
         <div style={{ gridColumn: '1 / -1', color: 'var(--admin-danger)', fontSize: '0.8125rem' }}>{error}</div>
       )}

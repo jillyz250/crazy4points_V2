@@ -3,7 +3,6 @@ import { getAllPrograms } from '@/utils/supabase/queries'
 import type { ProgramType, Program } from '@/utils/supabase/queries'
 import { toggleProgramAction } from './actions'
 import AddProgramForm from './AddProgramForm'
-import FaqUrlCell from './FaqUrlCell'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Card } from '@/components/admin/ui/Card'
 import { Badge } from '@/components/admin/ui/Badge'
@@ -89,7 +88,6 @@ export default async function AdminProgramsPage() {
                           <th>Tier</th>
                           <th>Monitor</th>
                           <th>URL</th>
-                          <th>FAQ</th>
                           <th>Active</th>
                         </tr>
                       </thead>
@@ -107,9 +105,6 @@ export default async function AdminProgramsPage() {
                               ) : (
                                 <span style={{ color: 'var(--admin-text-subtle)' }}>—</span>
                               )}
-                            </td>
-                            <td>
-                              <FaqUrlCell programId={program.id} initialUrl={program.official_faq_url} />
                             </td>
                             <td>
                               <form action={toggleProgramAction.bind(null, program.id, !program.is_active)}>
