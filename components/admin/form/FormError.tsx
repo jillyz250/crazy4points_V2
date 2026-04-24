@@ -5,16 +5,19 @@ interface Props {
 export default function FormError({ error }: Props) {
   if (!error) return null
   return (
-    <p
+    <div
       role="alert"
       style={{
-        color: '#c0392b',
-        fontSize: '0.875rem',
+        padding: '0.625rem 0.75rem',
         marginBottom: '1rem',
-        fontFamily: 'var(--font-body)',
+        borderRadius: 'var(--admin-radius)',
+        border: '1px solid var(--admin-danger)',
+        background: 'var(--admin-danger-soft)',
+        color: 'var(--admin-danger)',
+        fontSize: '0.8125rem',
       }}
     >
       {error}
-    </p>
+    </div>
   )
 }

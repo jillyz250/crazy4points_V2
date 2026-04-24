@@ -14,20 +14,16 @@ export default function FormActions({
   cancelLabel = 'Cancel',
 }: Props) {
   return (
-    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.5rem' }}>
       <button
         type="submit"
         disabled={submitting}
-        className="rg-btn-primary"
-        style={{ opacity: submitting ? 0.7 : 1 }}
+        className="admin-btn admin-btn-primary"
       >
         {submitting ? submittingLabel : submitLabel}
       </button>
       {cancelHref && (
-        <a
-          href={cancelHref}
-          style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', textDecoration: 'underline' }}
-        >
+        <a href={cancelHref} className="admin-btn admin-btn-ghost">
           {cancelLabel}
         </a>
       )}

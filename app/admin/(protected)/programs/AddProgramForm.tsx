@@ -15,22 +15,14 @@ const TYPES: Array<{ value: string; label: string }> = [
   { value: 'ota', label: 'OTA' },
 ]
 
-const inputStyle: React.CSSProperties = {
-  padding: '0.45rem 0.6rem',
-  border: '1px solid var(--color-border-soft)',
-  borderRadius: 'var(--radius-ui)',
-  fontSize: '0.875rem',
-  fontFamily: 'var(--font-body)',
-  background: '#fff',
-}
-
 const labelStyle: React.CSSProperties = {
-  fontSize: '0.75rem',
-  fontFamily: 'var(--font-ui)',
-  color: 'var(--color-text-secondary)',
-  fontWeight: 600,
+  fontSize: '0.6875rem',
+  color: 'var(--admin-text-muted)',
+  fontWeight: 700,
   marginBottom: '0.25rem',
   display: 'block',
+  textTransform: 'uppercase',
+  letterSpacing: '0.05em',
 }
 
 export default function AddProgramForm() {
@@ -44,8 +36,7 @@ export default function AddProgramForm() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rg-btn-secondary"
-        style={{ fontSize: '0.8125rem', padding: '0.4rem 0.9rem' }}
+        className="admin-btn admin-btn-secondary admin-btn-sm"
       >
         + Add Program
       </button>
@@ -69,12 +60,9 @@ export default function AddProgramForm() {
           }
         })
       }}
+      className="admin-card"
       style={{
         padding: '1rem',
-        background: 'var(--color-background-soft)',
-        border: '1px solid var(--color-border-soft)',
-        borderRadius: 'var(--radius-card)',
-        marginBottom: '1.5rem',
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(12rem, 1fr))',
         gap: '0.75rem',
@@ -83,26 +71,26 @@ export default function AddProgramForm() {
     >
       <div>
         <label style={labelStyle}>Slug *</label>
-        <input name="slug" required placeholder="atmos" style={inputStyle} />
+        <input name="slug" required placeholder="atmos" className="admin-input" />
       </div>
       <div>
         <label style={labelStyle}>Name *</label>
-        <input name="name" required placeholder="Atmos Rewards" style={inputStyle} />
+        <input name="name" required placeholder="Atmos Rewards" className="admin-input" />
       </div>
       <div>
         <label style={labelStyle}>Type *</label>
-        <select name="type" required defaultValue="" style={inputStyle}>
+        <select name="type" required defaultValue="" className="admin-input">
           <option value="" disabled>Select…</option>
           {TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
         </select>
       </div>
       <div>
         <label style={labelStyle}>Tier</label>
-        <input name="tier" placeholder="optional" style={inputStyle} />
+        <input name="tier" placeholder="optional" className="admin-input" />
       </div>
       <div>
         <label style={labelStyle}>Monitor</label>
-        <select name="monitor_tier" defaultValue="" style={inputStyle}>
+        <select name="monitor_tier" defaultValue="" className="admin-input">
           <option value="">—</option>
           <option value="daily">Daily</option>
           <option value="weekly">Weekly</option>
@@ -111,20 +99,20 @@ export default function AddProgramForm() {
       </div>
       <div style={{ gridColumn: '1 / -1' }}>
         <label style={labelStyle}>Program URL</label>
-        <input name="program_url" type="url" placeholder="https://…" style={{ ...inputStyle, width: '100%' }} />
+        <input name="program_url" type="url" placeholder="https://…" className="admin-input" />
       </div>
       {error && (
-        <div style={{ gridColumn: '1 / -1', color: '#7a1f1f', fontSize: '0.8125rem' }}>{error}</div>
+        <div style={{ gridColumn: '1 / -1', color: 'var(--admin-danger)', fontSize: '0.8125rem' }}>{error}</div>
       )}
       <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '0.5rem' }}>
-        <button type="submit" disabled={isPending} className="rg-btn-primary" style={{ fontSize: '0.8125rem', padding: '0.45rem 1rem' }}>
+        <button type="submit" disabled={isPending} className="admin-btn admin-btn-primary admin-btn-sm">
           {isPending ? 'Saving…' : 'Save'}
         </button>
         <button
           type="button"
           onClick={() => { setOpen(false); setError(null) }}
           disabled={isPending}
-          style={{ ...inputStyle, cursor: 'pointer', fontFamily: 'var(--font-ui)' }}
+          className="admin-btn admin-btn-ghost admin-btn-sm"
         >
           Cancel
         </button>

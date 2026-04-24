@@ -38,10 +38,9 @@ export default function TagProgramsPicker({
       <div style={labelStyle}>{label}</div>
       <p
         style={{
-          fontSize: '0.8125rem',
-          color: 'var(--color-text-secondary)',
-          marginBottom: '0.75rem',
-          fontFamily: 'var(--font-body)',
+          fontSize: '0.75rem',
+          color: 'var(--admin-text-muted)',
+          marginBottom: '0.625rem',
         }}
       >
         {hint}
@@ -51,26 +50,25 @@ export default function TagProgramsPicker({
       ))}
       <div
         style={{
-          border: '1px solid var(--color-border-soft)',
-          borderRadius: 'var(--radius-card)',
+          border: '1px solid var(--admin-border)',
+          borderRadius: 'var(--admin-radius)',
           maxHeight: '280px',
           overflowY: 'auto',
-          background: 'var(--color-background)',
+          background: 'var(--admin-surface)',
         }}
       >
         {Object.entries(grouped).map(([type, progs]) => (
           <div key={type}>
             <div
               style={{
-                padding: '0.4rem 0.75rem',
-                fontSize: '0.75rem',
+                padding: '0.375rem 0.625rem',
+                fontSize: '0.6875rem',
                 fontWeight: 700,
-                fontFamily: 'var(--font-ui)',
                 textTransform: 'uppercase',
                 letterSpacing: '0.05em',
-                color: 'var(--color-text-secondary)',
-                background: 'var(--color-background-soft)',
-                borderBottom: '1px solid var(--color-border-soft)',
+                color: 'var(--admin-text-muted)',
+                background: 'var(--admin-surface-alt)',
+                borderBottom: '1px solid var(--admin-border)',
               }}
             >
               {PROGRAM_TYPE_LABELS[type as ProgramType] ?? type}
@@ -82,19 +80,18 @@ export default function TagProgramsPicker({
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.5rem',
-                  padding: '0.375rem 0.75rem',
+                  padding: '0.375rem 0.625rem',
                   cursor: 'pointer',
-                  borderBottom: '1px solid var(--color-border-soft)',
-                  fontSize: '0.9rem',
-                  fontFamily: 'var(--font-body)',
-                  background: selected.has(p.id) ? '#f5eeff' : 'transparent',
+                  borderBottom: '1px solid var(--admin-border)',
+                  fontSize: '0.875rem',
+                  background: selected.has(p.id) ? 'var(--admin-accent-soft)' : 'transparent',
                 }}
               >
                 <input
                   type="checkbox"
                   checked={selected.has(p.id)}
                   onChange={() => toggle(p.id)}
-                  style={{ accentColor: 'var(--color-primary)' }}
+                  style={{ accentColor: 'var(--admin-accent)' }}
                 />
                 {p.name}
               </label>
@@ -105,10 +102,10 @@ export default function TagProgramsPicker({
       {selected.size > 0 && (
         <p
           style={{
-            fontSize: '0.8125rem',
-            color: 'var(--color-primary)',
+            fontSize: '0.75rem',
+            color: 'var(--admin-accent)',
             marginTop: '0.5rem',
-            fontFamily: 'var(--font-body)',
+            fontWeight: 600,
           }}
         >
           {selected.size} program{selected.size !== 1 ? 's' : ''} tagged
