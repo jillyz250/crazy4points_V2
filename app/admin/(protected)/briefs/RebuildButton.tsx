@@ -11,7 +11,7 @@ export function RebuildButton({ briefId }: { briefId: string }) {
     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
       <button
         type="button"
-        className="rg-btn-secondary"
+        className="admin-btn admin-btn-secondary admin-btn-sm"
         disabled={isPending}
         onClick={() => {
           setError(null)
@@ -21,10 +21,10 @@ export function RebuildButton({ briefId }: { briefId: string }) {
           })
         }}
       >
-        {isPending ? 'Rebuilding…' : 'Rebuild HTML'}
+        {isPending ? 'Rebuilding…' : 'Rebuild'}
       </button>
       {error && (
-        <span style={{ fontSize: '0.75rem', color: '#c0392b', fontFamily: 'var(--font-ui)' }}>
+        <span style={{ fontSize: '0.75rem', color: 'var(--admin-danger)' }}>
           {error}
         </span>
       )}

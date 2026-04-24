@@ -2,6 +2,10 @@ import Link from 'next/link'
 import { createAdminClient } from '@/utils/supabase/server'
 import NewsletterEditor from './NewsletterEditor'
 import type { NewsletterDraft } from '@/utils/ai/buildNewsletter'
+import { PageHeader } from '@/components/admin/ui/PageHeader'
+import { Card } from '@/components/admin/ui/Card'
+import { Badge } from '@/components/admin/ui/Badge'
+import { EmptyState as UIEmptyState } from '@/components/admin/ui/EmptyState'
 
 export const dynamic = 'force-dynamic'
 
@@ -63,91 +67,68 @@ export default async function NewsletterAdminPage({
           <History rows={rows} activeId={current.id} />
         </>
       ) : (
-        <EmptyState hasAny={rows.length > 0} rows={rows} />
+        <EmptyShell hasAny={rows.length > 0} rows={rows} />
       )}
     </div>
   )
 }
 
+function statusTone(status: NewsletterRow['status']): 'accent' | 'success' | 'danger' {
+  if (status === 'sent') return 'success'
+  if (status === 'failed') return 'danger'
+  return 'accent'
+}
+
 function History({ rows, activeId }: { rows: NewsletterRow[]; activeId: string }) {
   if (rows.length <= 1) return null
   return (
-    <div style={{ marginTop: '2.5rem' }}>
-      <h2 style={{ fontSize: '1.125rem', marginBottom: '0.75rem' }}>Past weeks</h2>
-      <div style={{
-        border: '1px solid var(--color-border-soft)',
-        borderRadius: 'var(--radius-card)',
-        overflow: 'hidden',
-        background: '#fff',
-      }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-body)', fontSize: '0.9375rem' }}>
-          <thead>
-            <tr style={{ background: 'var(--color-background-soft)', textAlign: 'left' }}>
-              <th style={thStyle}>Week of</th>
-              <th style={thStyle}>Subject</th>
-              <th style={thStyle}>Status</th>
-              <th style={thStyle}>Sent to</th>
-              <th style={thStyle}></th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.id} style={{ borderTop: '1px solid var(--color-border-soft)', background: r.id === activeId ? 'var(--color-background-soft)' : 'transparent' }}>
-                <td style={tdStyle}>{r.week_of}</td>
-                <td style={tdStyle}>{r.subject ?? <em style={{ color: 'var(--color-text-secondary)' }}>—</em>}</td>
-                <td style={tdStyle}>{r.status}</td>
-                <td style={tdStyle}>{r.recipient_count ?? '—'}</td>
-                <td style={tdStyle}>
-                  {r.id !== activeId && (
-                    <Link href={`/admin/newsletter?id=${r.id}`} style={{ color: 'var(--color-primary)', fontWeight: 600, textDecoration: 'none' }}>
-                      Open →
-                    </Link>
-                  )}
-                </td>
+    <div style={{ marginTop: '2rem' }}>
+      <h2 style={{ fontSize: '0.9375rem', marginBottom: '0.75rem' }}>Past weeks</h2>
+      <Card>
+        <div style={{ overflowX: 'auto' }}>
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Week of</th>
+                <th>Subject</th>
+                <th>Status</th>
+                <th>Sent to</th>
+                <th></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id} style={{ background: r.id === activeId ? 'var(--admin-surface-alt)' : 'transparent' }}>
+                  <td style={{ fontWeight: 500 }}>{r.week_of}</td>
+                  <td>{r.subject ?? <span style={{ color: 'var(--admin-text-subtle)' }}>—</span>}</td>
+                  <td><Badge tone={statusTone(r.status)}>{r.status}</Badge></td>
+                  <td style={{ color: 'var(--admin-text-muted)' }}>{r.recipient_count ?? '—'}</td>
+                  <td>
+                    {r.id !== activeId && (
+                      <Link href={`/admin/newsletter?id=${r.id}`} style={{ fontWeight: 600 }}>
+                        Open →
+                      </Link>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
     </div>
   )
 }
 
-function EmptyState({ hasAny, rows }: { hasAny: boolean; rows: NewsletterRow[] }) {
+function EmptyShell({ hasAny, rows }: { hasAny: boolean; rows: NewsletterRow[] }) {
   return (
     <div>
-      <h1>Newsletter</h1>
-      <div style={{
-        marginTop: '1rem',
-        padding: '2rem',
-        border: '1px dashed var(--color-border-soft)',
-        borderRadius: 'var(--radius-card)',
-        background: 'var(--color-background-soft)',
-        textAlign: 'center',
-      }}>
-        <p style={{ fontFamily: 'var(--font-body)', color: 'var(--color-text-secondary)', margin: '0 0 1rem' }}>
-          {hasAny ? 'Selected newsletter has no draft content.' : 'No newsletters yet.'}
-        </p>
-        <p style={{ fontFamily: 'var(--font-body)', color: 'var(--color-text-secondary)', margin: 0, fontSize: '0.875rem' }}>
-          Trigger one manually: <code>curl -H "x-intel-secret: $INTEL_API_SECRET" http://localhost:3000/api/build-newsletter?force=1</code>
-        </p>
-      </div>
+      <PageHeader title="Newsletter" description="Weekly newsletter draft & send." />
+      <UIEmptyState
+        title={hasAny ? 'Selected newsletter has no draft content' : 'No newsletters yet'}
+        description={`Trigger one manually: curl -H "x-intel-secret: $INTEL_API_SECRET" http://localhost:3000/api/build-newsletter?force=1`}
+      />
       {hasAny && <History rows={rows} activeId="" />}
     </div>
   )
-}
-
-const thStyle: React.CSSProperties = {
-  padding: '0.75rem 1rem',
-  fontFamily: 'var(--font-ui)',
-  fontSize: '0.75rem',
-  fontWeight: 700,
-  letterSpacing: '0.06em',
-  textTransform: 'uppercase',
-  color: 'var(--color-text-secondary)',
-}
-
-const tdStyle: React.CSSProperties = {
-  padding: '0.75rem 1rem',
-  verticalAlign: 'middle',
 }

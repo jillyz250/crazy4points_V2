@@ -1,42 +1,51 @@
-import Link from 'next/link'
 import { createAdminClient } from '@/utils/supabase/server'
 import { getSources, getLastFindingBySource } from '@/utils/supabase/queries'
 import type { SourceType } from '@/utils/supabase/queries'
 import { toggleSourceAction } from './actions'
+import { PageHeader } from '@/components/admin/ui/PageHeader'
+import { LinkButton } from '@/components/admin/ui/Button'
+import { Card } from '@/components/admin/ui/Card'
+import { Badge } from '@/components/admin/ui/Badge'
+import { EmptyState } from '@/components/admin/ui/EmptyState'
 
-const TIER_BADGE: Record<number, { bg: string; color: string }> = {
-  1: { bg: '#f0e6fa', color: '#6B2D8F' },
-  2: { bg: '#e6f4ea', color: '#1e7e34' },
-  3: { bg: '#fff8e1', color: '#b45309' },
-  4: { bg: '#fdecea', color: '#c0392b' },
-  5: { bg: '#f0f0f0', color: '#555555' },
+type Tone = 'accent' | 'success' | 'warning' | 'danger' | 'neutral'
+
+const TIER_TONE: Record<number, Tone> = {
+  1: 'accent',
+  2: 'success',
+  3: 'warning',
+  4: 'danger',
+  5: 'neutral',
 }
 
 const TYPE_LABEL: Record<SourceType, string> = {
-  official_partner: 'Official Partner',
+  official_partner: 'Official',
   blog: 'Blog',
   community: 'Community',
   social: 'Social',
   email: 'Email',
 }
 
-function freshnessColor(iso: string | null | undefined): string {
-  if (!iso) return '#c0392b'
+function freshness(iso: string | null | undefined): { tone: Tone; label: string } {
+  if (!iso) return { tone: 'danger', label: 'never' }
   const ageMs = Date.now() - new Date(iso).getTime()
   const hours = ageMs / (1000 * 60 * 60)
-  if (hours < 24) return '#1e7e34'
-  if (hours < 24 * 7) return '#b45309'
-  return '#c0392b'
+  let label: string
+  if (hours < 1) label = `${Math.max(1, Math.round(ageMs / 60000))}m`
+  else if (hours < 24) label = `${Math.round(hours)}h`
+  else label = `${Math.round(hours / 24)}d`
+  if (hours < 24) return { tone: 'success', label }
+  if (hours < 24 * 7) return { tone: 'warning', label }
+  return { tone: 'danger', label }
 }
 
-function freshnessLabel(iso: string | null | undefined): string {
-  if (!iso) return 'never'
-  const ageMs = Date.now() - new Date(iso).getTime()
-  const hours = ageMs / (1000 * 60 * 60)
-  if (hours < 1) return `${Math.max(1, Math.round(ageMs / 60000))}m ago`
-  if (hours < 24) return `${Math.round(hours)}h ago`
-  const days = Math.round(hours / 24)
-  return `${days}d ago`
+function approvalRate(produced: number, approved: number): { tone: Tone; label: string } | null {
+  if (produced <= 0) return null
+  const rate = approved / produced
+  const label = `${Math.round(rate * 100)}%`
+  if (rate >= 0.5) return { tone: 'success', label }
+  if (rate >= 0.2) return { tone: 'warning', label }
+  return { tone: 'danger', label }
 }
 
 export default async function AdminSourcesPage() {
@@ -48,144 +57,83 @@ export default async function AdminSourcesPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-        <h1>Sources</h1>
-        <Link href="/admin/sources/new" className="rg-btn-primary">
-          + Add Source
-        </Link>
-      </div>
+      <PageHeader
+        title="Sources"
+        description="Intelligence sources scraped by Claude Scout. Control tiers, frequency, and activity."
+        actions={<LinkButton href="/admin/sources/new" variant="primary">+ Add Source</LinkButton>}
+      />
 
       {sources.length === 0 ? (
-        <p style={{ color: 'var(--color-text-secondary)' }}>No sources yet.</p>
+        <EmptyState title="No sources yet" description="Add one to start feeding Scout." />
       ) : (
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid var(--color-border-soft)', textAlign: 'left' }}>
-                <th style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)' }}>Tier</th>
-                <th style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)' }}>Name</th>
-                <th style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)' }}>Type</th>
-                <th style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)' }}>Feeds</th>
-                <th style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)' }}>Active</th>
-                <th style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)' }}>Last Scraped</th>
-                <th style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)' }}>Last Finding</th>
-                <th style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)', textAlign: 'center' }}>Produced</th>
-                <th style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)', textAlign: 'center' }}>Approved</th>
-                <th style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)', textAlign: 'center' }}>Rate</th>
-                <th style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)' }}>Notes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sources.map((source) => {
-                const tierStyle = TIER_BADGE[source.tier] ?? TIER_BADGE[5]
-                return (
-                  <tr key={source.id} style={{ borderBottom: '1px solid var(--color-border-soft)' }}>
-                    <td style={{ padding: '0.625rem 0.75rem' }}>
-                      <span style={{
-                        display: 'inline-block',
-                        padding: '0.2rem 0.55rem',
-                        borderRadius: '999px',
-                        fontSize: '0.75rem',
-                        fontWeight: 700,
-                        fontFamily: 'var(--font-ui)',
-                        background: tierStyle.bg,
-                        color: tierStyle.color,
-                        minWidth: '1.75rem',
-                        textAlign: 'center',
-                      }}>
-                        {source.tier}
-                      </span>
-                    </td>
-                    <td style={{ padding: '0.625rem 0.75rem', color: 'var(--color-text-primary)', fontWeight: 500 }}>
-                      <a
-                        href={source.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}
-                      >
-                        {source.name}
-                      </a>
-                    </td>
-                    <td style={{ padding: '0.625rem 0.75rem', color: 'var(--color-text-secondary)' }}>
-                      {TYPE_LABEL[source.type] ?? source.type.replace(/_/g, ' ')}
-                    </td>
-                    <td style={{ padding: '0.625rem 0.75rem', color: 'var(--color-text-secondary)', textAlign: 'center' }}>
-                      {source.feed_count}
-                    </td>
-                    <td style={{ padding: '0.625rem 0.75rem' }}>
-                      <form action={toggleSourceAction.bind(null, source.id, !source.is_active)}>
-                        <button
-                          type="submit"
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            padding: 0,
-                            cursor: 'pointer',
-                            fontSize: '0.8125rem',
-                            fontFamily: 'var(--font-body)',
-                            color: source.is_active ? '#1e7e34' : 'var(--color-text-secondary)',
-                            textDecoration: 'underline',
-                          }}
-                        >
-                          {source.is_active ? 'Active' : 'Inactive'}
-                        </button>
-                      </form>
-                    </td>
-                    <td style={{ padding: '0.625rem 0.75rem', color: 'var(--color-text-secondary)' }}>
-                      {source.last_scraped_at
-                        ? new Date(source.last_scraped_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                        : '—'}
-                    </td>
-                    <td style={{ padding: '0.625rem 0.75rem' }}>
-                      {(() => {
-                        const iso = lastFindings.get(source.name) ?? null
-                        return (
-                          <span style={{
-                            fontSize: '0.75rem',
-                            fontWeight: 700,
-                            fontFamily: 'var(--font-ui)',
-                            color: freshnessColor(iso),
-                          }}>
-                            {freshnessLabel(iso)}
-                          </span>
-                        )
-                      })()}
-                    </td>
-                    <td style={{ padding: '0.625rem 0.75rem', color: 'var(--color-text-secondary)', textAlign: 'center' }}>
-                      {source.items_produced}
-                    </td>
-                    <td style={{ padding: '0.625rem 0.75rem', color: 'var(--color-text-secondary)', textAlign: 'center' }}>
-                      {source.items_approved}
-                    </td>
-                    <td style={{ padding: '0.625rem 0.75rem', textAlign: 'center' }}>
-                      {source.items_produced > 0 ? (
-                        <span style={{
-                          fontSize: '0.75rem',
-                          fontWeight: 700,
-                          color: (() => {
-                            const rate = source.items_approved / source.items_produced
-                            if (rate >= 0.5) return '#1e7e34'
-                            if (rate >= 0.2) return '#b45309'
-                            return '#c0392b'
-                          })(),
-                        }}>
-                          {Math.round(source.items_approved / source.items_produced * 100)}%
+        <Card>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Tier</th>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th style={{ textAlign: 'center' }}>Feeds</th>
+                  <th>Active</th>
+                  <th>Last Finding</th>
+                  <th style={{ textAlign: 'center' }}>Produced</th>
+                  <th style={{ textAlign: 'center' }}>Approved</th>
+                  <th style={{ textAlign: 'center' }}>Rate</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sources.map((source) => {
+                  const fresh = freshness(lastFindings.get(source.name) ?? null)
+                  const rate = approvalRate(source.items_produced, source.items_approved)
+                  return (
+                    <tr key={source.id}>
+                      <td><Badge tone={TIER_TONE[source.tier] ?? 'neutral'}>T{source.tier}</Badge></td>
+                      <td style={{ fontWeight: 500 }}>
+                        <a href={source.url} target="_blank" rel="noopener noreferrer">
+                          {source.name}
+                        </a>
+                      </td>
+                      <td style={{ color: 'var(--admin-text-muted)' }}>
+                        {TYPE_LABEL[source.type] ?? source.type.replace(/_/g, ' ')}
+                      </td>
+                      <td style={{ textAlign: 'center', color: 'var(--admin-text-muted)' }}>
+                        {source.feed_count}
+                      </td>
+                      <td>
+                        <form action={toggleSourceAction.bind(null, source.id, !source.is_active)}>
+                          <button type="submit" className="admin-btn admin-btn-ghost admin-btn-sm">
+                            <Badge tone={source.is_active ? 'success' : 'neutral'}>
+                              {source.is_active ? 'Active' : 'Inactive'}
+                            </Badge>
+                          </button>
+                        </form>
+                      </td>
+                      <td>
+                        <Badge tone={fresh.tone}>{fresh.label}</Badge>
+                      </td>
+                      <td style={{ textAlign: 'center', color: 'var(--admin-text-muted)' }}>{source.items_produced}</td>
+                      <td style={{ textAlign: 'center', color: 'var(--admin-text-muted)' }}>{source.items_approved}</td>
+                      <td style={{ textAlign: 'center' }}>
+                        {rate ? (
+                          <Badge tone={rate.tone}>{rate.label}</Badge>
+                        ) : (
+                          <span style={{ color: 'var(--admin-text-subtle)' }}>—</span>
+                        )}
+                      </td>
+                      <td style={{ color: 'var(--admin-text-muted)', maxWidth: '14rem' }}>
+                        <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                          {source.notes ?? '—'}
                         </span>
-                      ) : (
-                        <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.75rem' }}>—</span>
-                      )}
-                    </td>
-                    <td style={{ padding: '0.625rem 0.75rem', color: 'var(--color-text-secondary)', maxWidth: '16rem' }}>
-                      <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                        {source.notes ?? '—'}
-                      </span>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       )}
     </div>
   )
