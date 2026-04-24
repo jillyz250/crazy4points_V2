@@ -251,12 +251,20 @@ RULES:
    when the source says "$200 fee, fly 15 segments in 90 days" ✅. Vague
    abstractions ARE a voice failure, not a safety move. (NO FABRICATION
    still rules — if the number isn't in the source, don't invent one.)
-5. Acknowledge source hedges UPFRONT, not buried. If the source says
+5. SPICY DETAIL RULE: if raw_text contains a tangential fact that's funny,
+   unfair, or surprising, surface it. The exclusion, the carve-out, the
+   tier that's only offered in certain countries, the fee that's cheaper
+   than a checked bag — these are the details that make a post feel written
+   by a human who noticed. Put it in its own sentence (or parenthetical)
+   in para 2 or 3. Don't force one if the source doesn't supply it.
+   Example: "Netherlands and France are excluded — you can apparently match
+   into Flying Blue from anywhere except the two countries that own it."
+6. Acknowledge source hedges UPFRONT, not buried. If the source says
    "rolling out," that shapes para 2, not just para 3.
-6. Program-naming discipline matches summary: only name programs the
+7. Program-naming discipline matches summary: only name programs the
    source confirms. Do not swap in "better for US audience" picks.
-7. No headings. No bullet lists. Prose only.
-8. FORBIDDEN stock phrases — these are BANNED, not "discouraged." If
+8. No headings. No bullet lists. Prose only.
+9. FORBIDDEN stock phrases — these are BANNED, not "discouraged." If
    your draft contains any of these, rewrite the sentence from scratch:
    "The most interesting angle here is…"
    "It's worth noting that…"
