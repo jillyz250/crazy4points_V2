@@ -41,6 +41,7 @@ const ACTION_LABELS: Record<string, string> = {
   book: 'Book Now',
   transfer: 'Transfer Points',
   apply: 'Apply for Card',
+  status_match: 'Request Status Match',
   monitor: 'Monitor This Deal',
   learn: 'Learn More',
 }

@@ -261,10 +261,11 @@ RULES:
 ACTION TYPE
 ═══════════════════════════════════════════════════════════
 
-One of: "book" | "transfer" | "apply" | "monitor" | "learn"
+One of: "book" | "transfer" | "apply" | "status_match" | "monitor" | "learn"
 - book: award availability, hotel/flight deals
 - transfer: transfer bonuses, point conversions
-- apply: credit card signup bonuses, status challenges
+- apply: credit card signup bonuses
+- status_match: airline/hotel elite status match or status challenge (submit existing status for a match)
 - monitor: devaluations, rumors, watchlist items
 - learn: sweet spots, analysis, evergreen education
 
