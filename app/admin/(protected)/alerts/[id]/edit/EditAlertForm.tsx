@@ -7,6 +7,7 @@ import { ALERT_TYPES, ACTION_TYPES } from '@/lib/admin/alertTypes'
 import TextField from '@/components/admin/form/TextField'
 import TextAreaField from '@/components/admin/form/TextAreaField'
 import SelectField from '@/components/admin/form/SelectField'
+import CheckboxField from '@/components/admin/form/CheckboxField'
 import FormActions from '@/components/admin/form/FormActions'
 import FormError from '@/components/admin/form/FormError'
 import TagProgramsPicker from '@/components/admin/form/TagProgramsPicker'
@@ -92,6 +93,12 @@ export default function EditAlertForm({ alert, programs, taggedProgramIds }: Pro
         type="url"
         placeholder="https://"
         defaultValue={alert.source_url ?? ''}
+      />
+
+      <CheckboxField
+        name="is_hot"
+        label="Feature in Hot Alerts bar (homepage)"
+        defaultChecked={alert.is_hot}
       />
 
       <TagProgramsPicker programs={programs} defaultSelected={taggedProgramIds} />

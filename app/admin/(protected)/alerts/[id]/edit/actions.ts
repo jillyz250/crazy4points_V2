@@ -29,6 +29,7 @@ export async function updateAlertAction(
     const history_note = (formData.get('history_note') as string) || null
     const confidence_level = formData.get('confidence_level') as ConfidenceLevel
     const source_url = (formData.get('source_url') as string) || null
+    const is_hot = formData.get('is_hot') === 'on'
     const existing_published_at = (formData.get('existing_published_at') as string) || null
 
     const alertData: AlertUpdate = {
@@ -48,6 +49,7 @@ export async function updateAlertAction(
       history_note,
       source_url,
       confidence_level,
+      is_hot,
     }
 
     const supabase = createAdminClient()

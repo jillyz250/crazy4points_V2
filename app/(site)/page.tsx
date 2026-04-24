@@ -10,33 +10,41 @@ export const metadata: Metadata = {
     "Alerts on the points moves actually worth caring about. We track the chaos so you don't have to.",
 };
 
-const MAX_RED_ALERTS = 5;
+const MAX_HOT_ALERTS = 5;
+const FRESH_WINDOW_MS = 48 * 60 * 60 * 1000;
 
-function daysUntil(endDate: string | null): number | null {
-  if (!endDate) return null;
-  return Math.ceil((new Date(endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-}
-
-function selectRedAlerts(alerts: AlertWithPrograms[]): AlertWithPrograms[] {
-  const critical: AlertWithPrograms[] = [];
-  const urgent: AlertWithPrograms[] = [];
-  const rest: AlertWithPrograms[] = [];
+// Hot alerts = editorially featured (is_hot) OR freshly published (<48h).
+// Featured sort before fresh. Within each bucket, most-recent first.
+// Expiry urgency lives on individual alert cards, not here.
+function selectHotAlerts(alerts: AlertWithPrograms[]): AlertWithPrograms[] {
+  const now = Date.now();
+  const featured: AlertWithPrograms[] = [];
+  const fresh: AlertWithPrograms[] = [];
 
   for (const a of alerts) {
-    const d = daysUntil(a.end_date);
-    if (d !== null && d >= 0 && d <= 1) critical.push(a);
-    else if (d !== null && d >= 0 && d <= 7) urgent.push(a);
-    else rest.push(a);
+    if (a.is_hot) {
+      featured.push(a);
+      continue;
+    }
+    const pub = a.published_at ? new Date(a.published_at).getTime() : null;
+    if (pub !== null && now - pub <= FRESH_WINDOW_MS) fresh.push(a);
   }
 
-  const picked = [...critical, ...urgent, ...rest];
+  const byPubDesc = (x: AlertWithPrograms, y: AlertWithPrograms) => {
+    const xt = x.published_at ? new Date(x.published_at).getTime() : 0;
+    const yt = y.published_at ? new Date(y.published_at).getTime() : 0;
+    return yt - xt;
+  };
+  featured.sort(byPubDesc);
+  fresh.sort(byPubDesc);
+
   const seen = new Set<string>();
   const deduped: AlertWithPrograms[] = [];
-  for (const a of picked) {
+  for (const a of [...featured, ...fresh]) {
     if (seen.has(a.id)) continue;
     seen.add(a.id);
     deduped.push(a);
-    if (deduped.length >= MAX_RED_ALERTS) break;
+    if (deduped.length >= MAX_HOT_ALERTS) break;
   }
   return deduped;
 }
@@ -50,11 +58,11 @@ export default async function HomePage() {
         a.updated_at > latest ? a.updated_at : latest, active[0].updated_at)
     : null;
 
-  const redAlerts = selectRedAlerts(active);
+  const hotAlerts = selectHotAlerts(active);
 
   return (
     <>
-      <RedAlertBar alerts={redAlerts} />
+      <RedAlertBar alerts={hotAlerts} />
       <HomeHeroV2 lastUpdated={lastUpdated} />
     </>
   );
