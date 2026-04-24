@@ -16,11 +16,10 @@ export default function Field({ label, htmlFor, required, hint, children }: Prop
       </label>
       {hint && (
         <p style={{
-          fontSize: '0.8125rem',
-          color: 'var(--color-text-secondary)',
+          fontSize: '0.75rem',
+          color: 'var(--admin-text-muted)',
           marginTop: '-0.125rem',
           marginBottom: '0.5rem',
-          fontFamily: 'var(--font-body)',
         }}>
           {hint}
         </p>
