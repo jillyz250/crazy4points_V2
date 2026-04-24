@@ -13,59 +13,24 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <div className="admin">
-      <header
-        style={{
-          borderBottom: '1px solid var(--admin-border)',
-          background: 'var(--admin-surface)',
-          position: 'sticky',
-          top: 0,
-          zIndex: 20,
-        }}
-      >
-        <div
-          style={{
-            maxWidth: '90rem',
-            margin: '0 auto',
-            padding: '0.75rem 1.5rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '2rem',
-          }}
-        >
-          <Link
-            href="/admin"
-            style={{
-              color: 'var(--admin-text)',
-              fontWeight: 600,
-              fontSize: '0.9375rem',
-              letterSpacing: '-0.01em',
-              textDecoration: 'none',
-              whiteSpace: 'nowrap',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-            }}
-          >
-            <span style={{ color: 'var(--admin-accent)' }}>●</span>
-            crazy4points
-            <span style={{ color: 'var(--admin-text-subtle)', fontWeight: 400 }}>/ admin</span>
-          </Link>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <AdminNav />
-          </div>
-        </div>
-      </header>
-      <ErrorsBanner />
-      <main
-        style={{
-          maxWidth: '90rem',
-          margin: '0 auto',
-          padding: '1.75rem 1.5rem',
-        }}
-      >
-        {children}
-      </main>
+    <div className="admin admin-shell">
+      <aside className="admin-sidebar">
+        <Link href="/admin" className="admin-brand">
+          <span className="admin-brand-dot" />
+          <span className="admin-brand-name">crazy4points</span>
+          <span className="admin-brand-sub">admin</span>
+        </Link>
+        <AdminNav />
+        <form action="/api/admin-logout" method="post" className="admin-sidebar-footer">
+          <button type="submit" className="admin-btn admin-btn-ghost admin-btn-sm" style={{ width: '100%' }}>
+            Log out
+          </button>
+        </form>
+      </aside>
+      <div className="admin-main">
+        <ErrorsBanner />
+        <main className="admin-main-inner">{children}</main>
+      </div>
     </div>
   )
 }
