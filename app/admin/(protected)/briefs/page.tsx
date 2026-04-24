@@ -1,6 +1,9 @@
-import Link from 'next/link'
 import { createAdminClient } from '@/utils/supabase/server'
 import { RebuildButton } from './RebuildButton'
+import { PageHeader } from '@/components/admin/ui/PageHeader'
+import { LinkButton } from '@/components/admin/ui/Button'
+import { Badge } from '@/components/admin/ui/Badge'
+import { EmptyState } from '@/components/admin/ui/EmptyState'
 
 export const dynamic = 'force-dynamic'
 
@@ -42,8 +45,8 @@ export default async function BriefsPage() {
   if (error) {
     return (
       <div>
-        <h1 style={{ margin: 0 }}>Daily Briefs</h1>
-        <p style={{ color: '#c0392b' }}>Failed to load briefs: {error.message}</p>
+        <PageHeader title="Daily Briefs" />
+        <p style={{ color: 'var(--admin-danger)' }}>Failed to load briefs: {error.message}</p>
       </div>
     )
   }
@@ -52,35 +55,27 @@ export default async function BriefsPage() {
 
   return (
     <div>
-      <h1 style={{ margin: 0 }}>Daily Briefs</h1>
-      <p
-        style={{
-          fontFamily: 'var(--font-body)',
-          color: 'var(--color-text-secondary)',
-          marginTop: '0.25rem',
-          marginBottom: '1.25rem',
-        }}
-      >
-        Preview any past daily brief in-app. Useful to check a brief without waiting for email delivery.
-      </p>
+      <PageHeader
+        title="Daily Briefs"
+        description="Preview any past daily brief in-app. Useful to check a brief without waiting for email delivery."
+      />
 
       {briefs.length === 0 ? (
-        <p style={{ fontFamily: 'var(--font-body)', color: 'var(--color-text-secondary)' }}>
-          No briefs yet. Run the build-brief job to generate one.
-        </p>
+        <EmptyState
+          title="No briefs yet"
+          description="Run the build-brief job to generate one."
+        />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {briefs.map((b) => {
             const hasHtml = Boolean(b.brief_html)
             return (
               <div
                 key={b.id}
+                className="admin-card"
                 style={{
-                  border: '1px solid var(--color-border-soft)',
-                  borderLeft: `3px solid ${hasHtml ? 'var(--color-primary)' : '#b45309'}`,
-                  borderRadius: 'var(--radius-card)',
-                  padding: '0.875rem 1rem',
-                  background: 'var(--color-background)',
+                  padding: '0.75rem 1rem',
+                  borderLeft: `3px solid ${hasHtml ? 'var(--admin-accent)' : 'var(--admin-warning)'}`,
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
@@ -89,40 +84,22 @@ export default async function BriefsPage() {
                 }}
               >
                 <div>
-                  <div
-                    style={{
-                      fontFamily: 'var(--font-display)',
-                      fontSize: '1.125rem',
-                      color: 'var(--color-primary)',
-                    }}
-                  >
+                  <div style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--admin-text)' }}>
                     {formatDate(b.brief_date)}
                   </div>
-                  <div
-                    style={{
-                      fontFamily: 'var(--font-ui)',
-                      fontSize: '0.8125rem',
-                      color: 'var(--color-text-secondary)',
-                      marginTop: '0.125rem',
-                    }}
-                  >
-                    {b.intel_count ?? 0} intel · built {formatTime(b.sent_at)}
+                  <div style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)', marginTop: '0.125rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <Badge tone="neutral">{b.intel_count ?? 0} intel</Badge>
+                    <span>built {formatTime(b.sent_at)}</span>
                   </div>
                 </div>
-                {hasHtml ? (
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                    <Link
-                      href={`/admin/briefs/${b.id}`}
-                      className="rg-btn-primary"
-                      style={{ display: 'inline-block' }}
-                    >
+                <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center' }}>
+                  {hasHtml && (
+                    <LinkButton href={`/admin/briefs/${b.id}`} variant="primary" size="sm">
                       Preview
-                    </Link>
-                    <RebuildButton briefId={b.id} />
-                  </div>
-                ) : (
+                    </LinkButton>
+                  )}
                   <RebuildButton briefId={b.id} />
-                )}
+                </div>
               </div>
             )
           })}

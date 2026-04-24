@@ -9,8 +9,14 @@ import {
   type IntelWindow,
 } from '@/utils/supabase/queries'
 import { rejectIntelAction, unrejectIntelAction } from './actions'
+import { PageHeader } from '@/components/admin/ui/PageHeader'
+import { Card } from '@/components/admin/ui/Card'
+import { Badge } from '@/components/admin/ui/Badge'
+import { EmptyState } from '@/components/admin/ui/EmptyState'
 
 export const dynamic = 'force-dynamic'
+
+type Tone = 'accent' | 'success' | 'warning' | 'danger' | 'neutral' | 'info'
 
 const WINDOW_OPTIONS: { value: IntelWindow; label: string }[] = [
   { value: '24h', label: '24h' },
@@ -32,6 +38,12 @@ const STATUS_OPTIONS: { value: IntelStatusFilter; label: string }[] = [
   { value: 'staged', label: 'Staged' },
   { value: 'rejected', label: 'Rejected' },
 ]
+
+const CONFIDENCE_TONE: Record<IntelConfidence, Tone> = {
+  high: 'success',
+  medium: 'warning',
+  low: 'neutral',
+}
 
 function relativeTime(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime()
@@ -72,72 +84,49 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.25rem' }}>
-        <h1 style={{ margin: 0 }}>Intel Items</h1>
-        <div style={{ display: 'flex', gap: '1.25rem', fontFamily: 'var(--font-ui)', fontSize: '0.875rem' }}>
-          <Count label="total" value={counts.total} />
-          <Count label="unprocessed" value={counts.unprocessed} />
-          <Count label="staged" value={counts.staged} accent="var(--color-primary)" />
-          <Count label="rejected" value={counts.rejected} />
-        </div>
-      </div>
-      <p style={{ fontFamily: 'var(--font-body)', color: 'var(--color-text-secondary)', marginTop: '0.25rem', marginBottom: '1.25rem' }}>
-        Raw findings from Claude Scout. High-confidence items auto-stage as <code>pending_review</code> alerts.
-      </p>
+      <PageHeader
+        title="Intel Items"
+        description="Raw findings from Claude Scout. High-confidence items auto-stage as pending_review alerts."
+        actions={
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <Badge tone="neutral">{counts.total} total</Badge>
+            <Badge tone="neutral">{counts.unprocessed} unprocessed</Badge>
+            <Badge tone="accent">{counts.staged} staged</Badge>
+            <Badge tone="neutral">{counts.rejected} rejected</Badge>
+          </div>
+        }
+      />
 
-      <form
-        method="get"
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '0.75rem',
-          padding: '0.875rem 1rem',
-          background: 'var(--color-background-soft)',
-          border: '1px solid var(--color-border-soft)',
-          borderRadius: 'var(--radius-card)',
-          marginBottom: '1.25rem',
-          fontFamily: 'var(--font-ui)',
-          fontSize: '0.875rem',
-        }}
-      >
-        <FilterSelect name="window" label="Window" value={windowFilter} options={WINDOW_OPTIONS} />
-        <FilterSelect name="confidence" label="Confidence" value={confidence} options={CONFIDENCE_OPTIONS} />
-        <FilterSelect name="status" label="Status" value={status} options={STATUS_OPTIONS} />
-        <FilterSelect
-          name="source"
-          label="Source"
-          value={source}
-          options={[{ value: 'all', label: 'All' }, ...sourceNames.map((s) => ({ value: s, label: s }))]}
-        />
-        <button type="submit" className="rg-btn-primary" style={{ alignSelf: 'flex-end' }}>
-          Apply
-        </button>
-        <Link href="/admin/intel" style={{ alignSelf: 'flex-end', fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
-          Reset
-        </Link>
-      </form>
+      <Card style={{ marginBottom: '1rem', padding: '0.875rem 1rem' }}>
+        <form method="get" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'flex-end' }}>
+          <FilterSelect name="window" label="Window" value={windowFilter} options={WINDOW_OPTIONS} />
+          <FilterSelect name="confidence" label="Confidence" value={confidence} options={CONFIDENCE_OPTIONS} />
+          <FilterSelect name="status" label="Status" value={status} options={STATUS_OPTIONS} />
+          <FilterSelect
+            name="source"
+            label="Source"
+            value={source}
+            options={[{ value: 'all', label: 'All' }, ...sourceNames.map((s) => ({ value: s, label: s }))]}
+          />
+          <button type="submit" className="admin-btn admin-btn-primary admin-btn-sm">
+            Apply
+          </button>
+          <Link href="/admin/intel" className="admin-btn admin-btn-ghost admin-btn-sm">
+            Reset
+          </Link>
+        </form>
+      </Card>
 
       {items.length === 0 ? (
-        <p style={{ fontFamily: 'var(--font-body)', color: 'var(--color-text-secondary)' }}>
-          No intel items match these filters.
-        </p>
+        <EmptyState title="No intel items" description="No items match these filters." />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
           {items.map((it) => (
             <IntelCard key={it.id} item={it} />
           ))}
         </div>
       )}
     </div>
-  )
-}
-
-function Count({ label, value, accent }: { label: string; value: number; accent?: string }) {
-  return (
-    <span>
-      <strong style={{ color: accent ?? 'var(--color-text-primary)' }}>{value}</strong>{' '}
-      <span style={{ color: 'var(--color-text-secondary)' }}>{label}</span>
-    </span>
   )
 }
 
@@ -154,22 +143,10 @@ function FilterSelect<T extends string>({
 }) {
   return (
     <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-      <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-secondary)' }}>
+      <span style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--admin-text-muted)', fontWeight: 600 }}>
         {label}
       </span>
-      <select
-        name={name}
-        defaultValue={value}
-        style={{
-          padding: '0.375rem 0.5rem',
-          borderRadius: 'var(--radius-ui)',
-          border: '1px solid var(--color-border-soft)',
-          background: 'var(--color-background)',
-          fontFamily: 'var(--font-ui)',
-          fontSize: '0.875rem',
-          minWidth: '9rem',
-        }}
-      >
+      <select name={name} defaultValue={value} className="admin-input" style={{ minWidth: '9rem' }}>
         {options.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
@@ -180,65 +157,59 @@ function FilterSelect<T extends string>({
   )
 }
 
-const confidenceColor: Record<IntelConfidence, { bg: string; fg: string }> = {
-  high: { bg: '#E8F5E9', fg: '#2E7D32' },
-  medium: { bg: '#FFF7E0', fg: '#8A6D00' },
-  low: { bg: '#F5F5F5', fg: '#757575' },
-}
-
 function IntelCard({ item }: { item: IntelItem }) {
   const rejected = !!item.rejected_at
   const staged = item.processed
-  const conf = confidenceColor[item.confidence]
+  const borderColor = rejected
+    ? 'var(--admin-border-strong)'
+    : staged
+      ? 'var(--admin-accent)'
+      : 'var(--admin-warning)'
 
   return (
     <div
+      className="admin-card"
       style={{
-        border: '1px solid var(--color-border-soft)',
-        borderLeft: `3px solid ${rejected ? '#bbb' : staged ? 'var(--color-primary)' : 'var(--color-accent)'}`,
-        borderRadius: 'var(--radius-card)',
-        padding: '1rem 1.125rem',
-        background: 'var(--color-background)',
-        opacity: rejected ? 0.6 : 1,
+        borderLeft: `3px solid ${borderColor}`,
+        padding: '0.875rem 1rem',
+        opacity: rejected ? 0.65 : 1,
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'baseline', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'baseline', flexWrap: 'wrap' }}>
-          <Chip>{item.source_name}</Chip>
-          <Chip subtle>{item.source_type}</Chip>
-          <Chip bg={conf.bg} fg={conf.fg}>
-            {item.confidence}
-          </Chip>
-          {item.alert_type && <Chip subtle>{item.alert_type}</Chip>}
-          <span style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', fontFamily: 'var(--font-ui)' }}>
+        <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <Badge tone="neutral">{item.source_name}</Badge>
+          <Badge tone="neutral">{item.source_type}</Badge>
+          <Badge tone={CONFIDENCE_TONE[item.confidence]}>{item.confidence}</Badge>
+          {item.alert_type && <Badge tone="neutral">{item.alert_type}</Badge>}
+          <span style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)' }}>
             {relativeTime(item.created_at)}
           </span>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.375rem' }}>
           {staged && item.alert_id && (
             <Link
               href={`/admin/alerts/${item.alert_id}/edit`}
-              style={{ fontSize: '0.8125rem', fontFamily: 'var(--font-ui)', color: 'var(--color-primary)' }}
+              className="admin-btn admin-btn-ghost admin-btn-sm"
             >
               → staged alert
             </Link>
           )}
           {!staged && !rejected && (
             <form action={rejectIntelAction.bind(null, item.id)}>
-              <SmallButton>Reject</SmallButton>
+              <button type="submit" className="admin-btn admin-btn-ghost admin-btn-sm">Reject</button>
             </form>
           )}
           {rejected && (
             <form action={unrejectIntelAction.bind(null, item.id)}>
-              <SmallButton>Unreject</SmallButton>
+              <button type="submit" className="admin-btn admin-btn-ghost admin-btn-sm">Unreject</button>
             </form>
           )}
         </div>
       </div>
 
-      <div style={{ marginTop: '0.5rem', fontFamily: 'var(--font-body)', fontSize: '1rem', fontWeight: 600 }}>
+      <div style={{ marginTop: '0.5rem', fontSize: '0.9375rem', fontWeight: 600, color: 'var(--admin-text)' }}>
         {item.source_url ? (
-          <a href={item.source_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-text-primary)' }}>
+          <a href={item.source_url} target="_blank" rel="noopener noreferrer">
             {item.headline}
           </a>
         ) : (
@@ -247,30 +218,27 @@ function IntelCard({ item }: { item: IntelItem }) {
       </div>
 
       {item.programs && item.programs.length > 0 && (
-        <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+        <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
           {item.programs.map((p) => (
-            <Chip key={p} subtle>
-              {p}
-            </Chip>
+            <Badge key={p} tone="neutral">{p}</Badge>
           ))}
         </div>
       )}
 
       {item.raw_text && (
         <details style={{ marginTop: '0.5rem' }}>
-          <summary style={{ cursor: 'pointer', fontSize: '0.8125rem', color: 'var(--color-text-secondary)', fontFamily: 'var(--font-ui)' }}>
+          <summary style={{ cursor: 'pointer', fontSize: '0.75rem', color: 'var(--admin-text-muted)' }}>
             Raw text
           </summary>
           <div
             style={{
               marginTop: '0.5rem',
               padding: '0.625rem',
-              background: 'var(--color-background-soft)',
-              borderRadius: 'var(--radius-ui)',
+              background: 'var(--admin-surface-alt)',
+              borderRadius: 'var(--admin-radius)',
               fontSize: '0.8125rem',
-              fontFamily: 'var(--font-body)',
               whiteSpace: 'pre-wrap',
-              color: 'var(--color-text-secondary)',
+              color: 'var(--admin-text-muted)',
             }}
           >
             {item.raw_text}
@@ -278,56 +246,5 @@ function IntelCard({ item }: { item: IntelItem }) {
         </details>
       )}
     </div>
-  )
-}
-
-function Chip({
-  children,
-  bg,
-  fg,
-  subtle,
-}: {
-  children: React.ReactNode
-  bg?: string
-  fg?: string
-  subtle?: boolean
-}) {
-  return (
-    <span
-      style={{
-        display: 'inline-block',
-        padding: '0.125rem 0.5rem',
-        borderRadius: '999px',
-        fontSize: '0.75rem',
-        fontFamily: 'var(--font-ui)',
-        fontWeight: 600,
-        textTransform: 'uppercase',
-        letterSpacing: '0.03em',
-        background: bg ?? (subtle ? 'var(--color-background-soft)' : 'var(--color-primary)'),
-        color: fg ?? (subtle ? 'var(--color-text-secondary)' : '#fff'),
-      }}
-    >
-      {children}
-    </span>
-  )
-}
-
-function SmallButton({ children }: { children: React.ReactNode }) {
-  return (
-    <button
-      type="submit"
-      style={{
-        background: 'transparent',
-        border: '1px solid var(--color-border-soft)',
-        borderRadius: 'var(--radius-ui)',
-        padding: '0.25rem 0.625rem',
-        fontFamily: 'var(--font-ui)',
-        fontSize: '0.8125rem',
-        color: 'var(--color-text-secondary)',
-        cursor: 'pointer',
-      }}
-    >
-      {children}
-    </button>
   )
 }

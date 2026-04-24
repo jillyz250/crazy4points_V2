@@ -3,32 +3,23 @@ import { getAllPrograms } from '@/utils/supabase/queries'
 import type { ProgramType, Program } from '@/utils/supabase/queries'
 import { toggleProgramAction } from './actions'
 import AddProgramForm from './AddProgramForm'
+import { PageHeader } from '@/components/admin/ui/PageHeader'
+import { Card } from '@/components/admin/ui/Card'
+import { Badge } from '@/components/admin/ui/Badge'
+import { EmptyState } from '@/components/admin/ui/EmptyState'
 
 const TYPE_LABEL: Record<ProgramType, string> = {
-  credit_card:    'Credit Card',
-  airline:        'Airline',
-  hotel:          'Hotel',
-  car_rental:     'Car Rental',
-  cruise:         'Cruise',
+  credit_card:     'Credit Card',
+  airline:         'Airline',
+  hotel:           'Hotel',
+  car_rental:      'Car Rental',
+  cruise:          'Cruise',
   shopping_portal: 'Shopping Portal',
-  travel_portal:  'Travel Portal',
-  lounge_network: 'Lounge Network',
-  ota:            'OTA',
+  travel_portal:   'Travel Portal',
+  lounge_network:  'Lounge Network',
+  ota:             'OTA',
 }
 
-const TYPE_BADGE_COLOR: Record<ProgramType, { bg: string; color: string }> = {
-  credit_card:    { bg: '#f0e6fa', color: '#6B2D8F' },
-  airline:        { bg: '#e6f0fa', color: '#1a5fa8' },
-  hotel:          { bg: '#e6f4ea', color: '#1e7e34' },
-  car_rental:     { bg: '#fff8e1', color: '#b45309' },
-  cruise:         { bg: '#e6faf8', color: '#0f766e' },
-  shopping_portal:{ bg: '#fce7f3', color: '#9d174d' },
-  travel_portal:  { bg: '#fef3c7', color: '#92400e' },
-  lounge_network: { bg: '#f3f0f7', color: '#7c5cbf' },
-  ota:            { bg: '#f0f0f0', color: '#555555' },
-}
-
-// Stable order for program type groups
 const TYPE_ORDER: ProgramType[] = [
   'credit_card',
   'airline',
@@ -56,123 +47,80 @@ export default async function AdminProgramsPage() {
   const programs = await getAllPrograms(supabase)
   const grouped = groupByType(programs)
 
-  // Collect types present in the data, preserving TYPE_ORDER
   const presentTypes = TYPE_ORDER.filter((t) => grouped.has(t))
-  // Any types not in TYPE_ORDER (future-proofing)
   for (const t of grouped.keys()) {
     if (!presentTypes.includes(t)) presentTypes.push(t)
   }
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-        <h1>Programs</h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', fontFamily: 'var(--font-ui)' }}>
-            {programs.length} total
-          </span>
-          <AddProgramForm />
-        </div>
-      </div>
+      <PageHeader
+        title="Programs"
+        description="Loyalty programs (airlines, hotels, cards, portals) that alerts can be tagged against."
+        actions={
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <Badge tone="neutral">{programs.length} total</Badge>
+            <AddProgramForm />
+          </div>
+        }
+      />
 
       {programs.length === 0 ? (
-        <p style={{ color: 'var(--color-text-secondary)' }}>No programs yet.</p>
+        <EmptyState title="No programs yet" description="Add one to begin tagging alerts." />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           {presentTypes.map((type) => {
             const group = grouped.get(type)!
-            const badge = TYPE_BADGE_COLOR[type] ?? { bg: '#f0f0f0', color: '#555555' }
             return (
               <div key={type}>
-                {/* Section header */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.625rem',
-                  marginBottom: '0.75rem',
-                  paddingBottom: '0.5rem',
-                  borderBottom: '2px solid var(--color-border-soft)',
-                }}>
-                  <span style={{
-                    display: 'inline-block',
-                    padding: '0.2rem 0.65rem',
-                    borderRadius: '999px',
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    fontFamily: 'var(--font-ui)',
-                    letterSpacing: '0.02em',
-                    background: badge.bg,
-                    color: badge.color,
-                  }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                  <h2 style={{ margin: 0, fontSize: '0.9375rem' }}>
                     {TYPE_LABEL[type] ?? type.replace(/_/g, ' ')}
-                  </span>
-                  <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.8125rem', fontFamily: 'var(--font-ui)' }}>
-                    {group.length}
-                  </span>
+                  </h2>
+                  <Badge tone="neutral">{group.length}</Badge>
                 </div>
-
-                {/* Table for this group */}
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid var(--color-border-soft)', textAlign: 'left' }}>
-                        <th style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)', fontWeight: 500 }}>Name</th>
-                        <th style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)', fontWeight: 500 }}>Tier</th>
-                        <th style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)', fontWeight: 500 }}>Monitor</th>
-                        <th style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)', fontWeight: 500 }}>URL</th>
-                        <th style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)', fontWeight: 500 }}>Active</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {group.map((program) => (
-                        <tr key={program.id} style={{ borderBottom: '1px solid var(--color-border-soft)' }}>
-                          <td style={{ padding: '0.625rem 0.75rem', color: 'var(--color-text-primary)', fontWeight: 500 }}>
-                            {program.name}
-                          </td>
-                          <td style={{ padding: '0.625rem 0.75rem', color: 'var(--color-text-secondary)' }}>
-                            {program.tier ?? '—'}
-                          </td>
-                          <td style={{ padding: '0.625rem 0.75rem', color: 'var(--color-text-secondary)' }}>
-                            {program.monitor_tier ?? '—'}
-                          </td>
-                          <td style={{ padding: '0.625rem 0.75rem' }}>
-                            {program.program_url ? (
-                              <a
-                                href={program.program_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{ color: 'var(--color-primary)', textDecoration: 'underline', fontSize: '0.8125rem' }}
-                              >
-                                Link
-                              </a>
-                            ) : (
-                              <span style={{ color: 'var(--color-text-secondary)' }}>—</span>
-                            )}
-                          </td>
-                          <td style={{ padding: '0.625rem 0.75rem' }}>
-                            <form action={toggleProgramAction.bind(null, program.id, !program.is_active)}>
-                              <button
-                                type="submit"
-                                style={{
-                                  background: 'none',
-                                  border: 'none',
-                                  padding: 0,
-                                  cursor: 'pointer',
-                                  fontSize: '0.8125rem',
-                                  fontFamily: 'var(--font-body)',
-                                  color: program.is_active ? '#1e7e34' : 'var(--color-text-secondary)',
-                                  textDecoration: 'underline',
-                                }}
-                              >
-                                {program.is_active ? 'Active' : 'Inactive'}
-                              </button>
-                            </form>
-                          </td>
+                <Card>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table className="admin-table">
+                      <thead>
+                        <tr>
+                          <th>Name</th>
+                          <th>Tier</th>
+                          <th>Monitor</th>
+                          <th>URL</th>
+                          <th>Active</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {group.map((program) => (
+                          <tr key={program.id}>
+                            <td style={{ fontWeight: 500 }}>{program.name}</td>
+                            <td style={{ color: 'var(--admin-text-muted)' }}>{program.tier ?? '—'}</td>
+                            <td style={{ color: 'var(--admin-text-muted)' }}>{program.monitor_tier ?? '—'}</td>
+                            <td>
+                              {program.program_url ? (
+                                <a href={program.program_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.8125rem' }}>
+                                  Link ↗
+                                </a>
+                              ) : (
+                                <span style={{ color: 'var(--admin-text-subtle)' }}>—</span>
+                              )}
+                            </td>
+                            <td>
+                              <form action={toggleProgramAction.bind(null, program.id, !program.is_active)}>
+                                <button type="submit" className="admin-btn admin-btn-ghost admin-btn-sm">
+                                  <Badge tone={program.is_active ? 'success' : 'neutral'}>
+                                    {program.is_active ? 'Active' : 'Inactive'}
+                                  </Badge>
+                                </button>
+                              </form>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
               </div>
             )
           })}
