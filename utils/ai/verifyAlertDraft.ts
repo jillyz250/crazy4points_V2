@@ -219,8 +219,13 @@ HOW TO JUDGE
 ═══════════════════════════════════════════════════════════
 
 Use the web_search tool to find authoritative corroboration for each claim:
-• Official program sites (chase.com, hilton.com, airline/hotel program pages) > blog posts
+• OFFICIAL PROGRAM FAQ / TERMS PAGES ARE THE SOURCE OF TRUTH. Always check the
+  program's own FAQ or terms page first (e.g. flyingblue.statusmatch.com/faq/,
+  chase.com/ultimate-rewards terms, hilton.com/honors promotion T&Cs). Only fall
+  back to blogs (LoyaltyLobby, OneMileAtATime, FrequentMiler, ThePointsGuy) when
+  the official page doesn't answer the claim.
 • Current program pages > archived/outdated content
+• When blogs and the official FAQ disagree, the official FAQ wins.
 • Multiple corroborating sources > single source
 • Prefer sources dated within the last 12 months when a number or date is in question
 
