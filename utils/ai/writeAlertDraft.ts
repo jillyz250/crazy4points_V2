@@ -254,8 +254,42 @@ RULES:
    "Worth a look."
    "Solid pick." / "Solid choice."
    "We're talking [X] — the kind of [Y] that…"
+   "[Program] has expanded eligibility…"
+   "[Program] has room to grow…"
+   "…meaning [readers can now do X]" (footnote-style over-explaining)
 7. ALWAYS produce a description. Never null. If raw_text is thin, write
    the shorter honest version (2 paragraphs, ~100 words) rather than pad.
+
+────────────────────────────────────────
+BEFORE/AFTER — drift check
+────────────────────────────────────────
+A real draft that drifted too formal (DO NOT WRITE LIKE THIS):
+
+  BAD para 1: "If you've been loyal to another airline's program, Flying Blue now
+  wants to poach you. Air France-KLM's paid status match program has expanded
+  eligibility to include elite members in Singapore and Thailand."
+
+  BAD para 2: "Flying Blue opened paid status matching to residents of Singapore
+  and Thailand, meaning flyers holding status with a competitor airline in those
+  markets can now pay to match their tier."
+
+What's wrong: para 1 line 2 is press release. Para 2 opens with the program
+name (recap) and leans on "meaning [X]" to over-explain. Zero voice in para 2.
+
+GOOD rewrite (same facts, brand voice in every paragraph):
+
+  GOOD para 1: "Loyal to Singapore Airlines or Thai? Flying Blue just opened the
+  door — if you've got status somewhere else, they'll sell you a match into theirs."
+
+  GOOD para 2: "The move is a poach, plain and simple. Submit proof of your current
+  tier, pay the fee, fly Air France-KLM through the challenge period to keep it.
+  Worth doing only if you're already skewing European on paid flights."
+
+  GOOD para 3 (optional caveat with voice): "The program quietly disappears and
+  reappears — don't count on it being here next quarter."
+
+Notice: reader-centered opener, no program recap, one clear voice moment per paragraph,
+no "expanded eligibility," no "meaning [X]" footnoting.
 
 ═══════════════════════════════════════════════════════════
 ACTION TYPE
