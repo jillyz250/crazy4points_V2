@@ -1,9 +1,14 @@
+import Link from 'next/link'
 import { createAdminClient } from '@/utils/supabase/server'
 import { countUnresolvedSystemErrors } from '@/utils/supabase/queries'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Card } from '@/components/admin/ui/Card'
 import { LinkButton } from '@/components/admin/ui/Button'
 import { Badge } from '@/components/admin/ui/Badge'
+
+export const dynamic = 'force-dynamic'
+
+type Tone = 'accent' | 'success' | 'warning' | 'danger' | 'neutral' | 'info'
 
 type Tile = {
   title: string
@@ -26,47 +31,179 @@ const TILES: Tile[] = [
   { title: 'Errors', description: 'Background-job failures. Resolve after investigating.', href: '/admin/errors', cta: 'View' },
 ]
 
-export default async function AdminDashboard() {
+async function loadStats() {
   const supabase = createAdminClient()
-  const unresolvedErrors = await countUnresolvedSystemErrors(supabase)
+  const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+
+  const [
+    pendingReview,
+    unprocessedIntel,
+    openIdeas,
+    activeSubs,
+    unresolvedErrors,
+    lastBrief,
+    currentNewsletter,
+  ] = await Promise.all([
+    supabase.from('alerts').select('id', { count: 'exact', head: true }).eq('status', 'pending_review'),
+    supabase.from('intel_items').select('id', { count: 'exact', head: true }).eq('processed', false).is('rejected_at', null).gte('created_at', dayAgo),
+    supabase.from('content_ideas').select('id', { count: 'exact', head: true }).in('status', ['new', 'queued', 'drafted']),
+    supabase.from('subscribers').select('id', { count: 'exact', head: true }).eq('active', true),
+    countUnresolvedSystemErrors(supabase),
+    supabase.from('daily_briefs').select('brief_date, sent_at').order('brief_date', { ascending: false }).limit(1).maybeSingle(),
+    supabase.from('newsletters').select('week_of, status').order('week_of', { ascending: false }).limit(1).maybeSingle(),
+  ])
+
+  return {
+    pendingReview: pendingReview.count ?? 0,
+    unprocessedIntel: unprocessedIntel.count ?? 0,
+    openIdeas: openIdeas.count ?? 0,
+    activeSubs: activeSubs.count ?? 0,
+    unresolvedErrors,
+    lastBrief: lastBrief.data as { brief_date: string; sent_at: string | null } | null,
+    currentNewsletter: currentNewsletter.data as { week_of: string; status: string } | null,
+  }
+}
+
+function relativeDay(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  const ms = Date.now() - new Date(iso).getTime()
+  const hours = ms / (1000 * 60 * 60)
+  if (hours < 1) return 'just now'
+  if (hours < 24) return `${Math.round(hours)}h ago`
+  return `${Math.round(hours / 24)}d ago`
+}
+
+export default async function AdminDashboard() {
+  const stats = await loadStats()
+
+  const statCards: { label: string; value: number | string; tone: Tone; href: string; hint?: string }[] = [
+    {
+      label: 'Pending review',
+      value: stats.pendingReview,
+      tone: stats.pendingReview > 0 ? 'warning' : 'neutral',
+      href: '/admin/alerts',
+      hint: stats.pendingReview > 0 ? 'needs approve/reject' : 'all clear',
+    },
+    {
+      label: 'Unprocessed intel (24h)',
+      value: stats.unprocessedIntel,
+      tone: 'neutral',
+      href: '/admin/intel',
+      hint: 'auto-staged when high confidence',
+    },
+    {
+      label: 'Open content ideas',
+      value: stats.openIdeas,
+      tone: 'accent',
+      href: '/admin/content-ideas',
+      hint: 'new + queued + drafted',
+    },
+    {
+      label: 'Active subscribers',
+      value: stats.activeSubs,
+      tone: 'success',
+      href: '/admin/subscribers',
+    },
+    {
+      label: 'Unresolved errors',
+      value: stats.unresolvedErrors,
+      tone: stats.unresolvedErrors > 0 ? 'danger' : 'success',
+      href: '/admin/errors',
+      hint: stats.unresolvedErrors > 0 ? 'investigate' : 'none open',
+    },
+  ]
 
   return (
     <div>
       <PageHeader
         title="Dashboard"
-        description="Manage alerts, sources, programs, subscribers, and the content pipeline."
+        description="What needs attention right now, and quick access to everything else."
       />
-
-      {unresolvedErrors > 0 && (
-        <Card className="admin-card" style={{ marginBottom: '1.5rem' }}>
-          <div style={{ padding: '0.875rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <Badge tone="danger">{unresolvedErrors}</Badge>
-            <span style={{ fontSize: '0.875rem', color: 'var(--admin-text)' }}>
-              unresolved background error{unresolvedErrors === 1 ? '' : 's'}
-            </span>
-            <LinkButton href="/admin/errors" variant="secondary" size="sm" style={{ marginLeft: 'auto' }}>
-              Investigate →
-            </LinkButton>
-          </div>
-        </Card>
-      )}
 
       <div
         style={{
           display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          gap: '0.625rem',
+          marginBottom: '1.5rem',
+        }}
+      >
+        {statCards.map((s) => (
+          <Link
+            key={s.label}
+            href={s.href}
+            style={{ textDecoration: 'none', color: 'inherit' }}
+          >
+            <Card style={{ padding: '0.875rem 1rem', height: '100%' }}>
+              <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, color: 'var(--admin-text-muted)' }}>
+                {s.label}
+              </div>
+              <div style={{ fontSize: '1.75rem', fontWeight: 600, color: `var(--admin-${s.tone === 'neutral' ? 'text' : s.tone})`, lineHeight: 1.1, marginTop: '0.375rem' }}>
+                {s.value}
+              </div>
+              {s.hint && (
+                <div style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)', marginTop: '0.25rem' }}>
+                  {s.hint}
+                </div>
+              )}
+            </Card>
+          </Link>
+        ))}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.75rem', marginBottom: '1.5rem' }}>
+        <Card style={{ padding: '0.875rem 1rem' }}>
+          <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, color: 'var(--admin-text-muted)', marginBottom: '0.5rem' }}>
+            Latest daily brief
+          </div>
+          {stats.lastBrief ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <span style={{ fontWeight: 500 }}>{stats.lastBrief.brief_date}</span>
+              <Badge tone="neutral">built {relativeDay(stats.lastBrief.sent_at)}</Badge>
+              <Link href="/admin/briefs" style={{ fontSize: '0.8125rem', marginLeft: 'auto' }}>Open →</Link>
+            </div>
+          ) : (
+            <div style={{ fontSize: '0.875rem', color: 'var(--admin-text-muted)' }}>No briefs yet.</div>
+          )}
+        </Card>
+
+        <Card style={{ padding: '0.875rem 1rem' }}>
+          <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, color: 'var(--admin-text-muted)', marginBottom: '0.5rem' }}>
+            Current newsletter
+          </div>
+          {stats.currentNewsletter ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <span style={{ fontWeight: 500 }}>Week of {stats.currentNewsletter.week_of}</span>
+              <Badge tone={stats.currentNewsletter.status === 'sent' ? 'success' : stats.currentNewsletter.status === 'failed' ? 'danger' : 'accent'}>
+                {stats.currentNewsletter.status}
+              </Badge>
+              <Link href="/admin/newsletter" style={{ fontSize: '0.8125rem', marginLeft: 'auto' }}>Open →</Link>
+            </div>
+          ) : (
+            <div style={{ fontSize: '0.875rem', color: 'var(--admin-text-muted)' }}>No drafts yet.</div>
+          )}
+        </Card>
+      </div>
+
+      <div style={{ marginBottom: '0.75rem', fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, color: 'var(--admin-text-muted)' }}>
+        All sections
+      </div>
+      <div
+        style={{
+          display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-          gap: '0.875rem',
+          gap: '0.75rem',
         }}
       >
         {TILES.map((tile) => (
           <Card key={tile.href}>
-            <div style={{ padding: '1rem 1.125rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', height: '100%' }}>
-              <h2 style={{ margin: 0, fontSize: '1rem' }}>{tile.title}</h2>
-              <p style={{ margin: 0, fontSize: '0.8125rem', lineHeight: 1.5, flex: 1 }}>
+            <div style={{ padding: '0.875rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.375rem', height: '100%' }}>
+              <h2 style={{ margin: 0, fontSize: '0.9375rem' }}>{tile.title}</h2>
+              <p style={{ margin: 0, fontSize: '0.8125rem', lineHeight: 1.5, color: 'var(--admin-text-muted)', flex: 1 }}>
                 {tile.description}
               </p>
               <div style={{ marginTop: '0.25rem' }}>
-                <LinkButton href={tile.href} variant="secondary" size="sm">
+                <LinkButton href={tile.href} variant="ghost" size="sm">
                   {tile.cta ?? 'Open'} →
                 </LinkButton>
               </div>
