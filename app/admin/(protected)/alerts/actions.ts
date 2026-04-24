@@ -18,6 +18,18 @@ import { editAlertDraft } from '@/utils/ai/editAlertDraft'
 import { verifyAlertDraft, webVerifyClaims, type VerifyClaim } from '@/utils/ai/verifyAlertDraft'
 import { reviseAlertDraft, type RevisionLogEntry } from '@/utils/ai/reviseAlertDraft'
 
+function errMessage(err: unknown): string {
+  if (err instanceof Error) return err.message
+  if (err && typeof err === 'object' && 'message' in err && typeof (err as { message: unknown }).message === 'string') {
+    return (err as { message: string }).message
+  }
+  try {
+    return JSON.stringify(err)
+  } catch {
+    return String(err)
+  }
+}
+
 // Increment the source-approved counter whenever an alert from intel
 // transitions into a published/approved state — regardless of which button
 // triggered the transition. Keeps source approval metrics honest.
@@ -181,7 +193,7 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
     })
   } catch (err) {
     await logSystemError(supabase, 'alerts:regenerate:writeDraft', err, { alert_id: alertId })
-    return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    return { ok: false, error: errMessage(err) }
   }
   if (!draft) return { ok: false, error: 'writeAlertDraft returned null' }
 
@@ -233,7 +245,7 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
     await setAlertPrograms(supabase, alertId, secondaryIds)
   } catch (err) {
     await logSystemError(supabase, 'alerts:regenerate:persist', err, { alert_id: alertId })
-    return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    return { ok: false, error: errMessage(err) }
   }
 
   let finalClaims: VerifyClaim[] = []
