@@ -12,16 +12,19 @@ export default async function ErrorsBanner() {
       href="/admin/errors"
       style={{
         display: 'block',
-        padding: '0.625rem 2rem',
-        background: '#7a1f1f',
-        color: '#fff',
+        borderBottom: '1px solid var(--admin-danger-soft)',
+        background: 'var(--admin-danger-soft)',
+        color: 'var(--admin-danger)',
+        padding: '0.5rem 1.5rem',
         fontFamily: 'var(--font-ui)',
-        fontSize: '0.875rem',
-        fontWeight: 600,
+        fontSize: '0.8125rem',
+        fontWeight: 500,
         textDecoration: 'none',
       }}
     >
-      ⚠ {count} unresolved background error{count !== 1 ? 's' : ''} — review
+      <span style={{ maxWidth: '90rem', margin: '0 auto', display: 'block' }}>
+        ⚠ {count} unresolved background error{count !== 1 ? 's' : ''} — review →
+      </span>
     </Link>
   )
 }
