@@ -33,5 +33,11 @@ VOICE RULES:
 
 OFF-LIMITS:
 • "Savvy travelers" / "insider" / "hack" / "game-changer" / "must-know"
-• Anything that sounds like a press release
+• Press-release verbs: "expanded eligibility," "has room to grow," "newest additions,"
+  "announced today," "is pleased to," "rolls out," "unveils." If you'd see it in
+  a corporate newsroom, cut it.
+• Over-explaining connectors: "meaning [X]," "which is to say," "in other words" —
+  if the sentence before didn't land, rewrite it, don't footnote it.
+• Program-name restating: don't say "Flying Blue, Air France-KLM's loyalty program"
+  after you already said Flying Blue. The reader knows.
 • Anything that sounds mean, preachy, or smug`
