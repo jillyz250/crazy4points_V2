@@ -13,35 +13,57 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <div style={{ fontFamily: 'var(--font-ui)' }}>
+    <div className="admin">
       <header
         style={{
-          borderBottom: '1px solid var(--color-border-soft)',
-          padding: '0.875rem 2rem',
-          background: 'var(--color-background-soft)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '2rem',
+          borderBottom: '1px solid var(--admin-border)',
+          background: 'var(--admin-surface)',
+          position: 'sticky',
+          top: 0,
+          zIndex: 20,
         }}
       >
-        <Link
-          href="/admin"
+        <div
           style={{
-            color: 'var(--color-primary)',
-            fontWeight: 700,
-            fontSize: '1.125rem',
-            textDecoration: 'none',
-            whiteSpace: 'nowrap',
+            maxWidth: '90rem',
+            margin: '0 auto',
+            padding: '0.75rem 1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '2rem',
           }}
         >
-          crazy4points — Admin
-        </Link>
-        <div style={{ flex: 1 }}>
-          <AdminNav />
+          <Link
+            href="/admin"
+            style={{
+              color: 'var(--admin-text)',
+              fontWeight: 600,
+              fontSize: '0.9375rem',
+              letterSpacing: '-0.01em',
+              textDecoration: 'none',
+              whiteSpace: 'nowrap',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+            }}
+          >
+            <span style={{ color: 'var(--admin-accent)' }}>●</span>
+            crazy4points
+            <span style={{ color: 'var(--admin-text-subtle)', fontWeight: 400 }}>/ admin</span>
+          </Link>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <AdminNav />
+          </div>
         </div>
       </header>
       <ErrorsBanner />
-      <main style={{ padding: '2rem' }}>
+      <main
+        style={{
+          maxWidth: '90rem',
+          margin: '0 auto',
+          padding: '1.75rem 1.5rem',
+        }}
+      >
         {children}
       </main>
     </div>

@@ -9,7 +9,7 @@ const NAV_ITEMS = [
   { href: '/admin/sources', label: 'Sources' },
   { href: '/admin/intel', label: 'Intel' },
   { href: '/admin/programs', label: 'Programs' },
-  { href: '/admin/content-ideas', label: 'Content Ideas' },
+  { href: '/admin/content-ideas', label: 'Ideas' },
   { href: '/admin/newsletter', label: 'Newsletter' },
   { href: '/admin/subscribers', label: 'Subscribers' },
   { href: '/admin/jobs', label: 'Jobs' },
@@ -23,47 +23,41 @@ function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(href + '/')
 }
 
-const linkStyle: React.CSSProperties = {
-  padding: '0.375rem 0.75rem',
-  borderRadius: 'var(--radius-ui)',
-  fontSize: '0.875rem',
+const base: React.CSSProperties = {
+  padding: '0.3125rem 0.625rem',
+  borderRadius: 'var(--admin-radius)',
+  fontSize: '0.8125rem',
   fontFamily: 'var(--font-ui)',
-  fontWeight: 600,
-  color: 'var(--color-text-secondary)',
+  fontWeight: 500,
+  color: 'var(--admin-text-muted)',
   textDecoration: 'none',
-  letterSpacing: '0.02em',
+  letterSpacing: '0',
+  transition: 'background-color 0.12s ease, color 0.12s ease',
 }
 
-const activeLinkStyle: React.CSSProperties = {
-  ...linkStyle,
-  background: 'var(--color-primary)',
-  color: '#fff',
+const active: React.CSSProperties = {
+  ...base,
+  background: 'var(--admin-surface-alt)',
+  color: 'var(--admin-text)',
+  fontWeight: 600,
 }
 
 export default function AdminNav() {
   const pathname = usePathname() ?? '/admin'
 
   return (
-    <nav style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flexWrap: 'wrap' }}>
+    <nav style={{ display: 'flex', alignItems: 'center', gap: '0.125rem', flexWrap: 'wrap' }}>
       {NAV_ITEMS.map((item) => (
         <Link
           key={item.href}
           href={item.href}
-          style={isActive(pathname, item.href) ? activeLinkStyle : linkStyle}
+          style={isActive(pathname, item.href) ? active : base}
         >
           {item.label}
         </Link>
       ))}
       <form action="/api/admin-logout" method="post" style={{ marginLeft: 'auto' }}>
-        <button
-          type="submit"
-          style={{
-            ...linkStyle,
-            background: 'transparent',
-            border: '1px solid var(--color-border-soft)',
-            cursor: 'pointer',
-          }}
-        >
+        <button type="submit" className="admin-btn admin-btn-ghost admin-btn-sm">
           Log out
         </button>
       </form>
