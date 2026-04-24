@@ -122,6 +122,7 @@ export interface Program {
   description: string | null
   logo_url: string | null
   program_url: string | null
+  official_faq_url: string | null
   notes: string | null
   last_verified: string | null
   created_at: string
@@ -953,6 +954,7 @@ export async function createProgram(
     tier?: string | null
     monitor_tier?: MonitorTier | null
     program_url?: string | null
+    official_faq_url?: string | null
   }
 ): Promise<Program> {
   const { data, error } = await supabase
@@ -964,6 +966,7 @@ export async function createProgram(
       tier: input.tier ?? null,
       monitor_tier: input.monitor_tier ?? null,
       program_url: input.program_url ?? null,
+      official_faq_url: input.official_faq_url ?? null,
       is_active: true,
     })
     .select()
@@ -971,5 +974,17 @@ export async function createProgram(
 
   if (error) throw error
   return data as Program
+}
+
+export async function updateProgramOfficialFaqUrl(
+  supabase: SupabaseClient,
+  id: string,
+  url: string | null
+): Promise<void> {
+  const { error } = await supabase
+    .from('programs')
+    .update({ official_faq_url: url })
+    .eq('id', id)
+  if (error) throw error
 }
 
