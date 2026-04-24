@@ -13,6 +13,7 @@ export default function RegenerateButton({ alertId }: { alertId: string }) {
       <button
         type="button"
         disabled={isPending}
+        className="admin-btn admin-btn-secondary admin-btn-sm"
         onClick={() => {
           if (!confirm('Regenerate this draft from the original source? This overwrites the current title, summary, description, and program tags with fresh AI output using the latest rules. Manual edits will be lost.')) return
           setMsg(null)
@@ -30,17 +31,6 @@ export default function RegenerateButton({ alertId }: { alertId: string }) {
             }
           })
         }}
-        style={{
-          padding: '0.35rem 0.75rem',
-          borderRadius: 'var(--radius-ui)',
-          background: '#f3e8ff',
-          color: '#6B2D8F',
-          border: '1px solid #d8b4fe',
-          cursor: isPending ? 'wait' : 'pointer',
-          fontSize: '0.8125rem',
-          fontFamily: 'var(--font-ui)',
-          fontWeight: 600,
-        }}
       >
         {isPending ? 'Regenerating…' : 'Regenerate'}
       </button>
@@ -49,7 +39,7 @@ export default function RegenerateButton({ alertId }: { alertId: string }) {
           style={{
             fontSize: '0.75rem',
             fontFamily: 'var(--font-ui)',
-            color: isError ? '#c0392b' : '#1e5c2e',
+            color: isError ? 'var(--admin-danger)' : 'var(--admin-success)',
           }}
         >
           {msg}

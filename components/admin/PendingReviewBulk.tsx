@@ -10,11 +10,13 @@ import {
 } from '@/app/admin/(protected)/alerts/actions'
 import FactCheckWarnings from '@/components/admin/FactCheckWarnings'
 import RegenerateButton from '@/components/admin/RegenerateButton'
+import { Badge } from '@/components/admin/ui/Badge'
 
-const CONFIDENCE_COLOR: Record<string, string> = {
-  high: '#1e7e34',
-  medium: '#b45309',
-  low: '#c0392b',
+type ConfTone = 'success' | 'warning' | 'danger' | 'neutral'
+const CONFIDENCE_TONE: Record<string, ConfTone> = {
+  high: 'success',
+  medium: 'warning',
+  low: 'danger',
 }
 
 type Intel = {
@@ -47,11 +49,9 @@ export default function PendingReviewBulk({ alerts }: { alerts: PendingAlert[] }
       return next
     })
   }
-
   function toggleAll() {
     setSelected(allSelected ? new Set() : new Set(allIds))
   }
-
   function bulkApprove() {
     const ids = Array.from(selected)
     if (ids.length === 0) return
@@ -60,7 +60,6 @@ export default function PendingReviewBulk({ alerts }: { alerts: PendingAlert[] }
       bulkApproveIntelAlertsAction(ids)
     })
   }
-
   function bulkReject() {
     const ids = Array.from(selected)
     if (ids.length === 0) return
@@ -71,32 +70,32 @@ export default function PendingReviewBulk({ alerts }: { alerts: PendingAlert[] }
   }
 
   return (
-    <div style={{ marginBottom: '2.5rem' }}>
-      <div
+    <section
+      className="admin-card"
+      style={{
+        marginBottom: '1.5rem',
+        borderLeft: '3px solid var(--admin-warning)',
+        overflow: 'hidden',
+      }}
+    >
+      <header
         style={{
+          padding: '0.75rem 1rem',
+          borderBottom: '1px solid var(--admin-border)',
+          background: 'var(--admin-warning-soft)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: '0.75rem',
-          marginBottom: '1rem',
           flexWrap: 'wrap',
         }}
       >
-        <h2 style={{ fontSize: '1rem', fontFamily: 'var(--font-ui)', margin: 0, color: '#b45309' }}>
-          Pending Review ({alerts.length})
-        </h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+          <h2 style={{ margin: 0, fontSize: '0.9375rem' }}>Pending Review</h2>
+          <Badge tone="warning">{alerts.length}</Badge>
+        </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <label
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.375rem',
-              fontFamily: 'var(--font-ui)',
-              fontSize: '0.8125rem',
-              color: 'var(--color-text-secondary)',
-              cursor: 'pointer',
-            }}
-          >
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.8125rem', color: 'var(--admin-text-muted)', cursor: 'pointer' }}>
             <input type="checkbox" checked={allSelected} onChange={toggleAll} />
             Select all
           </label>
@@ -104,164 +103,98 @@ export default function PendingReviewBulk({ alerts }: { alerts: PendingAlert[] }
             type="button"
             onClick={bulkApprove}
             disabled={!someSelected || isPending}
-            style={{
-              padding: '0.35rem 0.875rem',
-              borderRadius: 'var(--radius-ui)',
-              background: someSelected ? '#1e7e34' : '#cfd8dc',
-              color: '#fff',
-              border: 'none',
-              cursor: someSelected && !isPending ? 'pointer' : 'not-allowed',
-              fontSize: '0.8125rem',
-              fontFamily: 'var(--font-ui)',
-              fontWeight: 600,
-            }}
+            className="admin-btn admin-btn-primary admin-btn-sm"
           >
-            {isPending ? 'Working…' : `Approve selected (${selected.size})`}
+            {isPending ? 'Working…' : `Approve (${selected.size})`}
           </button>
           <button
             type="button"
             onClick={bulkReject}
             disabled={!someSelected || isPending}
-            style={{
-              padding: '0.35rem 0.875rem',
-              borderRadius: 'var(--radius-ui)',
-              background: '#fdecea',
-              color: '#c0392b',
-              border: '1px solid #f5c6cb',
-              cursor: someSelected && !isPending ? 'pointer' : 'not-allowed',
-              fontSize: '0.8125rem',
-              fontFamily: 'var(--font-ui)',
-              fontWeight: 600,
-              opacity: someSelected ? 1 : 0.6,
-            }}
+            className="admin-btn admin-btn-danger admin-btn-sm"
           >
-            Reject selected
+            Reject
           </button>
         </div>
-      </div>
+      </header>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-        {alerts.map((alert) => {
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        {alerts.map((alert, idx) => {
           const intel = alert.intel
           const checked = selected.has(alert.id)
           return (
             <div
               key={alert.id}
               style={{
-                border: checked ? '1px solid #f59e0b' : '1px solid #fde68a',
-                borderLeft: '4px solid #f59e0b',
-                borderRadius: 'var(--radius-card)',
-                background: checked ? '#fff3cd' : '#fffbeb',
-                padding: '1rem 1.25rem',
+                padding: '0.875rem 1rem',
+                borderBottom: idx === alerts.length - 1 ? 'none' : '1px solid var(--admin-border)',
+                background: checked ? 'var(--admin-surface-alt)' : 'var(--admin-surface)',
+                display: 'flex',
+                gap: '0.75rem',
+                alignItems: 'flex-start',
               }}
             >
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'flex-start',
-                  gap: '1rem',
-                  flexWrap: 'wrap',
-                }}
-              >
-                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', flex: 1, minWidth: 0 }}>
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => toggle(alert.id)}
-                    style={{ marginTop: '0.25rem', flexShrink: 0 }}
-                    aria-label={`Select ${alert.title}`}
-                  />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontWeight: 600, marginBottom: '0.25rem', color: 'var(--color-text-primary)' }}>
-                      {alert.title}
-                    </p>
-                    {intel && (
-                      <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', marginBottom: '0.5rem' }}>
-                        <span style={{ fontWeight: 600, color: CONFIDENCE_COLOR[intel.confidence] }}>
-                          {intel.confidence.toUpperCase()}
-                        </span>
-                        {' · '}
-                        {intel.source_name}
-                        {intel.source_url && (
-                          <>
-                            {' '}·{' '}
-                            <a href={intel.source_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)' }}>
-                              source
-                            </a>
-                          </>
-                        )}
-                      </p>
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={() => toggle(alert.id)}
+                style={{ marginTop: '0.3125rem', flexShrink: 0 }}
+                aria-label={`Select ${alert.title}`}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 600, fontSize: '0.9375rem', color: 'var(--admin-text)', marginBottom: '0.25rem' }}>
+                  {alert.title}
+                </div>
+                {intel && (
+                  <div style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)', display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '0.375rem' }}>
+                    <Badge tone={CONFIDENCE_TONE[intel.confidence] ?? 'neutral'}>{intel.confidence}</Badge>
+                    <span>{intel.source_name}</span>
+                    {intel.source_url && (
+                      <a href={intel.source_url} target="_blank" rel="noopener noreferrer">
+                        source ↗
+                      </a>
                     )}
-                    {intel?.raw_text && (
-                      <p
-                        style={{
-                          fontSize: '0.8125rem',
-                          color: 'var(--color-text-secondary)',
-                          fontStyle: 'italic',
-                          overflow: 'hidden',
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical',
-                        }}
-                      >
-                        "{intel.raw_text.slice(0, 200)}
-                        {intel.raw_text.length > 200 ? '…' : ''}"
-                      </p>
-                    )}
-                    <FactCheckWarnings alertId={alert.id} claims={alert.fact_check_claims} />
                   </div>
-                </div>
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexShrink: 0 }}>
-                  <Link
-                    href={`/admin/alerts/${alert.id}/edit`}
-                    style={{ fontSize: '0.8125rem', color: 'var(--color-primary)', textDecoration: 'underline' }}
+                )}
+                {intel?.raw_text && (
+                  <p
+                    style={{
+                      fontSize: '0.8125rem',
+                      color: 'var(--admin-text-muted)',
+                      fontStyle: 'italic',
+                      margin: '0.25rem 0 0.5rem',
+                      overflow: 'hidden',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                    }}
                   >
-                    Edit
-                  </Link>
-                  <RegenerateButton alertId={alert.id} />
-                  <form action={approveIntelAlertAction.bind(null, alert.id)}>
-                    <button
-                      type="submit"
-                      style={{
-                        padding: '0.35rem 0.875rem',
-                        borderRadius: 'var(--radius-ui)',
-                        background: '#1e7e34',
-                        color: '#fff',
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontSize: '0.8125rem',
-                        fontFamily: 'var(--font-ui)',
-                        fontWeight: 600,
-                      }}
-                    >
-                      Approve
-                    </button>
-                  </form>
-                  <form action={rejectAlertAction.bind(null, alert.id)}>
-                    <button
-                      type="submit"
-                      style={{
-                        padding: '0.35rem 0.875rem',
-                        borderRadius: 'var(--radius-ui)',
-                        background: '#fdecea',
-                        color: '#c0392b',
-                        border: '1px solid #f5c6cb',
-                        cursor: 'pointer',
-                        fontSize: '0.8125rem',
-                        fontFamily: 'var(--font-ui)',
-                        fontWeight: 600,
-                      }}
-                    >
-                      Reject
-                    </button>
-                  </form>
-                </div>
+                    &ldquo;{intel.raw_text.slice(0, 200)}
+                    {intel.raw_text.length > 200 ? '…' : ''}&rdquo;
+                  </p>
+                )}
+                <FactCheckWarnings alertId={alert.id} claims={alert.fact_check_claims} />
+              </div>
+              <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center', flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                <Link href={`/admin/alerts/${alert.id}/edit`} className="admin-btn admin-btn-ghost admin-btn-sm">
+                  Edit
+                </Link>
+                <RegenerateButton alertId={alert.id} />
+                <form action={approveIntelAlertAction.bind(null, alert.id)}>
+                  <button type="submit" className="admin-btn admin-btn-primary admin-btn-sm">
+                    Approve
+                  </button>
+                </form>
+                <form action={rejectAlertAction.bind(null, alert.id)}>
+                  <button type="submit" className="admin-btn admin-btn-danger admin-btn-sm">
+                    Reject
+                  </button>
+                </form>
               </div>
             </div>
           )
         })}
       </div>
-    </div>
+    </section>
   )
 }

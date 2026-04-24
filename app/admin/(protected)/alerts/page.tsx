@@ -4,13 +4,18 @@ import { getAllAlerts, getPendingReviewAlerts } from '@/utils/supabase/queries'
 import type { AlertStatus } from '@/utils/supabase/queries'
 import { publishAlertAction, expireAlertAction } from './actions'
 import PendingReviewBulk from '@/components/admin/PendingReviewBulk'
+import { PageHeader } from '@/components/admin/ui/PageHeader'
+import { LinkButton } from '@/components/admin/ui/Button'
+import { Badge } from '@/components/admin/ui/Badge'
+import { Card } from '@/components/admin/ui/Card'
+import { EmptyState } from '@/components/admin/ui/EmptyState'
 
-const STATUS_BADGE: Record<AlertStatus, { label: string; bg: string; color: string }> = {
-  published:      { label: 'Published',      bg: '#e6f4ea', color: '#1e7e34' },
-  draft:          { label: 'Draft',          bg: '#f0f0f0', color: '#555555' },
-  pending_review: { label: 'Pending Review', bg: '#fff8e1', color: '#b45309' },
-  rejected:       { label: 'Rejected',       bg: '#fdecea', color: '#c0392b' },
-  expired:        { label: 'Expired',        bg: '#f3f0f7', color: '#7c5cbf' },
+const STATUS_TONE: Record<AlertStatus, { label: string; tone: 'success' | 'warning' | 'danger' | 'neutral' | 'accent' }> = {
+  published:      { label: 'Published',      tone: 'success' },
+  draft:          { label: 'Draft',          tone: 'neutral' },
+  pending_review: { label: 'Pending',        tone: 'warning' },
+  rejected:       { label: 'Rejected',       tone: 'danger' },
+  expired:        { label: 'Expired',        tone: 'accent' },
 }
 
 export default async function AdminAlertsPage() {
@@ -22,12 +27,11 @@ export default async function AdminAlertsPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-        <h1>Alerts</h1>
-        <Link href="/admin/alerts/new" className="rg-btn-primary">
-          + New Alert
-        </Link>
-      </div>
+      <PageHeader
+        title="Alerts"
+        description="Review pending drafts, publish, and manage the live catalog."
+        actions={<LinkButton href="/admin/alerts/new" variant="primary">+ New Alert</LinkButton>}
+      />
 
       {pendingAlerts.length > 0 && (
         <PendingReviewBulk
@@ -47,88 +51,68 @@ export default async function AdminAlertsPage() {
         />
       )}
 
-      {/* All alerts table */}
+      <h2 style={{ margin: '1.5rem 0 0.75rem' }}>All Alerts</h2>
       {alerts.length === 0 ? (
-        <p style={{ color: 'var(--color-text-secondary)' }}>No alerts yet.</p>
+        <EmptyState title="No alerts yet" description="Create one, or wait for Scout to draft something." />
       ) : (
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid var(--color-border-soft)', textAlign: 'left' }}>
-                <th style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)' }}>Title</th>
-                <th style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)' }}>Type</th>
-                <th style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)' }}>Status</th>
-                <th style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)' }}>Expires</th>
-                <th style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)' }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {alerts.map((alert) => {
-                const badge = STATUS_BADGE[alert.status] ?? STATUS_BADGE.draft
-                return (
-                  <tr key={alert.id} style={{ borderBottom: '1px solid var(--color-border-soft)' }}>
-                    <td style={{ padding: '0.625rem 0.75rem', color: 'var(--color-text-primary)' }}>
-                      {alert.title}
-                    </td>
-                    <td style={{ padding: '0.625rem 0.75rem', color: 'var(--color-text-secondary)' }}>
-                      {alert.type.replace(/_/g, ' ')}
-                    </td>
-                    <td style={{ padding: '0.625rem 0.75rem' }}>
-                      <span style={{
-                        display: 'inline-block',
-                        padding: '0.2rem 0.55rem',
-                        borderRadius: '999px',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        fontFamily: 'var(--font-ui)',
-                        letterSpacing: '0.02em',
-                        background: badge.bg,
-                        color: badge.color,
-                      }}>
-                        {badge.label}
-                      </span>
-                    </td>
-                    <td style={{ padding: '0.625rem 0.75rem', color: 'var(--color-text-secondary)' }}>
-                      {alert.end_date
-                        ? new Date(alert.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                        : '—'}
-                    </td>
-                    <td style={{ padding: '0.625rem 0.75rem' }}>
-                      <div style={{ display: 'flex', gap: '0.875rem', alignItems: 'center' }}>
-                        <Link
-                          href={`/admin/alerts/${alert.id}/edit`}
-                          style={{ color: 'var(--color-primary)', textDecoration: 'underline', fontSize: '0.8125rem' }}
-                        >
-                          Edit
-                        </Link>
-                        {(alert.status === 'draft' || alert.status === 'pending_review') && (
-                          <form action={publishAlertAction.bind(null, alert.id)}>
-                            <button
-                              type="submit"
-                              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#1e7e34', textDecoration: 'underline', fontSize: '0.8125rem', fontFamily: 'var(--font-body)' }}
-                            >
-                              Publish
-                            </button>
-                          </form>
-                        )}
-                        {alert.status === 'published' && (
-                          <form action={expireAlertAction.bind(null, alert.id)}>
-                            <button
-                              type="submit"
-                              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#b45309', textDecoration: 'underline', fontSize: '0.8125rem', fontFamily: 'var(--font-body)' }}
-                            >
-                              Expire
-                            </button>
-                          </form>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+        <Card>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                  <th>Expires</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {alerts.map((alert) => {
+                  const s = STATUS_TONE[alert.status] ?? STATUS_TONE.draft
+                  return (
+                    <tr key={alert.id}>
+                      <td style={{ color: 'var(--admin-text)', fontWeight: 500 }}>{alert.title}</td>
+                      <td style={{ color: 'var(--admin-text-muted)', textTransform: 'capitalize' }}>
+                        {alert.type.replace(/_/g, ' ')}
+                      </td>
+                      <td><Badge tone={s.tone}>{s.label}</Badge></td>
+                      <td style={{ color: 'var(--admin-text-muted)' }}>
+                        {alert.end_date
+                          ? new Date(alert.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                          : '—'}
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-end' }}>
+                          <Link
+                            href={`/admin/alerts/${alert.id}/edit`}
+                            className="admin-btn admin-btn-ghost admin-btn-sm"
+                          >
+                            Edit
+                          </Link>
+                          {(alert.status === 'draft' || alert.status === 'pending_review') && (
+                            <form action={publishAlertAction.bind(null, alert.id)}>
+                              <button type="submit" className="admin-btn admin-btn-secondary admin-btn-sm">
+                                Publish
+                              </button>
+                            </form>
+                          )}
+                          {alert.status === 'published' && (
+                            <form action={expireAlertAction.bind(null, alert.id)}>
+                              <button type="submit" className="admin-btn admin-btn-ghost admin-btn-sm">
+                                Expire
+                              </button>
+                            </form>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       )}
     </div>
   )
