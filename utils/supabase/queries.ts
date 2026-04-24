@@ -501,14 +501,35 @@ export async function logSystemError(
   err: unknown,
   context?: Record<string, unknown>,
 ): Promise<void> {
-  const message = err instanceof Error ? err.message : String(err)
-  const stack = err instanceof Error ? err.stack ?? null : null
+  let message: string
+  let stack: string | null = null
+  let errDetails: Record<string, unknown> | null = null
+  if (err instanceof Error) {
+    message = err.message
+    stack = err.stack ?? null
+  } else if (err && typeof err === 'object') {
+    const obj = err as Record<string, unknown>
+    message =
+      typeof obj.message === 'string' && obj.message.length > 0
+        ? obj.message
+        : JSON.stringify(err)
+    errDetails = {
+      code: obj.code ?? null,
+      details: obj.details ?? null,
+      hint: obj.hint ?? null,
+    }
+  } else {
+    message = String(err)
+  }
+  const mergedContext = errDetails
+    ? { ...(context ?? {}), error: errDetails }
+    : context ?? null
   try {
     await supabase.from('system_errors').insert({
       source,
       message,
       stack,
-      context: context ?? null,
+      context: mergedContext,
     })
   } catch {
     // intentional: logging path must never throw
