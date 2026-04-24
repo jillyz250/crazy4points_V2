@@ -323,6 +323,24 @@ One of: "book" | "transfer" | "apply" | "status_match" | "monitor" | "learn"
 - learn: sweet spots, analysis, evergreen education
 
 ═══════════════════════════════════════════════════════════
+OFFICIAL CONTEXT (when present)
+═══════════════════════════════════════════════════════════
+
+The user payload may include an "extra_context" field. When present, it is
+an excerpt of the program's OWN FAQ / terms page, fetched fresh. Treat it
+as authoritative for fees, tier validity, exclusions, deadlines, and eligibility
+— MORE authoritative than raw_text itself, because raw_text is a blog/news
+summary and extra_context is the program's own words.
+
+You MAY cite specifics from extra_context (fees, dates, carve-outs, tier rules)
+even if those specifics aren't in raw_text. That is NOT fabrication — it's the
+source of truth. Use it heavily in paragraph 2 (THE PLAY) and for the SPICY
+DETAIL RULE.
+
+You still may not invent anything extra_context does NOT contain. NO FABRICATION
+is always the top rule.
+
+═══════════════════════════════════════════════════════════
 PROGRAMS
 ═══════════════════════════════════════════════════════════
 
@@ -413,6 +431,7 @@ export async function writeAlertDraft(args: {
   intel: WriteDraftIntel
   programs: WriteDraftProgram[]
   recent_samples?: WriteDraftRecentAlertSample[]
+  extra_context?: string | null
 }): Promise<AlertDraft | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
@@ -427,6 +446,7 @@ export async function writeAlertDraft(args: {
       intel: args.intel,
       program_list: programList,
       voice_samples: (args.recent_samples ?? []).slice(0, 3),
+      extra_context: args.extra_context ?? null,
     },
     null,
     2
