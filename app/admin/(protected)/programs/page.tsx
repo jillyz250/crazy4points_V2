@@ -3,6 +3,7 @@ import { getAllPrograms } from '@/utils/supabase/queries'
 import type { ProgramType, Program } from '@/utils/supabase/queries'
 import { toggleProgramAction } from './actions'
 import AddProgramForm from './AddProgramForm'
+import FaqContentEditor from './FaqContentEditor'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Card } from '@/components/admin/ui/Card'
 import { Badge } from '@/components/admin/ui/Badge'
@@ -88,6 +89,7 @@ export default async function AdminProgramsPage() {
                           <th>Tier</th>
                           <th>Monitor</th>
                           <th>URL</th>
+                          <th>FAQ</th>
                           <th>Active</th>
                         </tr>
                       </thead>
@@ -105,6 +107,14 @@ export default async function AdminProgramsPage() {
                               ) : (
                                 <span style={{ color: 'var(--admin-text-subtle)' }}>—</span>
                               )}
+                            </td>
+                            <td>
+                              <FaqContentEditor
+                                programId={program.id}
+                                programName={program.name}
+                                initialContent={program.faq_content}
+                                initialUpdatedAt={program.faq_updated_at}
+                              />
                             </td>
                             <td>
                               <form action={toggleProgramAction.bind(null, program.id, !program.is_active)}>

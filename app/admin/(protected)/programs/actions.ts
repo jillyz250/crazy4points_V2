@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/utils/supabase/server'
-import { toggleProgramActive, createProgram } from '@/utils/supabase/queries'
+import { toggleProgramActive, createProgram, updateProgramFaqContent } from '@/utils/supabase/queries'
 import type { ProgramType, MonitorTier } from '@/utils/supabase/queries'
 
 export async function toggleProgramAction(id: string, is_active: boolean) {
@@ -36,6 +36,20 @@ export async function createProgramAction(formData: FormData): Promise<{ error?:
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Failed to create program.'
     return { error: msg.includes('duplicate') ? `Slug "${slug}" already exists.` : msg }
+  }
+  revalidatePath('/admin/programs')
+  return {}
+}
+
+export async function updateProgramFaqContentAction(
+  id: string,
+  content: string | null
+): Promise<{ error?: string }> {
+  const supabase = createAdminClient()
+  try {
+    await updateProgramFaqContent(supabase, id, content)
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Failed to save FAQ content.' }
   }
   revalidatePath('/admin/programs')
   return {}
