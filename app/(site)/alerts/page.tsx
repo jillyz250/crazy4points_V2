@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { createAdminClient } from '@/utils/supabase/server'
 import { getActiveAlertsByFilter, getPrograms } from '@/utils/supabase/queries'
 import AlertsGridSB from '@/components/alerts/AlertsGridSB'
+import AlertsTieredSB from '@/components/alerts/AlertsTieredSB'
 import AlertsFiltersSB from '@/components/alerts/AlertsFiltersSB'
 
 export const revalidate = 60
@@ -51,7 +52,7 @@ export default async function AlertsPage({
           />
         </Suspense>
 
-        <AlertsGridSB alerts={alerts} />
+        {type || programSlug ? <AlertsGridSB alerts={alerts} /> : <AlertsTieredSB alerts={alerts} />}
       </div>
     </section>
   )
