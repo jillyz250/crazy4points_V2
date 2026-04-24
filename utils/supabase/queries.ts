@@ -106,6 +106,7 @@ export interface Alert {
   fact_check_claims: unknown | null
   fact_check_at: string | null
   revision_log: unknown | null
+  is_hot: boolean
   created_at: string
   updated_at: string
 }
