@@ -9,7 +9,7 @@ export default function RegenerateButton({ alertId }: { alertId: string }) {
   const [isError, setIsError] = useState(false)
 
   return (
-    <div style={{ display: 'inline-flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+    <div style={{ display: 'inline-flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'stretch' }}>
       <button
         type="button"
         disabled={isPending}
@@ -37,9 +37,12 @@ export default function RegenerateButton({ alertId }: { alertId: string }) {
       {msg && (
         <span
           style={{
-            fontSize: '0.75rem',
+            fontSize: '0.6875rem',
             fontFamily: 'var(--font-ui)',
             color: isError ? 'var(--admin-danger)' : 'var(--admin-success)',
+            maxWidth: '12rem',
+            lineHeight: 1.3,
+            wordBreak: 'break-word',
           }}
         >
           {msg}
