@@ -122,7 +122,8 @@ export interface Program {
   description: string | null
   logo_url: string | null
   program_url: string | null
-  official_faq_url: string | null
+  faq_content: string | null
+  faq_updated_at: string | null
   notes: string | null
   last_verified: string | null
   created_at: string
@@ -954,7 +955,6 @@ export async function createProgram(
     tier?: string | null
     monitor_tier?: MonitorTier | null
     program_url?: string | null
-    official_faq_url?: string | null
   }
 ): Promise<Program> {
   const { data, error } = await supabase
@@ -966,7 +966,6 @@ export async function createProgram(
       tier: input.tier ?? null,
       monitor_tier: input.monitor_tier ?? null,
       program_url: input.program_url ?? null,
-      official_faq_url: input.official_faq_url ?? null,
       is_active: true,
     })
     .select()
@@ -976,48 +975,18 @@ export async function createProgram(
   return data as Program
 }
 
-export async function updateProgramOfficialFaqUrl(
+export async function updateProgramFaqContent(
   supabase: SupabaseClient,
   id: string,
-  url: string | null
+  faq_content: string | null
 ): Promise<void> {
   const { error } = await supabase
     .from('programs')
-    .update({ official_faq_url: url })
+    .update({
+      faq_content,
+      faq_updated_at: faq_content ? new Date().toISOString() : null,
+    })
     .eq('id', id)
-  if (error) throw error
-}
-
-export interface ProgramFaqCache {
-  program_id: string
-  url: string
-  content: string
-  fetched_at: string
-}
-
-export async function getProgramFaqCache(
-  supabase: SupabaseClient,
-  programId: string
-): Promise<ProgramFaqCache | null> {
-  const { data, error } = await supabase
-    .from('program_faq_cache')
-    .select('program_id, url, content, fetched_at')
-    .eq('program_id', programId)
-    .maybeSingle()
-  if (error) throw error
-  return (data as ProgramFaqCache | null) ?? null
-}
-
-export async function upsertProgramFaqCache(
-  supabase: SupabaseClient,
-  row: { program_id: string; url: string; content: string }
-): Promise<void> {
-  const { error } = await supabase
-    .from('program_faq_cache')
-    .upsert(
-      { program_id: row.program_id, url: row.url, content: row.content, fetched_at: new Date().toISOString() },
-      { onConflict: 'program_id' }
-    )
   if (error) throw error
 }
 
