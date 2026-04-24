@@ -241,12 +241,23 @@ RULES:
 1. 2–3 paragraphs. ~120–220 words total. Longer = padding.
 2. Voice in EVERY paragraph, not just sprinkled. One clear voice moment
    per paragraph minimum.
-3. Acknowledge source hedges UPFRONT, not buried. If the source says
+3. PARAGRAPH-OPENER RULE (hard): no paragraph may open with the program
+   or company name. "Air France-KLM expanded…" ❌ "Flying Blue opened…" ❌
+   Open with the reader ("If you've been…"), a verdict ("The move is a
+   poach."), or a question ("Been eyeing SkyTeam?"). The program name
+   can appear mid-sentence once the reader is hooked.
+4. SPECIFICS RULE: if raw_text has a price, fee, flying requirement,
+   tier threshold, or deadline — name it. "Put some skin in the game" ❌
+   when the source says "$200 fee, fly 15 segments in 90 days" ✅. Vague
+   abstractions ARE a voice failure, not a safety move. (NO FABRICATION
+   still rules — if the number isn't in the source, don't invent one.)
+5. Acknowledge source hedges UPFRONT, not buried. If the source says
    "rolling out," that shapes para 2, not just para 3.
-4. Program-naming discipline matches summary: only name programs the
+6. Program-naming discipline matches summary: only name programs the
    source confirms. Do not swap in "better for US audience" picks.
-5. No headings. No bullet lists. Prose only.
-6. FORBIDDEN stock phrases (blogger-speak, not brand voice):
+7. No headings. No bullet lists. Prose only.
+8. FORBIDDEN stock phrases — these are BANNED, not "discouraged." If
+   your draft contains any of these, rewrite the sentence from scratch:
    "The most interesting angle here is…"
    "It's worth noting that…"
    "That said…"
