@@ -6,8 +6,57 @@ import { toggleProgramAction } from './actions'
 import { Card } from '@/components/admin/ui/Card'
 import { Badge } from '@/components/admin/ui/Badge'
 import { EmptyState } from '@/components/admin/ui/EmptyState'
-import FaqContentEditor from './FaqContentEditor'
 import ProgramPageContentEditor from './ProgramPageContentEditor'
+
+const ALLIANCE_LABEL: Record<string, string> = {
+  skyteam:        'SkyTeam',
+  star_alliance:  'Star Alliance',
+  oneworld:       'oneworld',
+  none:           'Independent',
+  other:          'Partnership',
+}
+
+const ALLIANCE_COLOR: Record<string, string> = {
+  skyteam:        '#0033A0',
+  star_alliance:  '#1A1A1A',
+  oneworld:       '#C8102E',
+  none:           '#4A4A4A',
+  other:          '#4A4A4A',
+}
+
+/**
+ * Counts how many of the 9 page-content sections a program has populated.
+ * Surfaces in admin so authors can see at-a-glance what's done vs. todo.
+ *
+ * Sections (9): alliance, hubs, intro, transfer_partners, how_to_spend,
+ * sweet_spots, tier_benefits, lounge_access, quirks.
+ */
+function pageCompleteness(program: Program): { filled: number; total: number; missing: string[] } {
+  const checks: Array<[string, boolean]> = [
+    ['Alliance',          !!program.alliance],
+    ['Hubs',              (program.hubs?.length ?? 0) > 0],
+    ['Intro',             !!program.intro?.trim()],
+    ['Transfer partners', (program.transfer_partners?.length ?? 0) > 0],
+    ['How to spend',      !!program.how_to_spend?.trim()],
+    ['Sweet spots',       !!program.sweet_spots?.trim()],
+    ['Tier benefits',     (program.tier_benefits?.length ?? 0) > 0],
+    ['Lounge access',     !!program.lounge_access?.trim()],
+    ['Tips & quirks',     !!program.quirks?.trim()],
+  ]
+  const filled = checks.filter(([, ok]) => ok).length
+  const missing = checks.filter(([, ok]) => !ok).map(([label]) => label)
+  return { filled, total: checks.length, missing }
+}
+
+function MonitorBadge({ tier }: { tier: string | null }) {
+  if (!tier) return null
+  const color = tier === 'daily' ? '#0F766E' : tier === 'weekly' ? '#7C2D12' : '#4A4A4A'
+  return (
+    <span style={{ fontSize: '0.6875rem', color, textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
+      {tier}
+    </span>
+  )
+}
 
 export default function ProgramsTable({ programs }: { programs: Program[] }) {
   const [filter, setFilter] = useState('')
@@ -57,84 +106,123 @@ export default function ProgramsTable({ programs }: { programs: Program[] }) {
 
       <Card>
         <div style={{ overflowX: 'auto' }}>
-          <table className="admin-table">
+          <table className="admin-table" style={{ tableLayout: 'auto' }}>
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Tier</th>
-                <th>Monitor</th>
-                <th>URL</th>
-                <th>FAQ</th>
-                <th>Page</th>
-                <th>Active</th>
+                <th style={{ width: '40%' }}>Program</th>
+                <th>Page content</th>
+                <th style={{ width: '4rem' }}></th>
+                <th style={{ width: '6rem' }}>Active</th>
               </tr>
             </thead>
             <tbody>
-              {visible.map((program) => (
-                <tr key={program.id}>
-                  <td style={{ fontWeight: 500 }}>{program.name}</td>
-                  <td style={{ color: 'var(--admin-text-muted)' }}>
-                    {program.tier ?? '—'}
-                  </td>
-                  <td style={{ color: 'var(--admin-text-muted)' }}>
-                    {program.monitor_tier ?? '—'}
-                  </td>
-                  <td>
-                    {program.program_url ? (
-                      <a
-                        href={program.program_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ fontSize: '0.8125rem' }}
-                      >
-                        Link ↗
-                      </a>
-                    ) : (
-                      <span style={{ color: 'var(--admin-text-subtle)' }}>—</span>
-                    )}
-                  </td>
-                  <td>
-                    <FaqContentEditor
-                      programId={program.id}
-                      programName={program.name}
-                      initialContent={program.faq_content}
-                      initialUpdatedAt={program.faq_updated_at}
-                    />
-                  </td>
-                  <td>
-                    <ProgramPageContentEditor
-                      programId={program.id}
-                      programName={program.name}
-                      initialIntro={program.intro}
-                      initialTransferPartners={program.transfer_partners}
-                      initialSweetSpots={program.sweet_spots}
-                      initialQuirks={program.quirks}
-                      initialHowToSpend={program.how_to_spend}
-                      initialTierBenefits={program.tier_benefits}
-                      initialLoungeAccess={program.lounge_access}
-                      initialAlliance={program.alliance}
-                      initialHubs={program.hubs}
-                      initialUpdatedAt={program.content_updated_at}
-                    />
-                  </td>
-                  <td>
-                    <form action={toggleProgramAction.bind(null, program.id, !program.is_active)}>
-                      <button
-                        type="submit"
-                        className="admin-btn admin-btn-ghost admin-btn-sm"
-                      >
-                        <Badge tone={program.is_active ? 'success' : 'neutral'}>
-                          {program.is_active ? 'Active' : 'Inactive'}
-                        </Badge>
-                      </button>
-                    </form>
-                  </td>
-                </tr>
-              ))}
+              {visible.map((program) => {
+                const c = pageCompleteness(program)
+                const completeness =
+                  c.filled === c.total ? 'complete' : c.filled === 0 ? 'empty' : 'partial'
+                const completenessColor =
+                  completeness === 'complete'
+                    ? 'var(--admin-success, #16a34a)'
+                    : completeness === 'partial'
+                      ? 'var(--admin-warning, #d97706)'
+                      : 'var(--admin-text-subtle, #9ca3af)'
+                return (
+                  <tr key={program.id}>
+                    {/* Program (name + meta) */}
+                    <td style={{ verticalAlign: 'top', paddingTop: '0.875rem', paddingBottom: '0.875rem' }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.9375rem', marginBottom: '0.25rem' }}>
+                        {program.name}
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', alignItems: 'center', fontSize: '0.75rem' }}>
+                        <span style={{ color: 'var(--admin-text-subtle)', fontFamily: 'var(--font-mono, ui-monospace, monospace)' }}>
+                          {program.slug}
+                        </span>
+                        {program.alliance && (
+                          <span
+                            style={{
+                              padding: '0.0625rem 0.375rem',
+                              fontSize: '0.625rem',
+                              fontWeight: 700,
+                              letterSpacing: '0.04em',
+                              color: '#fff',
+                              background: ALLIANCE_COLOR[program.alliance] ?? '#4A4A4A',
+                              borderRadius: '9999px',
+                            }}
+                          >
+                            {ALLIANCE_LABEL[program.alliance] ?? program.alliance}
+                          </span>
+                        )}
+                        {(program.hubs?.length ?? 0) > 0 && (
+                          <span style={{ color: 'var(--admin-text-muted)' }}>
+                            {program.hubs!.join(' · ')}
+                          </span>
+                        )}
+                        <MonitorBadge tier={program.monitor_tier} />
+                      </div>
+                    </td>
+
+                    {/* Page content completeness */}
+                    <td style={{ verticalAlign: 'top', paddingTop: '0.875rem', paddingBottom: '0.875rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <span
+                          style={{
+                            fontSize: '0.875rem',
+                            fontWeight: 700,
+                            color: completenessColor,
+                            fontFamily: 'var(--font-mono, ui-monospace, monospace)',
+                          }}
+                        >
+                          {c.filled}/{c.total}
+                        </span>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)' }}>
+                          {completeness === 'complete'
+                            ? 'all sections done'
+                            : completeness === 'empty'
+                              ? 'no content yet'
+                              : `missing: ${c.missing.slice(0, 2).join(', ')}${c.missing.length > 2 ? `, +${c.missing.length - 2}` : ''}`}
+                        </span>
+                      </div>
+                    </td>
+
+                    {/* Edit button (links to ProgramPageContentEditor) */}
+                    <td style={{ verticalAlign: 'top', paddingTop: '0.5rem', paddingBottom: '0.5rem' }}>
+                      <ProgramPageContentEditor
+                        programId={program.id}
+                        programName={program.name}
+                        initialIntro={program.intro}
+                        initialTransferPartners={program.transfer_partners}
+                        initialSweetSpots={program.sweet_spots}
+                        initialQuirks={program.quirks}
+                        initialHowToSpend={program.how_to_spend}
+                        initialTierBenefits={program.tier_benefits}
+                        initialLoungeAccess={program.lounge_access}
+                        initialAlliance={program.alliance}
+                        initialHubs={program.hubs}
+                        initialUpdatedAt={program.content_updated_at}
+                      />
+                    </td>
+
+                    {/* Active toggle */}
+                    <td style={{ verticalAlign: 'top', paddingTop: '0.875rem', paddingBottom: '0.875rem' }}>
+                      <form action={toggleProgramAction.bind(null, program.id, !program.is_active)}>
+                        <button
+                          type="submit"
+                          className="admin-btn admin-btn-ghost admin-btn-sm"
+                          style={{ padding: 0, background: 'transparent' }}
+                        >
+                          <Badge tone={program.is_active ? 'success' : 'neutral'}>
+                            {program.is_active ? 'Active' : 'Inactive'}
+                          </Badge>
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                )
+              })}
               {visible.length === 0 && (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={4}
                     style={{
                       textAlign: 'center',
                       color: 'var(--admin-text-muted)',

@@ -145,8 +145,6 @@ export interface Program {
   description: string | null
   logo_url: string | null
   program_url: string | null
-  faq_content: string | null
-  faq_updated_at: string | null
   intro: string | null
   transfer_partners: TransferPartnerRow[] | null
   sweet_spots: string | null
@@ -1006,21 +1004,6 @@ export async function createProgram(
 
   if (error) throw error
   return data as Program
-}
-
-export async function updateProgramFaqContent(
-  supabase: SupabaseClient,
-  id: string,
-  faq_content: string | null
-): Promise<void> {
-  const { error } = await supabase
-    .from('programs')
-    .update({
-      faq_content,
-      faq_updated_at: faq_content ? new Date().toISOString() : null,
-    })
-    .eq('id', id)
-  if (error) throw error
 }
 
 export interface ProgramPageContentInput {
