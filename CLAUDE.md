@@ -84,3 +84,11 @@ Always use these classes for layout and buttons — do not invent new patterns.
 - New pages go under `app/(site)/` to inherit the site layout
 - New components go in `components/` organized by section
 - Do not add `output: 'export'` to `next.config.ts` — Vercel handles server rendering
+
+## Adding airline reference pages
+When the user wants to author or refresh a per-program reference page at `/programs/[slug]`:
+- Trigger phrase: **"let's do `<airline>` next"** (also: "add airline X", "next airline", "start `<airline>`", "let's tackle `<airline>`")
+- Skill: `add-airline` (defined at `.claude/skills/add-airline/SKILL.md`) — orchestrates the 11-step pipeline one step at a time
+- Full runbook: `plans/airline-page-runbook.md`
+- Quick-start cheat sheet: `plans/AIRLINE-QUICK-START.md`
+- Per-airline source archive: `plans/sources/[slug].md`
