@@ -118,6 +118,12 @@ export interface TransferPartnerRow {
   bonus_active: boolean
 }
 
+export interface TierBenefitRow {
+  name: string
+  qualification: string
+  benefits: string[]
+}
+
 export interface Program {
   id: string
   slug: string
@@ -135,6 +141,8 @@ export interface Program {
   transfer_partners: TransferPartnerRow[] | null
   sweet_spots: string | null
   quirks: string | null
+  how_to_spend: string | null
+  tier_benefits: TierBenefitRow[] | null
   content_updated_at: string | null
   notes: string | null
   last_verified: string | null
@@ -1007,6 +1015,8 @@ export interface ProgramPageContentInput {
   transfer_partners: TransferPartnerRow[] | null
   sweet_spots: string | null
   quirks: string | null
+  how_to_spend: string | null
+  tier_benefits: TierBenefitRow[] | null
 }
 
 export async function updateProgramPageContent(
@@ -1018,7 +1028,9 @@ export async function updateProgramPageContent(
     !!input.intro ||
     (input.transfer_partners?.length ?? 0) > 0 ||
     !!input.sweet_spots ||
-    !!input.quirks
+    !!input.quirks ||
+    !!input.how_to_spend ||
+    (input.tier_benefits?.length ?? 0) > 0
   const { error } = await supabase
     .from('programs')
     .update({
@@ -1026,6 +1038,8 @@ export async function updateProgramPageContent(
       transfer_partners: input.transfer_partners,
       sweet_spots: input.sweet_spots,
       quirks: input.quirks,
+      how_to_spend: input.how_to_spend,
+      tier_benefits: input.tier_benefits,
       content_updated_at: anyContent ? new Date().toISOString() : null,
     })
     .eq('id', id)

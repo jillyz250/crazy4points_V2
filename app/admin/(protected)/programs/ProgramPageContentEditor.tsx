@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import type { TransferPartnerRow } from '@/utils/supabase/queries'
+import type { TransferPartnerRow, TierBenefitRow } from '@/utils/supabase/queries'
 import { updateProgramPageContentAction } from './actions'
 
 const STALE_DAYS = 60
@@ -29,6 +29,54 @@ const TRANSFER_PARTNERS_PLACEHOLDER = `[
 function partnersToText(rows: TransferPartnerRow[] | null): string {
   if (!rows || rows.length === 0) return ''
   return JSON.stringify(rows, null, 2)
+}
+
+const TIER_BENEFITS_PLACEHOLDER = `[
+  { "name": "Explorer",  "qualification": "Free signup",       "benefits": ["Earn miles", "Family pooling"] },
+  { "name": "Silver",    "qualification": "100 XP per year",   "benefits": ["Lounge access on long-haul", "Priority check-in"] },
+  { "name": "Gold",      "qualification": "180 XP per year",   "benefits": ["Lounge access most flights", "Extra baggage"] },
+  { "name": "Platinum",  "qualification": "300 XP per year",   "benefits": ["Top-tier priority", "Free upgrades when available"] }
+]`
+
+function tiersToText(rows: TierBenefitRow[] | null): string {
+  if (!rows || rows.length === 0) return ''
+  return JSON.stringify(rows, null, 2)
+}
+
+function textToTiers(text: string): { rows: TierBenefitRow[] | null; error: string | null } {
+  const trimmed = text.trim()
+  if (!trimmed) return { rows: null, error: null }
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(trimmed)
+  } catch {
+    return { rows: null, error: 'Tier benefits: invalid JSON' }
+  }
+  if (!Array.isArray(parsed)) {
+    return { rows: null, error: 'Tier benefits: must be a JSON array' }
+  }
+  const rows: TierBenefitRow[] = []
+  for (const [i, raw] of parsed.entries()) {
+    if (typeof raw !== 'object' || raw === null) {
+      return { rows: null, error: `Tier benefits: row ${i} is not an object` }
+    }
+    const r = raw as Record<string, unknown>
+    if (typeof r.name !== 'string' || !r.name) {
+      return { rows: null, error: `Tier benefits: row ${i} missing string name` }
+    }
+    if (typeof r.qualification !== 'string') {
+      return { rows: null, error: `Tier benefits: row ${i} missing string qualification (use empty string if free signup)` }
+    }
+    if (!Array.isArray(r.benefits) || !r.benefits.every((b) => typeof b === 'string')) {
+      return { rows: null, error: `Tier benefits: row ${i} benefits must be an array of strings` }
+    }
+    rows.push({
+      name: r.name,
+      qualification: r.qualification,
+      benefits: r.benefits as string[],
+    })
+  }
+  return { rows, error: null }
 }
 
 function textToPartners(text: string): { rows: TransferPartnerRow[] | null; error: string | null } {
@@ -72,6 +120,8 @@ export default function ProgramPageContentEditor({
   initialTransferPartners,
   initialSweetSpots,
   initialQuirks,
+  initialHowToSpend,
+  initialTierBenefits,
   initialUpdatedAt,
 }: {
   programId: string
@@ -80,6 +130,8 @@ export default function ProgramPageContentEditor({
   initialTransferPartners: TransferPartnerRow[] | null
   initialSweetSpots: string | null
   initialQuirks: string | null
+  initialHowToSpend: string | null
+  initialTierBenefits: TierBenefitRow[] | null
   initialUpdatedAt: string | null
 }) {
   const [open, setOpen] = useState(false)
@@ -87,6 +139,8 @@ export default function ProgramPageContentEditor({
   const [partnersText, setPartnersText] = useState(partnersToText(initialTransferPartners))
   const [sweetSpots, setSweetSpots] = useState(initialSweetSpots ?? '')
   const [quirks, setQuirks] = useState(initialQuirks ?? '')
+  const [howToSpend, setHowToSpend] = useState(initialHowToSpend ?? '')
+  const [tiersText, setTiersText] = useState(tiersToText(initialTierBenefits))
   const [updatedAt, setUpdatedAt] = useState(initialUpdatedAt)
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -96,7 +150,9 @@ export default function ProgramPageContentEditor({
     !!(initialIntro ?? '').trim() ||
     (initialTransferPartners?.length ?? 0) > 0 ||
     !!(initialSweetSpots ?? '').trim() ||
-    !!(initialQuirks ?? '').trim()
+    !!(initialQuirks ?? '').trim() ||
+    !!(initialHowToSpend ?? '').trim() ||
+    (initialTierBenefits?.length ?? 0) > 0
 
   function save() {
     setError(null)
@@ -105,17 +161,26 @@ export default function ProgramPageContentEditor({
       setError(partners.error)
       return
     }
+    const tiers = textToTiers(tiersText)
+    if (tiers.error) {
+      setError(tiers.error)
+      return
+    }
     const input = {
       intro: intro.trim() ? intro : null,
       transfer_partners: partners.rows,
       sweet_spots: sweetSpots.trim() ? sweetSpots : null,
       quirks: quirks.trim() ? quirks : null,
+      how_to_spend: howToSpend.trim() ? howToSpend : null,
+      tier_benefits: tiers.rows,
     }
     const anyContent =
       !!input.intro ||
       (input.transfer_partners?.length ?? 0) > 0 ||
       !!input.sweet_spots ||
-      !!input.quirks
+      !!input.quirks ||
+      !!input.how_to_spend ||
+      (input.tier_benefits?.length ?? 0) > 0
     startTransition(async () => {
       const res = await updateProgramPageContentAction(programId, input)
       if (res?.error) {
@@ -132,6 +197,8 @@ export default function ProgramPageContentEditor({
     setPartnersText(partnersToText(initialTransferPartners))
     setSweetSpots(initialSweetSpots ?? '')
     setQuirks(initialQuirks ?? '')
+    setHowToSpend(initialHowToSpend ?? '')
+    setTiersText(tiersToText(initialTierBenefits))
     setError(null)
     setOpen(false)
   }
@@ -226,6 +293,35 @@ export default function ProgramPageContentEditor({
 - Family pooling allowed up to 8 members"
           className="admin-input"
           style={{ fontSize: '0.8125rem' }}
+        />
+      </div>
+
+      <div>
+        <label style={labelStyle}>How to spend miles (markdown — redemption types)</label>
+        <textarea
+          value={howToSpend}
+          onChange={(e) => setHowToSpend(e.target.value)}
+          rows={5}
+          placeholder="- Award flights on AF/KLM/Transavia and SkyTeam partners
+- Seat upgrades from paid tickets
+- Hotels and car rentals (poor value)
+- Lounge access at Paris CDG and Amsterdam"
+          className="admin-input"
+          style={{ fontSize: '0.8125rem' }}
+        />
+      </div>
+
+      <div>
+        <label style={labelStyle}>
+          Tier benefits (JSON array — see placeholder for shape)
+        </label>
+        <textarea
+          value={tiersText}
+          onChange={(e) => setTiersText(e.target.value)}
+          rows={10}
+          placeholder={TIER_BENEFITS_PLACEHOLDER}
+          className="admin-input"
+          style={{ fontFamily: 'var(--font-mono, ui-monospace, monospace)', fontSize: '0.75rem' }}
         />
       </div>
 
