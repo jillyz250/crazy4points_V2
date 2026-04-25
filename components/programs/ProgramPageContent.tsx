@@ -44,6 +44,7 @@ export default async function ProgramPageContent({
     fontWeight: 700,
     color: 'var(--color-primary)',
     marginBottom: '0.75rem',
+    scrollMarginTop: '2rem',
   }
   const proseStyle: React.CSSProperties = {
     fontFamily: 'var(--font-body)',
@@ -56,8 +57,10 @@ export default async function ProgramPageContent({
     <div style={{ marginBottom: '2.5rem' }}>
       {introHtml && (
         <section
+          id="intro"
           style={{
             ...sectionStyle,
+            scrollMarginTop: '2rem',
             padding: '1.25rem 1.5rem',
             background: 'var(--color-background-soft)',
             borderRadius: 'var(--radius-card)',
@@ -73,7 +76,7 @@ export default async function ProgramPageContent({
       )}
 
       {hasPartners && (
-        <section style={sectionStyle}>
+        <section id="transfer-partners" style={sectionStyle}>
           <h2 style={headingStyle}>Transfer partners</h2>
           <p
             style={{
@@ -93,7 +96,7 @@ export default async function ProgramPageContent({
       )}
 
       {howToSpendHtml && (
-        <section style={sectionStyle}>
+        <section id="how-to-spend" style={sectionStyle}>
           <h2 style={headingStyle}>How to spend miles</h2>
           <div
             style={proseStyle}
@@ -104,7 +107,7 @@ export default async function ProgramPageContent({
       )}
 
       {sweetSpotsHtml && (
-        <section style={sectionStyle}>
+        <section id="sweet-spots" style={sectionStyle}>
           <h2 style={headingStyle}>Sweet spots</h2>
           <div
             style={proseStyle}
@@ -115,7 +118,7 @@ export default async function ProgramPageContent({
       )}
 
       {hasTiers && (
-        <section style={sectionStyle}>
+        <section id="tiers" style={sectionStyle}>
           <h2 style={headingStyle}>Elite tiers & benefits</h2>
           <p
             style={{
@@ -132,7 +135,7 @@ export default async function ProgramPageContent({
       )}
 
       {loungeAccessHtml && (
-        <section style={sectionStyle}>
+        <section id="lounge-access" style={sectionStyle}>
           <h2 style={headingStyle}>Lounge access</h2>
           <div
             style={proseStyle}
@@ -143,7 +146,7 @@ export default async function ProgramPageContent({
       )}
 
       {quirksHtml && (
-        <section style={sectionStyle}>
+        <section id="quirks" style={sectionStyle}>
           <h2 style={headingStyle}>Tips & quirks</h2>
           <div
             style={proseStyle}
