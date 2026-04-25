@@ -50,15 +50,15 @@ function compareAlerts(field: SortField, dir: SortDir) {
   }
 }
 
-type SortOption = { value: string; label: string; field: SortField; dir: SortDir }
+type SortOption = { value: string; label: string }
 
-const SORT_OPTIONS: SortOption[] = [
-  { value: 'status:asc',   label: 'Status (action items first)', field: 'status',   dir: 'asc' },
-  { value: 'end_date:asc', label: 'Expires (soonest first)',     field: 'end_date', dir: 'asc' },
-  { value: 'end_date:desc', label: 'Expires (latest first)',     field: 'end_date', dir: 'desc' },
-  { value: 'title:asc',    label: 'Title (A → Z)',                field: 'title',    dir: 'asc' },
-  { value: 'title:desc',   label: 'Title (Z → A)',                field: 'title',    dir: 'desc' },
-  { value: 'type:asc',     label: 'Type (A → Z)',                 field: 'type',     dir: 'asc' },
+// Short, scannable pill labels — fewer options, clearer wording. Order matters.
+const SORT_PILLS: SortOption[] = [
+  { value: '',              label: 'Newest' },
+  { value: 'status:asc',    label: 'Pending first' },
+  { value: 'end_date:asc',  label: 'Expires soon' },
+  { value: 'title:asc',     label: 'A → Z' },
+  { value: 'title:desc',    label: 'Z → A' },
 ]
 
 export default async function AdminAlertsPage({
@@ -110,31 +110,31 @@ export default async function AdminAlertsPage({
         />
       )}
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', margin: '1.5rem 0 0.75rem' }}>
+      <div id="all-alerts" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', margin: '1.5rem 0 0.75rem' }}>
         <h2 style={{ margin: 0 }}>All Alerts</h2>
         {alerts.length > 0 && (
-          <form method="GET" action="/admin/alerts" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <label htmlFor="alerts-sort" style={{ fontSize: '0.8125rem', color: 'var(--admin-text-muted)' }}>
-              Sort by
-            </label>
-            <select
-              id="alerts-sort"
-              name="sortBy"
-              defaultValue={sort ? `${sort}:${dir}` : ''}
-              className="admin-input"
-              style={{ minWidth: '14rem' }}
-            >
-              <option value="">Default (newest first)</option>
-              {SORT_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-            <button type="submit" className="admin-btn admin-btn-secondary admin-btn-sm">
-              Apply
-            </button>
-          </form>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.8125rem', color: 'var(--admin-text-muted)', marginRight: '0.25rem' }}>
+              Sort
+            </span>
+            {SORT_PILLS.map((p) => {
+              const current = sort ? `${sort}:${dir}` : ''
+              const active = current === p.value
+              const href = p.value
+                ? `/admin/alerts?sortBy=${p.value}#all-alerts`
+                : `/admin/alerts#all-alerts`
+              return (
+                <Link
+                  key={p.value || 'default'}
+                  href={href}
+                  scroll={false}
+                  className={`admin-btn admin-btn-sm ${active ? 'admin-btn-primary' : 'admin-btn-ghost'}`}
+                >
+                  {p.label}
+                </Link>
+              )
+            })}
+          </div>
         )}
       </div>
 
