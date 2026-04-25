@@ -432,6 +432,66 @@ export async function checkArticleAction(id: string): Promise<CheckArticleResult
   return { ok: true, factFlagged, voicePass: voiceRes.pass }
 }
 
+/**
+ * Phase 5 — one-click pipeline. Runs (write if missing) → fact-check + voice-check
+ * + originality-check in parallel where possible. Returns an aggregate result so
+ * the UI can show "Ready to publish" or surface what failed without you clicking
+ * 4 buttons in sequence.
+ */
+export type PipelineResult =
+  | {
+      ok: true
+      wrote: boolean
+      facts: { ran: boolean; flagged: number; error?: string }
+      voice: { ran: boolean; pass: boolean; error?: string }
+      originality: { ran: boolean; pass: boolean; error?: string }
+      ready: boolean
+    }
+  | { ok: false; error: string }
+
+export async function runAllChecksAction(id: string): Promise<PipelineResult> {
+  const supabase = createAdminClient()
+  const { data: idea, error: fetchErr } = await supabase
+    .from('content_ideas')
+    .select('id, article_body, written_at')
+    .eq('id', id)
+    .single()
+  if (fetchErr || !idea) return { ok: false, error: fetchErr?.message ?? 'Idea not found' }
+
+  // Write only if missing — keeps re-running the pipeline cheap. If you want
+  // a fresh draft, click Rewrite separately.
+  let wrote = false
+  if (!idea.article_body || !idea.written_at) {
+    const writeRes = await writeArticleAction(id)
+    if (!writeRes.ok) {
+      return { ok: false, error: `write failed — ${writeRes.error}` }
+    }
+    wrote = true
+  }
+
+  // Run the three checks in parallel — they're independent, all read the
+  // same article_body, and total wall time drops from ~3min to ~60s.
+  const [factRes, voiceRes, origRes] = await Promise.all([
+    factCheckArticleAction(id),
+    voiceCheckArticleAction(id),
+    checkOriginalityAction(id),
+  ])
+
+  const facts = factRes.ok
+    ? { ran: true, flagged: factRes.flagged }
+    : { ran: false, flagged: 0, error: factRes.error }
+  const voice = voiceRes.ok
+    ? { ran: true, pass: voiceRes.pass }
+    : { ran: false, pass: false, error: voiceRes.error }
+  const originality = origRes.ok
+    ? { ran: true, pass: origRes.pass }
+    : { ran: false, pass: false, error: origRes.error }
+
+  const ready = facts.ran && facts.flagged === 0 && voice.ran && voice.pass && originality.ran && originality.pass
+  revalidatePath('/admin/content-ideas')
+  return { ok: true, wrote, facts, voice, originality, ready }
+}
+
 export type OriginalityActionResult =
   | { ok: true; pass: boolean; notes: string }
   | { ok: false; error: string }
