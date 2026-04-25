@@ -9,6 +9,66 @@
  * that weren't in the source article.
  */
 import Anthropic from '@anthropic-ai/sdk'
+import type { AlertType } from '@/utils/supabase/queries'
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PROMO-TERMS COMPLETENESS — LLM-driven structural check
+//
+// For promo-shaped alert types (transfer_bonus | status_promo | limited_time_offer),
+// the same Sonnet fact-check call also classifies whether each of 7 qualifying
+// terms is "present", "acknowledged_missing", or "absent" in the draft body.
+// Terms that come back "absent" become a synthetic high-severity chip with
+// the shape MISSING_PROMO_TERMS: <field, field>.
+//
+// award_availability is intentionally OUT of scope — those alerts don't have
+// promo terms to chip against, and including them would create noise.
+//
+// LLM-driven rather than regex because regex misclassifies on natural prose
+// (e.g. "Platinum lounge" matches the status_tier pattern even when no tier
+// requirement is present). The Sonnet pass already reads the body for claim
+// extraction; promo-terms judgment piggybacks on that read with a tiny
+// prompt addition.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const PROMO_ALERT_TYPES: ReadonlySet<AlertType> = new Set<AlertType>([
+  'limited_time_offer',
+  'transfer_bonus',
+  'status_promo',
+])
+
+export const PROMO_TERM_LABELS: Record<string, string> = {
+  earning_window:             'Earning window',
+  travel_window:              'Travel / stay window',
+  min_spend:                  'Minimum spend',
+  min_nights_or_transactions: 'Minimum nights / transactions',
+  status_tier:                'Status tier requirement',
+  registration:               'Registration required',
+  exclusions:                 'Exclusions / carve-outs',
+}
+const PROMO_TERM_KEYS = Object.keys(PROMO_TERM_LABELS)
+
+type PromoTermStatus = 'present' | 'acknowledged_missing' | 'absent'
+
+function isPromoAlertType(t: AlertType | null | undefined): boolean {
+  return !!t && PROMO_ALERT_TYPES.has(t)
+}
+
+/**
+ * Compute missing terms from the LLM's promo_terms_status map. A term is
+ * "missing" if it's "absent" — neither surfaced nor explicitly acknowledged
+ * as not-in-source. Other statuses pass cleanly.
+ */
+function missingFromStatus(
+  status: Partial<Record<string, PromoTermStatus>> | null | undefined
+): string[] {
+  if (!status) return PROMO_TERM_KEYS.slice() // null status → assume all missing
+  const missing: string[] = []
+  for (const key of PROMO_TERM_KEYS) {
+    const v = status[key]
+    if (v !== 'present' && v !== 'acknowledged_missing') missing.push(key)
+  }
+  return missing
+}
 
 export interface VerifyClaim {
   claim: string
@@ -88,6 +148,44 @@ severity = "low" for descriptive color that's wrong-but-harmless:
 • "European palaces" when source doesn't specify geography
 
 ═══════════════════════════════════════════════════════════
+PROMO-TERMS COMPLETENESS (only when alert_type is provided AND ∈ promo set)
+═══════════════════════════════════════════════════════════
+
+The user payload may include "alert_type". When alert_type is one of:
+"limited_time_offer" · "transfer_bonus" · "status_promo"
+
+ALSO produce a "promo_terms_status" object alongside "claims" in your output.
+For each of the 7 keys below, classify the draft body (summary + description):
+
+KEYS (and what each means):
+• earning_window — book-by, register-by, or earn-by date(s) for the offer
+• travel_window — when qualifying travel/stay must complete (separate from earning window)
+• min_spend — dollar threshold required to trigger the bonus
+• min_nights_or_transactions — minimum nights, segments, or transactions
+• status_tier — SPECIFIC elite tier required (Silver, Gold, Platinum, etc.).
+  Generic "elite status" alone does NOT count as a tier requirement.
+• registration — does the offer require manual registration / opt-in / enrollment
+• exclusions — any excluded brands, properties, fare classes, or carve-outs
+
+For each key, return one of three values:
+• "present" — the term is meaningfully surfaced in the draft body. Generic
+  word matches don't count — must be a real, specific term mention. Example:
+  "Silver+" or "Bonvoy Silver and above" → status_tier = present. "Platinum
+  lounge access at CDG" (a perk mention, not a tier requirement) → NOT present.
+• "acknowledged_missing" — the writer explicitly notes the term is unspecified
+  or doesn't apply ("Travel window not specified in source", "No registration
+  required", "All elite tiers eligible"). Honest gaps, not silent omissions.
+• "absent" — the term applies to this kind of offer but the draft is silent on
+  it. THIS is the failure case we want to surface.
+
+When a term genuinely doesn't apply to the alert (e.g. min_nights for a
+transfer bonus that has no stay component), classify as "acknowledged_missing"
+rather than "absent" — the writer correctly omitted what wasn't relevant.
+
+If alert_type is NOT in the promo set (or is missing from payload), do NOT
+produce the promo_terms_status field at all.
+
+═══════════════════════════════════════════════════════════
 OUTPUT
 ═══════════════════════════════════════════════════════════
 
@@ -101,8 +199,21 @@ Return a single JSON object. No prose, no markdown fences.
       "severity": "high" | "low",
       "source_excerpt": "<quoted span from SOURCE_TEXT, or null>"
     }
-  ]
+  ],
+  "promo_terms_status": {
+    "earning_window": "present" | "acknowledged_missing" | "absent",
+    "travel_window": "present" | "acknowledged_missing" | "absent",
+    "min_spend": "present" | "acknowledged_missing" | "absent",
+    "min_nights_or_transactions": "present" | "acknowledged_missing" | "absent",
+    "status_tier": "present" | "acknowledged_missing" | "absent",
+    "registration": "present" | "acknowledged_missing" | "absent",
+    "exclusions": "present" | "acknowledged_missing" | "absent"
+  }
 }
+
+The promo_terms_status field MUST be present when alert_type is in the promo set
+("limited_time_offer", "transfer_bonus", "status_promo"), and MUST be omitted
+otherwise.
 
 If the draft contains no factual claims (unlikely), return { "claims": [] }.`
 
@@ -119,12 +230,32 @@ function extractJson(text: string): string {
   return trimmed
 }
 
-function validate(parsed: unknown): VerifyClaim[] {
-  const obj = parsed as { claims?: unknown }
+interface ParsedVerifyResponse {
+  claims: VerifyClaim[]
+  promoTermsStatus: Partial<Record<string, PromoTermStatus>> | null
+}
+
+function parsePromoTermsStatus(
+  raw: unknown
+): Partial<Record<string, PromoTermStatus>> | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const obj = raw as Record<string, unknown>
+  const out: Partial<Record<string, PromoTermStatus>> = {}
+  for (const key of PROMO_TERM_KEYS) {
+    const v = obj[key]
+    if (v === 'present' || v === 'acknowledged_missing' || v === 'absent') {
+      out[key] = v
+    }
+  }
+  return Object.keys(out).length > 0 ? out : null
+}
+
+function validate(parsed: unknown): ParsedVerifyResponse {
+  const obj = parsed as { claims?: unknown; promo_terms_status?: unknown }
   if (!obj || typeof obj !== 'object' || !Array.isArray(obj.claims)) {
     throw new Error('Verify result missing claims array')
   }
-  return obj.claims
+  const claims = obj.claims
     .map((c): VerifyClaim | null => {
       const raw = c as Partial<VerifyClaim>
       if (typeof raw.claim !== 'string' || !raw.claim.trim()) return null
@@ -136,12 +267,44 @@ function validate(parsed: unknown): VerifyClaim[] {
       }
     })
     .filter((c): c is VerifyClaim => c !== null)
+  return {
+    claims,
+    promoTermsStatus: parsePromoTermsStatus(obj.promo_terms_status),
+  }
+}
+
+/**
+ * Builds the synthetic MISSING_PROMO_TERMS chip from the LLM's
+ * promo_terms_status map. Returns null if alert_type isn't promo-shaped
+ * or if every term is "present" / "acknowledged_missing".
+ *
+ * When alert_type IS promo-shaped but the LLM didn't return a status map
+ * (rare — model error), conservatively returns null rather than chipping
+ * every term as missing. Failure mode: silent. Acceptable because the
+ * regular grounding claims still surface, and the chip only adds value
+ * when the LLM's structured judgment is reliable.
+ */
+function buildMissingPromoTermsClaim(
+  alertType: AlertType | null | undefined,
+  promoTermsStatus: Partial<Record<string, PromoTermStatus>> | null
+): VerifyClaim | null {
+  if (!isPromoAlertType(alertType)) return null
+  if (!promoTermsStatus) return null
+  const missing = missingFromStatus(promoTermsStatus)
+  if (missing.length === 0) return null
+  return {
+    claim: `MISSING_PROMO_TERMS: ${missing.join(', ')}`,
+    supported: false,
+    severity: 'high',
+    source_excerpt: null,
+  }
 }
 
 export async function verifyAlertDraft(args: {
   draft: { title: string; summary: string; description: string | null }
   raw_text: string | null
   source_url: string | null
+  alert_type?: AlertType | null
 }): Promise<VerifyResult | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
@@ -151,8 +314,10 @@ export async function verifyAlertDraft(args: {
 
   const sourceText = args.raw_text?.trim()
   if (!sourceText) {
-    // Nothing to ground against — return a single low-severity sentinel so the
-    // admin UI can show "no source text to verify" instead of silent pass.
+    // Nothing to ground against — return a single high-severity sentinel.
+    // No promo-terms chip in this branch: without source text we can't
+    // distinguish "writer omitted" from "source genuinely had no terms",
+    // and chipping every term would be noise.
     return {
       claims: [
         {
@@ -171,6 +336,7 @@ export async function verifyAlertDraft(args: {
       draft: args.draft,
       source_url: args.source_url,
       source_text: sourceText,
+      alert_type: args.alert_type ?? null,
     },
     null,
     2
@@ -180,7 +346,7 @@ export async function verifyAlertDraft(args: {
     const client = new Anthropic({ apiKey })
     const message = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 2000,
+      max_tokens: 2200,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userContent }],
     })
@@ -189,10 +355,11 @@ export async function verifyAlertDraft(args: {
     if (block.type !== 'text') return null
 
     const parsed = JSON.parse(extractJson(block.text))
-    const claims = validate(parsed)
+    const { claims, promoTermsStatus } = validate(parsed)
+    const promoChip = buildMissingPromoTermsClaim(args.alert_type, promoTermsStatus)
 
     return {
-      claims,
+      claims: promoChip ? [...claims, promoChip] : claims,
       checked_at: new Date().toISOString(),
     }
   } catch (err) {

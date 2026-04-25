@@ -22,6 +22,86 @@ function verdictStyle(v?: string | null) {
   return { bg: '#fff8e1', border: '#fde68a', color: '#7a5a1f', label: '? unverifiable' }
 }
 
+// Synthetic chip emitted by verifyAlertDraft when a promo-shaped alert's
+// body is missing one or more qualifying terms. Format: MISSING_PROMO_TERMS:
+// <field, field, …>. Detected here so we can render it as a distinct
+// "missing-terms" chip instead of a generic unverifiable claim.
+const MISSING_PROMO_PREFIX = 'MISSING_PROMO_TERMS:'
+
+const PROMO_TERM_LABELS: Record<string, string> = {
+  earning_window:             'Earning window',
+  travel_window:              'Travel / stay window',
+  min_spend:                  'Minimum spend',
+  min_nights_or_transactions: 'Minimum nights / transactions',
+  status_tier:                'Status tier',
+  registration:               'Registration',
+  exclusions:                 'Exclusions',
+}
+
+function parseMissingPromoTerms(claim: string): string[] | null {
+  if (!claim.startsWith(MISSING_PROMO_PREFIX)) return null
+  const rest = claim.slice(MISSING_PROMO_PREFIX.length).trim()
+  if (!rest) return []
+  return rest.split(',').map((s) => s.trim()).filter(Boolean)
+}
+
+function MissingPromoTermsChip({
+  alertId,
+  originalIndex,
+  fields,
+}: {
+  alertId: string
+  originalIndex: number
+  fields: string[]
+}) {
+  const labels = fields.map((f) => PROMO_TERM_LABELS[f] ?? f)
+  const bg = '#fef3c7'
+  const border = '#f59e0b'
+  const color = '#7a4a0a'
+  return (
+    <li
+      style={{
+        padding: '0.5rem 0.625rem',
+        background: bg,
+        border: `1px solid ${border}`,
+        borderRadius: 'var(--radius-ui)',
+        color,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <span
+          style={{
+            fontSize: '0.6875rem',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.04em',
+            padding: '0.1rem 0.4rem',
+            background: color,
+            color: '#fff',
+            borderRadius: '3px',
+            flexShrink: 0,
+          }}
+        >
+          ⚠ promo terms
+        </span>
+        <span style={{ fontWeight: 600, flex: 1, minWidth: '12rem' }}>
+          Missing qualifying terms in body — reader can&apos;t tell if they qualify:
+        </span>
+        <AckButton alertId={alertId} originalIndex={originalIndex} color={color} />
+      </div>
+      <ul style={{ margin: '0.4rem 0 0 1rem', padding: 0, fontSize: '0.8125rem' }}>
+        {labels.map((l, i) => (
+          <li key={i} style={{ listStyle: 'disc' }}>{l}</li>
+        ))}
+      </ul>
+      <p style={{ margin: '0.4rem 0 0 0', fontSize: '0.75rem', fontStyle: 'italic' }}>
+        Either revise the draft to surface these from the source, or acknowledge with
+        &ldquo;not specified in source&rdquo; in the prose, then mark this verified.
+      </p>
+    </li>
+  )
+}
+
 export default function FactCheckWarnings({
   alertId,
   claims: rawClaims,
@@ -59,6 +139,18 @@ export default function FactCheckWarnings({
       ) : (
         <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {active.map(({ claim, originalIndex }) => {
+            // Synthetic promo-terms chip — render as distinct "missing terms" block.
+            const missingFields = parseMissingPromoTerms(claim.claim)
+            if (missingFields !== null) {
+              return (
+                <MissingPromoTermsChip
+                  key={originalIndex}
+                  alertId={alertId}
+                  originalIndex={originalIndex}
+                  fields={missingFields}
+                />
+              )
+            }
             const v = verdictStyle(claim.web_verdict)
             return (
               <li
