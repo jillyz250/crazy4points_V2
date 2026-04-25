@@ -72,8 +72,11 @@ export default async function ContentIdeasPage({
   const supabase = createAdminClient()
 
   // Program filter: resolve to a list of source_alert_ids that the slug applies to.
-  // Two hops: programs → alert_programs → alerts.id
+  // Two hops: programs → alert_programs → alerts.id.
+  // We track an explicit "no matches" boolean rather than stuffing a sentinel
+  // string into a uuid `.in()` (Postgres rejects with 22P02).
   let programAlertIds: string[] | null = null
+  let programYieldsZero = false
   if (programSlug) {
     const { data: program } = await supabase
       .from('programs')
@@ -85,10 +88,11 @@ export default async function ContentIdeasPage({
         .from('alert_programs')
         .select('alert_id')
         .eq('program_id', program.id)
-      programAlertIds = (links ?? []).map((l) => l.alert_id as string)
-      if (programAlertIds.length === 0) programAlertIds = ['__none__'] // force empty result
+      const ids = (links ?? []).map((l) => l.alert_id as string)
+      if (ids.length === 0) programYieldsZero = true
+      else programAlertIds = ids
     } else {
-      programAlertIds = ['__none__']
+      programYieldsZero = true
     }
   }
 
@@ -114,9 +118,14 @@ export default async function ContentIdeasPage({
     query = query.in('source_alert_id', programAlertIds)
   }
 
-  const [{ data, error }, programs] = await Promise.all([query, getPrograms(supabase)])
-  if (error) throw error
-  let ideas = (data ?? []) as ContentIdeaRow[]
+  // If the program filter resolved to "no alerts at all", don't run the query —
+  // just render an empty result. We still need the programs list for the dropdown.
+  const [queryRes, programs] = await Promise.all([
+    programYieldsZero ? Promise.resolve({ data: [], error: null }) : query,
+    getPrograms(supabase),
+  ])
+  if (queryRes.error) throw queryRes.error
+  let ideas = (queryRes.data ?? []) as ContentIdeaRow[]
   if (q) {
     const needle = q.toLowerCase()
     ideas = ideas.filter((i) =>
