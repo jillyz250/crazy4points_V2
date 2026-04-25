@@ -50,50 +50,32 @@ function compareAlerts(field: SortField, dir: SortDir) {
   }
 }
 
-function SortHeader({
-  field,
-  label,
-  current,
-  align,
-}: {
-  field: SortField
-  label: string
-  current: { sort: SortField | null; dir: SortDir }
-  align?: 'left' | 'right'
-}) {
-  const active = current.sort === field
-  const nextDir: SortDir = active && current.dir === 'asc' ? 'desc' : 'asc'
-  const arrow = active ? (current.dir === 'asc' ? '↑' : '↓') : ''
-  return (
-    <th style={{ textAlign: align ?? 'left' }}>
-      <Link
-        href={`/admin/alerts?sort=${field}&dir=${nextDir}`}
-        scroll={false}
-        style={{
-          color: 'inherit',
-          textDecoration: active ? 'underline' : 'none',
-          fontWeight: active ? 700 : 'inherit',
-          display: 'inline-flex',
-          gap: '0.25rem',
-          alignItems: 'center',
-        }}
-      >
-        {label}
-        {arrow && <span aria-hidden="true">{arrow}</span>}
-      </Link>
-    </th>
-  )
-}
+type SortOption = { value: string; label: string; field: SortField; dir: SortDir }
+
+const SORT_OPTIONS: SortOption[] = [
+  { value: 'status:asc',   label: 'Status (action items first)', field: 'status',   dir: 'asc' },
+  { value: 'end_date:asc', label: 'Expires (soonest first)',     field: 'end_date', dir: 'asc' },
+  { value: 'end_date:desc', label: 'Expires (latest first)',     field: 'end_date', dir: 'desc' },
+  { value: 'title:asc',    label: 'Title (A → Z)',                field: 'title',    dir: 'asc' },
+  { value: 'title:desc',   label: 'Title (Z → A)',                field: 'title',    dir: 'desc' },
+  { value: 'type:asc',     label: 'Type (A → Z)',                 field: 'type',     dir: 'asc' },
+]
 
 export default async function AdminAlertsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ sort?: string; dir?: string }>
+  searchParams: Promise<{ sortBy?: string }>
 }) {
   const sp = await searchParams
+  // sortBy is "<field>:<dir>" — single combined param keeps the form simple.
   const validFields: SortField[] = ['title', 'type', 'status', 'end_date']
-  const sort: SortField | null = validFields.includes(sp.sort as SortField) ? (sp.sort as SortField) : null
-  const dir: SortDir = sp.dir === 'desc' ? 'desc' : 'asc'
+  let sort: SortField | null = null
+  let dir: SortDir = 'asc'
+  if (sp.sortBy) {
+    const [f, d] = sp.sortBy.split(':')
+    if (validFields.includes(f as SortField)) sort = f as SortField
+    if (d === 'desc') dir = 'desc'
+  }
 
   const supabase = createAdminClient()
   const [allAlerts, pendingAlerts] = await Promise.all([
@@ -128,7 +110,34 @@ export default async function AdminAlertsPage({
         />
       )}
 
-      <h2 style={{ margin: '1.5rem 0 0.75rem' }}>All Alerts</h2>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', margin: '1.5rem 0 0.75rem' }}>
+        <h2 style={{ margin: 0 }}>All Alerts</h2>
+        {alerts.length > 0 && (
+          <form method="GET" action="/admin/alerts" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <label htmlFor="alerts-sort" style={{ fontSize: '0.8125rem', color: 'var(--admin-text-muted)' }}>
+              Sort by
+            </label>
+            <select
+              id="alerts-sort"
+              name="sortBy"
+              defaultValue={sort ? `${sort}:${dir}` : ''}
+              className="admin-input"
+              style={{ minWidth: '14rem' }}
+            >
+              <option value="">Default (newest first)</option>
+              {SORT_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <button type="submit" className="admin-btn admin-btn-secondary admin-btn-sm">
+              Apply
+            </button>
+          </form>
+        )}
+      </div>
+
       {alerts.length === 0 ? (
         <EmptyState title="No alerts yet" description="Create one, or wait for Scout to draft something." />
       ) : (
@@ -137,10 +146,10 @@ export default async function AdminAlertsPage({
             <table className="admin-table">
               <thead>
                 <tr>
-                  <SortHeader field="title" label="Title" current={{ sort, dir }} />
-                  <SortHeader field="type" label="Type" current={{ sort, dir }} />
-                  <SortHeader field="status" label="Status" current={{ sort, dir }} />
-                  <SortHeader field="end_date" label="Expires" current={{ sort, dir }} />
+                  <th>Title</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                  <th>Expires</th>
                   <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
