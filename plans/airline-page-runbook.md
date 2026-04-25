@@ -95,6 +95,7 @@ Brand voice still applies in **Intro** and **Sweet spots**: sassy traveler-frien
 
 - [ ] **Google Search Console** — submit the new URL: Search Console → URL Inspection → paste `https://crazy4points.com/programs/[slug]` → "Request Indexing"
 - [ ] **Bing Webmaster Tools** — submit URL there too (free, ~10% of US traffic, often ignored)
+  - Bing often flags brand-new URLs as "URL cannot appear on Bing — issues preventing indexation" on first inspection. This is normal — Bing's crawl quality heuristics flag fresh content until it earns trust signals. Click **Request indexing** and check back in 24–48h.
 - [ ] Verify the page is in the auto-generated sitemap (`/sitemap.xml`); if not, add it manually to `app/sitemap.ts`
 - [ ] Confirm the page has a meaningful `<title>` and meta description (handled in `generateMetadata` — sanity check it surfaces the program name)
 
