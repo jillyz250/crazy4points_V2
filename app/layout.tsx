@@ -23,6 +23,8 @@ export const metadata: Metadata = {
   manifest: "/site.webmanifest",
   other: {
     "theme-color": "#6B2D8F",
+    // Bing Webmaster Tools site verification
+    "msvalidate.01": "59CBA5C640A0D6B3494E229BD761633E",
   },
 };
 
