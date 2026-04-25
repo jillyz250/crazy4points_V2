@@ -1,30 +1,28 @@
+import Link from 'next/link'
 import { createAdminClient } from '@/utils/supabase/server'
 import { getAllPrograms } from '@/utils/supabase/queries'
 import type { ProgramType, Program } from '@/utils/supabase/queries'
-import { toggleProgramAction } from './actions'
 import AddProgramForm from './AddProgramForm'
-import FaqContentEditor from './FaqContentEditor'
-import ProgramPageContentEditor from './ProgramPageContentEditor'
+import ProgramsTable from './ProgramsTable'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
-import { Card } from '@/components/admin/ui/Card'
 import { Badge } from '@/components/admin/ui/Badge'
-import { EmptyState } from '@/components/admin/ui/EmptyState'
 
 const TYPE_LABEL: Record<ProgramType, string> = {
-  credit_card:     'Credit Card',
-  airline:         'Airline',
-  hotel:           'Hotel',
-  car_rental:      'Car Rental',
-  cruise:          'Cruise',
-  shopping_portal: 'Shopping Portal',
-  travel_portal:   'Travel Portal',
-  lounge_network:  'Lounge Network',
-  ota:             'OTA',
+  credit_card:     'Credit Cards',
+  airline:         'Airlines',
+  hotel:           'Hotels',
+  car_rental:      'Car Rentals',
+  cruise:          'Cruises',
+  shopping_portal: 'Shopping Portals',
+  travel_portal:   'Travel Portals',
+  lounge_network:  'Lounge Networks',
+  ota:             'OTAs',
 }
 
+// Tab order — biggest sets first since that's where the user spends time.
 const TYPE_ORDER: ProgramType[] = [
-  'credit_card',
   'airline',
+  'credit_card',
   'hotel',
   'car_rental',
   'cruise',
@@ -33,6 +31,8 @@ const TYPE_ORDER: ProgramType[] = [
   'lounge_network',
   'ota',
 ]
+
+const DEFAULT_TYPE: ProgramType = 'airline'
 
 function groupByType(programs: Program[]): Map<ProgramType, Program[]> {
   const map = new Map<ProgramType, Program[]>()
@@ -44,15 +44,27 @@ function groupByType(programs: Program[]): Map<ProgramType, Program[]> {
   return map
 }
 
-export default async function AdminProgramsPage() {
+function isProgramType(s: string | undefined): s is ProgramType {
+  return !!s && (TYPE_ORDER as string[]).includes(s)
+}
+
+export default async function AdminProgramsPage(props: {
+  searchParams: Promise<{ type?: string }>
+}) {
+  const sp = await props.searchParams
+  const activeType: ProgramType = isProgramType(sp.type) ? sp.type : DEFAULT_TYPE
+
   const supabase = createAdminClient()
   const programs = await getAllPrograms(supabase)
   const grouped = groupByType(programs)
 
-  const presentTypes = TYPE_ORDER.filter((t) => grouped.has(t))
+  // Tabs render in TYPE_ORDER, but include any unexpected types found in DB at the end.
+  const tabTypes: ProgramType[] = [...TYPE_ORDER]
   for (const t of grouped.keys()) {
-    if (!presentTypes.includes(t)) presentTypes.push(t)
+    if (!tabTypes.includes(t)) tabTypes.push(t)
   }
+
+  const visibleRows = grouped.get(activeType) ?? []
 
   return (
     <div>
@@ -67,88 +79,68 @@ export default async function AdminProgramsPage() {
         }
       />
 
-      {programs.length === 0 ? (
-        <EmptyState title="No programs yet" description="Add one to begin tagging alerts." />
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          {presentTypes.map((type) => {
-            const group = grouped.get(type)!
-            return (
-              <div key={type}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                  <h2 style={{ margin: 0, fontSize: '0.9375rem' }}>
-                    {TYPE_LABEL[type] ?? type.replace(/_/g, ' ')}
-                  </h2>
-                  <Badge tone="neutral">{group.length}</Badge>
-                </div>
-                <Card>
-                  <div style={{ overflowX: 'auto' }}>
-                    <table className="admin-table">
-                      <thead>
-                        <tr>
-                          <th>Name</th>
-                          <th>Tier</th>
-                          <th>Monitor</th>
-                          <th>URL</th>
-                          <th>FAQ</th>
-                          <th>Page</th>
-                          <th>Active</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {group.map((program) => (
-                          <tr key={program.id}>
-                            <td style={{ fontWeight: 500 }}>{program.name}</td>
-                            <td style={{ color: 'var(--admin-text-muted)' }}>{program.tier ?? '—'}</td>
-                            <td style={{ color: 'var(--admin-text-muted)' }}>{program.monitor_tier ?? '—'}</td>
-                            <td>
-                              {program.program_url ? (
-                                <a href={program.program_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.8125rem' }}>
-                                  Link ↗
-                                </a>
-                              ) : (
-                                <span style={{ color: 'var(--admin-text-subtle)' }}>—</span>
-                              )}
-                            </td>
-                            <td>
-                              <FaqContentEditor
-                                programId={program.id}
-                                programName={program.name}
-                                initialContent={program.faq_content}
-                                initialUpdatedAt={program.faq_updated_at}
-                              />
-                            </td>
-                            <td>
-                              <ProgramPageContentEditor
-                                programId={program.id}
-                                programName={program.name}
-                                initialIntro={program.intro}
-                                initialTransferPartners={program.transfer_partners}
-                                initialSweetSpots={program.sweet_spots}
-                                initialQuirks={program.quirks}
-                                initialUpdatedAt={program.content_updated_at}
-                              />
-                            </td>
-                            <td>
-                              <form action={toggleProgramAction.bind(null, program.id, !program.is_active)}>
-                                <button type="submit" className="admin-btn admin-btn-ghost admin-btn-sm">
-                                  <Badge tone={program.is_active ? 'success' : 'neutral'}>
-                                    {program.is_active ? 'Active' : 'Inactive'}
-                                  </Badge>
-                                </button>
-                              </form>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </Card>
-              </div>
-            )
-          })}
-        </div>
-      )}
+      {/* Tab strip */}
+      <div
+        role="tablist"
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: '0.25rem',
+          marginBottom: '1rem',
+          borderBottom: '1px solid var(--admin-border, #e5e7eb)',
+          paddingBottom: '0.25rem',
+        }}
+      >
+        {tabTypes.map((type) => {
+          const count = grouped.get(type)?.length ?? 0
+          const active = type === activeType
+          return (
+            <Link
+              key={type}
+              href={`/admin/programs?type=${type}`}
+              role="tab"
+              aria-selected={active}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                padding: '0.4rem 0.75rem',
+                fontSize: '0.8125rem',
+                fontWeight: active ? 600 : 500,
+                color: active ? 'var(--admin-text-primary)' : 'var(--admin-text-muted)',
+                background: active ? 'var(--admin-bg-subtle, #f3f4f6)' : 'transparent',
+                borderRadius: '0.375rem 0.375rem 0 0',
+                borderBottom: active ? '2px solid var(--admin-primary, #6B2D8F)' : '2px solid transparent',
+                marginBottom: '-0.25rem',
+                textDecoration: 'none',
+                transition: 'background-color 0.1s, color 0.1s',
+              }}
+            >
+              {TYPE_LABEL[type] ?? type.replace(/_/g, ' ')}
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minWidth: '1.5rem',
+                  padding: '0 0.4rem',
+                  fontSize: '0.6875rem',
+                  fontWeight: 600,
+                  borderRadius: '9999px',
+                  background: active
+                    ? 'var(--admin-primary, #6B2D8F)'
+                    : 'var(--admin-bg-subtle, #e5e7eb)',
+                  color: active ? '#fff' : 'var(--admin-text-muted)',
+                }}
+              >
+                {count}
+              </span>
+            </Link>
+          )
+        })}
+      </div>
+
+      <ProgramsTable programs={visibleRows} />
     </div>
   )
 }
