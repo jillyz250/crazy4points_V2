@@ -15,6 +15,7 @@ const STATUS_TONE: Record<AlertStatus, { label: string; tone: 'success' | 'warni
   draft:          { label: 'Draft',          tone: 'neutral' },
   pending_review: { label: 'Pending',        tone: 'warning' },
   rejected:       { label: 'Rejected',       tone: 'danger' },
+  soft_rejected:  { label: 'Snoozed',        tone: 'neutral' },
   expired:        { label: 'Expired',        tone: 'accent' },
 }
 
@@ -27,7 +28,8 @@ const STATUS_RANK: Record<AlertStatus, number> = {
   draft: 1,
   published: 2,
   expired: 3,
-  rejected: 4,
+  soft_rejected: 4,
+  rejected: 5,
 }
 
 function compareAlerts(field: SortField, dir: SortDir) {

@@ -67,9 +67,11 @@ export async function acknowledgeFactCheckClaimAction(alertId: string, claimInde
 export async function publishAlertAction(id: string) {
   const supabase = createAdminClient()
   const prev = await getAlertById(supabase, id)
+  const now = new Date().toISOString()
   await updateAlert(supabase, id, {
     status: 'published',
-    published_at: new Date().toISOString(),
+    published_at: now,
+    decided_at: now,
   })
   await trackSourceApprovalIfNeeded(supabase, prev, 'published')
   redirect('/admin/alerts')
@@ -78,10 +80,12 @@ export async function publishAlertAction(id: string) {
 export async function approveIntelAlertAction(id: string) {
   const supabase = createAdminClient()
   const prev = await getAlertById(supabase, id)
+  const now = new Date().toISOString()
   await updateAlert(supabase, id, {
     status: 'published',
-    published_at: new Date().toISOString(),
-    approved_at: new Date().toISOString(),
+    published_at: now,
+    approved_at: now,
+    decided_at: now,
   })
   await trackSourceApprovalIfNeeded(supabase, prev, 'published')
   redirect('/admin/alerts')
@@ -99,6 +103,7 @@ export async function bulkApproveIntelAlertsAction(ids: string[]) {
       status: 'published',
       published_at: now,
       approved_at: now,
+      decided_at: now,
     })
     await trackSourceApprovalIfNeeded(supabase, prev, 'published')
   }
@@ -109,8 +114,9 @@ export async function bulkApproveIntelAlertsAction(ids: string[]) {
 export async function bulkRejectAlertsAction(ids: string[]) {
   if (!Array.isArray(ids) || ids.length === 0) return
   const supabase = createAdminClient()
+  const now = new Date().toISOString()
   for (const id of ids) {
-    await updateAlert(supabase, id, { status: 'rejected' }).catch(() => {})
+    await updateAlert(supabase, id, { status: 'rejected', decided_at: now }).catch(() => {})
   }
   revalidatePath('/admin/alerts')
   redirect('/admin/alerts')
@@ -118,7 +124,30 @@ export async function bulkRejectAlertsAction(ids: string[]) {
 
 export async function rejectAlertAction(id: string) {
   const supabase = createAdminClient()
-  await updateAlert(supabase, id, { status: 'rejected' })
+  const now = new Date().toISOString()
+  await updateAlert(supabase, id, {
+    status: 'rejected',
+    decided_at: now,
+  })
+  redirect('/admin/alerts')
+}
+
+/**
+ * Soft-reject (Phase 2): "not now, but check back in N days." Sets a
+ * revisit_after timestamp; Scout's dedup keeps suppressing similar findings
+ * until that timestamp passes.
+ */
+export async function softRejectAlertAction(id: string, days: number) {
+  const supabase = createAdminClient()
+  const safeDays = Math.max(1, Math.min(180, Math.round(days)))
+  const now = new Date()
+  const revisitAfter = new Date(now.getTime() + safeDays * 24 * 60 * 60 * 1000).toISOString()
+  await updateAlert(supabase, id, {
+    status: 'soft_rejected',
+    decided_at: now.toISOString(),
+    revisit_after: revisitAfter,
+  })
+  revalidatePath('/admin/alerts')
   redirect('/admin/alerts')
 }
 
