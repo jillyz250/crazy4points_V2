@@ -247,6 +247,13 @@ OUTPUT
 
 After all searches are done, return a single JSON object. No prose, no markdown fences.
 
+CRITICAL FORMATTING RULES (do not violate):
+• Your FINAL text response must start with the character "{" and end with "}".
+• Do NOT include any preamble like "Here are my findings" or "If a revision is needed".
+• Do NOT include any epilogue, closing remark, or summary after the JSON.
+• Do NOT wrap the JSON in markdown code fences.
+• If you have nothing to verify, still return {"verdicts": []} — never return prose.
+
 {
   "verdicts": [
     {
@@ -271,6 +278,23 @@ function findLastTextBlock(content: Anthropic.ContentBlock[]): string | null {
   for (let i = content.length - 1; i >= 0; i--) {
     const b = content[i]
     if (b.type === 'text' && b.text.trim()) return b.text
+  }
+  return null
+}
+
+// Scan ALL text blocks (newest first) and return the first one that contains
+// what looks like a JSON object. Sonnet with web_search sometimes emits a
+// prose preamble in a later text block after the JSON; falling back to the
+// last block alone makes us miss the structured output entirely.
+function findJsonTextBlock(content: Anthropic.ContentBlock[]): string | null {
+  for (let i = content.length - 1; i >= 0; i--) {
+    const b = content[i]
+    if (b.type !== 'text') continue
+    const t = b.text.trim()
+    if (!t) continue
+    if (t.startsWith('{') || /```(?:json)?\s*\{/.test(t) || (t.includes('{') && t.includes('}'))) {
+      return b.text
+    }
   }
   return null
 }
@@ -315,12 +339,24 @@ export async function webVerifyClaims(args: {
     messages: [{ role: 'user', content: userContent }],
   })
 
-  const text = findLastTextBlock(response.content)
+  // Prefer the text block that actually contains JSON. With web_search,
+  // Sonnet sometimes emits a prose preamble after the structured output and
+  // findLastTextBlock would return only that prose.
+  const text = findJsonTextBlock(response.content) ?? findLastTextBlock(response.content)
   if (!text) {
     throw new Error('webVerifyClaims: no text block in Sonnet response')
   }
 
-  const parsed = JSON.parse(extractJson(text)) as { verdicts?: WebVerdict[] }
+  let parsed: { verdicts?: WebVerdict[] }
+  try {
+    parsed = JSON.parse(extractJson(text)) as { verdicts?: WebVerdict[] }
+  } catch (e) {
+    // Surface the actual response prefix so system_errors can show what Sonnet returned
+    const preview = text.trim().slice(0, 500).replace(/\s+/g, ' ')
+    throw new Error(
+      `webVerifyClaims: Sonnet response did not contain valid JSON. Response preview: ${preview}`
+    )
+  }
   if (!Array.isArray(parsed.verdicts)) {
     throw new Error('webVerifyClaims: response missing verdicts array')
   }
