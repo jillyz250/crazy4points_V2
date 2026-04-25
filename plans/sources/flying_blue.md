@@ -75,7 +75,7 @@ Reference list of every URL used to author `/programs/flying_blue`.
 |---|---|---|---|
 | 2026-04-25 | Promo Rewards "up to 50% off" (Copilot) | My drafts said "up to 25%". Copilot pulled from older evergreen articles. | Verified 2026-dated articles show 25% is the current max. Stuck with "up to 25%". Source: [Frequent Miler April 2026](https://frequentmiler.com/flying-blue-promo-rewards-for-april-2026-get-25-off-awards-between-select-us-cities-europe/) |
 | 2026-04-25 | Marriott Bonvoy 3:1 + 5k bonus per 60k transferred (Copilot) | Initially dropped from draft for lack of source. Copilot reinstated. | Standard Marriott→airline transfer formula, accepted as correct. Cross-verify on next review. |
-| 2026-04-25 | Bank of America listed in intro but not in partners JSON | Intro mentions BofA, JSON doesn't have a `bofa` slug yet | Open: add Bank of America program row + JSON entry, OR remove BofA from intro |
+| 2026-04-25 | Bank of America listed in intro as 1:1 Flying Blue transfer partner (Copilot fact-check) | Re-research found BofA has no airline transfer partners as of April 2026. A future Alaska Mileage Plan partnership exists but is not live and isn't Flying Blue. Copilot was wrong. | Resolution: removed BofA from FB intro. Sources: [BofA transfer partners — Award Travel Finder](https://awardtravelfinder.com/credit-card-transfers/bank-of-america-premium-rewards), [BofA Premium Rewards Elite — NerdWallet](https://www.nerdwallet.com/credit-cards/learn/5-things-to-know-about-the-bank-of-america-premium-rewards-elite-credit-card) |
 
 ## Notes / followups
 
