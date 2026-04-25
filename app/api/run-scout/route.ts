@@ -6,6 +6,7 @@ import {
   getRecentIntelItems,
   incrementSourceProduced,
   logSystemError,
+  setAlertPrograms,
 } from '@/utils/supabase/queries'
 import { runScout } from '@/utils/ai/runScout'
 import type { AlertType, IntelItemInsert, IntelConfidence, RecentIntelItem } from '@/utils/supabase/queries'
@@ -219,15 +220,14 @@ export async function GET(req: NextRequest) {
       continue
     }
 
-    if (programIds.length > 1) {
-      await supabase.from('alert_programs').insert(
-        programIds.slice(1).map((pid) => ({
-          alert_id: alert.id,
-          program_id: pid,
-          role: 'secondary',
-        }))
-      )
-    }
+    // Tag the alert with primary + any secondaries in alert_programs.
+    // Previously only secondaries were inserted (and only when there were
+    // ≥2 programs), which left the primary off the junction entirely —
+    // breaking every downstream filter that joins on alert_programs.
+    await setAlertPrograms(supabase, alert.id, {
+      primaryId: primaryProgramId,
+      secondaryIds: programIds.slice(1),
+    })
 
     await supabase.from('intel_items').update({ processed: true, alert_id: alert.id }).eq('id', item.id)
     staged.push(alert.id)
