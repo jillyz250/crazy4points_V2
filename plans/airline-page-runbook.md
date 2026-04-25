@@ -102,15 +102,33 @@ Brand voice still applies in **Intro** and **Sweet spots**: sassy traveler-frien
 
 ## 7. Source list — capture everything
 
-Add to a permanent sources doc per airline (`plans/sources/[slug].md` or your knowledge tracker):
+Add to a permanent sources doc per airline (`plans/sources/[slug].md` or your knowledge tracker). Two purposes: audit trail (citations for content) AND a pre-built feed list for Phase 6+ news ingestion.
 
+### Citations (sourced content)
 - [ ] Official program FAQ / Terms URL
 - [ ] Official Promo Rewards / current promotions URL
-- [ ] **Instagram** account (follow + log handle) — use as a signal for new promos
-- [ ] **X/Twitter** account
-- [ ] Official press room or blog
 - [ ] All article URLs cited from research (Step 1) and fact-check (Step 3)
-- [ ] YouTube channel if the carrier reviews their own product (rare but useful for premium cabin pages later)
+
+### News & signal channels (used in Phase 6+ ingestion)
+- [ ] **Press room / newsroom URL** (e.g. news.klm.com, news.airfrance.com) — usually RSS-enabled, primary scrape target for Phase 6
+- [ ] **Loyalty program news URL** if separate from main press room (e.g. flyingblue.com/en/news) — promo announcements live here
+- [ ] **Investor relations URL** for public carriers (DAL, AAL, UAL, LUV) — strategic news
+- [ ] **Email newsletter signup URL** — for Phase 6 inbound-email ingestion
+- [ ] **X / Twitter handle** — for Phase 7+ social ingestion (skip if no free API access)
+- [ ] **Instagram handle** — personal-follow only; not automating (Meta breaks scrapers)
+- [ ] **LinkedIn corporate page URL** — corporate news source, low automation priority
+- [ ] **YouTube channel URL** — useful for premium cabin pages later
+
+---
+
+## 7.5 Add press-room RSS to Scout's source list
+
+If the carrier has a working RSS press room, add it to `/admin/sources` so Scout starts ingesting news directly. This is a per-airline action, not a Phase 6 prerequisite — Scout's existing pipeline handles it today.
+
+- [ ] Test the RSS URL with `curl -sLI <url>` first to confirm it returns 200 OK
+- [ ] If 200: add via `/admin/sources/new` — Type: Official Partner, Tier: 1, Frequency: daily, Firecrawl: off
+- [ ] If 403/blocked: add anyway with Firecrawl: on, and check back in a week to see if it's pulling content
+- [ ] Notes field should reference the program slugs the source covers (e.g. `Programs: flying_blue, klm`)
 
 ---
 
