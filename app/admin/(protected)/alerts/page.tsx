@@ -18,12 +18,89 @@ const STATUS_TONE: Record<AlertStatus, { label: string; tone: 'success' | 'warni
   expired:        { label: 'Expired',        tone: 'accent' },
 }
 
-export default async function AdminAlertsPage() {
+type SortField = 'title' | 'type' | 'status' | 'end_date'
+type SortDir = 'asc' | 'desc'
+
+// Status sort order — most actionable first.
+const STATUS_RANK: Record<AlertStatus, number> = {
+  pending_review: 0,
+  draft: 1,
+  published: 2,
+  expired: 3,
+  rejected: 4,
+}
+
+function compareAlerts(field: SortField, dir: SortDir) {
+  const sign = dir === 'asc' ? 1 : -1
+  return (a: { title: string; type: string; status: AlertStatus; end_date: string | null }, b: typeof a) => {
+    let cmp = 0
+    if (field === 'title') cmp = a.title.localeCompare(b.title)
+    else if (field === 'type') cmp = a.type.localeCompare(b.type)
+    else if (field === 'status') cmp = STATUS_RANK[a.status] - STATUS_RANK[b.status]
+    else if (field === 'end_date') {
+      // Nulls always last, regardless of asc/desc.
+      const av = a.end_date ? new Date(a.end_date).getTime() : null
+      const bv = b.end_date ? new Date(b.end_date).getTime() : null
+      if (av === null && bv === null) cmp = 0
+      else if (av === null) return 1
+      else if (bv === null) return -1
+      else cmp = av - bv
+    }
+    return cmp * sign
+  }
+}
+
+function SortHeader({
+  field,
+  label,
+  current,
+  align,
+}: {
+  field: SortField
+  label: string
+  current: { sort: SortField | null; dir: SortDir }
+  align?: 'left' | 'right'
+}) {
+  const active = current.sort === field
+  const nextDir: SortDir = active && current.dir === 'asc' ? 'desc' : 'asc'
+  const arrow = active ? (current.dir === 'asc' ? '↑' : '↓') : ''
+  return (
+    <th style={{ textAlign: align ?? 'left' }}>
+      <Link
+        href={`/admin/alerts?sort=${field}&dir=${nextDir}`}
+        scroll={false}
+        style={{
+          color: 'inherit',
+          textDecoration: active ? 'underline' : 'none',
+          fontWeight: active ? 700 : 'inherit',
+          display: 'inline-flex',
+          gap: '0.25rem',
+          alignItems: 'center',
+        }}
+      >
+        {label}
+        {arrow && <span aria-hidden="true">{arrow}</span>}
+      </Link>
+    </th>
+  )
+}
+
+export default async function AdminAlertsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ sort?: string; dir?: string }>
+}) {
+  const sp = await searchParams
+  const validFields: SortField[] = ['title', 'type', 'status', 'end_date']
+  const sort: SortField | null = validFields.includes(sp.sort as SortField) ? (sp.sort as SortField) : null
+  const dir: SortDir = sp.dir === 'desc' ? 'desc' : 'asc'
+
   const supabase = createAdminClient()
-  const [alerts, pendingAlerts] = await Promise.all([
+  const [allAlerts, pendingAlerts] = await Promise.all([
     getAllAlerts(supabase),
     getPendingReviewAlerts(supabase),
   ])
+  const alerts = sort ? [...allAlerts].sort(compareAlerts(sort, dir)) : allAlerts
 
   return (
     <div>
@@ -60,10 +137,10 @@ export default async function AdminAlertsPage() {
             <table className="admin-table">
               <thead>
                 <tr>
-                  <th>Title</th>
-                  <th>Type</th>
-                  <th>Status</th>
-                  <th>Expires</th>
+                  <SortHeader field="title" label="Title" current={{ sort, dir }} />
+                  <SortHeader field="type" label="Type" current={{ sort, dir }} />
+                  <SortHeader field="status" label="Status" current={{ sort, dir }} />
+                  <SortHeader field="end_date" label="Expires" current={{ sort, dir }} />
                   <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
