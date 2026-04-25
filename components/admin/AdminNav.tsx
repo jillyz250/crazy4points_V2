@@ -3,7 +3,12 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
-type NavItem = { href: string; label: string; abbr: string }
+type NavItem = {
+  href: string
+  label: string
+  abbr: string
+  match?: (pathname: string) => boolean
+}
 type NavGroup = { label: string | null; items: NavItem[] }
 
 const NAV_GROUPS: NavGroup[] = [
@@ -12,36 +17,52 @@ const NAV_GROUPS: NavGroup[] = [
     items: [{ href: '/admin', label: 'Dashboard', abbr: 'Da' }],
   },
   {
-    label: 'Content',
+    label: 'Pipeline',
     items: [
-      { href: '/admin/alerts', label: 'Alerts', abbr: 'Al' },
-      { href: '/admin/intel', label: 'Intel', abbr: 'In' },
-      { href: '/admin/programs', label: 'Programs', abbr: 'Pr' },
       { href: '/admin/sources', label: 'Sources', abbr: 'So' },
-      { href: '/admin/content-ideas', label: 'Ideas', abbr: 'Id' },
+      { href: '/admin/intel', label: 'Intel', abbr: 'In' },
     ],
   },
   {
-    label: 'Outbound',
+    label: 'Writing',
     items: [
+      { href: '/admin/alerts', label: 'Alerts', abbr: 'Al' },
+      {
+        href: '/admin/content-ideas?type=blog',
+        label: 'Blog',
+        abbr: 'Bl',
+        // Light up on the content-ideas page regardless of filter — bare
+        // /admin/content-ideas (no nav target now that "Ideas" is gone)
+        // should still highlight where the user is.
+        match: (p) => p === '/admin/content-ideas',
+      },
       { href: '/admin/newsletter', label: 'Newsletter', abbr: 'Nw' },
-      { href: '/admin/subscribers', label: 'Subscribers', abbr: 'Sb' },
-      { href: '/admin/briefs', label: 'Briefs', abbr: 'Br' },
     ],
+  },
+  {
+    label: 'Reference',
+    items: [{ href: '/admin/programs', label: 'Programs', abbr: 'Pr' }],
+  },
+  {
+    label: 'Audience',
+    items: [{ href: '/admin/subscribers', label: 'Subscribers', abbr: 'Su' }],
   },
   {
     label: 'Ops',
     items: [
       { href: '/admin/jobs', label: 'Jobs', abbr: 'Jo' },
+      { href: '/admin/briefs', label: 'Briefs', abbr: 'Br' },
       { href: '/admin/fact-checks', label: 'Fact Checks', abbr: 'Fc' },
       { href: '/admin/errors', label: 'Errors', abbr: 'Er' },
     ],
   },
 ]
 
-function isActive(pathname: string, href: string): boolean {
-  if (href === '/admin') return pathname === '/admin'
-  return pathname === href || pathname.startsWith(href + '/')
+function defaultIsActive(pathname: string, href: string): boolean {
+  // Strip any query string from the href before comparing.
+  const justPath = href.split('?')[0]
+  if (justPath === '/admin') return pathname === '/admin'
+  return pathname === justPath || pathname.startsWith(justPath + '/')
 }
 
 export default function AdminNav() {
@@ -53,7 +74,9 @@ export default function AdminNav() {
         <div key={gi} className="admin-nav-group">
           {group.label && <div className="admin-nav-group-label">{group.label}</div>}
           {group.items.map((item) => {
-            const active = isActive(pathname, item.href)
+            const active = item.match
+              ? item.match(pathname)
+              : defaultIsActive(pathname, item.href)
             return (
               <Link
                 key={item.href}
