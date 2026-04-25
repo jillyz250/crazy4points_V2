@@ -273,7 +273,7 @@ export async function GET(req: NextRequest) {
           start_date: draft.start_date,
           end_date: draft.end_date,
         })
-        await setAlertPrograms(supabase, alertId, secondaryIds)
+        await setAlertPrograms(supabase, alertId, { primaryId, secondaryIds })
         drafts_written++
 
         // Fact-check pass: ground every factual claim in the draft against

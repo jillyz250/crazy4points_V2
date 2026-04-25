@@ -840,33 +840,64 @@ export async function getAlertPrograms(
 }
 
 /**
- * Replace all alert_programs rows for an alert with the given program IDs.
- * Deletes existing rows then inserts fresh ones. Pass an empty array to clear.
+ * Replace all alert_programs rows for an alert. Always writes a 'primary' row
+ * for the alert's primary program (auto-fetched from alerts.primary_program_id
+ * if `primaryId` not provided) plus 'secondary' rows for each `secondaryIds`
+ * entry. Deduplicates so a program tagged as both is only stored once
+ * (as primary).
+ *
+ * Callers can either:
+ *   • pass a flat `string[]` of secondary ids (legacy callers — primary is
+ *     auto-fetched from the alert), or
+ *   • pass `{ primaryId, secondaryIds }` to be fully explicit.
+ *
+ * Pass `{ primaryId: null, secondaryIds: [] }` (or `[]`) to clear, but the
+ * auto-fetch path will still re-tag the primary unless explicitly cleared.
  */
 export async function setAlertPrograms(
   supabase: SupabaseClient,
   alertId: string,
-  programIds: string[]
+  arg: string[] | { primaryId?: string | null; secondaryIds?: string[] } = {}
 ): Promise<void> {
+  const config = Array.isArray(arg) ? { secondaryIds: arg } : arg
+
+  // Auto-fetch the primary if caller didn't specify one. Keeps the junction
+  // consistent with alerts.primary_program_id without every call site needing
+  // to know to pass it.
+  let primaryId: string | null
+  if (config.primaryId !== undefined) {
+    primaryId = config.primaryId
+  } else {
+    const { data: alert } = await supabase
+      .from('alerts')
+      .select('primary_program_id')
+      .eq('id', alertId)
+      .single()
+    primaryId = (alert?.primary_program_id as string | null) ?? null
+  }
+
   const { error: deleteError } = await supabase
     .from('alert_programs')
     .delete()
     .eq('alert_id', alertId)
-
   if (deleteError) throw deleteError
 
-  if (programIds.length === 0) return
+  const seen = new Set<string>()
+  const rows: { alert_id: string; program_id: string; role: 'primary' | 'secondary' }[] = []
 
-  const rows = programIds.map((program_id) => ({
-    alert_id: alertId,
-    program_id,
-    role: 'secondary',
-  }))
+  if (primaryId) {
+    rows.push({ alert_id: alertId, program_id: primaryId, role: 'primary' })
+    seen.add(primaryId)
+  }
+  for (const id of config.secondaryIds ?? []) {
+    if (!id || seen.has(id)) continue
+    rows.push({ alert_id: alertId, program_id: id, role: 'secondary' })
+    seen.add(id)
+  }
 
-  const { error: insertError } = await supabase
-    .from('alert_programs')
-    .insert(rows)
+  if (rows.length === 0) return
 
+  const { error: insertError } = await supabase.from('alert_programs').insert(rows)
   if (insertError) throw insertError
 }
 
