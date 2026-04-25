@@ -121,6 +121,17 @@ Add to a permanent sources doc per airline (`plans/sources/[slug].md` or your kn
 
 ---
 
+## 7.5 Add press-room RSS to Scout's source list
+
+If the carrier has a working RSS press room, add it to `/admin/sources` so Scout starts ingesting news directly. This is a per-airline action, not a Phase 6 prerequisite — Scout's existing pipeline handles it today.
+
+- [ ] Test the RSS URL with `curl -sLI <url>` first to confirm it returns 200 OK
+- [ ] If 200: add via `/admin/sources/new` — Type: Official Partner, Tier: 1, Frequency: daily, Firecrawl: off
+- [ ] If 403/blocked: add anyway with Firecrawl: on, and check back in a week to see if it's pulling content
+- [ ] Notes field should reference the program slugs the source covers (e.g. `Programs: flying_blue, klm`)
+
+---
+
 ## 8. Cross-linking & related content
 
 - [ ] **Co-brand credit card pages** that earn into this program — make sure each card's page (when built) links back here, and this page's transfer partners table links to them
