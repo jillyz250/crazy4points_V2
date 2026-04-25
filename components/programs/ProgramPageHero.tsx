@@ -216,6 +216,7 @@ export default function ProgramPageHero({
             display: 'flex',
             flexWrap: 'wrap',
             gap: '0.4rem',
+            alignItems: 'center',
             paddingBottom: '0.875rem',
             borderBottom: '1px solid var(--color-border-soft)',
           }}
@@ -228,34 +229,14 @@ export default function ProgramPageHero({
               letterSpacing: '0.08em',
               textTransform: 'uppercase',
               color: 'var(--color-text-secondary)',
-              alignSelf: 'center',
               marginRight: '0.25rem',
             }}
           >
-            On this page:
+            Jump to:
           </span>
-          {sections.map((s, i) => (
-            <Link
-              key={s.id}
-              href={`#${s.id}`}
-              style={{
-                fontFamily: 'var(--font-ui)',
-                fontSize: '0.8125rem',
-                fontWeight: 500,
-                color: 'var(--color-primary)',
-                textDecoration: 'none',
-                padding: '0.2rem 0.4rem',
-              }}
-            >
+          {sections.map((s) => (
+            <Link key={s.id} href={`#${s.id}`} className="program-toc-link">
               {s.label}
-              {i < sections.length - 1 && (
-                <span
-                  aria-hidden="true"
-                  style={{ marginLeft: '0.4rem', color: 'var(--color-border-soft)' }}
-                >
-                  ·
-                </span>
-              )}
             </Link>
           ))}
         </nav>
