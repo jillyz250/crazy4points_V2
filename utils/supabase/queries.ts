@@ -34,6 +34,7 @@ export type AlertStatus =
   | 'pending_review'
   | 'published'
   | 'rejected'
+  | 'soft_rejected'
   | 'expired'
 
 export type AlertActionType = 'book' | 'transfer' | 'apply' | 'status_match' | 'monitor' | 'learn'
@@ -107,6 +108,11 @@ export interface Alert {
   fact_check_at: string | null
   revision_log: unknown | null
   is_hot: boolean
+  /** When the most recent reject / soft-reject / publish decision was made. */
+  decided_at: string | null
+  /** For soft-rejected alerts: when Scout's dedup should stop suppressing similar findings. */
+  revisit_after: string | null
+  rejected_reason: string | null
   created_at: string
   updated_at: string
 }
@@ -173,7 +179,72 @@ export type AlertWithPrograms = Alert & {
   alert_programs: (AlertProgram & { programs: Program })[]
 }
 
-export type AlertInsert = Omit<Alert, 'id' | 'created_at' | 'updated_at' | 'computed_score' | 'score_last_computed_at' | 'approved_at' | 'source_intel_id' | 'fact_check_claims' | 'fact_check_at' | 'revision_log'>
+export type AlertInsert = Omit<Alert, 'id' | 'created_at' | 'updated_at' | 'computed_score' | 'score_last_computed_at' | 'approved_at' | 'source_intel_id' | 'fact_check_claims' | 'fact_check_at' | 'revision_log' | 'decided_at' | 'revisit_after' | 'rejected_reason'>
+
+// Phase 2 — decision memory.
+// How long Scout suppresses similar findings after each decision, in days.
+// Soft-rejected uses the per-row `revisit_after` instead of a fixed TTL.
+const DEDUP_TTL_DAYS = {
+  published: 30,
+  rejected: 14,
+} as const
+
+export type DecisionMatch = {
+  block: boolean
+  reason: 'pending_review' | 'published' | 'rejected' | 'soft_rejected'
+  alert: Pick<Alert, 'id' | 'title' | 'status' | 'decided_at' | 'revisit_after' | 'rejected_reason'>
+}
+
+/**
+ * Looks up the most recent alert decision for a program+type combo and
+ * decides whether a new intel finding should be suppressed. Used by Scout
+ * to prevent re-staging stories you've already seen, and by build-brief
+ * to feed Sonnet the rejection memory.
+ *
+ * Returns the most recent BLOCKING decision (highest priority: pending_review,
+ * then published, then soft_rejected, then rejected — measured by decided_at
+ * within each TTL). Returns null if nothing applies.
+ */
+export async function getRecentDecisionFor(
+  supabase: SupabaseClient,
+  programId: string | null,
+  alertType: AlertType | null,
+): Promise<DecisionMatch | null> {
+  if (!programId || !alertType) return null
+
+  const now = Date.now()
+  const publishedCutoff = new Date(now - DEDUP_TTL_DAYS.published * 24 * 60 * 60 * 1000).toISOString()
+  const rejectedCutoff = new Date(now - DEDUP_TTL_DAYS.rejected * 24 * 60 * 60 * 1000).toISOString()
+  const nowIso = new Date(now).toISOString()
+
+  const { data } = await supabase
+    .from('alerts')
+    .select('id, title, status, decided_at, revisit_after, rejected_reason')
+    .eq('primary_program_id', programId)
+    .eq('type', alertType)
+    .order('decided_at', { ascending: false, nullsFirst: false })
+    .limit(20)
+
+  if (!data || data.length === 0) return null
+
+  for (const row of data) {
+    const a = row as DecisionMatch['alert']
+    const status = (a.status as unknown) as string
+    if (status === 'pending_review') {
+      return { block: true, reason: 'pending_review', alert: a }
+    }
+    if (status === 'published' && a.decided_at && a.decided_at >= publishedCutoff) {
+      return { block: true, reason: 'published', alert: a }
+    }
+    if (status === 'soft_rejected' && a.revisit_after && a.revisit_after > nowIso) {
+      return { block: true, reason: 'soft_rejected', alert: a }
+    }
+    if (status === 'rejected' && a.decided_at && a.decided_at >= rejectedCutoff) {
+      return { block: true, reason: 'rejected', alert: a }
+    }
+  }
+  return null
+}
 export type AlertUpdate = Partial<Omit<Alert, 'id' | 'created_at' | 'updated_at'>>
 
 export interface AlertHistory {

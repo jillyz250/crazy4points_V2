@@ -7,6 +7,7 @@ import {
   incrementSourceProduced,
   logSystemError,
   setAlertPrograms,
+  getRecentDecisionFor,
 } from '@/utils/supabase/queries'
 import { runScout } from '@/utils/ai/runScout'
 import { enrichPromoFindings } from '@/utils/ai/enrichPromoFindings'
@@ -165,20 +166,16 @@ export async function GET(req: NextRequest) {
       .filter(Boolean) as string[]
     const primaryProgramId = programIds[0] ?? null
 
-    // Skip staging if a pending_review alert already exists for this program+type (7-day window)
+    // Decision memory (Phase 2): suppress staging if an alert for this
+    // program+type already had a recent decision — pending_review (any age),
+    // published (last 30d), rejected (last 14d), or soft_rejected (until
+    // revisit_after). Replaces the old pending-only 7-day check.
     if (primaryProgramId && item.alert_type) {
-      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-      const { data: existing } = await supabase
-        .from('alerts')
-        .select('id')
-        .eq('status', 'pending_review')
-        .eq('primary_program_id', primaryProgramId)
-        .eq('type', item.alert_type)
-        .gte('created_at', sevenDaysAgo)
-        .limit(1)
-
-      if (existing && existing.length > 0) {
-        console.log(`[run-scout] Skipping duplicate staging for: ${item.headline}`)
+      const decision = await getRecentDecisionFor(supabase, primaryProgramId, item.alert_type as AlertType)
+      if (decision?.block) {
+        console.log(
+          `[run-scout] Skipping (${decision.reason}) for "${item.headline}" — prior alert: ${decision.alert.title.slice(0, 70)}`
+        )
         await supabase.from('intel_items').update({ dedup_count: 1 }).eq('id', item.id)
         continue
       }

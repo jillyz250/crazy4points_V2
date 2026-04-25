@@ -5,6 +5,7 @@ import Link from 'next/link'
 import {
   approveIntelAlertAction,
   rejectAlertAction,
+  softRejectAlertAction,
   bulkApproveIntelAlertsAction,
   bulkRejectAlertsAction,
 } from '@/app/admin/(protected)/alerts/actions'
@@ -185,6 +186,38 @@ export default function PendingReviewBulk({ alerts }: { alerts: PendingAlert[] }
                     Approve
                   </button>
                 </form>
+                <details style={{ display: 'inline-block' }}>
+                  <summary
+                    className="admin-btn admin-btn-ghost admin-btn-sm"
+                    style={{ listStyle: 'none', cursor: 'pointer' }}
+                    title="Snooze — won't re-stage similar findings until the chosen window passes"
+                  >
+                    Snooze ▾
+                  </summary>
+                  <div
+                    style={{
+                      position: 'absolute',
+                      marginTop: '0.25rem',
+                      background: 'var(--admin-surface)',
+                      border: '1px solid var(--admin-border)',
+                      borderRadius: 'var(--admin-radius)',
+                      padding: '0.25rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.125rem',
+                      zIndex: 10,
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                    }}
+                  >
+                    {[7, 30, 90].map((d) => (
+                      <form key={d} action={softRejectAlertAction.bind(null, alert.id, d)}>
+                        <button type="submit" className="admin-btn admin-btn-ghost admin-btn-sm" style={{ width: '100%', justifyContent: 'flex-start' }}>
+                          Snooze {d}d
+                        </button>
+                      </form>
+                    ))}
+                  </div>
+                </details>
                 <form action={rejectAlertAction.bind(null, alert.id)}>
                   <button type="submit" className="admin-btn admin-btn-danger admin-btn-sm">
                     Reject
