@@ -111,6 +111,13 @@ export interface Alert {
   updated_at: string
 }
 
+export interface TransferPartnerRow {
+  from_slug: string
+  ratio: string
+  notes: string | null
+  bonus_active: boolean
+}
+
 export interface Program {
   id: string
   slug: string
@@ -124,6 +131,11 @@ export interface Program {
   program_url: string | null
   faq_content: string | null
   faq_updated_at: string | null
+  intro: string | null
+  transfer_partners: TransferPartnerRow[] | null
+  sweet_spots: string | null
+  quirks: string | null
+  content_updated_at: string | null
   notes: string | null
   last_verified: string | null
   created_at: string
@@ -985,6 +997,36 @@ export async function updateProgramFaqContent(
     .update({
       faq_content,
       faq_updated_at: faq_content ? new Date().toISOString() : null,
+    })
+    .eq('id', id)
+  if (error) throw error
+}
+
+export interface ProgramPageContentInput {
+  intro: string | null
+  transfer_partners: TransferPartnerRow[] | null
+  sweet_spots: string | null
+  quirks: string | null
+}
+
+export async function updateProgramPageContent(
+  supabase: SupabaseClient,
+  id: string,
+  input: ProgramPageContentInput
+): Promise<void> {
+  const anyContent =
+    !!input.intro ||
+    (input.transfer_partners?.length ?? 0) > 0 ||
+    !!input.sweet_spots ||
+    !!input.quirks
+  const { error } = await supabase
+    .from('programs')
+    .update({
+      intro: input.intro,
+      transfer_partners: input.transfer_partners,
+      sweet_spots: input.sweet_spots,
+      quirks: input.quirks,
+      content_updated_at: anyContent ? new Date().toISOString() : null,
     })
     .eq('id', id)
   if (error) throw error
