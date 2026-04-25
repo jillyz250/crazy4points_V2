@@ -39,6 +39,7 @@ interface ContentIdeaRow {
   originality_notes: string | null
   originality_pass: boolean | null
   source_alert?: {
+    title: string | null
     end_date: string | null
     computed_score: number | null
   } | null
@@ -72,34 +73,32 @@ export default async function ContentIdeasPage({
   const programSlug = (sp.program ?? '').trim()
   const supabase = createAdminClient()
 
-  // Program filter: resolve to a list of source_alert_ids that the slug applies to.
-  // Two hops: programs → alert_programs → alerts.id.
-  // We track an explicit "no matches" boolean rather than stuffing a sentinel
-  // string into a uuid `.in()` (Postgres rejects with 22P02).
-  let programAlertIds: string[] | null = null
-  let programYieldsZero = false
+  // Program filter: get tagged alert_ids AND capture the program name so we
+  // can ALSO match ideas that mention the program by name in their title /
+  // pitch / notes / source-alert title. Many alerts come in untagged (Scout
+  // doesn't always populate alert_programs), so a strict junction-only filter
+  // misses ideas that obviously belong to the program.
+  let programTaggedAlertIds: Set<string> | null = null
+  let programNameNeedle: string | null = null
   if (programSlug) {
     const { data: program } = await supabase
       .from('programs')
-      .select('id')
+      .select('id, name')
       .eq('slug', programSlug)
       .maybeSingle()
     if (program) {
+      programNameNeedle = program.name.toLowerCase()
       const { data: links } = await supabase
         .from('alert_programs')
         .select('alert_id')
         .eq('program_id', program.id)
-      const ids = (links ?? []).map((l) => l.alert_id as string)
-      if (ids.length === 0) programYieldsZero = true
-      else programAlertIds = ids
-    } else {
-      programYieldsZero = true
+      programTaggedAlertIds = new Set((links ?? []).map((l) => l.alert_id as string))
     }
   }
 
   let query = supabase
     .from('content_ideas')
-    .select('*, source_alert:alerts!source_alert_id(end_date, computed_score)')
+    .select('*, source_alert:alerts!source_alert_id(title, end_date, computed_score)')
     .order('created_at', { ascending: false })
 
   if (typeFilter === 'newsletter' || typeFilter === 'blog') {
@@ -110,29 +109,33 @@ export default async function ContentIdeasPage({
   } else if (!statusFilter) {
     query = query.in('status', ['new', 'queued', 'drafted'])
   }
-  // NOTE: text search is applied in-memory below, not via PostgREST `.or()`.
-  // PostgREST's or-filter has nasty edge cases with embedded spaces, parens,
-  // and punctuation in ilike patterns ("air france", "Hilton (DE)", etc.) and
-  // returns 500s for the query string. Admin lists are small enough that a
-  // JS filter is predictable and bug-free.
-  if (programAlertIds) {
-    query = query.in('source_alert_id', programAlertIds)
-  }
+  // Text search and program filter are applied in-memory below, not via
+  // PostgREST `.or()` — PostgREST's or-filter has nasty edge cases with
+  // embedded spaces, parens, and punctuation in ilike patterns. Admin lists
+  // are small enough that a JS filter is predictable and bug-free.
 
-  // If the program filter resolved to "no alerts at all", don't run the query —
-  // just render an empty result. We still need the programs list for the dropdown.
-  const [queryRes, programs] = await Promise.all([
-    programYieldsZero ? Promise.resolve({ data: [], error: null }) : query,
-    getPrograms(supabase),
-  ])
+  const [queryRes, programs] = await Promise.all([query, getPrograms(supabase)])
   if (queryRes.error) throw queryRes.error
   let ideas = (queryRes.data ?? []) as ContentIdeaRow[]
+
+  // Program filter: keep ideas whose source_alert is tagged OR whose text
+  // mentions the program by name (works around upstream untagged alerts).
+  if (programNameNeedle) {
+    ideas = ideas.filter((i) => {
+      const taggedHit = i.source_alert_id && programTaggedAlertIds?.has(i.source_alert_id)
+      if (taggedHit) return true
+      const hay = [i.title, i.pitch, i.notes ?? '', i.source_alert?.title ?? ''].join(' ').toLowerCase()
+      return hay.includes(programNameNeedle)
+    })
+  }
+
   if (q) {
     const needle = q.toLowerCase()
     ideas = ideas.filter((i) =>
       i.title.toLowerCase().includes(needle) ||
       i.pitch.toLowerCase().includes(needle) ||
-      (i.notes ?? '').toLowerCase().includes(needle)
+      (i.notes ?? '').toLowerCase().includes(needle) ||
+      (i.source_alert?.title ?? '').toLowerCase().includes(needle)
     )
   }
 
