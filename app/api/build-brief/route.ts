@@ -558,21 +558,23 @@ export async function GET(req: NextRequest) {
     if (htmlErr) console.error('[build-brief] brief_html update failed:', htmlErr)
   }
 
-  const skipEmail = req.nextUrl.searchParams.get('preview') === '1'
+  // Email send removed in Phase 1 — brief is read in /admin/briefs instead.
+  // Keeps build-brief well under the Vercel timeout budget and removes the
+  // Resend domain-verification dependency. ?email=1 forces a send if needed
+  // for a one-off test (kept as escape hatch).
   let emailSent = false
-  if (!skipEmail) {
+  if (req.nextUrl.searchParams.get('email') === '1') {
     const { error: emailError } = await resend.emails.send({
       from: process.env.RESEND_FROM ?? 'crazy4points <intel@crazy4points.com>',
       to: process.env.BRIEF_RECIPIENT ?? 'jillzeller6@gmail.com',
       subject: `Crazy4Points Daily Brief — ${date}`,
       html,
     })
-
     if (emailError) {
-      console.error('[build-brief] Resend error:', emailError)
-      return NextResponse.json({ error: 'Email send failed', details: emailError }, { status: 500 })
+      console.error('[build-brief] Resend error (manual email=1 send):', emailError)
+    } else {
+      emailSent = true
     }
-    emailSent = true
   }
 
   const approve_count = plan?.approve.length ?? 0

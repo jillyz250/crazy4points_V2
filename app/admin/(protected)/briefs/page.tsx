@@ -57,7 +57,7 @@ export default async function BriefsPage() {
     <div>
       <PageHeader
         title="Daily Briefs"
-        description="Preview any past daily brief in-app. Useful to check a brief without waiting for email delivery."
+        description="Today's intel review and action queue. Click a date to read the brief and approve/reject in place."
       />
 
       {briefs.length === 0 ? (
