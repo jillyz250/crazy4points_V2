@@ -1,6 +1,7 @@
 import { marked } from 'marked'
 import type { Program } from '@/utils/supabase/queries'
 import TransferPartnersTable from './TransferPartnersTable'
+import TierBenefitsTable from './TierBenefitsTable'
 
 /**
  * Renders the editorial content sections for a program (intro / transfer
@@ -21,13 +22,16 @@ export default async function ProgramPageContent({
   const hasPartners = (program.transfer_partners?.length ?? 0) > 0
   const hasSweetSpots = !!program.sweet_spots?.trim()
   const hasQuirks = !!program.quirks?.trim()
-  const hasAny = hasIntro || hasPartners || hasSweetSpots || hasQuirks
+  const hasHowToSpend = !!program.how_to_spend?.trim()
+  const hasTiers = (program.tier_benefits?.length ?? 0) > 0
+  const hasAny = hasIntro || hasPartners || hasSweetSpots || hasQuirks || hasHowToSpend || hasTiers
 
   if (!hasAny) return null
 
   const introHtml = hasIntro ? await marked.parse(program.intro!, { async: true }) : null
   const sweetSpotsHtml = hasSweetSpots ? await marked.parse(program.sweet_spots!, { async: true }) : null
   const quirksHtml = hasQuirks ? await marked.parse(program.quirks!, { async: true }) : null
+  const howToSpendHtml = hasHowToSpend ? await marked.parse(program.how_to_spend!, { async: true }) : null
 
   const sectionStyle: React.CSSProperties = {
     marginBottom: '2.5rem',
@@ -86,6 +90,17 @@ export default async function ProgramPageContent({
         </section>
       )}
 
+      {howToSpendHtml && (
+        <section style={sectionStyle}>
+          <h2 style={headingStyle}>How to spend miles</h2>
+          <div
+            style={proseStyle}
+            className="rg-prose"
+            dangerouslySetInnerHTML={{ __html: howToSpendHtml }}
+          />
+        </section>
+      )}
+
       {sweetSpotsHtml && (
         <section style={sectionStyle}>
           <h2 style={headingStyle}>Sweet spots</h2>
@@ -94,6 +109,23 @@ export default async function ProgramPageContent({
             className="rg-prose"
             dangerouslySetInnerHTML={{ __html: sweetSpotsHtml }}
           />
+        </section>
+      )}
+
+      {hasTiers && (
+        <section style={sectionStyle}>
+          <h2 style={headingStyle}>Elite tiers & benefits</h2>
+          <p
+            style={{
+              fontFamily: 'var(--font-body)',
+              fontSize: '0.875rem',
+              color: 'var(--color-text-secondary)',
+              marginBottom: '0.75rem',
+            }}
+          >
+            Status tiers, qualification, and key benefits at a glance.
+          </p>
+          <TierBenefitsTable rows={program.tier_benefits!} />
         </section>
       )}
 

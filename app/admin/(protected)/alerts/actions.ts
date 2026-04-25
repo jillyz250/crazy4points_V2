@@ -151,7 +151,7 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
       .maybeSingle(),
     supabase
       .from('programs')
-      .select('id, slug, name, type, intro, transfer_partners, sweet_spots, quirks, faq_content'),
+      .select('id, slug, name, type, intro, transfer_partners, sweet_spots, quirks, how_to_spend, tier_benefits, faq_content'),
     supabase
       .from('alerts')
       .select('title, summary')
@@ -175,6 +175,8 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
     transfer_partners: (p.transfer_partners as Array<Record<string, unknown>> | null) ?? null,
     sweet_spots: (p.sweet_spots as string | null) ?? null,
     quirks: (p.quirks as string | null) ?? null,
+    how_to_spend: (p.how_to_spend as string | null) ?? null,
+    tier_benefits: (p.tier_benefits as Array<Record<string, unknown>> | null) ?? null,
     faq_content: (p.faq_content as string | null) ?? null,
   }))
   const programBySlug = new Map(allPrograms.map((p) => [p.slug, p]))
@@ -209,7 +211,24 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
         .join('\n')
       parts.push(`#### Transfer partners\n${lines}`)
     }
+    if (p.how_to_spend?.trim()) parts.push(`#### How to spend miles\n${p.how_to_spend.trim()}`)
     if (p.sweet_spots?.trim()) parts.push(`#### Sweet spots\n${p.sweet_spots.trim()}`)
+    if ((p.tier_benefits?.length ?? 0) > 0) {
+      const lines = p.tier_benefits!
+        .map((row) => {
+          const r = row as Record<string, unknown>
+          const name = typeof r.name === 'string' ? r.name : '?'
+          const qual = typeof r.qualification === 'string' ? r.qualification : ''
+          const benefits = Array.isArray(r.benefits)
+            ? (r.benefits as unknown[]).filter((b): b is string => typeof b === 'string')
+            : []
+          const qualPart = qual ? ` (${qual})` : ''
+          const bensPart = benefits.length ? `: ${benefits.join('; ')}` : ''
+          return `- ${name}${qualPart}${bensPart}`
+        })
+        .join('\n')
+      parts.push(`#### Elite tiers & benefits\n${lines}`)
+    }
     if (p.quirks?.trim()) parts.push(`#### Tips & quirks\n${p.quirks.trim()}`)
     if (parts.length > 0) return parts.join('\n\n')
     // Fallback to legacy faq_content
