@@ -4,6 +4,7 @@ import type { ProgramType, Program } from '@/utils/supabase/queries'
 import { toggleProgramAction } from './actions'
 import AddProgramForm from './AddProgramForm'
 import FaqContentEditor from './FaqContentEditor'
+import ProgramPageContentEditor from './ProgramPageContentEditor'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Card } from '@/components/admin/ui/Card'
 import { Badge } from '@/components/admin/ui/Badge'
@@ -90,6 +91,7 @@ export default async function AdminProgramsPage() {
                           <th>Monitor</th>
                           <th>URL</th>
                           <th>FAQ</th>
+                          <th>Page</th>
                           <th>Active</th>
                         </tr>
                       </thead>
@@ -114,6 +116,17 @@ export default async function AdminProgramsPage() {
                                 programName={program.name}
                                 initialContent={program.faq_content}
                                 initialUpdatedAt={program.faq_updated_at}
+                              />
+                            </td>
+                            <td>
+                              <ProgramPageContentEditor
+                                programId={program.id}
+                                programName={program.name}
+                                initialIntro={program.intro}
+                                initialTransferPartners={program.transfer_partners}
+                                initialSweetSpots={program.sweet_spots}
+                                initialQuirks={program.quirks}
+                                initialUpdatedAt={program.content_updated_at}
                               />
                             </td>
                             <td>

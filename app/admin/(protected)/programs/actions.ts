@@ -2,8 +2,17 @@
 
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/utils/supabase/server'
-import { toggleProgramActive, createProgram, updateProgramFaqContent } from '@/utils/supabase/queries'
-import type { ProgramType, MonitorTier } from '@/utils/supabase/queries'
+import {
+  toggleProgramActive,
+  createProgram,
+  updateProgramFaqContent,
+  updateProgramPageContent,
+} from '@/utils/supabase/queries'
+import type {
+  ProgramType,
+  MonitorTier,
+  ProgramPageContentInput,
+} from '@/utils/supabase/queries'
 
 export async function toggleProgramAction(id: string, is_active: boolean) {
   const supabase = createAdminClient()
@@ -50,6 +59,20 @@ export async function updateProgramFaqContentAction(
     await updateProgramFaqContent(supabase, id, content)
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Failed to save FAQ content.' }
+  }
+  revalidatePath('/admin/programs')
+  return {}
+}
+
+export async function updateProgramPageContentAction(
+  id: string,
+  input: ProgramPageContentInput
+): Promise<{ error?: string }> {
+  const supabase = createAdminClient()
+  try {
+    await updateProgramPageContent(supabase, id, input)
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Failed to save page content.' }
   }
   revalidatePath('/admin/programs')
   return {}
