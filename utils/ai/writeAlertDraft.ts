@@ -315,7 +315,8 @@ PROMO-TERMS COMPLETENESS (alert_type ∈ promo-shaped only)
 ═══════════════════════════════════════════════════════════
 
 Applies when alert_type is one of:
-"limited_time_offer" · "transfer_bonus" · "status_promo" · "award_availability"
+"limited_time_offer" · "transfer_bonus" · "status_promo"
+(award_availability does not have promo terms; not in scope here.)
 
 Promo readers lose money when qualifying terms are vague. For these
 alert types, your description MUST surface every applicable term
