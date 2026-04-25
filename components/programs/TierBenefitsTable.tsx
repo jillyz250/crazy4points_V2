@@ -1,9 +1,12 @@
 import type { TierBenefitRow } from '@/utils/supabase/queries'
 
 /**
- * Renders structured elite tiers from the JSONB field as a stacked table.
- * Mobile-friendly: each tier is its own card-like block on narrow screens
- * via the parent overflow-x:auto and pre-wrap benefits column.
+ * Renders elite tiers as a responsive card grid (auto-fit, min 280px per card).
+ * Each tier is self-contained: name + qualification + benefit checklist.
+ * On wide screens 2-3 cards per row; on mobile, 1 per row.
+ *
+ * Originally a 3-column table — replaced because right-column benefits
+ * with long text left big empty whitespace and were hard to scan.
  */
 export default function TierBenefitsTable({
   rows,
@@ -13,60 +16,99 @@ export default function TierBenefitsTable({
   if (rows.length === 0) return null
 
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table
-        style={{
-          width: '100%',
-          borderCollapse: 'collapse',
-          fontFamily: 'var(--font-body)',
-          fontSize: '0.9375rem',
-        }}
-      >
-        <thead>
-          <tr style={{ borderBottom: '1px solid var(--color-border-soft)' }}>
-            <th style={{ textAlign: 'left', padding: '0.625rem 0.75rem', fontFamily: 'var(--font-ui)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)' }}>
-              Tier
-            </th>
-            <th style={{ textAlign: 'left', padding: '0.625rem 0.75rem', fontFamily: 'var(--font-ui)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)' }}>
-              Qualification
-            </th>
-            <th style={{ textAlign: 'left', padding: '0.625rem 0.75rem', fontFamily: 'var(--font-ui)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)' }}>
-              Key benefits
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((tier, i) => (
-            <tr
-              key={`${tier.name}-${i}`}
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+        gap: '1rem',
+      }}
+    >
+      {rows.map((tier, i) => (
+        <article
+          key={`${tier.name}-${i}`}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            padding: '1.25rem 1.375rem',
+            background: 'var(--color-background)',
+            border: '1px solid var(--color-border-soft)',
+            borderRadius: 'var(--radius-card)',
+            boxShadow: 'var(--shadow-soft)',
+          }}
+        >
+          <h3
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: '1.25rem',
+              fontWeight: 700,
+              color: 'var(--color-primary)',
+              margin: 0,
+              marginBottom: '0.25rem',
+              lineHeight: 1.2,
+            }}
+          >
+            {tier.name}
+          </h3>
+
+          {tier.qualification && (
+            <p
               style={{
-                borderBottom: i === rows.length - 1 ? 'none' : '1px solid var(--color-border-soft)',
-                verticalAlign: 'top',
+                fontFamily: 'var(--font-body)',
+                fontSize: '0.8125rem',
+                color: 'var(--color-text-secondary)',
+                margin: 0,
+                marginBottom: '0.875rem',
+                lineHeight: 1.4,
+                fontStyle: 'italic',
               }}
             >
-              <td style={{ padding: '0.75rem', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                {tier.name}
-              </td>
-              <td style={{ padding: '0.75rem', color: 'var(--color-text-secondary)', fontSize: '0.875rem', whiteSpace: 'nowrap' }}>
-                {tier.qualification || '—'}
-              </td>
-              <td style={{ padding: '0.75rem', color: 'var(--color-text-primary)', fontSize: '0.875rem' }}>
-                {tier.benefits.length > 0 ? (
-                  <ul style={{ margin: 0, paddingLeft: '1.1rem' }}>
-                    {tier.benefits.map((b, j) => (
-                      <li key={j} style={{ marginBottom: j === tier.benefits.length - 1 ? 0 : '0.25rem' }}>
-                        {b}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  '—'
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+              {tier.qualification}
+            </p>
+          )}
+
+          {tier.benefits.length > 0 && (
+            <ul
+              style={{
+                listStyle: 'none',
+                padding: 0,
+                margin: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.45rem',
+              }}
+            >
+              {tier.benefits.map((b, j) => (
+                <li
+                  key={j}
+                  style={{
+                    display: 'flex',
+                    gap: '0.5rem',
+                    alignItems: 'flex-start',
+                    fontFamily: 'var(--font-body)',
+                    fontSize: '0.875rem',
+                    lineHeight: 1.45,
+                    color: 'var(--color-text-primary)',
+                  }}
+                >
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      color: 'var(--color-accent)',
+                      fontWeight: 700,
+                      flexShrink: 0,
+                      marginTop: '0.05rem',
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    ✓
+                  </span>
+                  <span>{b}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </article>
+      ))}
     </div>
   )
 }
