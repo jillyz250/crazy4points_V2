@@ -8,6 +8,47 @@ import { verifyArticleBody } from '@/utils/ai/verifyArticleBody'
 import { webVerifyClaims } from '@/utils/ai/verifyAlertDraft'
 import { voiceCheckArticle } from '@/utils/ai/voiceCheckArticle'
 import { originalityCheck } from '@/utils/ai/originalityCheck'
+import { programsToSourceText, PROGRAM_FIELDS_FOR_SOURCE } from '@/utils/ai/programSourceText'
+import type { Program } from '@/utils/supabase/queries'
+
+type ProgramSource = Pick<
+  Program,
+  | 'name'
+  | 'slug'
+  | 'type'
+  | 'intro'
+  | 'sweet_spots'
+  | 'how_to_spend'
+  | 'quirks'
+  | 'lounge_access'
+  | 'transfer_partners'
+  | 'tier_benefits'
+  | 'alliance'
+  | 'hubs'
+  | 'description'
+>
+
+/**
+ * Returns Program rows linked to an idea — via its source_alert_id (if any)
+ * through the alert_programs junction. Used as authoritative source material
+ * for both the writer and the fact-checker, so anything we publish about
+ * Flying Blue (etc.) is grounded in our own page content, not just an alert.
+ */
+async function getProgramsForIdea(
+  supabase: ReturnType<typeof createAdminClient>,
+  sourceAlertId: string | null,
+): Promise<ProgramSource[]> {
+  if (!sourceAlertId) return []
+  const { data, error } = await supabase
+    .from('alert_programs')
+    .select(`programs!inner(${PROGRAM_FIELDS_FOR_SOURCE})`)
+    .eq('alert_id', sourceAlertId)
+  if (error || !data) return []
+  // Supabase typed-array returns: each row has { programs: ProgramRow }
+  return data
+    .map((row) => (row as unknown as { programs: ProgramSource | null }).programs)
+    .filter((p): p is ProgramSource => p !== null)
+}
 
 type IdeaStatus = 'new' | 'queued' | 'drafted' | 'published' | 'dismissed'
 const VALID: IdeaStatus[] = ['new', 'queued', 'drafted', 'published', 'dismissed']
@@ -131,11 +172,15 @@ export async function writeArticleAction(id: string): Promise<WriteArticleResult
     if (alert) sourceAlert = alert
   }
 
+  const programs = await getProgramsForIdea(supabase, idea.source_alert_id)
+  const programContext = programs.length > 0 ? programsToSourceText(programs) : null
+
   const draft = await writeArticleBody({
     type: idea.type,
     title: idea.title,
     pitch: idea.pitch,
     source_alert: sourceAlert,
+    program_context: programContext,
   })
   if (!draft) return { ok: false, error: 'Writer returned no draft (check logs / API key)' }
 
@@ -201,6 +246,14 @@ export async function checkArticleAction(id: string): Promise<CheckArticleResult
       if (intel.raw_text) sourceText = `${sourceText}\n\n${intel.raw_text}`.trim()
       sourceUrl = intel.source_url ?? null
     }
+  }
+
+  // Treat the official program page(s) as authoritative source material.
+  // Anything we wrote on the Page (sweet spots, transfer partners, hubs, etc.)
+  // becomes legal grounding for fact-check claims.
+  const programs = await getProgramsForIdea(supabase, idea.source_alert_id)
+  if (programs.length > 0) {
+    sourceText = `${sourceText}\n\n═══ OFFICIAL PROGRAM PAGE CONTENT ═══\n\n${programsToSourceText(programs)}`.trim()
   }
 
   const [verifyRes, voiceRes] = await Promise.all([

@@ -18,6 +18,13 @@ export interface WriteArticleInput {
     description: string | null
     end_date: string | null
   } | null
+  /**
+   * Authoritative program-page content for any programs linked to this idea.
+   * Treat as our own first-party knowledge. The writer should weave in concrete
+   * facts (transfer ratios, sweet spots, hubs, fine print) rather than
+   * inventing or relying on training memory.
+   */
+  program_context?: string | null
 }
 
 export interface ArticleDraft {
@@ -55,8 +62,13 @@ CONTENT RULES
 
 - Lead with the payoff. First sentence should be something the reader can act on.
 - Use concrete numbers (percentages, point counts, dates) from the source alert whenever available.
-- Never fabricate facts, dates, partners, or offer amounts. If the source is thin, lean on general
-  award-travel context rather than inventing specifics.
+- When PROGRAM_CONTEXT is provided, treat it as our own first-party knowledge — these are facts
+  WE have verified on our own program pages. Quote ratios, sweet spots, partner lists, hubs,
+  alliance, and fine print directly from PROGRAM_CONTEXT instead of inventing or relying on
+  training memory. If PROGRAM_CONTEXT and source_alert disagree on a number or partner,
+  PROGRAM_CONTEXT wins.
+- Never fabricate facts, dates, partners, or offer amounts. If neither source has the detail,
+  lean on general award-travel context rather than inventing specifics.
 - Name the action when applicable — "Transfer before May 16" beats "act soon."
 - No clickbait, no ALL CAPS, no emoji in headings.
 - Plain Markdown only: ##, **bold**, *italic*, simple lists. No HTML.`
@@ -71,6 +83,7 @@ function buildUserContent(input: WriteArticleInput): string {
         pitch: input.pitch,
       },
       source_alert: input.source_alert ?? null,
+      program_context: input.program_context ?? null,
     },
     null,
     2,
