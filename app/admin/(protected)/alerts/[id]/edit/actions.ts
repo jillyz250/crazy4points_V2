@@ -27,6 +27,8 @@ export async function updateAlertAction(
     const end_date = (formData.get('end_date') as string) || null
     const action_type = formData.get('action_type') as AlertActionType
     const history_note = (formData.get('history_note') as string) || null
+    const why_this_matters = (formData.get('why_this_matters') as string)?.trim() || null
+    const override_reason = (formData.get('override_reason') as string)?.trim() || null
     const confidence_level = formData.get('confidence_level') as ConfidenceLevel
     const source_url = (formData.get('source_url') as string) || null
     const is_hot = formData.get('is_hot') === 'on'
@@ -47,6 +49,8 @@ export async function updateAlertAction(
           ? existing_published_at ?? new Date().toISOString()
           : null,
       history_note,
+      why_this_matters,
+      override_reason,
       source_url,
       confidence_level,
       is_hot,

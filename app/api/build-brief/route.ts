@@ -272,6 +272,10 @@ export async function GET(req: NextRequest) {
           primary_program_id: primaryId,
           start_date: draft.start_date,
           end_date: draft.end_date,
+          // Phase 3 — persist Sonnet's why_publish onto the alert so the
+          // public page, the newsletter blurb, and Decision Engine context
+          // all draw from one editable source.
+          why_this_matters: a.why_publish ?? null,
         })
         await setAlertPrograms(supabase, alertId, { primaryId, secondaryIds })
         drafts_written++

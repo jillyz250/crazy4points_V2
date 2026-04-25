@@ -68,11 +68,25 @@ export default function EditAlertForm({ alert, programs, taggedProgramIds }: Pro
       <SelectField name="action_type" label="Action Type" required defaultValue={alert.action_type} options={ACTION_TYPES} />
       <TextAreaField name="description" label="Description" rows={4} defaultValue={alert.description ?? ''} />
       <TextAreaField
+        name="why_this_matters"
+        label="Why This Matters"
+        rows={2}
+        placeholder="One short editorial reason readers should care. Auto-filled from the daily brief; edit freely."
+        defaultValue={alert.why_this_matters ?? ''}
+      />
+      <TextAreaField
         name="history_note"
         label="History Note"
         rows={2}
         placeholder="e.g. Last bonus was 50% in June 2025"
         defaultValue={alert.history_note ?? ''}
+      />
+      <TextAreaField
+        name="override_reason"
+        label="Override Reason (optional)"
+        rows={2}
+        placeholder="If publishing this despite a fact-check flag, soft source, or low confidence — note why."
+        defaultValue={alert.override_reason ?? ''}
       />
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
