@@ -151,7 +151,7 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
       .maybeSingle(),
     supabase
       .from('programs')
-      .select('id, slug, name, type, intro, transfer_partners, sweet_spots, quirks, how_to_spend, tier_benefits, faq_content'),
+      .select('id, slug, name, type, intro, transfer_partners, sweet_spots, quirks, how_to_spend, tier_benefits, lounge_access, faq_content'),
     supabase
       .from('alerts')
       .select('title, summary')
@@ -177,6 +177,7 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
     quirks: (p.quirks as string | null) ?? null,
     how_to_spend: (p.how_to_spend as string | null) ?? null,
     tier_benefits: (p.tier_benefits as Array<Record<string, unknown>> | null) ?? null,
+    lounge_access: (p.lounge_access as string | null) ?? null,
     faq_content: (p.faq_content as string | null) ?? null,
   }))
   const programBySlug = new Map(allPrograms.map((p) => [p.slug, p]))
@@ -229,6 +230,7 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
         .join('\n')
       parts.push(`#### Elite tiers & benefits\n${lines}`)
     }
+    if (p.lounge_access?.trim()) parts.push(`#### Lounge access\n${p.lounge_access.trim()}`)
     if (p.quirks?.trim()) parts.push(`#### Tips & quirks\n${p.quirks.trim()}`)
     if (parts.length > 0) return parts.join('\n\n')
     // Fallback to legacy faq_content

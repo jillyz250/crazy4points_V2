@@ -143,6 +143,7 @@ export interface Program {
   quirks: string | null
   how_to_spend: string | null
   tier_benefits: TierBenefitRow[] | null
+  lounge_access: string | null
   content_updated_at: string | null
   notes: string | null
   last_verified: string | null
@@ -1017,6 +1018,7 @@ export interface ProgramPageContentInput {
   quirks: string | null
   how_to_spend: string | null
   tier_benefits: TierBenefitRow[] | null
+  lounge_access: string | null
 }
 
 export async function updateProgramPageContent(
@@ -1030,7 +1032,8 @@ export async function updateProgramPageContent(
     !!input.sweet_spots ||
     !!input.quirks ||
     !!input.how_to_spend ||
-    (input.tier_benefits?.length ?? 0) > 0
+    (input.tier_benefits?.length ?? 0) > 0 ||
+    !!input.lounge_access
   const { error } = await supabase
     .from('programs')
     .update({
@@ -1040,6 +1043,7 @@ export async function updateProgramPageContent(
       quirks: input.quirks,
       how_to_spend: input.how_to_spend,
       tier_benefits: input.tier_benefits,
+      lounge_access: input.lounge_access,
       content_updated_at: anyContent ? new Date().toISOString() : null,
     })
     .eq('id', id)

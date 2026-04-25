@@ -24,7 +24,8 @@ export default async function ProgramPageContent({
   const hasQuirks = !!program.quirks?.trim()
   const hasHowToSpend = !!program.how_to_spend?.trim()
   const hasTiers = (program.tier_benefits?.length ?? 0) > 0
-  const hasAny = hasIntro || hasPartners || hasSweetSpots || hasQuirks || hasHowToSpend || hasTiers
+  const hasLounge = !!program.lounge_access?.trim()
+  const hasAny = hasIntro || hasPartners || hasSweetSpots || hasQuirks || hasHowToSpend || hasTiers || hasLounge
 
   if (!hasAny) return null
 
@@ -32,6 +33,7 @@ export default async function ProgramPageContent({
   const sweetSpotsHtml = hasSweetSpots ? await marked.parse(program.sweet_spots!, { async: true }) : null
   const quirksHtml = hasQuirks ? await marked.parse(program.quirks!, { async: true }) : null
   const howToSpendHtml = hasHowToSpend ? await marked.parse(program.how_to_spend!, { async: true }) : null
+  const loungeAccessHtml = hasLounge ? await marked.parse(program.lounge_access!, { async: true }) : null
 
   const sectionStyle: React.CSSProperties = {
     marginBottom: '2.5rem',
@@ -126,6 +128,17 @@ export default async function ProgramPageContent({
             Status tiers, qualification, and key benefits at a glance.
           </p>
           <TierBenefitsTable rows={program.tier_benefits!} />
+        </section>
+      )}
+
+      {loungeAccessHtml && (
+        <section style={sectionStyle}>
+          <h2 style={headingStyle}>Lounge access</h2>
+          <div
+            style={proseStyle}
+            className="rg-prose"
+            dangerouslySetInnerHTML={{ __html: loungeAccessHtml }}
+          />
         </section>
       )}
 
