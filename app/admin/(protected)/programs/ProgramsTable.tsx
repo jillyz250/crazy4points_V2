@@ -111,6 +111,7 @@ export default function ProgramsTable({ programs }: { programs: Program[] }) {
                       initialQuirks={program.quirks}
                       initialHowToSpend={program.how_to_spend}
                       initialTierBenefits={program.tier_benefits}
+                      initialLoungeAccess={program.lounge_access}
                       initialUpdatedAt={program.content_updated_at}
                     />
                   </td>

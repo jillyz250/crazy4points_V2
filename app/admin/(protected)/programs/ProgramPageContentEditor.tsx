@@ -122,6 +122,7 @@ export default function ProgramPageContentEditor({
   initialQuirks,
   initialHowToSpend,
   initialTierBenefits,
+  initialLoungeAccess,
   initialUpdatedAt,
 }: {
   programId: string
@@ -132,6 +133,7 @@ export default function ProgramPageContentEditor({
   initialQuirks: string | null
   initialHowToSpend: string | null
   initialTierBenefits: TierBenefitRow[] | null
+  initialLoungeAccess: string | null
   initialUpdatedAt: string | null
 }) {
   const [open, setOpen] = useState(false)
@@ -141,6 +143,7 @@ export default function ProgramPageContentEditor({
   const [quirks, setQuirks] = useState(initialQuirks ?? '')
   const [howToSpend, setHowToSpend] = useState(initialHowToSpend ?? '')
   const [tiersText, setTiersText] = useState(tiersToText(initialTierBenefits))
+  const [loungeAccess, setLoungeAccess] = useState(initialLoungeAccess ?? '')
   const [updatedAt, setUpdatedAt] = useState(initialUpdatedAt)
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -152,7 +155,8 @@ export default function ProgramPageContentEditor({
     !!(initialSweetSpots ?? '').trim() ||
     !!(initialQuirks ?? '').trim() ||
     !!(initialHowToSpend ?? '').trim() ||
-    (initialTierBenefits?.length ?? 0) > 0
+    (initialTierBenefits?.length ?? 0) > 0 ||
+    !!(initialLoungeAccess ?? '').trim()
 
   function save() {
     setError(null)
@@ -173,6 +177,7 @@ export default function ProgramPageContentEditor({
       quirks: quirks.trim() ? quirks : null,
       how_to_spend: howToSpend.trim() ? howToSpend : null,
       tier_benefits: tiers.rows,
+      lounge_access: loungeAccess.trim() ? loungeAccess : null,
     }
     const anyContent =
       !!input.intro ||
@@ -180,7 +185,8 @@ export default function ProgramPageContentEditor({
       !!input.sweet_spots ||
       !!input.quirks ||
       !!input.how_to_spend ||
-      (input.tier_benefits?.length ?? 0) > 0
+      (input.tier_benefits?.length ?? 0) > 0 ||
+      !!input.lounge_access
     startTransition(async () => {
       const res = await updateProgramPageContentAction(programId, input)
       if (res?.error) {
@@ -199,6 +205,7 @@ export default function ProgramPageContentEditor({
     setQuirks(initialQuirks ?? '')
     setHowToSpend(initialHowToSpend ?? '')
     setTiersText(tiersToText(initialTierBenefits))
+    setLoungeAccess(initialLoungeAccess ?? '')
     setError(null)
     setOpen(false)
   }
@@ -322,6 +329,32 @@ export default function ProgramPageContentEditor({
           placeholder={TIER_BENEFITS_PLACEHOLDER}
           className="admin-input"
           style={{ fontFamily: 'var(--font-mono, ui-monospace, monospace)', fontSize: '0.75rem' }}
+        />
+      </div>
+
+      <div>
+        <label style={labelStyle}>
+          Lounge access (markdown — own lounges, alliance access, eligibility, paid options)
+        </label>
+        <textarea
+          value={loungeAccess}
+          onChange={(e) => setLoungeAccess(e.target.value)}
+          rows={7}
+          placeholder="### Own-brand lounges
+- Carrier operates X lounges across N airports — flagship at HUB
+
+### Alliance / partner access
+- SkyTeam Elite Plus members get worldwide SkyTeam lounge access on long-haul international flights
+
+### Who gets in
+- International business or first class ticket
+- Top status tiers (Gold, Platinum, Ultimate)
+- Paid day pass: $X (where applicable)
+
+### Notable flagships
+- La Première Lounge at CDG — invitation-only, private chefs, spa, direct-to-gate transfer"
+          className="admin-input"
+          style={{ fontSize: '0.8125rem' }}
         />
       </div>
 
