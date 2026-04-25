@@ -149,7 +149,9 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
       .select('id, headline, raw_text, source_name, source_url, alert_type, programs')
       .eq('id', alert.source_intel_id as string)
       .maybeSingle(),
-    supabase.from('programs').select('id, slug, name, type, faq_content'),
+    supabase
+      .from('programs')
+      .select('id, slug, name, type, intro, transfer_partners, sweet_spots, quirks, faq_content'),
     supabase
       .from('alerts')
       .select('title, summary')
@@ -169,6 +171,10 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
     slug: p.slug as string,
     name: p.name as string,
     type: p.type as string,
+    intro: (p.intro as string | null) ?? null,
+    transfer_partners: (p.transfer_partners as Array<Record<string, unknown>> | null) ?? null,
+    sweet_spots: (p.sweet_spots as string | null) ?? null,
+    quirks: (p.quirks as string | null) ?? null,
     faq_content: (p.faq_content as string | null) ?? null,
   }))
   const programBySlug = new Map(allPrograms.map((p) => [p.slug, p]))
@@ -177,19 +183,50 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
     summary: (r.summary as string) ?? '',
   }))
 
-  // Build extra_context from manually-pasted faq_content on each tagged program.
-  // Writer treats this as authoritative (fees, tier rules, exclusions) — more
-  // trustworthy than raw_text. Only includes programs the intel is actually tagged to.
+  // Build extra_context from public Page content on each tagged program
+  // (intro / transfer partners / sweet spots / quirks). Falls back to the
+  // legacy faq_content blob if Page content isn't set yet — gives a smooth
+  // transition while we backfill, and lets old FAQ-only programs still ground
+  // the writer. The writer treats this as authoritative — more trustworthy
+  // than raw_text.
   const intelProgramSlugs = (intel.programs as string[] | null) ?? []
   const intelPrograms = intelProgramSlugs
     .map((slug) => programBySlug.get(slug))
-    .filter((p): p is typeof allPrograms[number] => !!p && !!p.faq_content)
-  const extra_context = intelPrograms.length
-    ? intelPrograms
-        .map((p) => `### ${p.name} — official FAQ / terms\n\n${p.faq_content}`)
-        .join('\n\n---\n\n')
-    : null
-  const faq_program_slugs = intelPrograms.map((p) => p.slug)
+    .filter((p): p is typeof allPrograms[number] => !!p)
+
+  function buildProgramContext(p: typeof allPrograms[number]): string | null {
+    const parts: string[] = []
+    if (p.intro?.trim()) parts.push(`#### About\n${p.intro.trim()}`)
+    if ((p.transfer_partners?.length ?? 0) > 0) {
+      const lines = p.transfer_partners!
+        .map((row) => {
+          const r = row as Record<string, unknown>
+          const slug = typeof r.from_slug === 'string' ? r.from_slug : '?'
+          const ratio = typeof r.ratio === 'string' ? r.ratio : '?'
+          const notes = typeof r.notes === 'string' ? ` — ${r.notes}` : ''
+          return `- ${slug} → ${ratio}${notes}`
+        })
+        .join('\n')
+      parts.push(`#### Transfer partners\n${lines}`)
+    }
+    if (p.sweet_spots?.trim()) parts.push(`#### Sweet spots\n${p.sweet_spots.trim()}`)
+    if (p.quirks?.trim()) parts.push(`#### Tips & quirks\n${p.quirks.trim()}`)
+    if (parts.length > 0) return parts.join('\n\n')
+    // Fallback to legacy faq_content
+    if (p.faq_content?.trim()) return p.faq_content.trim()
+    return null
+  }
+
+  const programSections = intelPrograms
+    .map((p) => {
+      const ctx = buildProgramContext(p)
+      return ctx ? `### ${p.name}\n\n${ctx}` : null
+    })
+    .filter((s): s is string => !!s)
+  const extra_context = programSections.length ? programSections.join('\n\n---\n\n') : null
+  const faq_program_slugs = intelPrograms
+    .filter((p) => buildProgramContext(p) !== null)
+    .map((p) => p.slug)
 
   let draft
   try {

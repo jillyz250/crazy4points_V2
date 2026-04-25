@@ -2,10 +2,11 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { createAdminClient } from '@/utils/supabase/server'
-import { getAlertsByProgramSlug } from '@/utils/supabase/queries'
+import { getAlertsByProgramSlug, getAllPrograms } from '@/utils/supabase/queries'
 import type { AlertWithPrograms } from '@/utils/supabase/queries'
 import AlertsGridSB from '@/components/alerts/AlertsGridSB'
 import ExpiredAlertsList from '@/components/alerts/ExpiredAlertsList'
+import ProgramPageContent from '@/components/programs/ProgramPageContent'
 
 export const revalidate = 60
 
@@ -51,11 +52,16 @@ export default async function ProgramPage({
 
   let program
   let allAlerts: AlertWithPrograms[]
+  let programNameBySlug = new Map<string, string>()
 
   try {
-    const result = await getAlertsByProgramSlug(supabase, slug)
+    const [result, allPrograms] = await Promise.all([
+      getAlertsByProgramSlug(supabase, slug),
+      getAllPrograms(supabase),
+    ])
     program = result.program
     allAlerts = result.alerts
+    programNameBySlug = new Map(allPrograms.map((p) => [p.slug, p.name]))
   } catch {
     notFound()
   }
@@ -125,6 +131,25 @@ export default async function ProgramPage({
             View All Alerts →
           </Link>
         </div>
+
+        {/* Editorial content (intro / transfer partners / sweet spots / quirks) */}
+        <ProgramPageContent program={program} programNameBySlug={programNameBySlug} />
+
+        {/* Alerts heading — only show when content above exists, to mark transition */}
+        {(program.intro || (program.transfer_partners?.length ?? 0) > 0 || program.sweet_spots || program.quirks) && (
+          <h2
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: '1.5rem',
+              fontWeight: 700,
+              color: 'var(--color-primary)',
+              marginBottom: '0.5rem',
+              marginTop: '1rem',
+            }}
+          >
+            Alerts
+          </h2>
+        )}
 
         {/* Search */}
         <form method="GET" action={`/programs/${slug}`} style={{ marginBottom: '1.25rem' }}>
@@ -197,6 +222,24 @@ export default async function ProgramPage({
               </div>
             )}
           </>
+        )}
+
+        {/* Editorial disclaimer — only when there's editorial content to disclaim */}
+        {program.content_updated_at && (
+          <p
+            style={{
+              marginTop: '3rem',
+              paddingTop: '1.5rem',
+              borderTop: '1px solid var(--color-border-soft)',
+              fontFamily: 'var(--font-body)',
+              fontSize: '0.8125rem',
+              color: 'var(--color-text-secondary)',
+              fontStyle: 'italic',
+            }}
+          >
+            Last reviewed {new Date(program.content_updated_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}.
+            Loyalty program rules change frequently — confirm fees, transfer ratios, and award levels with the program directly before booking.
+          </p>
         )}
 
       </div>
