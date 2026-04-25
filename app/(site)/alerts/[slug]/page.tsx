@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { marked } from 'marked'
 import { createClient } from '@/utils/supabase/server'
 import { getAlertBySlug } from '@/utils/supabase/queries'
 
@@ -106,6 +107,13 @@ export default async function AlertDetailPage({ params }: Props) {
   const expiry = daysRemaining(alert.end_date)
   const isExpired = expiry === 'Expired'
 
+  // Render description as markdown — promo alerts use a hybrid format
+  // (voicey paragraphs + a "What qualifies" bulleted block). Other alert
+  // types are still prose-only so markdown is just a passthrough for them.
+  const descriptionHtml = alert.description
+    ? await marked.parse(alert.description, { async: true })
+    : null
+
   return (
     <article className="rg-major-section">
       <div className="rg-container max-w-3xl">
@@ -142,12 +150,14 @@ export default async function AlertDetailPage({ params }: Props) {
           {alert.summary}
         </p>
 
-        {/* Description */}
-        {alert.description && (
+        {/* Description — rendered as markdown so promo alerts can use the
+            hybrid voicey-prose + "What qualifies" bullet block format. */}
+        {descriptionHtml && (
           <div className="mb-8 rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] p-6">
-            <p className="font-body text-base leading-relaxed text-[var(--color-text-primary)] whitespace-pre-line">
-              {alert.description}
-            </p>
+            <div
+              className="rg-prose font-body text-base leading-relaxed text-[var(--color-text-primary)]"
+              dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+            />
           </div>
         )}
 
