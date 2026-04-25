@@ -9,6 +9,7 @@ import {
   setAlertPrograms,
 } from '@/utils/supabase/queries'
 import { runScout } from '@/utils/ai/runScout'
+import { enrichPromoFindings } from '@/utils/ai/enrichPromoFindings'
 import type { AlertType, IntelItemInsert, IntelConfidence, RecentIntelItem } from '@/utils/supabase/queries'
 import type { ScoutFinding } from '@/utils/ai/runScout'
 
@@ -87,6 +88,25 @@ export async function GET(req: NextRequest) {
   findings = applyConfidenceBoost(deduped, recentItems)
   const boostedCount = findings.filter((f, i) => f.confidence !== deduped[i]?.confidence).length
   console.log(`[run-scout] ${boostedCount} findings confidence-boosted`)
+
+  // Enrich raw_text for promo-shaped findings whose RSS-provided text is
+  // too thin to carry the qualifying terms (status tier, min nights, travel
+  // window, exclusions, etc). Refetches the source URL via Firecrawl. Only
+  // fires for promo alert types — bounded cost. Failures fall back silently
+  // to the original raw_text.
+  let promoEnrichStats: { candidates: number; enriched: number; skipped: number; failed: number } = {
+    candidates: 0, enriched: 0, skipped: 0, failed: 0,
+  }
+  try {
+    promoEnrichStats = await enrichPromoFindings(findings)
+  } catch (err) {
+    console.error('[run-scout] enrichPromoFindings failed (non-fatal):', err)
+  }
+  console.log(
+    `[run-scout] promo-enrich: ${promoEnrichStats.enriched} enriched, ` +
+    `${promoEnrichStats.skipped} skipped, ${promoEnrichStats.failed} failed ` +
+    `(of ${promoEnrichStats.candidates} candidates)`
+  )
 
   // Write to intel_items
   let inserted: Array<{
@@ -239,6 +259,10 @@ export async function GET(req: NextRequest) {
     findings_new: findings.length,
     deduped: dedupedCount,
     boosted: boostedCount,
+    promo_enriched: promoEnrichStats.enriched,
+    promo_enrich_skipped: promoEnrichStats.skipped,
+    promo_enrich_failed: promoEnrichStats.failed,
+    promo_enrich_candidates: promoEnrichStats.candidates,
     staged: staged.length,
   })
   } catch (err) {
