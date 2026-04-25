@@ -1,7 +1,7 @@
 -- Seed remaining commercial airlines so every program a US-based traveler
 -- might encounter exists in the programs table and can be tagged on alerts.
 -- 34 airlines were already seeded (aa, delta, ana, lufthansa, etc); this
--- migration adds the rest — 6 US carriers + 49 international.
+-- migration adds the rest — 4 US carriers + 49 international.
 --
 -- Naming convention follows existing rows: "Carrier Name FFP-brand"
 -- (e.g. "Air Canada Aeroplan", "British Airways Avios"). Where the carrier
@@ -13,17 +13,21 @@
 -- All new rows use carrier-name slugs since the existing 34 already cover
 -- the well-known FFP-branded ones.
 --
+-- Notably NOT seeded:
+--   - 'alaska' (Mileage Plan) and 'hawaiian' (HawaiianMiles) — both fully
+--     replaced by Atmos Rewards (existing 'atmos' row). HawaiianMiles members
+--     migrated on 2025-10-01; Mileage Plan members migrated automatically.
+--     Source: news.alaskaair.com/loyalty/introducing-atmos-rewards
+--
 -- ON CONFLICT (slug) DO NOTHING — safe to re-run; skips anything already
 -- present. is_active defaults to true; faq_content / faq_updated_at left
 -- null so the admin UI flags each one as "Never" (yellow ⚠) until pasted.
 
 insert into programs (slug, name, type, is_active) values
-  -- US carriers (6)
-  ('alaska',            'Alaska Airlines Mileage Plan',  'airline', true),
+  -- US carriers (4 — Alaska + Hawaiian intentionally omitted, replaced by Atmos)
   ('allegiant',         'Allegiant Allways Rewards',     'airline', true),
   ('avelo',             'Avelo Airlines',                'airline', true),
   ('breeze',            'Breeze Airways',                'airline', true),
-  ('hawaiian',          'Hawaiian Airlines HawaiianMiles', 'airline', true),
   ('sun_country',       'Sun Country Rewards',           'airline', true),
 
   -- International carriers (49)
