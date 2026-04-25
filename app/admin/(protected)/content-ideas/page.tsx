@@ -3,7 +3,8 @@ import { createAdminClient } from '@/utils/supabase/server'
 import { getPrograms } from '@/utils/supabase/queries'
 import { updateContentIdeaStatusAction, updateContentIdeaNotesAction } from './actions'
 import WriteArticleButton from '@/components/admin/WriteArticleButton'
-import CheckArticleButton from '@/components/admin/CheckArticleButton'
+import FactCheckButton from '@/components/admin/FactCheckButton'
+import BrandCheckButton from '@/components/admin/BrandCheckButton'
 import CheckOriginalityButton from '@/components/admin/CheckOriginalityButton'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Badge } from '@/components/admin/ui/Badge'
@@ -411,7 +412,8 @@ function IdeaCard({ idea }: { idea: ContentIdeaRow }) {
 
       <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap', alignItems: 'center' }}>
         <WriteArticleButton ideaId={idea.id} hasBody={Boolean(idea.article_body)} />
-        <CheckArticleButton ideaId={idea.id} hasBody={Boolean(idea.article_body)} />
+        <FactCheckButton ideaId={idea.id} hasBody={Boolean(idea.article_body)} />
+        <BrandCheckButton ideaId={idea.id} hasBody={Boolean(idea.article_body)} />
         <CheckOriginalityButton ideaId={idea.id} hasBody={Boolean(idea.article_body)} />
         {actions.map((a) => (
           <form key={a.to} action={updateContentIdeaStatusAction.bind(null, idea.id, a.to)}>

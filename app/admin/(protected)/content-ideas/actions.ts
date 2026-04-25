@@ -208,6 +208,122 @@ export async function writeArticleAction(id: string): Promise<WriteArticleResult
   return { ok: true }
 }
 
+export type FactCheckResult =
+  | { ok: true; flagged: number }
+  | { ok: false; error: string }
+
+export async function factCheckArticleAction(id: string): Promise<FactCheckResult> {
+  const supabase = createAdminClient()
+  const { data: idea, error: fetchErr } = await supabase
+    .from('content_ideas')
+    .select('id, title, article_body, source_alert_id, source_intel_id')
+    .eq('id', id)
+    .single()
+  if (fetchErr || !idea) return { ok: false, error: fetchErr?.message ?? 'Idea not found' }
+  if (!idea.article_body) return { ok: false, error: 'No article body to check — draft first.' }
+
+  let sourceText = ''
+  let sourceUrl: string | null = null
+  if (idea.source_alert_id) {
+    const { data: alert } = await supabase
+      .from('alerts')
+      .select('title, summary, description')
+      .eq('id', idea.source_alert_id)
+      .single()
+    if (alert) {
+      sourceText = [alert.title, alert.summary, alert.description].filter(Boolean).join('\n\n')
+    }
+  }
+  if (idea.source_intel_id) {
+    const { data: intel } = await supabase
+      .from('intel_items')
+      .select('raw_text, source_url')
+      .eq('id', idea.source_intel_id)
+      .single()
+    if (intel) {
+      if (intel.raw_text) sourceText = `${sourceText}\n\n${intel.raw_text}`.trim()
+      sourceUrl = intel.source_url ?? null
+    }
+  }
+  const programs = await getProgramsForIdea(supabase, idea.source_alert_id)
+  if (programs.length > 0) {
+    sourceText = `${sourceText}\n\n═══ OFFICIAL PROGRAM PAGE CONTENT ═══\n\n${programsToSourceText(programs)}`.trim()
+  }
+
+  const verifyRes = await verifyArticleBody({
+    title: idea.title,
+    article_body: idea.article_body,
+    source_text: sourceText || null,
+  })
+  if (!verifyRes) return { ok: false, error: 'Fact-check call failed (see logs)' }
+
+  let grounded = verifyRes.claims
+  try {
+    grounded = await webVerifyClaims({
+      claims: verifyRes.claims,
+      context: { title: idea.title, source_url: sourceUrl },
+    })
+  } catch (err) {
+    await logSystemError(supabase, 'content-ideas:webVerifyClaims', err, {
+      idea_id: id,
+      title: idea.title,
+    })
+    grounded = verifyRes.claims.map((c) =>
+      c.supported
+        ? c
+        : { ...c, web_verdict: 'unverifiable' as const, web_evidence: null, web_url: null }
+    )
+  }
+
+  const { error: updateErr } = await supabase
+    .from('content_ideas')
+    .update({
+      fact_checked_at: verifyRes.checked_at,
+      fact_check_claims: grounded,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+  if (updateErr) return { ok: false, error: updateErr.message }
+
+  revalidatePath('/admin/content-ideas')
+  const flagged = grounded.filter((c) => !c.supported && c.severity === 'high').length
+  return { ok: true, flagged }
+}
+
+export type VoiceCheckResult =
+  | { ok: true; pass: boolean }
+  | { ok: false; error: string }
+
+export async function voiceCheckArticleAction(id: string): Promise<VoiceCheckResult> {
+  const supabase = createAdminClient()
+  const { data: idea, error: fetchErr } = await supabase
+    .from('content_ideas')
+    .select('id, title, article_body')
+    .eq('id', id)
+    .single()
+  if (fetchErr || !idea) return { ok: false, error: fetchErr?.message ?? 'Idea not found' }
+  if (!idea.article_body) return { ok: false, error: 'No article body to check — draft first.' }
+
+  const res = await voiceCheckArticle({ title: idea.title, article_body: idea.article_body })
+  if (!res) return { ok: false, error: 'Voice-check call failed (see logs)' }
+
+  const { error: updateErr } = await supabase
+    .from('content_ideas')
+    .update({
+      voice_checked_at: res.checked_at,
+      voice_notes: res.notes,
+      voice_pass: res.pass,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+  if (updateErr) return { ok: false, error: updateErr.message }
+
+  revalidatePath('/admin/content-ideas')
+  return { ok: true, pass: res.pass }
+}
+
+// Kept for backward compatibility with anything still referencing the combined
+// action — runs fact-check + voice-check in parallel.
 export type CheckArticleResult =
   | { ok: true; factFlagged: number; voicePass: boolean }
   | { ok: false; error: string }
