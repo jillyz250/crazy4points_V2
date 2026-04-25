@@ -7,6 +7,7 @@ import type { AlertWithPrograms } from '@/utils/supabase/queries'
 import AlertsGridSB from '@/components/alerts/AlertsGridSB'
 import ExpiredAlertsList from '@/components/alerts/ExpiredAlertsList'
 import ProgramPageContent from '@/components/programs/ProgramPageContent'
+import ProgramPageHero from '@/components/programs/ProgramPageHero'
 
 export const revalidate = 60
 
@@ -113,24 +114,22 @@ export default async function ProgramPage({
     <section className="rg-major-section !pt-8">
       <div className="rg-container">
 
-        {/* Header */}
-        <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="mb-1 font-ui text-xs font-semibold uppercase tracking-[0.1em] text-[var(--color-text-secondary)]">
-              {program.type.replace(/_/g, ' ')}
-            </p>
-            <h1 className="font-display text-4xl font-bold">{program.name}</h1>
-            <p className="mt-1 font-body text-sm text-[var(--color-text-secondary)]">
-              {allAlerts.length} alert{allAlerts.length !== 1 ? 's' : ''} on record
-            </p>
-          </div>
-          <Link
-            href="/alerts"
-            className="font-ui text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-primary)] transition-colors hover:text-[var(--color-accent)]"
-          >
-            View All Alerts →
-          </Link>
-        </div>
+        {/* Hero header (badges + active alerts banner + section TOC) */}
+        <ProgramPageHero
+          program={program}
+          activeAlertCount={active.length}
+          totalAlertCount={allAlerts.length}
+          sections={[
+            ...(program.intro ? [{ id: 'intro', label: 'Intro' }] : []),
+            ...((program.transfer_partners?.length ?? 0) > 0 ? [{ id: 'transfer-partners', label: 'Transfer partners' }] : []),
+            ...(program.how_to_spend ? [{ id: 'how-to-spend', label: 'How to spend' }] : []),
+            ...(program.sweet_spots ? [{ id: 'sweet-spots', label: 'Sweet spots' }] : []),
+            ...((program.tier_benefits?.length ?? 0) > 0 ? [{ id: 'tiers', label: 'Tiers' }] : []),
+            ...(program.lounge_access ? [{ id: 'lounge-access', label: 'Lounges' }] : []),
+            ...(program.quirks ? [{ id: 'quirks', label: 'Tips' }] : []),
+            ...(allAlerts.length > 0 ? [{ id: 'alerts', label: 'Alerts' }] : []),
+          ]}
+        />
 
         {/* Editorial content (intro / transfer partners / sweet spots / quirks) */}
         <ProgramPageContent program={program} programNameBySlug={programNameBySlug} />
@@ -138,6 +137,7 @@ export default async function ProgramPage({
         {/* Alerts heading — only show when content above exists, to mark transition */}
         {(program.intro || (program.transfer_partners?.length ?? 0) > 0 || program.sweet_spots || program.quirks) && (
           <h2
+            id="alerts"
             style={{
               fontFamily: 'var(--font-display)',
               fontSize: '1.5rem',
@@ -145,6 +145,7 @@ export default async function ProgramPage({
               color: 'var(--color-primary)',
               marginBottom: '0.5rem',
               marginTop: '1rem',
+              scrollMarginTop: '2rem',
             }}
           >
             Alerts

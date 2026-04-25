@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import type { TransferPartnerRow, TierBenefitRow } from '@/utils/supabase/queries'
+import type { TransferPartnerRow, TierBenefitRow, Alliance } from '@/utils/supabase/queries'
+import { ALLIANCE_OPTIONS } from '@/utils/supabase/queries'
 import { updateProgramPageContentAction } from './actions'
 
 const STALE_DAYS = 60
@@ -123,6 +124,8 @@ export default function ProgramPageContentEditor({
   initialHowToSpend,
   initialTierBenefits,
   initialLoungeAccess,
+  initialAlliance,
+  initialHubs,
   initialUpdatedAt,
 }: {
   programId: string
@@ -134,6 +137,8 @@ export default function ProgramPageContentEditor({
   initialHowToSpend: string | null
   initialTierBenefits: TierBenefitRow[] | null
   initialLoungeAccess: string | null
+  initialAlliance: Alliance | null
+  initialHubs: string[] | null
   initialUpdatedAt: string | null
 }) {
   const [open, setOpen] = useState(false)
@@ -144,6 +149,8 @@ export default function ProgramPageContentEditor({
   const [howToSpend, setHowToSpend] = useState(initialHowToSpend ?? '')
   const [tiersText, setTiersText] = useState(tiersToText(initialTierBenefits))
   const [loungeAccess, setLoungeAccess] = useState(initialLoungeAccess ?? '')
+  const [alliance, setAlliance] = useState<Alliance | ''>(initialAlliance ?? '')
+  const [hubsText, setHubsText] = useState((initialHubs ?? []).join(', '))
   const [updatedAt, setUpdatedAt] = useState(initialUpdatedAt)
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -156,7 +163,9 @@ export default function ProgramPageContentEditor({
     !!(initialQuirks ?? '').trim() ||
     !!(initialHowToSpend ?? '').trim() ||
     (initialTierBenefits?.length ?? 0) > 0 ||
-    !!(initialLoungeAccess ?? '').trim()
+    !!(initialLoungeAccess ?? '').trim() ||
+    !!initialAlliance ||
+    (initialHubs?.length ?? 0) > 0
 
   function save() {
     setError(null)
@@ -170,6 +179,10 @@ export default function ProgramPageContentEditor({
       setError(tiers.error)
       return
     }
+    const hubsArray = hubsText
+      .split(',')
+      .map((h) => h.trim().toUpperCase())
+      .filter((h) => h.length > 0)
     const input = {
       intro: intro.trim() ? intro : null,
       transfer_partners: partners.rows,
@@ -178,6 +191,8 @@ export default function ProgramPageContentEditor({
       how_to_spend: howToSpend.trim() ? howToSpend : null,
       tier_benefits: tiers.rows,
       lounge_access: loungeAccess.trim() ? loungeAccess : null,
+      alliance: alliance ? (alliance as Alliance) : null,
+      hubs: hubsArray.length > 0 ? hubsArray : null,
     }
     const anyContent =
       !!input.intro ||
@@ -186,7 +201,9 @@ export default function ProgramPageContentEditor({
       !!input.quirks ||
       !!input.how_to_spend ||
       (input.tier_benefits?.length ?? 0) > 0 ||
-      !!input.lounge_access
+      !!input.lounge_access ||
+      !!input.alliance ||
+      (input.hubs?.length ?? 0) > 0
     startTransition(async () => {
       const res = await updateProgramPageContentAction(programId, input)
       if (res?.error) {
@@ -206,6 +223,8 @@ export default function ProgramPageContentEditor({
     setHowToSpend(initialHowToSpend ?? '')
     setTiersText(tiersToText(initialTierBenefits))
     setLoungeAccess(initialLoungeAccess ?? '')
+    setAlliance(initialAlliance ?? '')
+    setHubsText((initialHubs ?? []).join(', '))
     setError(null)
     setOpen(false)
   }
@@ -249,6 +268,34 @@ export default function ProgramPageContentEditor({
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem', minWidth: '24rem' }}>
       <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--admin-text-primary)' }}>
         Public page content — {programName}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+        <div>
+          <label style={labelStyle}>Alliance</label>
+          <select
+            value={alliance}
+            onChange={(e) => setAlliance(e.target.value as Alliance | '')}
+            className="admin-input"
+            style={{ fontSize: '0.8125rem' }}
+          >
+            <option value="">— not set —</option>
+            {ALLIANCE_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label style={labelStyle}>Hubs (comma-separated airport codes)</label>
+          <input
+            type="text"
+            value={hubsText}
+            onChange={(e) => setHubsText(e.target.value)}
+            placeholder="CDG, AMS"
+            className="admin-input"
+            style={{ fontSize: '0.8125rem' }}
+          />
+        </div>
       </div>
 
       <div>

@@ -111,6 +111,16 @@ export interface Alert {
   updated_at: string
 }
 
+export type Alliance = 'skyteam' | 'star_alliance' | 'oneworld' | 'none' | 'other'
+
+export const ALLIANCE_OPTIONS: Array<{ value: Alliance; label: string }> = [
+  { value: 'skyteam',       label: 'SkyTeam' },
+  { value: 'star_alliance', label: 'Star Alliance' },
+  { value: 'oneworld',      label: 'oneworld' },
+  { value: 'none',          label: 'None (independent)' },
+  { value: 'other',         label: 'Other / partnership' },
+]
+
 export interface TransferPartnerRow {
   from_slug: string
   ratio: string
@@ -144,6 +154,8 @@ export interface Program {
   how_to_spend: string | null
   tier_benefits: TierBenefitRow[] | null
   lounge_access: string | null
+  alliance: Alliance | null
+  hubs: string[] | null
   content_updated_at: string | null
   notes: string | null
   last_verified: string | null
@@ -1019,6 +1031,8 @@ export interface ProgramPageContentInput {
   how_to_spend: string | null
   tier_benefits: TierBenefitRow[] | null
   lounge_access: string | null
+  alliance: Alliance | null
+  hubs: string[] | null
 }
 
 export async function updateProgramPageContent(
@@ -1033,7 +1047,9 @@ export async function updateProgramPageContent(
     !!input.quirks ||
     !!input.how_to_spend ||
     (input.tier_benefits?.length ?? 0) > 0 ||
-    !!input.lounge_access
+    !!input.lounge_access ||
+    !!input.alliance ||
+    (input.hubs?.length ?? 0) > 0
   const { error } = await supabase
     .from('programs')
     .update({
@@ -1044,6 +1060,8 @@ export async function updateProgramPageContent(
       how_to_spend: input.how_to_spend,
       tier_benefits: input.tier_benefits,
       lounge_access: input.lounge_access,
+      alliance: input.alliance,
+      hubs: input.hubs,
       content_updated_at: anyContent ? new Date().toISOString() : null,
     })
     .eq('id', id)
