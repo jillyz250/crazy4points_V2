@@ -6,6 +6,7 @@ import WriteArticleButton from '@/components/admin/WriteArticleButton'
 import FactCheckButton from '@/components/admin/FactCheckButton'
 import BrandCheckButton from '@/components/admin/BrandCheckButton'
 import CheckOriginalityButton from '@/components/admin/CheckOriginalityButton'
+import RunAllChecksButton from '@/components/admin/RunAllChecksButton'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Badge } from '@/components/admin/ui/Badge'
 import { EmptyState } from '@/components/admin/ui/EmptyState'
@@ -434,6 +435,7 @@ function IdeaCard({ idea }: { idea: ContentIdeaRow }) {
       </details>
 
       <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap', alignItems: 'center' }}>
+        <RunAllChecksButton ideaId={idea.id} />
         <WriteArticleButton ideaId={idea.id} hasBody={Boolean(idea.article_body)} />
         <FactCheckButton ideaId={idea.id} hasBody={Boolean(idea.article_body)} />
         <BrandCheckButton ideaId={idea.id} hasBody={Boolean(idea.article_body)} />
