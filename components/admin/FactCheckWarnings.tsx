@@ -119,92 +119,133 @@ export default function FactCheckWarnings({
 
   if (unsupported.length === 0) return null
 
+  // Default-collapsed disclosure: shows a one-line summary; click to expand
+  // the full claim list. Keeps the pending-review / edit page scannable
+  // when an alert has multiple flagged claims.
+  const wrong = active.filter(({ claim }) => claim.web_verdict === 'likely_wrong').length
+  const unverifiable = active.filter(({ claim }) => claim.web_verdict === 'unverifiable' || !claim.web_verdict).length
+  const correct = active.filter(({ claim }) => claim.web_verdict === 'likely_correct').length
+
+  const summaryParts: string[] = []
+  if (wrong) summaryParts.push(`${wrong} likely wrong`)
+  if (correct) summaryParts.push(`${correct} likely correct`)
+  if (unverifiable) summaryParts.push(`${unverifiable} unverifiable`)
+  if (dismissed) summaryParts.push(`${dismissed} dismissed`)
+
   return (
-    <div id="fact-check" style={{
-      marginTop: '0.625rem',
-      padding: '0.625rem 0.75rem',
-      background: '#fff8e1',
-      border: '1px solid #fde68a',
-      borderRadius: 'var(--radius-ui)',
-      fontSize: '0.8125rem',
-      color: '#5a4210',
-    }}>
-      <p style={{ fontWeight: 600, marginBottom: '0.5rem' }}>
-        Claims not found in source ({active.length} open{dismissed > 0 ? ` · ${dismissed} dismissed` : ''}):
-      </p>
-      {active.length === 0 ? (
-        <p style={{ margin: 0, fontStyle: 'italic', color: '#7a5a1f' }}>
-          All claims reviewed. ✓
-        </p>
-      ) : (
-        <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          {active.map(({ claim, originalIndex }) => {
-            // Synthetic promo-terms chip — render as distinct "missing terms" block.
-            const missingFields = parseMissingPromoTerms(claim.claim)
-            if (missingFields !== null) {
-              return (
-                <MissingPromoTermsChip
-                  key={originalIndex}
-                  alertId={alertId}
-                  originalIndex={originalIndex}
-                  fields={missingFields}
-                />
-              )
-            }
-            const v = verdictStyle(claim.web_verdict)
-            return (
-              <li
-                key={originalIndex}
-                style={{
-                  padding: '0.5rem 0.625rem',
-                  background: v.bg,
-                  border: `1px solid ${v.border}`,
-                  borderRadius: 'var(--radius-ui)',
-                  color: v.color,
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  <span style={{
-                    fontSize: '0.6875rem',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.04em',
-                    padding: '0.1rem 0.4rem',
-                    background: v.color,
-                    color: '#fff',
-                    borderRadius: '3px',
-                    flexShrink: 0,
-                  }}>
-                    {v.label}
-                  </span>
-                  <span style={{ fontWeight: 600, flex: 1, minWidth: '12rem' }}>{claim.claim}</span>
-                  <AckButton
+    <details
+      id="fact-check"
+      open={wrong > 0}
+      style={{
+        marginTop: '0.5rem',
+        background: '#fff8e1',
+        border: '1px solid #fde68a',
+        borderRadius: 'var(--radius-ui)',
+        fontSize: '0.8125rem',
+        color: '#5a4210',
+      }}
+    >
+      <summary
+        style={{
+          padding: '0.5rem 0.75rem',
+          cursor: 'pointer',
+          fontWeight: 600,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          flexWrap: 'wrap',
+        }}
+      >
+        <span>⚠ {active.length} claim{active.length === 1 ? '' : 's'} flagged</span>
+        {summaryParts.length > 0 && (
+          <span style={{ fontWeight: 400, color: '#7a5a1f' }}>· {summaryParts.join(' · ')}</span>
+        )}
+      </summary>
+
+      <div style={{ padding: '0 0.75rem 0.625rem' }}>
+        {active.length === 0 ? (
+          <p style={{ margin: 0, fontStyle: 'italic', color: '#7a5a1f' }}>
+            All claims reviewed. ✓
+          </p>
+        ) : (
+          <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+            {active.map(({ claim, originalIndex }) => {
+              // Synthetic promo-terms chip — render as distinct "missing terms" block.
+              const missingFields = parseMissingPromoTerms(claim.claim)
+              if (missingFields !== null) {
+                return (
+                  <MissingPromoTermsChip
+                    key={originalIndex}
                     alertId={alertId}
                     originalIndex={originalIndex}
-                    color={v.color}
+                    fields={missingFields}
                   />
-                </div>
-                {claim.web_evidence && (
-                  <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.75rem', fontStyle: 'italic' }}>
-                    {claim.web_evidence}
-                  </p>
-                )}
-                {claim.web_url && (
-                  <a
-                    href={claim.web_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ fontSize: '0.75rem', color: v.color, textDecoration: 'underline', wordBreak: 'break-all' }}
-                  >
-                    {claim.web_url}
-                  </a>
-                )}
-              </li>
-            )
-          })}
-        </ul>
-      )}
-    </div>
+                )
+              }
+              const v = verdictStyle(claim.web_verdict)
+              const hasEvidence = Boolean(claim.web_evidence || claim.web_url)
+              return (
+                <li
+                  key={originalIndex}
+                  style={{
+                    padding: '0.4rem 0.55rem',
+                    background: v.bg,
+                    border: `1px solid ${v.border}`,
+                    borderRadius: 'var(--radius-ui)',
+                    color: v.color,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <span style={{
+                      fontSize: '0.625rem',
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
+                      padding: '0.05rem 0.35rem',
+                      background: v.color,
+                      color: '#fff',
+                      borderRadius: '3px',
+                      flexShrink: 0,
+                      whiteSpace: 'nowrap',
+                    }}>
+                      {v.label}
+                    </span>
+                    <span style={{ fontWeight: 500, flex: 1, minWidth: '10rem', lineHeight: 1.4 }}>{claim.claim}</span>
+                    <AckButton
+                      alertId={alertId}
+                      originalIndex={originalIndex}
+                      color={v.color}
+                    />
+                  </div>
+                  {hasEvidence && (
+                    <details style={{ marginTop: '0.3rem', fontSize: '0.75rem' }}>
+                      <summary style={{ cursor: 'pointer', color: v.color, opacity: 0.85 }}>
+                        evidence
+                      </summary>
+                      {claim.web_evidence && (
+                        <p style={{ margin: '0.25rem 0 0', fontStyle: 'italic' }}>
+                          {claim.web_evidence}
+                        </p>
+                      )}
+                      {claim.web_url && (
+                        <a
+                          href={claim.web_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ display: 'block', marginTop: '0.2rem', color: v.color, textDecoration: 'underline', wordBreak: 'break-all' }}
+                        >
+                          {claim.web_url}
+                        </a>
+                      )}
+                    </details>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </div>
+    </details>
   )
 }
 
