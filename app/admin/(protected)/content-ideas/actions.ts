@@ -100,7 +100,7 @@ export async function updateContentIdeaStatusAction(
   if (status === 'published') {
     const { data: idea, error: fetchErr } = await supabase
       .from('content_ideas')
-      .select('title, type, slug, article_body, written_at, fact_checked_at, fact_check_claims, voice_checked_at, voice_pass, originality_checked_at, originality_pass')
+      .select('title, type, slug, article_body, written_at, fact_checked_at, fact_check_claims, voice_checked_at, voice_pass, originality_checked_at, originality_pass, override_reason')
       .eq('id', id)
       .single()
     if (fetchErr || !idea) throw new Error(fetchErr?.message ?? 'Idea not found')
@@ -119,8 +119,19 @@ export async function updateContentIdeaStatusAction(
     if (!idea.voice_checked_at || idea.voice_pass !== true) missing.push('voice check not passing')
     if (!idea.originality_checked_at || idea.originality_pass !== true) missing.push('originality check not passing')
 
-    if (missing.length > 0) {
-      throw new Error(`Cannot publish — ${missing.join('; ')}`)
+    // Override: a non-empty override_reason bypasses the gate. Article body
+    // is still required (you can't publish nothing); everything else can be
+    // overridden as long as you've recorded WHY.
+    const hasArticle = idea.article_body && idea.written_at
+    const overridden = (idea.override_reason ?? '').trim().length > 0
+    if (!hasArticle) {
+      throw new Error('Cannot publish — article not drafted')
+    }
+    if (missing.length > 0 && !overridden) {
+      throw new Error(`Cannot publish — ${missing.join('; ')}. (Set Override Reason on the idea to publish anyway.)`)
+    }
+    if (missing.length > 0 && overridden) {
+      console.log(`[content-ideas] override publishing idea ${id} despite: ${missing.join('; ')} — reason: ${idea.override_reason}`)
     }
 
     const now = new Date().toISOString()
@@ -462,6 +473,25 @@ export async function updateContentIdeaNotesAction(
   const { error } = await supabase
     .from('content_ideas')
     .update({ notes: notes.trim() || null, updated_at: new Date().toISOString() })
+    .eq('id', id)
+  if (error) throw error
+  revalidatePath('/admin/content-ideas')
+}
+
+/**
+ * Save / clear the editorial override reason. When non-empty, lets the
+ * publish gate bypass the 4-pill check (other than article-drafted, which
+ * is required regardless).
+ */
+export async function updateContentIdeaOverrideAction(
+  id: string,
+  formData: FormData
+): Promise<void> {
+  const value = (formData.get('override_reason') as string | null)?.trim() ?? ''
+  const supabase = createAdminClient()
+  const { error } = await supabase
+    .from('content_ideas')
+    .update({ override_reason: value || null, updated_at: new Date().toISOString() })
     .eq('id', id)
   if (error) throw error
   revalidatePath('/admin/content-ideas')

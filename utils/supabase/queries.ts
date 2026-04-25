@@ -113,6 +113,10 @@ export interface Alert {
   /** For soft-rejected alerts: when Scout's dedup should stop suppressing similar findings. */
   revisit_after: string | null
   rejected_reason: string | null
+  /** One short editorial reason readers should care. Auto-filled by build-brief; editable. */
+  why_this_matters: string | null
+  /** Set to record an editorial override on a borderline call. */
+  override_reason: string | null
   created_at: string
   updated_at: string
 }
@@ -179,7 +183,7 @@ export type AlertWithPrograms = Alert & {
   alert_programs: (AlertProgram & { programs: Program })[]
 }
 
-export type AlertInsert = Omit<Alert, 'id' | 'created_at' | 'updated_at' | 'computed_score' | 'score_last_computed_at' | 'approved_at' | 'source_intel_id' | 'fact_check_claims' | 'fact_check_at' | 'revision_log' | 'decided_at' | 'revisit_after' | 'rejected_reason'>
+export type AlertInsert = Omit<Alert, 'id' | 'created_at' | 'updated_at' | 'computed_score' | 'score_last_computed_at' | 'approved_at' | 'source_intel_id' | 'fact_check_claims' | 'fact_check_at' | 'revision_log' | 'decided_at' | 'revisit_after' | 'rejected_reason' | 'why_this_matters' | 'override_reason'>
 
 // Phase 2 — decision memory.
 // How long Scout suppresses similar findings after each decision, in days.

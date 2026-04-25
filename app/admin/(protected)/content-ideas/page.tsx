@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { createAdminClient } from '@/utils/supabase/server'
 import { getPrograms } from '@/utils/supabase/queries'
-import { updateContentIdeaStatusAction, updateContentIdeaNotesAction } from './actions'
+import { updateContentIdeaStatusAction, updateContentIdeaNotesAction, updateContentIdeaOverrideAction } from './actions'
 import WriteArticleButton from '@/components/admin/WriteArticleButton'
 import FactCheckButton from '@/components/admin/FactCheckButton'
 import BrandCheckButton from '@/components/admin/BrandCheckButton'
@@ -38,6 +38,7 @@ interface ContentIdeaRow {
   originality_checked_at: string | null
   originality_notes: string | null
   originality_pass: boolean | null
+  override_reason: string | null
   source_alert?: {
     title: string | null
     end_date: string | null
@@ -399,7 +400,7 @@ function IdeaCard({ idea }: { idea: ContentIdeaRow }) {
         </p>
       )}
 
-      <form action={updateContentIdeaNotesAction.bind(null, idea.id)} style={{ marginBottom: '0.75rem' }}>
+      <form action={updateContentIdeaNotesAction.bind(null, idea.id)} style={{ marginBottom: '0.5rem' }}>
         <textarea
           name="notes"
           defaultValue={idea.notes ?? ''}
@@ -412,6 +413,25 @@ function IdeaCard({ idea }: { idea: ContentIdeaRow }) {
           Save notes
         </button>
       </form>
+
+      <details style={{ marginBottom: '0.75rem' }} open={Boolean(idea.override_reason)}>
+        <summary style={{ cursor: 'pointer', fontSize: '0.75rem', fontFamily: 'var(--font-ui)', color: idea.override_reason ? '#b45309' : 'var(--admin-text-muted)' }}>
+          {idea.override_reason ? '⚠ Override active' : 'Editorial override (use sparingly)'}
+        </summary>
+        <form action={updateContentIdeaOverrideAction.bind(null, idea.id)} style={{ marginTop: '0.375rem' }}>
+          <textarea
+            name="override_reason"
+            defaultValue={idea.override_reason ?? ''}
+            placeholder="Why publishing despite a fact-check or check failure. Leave blank to require all 4 pills."
+            rows={2}
+            className="admin-input"
+            style={{ width: '100%', resize: 'vertical' }}
+          />
+          <button type="submit" className="admin-btn admin-btn-ghost admin-btn-sm" style={{ marginTop: '0.375rem' }}>
+            Save override
+          </button>
+        </form>
+      </details>
 
       <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap', alignItems: 'center' }}>
         <WriteArticleButton ideaId={idea.id} hasBody={Boolean(idea.article_body)} />

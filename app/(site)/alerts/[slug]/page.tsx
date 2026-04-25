@@ -146,9 +146,16 @@ export default async function AlertDetailPage({ params }: Props) {
         </h1>
 
         {/* Summary */}
-        <p className="mb-8 font-body text-lg text-[var(--color-text-secondary)]">
+        <p className="mb-4 font-body text-lg text-[var(--color-text-secondary)]">
           {alert.summary}
         </p>
+
+        {/* Editorial subhead — why this matters in the writer's voice. */}
+        {alert.why_this_matters && (
+          <p className="mb-8 font-body text-base italic leading-relaxed text-[var(--color-text-primary)]">
+            {alert.why_this_matters}
+          </p>
+        )}
 
         {/* Description — rendered as markdown so promo alerts can use the
             hybrid voicey-prose + "What qualifies" bullet block format. */}
