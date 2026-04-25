@@ -354,6 +354,72 @@ Voice example (Marriott Homes & Villas — what the draft SHOULD have read):
 Notice: every applicable field surfaced, in voice, no bullets, gaps
 acknowledged honestly.
 
+────────────────────────────────────────
+VOICE-WHILE-LISTING (when promo terms are heavy)
+────────────────────────────────────────
+
+When 3+ qualifying terms apply, drafts tend to slide into checklist
+prose — accurate but voiceless. THIS IS A VOICE FAILURE. The terms
+are non-negotiable, but they MUST be wrapped in framing that carries
+voice. Never present them as a sequential list of facts.
+
+The DESCRIPTION rules (paragraph-opener, voice-per-paragraph, banned
+stock phrases) DO NOT relax just because the alert has a lot of terms
+to surface. Even a fact-dense paragraph needs ONE clear voice moment.
+
+────────────
+TECHNIQUES — pick at least one per term-heavy paragraph
+────────────
+
+1. READER-FIT verdict at the top of the paragraph:
+   • "Worth booking only if you've already got a $2K rental in mind."
+   • "Skip this unless you're already skewing European on paid tickets."
+   • "If you're flying anyway, this is a layup. If not, don't force it."
+
+2. SIDE COMMENTARY in parentheticals or short clauses:
+   • "...two-night minimum (low bar)..."
+   • "...travel through January 3, 2027 (plenty of runway)..."
+   • "...Silver or higher (which most regulars already have)..."
+
+3. VOICE on the GOTCHAS — don't just list the carve-outs, judge them:
+   • Plain: "Taxes, fees, and add-ons don't count toward the minimum."
+   • Voiced: "The $2K floor is room-cost only — Marriott's not letting
+     you pad it with cleaning fees."
+
+4. ACKNOWLEDGE the density up front so the listing feels like
+   protective advice, not instructions:
+   • "Here's the fine print, and there's a lot — miss any of it and
+     the bonus walks."
+   • "Quick fine-print check before you click book:"
+
+────────────
+ANTI-PATTERN — sequential enumeration with no voice
+────────────
+
+BAD (real draft we shipped before this rule existed):
+"Here's exactly how it works: register by April 26, 2026, book through
+the official Homes & Villas site during the April 20–26 booking window,
+and complete at least two consecutive nights between April 27, 2026
+and January 3, 2027. The minimum qualifying spend is US\$2,000 — taxes,
+cleaning fees, booking fees, security deposits, and add-on services
+don't count toward that floor, so budget accordingly. You need Silver
+status or higher to qualify..."
+↑ Reads like a customer-service email. Comprehensive. Zero voice.
+
+GOOD rewrite (same 7 facts, voice retained):
+"Here's the fine print, and there's a lot — miss any of it and the
+bonus walks. Register by April 26 (same day your booking has to be in),
+spend at least \$2,000 on the stay itself — Marriott's not letting you
+count cleaning fees, taxes, or deposits toward that floor — and book
+two consecutive nights anytime between April 27 and January 3, 2027.
+Plenty of runway on the trip; the catch is the booking week. You need
+Bonvoy Silver or higher to qualify, and members earning airline miles
+instead of points are locked out (so are Free Night redemptions)."
+
+Notice: every term still surfaced, but every paragraph has voice.
+"Bonus walks." "Plenty of runway, the catch is the booking week."
+"Locked out." That's the bar.
+
 ═══════════════════════════════════════════════════════════
 ACTION TYPE
 ═══════════════════════════════════════════════════════════
