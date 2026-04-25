@@ -49,7 +49,7 @@ export default function CheckOriginalityButton({
           opacity: !hasBody || isPending ? 0.6 : 1,
         }}
       >
-        {isPending ? 'Searching…' : 'Check originality'}
+        {isPending ? 'Searching…' : 'Run originality check'}
       </button>
       {msg && (
         <span
