@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { createAdminClient } from '@/utils/supabase/server'
+import { getPrograms } from '@/utils/supabase/queries'
 import { updateContentIdeaStatusAction, updateContentIdeaNotesAction } from './actions'
 import WriteArticleButton from '@/components/admin/WriteArticleButton'
 import CheckArticleButton from '@/components/admin/CheckArticleButton'
@@ -61,10 +62,35 @@ const NEXT_STATUS: Record<IdeaStatus, { label: string; to: IdeaStatus; variant?:
 export default async function ContentIdeasPage({
   searchParams,
 }: {
-  searchParams: Promise<{ type?: string; status?: string }>
+  searchParams: Promise<{ type?: string; status?: string; q?: string; program?: string }>
 }) {
-  const { type: typeFilter, status: statusFilter } = await searchParams
+  const sp = await searchParams
+  const typeFilter = sp.type
+  const statusFilter = sp.status
+  const q = (sp.q ?? '').trim()
+  const programSlug = (sp.program ?? '').trim()
   const supabase = createAdminClient()
+
+  // Program filter: resolve to a list of source_alert_ids that the slug applies to.
+  // Two hops: programs → alert_programs → alerts.id
+  let programAlertIds: string[] | null = null
+  if (programSlug) {
+    const { data: program } = await supabase
+      .from('programs')
+      .select('id')
+      .eq('slug', programSlug)
+      .maybeSingle()
+    if (program) {
+      const { data: links } = await supabase
+        .from('alert_programs')
+        .select('alert_id')
+        .eq('program_id', program.id)
+      programAlertIds = (links ?? []).map((l) => l.alert_id as string)
+      if (programAlertIds.length === 0) programAlertIds = ['__none__'] // force empty result
+    } else {
+      programAlertIds = ['__none__']
+    }
+  }
 
   let query = supabase
     .from('content_ideas')
@@ -79,8 +105,16 @@ export default async function ContentIdeasPage({
   } else if (!statusFilter) {
     query = query.in('status', ['new', 'queued', 'drafted'])
   }
+  if (q) {
+    // ilike across title, pitch, notes. PostgREST `or` syntax wants commas separating terms.
+    const safe = q.replace(/[%,()]/g, ' ')
+    query = query.or(`title.ilike.%${safe}%,pitch.ilike.%${safe}%,notes.ilike.%${safe}%`)
+  }
+  if (programAlertIds) {
+    query = query.in('source_alert_id', programAlertIds)
+  }
 
-  const { data, error } = await query
+  const [{ data, error }, programs] = await Promise.all([query, getPrograms(supabase)])
   if (error) throw error
   const ideas = (data ?? []) as ContentIdeaRow[]
 
@@ -117,12 +151,54 @@ export default async function ContentIdeasPage({
         description="Running queue of newsletter candidates and blog ideas produced by each day's editorial plan."
       />
 
+      <form
+        method="GET"
+        action="/admin/content-ideas"
+        style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}
+      >
+        <input
+          type="search"
+          name="q"
+          defaultValue={q}
+          placeholder="Search title, pitch, notes…"
+          className="admin-input"
+          style={{ minWidth: '16rem', flex: '1 1 16rem' }}
+        />
+        <select name="program" defaultValue={programSlug} className="admin-input" style={{ minWidth: '14rem' }}>
+          <option value="">All programs</option>
+          {programs.map((p) => (
+            <option key={p.id} value={p.slug}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+        {typeFilter && <input type="hidden" name="type" value={typeFilter} />}
+        {statusFilter && <input type="hidden" name="status" value={statusFilter} />}
+        <button type="submit" className="admin-btn admin-btn-primary admin-btn-sm">
+          Search
+        </button>
+        {(q || programSlug) && (
+          <Link
+            href={`/admin/content-ideas${
+              typeFilter || statusFilter
+                ? `?${[typeFilter && `type=${typeFilter}`, statusFilter && `status=${statusFilter}`]
+                    .filter(Boolean)
+                    .join('&')}`
+                : ''
+            }`}
+            className="admin-btn admin-btn-ghost admin-btn-sm"
+          >
+            Clear
+          </Link>
+        )}
+      </form>
+
       <div style={{ display: 'flex', gap: '0.375rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
-        <FilterLink href="/admin/content-ideas" active={!typeFilter && !statusFilter} label="Open" />
-        <FilterLink href="/admin/content-ideas?type=newsletter" active={typeFilter === 'newsletter' && !statusFilter} label="Newsletter only" />
-        <FilterLink href="/admin/content-ideas?type=blog" active={typeFilter === 'blog' && !statusFilter} label="Blog only" />
-        <FilterLink href="/admin/content-ideas?status=published" active={statusFilter === 'published'} label="Published" />
-        <FilterLink href="/admin/content-ideas?status=dismissed" active={statusFilter === 'dismissed'} label="Dismissed" />
+        <FilterLink href={buildHref({ q, program: programSlug })} active={!typeFilter && !statusFilter} label="Open" />
+        <FilterLink href={buildHref({ q, program: programSlug, type: 'newsletter' })} active={typeFilter === 'newsletter' && !statusFilter} label="Newsletter only" />
+        <FilterLink href={buildHref({ q, program: programSlug, type: 'blog' })} active={typeFilter === 'blog' && !statusFilter} label="Blog only" />
+        <FilterLink href={buildHref({ q, program: programSlug, status: 'published' })} active={statusFilter === 'published'} label="Published" />
+        <FilterLink href={buildHref({ q, program: programSlug, status: 'dismissed' })} active={statusFilter === 'dismissed'} label="Dismissed" />
       </div>
 
       <IdeaSection title="Newsletter Candidates" ideas={newsletter} />
@@ -133,6 +209,16 @@ export default async function ContentIdeasPage({
       )}
     </div>
   )
+}
+
+function buildHref(parts: { q?: string; program?: string; type?: string; status?: string }): string {
+  const search = new URLSearchParams()
+  if (parts.q) search.set('q', parts.q)
+  if (parts.program) search.set('program', parts.program)
+  if (parts.type) search.set('type', parts.type)
+  if (parts.status) search.set('status', parts.status)
+  const qs = search.toString()
+  return qs ? `/admin/content-ideas?${qs}` : '/admin/content-ideas'
 }
 
 function FilterLink({ href, active, label }: { href: string; active: boolean; label: string }) {
