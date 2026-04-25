@@ -326,6 +326,7 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
       draft: { title: draft.title, summary: draft.summary, description: draft.description },
       raw_text: (intel.raw_text as string | null) ?? null,
       source_url: (intel.source_url as string | null) ?? null,
+      alert_type: intel.alert_type,
     })
     if (verify) {
       finalClaims = verify.claims
@@ -380,6 +381,7 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
             draft: workingDraft,
             raw_text: (intel.raw_text as string | null) ?? null,
             source_url: (intel.source_url as string | null) ?? null,
+            alert_type: intel.alert_type,
           })
           if (!reverify) break
           let reverified = reverify.claims

@@ -311,6 +311,49 @@ Notice: reader-centered opener, no program recap, one clear voice moment per par
 no "expanded eligibility," no "meaning [X]" footnoting.
 
 ═══════════════════════════════════════════════════════════
+PROMO-TERMS COMPLETENESS (alert_type ∈ promo-shaped only)
+═══════════════════════════════════════════════════════════
+
+Applies when alert_type is one of:
+"limited_time_offer" · "transfer_bonus" · "status_promo" · "award_availability"
+
+Promo readers lose money when qualifying terms are vague. For these
+alert types, your description MUST surface every applicable term
+below when it appears in raw_text or extra_context. Weave them into
+prose paragraphs in brand voice — NEVER bullet-list them.
+
+Required fields (surface each applicable one in prose):
+1. EARNING WINDOW — book-by, register-by, or earn-by date(s)
+2. TRAVEL / STAY-COMPLETION WINDOW — when the qualifying activity
+   must complete (often weeks or months after the booking deadline)
+3. MINIMUM SPEND — dollar threshold (e.g. "$2,000 minimum")
+4. MINIMUM NIGHTS or TRANSACTIONS — stay length, segment count, etc.
+5. STATUS TIER REQUIREMENT — name the SPECIFIC tier (Silver, Gold,
+   Diamond, Titanium, Ambassador, etc.). NEVER write "elite status"
+   alone if the source names a tier — that vagueness costs the reader
+   real money.
+6. REGISTRATION REQUIRED — yes/no (and how, if specified)
+7. EXCLUDED BRANDS / PROPERTIES / FARE CLASSES — any carve-outs
+
+If a field IS NOT in raw_text or extra_context, do not silently omit.
+State it plainly in prose: "Travel window not specified in source"
+or "No registration mentioned — likely automatic." Vague-but-honest
+beats silent gaps. The fact-checker scans the body for these terms
+and chips drafts with missing fields, so calling out gaps yourself
+reads as competent and helps the reviewer.
+
+Voice example (Marriott Homes & Villas — what the draft SHOULD have read):
+  "Book between April 20 and April 26 for the bonus, but you've got
+  until January 3, 2027 to actually take the trip — they're giving
+  you a wide runway. Spend at least $2,000 across a two-night minimum
+  stay, and your Bonvoy account needs to sit at Silver or higher.
+  Registration was not mentioned in the source, so check the offer
+  page before booking."
+
+Notice: every applicable field surfaced, in voice, no bullets, gaps
+acknowledged honestly.
+
+═══════════════════════════════════════════════════════════
 ACTION TYPE
 ═══════════════════════════════════════════════════════════
 

@@ -283,6 +283,7 @@ export async function GET(req: NextRequest) {
           draft: { title: draft.title, summary: draft.summary, description: draft.description },
           raw_text: (intel.raw_text as string | null) ?? null,
           source_url: (intel.source_url as string | null) ?? null,
+          alert_type: intel.alert_type,
         })
         if (verify) {
           fact_checks_run++
@@ -361,6 +362,7 @@ export async function GET(req: NextRequest) {
                   draft: workingDraft,
                   raw_text: (intel.raw_text as string | null) ?? null,
                   source_url: (intel.source_url as string | null) ?? null,
+                  alert_type: intel.alert_type,
                 })
                 if (!reverify) break
                 let reverified = reverify.claims

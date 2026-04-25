@@ -9,6 +9,150 @@
  * that weren't in the source article.
  */
 import Anthropic from '@anthropic-ai/sdk'
+import type { AlertType } from '@/utils/supabase/queries'
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PROMO-TERMS COMPLETENESS — structural check (no source comparison)
+//
+// For promo-shaped alert types, scan the body for evidence each qualifying
+// term was surfaced. If a term is missing AND not explicitly acknowledged
+// as "not specified in source," emit a synthetic high-severity chip.
+// Deterministic regex-based check — no extra LLM cost.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const PROMO_ALERT_TYPES: ReadonlySet<AlertType> = new Set<AlertType>([
+  'limited_time_offer',
+  'transfer_bonus',
+  'status_promo',
+  'award_availability',
+])
+
+interface PromoTerm {
+  key: string                 // machine name reported in the chip
+  patterns: RegExp[]          // any match → term considered surfaced
+  acknowledgePatterns: RegExp[] // writer's explicit "not specified" form for this term
+}
+
+const PROMO_TERMS: PromoTerm[] = [
+  {
+    key: 'earning_window',
+    patterns: [
+      /book(?:ed)? by /i,
+      /register(?:ation)? by /i,
+      /earn by /i,
+      /\bends?\b [a-z]+ \d/i,
+      /through [a-z]+ \d/i,
+      /\bbetween\b [a-z]+ \d{1,2}.*\band\b [a-z]+ \d{1,2}/i,
+      /book\s*(?:between)?\s*[a-z]+\s*\d{1,2}\s*(?:and|–|-|to)\s*[a-z]+\s*\d{1,2}/i,
+      /book(?:ing)? window/i,
+      /register before/i,
+      /earn(?:ing)? window/i,
+    ],
+    acknowledgePatterns: [/(book|earn|register).{0,40}(window|deadline).{0,40}not (specified|listed|given)/i, /no\s+(book|earn|register).{0,20}(window|deadline)\s+(specified|listed|given|mentioned)/i],
+  },
+  {
+    key: 'travel_window',
+    patterns: [
+      /travel by /i,
+      /complete (?:travel|the trip)/i,
+      /stay completion/i,
+      /stay by [a-z]+ \d/i,
+      /fly by /i,
+      /until [a-z]+ \d{1,2},?\s*\d{4}/i,
+      /through [a-z]+ \d{1,2},?\s*\d{4}/i,
+      /travel\s+window/i,
+      /stay\s+through/i,
+      /by january \d/i,
+    ],
+    acknowledgePatterns: [/travel\s+window\s+(was\s+)?not\s+(specified|listed|given|mentioned)/i, /no\s+(travel|stay).{0,20}(window|deadline)\s+(specified|listed|given|mentioned)/i],
+  },
+  {
+    key: 'min_spend',
+    patterns: [
+      /\$[\d,]+\+?\s*(minimum|min|or more|in spend|spend)/i,
+      /minimum\s+(of\s+)?\$[\d,]+/i,
+      /spend at least \$[\d,]+/i,
+      /\$[\d,]+\s*minimum spend/i,
+    ],
+    acknowledgePatterns: [/(minimum\s+spend|spend\s+threshold)\s+(was\s+)?not\s+(specified|listed|given|mentioned)/i, /no\s+(minimum\s+spend|spend\s+threshold)\s+(specified|listed|given|mentioned)/i],
+  },
+  {
+    key: 'min_nights_or_transactions',
+    patterns: [
+      /\d+[\-\s]?night minimum/i,
+      /minimum.{0,15}\d+\s*night/i,
+      /\d+\s*qualifying night/i,
+      /\d+\s*consecutive night/i,
+      /\d+\s*segment/i,
+      /\d+\s*transaction/i,
+      /two[\-\s]?night/i,
+      /three[\-\s]?night/i,
+      /\bstay\s+at\s+least\s+\d/i,
+    ],
+    acknowledgePatterns: [/(minimum\s+(nights?|stays?|transactions?))\s+(was\s+)?not\s+(specified|listed|given|mentioned)/i, /no\s+minimum\s+(night|stay|transaction)/i],
+  },
+  {
+    key: 'status_tier',
+    patterns: [
+      /\b(silver|gold|platinum|titanium|ambassador|diamond|emerald|onyx|sapphire|ruby)\b\+?/i,
+      /\b(executive|premier|elite plus|elite\+|chairman)\b/i,
+      /\bbonvoy\s+(silver|gold|platinum|titanium|ambassador)/i,
+      /tier(?:\s+requirement)?:/i,
+      /\bany\s+elite\s+tier\b/i,
+      /\ball\s+elites?\b/i,
+    ],
+    acknowledgePatterns: [/no\s+status\s+tier\s+listed/i, /tier\s+(was\s+)?not\s+(specified|listed|given|mentioned)/i, /likely\s+all\s+elites/i],
+  },
+  {
+    key: 'registration',
+    patterns: [
+      /register(?:ing|ed|ation)?(?:\s+(?:is\s+)?required|\s+for|\s+at|\s+via)/i,
+      /opt[\s\-]in/i,
+      /enroll(?:ment)?/i,
+      /sign\s+up\s+(?:to|at|here|via)/i,
+      /no\s+registration/i,
+      /automatic(?:ally)?\s+(?:enrolled|registered|qualifies?)/i,
+    ],
+    acknowledgePatterns: [/registration\s+(was\s+)?not\s+(specified|listed|given|mentioned)/i, /no\s+registration\s+(specified|listed|mentioned)/i],
+  },
+  {
+    key: 'exclusions',
+    patterns: [
+      /exclud(?:e|ed|es|ing)/i,
+      /not\s+eligible/i,
+      /doesn'?t\s+apply/i,
+      /\b(except|excluding)\b/i,
+      /carve[\s\-]?out/i,
+      /\bcarve\b/i,
+      /\bnot\s+valid\s+(?:for|on)/i,
+      /no\s+exclusions/i,
+      /all\s+(?:brands|properties|fares)\s+eligible/i,
+    ],
+    acknowledgePatterns: [/exclusions?\s+(?:were|was)?\s+not\s+(specified|listed|given|mentioned)/i, /no\s+exclusions?\s+(?:were\s+)?(specified|listed|mentioned)/i],
+  },
+]
+
+/**
+ * Returns the list of promo-term keys that are NEITHER surfaced in the body
+ * NOR explicitly acknowledged-as-missing. Empty array means all terms covered.
+ * Returns empty for non-promo alert types (and null/undefined alert_type).
+ */
+export function checkPromoTermsCompleteness(
+  body: string,
+  alertType: AlertType | null | undefined
+): string[] {
+  if (!alertType || !PROMO_ALERT_TYPES.has(alertType)) return []
+  if (!body || !body.trim()) return PROMO_TERMS.map((t) => t.key)
+  const missing: string[] = []
+  for (const term of PROMO_TERMS) {
+    const surfaced = term.patterns.some((p) => p.test(body))
+    if (surfaced) continue
+    const acknowledged = term.acknowledgePatterns.some((p) => p.test(body))
+    if (acknowledged) continue
+    missing.push(term.key)
+  }
+  return missing
+}
 
 export interface VerifyClaim {
   claim: string
@@ -138,10 +282,43 @@ function validate(parsed: unknown): VerifyClaim[] {
     .filter((c): c is VerifyClaim => c !== null)
 }
 
+/**
+ * Builds the body text the structural promo-terms check scans against.
+ * Concatenates summary + description (title is rarely where terms live).
+ */
+function buildBodyForPromoCheck(draft: {
+  summary: string
+  description: string | null
+}): string {
+  return `${draft.summary}\n\n${draft.description ?? ''}`
+}
+
+/**
+ * Returns a synthetic VerifyClaim listing missing promo terms, or null if
+ * none are missing (or alert_type isn't promo-shaped). The claim text uses
+ * the MISSING_PROMO_TERMS: <comma-list> shape so the admin UI can detect
+ * it specifically.
+ */
+function buildMissingPromoTermsClaim(
+  draft: { summary: string; description: string | null },
+  alertType: AlertType | null | undefined
+): VerifyClaim | null {
+  const body = buildBodyForPromoCheck(draft)
+  const missing = checkPromoTermsCompleteness(body, alertType)
+  if (missing.length === 0) return null
+  return {
+    claim: `MISSING_PROMO_TERMS: ${missing.join(', ')}`,
+    supported: false,
+    severity: 'high',
+    source_excerpt: null,
+  }
+}
+
 export async function verifyAlertDraft(args: {
   draft: { title: string; summary: string; description: string | null }
   raw_text: string | null
   source_url: string | null
+  alert_type?: AlertType | null
 }): Promise<VerifyResult | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
@@ -149,19 +326,22 @@ export async function verifyAlertDraft(args: {
     return null
   }
 
+  const promoChip = buildMissingPromoTermsClaim(args.draft, args.alert_type)
+
   const sourceText = args.raw_text?.trim()
   if (!sourceText) {
     // Nothing to ground against — return a single low-severity sentinel so the
     // admin UI can show "no source text to verify" instead of silent pass.
+    const baseClaims: VerifyClaim[] = [
+      {
+        claim: 'No source text available — all draft claims are unverified.',
+        supported: false,
+        severity: 'high',
+        source_excerpt: null,
+      },
+    ]
     return {
-      claims: [
-        {
-          claim: 'No source text available — all draft claims are unverified.',
-          supported: false,
-          severity: 'high',
-          source_excerpt: null,
-        },
-      ],
+      claims: promoChip ? [...baseClaims, promoChip] : baseClaims,
       checked_at: new Date().toISOString(),
     }
   }
@@ -192,7 +372,7 @@ export async function verifyAlertDraft(args: {
     const claims = validate(parsed)
 
     return {
-      claims,
+      claims: promoChip ? [...claims, promoChip] : claims,
       checked_at: new Date().toISOString(),
     }
   } catch (err) {

@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/utils/supabase/server'
 import { verifyAlertDraft, webVerifyClaims, type VerifyClaim } from '@/utils/ai/verifyAlertDraft'
 import { reviseAlertDraft, type RevisionLogEntry } from '@/utils/ai/reviseAlertDraft'
-import { logSystemError } from '@/utils/supabase/queries'
+import { logSystemError, type AlertType } from '@/utils/supabase/queries'
 
 export interface ReverifyResult {
   ok: boolean
@@ -87,7 +87,7 @@ export async function reviseAlertAction(alertId: string): Promise<ReviseActionRe
 
   const { data: alert, error: alertErr } = await supabase
     .from('alerts')
-    .select('id, title, summary, description, source_url, source_intel_id, fact_check_claims, revision_log')
+    .select('id, title, summary, description, type, source_url, source_intel_id, fact_check_claims, revision_log')
     .eq('id', alertId)
     .maybeSingle()
 
@@ -157,6 +157,7 @@ export async function reviseAlertAction(alertId: string): Promise<ReviseActionRe
       draft: revised.revised,
       raw_text: rawText,
       source_url: (alert.source_url as string | null) ?? null,
+      alert_type: (alert.type as AlertType | null) ?? null,
     })
     const newClaims = reverify?.claims ?? []
     if (newClaims.some((c) => !c.supported)) {
