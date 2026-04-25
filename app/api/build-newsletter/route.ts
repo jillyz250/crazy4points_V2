@@ -56,15 +56,15 @@ export async function GET(req: NextRequest) {
     })
   }
 
-  const [alertsRes, newsletterIdeasRes, blogIdeasRes] = await Promise.all([
+  const [alertsRes, newsletterIdeasRes, blogIdeasRes, radarRes] = await Promise.all([
     supabase
       .from('alerts')
-      .select('id, slug, title, summary, ai_summary, published_at, impact_score')
+      .select('id, slug, title, summary, ai_summary, why_this_matters, published_at, end_date, type, impact_score')
       .eq('status', 'published')
       .gte('published_at', since7d)
       .order('impact_score', { ascending: false })
       .order('published_at', { ascending: false })
-      .limit(10),
+      .limit(12),
     supabase
       .from('content_ideas')
       .select('id, title, pitch, type, priority, slug')
@@ -79,6 +79,16 @@ export async function GET(req: NextRequest) {
       .gte('created_at', since7d)
       .order('priority', { ascending: true })
       .limit(3),
+    // Phase 4 — radar pulls from low / medium-confidence intel that wasn't
+    // approved into a published alert. Keeps "On my radar" honest.
+    supabase
+      .from('intel_items')
+      .select('headline, source_name, source_url, raw_text, confidence')
+      .gte('created_at', since7d)
+      .is('rejected_at', null)
+      .in('confidence', ['low', 'medium'])
+      .order('created_at', { ascending: false })
+      .limit(8),
   ])
 
   const alerts: NewsletterAlertInput[] = (alertsRes.data ?? []).map((a) => ({
@@ -87,7 +97,10 @@ export async function GET(req: NextRequest) {
     title: a.title,
     summary: a.summary ?? null,
     ai_summary: a.ai_summary ?? null,
+    why_this_matters: (a as { why_this_matters?: string | null }).why_this_matters ?? null,
     published_at: a.published_at ?? null,
+    end_date: (a as { end_date?: string | null }).end_date ?? null,
+    alert_type: (a as { type?: string | null }).type ?? null,
     impact_score: a.impact_score ?? null,
   }))
 
@@ -109,11 +122,20 @@ export async function GET(req: NextRequest) {
     slug: i.slug ?? null,
   }))
 
+  const radar_signals = (radarRes.data ?? []).map((r) => ({
+    headline: r.headline as string,
+    source_name: (r.source_name as string | null) ?? null,
+    source_url: (r.source_url as string | null) ?? null,
+    raw_text: (r.raw_text as string | null) ?? null,
+    confidence: (r.confidence as 'low' | 'medium' | null) ?? null,
+  }))
+
   const draft = await buildNewsletter({
     week_of: weekOf,
     alerts,
     newsletter_ideas,
     blog_ideas,
+    radar_signals,
   })
 
   if (!draft) {

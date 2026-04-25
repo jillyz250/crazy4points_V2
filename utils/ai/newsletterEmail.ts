@@ -1,16 +1,22 @@
 /**
  * Renders the weekly newsletter draft_json into branded HTML for Resend.
  * Royal Glow palette. ~600px, mobile-first, inline styles (most email clients
- * strip <style>). No comic yet — placeholder slot ready for when the Gemini
- * generator lands.
+ * strip <style>).
+ *
+ * Phase 4 sections: The Headline · Quick Wins · The Play of the Week ·
+ * Heads Up · On My Radar · Jill's Take. Reads new field names with legacy
+ * (big_one / haul / sweet_spot) fallback so old drafts in the DB still render.
  */
 import type {
   NewsletterDraft,
-  NewsletterHaulItem,
+  NewsletterQuickWinItem,
+  NewsletterHeadlineItem,
+  NewsletterPlayOfTheWeek,
+  NewsletterHeadsUpItem,
+  NewsletterRadarItem,
 } from './buildNewsletter'
 
 const PURPLE = '#6B2D8F'
-const PURPLE_HOVER = '#5A237A'
 const GOLD = '#D4AF37'
 const SOFT_BG = '#F8F5FB'
 const BODY = '#1A1A1A'
@@ -35,7 +41,7 @@ function alertLink(origin: string, slug: string | null): string | null {
   return `${origin}/alerts/${encodeURIComponent(slug)}`
 }
 
-function renderHaul(items: NewsletterHaulItem[], origin: string): string {
+function renderQuickWins(items: NewsletterQuickWinItem[], origin: string): string {
   if (!items || items.length === 0) return ''
   const cards = items
     .map((item) => {
@@ -55,12 +61,12 @@ function renderHaul(items: NewsletterHaulItem[], origin: string): string {
     .join('')
   return `
     <tr><td style="padding:8px 0 4px;">
-      <h2 style="margin:0 0 14px;font-family:${FONT_DISPLAY};font-size:22px;color:${PURPLE};">This Week's Haul</h2>
+      <h2 style="margin:0 0 14px;font-family:${FONT_DISPLAY};font-size:22px;color:${PURPLE};">Quick Wins</h2>
       ${cards}
     </td></tr>`
 }
 
-function renderBigOne(big: NewsletterDraft['big_one'], origin: string): string {
+function renderHeadline(big: NewsletterHeadlineItem | null | undefined, origin: string): string {
   if (!big) return ''
   const link = alertLink(origin, big.link_slug)
   const readMore = link
@@ -68,7 +74,7 @@ function renderBigOne(big: NewsletterDraft['big_one'], origin: string): string {
     : ''
   return `
     <tr><td style="padding:8px 0 24px;">
-      <h2 style="margin:0 0 6px;font-family:${FONT_DISPLAY};font-size:24px;color:${PURPLE};">The Big One</h2>
+      <h2 style="margin:0 0 6px;font-family:${FONT_DISPLAY};font-size:24px;color:${PURPLE};">The Headline</h2>
       <h3 style="margin:0 0 12px;font-family:${FONT_DISPLAY};font-size:20px;line-height:1.3;color:${BODY};">${esc(big.headline)}</h3>
       <p style="margin:0 0 10px;font-family:${FONT_BODY};font-size:15px;line-height:1.6;color:${BODY};">${esc(big.why_it_matters)}</p>
       <p style="margin:0;font-family:${FONT_BODY};font-size:15px;line-height:1.6;color:${BODY};"><strong style="color:${PURPLE};">What to do:</strong> ${esc(big.what_to_do)}</p>
@@ -76,7 +82,7 @@ function renderBigOne(big: NewsletterDraft['big_one'], origin: string): string {
     </td></tr>`
 }
 
-function renderSweetSpot(sp: NewsletterDraft['sweet_spot']): string {
+function renderPlay(sp: NewsletterPlayOfTheWeek | null | undefined): string {
   if (!sp) return ''
   const uses = (sp.best_uses ?? [])
     .map(
@@ -90,12 +96,54 @@ function renderSweetSpot(sp: NewsletterDraft['sweet_spot']): string {
     <tr><td style="padding:8px 0 24px;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:2px solid ${GOLD};border-radius:12px;background:${SOFT_BG};">
         <tr><td style="padding:22px 24px;">
-          <p style="margin:0 0 6px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${GOLD};font-weight:700;">Sweet Spot of the Week</p>
+          <p style="margin:0 0 6px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${GOLD};font-weight:700;">The Play of the Week</p>
           <h2 style="margin:0 0 12px;font-family:${FONT_DISPLAY};font-size:22px;line-height:1.3;color:${PURPLE};">${esc(sp.topic)}</h2>
           <p style="margin:0 0 14px;font-family:${FONT_BODY};font-size:15px;line-height:1.6;color:${BODY};">${esc(sp.mechanic_explainer)}</p>
           ${uses ? `<ul style="margin:0;padding:0 0 0 18px;">${uses}</ul>` : ''}
         </td></tr>
       </table>
+    </td></tr>`
+}
+
+function renderHeadsUp(items: NewsletterHeadsUpItem[], origin: string): string {
+  if (!items || items.length === 0) return ''
+  const rows = items
+    .map((item) => {
+      const link = alertLink(origin, item.link_slug)
+      const linkBit = link
+        ? ` <a href="${link}" style="color:${PURPLE};font-weight:600;text-decoration:none;">→ details</a>`
+        : ''
+      return `
+        <li style="margin:0 0 10px;font-family:${FONT_BODY};font-size:15px;line-height:1.55;color:${BODY};">
+          <strong style="color:${PURPLE};">${esc(item.headline)}</strong> — ${esc(item.what)}
+          <span style="display:block;font-family:${FONT_UI};font-size:12px;color:${MUTED};margin-top:2px;">${esc(item.when)}${linkBit}</span>
+        </li>`
+    })
+    .join('')
+  return `
+    <tr><td style="padding:8px 0 24px;">
+      <h2 style="margin:0 0 12px;font-family:${FONT_DISPLAY};font-size:22px;color:${PURPLE};">Heads Up</h2>
+      <ul style="margin:0;padding:0 0 0 18px;">${rows}</ul>
+    </td></tr>`
+}
+
+function renderRadar(items: NewsletterRadarItem[]): string {
+  if (!items || items.length === 0) return ''
+  const rows = items
+    .map((item) => {
+      const linkBit = item.source_url
+        ? ` <a href="${esc(item.source_url)}" style="color:${MUTED};font-size:12px;text-decoration:underline;">source</a>`
+        : ''
+      return `
+        <li style="margin:0 0 10px;font-family:${FONT_BODY};font-size:15px;line-height:1.55;color:${BODY};">
+          <strong style="color:${PURPLE};">${esc(item.headline)}</strong> — ${esc(item.why)}${linkBit}
+        </li>`
+    })
+    .join('')
+  return `
+    <tr><td style="padding:8px 0 24px;">
+      <h2 style="margin:0 0 12px;font-family:${FONT_DISPLAY};font-size:22px;color:${PURPLE};">On My Radar</h2>
+      <ul style="margin:0;padding:0 0 0 18px;">${rows}</ul>
     </td></tr>`
 }
 
@@ -118,6 +166,13 @@ export function renderNewsletterHtml({
 }: RenderNewsletterArgs): string {
   const logoUrl = `${origin}/crazy4points-logo.png`
 
+  // New field names with legacy fallback so old drafts in the DB still render.
+  const headline = draft.the_headline ?? draft.big_one ?? null
+  const quickWins = draft.quick_wins ?? draft.haul ?? []
+  const play = draft.play_of_the_week ?? draft.sweet_spot ?? null
+  const headsUp = draft.heads_up ?? []
+  const onMyRadar = draft.on_my_radar ?? []
+
   const previewBanner = isPreview
     ? `
     <tr><td style="padding:12px 24px;background:${GOLD};">
@@ -132,9 +187,11 @@ export function renderNewsletterHtml({
     </td></tr>`
     : ''
 
-  const haul = renderHaul(draft.haul ?? [], origin)
-  const bigOne = renderBigOne(draft.big_one, origin)
-  const sweetSpot = renderSweetSpot(draft.sweet_spot)
+  const headlineHtml = renderHeadline(headline, origin)
+  const quickWinsHtml = renderQuickWins(quickWins, origin)
+  const playHtml = renderPlay(play)
+  const headsUpHtml = renderHeadsUp(headsUp, origin)
+  const radarHtml = renderRadar(onMyRadar)
 
   const jillsTake = draft.jills_take
     ? `
@@ -144,6 +201,10 @@ export function renderNewsletterHtml({
     </td></tr>`
     : ''
 
+  // Preview header text (hidden in inbox preview pane). Use the_headline's
+  // why_it_matters as the preview seed since opener is gone.
+  const previewSeed = headline?.why_it_matters ?? draft.opener ?? ''
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -152,7 +213,7 @@ export function renderNewsletterHtml({
 <title>${esc(subject)}</title>
 </head>
 <body style="margin:0;padding:0;background:#f4eef8;">
-  <div style="display:none;max-height:0;overflow:hidden;color:transparent;">${esc(draft.opener).slice(0, 120)}</div>
+  <div style="display:none;max-height:0;overflow:hidden;color:transparent;">${esc(previewSeed).slice(0, 120)}</div>
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f4eef8;">
     <tr><td align="center" style="padding:24px 12px;">
       <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:600px;max-width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(26,26,26,0.06);">
@@ -163,13 +224,12 @@ export function renderNewsletterHtml({
         </td></tr>
         ${comicBlock}
         <tr><td style="padding:24px 28px 0;">
-          <p style="margin:0 0 24px;font-family:${FONT_BODY};font-size:17px;line-height:1.55;color:${BODY};">${esc(draft.opener)}</p>
-        </td></tr>
-        <tr><td style="padding:0 28px;">
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-            ${bigOne}
-            ${haul}
-            ${sweetSpot}
+            ${headlineHtml}
+            ${quickWinsHtml}
+            ${playHtml}
+            ${headsUpHtml}
+            ${radarHtml}
             ${jillsTake}
           </table>
         </td></tr>

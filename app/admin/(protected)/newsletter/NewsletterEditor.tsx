@@ -119,11 +119,23 @@ export default function NewsletterEditor({
     })
   }
 
-  function updateHaul(i: number, patch: Partial<typeof draft.haul[number]>) {
-    setDraft({
-      ...draft,
-      haul: draft.haul.map((h, idx) => (idx === i ? { ...h, ...patch } : h)),
-    })
+  // The validator emits new field names AND mirrors them onto legacy ones,
+  // so reading either works. Helpers below prefer the new names.
+  const headline = draft.the_headline ?? draft.big_one ?? null
+  const quickWins = draft.quick_wins ?? draft.haul ?? []
+  const play = draft.play_of_the_week ?? draft.sweet_spot ?? null
+  const headsUp = draft.heads_up ?? []
+  const onMyRadar = draft.on_my_radar ?? []
+
+  function updateQuickWin(i: number, patch: Partial<(typeof quickWins)[number]>) {
+    const next = quickWins.map((h, idx) => (idx === i ? { ...h, ...patch } : h))
+    setDraft({ ...draft, quick_wins: next, haul: next })
+  }
+  function updateHeadsUp(i: number, patch: Partial<(typeof headsUp)[number]>) {
+    setDraft({ ...draft, heads_up: headsUp.map((h, idx) => (idx === i ? { ...h, ...patch } : h)) })
+  }
+  function updateRadar(i: number, patch: Partial<(typeof onMyRadar)[number]>) {
+    setDraft({ ...draft, on_my_radar: onMyRadar.map((r, idx) => (idx === i ? { ...r, ...patch } : r)) })
   }
 
   const sendEnabled = confirmWord === 'Send' && !isPending && !isSent
@@ -175,40 +187,29 @@ export default function NewsletterEditor({
         />
       </div>
 
-      <div style={sectionStyle}>
-        <label style={labelStyle}>Opener</label>
-        <textarea
-          value={draft.opener}
-          onChange={(e) => setDraft({ ...draft, opener: e.target.value })}
-          className="admin-input"
-          style={{ minHeight: '4.5rem', resize: 'vertical', lineHeight: 1.5 }}
-          disabled={isSent}
-        />
-      </div>
-
-      {draft.big_one && (
+      {headline && (
         <div style={sectionStyle}>
-          <label style={labelStyle}>The Big One</label>
+          <label style={labelStyle}>The Headline</label>
           <input
             type="text"
-            value={draft.big_one.headline}
-            onChange={(e) => setDraft({ ...draft, big_one: { ...draft.big_one!, headline: e.target.value } })}
+            value={headline.headline}
+            onChange={(e) => setDraft({ ...draft, the_headline: { ...headline, headline: e.target.value }, big_one: { ...headline, headline: e.target.value } })}
             placeholder="Headline"
             className="admin-input"
             style={{ marginBottom: '0.5rem' }}
             disabled={isSent}
           />
           <textarea
-            value={draft.big_one.why_it_matters}
-            onChange={(e) => setDraft({ ...draft, big_one: { ...draft.big_one!, why_it_matters: e.target.value } })}
+            value={headline.why_it_matters}
+            onChange={(e) => setDraft({ ...draft, the_headline: { ...headline, why_it_matters: e.target.value }, big_one: { ...headline, why_it_matters: e.target.value } })}
             placeholder="Why it matters"
             className="admin-input"
             style={{ minHeight: '4.5rem', resize: 'vertical', lineHeight: 1.5, marginBottom: '0.5rem' }}
             disabled={isSent}
           />
           <textarea
-            value={draft.big_one.what_to_do}
-            onChange={(e) => setDraft({ ...draft, big_one: { ...draft.big_one!, what_to_do: e.target.value } })}
+            value={headline.what_to_do}
+            onChange={(e) => setDraft({ ...draft, the_headline: { ...headline, what_to_do: e.target.value }, big_one: { ...headline, what_to_do: e.target.value } })}
             placeholder="What to do"
             className="admin-input"
             style={{ minHeight: '4.5rem', resize: 'vertical', lineHeight: 1.5 }}
@@ -217,15 +218,15 @@ export default function NewsletterEditor({
         </div>
       )}
 
-      {draft.haul && draft.haul.length > 0 && (
+      {quickWins.length > 0 && (
         <div style={sectionStyle}>
-          <label style={labelStyle}>This Week's Haul ({draft.haul.length})</label>
-          {draft.haul.map((item, i) => (
+          <label style={labelStyle}>Quick Wins ({quickWins.length})</label>
+          {quickWins.map((item, i) => (
             <div key={i} style={{ padding: '0.75rem 0', borderTop: i === 0 ? 'none' : '1px dashed var(--admin-border)' }}>
               <input
                 type="text"
                 value={item.headline}
-                onChange={(e) => updateHaul(i, { headline: e.target.value })}
+                onChange={(e) => updateQuickWin(i, { headline: e.target.value })}
                 placeholder="Headline"
                 className="admin-input"
                 style={{ marginBottom: '0.5rem' }}
@@ -233,8 +234,8 @@ export default function NewsletterEditor({
               />
               <textarea
                 value={item.blurb}
-                onChange={(e) => updateHaul(i, { blurb: e.target.value })}
-                placeholder="Blurb"
+                onChange={(e) => updateQuickWin(i, { blurb: e.target.value })}
+                placeholder="Blurb (auto-sourced from the alert's why_this_matters when present)"
                 className="admin-input"
                 style={{ minHeight: '4.5rem', resize: 'vertical', lineHeight: 1.5 }}
                 disabled={isSent}
@@ -244,29 +245,91 @@ export default function NewsletterEditor({
         </div>
       )}
 
-      {draft.sweet_spot && (
+      {play && (
         <div style={sectionStyle}>
-          <label style={labelStyle}>Sweet Spot</label>
+          <label style={labelStyle}>The Play of the Week</label>
           <input
             type="text"
-            value={draft.sweet_spot.topic}
-            onChange={(e) => setDraft({ ...draft, sweet_spot: { ...draft.sweet_spot!, topic: e.target.value } })}
+            value={play.topic}
+            onChange={(e) => setDraft({ ...draft, play_of_the_week: { ...play, topic: e.target.value }, sweet_spot: { ...play, topic: e.target.value } })}
             placeholder="Topic"
             className="admin-input"
             style={{ marginBottom: '0.5rem' }}
             disabled={isSent}
           />
           <textarea
-            value={draft.sweet_spot.mechanic_explainer}
-            onChange={(e) => setDraft({ ...draft, sweet_spot: { ...draft.sweet_spot!, mechanic_explainer: e.target.value } })}
+            value={play.mechanic_explainer}
+            onChange={(e) => setDraft({ ...draft, play_of_the_week: { ...play, mechanic_explainer: e.target.value }, sweet_spot: { ...play, mechanic_explainer: e.target.value } })}
             placeholder="Mechanic explainer"
             className="admin-input"
             style={{ minHeight: '7rem', resize: 'vertical', lineHeight: 1.5 }}
             disabled={isSent}
           />
           <p style={{ margin: '0.625rem 0 0', fontSize: '0.75rem', color: 'var(--admin-text-muted)' }}>
-            Best uses: {draft.sweet_spot.best_uses?.length ?? 0} items (edit via Run Now regeneration for now)
+            Best uses: {play.best_uses?.length ?? 0} items (edit via Run Now regeneration for now)
           </p>
+        </div>
+      )}
+
+      {headsUp.length > 0 && (
+        <div style={sectionStyle}>
+          <label style={labelStyle}>Heads Up ({headsUp.length})</label>
+          {headsUp.map((item, i) => (
+            <div key={i} style={{ padding: '0.625rem 0', borderTop: i === 0 ? 'none' : '1px dashed var(--admin-border)' }}>
+              <input
+                type="text"
+                value={item.headline}
+                onChange={(e) => updateHeadsUp(i, { headline: e.target.value })}
+                placeholder="What's changing"
+                className="admin-input"
+                style={{ marginBottom: '0.375rem' }}
+                disabled={isSent}
+              />
+              <textarea
+                value={item.what}
+                onChange={(e) => updateHeadsUp(i, { what: e.target.value })}
+                placeholder="One-sentence what"
+                className="admin-input"
+                style={{ minHeight: '3rem', resize: 'vertical', lineHeight: 1.5, marginBottom: '0.375rem' }}
+                disabled={isSent}
+              />
+              <input
+                type="text"
+                value={item.when}
+                onChange={(e) => updateHeadsUp(i, { when: e.target.value })}
+                placeholder="When (e.g. Ends Apr 30)"
+                className="admin-input"
+                disabled={isSent}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {onMyRadar.length > 0 && (
+        <div style={sectionStyle}>
+          <label style={labelStyle}>On My Radar ({onMyRadar.length})</label>
+          {onMyRadar.map((item, i) => (
+            <div key={i} style={{ padding: '0.625rem 0', borderTop: i === 0 ? 'none' : '1px dashed var(--admin-border)' }}>
+              <input
+                type="text"
+                value={item.headline}
+                onChange={(e) => updateRadar(i, { headline: e.target.value })}
+                placeholder="Headline"
+                className="admin-input"
+                style={{ marginBottom: '0.375rem' }}
+                disabled={isSent}
+              />
+              <textarea
+                value={item.why}
+                onChange={(e) => updateRadar(i, { why: e.target.value })}
+                placeholder="Why it might matter soon"
+                className="admin-input"
+                style={{ minHeight: '3rem', resize: 'vertical', lineHeight: 1.5 }}
+                disabled={isSent}
+              />
+            </div>
+          ))}
         </div>
       )}
 
