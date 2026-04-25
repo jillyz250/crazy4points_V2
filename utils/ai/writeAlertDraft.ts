@@ -263,7 +263,10 @@ RULES:
    "rolling out," that shapes para 2, not just para 3.
 7. Program-naming discipline matches summary: only name programs the
    source confirms. Do not swap in "better for US audience" picks.
-8. No headings. No bullet lists. Prose only.
+8. No headings. No bullet lists. Prose only — EXCEPT for promo-shaped
+   alerts (limited_time_offer, transfer_bonus, status_promo), which use
+   a hybrid format with one bulleted "What qualifies" block sandwiched
+   between voicey paragraphs (see PROMO-TERMS COMPLETENESS section).
 9. FORBIDDEN stock phrases — these are BANNED, not "discouraged." If
    your draft contains any of these, rewrite the sentence from scratch:
    "The most interesting angle here is…"
@@ -320,103 +323,110 @@ Applies when alert_type is one of:
 
 Promo readers lose money when qualifying terms are vague. For these
 alert types, your description MUST surface every applicable term
-below when it appears in raw_text or extra_context. Weave them into
-prose paragraphs in brand voice — NEVER bullet-list them.
+below AND use a hybrid format that's both scannable AND voiced.
 
-Required fields (surface each applicable one in prose):
+────────────────────────────────────────
+HYBRID FORMAT — required structure for promo descriptions
+────────────────────────────────────────
+
+The description renders as markdown. Promo-shaped descriptions have
+THREE PARTS in this exact order:
+
+  1. SETUP paragraph (prose, voicey)
+     • Reader-centered opener — who is this for? what were they
+       already thinking about?
+     • One-line frame on the bonus + why it's worth their attention.
+     • NO listing of terms here. Save those for the bullet block.
+     • ~50-80 words. Voice-heavy. NO program name as opener.
+
+  2. "What qualifies" BULLET BLOCK (markdown, scannable)
+     • Bold header line: "**What qualifies:**"
+     • One bullet per applicable promo term. Bold the field name,
+       plain text the value. Voice goes in *italicized parentheticals*
+       at the end of bullets where it adds value (judgment, runway
+       framing, low-bar / high-bar callout).
+     • Use markdown bullet syntax: "- **Field:** value *(aside)*"
+     • Order bullets by reader-impact: status tier first if required,
+       then booking window, then spend, then stay length, then travel
+       window, then registration, then exclusions.
+     • If a field is NOT in raw_text or extra_context, write its
+       value as "Not specified — verify on the offer page" or omit
+       the bullet. Don't pad. Don't invent.
+
+  3. CLOSE paragraph (prose, voicey)
+     • Strategic angle, urgency, or gotcha that didn't fit in bullets.
+     • Stack callouts ("pair with X card for Y total"), warning
+       ("this is one bonus per member"), or timing reminders.
+     • ~30-60 words. Voice-heavy.
+
+Required fields to consider for the bullet block:
 1. EARNING WINDOW — book-by, register-by, or earn-by date(s)
-2. TRAVEL / STAY-COMPLETION WINDOW — when the qualifying activity
-   must complete (often weeks or months after the booking deadline)
-3. MINIMUM SPEND — dollar threshold (e.g. "$2,000 minimum")
+2. TRAVEL / STAY-COMPLETION WINDOW — when qualifying activity completes
+3. MINIMUM SPEND — dollar threshold
 4. MINIMUM NIGHTS or TRANSACTIONS — stay length, segment count, etc.
 5. STATUS TIER REQUIREMENT — name the SPECIFIC tier (Silver, Gold,
-   Diamond, Titanium, Ambassador, etc.). NEVER write "elite status"
-   alone if the source names a tier — that vagueness costs the reader
-   real money.
-6. REGISTRATION REQUIRED — yes/no (and how, if specified)
-7. EXCLUDED BRANDS / PROPERTIES / FARE CLASSES — any carve-outs
-
-If a field IS NOT in raw_text or extra_context, do not silently omit.
-State it plainly in prose: "Travel window not specified in source"
-or "No registration mentioned — likely automatic." Vague-but-honest
-beats silent gaps. The fact-checker scans the body for these terms
-and chips drafts with missing fields, so calling out gaps yourself
-reads as competent and helps the reviewer.
-
-Voice example (Marriott Homes & Villas — what the draft SHOULD have read):
-  "Book between April 20 and April 26 for the bonus, but you've got
-  until January 3, 2027 to actually take the trip — they're giving
-  you a wide runway. Spend at least $2,000 across a two-night minimum
-  stay, and your Bonvoy account needs to sit at Silver or higher.
-  Registration was not mentioned in the source, so check the offer
-  page before booking."
-
-Notice: every applicable field surfaced, in voice, no bullets, gaps
-acknowledged honestly.
+   etc.). NEVER write "elite status" alone if the source names a tier.
+6. REGISTRATION — required yes/no, with deadline if specified
+7. EXCLUDED — brands, properties, fare classes, payment types
 
 ────────────────────────────────────────
-VOICE-WHILE-LISTING (when promo terms are heavy)
+WORKED EXAMPLE — Marriott Homes & Villas (target shape)
 ────────────────────────────────────────
 
-When 3+ qualifying terms apply, drafts tend to slide into checklist
-prose — accurate but voiceless. THIS IS A VOICE FAILURE. The terms
-are non-negotiable, but they MUST be wrapped in framing that carries
-voice. Never present them as a sequential list of facts.
+  If a villa rental has been sitting in your maybe-someday folder, this
+  is a real reason to pull the trigger. Marriott's offering 40,000 bonus
+  Bonvoy points on Homes & Villas stays for elite members — flat, on top
+  of base earning and your card.
 
-The DESCRIPTION rules (paragraph-opener, voice-per-paragraph, banned
-stock phrases) DO NOT relax just because the alert has a lot of terms
-to surface. Even a fact-dense paragraph needs ONE clear voice moment.
+  **What qualifies:**
+  - **Status:** Bonvoy Silver or higher
+  - **Booking window:** April 20–26, 2026 *(six days — the squeeze)*
+  - **Travel window:** complete by January 3, 2027 *(plenty of runway)*
+  - **Spend:** US$2,000 minimum *(room cost only — taxes, cleaning fees, deposits don't count)*
+  - **Stay:** 2+ consecutive nights
+  - **Registration:** required by April 26
+  - **Excluded:** members earning airline miles instead of points; Free Night and Award redemption stays
 
-────────────
-TECHNIQUES — pick at least one per term-heavy paragraph
-────────────
+  Stack a Marriott co-branded card on top (6x on US-issued cards) and a
+  single $2K stay clears 60K+ points before the bonus even lands. The
+  catch is the booking week — register and book before April 26 or this
+  walks.
 
-1. READER-FIT verdict at the top of the paragraph:
-   • "Worth booking only if you've already got a $2K rental in mind."
-   • "Skip this unless you're already skewing European on paid tickets."
-   • "If you're flying anyway, this is a layup. If not, don't force it."
+Notice:
+• Setup carries voice ("maybe-someday folder," "pull the trigger")
+• Bullet block is scannable — every term in 5 seconds
+• Italicized parentheticals do the voice work inside bullets
+  ("the squeeze," "plenty of runway," gotcha on the spend floor)
+• Close has the strategic stack tip and urgency
 
-2. SIDE COMMENTARY in parentheticals or short clauses:
-   • "...two-night minimum (low bar)..."
-   • "...travel through January 3, 2027 (plenty of runway)..."
-   • "...Silver or higher (which most regulars already have)..."
+────────────────────────────────────────
+ANTI-PATTERNS — drafts that miss the format
+────────────────────────────────────────
 
-3. VOICE on the GOTCHAS — don't just list the carve-outs, judge them:
-   • Plain: "Taxes, fees, and add-ons don't count toward the minimum."
-   • Voiced: "The $2K floor is room-cost only — Marriott's not letting
-     you pad it with cleaning fees."
+BAD #1 — pure prose enumeration (loses scannability + loses voice):
+  "Here's exactly how it works: register by April 26, 2026, book during
+  the April 20–26 booking window, and complete at least two consecutive
+  nights between April 27, 2026 and January 3, 2027..."
+  ↑ Customer-service-email energy. No bullets when bullets are the
+  natural format. No voice in the term-dense middle.
 
-4. ACKNOWLEDGE the density up front so the listing feels like
-   protective advice, not instructions:
-   • "Here's the fine print, and there's a lot — miss any of it and
-     the bonus walks."
-   • "Quick fine-print check before you click book:"
+BAD #2 — bullets but no voice in setup/close (loses brand):
+  "**What qualifies:**
+  - Silver status or higher
+  - $2,000 minimum spend
+  - 2-night minimum
+  ..."
+  ↑ Bullets without surrounding voicey paragraphs reads like a TOS
+  page. The voice paragraphs are non-optional.
 
-────────────
-ANTI-PATTERN — sequential enumeration with no voice
-────────────
-
-BAD (real draft we shipped before this rule existed):
-"Here's exactly how it works: register by April 26, 2026, book through
-the official Homes & Villas site during the April 20–26 booking window,
-and complete at least two consecutive nights between April 27, 2026
-and January 3, 2027. The minimum qualifying spend is US\$2,000 — taxes,
-cleaning fees, booking fees, security deposits, and add-on services
-don't count toward that floor, so budget accordingly. You need Silver
-status or higher to qualify..."
-↑ Reads like a customer-service email. Comprehensive. Zero voice.
-
-GOOD rewrite (same 7 facts, voice retained):
-"Here's the fine print, and there's a lot — miss any of it and the
-bonus walks. Register by April 26 (same day your booking has to be in),
-spend at least \$2,000 on the stay itself — Marriott's not letting you
-count cleaning fees, taxes, or deposits toward that floor — and book
-two consecutive nights anytime between April 27 and January 3, 2027.
-Plenty of runway on the trip; the catch is the booking week. You need
-Bonvoy Silver or higher to qualify, and members earning airline miles
-instead of points are locked out (so are Free Night redemptions)."
-
-Notice: every term still surfaced, but every paragraph has voice.
+BAD #3 — bullets where every aside is a list of carve-outs (loses
+distinction between value and gotcha):
+  "- **Spend:** $2,000 *(taxes don't count, cleaning fees don't count,
+  booking fees don't count, security deposits don't count, add-on
+  services don't count)*"
+  ↑ The aside should add ONE clean voice moment, not re-list. Either
+  group the exclusions in one tight aside ("room cost only — no
+  taxes, fees, or deposits") or move them to their own bullet.
 "Bonus walks." "Plenty of runway, the catch is the booking week."
 "Locked out." That's the bar.
 
