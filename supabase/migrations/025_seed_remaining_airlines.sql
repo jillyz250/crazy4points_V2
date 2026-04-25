@@ -1,7 +1,7 @@
 -- Seed remaining commercial airlines so every program a US-based traveler
 -- might encounter exists in the programs table and can be tagged on alerts.
 -- 34 airlines were already seeded (aa, delta, ana, lufthansa, etc); this
--- migration adds the rest — 4 US carriers + 49 international.
+-- migration adds the rest — 4 US carriers + 50 international.
 --
 -- Naming convention follows existing rows: "Carrier Name FFP-brand"
 -- (e.g. "Air Canada Aeroplan", "British Airways Avios"). Where the carrier
@@ -49,6 +49,7 @@ insert into programs (slug, name, type, is_active) values
   ('ethiopian',         'Ethiopian ShebaMiles',          'airline', true),
   ('fiji',              'Fiji Airways Tabua Club',       'airline', true),
   ('garuda',            'Garuda GarudaMiles',            'airline', true),
+  ('gol_smiles',        'GOL Smiles',                    'airline', true),
   ('gulf_air',          'Gulf Air FalconFlyer',          'airline', true),
   ('hong_kong_airlines','Hong Kong Airlines Fortune Wings','airline', true),
   ('indigo',            'IndiGo BluChip',                'airline', true),
