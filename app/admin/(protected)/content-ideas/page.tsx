@@ -105,18 +105,26 @@ export default async function ContentIdeasPage({
   } else if (!statusFilter) {
     query = query.in('status', ['new', 'queued', 'drafted'])
   }
-  if (q) {
-    // ilike across title, pitch, notes. PostgREST `or` syntax wants commas separating terms.
-    const safe = q.replace(/[%,()]/g, ' ')
-    query = query.or(`title.ilike.%${safe}%,pitch.ilike.%${safe}%,notes.ilike.%${safe}%`)
-  }
+  // NOTE: text search is applied in-memory below, not via PostgREST `.or()`.
+  // PostgREST's or-filter has nasty edge cases with embedded spaces, parens,
+  // and punctuation in ilike patterns ("air france", "Hilton (DE)", etc.) and
+  // returns 500s for the query string. Admin lists are small enough that a
+  // JS filter is predictable and bug-free.
   if (programAlertIds) {
     query = query.in('source_alert_id', programAlertIds)
   }
 
   const [{ data, error }, programs] = await Promise.all([query, getPrograms(supabase)])
   if (error) throw error
-  const ideas = (data ?? []) as ContentIdeaRow[]
+  let ideas = (data ?? []) as ContentIdeaRow[]
+  if (q) {
+    const needle = q.toLowerCase()
+    ideas = ideas.filter((i) =>
+      i.title.toLowerCase().includes(needle) ||
+      i.pitch.toLowerCase().includes(needle) ||
+      (i.notes ?? '').toLowerCase().includes(needle)
+    )
+  }
 
   const now = Date.now()
   const rankScore = (i: ContentIdeaRow): number => {
