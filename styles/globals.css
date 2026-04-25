@@ -607,3 +607,29 @@ button {
   color: var(--color-primary);
   text-decoration: underline;
 }
+
+/* On-this-page TOC links — pill style with hover underline + color shift */
+.program-toc-link {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-ui);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  padding: 0.3rem 0.7rem;
+  border-radius: 9999px;
+  background: var(--color-background-soft);
+  border: 1px solid transparent;
+  transition: color 0.12s ease, background-color 0.12s ease, border-color 0.12s ease;
+}
+.program-toc-link:hover,
+.program-toc-link:focus-visible {
+  color: var(--color-primary);
+  background: #fff;
+  border-color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  text-decoration-thickness: 1.5px;
+  outline: none;
+}

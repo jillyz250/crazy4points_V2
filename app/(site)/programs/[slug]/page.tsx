@@ -227,7 +227,7 @@ export default async function ProgramPage({
 
         {/* Editorial disclaimer — only when there's editorial content to disclaim */}
         {program.content_updated_at && (
-          <p
+          <div
             style={{
               marginTop: '3rem',
               paddingTop: '1.5rem',
@@ -235,12 +235,18 @@ export default async function ProgramPage({
               fontFamily: 'var(--font-body)',
               fontSize: '0.8125rem',
               color: 'var(--color-text-secondary)',
-              fontStyle: 'italic',
+              lineHeight: 1.55,
             }}
           >
-            Last reviewed {new Date(program.content_updated_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}.
-            Loyalty program rules change frequently — confirm fees, transfer ratios, and award levels with the program directly before booking.
-          </p>
+            <p style={{ margin: 0, marginBottom: '0.5rem' }}>
+              <strong style={{ color: 'var(--color-text-primary)' }}>
+                Last reviewed: {new Date(program.content_updated_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+              </strong>
+            </p>
+            <p style={{ margin: 0 }}>
+              Loyalty programs change rules, fees, transfer ratios, and award pricing all the time — sometimes without warning. We do our best to keep these pages current, but the program&apos;s own site is always the final word. Always confirm specifics directly with {program.name} before transferring miles or booking an award. Treat anything on this page as a starting point, not a guarantee.
+            </p>
+          </div>
         )}
 
       </div>
