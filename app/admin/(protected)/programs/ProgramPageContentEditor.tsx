@@ -127,6 +127,7 @@ export default function ProgramPageContentEditor({
   initialAlliance,
   initialHubs,
   initialUpdatedAt,
+  alwaysOpen = false,
 }: {
   programId: string
   programName: string
@@ -140,8 +141,11 @@ export default function ProgramPageContentEditor({
   initialAlliance: Alliance | null
   initialHubs: string[] | null
   initialUpdatedAt: string | null
+  /** When true, render the form inline (no toggle button). Used by the
+      dedicated /admin/programs/[slug]/edit route. */
+  alwaysOpen?: boolean
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(alwaysOpen)
   const [intro, setIntro] = useState(initialIntro ?? '')
   const [partnersText, setPartnersText] = useState(partnersToText(initialTransferPartners))
   const [sweetSpots, setSweetSpots] = useState(initialSweetSpots ?? '')
@@ -229,7 +233,7 @@ export default function ProgramPageContentEditor({
     setOpen(false)
   }
 
-  if (!open) {
+  if (!open && !alwaysOpen) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8125rem' }}>
         <span

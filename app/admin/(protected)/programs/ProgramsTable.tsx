@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import Link from 'next/link'
 import type { Program } from '@/utils/supabase/queries'
 import { toggleProgramAction } from './actions'
 import { Card } from '@/components/admin/ui/Card'
@@ -184,22 +185,31 @@ export default function ProgramsTable({ programs }: { programs: Program[] }) {
                       </div>
                     </td>
 
-                    {/* Edit button (links to ProgramPageContentEditor) */}
+                    {/* Edit button (modal) + dedicated full-page route */}
                     <td style={{ verticalAlign: 'top', paddingTop: '0.5rem', paddingBottom: '0.5rem' }}>
-                      <ProgramPageContentEditor
-                        programId={program.id}
-                        programName={program.name}
-                        initialIntro={program.intro}
-                        initialTransferPartners={program.transfer_partners}
-                        initialSweetSpots={program.sweet_spots}
-                        initialQuirks={program.quirks}
-                        initialHowToSpend={program.how_to_spend}
-                        initialTierBenefits={program.tier_benefits}
-                        initialLoungeAccess={program.lounge_access}
-                        initialAlliance={program.alliance}
-                        initialHubs={program.hubs}
-                        initialUpdatedAt={program.content_updated_at}
-                      />
+                      <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <ProgramPageContentEditor
+                          programId={program.id}
+                          programName={program.name}
+                          initialIntro={program.intro}
+                          initialTransferPartners={program.transfer_partners}
+                          initialSweetSpots={program.sweet_spots}
+                          initialQuirks={program.quirks}
+                          initialHowToSpend={program.how_to_spend}
+                          initialTierBenefits={program.tier_benefits}
+                          initialLoungeAccess={program.lounge_access}
+                          initialAlliance={program.alliance}
+                          initialHubs={program.hubs}
+                          initialUpdatedAt={program.content_updated_at}
+                        />
+                        <Link
+                          href={`/admin/programs/${program.slug}/edit`}
+                          className="admin-btn admin-btn-ghost admin-btn-sm"
+                          title="Open in dedicated edit page"
+                        >
+                          ↗
+                        </Link>
+                      </div>
                     </td>
 
                     {/* Active toggle */}
