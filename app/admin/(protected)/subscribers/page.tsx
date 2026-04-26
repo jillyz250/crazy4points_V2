@@ -47,7 +47,9 @@ export default async function SubscribersPage() {
                   <tr key={s.id}>
                     <td style={{ color: 'var(--admin-text)' }}>{s.email}</td>
                     <td style={{ color: 'var(--admin-text-muted)' }}>
-                      {s.first_name || <span style={{ color: 'var(--admin-text-subtle)' }}>—</span>}
+                      {[s.first_name, s.last_name].filter(Boolean).join(' ') || (
+                        <span style={{ color: 'var(--admin-text-subtle)' }}>—</span>
+                      )}
                     </td>
                     <td>
                       <Badge tone={s.active ? 'success' : 'neutral'}>
