@@ -656,3 +656,99 @@ export async function updateContentIdeaBlogFieldsAction(
     }
   }
 }
+
+/**
+ * Result of starting an idea-from-prompt draft. The id is returned so the
+ * caller can redirect to the idea's row in admin and (eventually) trigger
+ * the runAllChecks pipeline.
+ */
+export type CreateFromPromptResult =
+  | { ok: true; id: string }
+  | { ok: false; error: string }
+
+/**
+ * Creates a content_ideas row from a free-form user prompt.
+ * Steps:
+ *   1. Validate prompt length (30–1000 chars).
+ *   2. Fetch active program slugs to constrain the AI's category/program output.
+ *   3. Call generateBlogIdeaFromPrompt → metadata.
+ *   4. Generate a unique slug from the title.
+ *   5. Insert the row with status='new' so it shows up in the queue.
+ *
+ * Does NOT trigger the writer/check pipeline. The form UI is responsible
+ * for kicking that off after this returns (so the user can decide whether
+ * to spend the API budget or just edit the metadata first).
+ */
+export async function createIdeaFromPromptAction(
+  _prevState: CreateFromPromptResult | null,
+  formData: FormData
+): Promise<CreateFromPromptResult> {
+  try {
+    const prompt = (formData.get('prompt') as string | null)?.trim() ?? ''
+    if (prompt.length < 30) {
+      return { ok: false, error: 'Prompt is too short — please write at least 30 characters.' }
+    }
+    if (prompt.length > 1000) {
+      return { ok: false, error: 'Prompt is too long — keep it under 1000 characters.' }
+    }
+
+    const supabase = createAdminClient()
+
+    // Fetch active program slugs so the AI only suggests real programs
+    const { data: programRows } = await supabase
+      .from('programs')
+      .select('slug')
+      .eq('is_active', true)
+    const programSlugs = (programRows ?? [])
+      .map((r) => r.slug as string | null)
+      .filter((s): s is string => !!s)
+
+    const { generateBlogIdeaFromPrompt } = await import('@/utils/ai/generateBlogIdeaFromPrompt')
+    const meta = await generateBlogIdeaFromPrompt(prompt, programSlugs)
+
+    // Insert the row first (without slug) so we can derive a unique slug
+    // against the new id.
+    const { data: inserted, error: insertErr } = await supabase
+      .from('content_ideas')
+      .insert({
+        type: 'blog',
+        status: 'new',
+        title: meta.title,
+        pitch: meta.pitch,
+        excerpt: meta.excerpt,
+        category: meta.category,
+        primary_program_slug: meta.primary_program_slug,
+        notes: meta.writer_notes || null,
+        source: 'manual',
+        written_by: 'Jill Zeller',
+      })
+      .select('id')
+      .single()
+
+    if (insertErr || !inserted) {
+      console.error('[createIdeaFromPrompt] insert failed:', insertErr)
+      return {
+        ok: false,
+        error: insertErr?.message ?? 'Failed to insert idea row.',
+      }
+    }
+
+    const slug = await uniqueSlug(supabase, meta.title, inserted.id)
+    const { error: slugErr } = await supabase
+      .from('content_ideas')
+      .update({ slug })
+      .eq('id', inserted.id)
+    if (slugErr) {
+      console.warn('[createIdeaFromPrompt] slug update failed (non-fatal):', slugErr)
+    }
+
+    revalidatePath('/admin/content-ideas')
+    return { ok: true, id: inserted.id }
+  } catch (err) {
+    console.error('[createIdeaFromPrompt] unexpected:', err)
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : 'Unexpected error creating idea.',
+    }
+  }
+}

@@ -229,6 +229,15 @@ export default async function ContentIdeasPage({
         description="Running queue of newsletter candidates and blog ideas produced by each day's editorial plan."
       />
 
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+        <Link
+          href="/admin/content-ideas/new-from-prompt"
+          className="admin-btn admin-btn-primary admin-btn-sm"
+        >
+          ⚡ New from prompt
+        </Link>
+      </div>
+
       <form
         method="GET"
         action="/admin/content-ideas"
