@@ -236,10 +236,11 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
           const slug = typeof r.from_slug === 'string' ? r.from_slug : '?'
           const ratio = typeof r.ratio === 'string' ? r.ratio : '?'
           const notes = typeof r.notes === 'string' ? ` — ${r.notes}` : ''
-          return `- ${slug} → ${ratio}${notes}`
+          const bonus = r.bonus_active === true ? '  🔥 BONUS ACTIVE' : ''
+          return `- ${slug} → ${ratio}${notes}${bonus}`
         })
         .join('\n')
-      parts.push(`#### Transfer partners\n${lines}`)
+      parts.push(`#### Transfer partners (inbound to ${p.name})\n${lines}`)
     }
     if (p.how_to_spend?.trim()) parts.push(`#### How to spend miles\n${p.how_to_spend.trim()}`)
     if (p.sweet_spots?.trim()) parts.push(`#### Sweet spots\n${p.sweet_spots.trim()}`)
@@ -270,7 +271,47 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
       return ctx ? `### ${p.name}\n\n${ctx}` : null
     })
     .filter((s): s is string => !!s)
-  const extra_context = programSections.length ? programSections.join('\n\n---\n\n') : null
+
+  // Phase 6a — surface currently-active transfer-bonus alerts that involve any
+  // of the tagged programs. Sonnet uses these to lead the call-to-action with
+  // a "use the live bonus" angle when one exists, and to mention all 1:1
+  // partners (so Bilt/Capital One holders also see the alert is for them).
+  let activeBonusBlock = ''
+  if (intelPrograms.length > 0) {
+    const programIds = intelPrograms.map((p) => p.id)
+    const today = new Date().toISOString()
+    const { data: bonusAlertRows } = await supabase
+      .from('alerts')
+      .select('id, slug, title, end_date, primary_program_id, alert_programs!inner(program_id)')
+      .eq('type', 'transfer_bonus')
+      .eq('status', 'published')
+      .or(`end_date.gte.${today},end_date.is.null`)
+      .in('alert_programs.program_id', programIds)
+      .order('end_date', { ascending: true, nullsFirst: false })
+      .limit(8)
+    const byId = new Map(intelPrograms.map((p) => [p.id, p.name]))
+    const lines = (bonusAlertRows ?? [])
+      .map((row) => {
+        const programName = (row.primary_program_id && byId.get(row.primary_program_id as string)) ?? '?'
+        const ends = row.end_date
+          ? ` (ends ${new Date(row.end_date as string).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})`
+          : ''
+        const slug = (row.slug as string | null) ?? null
+        const slugRef = slug ? ` [/alerts/${slug}]` : ''
+        return `- ${row.title}${ends} — primary program: ${programName}${slugRef}`
+      })
+      .filter(Boolean)
+    if (lines.length > 0) {
+      activeBonusBlock =
+        `### Active transfer bonuses involving these programs\n\n` +
+        lines.join('\n') +
+        `\n\n_When relevant, lead the call-to-action with one of these (link the slug)._`
+    }
+  }
+
+  const ctxParts = programSections.length ? [programSections.join('\n\n---\n\n')] : []
+  if (activeBonusBlock) ctxParts.push(activeBonusBlock)
+  const extra_context = ctxParts.length > 0 ? ctxParts.join('\n\n---\n\n') : null
   const faq_program_slugs = intelPrograms
     .filter((p) => buildProgramContext(p) !== null)
     .map((p) => p.slug)

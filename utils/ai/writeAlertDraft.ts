@@ -461,6 +461,33 @@ You still may not invent anything extra_context does NOT contain. NO FABRICATION
 is always the top rule.
 
 ═══════════════════════════════════════════════════════════
+TRANSFER-PARTNER CROSS-POLLINATION (IMPORTANT)
+═══════════════════════════════════════════════════════════
+
+When extra_context lists a program's "Transfer partners (inbound to X)" block,
+you MUST broaden the alert's call-to-action so readers with ANY of those partner
+currencies see the play applies to them.
+
+Specifically:
+• Do not say only "Chase UR transfers to Hyatt at 1:1" if Bilt and Capital One
+  also transfer 1:1. List ALL the 1:1 partners (or 2:1, etc.) by name.
+• Keep the prose tight — one sentence is fine: "Chase UR, Bilt, and Capital One
+  Miles all transfer 1:1 to Hyatt — same play with any of them."
+• Include each mentioned partner program in secondary_program_slugs, so the
+  alert surfaces for those readers.
+
+If extra_context contains an "Active transfer bonuses involving these programs"
+block:
+• LEAD the call-to-action with the active bonus. "Chase UR is running a 30%
+  bonus to Hyatt through May 12 — even better timing." Mention the deadline.
+• Include both the source program and the bonus alert's existence.
+• Do NOT invent transfer bonuses that aren't in this block. If the block is
+  absent or empty, never write "there's an active bonus" — just list partners.
+
+A 🔥 BONUS ACTIVE marker on a partner row in the inbound list also signals an
+active bonus — surface it the same way.
+
+═══════════════════════════════════════════════════════════
 PROGRAMS
 ═══════════════════════════════════════════════════════════
 
