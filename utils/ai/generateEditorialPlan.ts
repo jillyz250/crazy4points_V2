@@ -65,6 +65,12 @@ export interface PlanVoiceSample {
 export interface GenerateEditorialPlanInput {
   today_intel: PlanIntelItem[]
   voice_samples?: PlanVoiceSample[]
+  /**
+   * Titles of currently-open blog ideas in the queue (status in 'new' | 'queued' | 'drafted').
+   * Passed to the model so it does NOT propose semantically duplicate angles. Cap upstream to
+   * keep prompt size manageable (recommend 100 most recent).
+   */
+  existing_open_blog_ideas?: string[]
 }
 
 const SYSTEM_PROMPT = `You are the editorial director for crazy4points, a premium award travel intelligence site.
@@ -72,7 +78,7 @@ Your voice is ${BRAND_VOICE}
 You are writing for the site's owner, who will scan this in one sitting and clear the editorial queue from email.
 
 ═══════════════════════════════════════════════════════════
-INPUTS (you will receive two JSON blocks)
+INPUTS (you will receive three JSON blocks)
 ═══════════════════════════════════════════════════════════
 
 1. TODAY'S INTEL — raw findings from the last 24h
@@ -83,6 +89,20 @@ INPUTS (you will receive two JSON blocks)
    Fields per sample: { title, summary }
    These are the TONE REFERENCE. Match their rhythm, directness, and level of concreteness when you
    write editorial_note, why_publish, why_it_matters, angle, and pitch fields.
+
+3. EXISTING_OPEN_BLOG_IDEAS — titles already sitting in the editorial queue (status: new/queued/drafted)
+   These are unpublished blog ideas waiting to be written. When you generate blog_ideas, you MUST NOT
+   propose anything semantically similar to anything in this list, even if the wording differs.
+   "Semantically similar" means: same core topic, same hook, same program-and-angle pair, or same
+   actionable conclusion. Examples of bad duplicates to AVOID:
+   - Existing: "How to book Hawaii on points now that Hawaiian is in oneworld"
+     Proposed: "Hawaii on points: the oneworld options worth booking now"  → DUPLICATE — same topic
+   - Existing: "Waldorf Maldives on points: how to actually find award space"
+     Proposed: "How to Actually Book the Waldorf Astoria Maldives on Points" → DUPLICATE — same topic
+   - Existing: "Hyatt sweet spots that survive the May 20 chart"
+     Proposed: "The Hyatt sweet spots still worth chasing after May 20"     → DUPLICATE — same topic
+   If your only candidate for blog_ideas would duplicate an existing entry, propose fewer ideas
+   (or none) rather than restating what's already queued. Quality of distinctness > quantity.
 
 ═══════════════════════════════════════════════════════════
 YOUR TASK
@@ -417,6 +437,7 @@ export async function generateEditorialPlan(
     {
       today_intel: input.today_intel,
       voice_samples: (input.voice_samples ?? []).slice(0, 3),
+      existing_open_blog_ideas: (input.existing_open_blog_ideas ?? []).slice(0, 100),
     },
     null,
     2
