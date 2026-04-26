@@ -19,10 +19,14 @@ export default async function EditAlertPage({ params }: Props) {
 
   if (!alertWithPrograms) notFound()
 
+  // Strip the primary out of the tagged-programs list — it lives in the
+  // "Program" dropdown above the form. Showing it here too is confusing.
+  const secondaryOnly = taggedProgramIds.filter((id) => id !== alertWithPrograms.primary_program_id)
+
   return (
     <div>
       <h1 style={{ marginBottom: '2rem' }}>Edit Alert</h1>
-      <EditAlertForm alert={alertWithPrograms} programs={programs} taggedProgramIds={taggedProgramIds} />
+      <EditAlertForm alert={alertWithPrograms} programs={programs} taggedProgramIds={secondaryOnly} />
     </div>
   )
 }

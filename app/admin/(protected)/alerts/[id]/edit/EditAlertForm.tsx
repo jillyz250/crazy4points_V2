@@ -180,7 +180,12 @@ export default function EditAlertForm({ alert, programs, taggedProgramIds }: Pro
         defaultChecked={alert.is_hot}
       />
 
-      <TagProgramsPicker programs={programs} defaultSelected={taggedProgramIds} />
+      <TagProgramsPicker
+        programs={programs.filter((p) => p.id !== alert.primary_program_id)}
+        defaultSelected={taggedProgramIds}
+        label="Additional Tagged Programs"
+        hint="Other programs this alert is relevant to. The primary program is set in the dropdown above."
+      />
 
       <FormError error={error} />
       <FormActions submitLabel="Save Changes" submitting={submitting} cancelHref="/admin/alerts" />
