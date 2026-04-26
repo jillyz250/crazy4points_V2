@@ -1,15 +1,24 @@
 ---
 name: add-airline
-description: Orchestrate the full add-an-airline workflow on the crazy4points project — research, draft, fact-check, author, verify, index, and capture sources. ALWAYS trigger when user says "let's do <airline> next", "add airline X", "next airline", "start <airline>", "let's tackle <airline>", or any phrase indicating they want to author/refresh a per-program reference page at /programs/[slug]. Walks through the 11-step runbook one step at a time, never dumping the full sequence.
+description: Orchestrate the full add-a-program workflow on the crazy4points project (works for airlines AND hotels — generic by data shape) — research, draft, fact-check, author, verify, index, and capture sources. ALWAYS trigger when user says "let's do <program> next", "add airline X", "next airline", "start <program>", "let's tackle <program>", "let's do <hotel> next", or any phrase indicating they want to author/refresh a per-program reference page at /programs/[slug]. Walks through the 11-step runbook one step at a time, never dumping the full sequence.
 ---
 
 # add-airline — Per-Program Authoring Orchestrator
 
+(Skill is named "add-airline" because we built it for airlines first. It's generic by data shape — same 9 fields, same admin editor, same public render — and is the right skill for hotels too. Backlog: rename to `add-program` once 3+ hotels are authored.)
+
 ## Purpose
 
-Every airline page on crazy4points goes through the same end-to-end pipeline: research, draft, hedge, cross-fact-check, author in admin, verify live, submit to search engines, capture sources, wire press-room RSS into Scout. This skill enforces that pipeline so it happens consistently — and so the user only has to remember the trigger phrase.
+Every program page on crazy4points (airline, hotel, etc.) goes through the same end-to-end pipeline: research, draft, hedge, cross-fact-check, author in admin, verify live, submit to search engines, capture sources, wire press-room RSS into Scout. This skill enforces that pipeline so it happens consistently — and so the user only has to remember the trigger phrase.
 
-**Source of truth for the workflow:** `plans/airline-page-runbook.md` in the repo. Read it before drafting anything.
+**Source of truth for the workflow** — pick the type-matched runbook based on what's being authored:
+
+| Program type | Runbook |
+|---|---|
+| Airlines | `plans/airline-page-runbook.md` |
+| Hotels | `plans/hotel-page-runbook.md` |
+
+The 11 steps are identical across types; per-step content guidance shifts (e.g. hotels set alliance to "None", use stay-based tiers, surface Free Night Certificates). **Read the type-matched runbook before drafting anything.**
 
 **Source of truth for voice/rules:** the memory index (`MEMORY.md`), specifically:
 - `feedback_authoring_workflow.md` — surface one step at a time, never dump

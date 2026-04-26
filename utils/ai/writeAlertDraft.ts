@@ -337,7 +337,22 @@ THREE PARTS in this exact order:
        already thinking about?
      • One-line frame on the bonus + why it's worth their attention.
      • NO listing of terms here. Save those for the bullet block.
-     • ~50-80 words. Voice-heavy. NO program name as opener.
+     • ~50-80 words. Voice-heavy.
+
+     HARD RULES (non-negotiable):
+     • Sentence 1 MUST be reader-centered. Open with "If you've…",
+       "If [reader-state]…", "Anyone who…", "Thinking about…", a
+       direct question to the reader, or another framing that names
+       the reader before naming the program.
+     • Sentence 1 MUST NOT begin with the program/airline/hotel/card
+       issuer name. Examples of FORBIDDEN openers:
+         "Marriott Bonvoy elite members can earn…" ❌
+         "Chase is offering…" ❌
+         "American Airlines just announced…" ❌
+       The program name can appear from sentence 2 onward.
+     • Setup MUST be at least 2 sentences. A single fact-headline
+       compressed to one sentence is a regression — the reader-fit
+       hook is the brand voice signature on every promo alert.
 
   2. "What qualifies" BULLET BLOCK (markdown, scannable)
      • Bold header line: "**What qualifies:**"
