@@ -445,12 +445,17 @@ button {
 }
 .admin-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.admin-btn-primary {
+.admin-btn-primary,
+a.admin-btn-primary,
+a.admin-btn-primary:visited,
+a.admin-btn-primary:hover,
+a.admin-btn-primary:active {
   background: var(--admin-accent);
   color: #fff;
   border-color: var(--admin-accent);
 }
-.admin-btn-primary:hover:not(:disabled) {
+.admin-btn-primary:hover:not(:disabled),
+a.admin-btn-primary:hover:not(:disabled) {
   background: var(--admin-accent-hover);
   border-color: var(--admin-accent-hover);
   color: #fff;
