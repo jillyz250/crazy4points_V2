@@ -577,6 +577,22 @@ interface FlaggedClaim {
   acknowledged?: boolean
   reason?: string
   notes?: string
+  // Web-verification fields populated by webVerifyClaims after the first
+  // grounding pass. likely_correct / likely_wrong / unverifiable.
+  web_verdict?: 'likely_correct' | 'likely_wrong' | 'unverifiable' | null
+  web_evidence?: string | null
+  web_url?: string | null
+}
+
+type IssueSeverity = 'ok' | 'warn' | 'fail'
+
+interface FailureIssue {
+  label: string
+  severity: IssueSeverity
+  claim?: string
+  body: string
+  webVerdict?: 'likely_correct' | 'likely_wrong' | 'unverifiable' | null
+  webUrl?: string | null
 }
 
 /**
@@ -585,22 +601,47 @@ interface FlaggedClaim {
  * what went wrong without hovering tooltips.
  */
 function FailureNotes({ idea }: { idea: ContentIdeaRow }) {
-  const issues: { label: string; severity: 'warn' | 'fail'; body: string }[] = []
+  const issues: FailureIssue[] = []
 
-  // Fact-check: list each unsupported claim
+  // Fact-check: list each unsupported claim with its web verdict if present.
+  // If web verdict says likely_correct → show as 'ok' (green) so the editor
+  // can see at a glance which claims are externally verified.
   if (Array.isArray(idea.fact_check_claims)) {
     const claims = idea.fact_check_claims as FlaggedClaim[]
     const flagged = claims.filter(
       (c) => c && c.supported === false && !c.acknowledged
     )
     for (const c of flagged) {
-      const text = c.text ?? c.claim ?? '(no claim text)'
-      const reason = c.reason ?? c.notes ?? 'unsupported by sources'
+      const claimText = c.text ?? c.claim ?? '(no claim text)'
       const sev = c.severity ?? 'medium'
+      const verdict = c.web_verdict ?? null
+      const evidence = c.web_evidence?.trim() || null
+      let body: string
+      let issueSev: IssueSeverity
+      if (verdict === 'likely_correct') {
+        body = evidence ? `Web check supports: ${evidence}` : 'Web check supports this claim.'
+        issueSev = 'ok'
+      } else if (verdict === 'likely_wrong') {
+        body = evidence
+          ? `Web check contradicts: ${evidence}`
+          : 'Web check found contradicting evidence.'
+        issueSev = 'fail'
+      } else if (verdict === 'unverifiable') {
+        body = evidence
+          ? `Web check inconclusive: ${evidence}`
+          : 'Web check could not find authoritative evidence.'
+        issueSev = sev === 'high' ? 'fail' : 'warn'
+      } else {
+        body = c.reason ?? c.notes ?? 'No source text and web verification did not run.'
+        issueSev = sev === 'high' ? 'fail' : 'warn'
+      }
       issues.push({
         label: `Fact-check (${sev})`,
-        severity: sev === 'high' ? 'fail' : 'warn',
-        body: `“${text}” — ${reason}`,
+        severity: issueSev,
+        claim: claimText,
+        body,
+        webVerdict: verdict,
+        webUrl: c.web_url ?? null,
       })
     }
   }
@@ -634,35 +675,100 @@ function FailureNotes({ idea }: { idea: ContentIdeaRow }) {
         gap: '0.375rem',
       }}
     >
-      {issues.map((iss, idx) => (
-        <div
-          key={idx}
-          style={{
-            padding: '0.5rem 0.625rem',
-            borderRadius: 'var(--admin-radius)',
-            border: `1px solid ${iss.severity === 'fail' ? '#fca5a5' : '#fcd34d'}`,
-            background: iss.severity === 'fail' ? '#fef2f2' : '#fffbeb',
-            fontSize: '0.8125rem',
-            lineHeight: 1.45,
-          }}
-        >
-          <span
+      {issues.map((iss, idx) => {
+        const palette =
+          iss.severity === 'fail'
+            ? { border: '#fca5a5', bg: '#fef2f2', label: '#b91c1c' }
+            : iss.severity === 'ok'
+              ? { border: '#86efac', bg: '#f0fdf4', label: '#15803d' }
+              : { border: '#fcd34d', bg: '#fffbeb', label: '#92400e' }
+        return (
+          <div
+            key={idx}
             style={{
-              display: 'inline-block',
-              fontFamily: 'var(--font-ui)',
-              fontWeight: 700,
-              fontSize: '0.6875rem',
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-              color: iss.severity === 'fail' ? '#b91c1c' : '#92400e',
-              marginRight: '0.5rem',
+              padding: '0.5rem 0.625rem',
+              borderRadius: 'var(--admin-radius)',
+              border: `1px solid ${palette.border}`,
+              background: palette.bg,
+              fontSize: '0.8125rem',
+              lineHeight: 1.45,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.25rem',
             }}
           >
-            {iss.label}
-          </span>
-          <span style={{ color: 'var(--admin-text)' }}>{iss.body}</span>
-        </div>
-      ))}
+            <div>
+              <span
+                style={{
+                  display: 'inline-block',
+                  fontFamily: 'var(--font-ui)',
+                  fontWeight: 700,
+                  fontSize: '0.6875rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
+                  color: palette.label,
+                  marginRight: '0.5rem',
+                }}
+              >
+                {iss.label}
+              </span>
+              {iss.webVerdict && <WebVerdictBadge verdict={iss.webVerdict} />}
+            </div>
+            {iss.claim && (
+              <div style={{ color: 'var(--admin-text)', fontStyle: 'italic' }}>
+                “{iss.claim}”
+              </div>
+            )}
+            <div style={{ color: 'var(--admin-text)' }}>{iss.body}</div>
+            {iss.webUrl && (
+              <a
+                href={iss.webUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  fontFamily: 'var(--font-ui)',
+                  fontSize: '0.6875rem',
+                  color: 'var(--admin-accent)',
+                  fontWeight: 600,
+                }}
+              >
+                ↗ View web source
+              </a>
+            )}
+          </div>
+        )
+      })}
     </div>
+  )
+}
+
+function WebVerdictBadge({
+  verdict,
+}: {
+  verdict: 'likely_correct' | 'likely_wrong' | 'unverifiable'
+}) {
+  const palette =
+    verdict === 'likely_correct'
+      ? { bg: '#dcfce7', fg: '#15803d', label: '✓ Web: likely correct' }
+      : verdict === 'likely_wrong'
+        ? { bg: '#fee2e2', fg: '#b91c1c', label: '✗ Web: likely wrong' }
+        : { bg: '#f3f4f6', fg: '#4b5563', label: '? Web: inconclusive' }
+  return (
+    <span
+      style={{
+        display: 'inline-block',
+        background: palette.bg,
+        color: palette.fg,
+        fontFamily: 'var(--font-ui)',
+        fontWeight: 700,
+        fontSize: '0.625rem',
+        textTransform: 'uppercase',
+        letterSpacing: '0.06em',
+        padding: '0.125rem 0.5rem',
+        borderRadius: '999px',
+      }}
+    >
+      {palette.label}
+    </span>
   )
 }
