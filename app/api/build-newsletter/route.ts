@@ -5,6 +5,7 @@ import {
   type NewsletterAlertInput,
   type NewsletterIdeaInput,
 } from '@/utils/ai/buildNewsletter'
+import { verifyNewsletterDraft } from '@/utils/ai/verifyNewsletterDraft'
 
 export const maxDuration = 300
 
@@ -145,18 +146,95 @@ export async function GET(req: NextRequest) {
     )
   }
 
+  // Phase 6b — build source_text from the same material the writer was given
+  // (full alerts + tagged program content) and run a fact-check pass on the
+  // draft prose. Stamp results onto the newsletter row so the editor can show
+  // flagged claims before the editor hits Send.
+  const alertsForVerify = alerts
+    .map((a) => `## ${a.title}${a.why_this_matters ? `\n\n_Why this matters:_ ${a.why_this_matters}` : ''}\n\n${a.summary ?? ''}`)
+    .join('\n\n---\n\n')
+
+  // Pull tagged programs for the alerts in this newsletter so the verifier
+  // has program-page facts (sweet spots, transfer ratios, hubs) to ground
+  // claims that came from program_context, not raw_text.
+  const alertIds = alerts.map((a) => a.id)
+  let programPagesText = ''
+  if (alertIds.length > 0) {
+    const { data: progLinks } = await supabase
+      .from('alert_programs')
+      .select('programs!inner(name, slug, intro, sweet_spots, how_to_spend, quirks, lounge_access, transfer_partners, alliance, hubs)')
+      .in('alert_id', alertIds)
+    type ProgRow = {
+      name: string
+      slug: string
+      intro: string | null
+      sweet_spots: string | null
+      how_to_spend: string | null
+      quirks: string | null
+      lounge_access: string | null
+      transfer_partners: { from_slug: string; ratio: string; notes: string | null; bonus_active: boolean }[] | null
+      alliance: string | null
+      hubs: string[] | null
+    }
+    const seen = new Set<string>()
+    const blocks: string[] = []
+    for (const link of progLinks ?? []) {
+      const p = (link as unknown as { programs: ProgRow | null }).programs
+      if (!p || seen.has(p.slug)) continue
+      seen.add(p.slug)
+      const parts: string[] = [`# ${p.name} (${p.slug})`]
+      if (p.alliance) parts.push(`Alliance: ${p.alliance}`)
+      if (p.hubs && p.hubs.length > 0) parts.push(`Hubs: ${p.hubs.join(', ')}`)
+      if (p.intro) parts.push(`\nIntro:\n${p.intro}`)
+      if (p.sweet_spots) parts.push(`\nSweet spots:\n${p.sweet_spots}`)
+      if (p.how_to_spend) parts.push(`\nHow to spend:\n${p.how_to_spend}`)
+      if (p.quirks) parts.push(`\nQuirks:\n${p.quirks}`)
+      if (p.lounge_access) parts.push(`\nLounge access:\n${p.lounge_access}`)
+      if (p.transfer_partners && p.transfer_partners.length > 0) {
+        const lines = p.transfer_partners.map((tp) => {
+          const bonus = tp.bonus_active ? ' (BONUS ACTIVE)' : ''
+          const notes = tp.notes ? ` — ${tp.notes}` : ''
+          return `• ${tp.from_slug} → ${p.slug} ratio ${tp.ratio}${bonus}${notes}`
+        })
+        parts.push(`\nTransfer partners:\n${lines.join('\n')}`)
+      }
+      blocks.push(parts.join('\n'))
+    }
+    programPagesText = blocks.join('\n\n═══════════════════════════════════════════════\n\n')
+  }
+
+  const sourceText = [
+    alertsForVerify ? `═══ ALERTS THIS WEEK ═══\n\n${alertsForVerify}` : '',
+    programPagesText ? `═══ PROGRAM PAGE CONTENT ═══\n\n${programPagesText}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+
+  const verify = await verifyNewsletterDraft({ draft, source_text: sourceText })
+
   const row = {
     week_of: weekOf,
     status: 'draft',
     draft_json: {
-      opener: draft.opener,
-      big_one: draft.big_one,
-      haul: draft.haul,
-      sweet_spot: draft.sweet_spot,
+      // Save BOTH new + legacy field names so old/new editor code paths read
+      // the same data. Phase 4 added the new names; legacy mirrors keep
+      // existing draft consumers working.
+      the_headline: draft.the_headline,
+      quick_wins: draft.quick_wins,
+      play_of_the_week: draft.play_of_the_week,
+      heads_up: draft.heads_up,
+      on_my_radar: draft.on_my_radar,
       jills_take: draft.jills_take,
+      // Legacy mirrors
+      opener: draft.opener ?? '',
+      big_one: draft.the_headline,
+      haul: draft.quick_wins,
+      sweet_spot: draft.play_of_the_week,
     },
     subject_options: draft.subject_options,
     subject: draft.subject_options[0] ?? null,
+    fact_checked_at: verify?.checked_at ?? null,
+    fact_check_claims: verify?.claims ?? null,
   }
 
   if (existing) {

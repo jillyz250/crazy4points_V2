@@ -11,6 +11,13 @@ import type { NewsletterDraft } from '@/utils/ai/buildNewsletter'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Badge } from '@/components/admin/ui/Badge'
 
+interface FactCheckClaim {
+  claim: string
+  supported: boolean
+  severity: string
+  source_excerpt?: string | null
+}
+
 interface Props {
   id: string
   weekOf: string
@@ -21,6 +28,8 @@ interface Props {
   sentAt: string | null
   recipientCount: number | null
   activeSubscriberCount: number
+  factCheckedAt: string | null
+  factCheckClaims: FactCheckClaim[] | null
 }
 
 const labelStyle: React.CSSProperties = {
@@ -51,6 +60,8 @@ export default function NewsletterEditor({
   sentAt,
   recipientCount,
   activeSubscriberCount,
+  factCheckedAt,
+  factCheckClaims,
 }: Props) {
   const [subject, setSubject] = useState(initialSubject)
   const [draft, setDraft] = useState<NewsletterDraft>(initialDraft)
@@ -164,6 +175,49 @@ export default function NewsletterEditor({
           {error ?? message}
         </div>
       )}
+
+      {/* Phase 6b — fact-check summary */}
+      {factCheckedAt && factCheckClaims && (() => {
+        const unsupported = factCheckClaims.filter((c) => !c.supported)
+        const high = unsupported.filter((c) => c.severity === 'high')
+        const checked = new Date(factCheckedAt).toLocaleString()
+        if (unsupported.length === 0) {
+          return (
+            <div style={{ padding: '0.5rem 0.75rem', marginBottom: '1rem', borderRadius: 'var(--admin-radius)', background: '#e6f4ea', border: '1px solid #9ac4a7', fontSize: '0.8125rem', color: '#1e5c2e' }}>
+              ✓ Fact-checked — no unsupported claims · checked {checked}
+            </div>
+          )
+        }
+        return (
+          <details
+            open={high.length > 0}
+            style={{
+              marginBottom: '1rem',
+              background: '#fff8e1',
+              border: '1px solid #fde68a',
+              borderRadius: 'var(--admin-radius)',
+              fontSize: '0.8125rem',
+              color: '#5a4210',
+            }}
+          >
+            <summary style={{ padding: '0.5rem 0.75rem', cursor: 'pointer', fontWeight: 600 }}>
+              ⚠ {unsupported.length} claim{unsupported.length === 1 ? '' : 's'} flagged
+              {high.length > 0 && <span style={{ fontWeight: 400 }}> · {high.length} high-severity</span>}
+              <span style={{ fontWeight: 400, color: '#7a5a1f' }}> · checked {checked}</span>
+            </summary>
+            <ul style={{ margin: 0, padding: '0 0.75rem 0.625rem 1.75rem', display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+              {unsupported.map((c, i) => (
+                <li key={i} style={{ lineHeight: 1.4 }}>
+                  <strong style={{ color: c.severity === 'high' ? '#7a1f1f' : '#7a5a1f' }}>
+                    [{c.severity}]
+                  </strong>{' '}
+                  {c.claim}
+                </li>
+              ))}
+            </ul>
+          </details>
+        )
+      })()}
 
       <div style={sectionStyle}>
         <label style={labelStyle}>Subject line</label>

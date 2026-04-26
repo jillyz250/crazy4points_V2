@@ -20,6 +20,8 @@ type NewsletterRow = {
   sent_at: string | null
   recipient_count: number | null
   created_at: string
+  fact_checked_at: string | null
+  fact_check_claims: { claim: string; supported: boolean; severity: string; source_excerpt?: string | null }[] | null
 }
 
 export default async function NewsletterAdminPage({
@@ -32,7 +34,7 @@ export default async function NewsletterAdminPage({
 
   const { data: rowsData } = await supabase
     .from('newsletters')
-    .select('id, week_of, subject, subject_options, draft_json, comic_url, status, sent_at, recipient_count, created_at')
+    .select('id, week_of, subject, subject_options, draft_json, comic_url, status, sent_at, recipient_count, created_at, fact_checked_at, fact_check_claims')
     .order('week_of', { ascending: false })
     .limit(12)
 
@@ -63,6 +65,8 @@ export default async function NewsletterAdminPage({
             sentAt={current.sent_at}
             recipientCount={current.recipient_count}
             activeSubscriberCount={activeCount}
+            factCheckedAt={current.fact_checked_at}
+            factCheckClaims={current.fact_check_claims}
           />
           <History rows={rows} activeId={current.id} />
         </>
