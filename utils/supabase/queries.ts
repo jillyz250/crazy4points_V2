@@ -802,6 +802,18 @@ export async function toggleSourceActive(
   if (error) throw error
 }
 
+export async function deleteSourceById(
+  supabase: SupabaseClient,
+  id: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('sources')
+    .delete()
+    .eq('id', id)
+
+  if (error) throw error
+}
+
 /**
  * Fetch all programs with all columns, ordered by type then name.
  * Used by the admin programs list.

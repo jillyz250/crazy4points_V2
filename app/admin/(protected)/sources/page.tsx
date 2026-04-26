@@ -2,6 +2,7 @@ import { createAdminClient } from '@/utils/supabase/server'
 import { getSources, getLastFindingBySource } from '@/utils/supabase/queries'
 import type { SourceType } from '@/utils/supabase/queries'
 import { toggleSourceAction } from './actions'
+import DeleteSourceButton from './DeleteSourceButton'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { LinkButton } from '@/components/admin/ui/Button'
 import { Card } from '@/components/admin/ui/Card'
@@ -81,6 +82,7 @@ export default async function AdminSourcesPage() {
                   <th style={{ textAlign: 'center' }}>Approved</th>
                   <th style={{ textAlign: 'center' }}>Rate</th>
                   <th>Notes</th>
+                  <th style={{ width: '2rem' }}></th>
                 </tr>
               </thead>
               <tbody>
@@ -126,6 +128,9 @@ export default async function AdminSourcesPage() {
                         <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                           {source.notes ?? '—'}
                         </span>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <DeleteSourceButton id={source.id} name={source.name} />
                       </td>
                     </tr>
                   )
