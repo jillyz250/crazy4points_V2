@@ -1,7 +1,13 @@
 import Link from 'next/link'
 import { createAdminClient } from '@/utils/supabase/server'
-import { getPrograms } from '@/utils/supabase/queries'
-import { updateContentIdeaStatusAction, updateContentIdeaNotesAction, updateContentIdeaOverrideAction } from './actions'
+import { getPrograms, type Program } from '@/utils/supabase/queries'
+import {
+  updateContentIdeaStatusAction,
+  updateContentIdeaNotesAction,
+  updateContentIdeaOverrideAction,
+  updateContentIdeaBlogFieldsAction,
+} from './actions'
+import { BLOG_CATEGORIES, getBlogCategoryLabel } from '@/lib/blog/categories'
 import WriteArticleButton from '@/components/admin/WriteArticleButton'
 import FactCheckButton from '@/components/admin/FactCheckButton'
 import BrandCheckButton from '@/components/admin/BrandCheckButton'
@@ -40,6 +46,14 @@ interface ContentIdeaRow {
   originality_notes: string | null
   originality_pass: boolean | null
   override_reason: string | null
+  // Blog publishing metadata (Ship 1)
+  category: string | null
+  excerpt: string | null
+  hero_image_url: string | null
+  primary_program_slug: string | null
+  reading_time_minutes: number | null
+  featured: boolean | null
+  featured_rank: number | null
   source_alert?: {
     title: string | null
     end_date: string | null
@@ -240,8 +254,8 @@ export default async function ContentIdeasPage({
         <FilterLink href={buildHref({ q, program: programSlug, type: typeFilter, status: statusFilter, sortBy: 'oldest' })} active={sortMode === 'oldest'} label="Oldest first" />
       </div>
 
-      <IdeaSection title="Newsletter Candidates" ideas={newsletter} />
-      <IdeaSection title="Blog Ideas" ideas={blog} />
+      <IdeaSection title="Newsletter Candidates" ideas={newsletter} programs={programs} />
+      <IdeaSection title="Blog Ideas" ideas={blog} programs={programs} />
 
       {ideas.length === 0 && (
         <EmptyState title="Nothing here" description="The daily brief adds ideas automatically." />
@@ -269,7 +283,7 @@ function FilterLink({ href, active, label }: { href: string; active: boolean; la
   )
 }
 
-function IdeaSection({ title, ideas }: { title: string; ideas: ContentIdeaRow[] }) {
+function IdeaSection({ title, ideas, programs }: { title: string; ideas: ContentIdeaRow[]; programs: Program[] }) {
   if (ideas.length === 0) return null
   return (
     <section style={{ marginBottom: '1.75rem' }}>
@@ -279,7 +293,7 @@ function IdeaSection({ title, ideas }: { title: string; ideas: ContentIdeaRow[] 
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         {ideas.map((idea) => (
-          <IdeaCard key={idea.id} idea={idea} />
+          <IdeaCard key={idea.id} idea={idea} programs={programs} />
         ))}
       </div>
     </section>
@@ -367,7 +381,7 @@ function formatIdeaAge(iso: string): string {
   return `${dateStr} · ${rel}`
 }
 
-function IdeaCard({ idea }: { idea: ContentIdeaRow }) {
+function IdeaCard({ idea, programs }: { idea: ContentIdeaRow; programs: Program[] }) {
   const statusDef = STATUS_TONE[idea.status]
   const actions = NEXT_STATUS[idea.status] ?? []
   const rank = rankLabel(idea)
@@ -437,6 +451,10 @@ function IdeaCard({ idea }: { idea: ContentIdeaRow }) {
         </p>
       )}
 
+      {idea.type === 'blog' && (
+        <BlogMetadataForm idea={idea} programs={programs} />
+      )}
+
       <form action={updateContentIdeaNotesAction.bind(null, idea.id)} style={{ marginBottom: '0.5rem' }}>
         <textarea
           name="notes"
@@ -488,5 +506,130 @@ function IdeaCard({ idea }: { idea: ContentIdeaRow }) {
         ))}
       </div>
     </div>
+  )
+}
+
+function BlogMetadataForm({ idea, programs }: { idea: ContentIdeaRow; programs: Program[] }) {
+  const summary = idea.category
+    ? `${getBlogCategoryLabel(idea.category)}${idea.featured ? ' · Featured' : ''}`
+    : 'Blog metadata — set before publish'
+
+  return (
+    <details style={{ marginBottom: '0.5rem' }} open={!idea.category && idea.status !== 'new'}>
+      <summary
+        style={{
+          cursor: 'pointer',
+          fontSize: '0.75rem',
+          fontFamily: 'var(--font-ui)',
+          color: idea.category ? 'var(--admin-text-muted)' : '#b45309',
+        }}
+      >
+        {idea.category ? '✓ ' : '⚠ '}
+        Blog metadata: {summary}
+      </summary>
+
+      <form
+        action={updateContentIdeaBlogFieldsAction.bind(null, idea.id)}
+        style={{
+          marginTop: '0.5rem',
+          display: 'grid',
+          gap: '0.5rem',
+          padding: '0.625rem',
+          background: 'var(--admin-surface-alt)',
+          borderRadius: 'var(--admin-radius)',
+          border: '1px solid var(--admin-border)',
+        }}
+      >
+        <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.75rem', fontFamily: 'var(--font-ui)' }}>
+          <span style={{ color: 'var(--admin-text-muted)' }}>Category (required to publish)</span>
+          <select
+            name="category"
+            defaultValue={idea.category ?? ''}
+            className="admin-input"
+            style={{ width: '100%' }}
+          >
+            <option value="">— none —</option>
+            {BLOG_CATEGORIES.map((c) => (
+              <option key={c.slug} value={c.slug}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.75rem', fontFamily: 'var(--font-ui)' }}>
+          <span style={{ color: 'var(--admin-text-muted)' }}>Excerpt (public dek; falls back to pitch if blank)</span>
+          <textarea
+            name="excerpt"
+            defaultValue={idea.excerpt ?? ''}
+            placeholder="200 chars max — appears under the headline"
+            rows={2}
+            className="admin-input"
+            style={{ width: '100%', resize: 'vertical' }}
+          />
+        </label>
+
+        <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.75rem', fontFamily: 'var(--font-ui)' }}>
+          <span style={{ color: 'var(--admin-text-muted)' }}>Hero image URL (optional; branded card used if blank)</span>
+          <input
+            type="url"
+            name="hero_image_url"
+            defaultValue={idea.hero_image_url ?? ''}
+            placeholder="https://…"
+            className="admin-input"
+            style={{ width: '100%' }}
+          />
+        </label>
+
+        <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.75rem', fontFamily: 'var(--font-ui)' }}>
+          <span style={{ color: 'var(--admin-text-muted)' }}>Primary program (optional)</span>
+          <select
+            name="primary_program_slug"
+            defaultValue={idea.primary_program_slug ?? ''}
+            className="admin-input"
+            style={{ width: '100%' }}
+          >
+            <option value="">— none —</option>
+            {programs.map((p) => (
+              <option key={p.id} value={p.slug}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.75rem', fontFamily: 'var(--font-ui)' }}>
+            <input
+              type="checkbox"
+              name="featured"
+              defaultChecked={idea.featured ?? false}
+            />
+            Featured (pins to top of /blog)
+          </label>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.75rem', fontFamily: 'var(--font-ui)' }}>
+            <span style={{ color: 'var(--admin-text-muted)' }}>Rank</span>
+            <input
+              type="number"
+              name="featured_rank"
+              defaultValue={idea.featured_rank ?? ''}
+              placeholder="1"
+              min={0}
+              className="admin-input"
+              style={{ width: '4rem' }}
+            />
+          </label>
+          {idea.reading_time_minutes !== null && (
+            <span style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)' }}>
+              · Reading time: {idea.reading_time_minutes} min
+            </span>
+          )}
+        </div>
+
+        <button type="submit" className="admin-btn admin-btn-ghost admin-btn-sm" style={{ alignSelf: 'flex-start' }}>
+          Save blog metadata
+        </button>
+      </form>
+    </details>
   )
 }

@@ -1,81 +1,199 @@
-import Link from 'next/link'
-import type { Metadata } from 'next'
-import { createClient } from '@/utils/supabase/server'
+import Link from 'next/link';
+import type { Metadata } from 'next';
+import { createClient } from '@/utils/supabase/server';
+import { BLOG_CATEGORIES, isBlogCategorySlug, getBlogCategoryLabel } from '@/lib/blog/categories';
+import HeroImageOrFallback from '@/components/blog/HeroImageOrFallback';
 
-export const revalidate = 60
-
-export const metadata: Metadata = {
-  title: 'Blog — crazy4points',
-  description: 'Award travel tactics, transfer plays, and the occasional sweet spot — written in plain English.',
-}
+export const revalidate = 60;
 
 interface BlogRow {
-  slug: string
-  title: string
-  pitch: string
-  published_at: string | null
+  slug: string;
+  title: string;
+  pitch: string;
+  excerpt: string | null;
+  hero_image_url: string | null;
+  category: string | null;
+  primary_program_slug: string | null;
+  reading_time_minutes: number | null;
+  written_by: string | null;
+  published_at: string | null;
+  featured: boolean | null;
+  featured_rank: number | null;
+}
+
+type Props = {
+  searchParams: Promise<{ category?: string }>;
+};
+
+export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
+  const sp = await searchParams;
+  const category = sp.category;
+
+  // Filtered category views are noindex+canonical-to-base. Avoids duplicate-content
+  // issues until we promote category to its own route in a later ship.
+  if (category && isBlogCategorySlug(category)) {
+    const label = getBlogCategoryLabel(category);
+    return {
+      title: `${label} — Blog — crazy4points`,
+      description: `Articles in ${label}. Award travel tactics, transfer plays, and the occasional sweet spot.`,
+      alternates: { canonical: '/blog' },
+      robots: { index: false, follow: true },
+    };
+  }
+
+  return {
+    title: 'Blog — crazy4points',
+    description:
+      'Award travel tactics, transfer plays, and the occasional sweet spot — written in plain English.',
+    alternates: { canonical: '/blog' },
+  };
 }
 
 function formatDate(iso: string | null): string {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+  if (!iso) return '';
+  return new Date(iso).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 
-export default async function BlogIndex() {
-  const supabase = await createClient()
-  const { data } = await supabase
+export default async function BlogIndex({ searchParams }: Props) {
+  const sp = await searchParams;
+  const categoryFilter = isBlogCategorySlug(sp.category) ? sp.category : null;
+
+  const supabase = await createClient();
+  let query = supabase
     .from('content_ideas')
-    .select('slug, title, pitch, published_at')
+    .select(
+      'slug, title, pitch, excerpt, hero_image_url, category, primary_program_slug, reading_time_minutes, written_by, published_at, featured, featured_rank'
+    )
     .eq('type', 'blog')
     .eq('status', 'published')
     .not('slug', 'is', null)
+    .order('featured', { ascending: false })
+    .order('featured_rank', { ascending: true, nullsFirst: false })
     .order('published_at', { ascending: false })
-    .limit(50)
+    .limit(60);
 
-  const posts = (data ?? []) as BlogRow[]
+  if (categoryFilter) {
+    query = query.eq('category', categoryFilter);
+  }
+
+  const { data } = await query;
+  const posts = (data ?? []) as BlogRow[];
 
   return (
-    <div className="rg-container rg-major-section">
-      <header style={{ marginBottom: '2.5rem' }}>
-        <h1 style={{ marginBottom: '0.5rem' }}>Blog</h1>
-        <p style={{ fontFamily: 'var(--font-body)', color: 'var(--color-text-secondary)', fontSize: '1.0625rem', lineHeight: 1.6 }}>
-          Award travel tactics, transfer plays, and the occasional sweet spot — written in plain English, fact-checked, and on-brand.
+    <div className="rg-container px-6 md:px-8 py-12 md:py-16">
+      <header className="mb-10 md:mb-12">
+        <h1 className="font-display text-4xl md:text-5xl font-semibold text-[var(--color-primary)]">
+          Blog
+        </h1>
+        <p className="mt-3 max-w-2xl font-body text-base md:text-lg text-[var(--color-text-secondary)]">
+          Award travel tactics, transfer plays, and the occasional sweet spot — written in
+          plain English, fact-checked, and on-brand.
         </p>
       </header>
 
+      {/* Category filter chips */}
+      <nav
+        aria-label="Filter by category"
+        className="mb-10 flex flex-wrap items-center gap-2 md:gap-2.5"
+      >
+        <CategoryChip
+          href="/blog"
+          label="All"
+          active={!categoryFilter}
+        />
+        {BLOG_CATEGORIES.map((c) => (
+          <CategoryChip
+            key={c.slug}
+            href={`/blog?category=${c.slug}`}
+            label={c.label}
+            active={categoryFilter === c.slug}
+          />
+        ))}
+      </nav>
+
       {posts.length === 0 ? (
-        <p style={{ fontFamily: 'var(--font-body)', color: 'var(--color-text-secondary)' }}>
-          Nothing published yet. Come back soon.
+        <p className="font-body text-[var(--color-text-secondary)]">
+          {categoryFilter
+            ? 'Nothing in this category yet. Try another.'
+            : 'Nothing published yet. Come back soon.'}
         </p>
       ) : (
-        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-7 lg:grid-cols-3">
           {posts.map((post) => (
-            <li
-              key={post.slug}
-              style={{
-                padding: '1.5rem',
-                border: '1px solid var(--color-border-soft)',
-                borderRadius: 'var(--radius-card)',
-                background: 'white',
-                boxShadow: 'var(--shadow-soft)',
-              }}
-            >
-              <Link
-                href={`/blog/${post.slug}`}
-                style={{ color: 'var(--color-primary)', textDecoration: 'none' }}
-              >
-                <h2 style={{ fontSize: '1.5rem', margin: 0, marginBottom: '0.5rem' }}>{post.title}</h2>
-              </Link>
-              <p style={{ fontFamily: 'var(--font-body)', color: 'var(--color-text-secondary)', margin: '0 0 0.75rem', lineHeight: 1.55 }}>
-                {post.pitch}
-              </p>
-              <div style={{ fontFamily: 'var(--font-ui)', fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
-                {formatDate(post.published_at)}
-              </div>
-            </li>
+            <ArticleCard key={post.slug} post={post} />
           ))}
-        </ul>
+        </div>
       )}
     </div>
-  )
+  );
+}
+
+function CategoryChip({
+  href,
+  label,
+  active,
+}: {
+  href: string;
+  label: string;
+  active: boolean;
+}) {
+  const base =
+    'inline-flex items-center rounded-full px-4 py-1.5 font-ui text-xs font-medium uppercase tracking-[0.1em] transition-colors';
+  const activeCls =
+    'bg-[var(--color-primary)] text-white shadow-[var(--shadow-soft)]';
+  const inactiveCls =
+    'border border-[var(--color-border-soft)] bg-white text-[var(--color-text-secondary)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]';
+  return (
+    <Link href={href} className={`${base} ${active ? activeCls : inactiveCls}`}>
+      {label}
+    </Link>
+  );
+}
+
+function ArticleCard({ post }: { post: BlogRow }) {
+  const dek = (post.excerpt && post.excerpt.trim()) || post.pitch;
+  const categoryLabel = getBlogCategoryLabel(post.category);
+  const dateStr = formatDate(post.published_at);
+
+  return (
+    <Link
+      href={`/blog/${post.slug}`}
+      className="group flex flex-col gap-4 rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-white p-5 shadow-[var(--shadow-soft)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+    >
+      <HeroImageOrFallback
+        imageUrl={post.hero_image_url}
+        title={post.title}
+        category={post.category}
+        variant="thumbnail"
+      />
+
+      <div className="flex flex-col gap-3">
+        {categoryLabel && (
+          <span className="self-start rounded-full bg-[var(--color-background-soft)] px-2.5 py-1 font-ui text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-primary)]">
+            {categoryLabel}
+          </span>
+        )}
+
+        <h2 className="font-display text-xl font-semibold leading-snug text-[var(--color-primary)] line-clamp-2 group-hover:underline">
+          {post.title}
+        </h2>
+
+        <p className="font-body text-sm text-[var(--color-text-secondary)] line-clamp-3">
+          {dek}
+        </p>
+
+        <div className="mt-auto flex items-center gap-2 pt-2 font-ui text-xs text-[var(--color-text-secondary)]">
+          {dateStr && <span>{dateStr}</span>}
+          {dateStr && post.reading_time_minutes && <span aria-hidden>·</span>}
+          {post.reading_time_minutes && (
+            <span>{post.reading_time_minutes} min read</span>
+          )}
+        </div>
+      </div>
+    </Link>
+  );
 }

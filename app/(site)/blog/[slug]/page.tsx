@@ -1,136 +1,238 @@
-import { notFound } from 'next/navigation'
-import Link from 'next/link'
-import type { Metadata } from 'next'
-import { marked } from 'marked'
-import { createClient } from '@/utils/supabase/server'
+import { notFound } from 'next/navigation';
+import Link from 'next/link';
+import type { Metadata } from 'next';
+import { marked } from 'marked';
+import { createClient } from '@/utils/supabase/server';
+import { getBlogCategoryLabel } from '@/lib/blog/categories';
+import { sanitizeArticleHtml } from '@/lib/blog/sanitize';
+import HeroImageOrFallback from '@/components/blog/HeroImageOrFallback';
+import NewsletterSignup from '@/components/home/NewsletterSignup';
 
-export const revalidate = 60
+export const revalidate = 60;
 
-type Props = { params: Promise<{ slug: string }> }
+type Props = { params: Promise<{ slug: string }> };
 
 interface BlogPost {
-  slug: string
-  title: string
-  pitch: string
-  article_body: string | null
-  published_at: string | null
-  written_by: string | null
-  written_at: string | null
-  fact_checked_at: string | null
-  voice_pass: boolean | null
-  voice_checked_at: string | null
-  originality_pass: boolean | null
-  originality_checked_at: string | null
+  slug: string;
+  title: string;
+  pitch: string;
+  excerpt: string | null;
+  article_body: string | null;
+  hero_image_url: string | null;
+  category: string | null;
+  primary_program_slug: string | null;
+  reading_time_minutes: number | null;
+  published_at: string | null;
+  updated_at: string | null;
+  written_by: string | null;
+  fact_checked_at: string | null;
 }
 
 async function getPost(slug: string): Promise<BlogPost | null> {
-  const supabase = await createClient()
+  const supabase = await createClient();
   const { data } = await supabase
     .from('content_ideas')
-    .select('slug, title, pitch, article_body, published_at, written_by, written_at, fact_checked_at, voice_pass, voice_checked_at, originality_pass, originality_checked_at')
+    .select(
+      'slug, title, pitch, excerpt, article_body, hero_image_url, category, primary_program_slug, reading_time_minutes, published_at, updated_at, written_by, fact_checked_at'
+    )
     .eq('slug', slug)
     .eq('type', 'blog')
     .eq('status', 'published')
-    .maybeSingle()
-  return (data as BlogPost | null) ?? null
+    .maybeSingle();
+  return (data as BlogPost | null) ?? null;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { slug } = await params
-  const post = await getPost(slug)
-  if (!post) return { title: 'Not found — crazy4points' }
+  const { slug } = await params;
+  const post = await getPost(slug);
+  if (!post) return { title: 'Not found — crazy4points' };
+
+  const description = (post.excerpt && post.excerpt.trim()) || post.pitch;
+  const ogImageUrl =
+    post.hero_image_url || `https://crazy4points.com/og/blog/${post.slug}`;
+
   return {
     title: `${post.title} — crazy4points`,
-    description: post.pitch,
-  }
+    description,
+    alternates: { canonical: `/blog/${post.slug}` },
+    openGraph: {
+      title: post.title,
+      description,
+      url: `https://crazy4points.com/blog/${post.slug}`,
+      type: 'article',
+      images: [{ url: ogImageUrl, width: 1200, height: 630, alt: post.title }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: post.title,
+      description,
+      images: [ogImageUrl],
+    },
+  };
 }
 
 function formatDate(iso: string | null): string {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+  if (!iso) return '';
+  return new Date(iso).toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 
-function Pill({ label, on, hint }: { label: string; on: boolean; hint: string }) {
-  return (
-    <span
-      title={hint}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '0.25rem',
-        padding: '0.1875rem 0.5rem',
-        borderRadius: '999px',
-        background: on ? '#DCFCE7' : '#F3F4F6',
-        color: on ? '#166534' : '#9CA3AF',
-        fontSize: '0.6875rem',
-        fontFamily: 'var(--font-ui)',
-        fontWeight: 700,
-        letterSpacing: '0.03em',
-        textTransform: 'uppercase',
-        border: `1px solid ${on ? '#86EFAC' : 'var(--color-border-soft)'}`,
-      }}
-    >
-      <span aria-hidden="true">{on ? '✓' : '○'}</span>
-      {label}
-    </span>
-  )
+function shouldShowUpdated(published: string | null, updated: string | null): boolean {
+  if (!published || !updated) return false;
+  const p = new Date(published).getTime();
+  const u = new Date(updated).getTime();
+  if (!Number.isFinite(p) || !Number.isFinite(u)) return false;
+  // Only flag "Updated" if the update is at least 7 days after the original
+  // publish — typo fixes and minor edits shouldn't trigger an Updated badge.
+  const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+  return u - p >= SEVEN_DAYS_MS;
 }
 
 export default async function BlogPostPage({ params }: Props) {
-  const { slug } = await params
-  const post = await getPost(slug)
-  if (!post || !post.article_body) notFound()
+  const { slug } = await params;
+  const post = await getPost(slug);
+  if (!post) notFound();
 
-  const html = await marked.parse(post.article_body, { async: true })
+  const dek = (post.excerpt && post.excerpt.trim()) || post.pitch;
+  const categoryLabel = getBlogCategoryLabel(post.category);
+  const author = post.written_by || 'Jill Zeller';
+  const publishedStr = formatDate(post.published_at);
+  const updatedStr = shouldShowUpdated(post.published_at, post.updated_at)
+    ? formatDate(post.updated_at)
+    : null;
+
+  // Markdown → HTML → sanitize. We trust marked's output structurally but
+  // run it through sanitize-html to strip <script>, foreign-host <img>, etc.
+  const rawHtml = post.article_body
+    ? await marked.parse(post.article_body, { async: true })
+    : '';
+  const safeHtml = rawHtml ? sanitizeArticleHtml(rawHtml) : '';
+
+  const ogImageUrl =
+    post.hero_image_url || `https://crazy4points.com/og/blog/${post.slug}`;
+
+  // JSON-LD Article schema. Google reads this for rich-result eligibility.
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: post.title,
+    description: dek,
+    datePublished: post.published_at,
+    dateModified: post.updated_at,
+    author: { '@type': 'Person', name: author },
+    publisher: {
+      '@type': 'Organization',
+      name: 'crazy4points',
+      logo: { '@type': 'ImageObject', url: 'https://crazy4points.com/logo.png' },
+    },
+    image: ogImageUrl,
+    mainEntityOfPage: `https://crazy4points.com/blog/${post.slug}`,
+  };
 
   return (
-    <article className="rg-container rg-major-section" style={{ maxWidth: '48rem' }}>
-      <Link
-        href="/blog"
-        style={{ fontFamily: 'var(--font-ui)', fontSize: '0.8125rem', color: 'var(--color-primary)', textDecoration: 'none', fontWeight: 600 }}
-      >
-        ← All posts
-      </Link>
-
-      <header style={{ marginTop: '1.25rem', marginBottom: '1.5rem' }}>
-        <h1 style={{ marginBottom: '0.5rem' }}>{post.title}</h1>
-        <div style={{ fontFamily: 'var(--font-ui)', fontSize: '0.875rem', color: 'var(--color-text-secondary)', marginBottom: '1rem' }}>
-          Published {formatDate(post.published_at)}
-        </div>
-        <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
-          <Pill
-            label="Written by Claude"
-            on={Boolean(post.written_at)}
-            hint={post.written_by ? `Drafted by ${post.written_by}` : 'Drafted by Claude'}
-          />
-          <Pill
-            label="Fact-checked"
-            on={Boolean(post.fact_checked_at)}
-            hint={post.fact_checked_at ? `Fact-checked ${formatDate(post.fact_checked_at)}` : 'Not fact-checked'}
-          />
-          <Pill
-            label="On-brand voice"
-            on={post.voice_pass === true}
-            hint={post.voice_checked_at ? `Voice-checked ${formatDate(post.voice_checked_at)}` : 'Not voice-checked'}
-          />
-          <Pill
-            label="Original"
-            on={post.originality_pass === true}
-            hint={post.originality_checked_at ? `Originality-checked ${formatDate(post.originality_checked_at)}` : 'Originality not checked'}
+    <article>
+      {/* Full-width hero */}
+      <div className="bg-[var(--color-background-soft)]">
+        <div className="rg-container px-0 md:px-8 pt-6 md:pt-10">
+          <HeroImageOrFallback
+            imageUrl={post.hero_image_url}
+            title={post.title}
+            category={post.category}
+            variant="full"
           />
         </div>
-      </header>
+      </div>
 
-      <div
-        className="rg-prose"
-        style={{
-          fontFamily: 'var(--font-body)',
-          fontSize: '1.0625rem',
-          lineHeight: 1.7,
-          color: 'var(--color-text-primary)',
-        }}
-        dangerouslySetInnerHTML={{ __html: html }}
+      {/* Article content container */}
+      <div className="rg-container px-6 md:px-8 py-10 md:py-14">
+        <div className="mx-auto max-w-[68ch]">
+          {categoryLabel && post.category && (
+            <Link
+              href={`/blog?category=${post.category}`}
+              className="inline-flex items-center rounded-full bg-[var(--color-background-soft)] px-3 py-1 font-ui text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-white transition-colors"
+            >
+              {categoryLabel}
+            </Link>
+          )}
+
+          <h1 className="mt-5 font-display text-3xl md:text-4xl lg:text-5xl font-semibold leading-tight text-[var(--color-primary)]">
+            {post.title}
+          </h1>
+
+          {dek && (
+            <p className="mt-5 font-body text-lg md:text-xl leading-relaxed text-[var(--color-text-secondary)]">
+              {dek}
+            </p>
+          )}
+
+          {/* Byline row */}
+          <div className="mt-6 flex flex-wrap items-center gap-2 font-ui text-sm text-[var(--color-text-secondary)]">
+            <span className="font-medium">By {author}</span>
+            {publishedStr && (
+              <>
+                <span aria-hidden>·</span>
+                <span>Published {publishedStr}</span>
+              </>
+            )}
+            {updatedStr && (
+              <>
+                <span aria-hidden>·</span>
+                <span>Updated {updatedStr}</span>
+              </>
+            )}
+            {post.reading_time_minutes && (
+              <>
+                <span aria-hidden>·</span>
+                <span>{post.reading_time_minutes} min read</span>
+              </>
+            )}
+          </div>
+
+          {/* Article body */}
+          {safeHtml ? (
+            <div
+              className="rg-prose mt-10 font-body text-base md:text-lg leading-relaxed text-[var(--color-text-primary)]"
+              dangerouslySetInnerHTML={{ __html: safeHtml }}
+            />
+          ) : (
+            <p className="mt-10 font-body italic text-[var(--color-text-secondary)]">
+              Article body not available.
+            </p>
+          )}
+
+          {/* Newsletter CTA */}
+          <div className="mt-16 rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-6 py-10 md:px-10 md:py-12">
+            <div className="text-center mb-6">
+              <h3 className="font-display text-2xl md:text-3xl font-semibold text-[var(--color-primary)]">
+                Want one a week like this?
+              </h3>
+              <p className="mt-2 font-body text-[var(--color-text-secondary)]">
+                The points game is messy. We make it make sense — once a week, in your inbox.
+              </p>
+            </div>
+            <NewsletterSignup />
+          </div>
+
+          {/* Methodology footer */}
+          <div className="mt-12 border-t border-[var(--color-border-soft)] pt-6 font-ui text-xs text-[var(--color-text-secondary)] opacity-80">
+            {post.fact_checked_at ? (
+              <>
+                Fact-checked {formatDate(post.fact_checked_at)} · Voice and originality verified
+              </>
+            ) : (
+              <>Voice and originality verified</>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
     </article>
-  )
+  );
 }
