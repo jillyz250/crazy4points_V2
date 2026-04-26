@@ -33,9 +33,10 @@ const ALLIANCE_COLOR: Record<string, string> = {
  * sweet_spots, tier_benefits, lounge_access, quirks.
  */
 function pageCompleteness(program: Program): { filled: number; total: number; missing: string[] } {
+  const isHotel = program.type === 'hotel'
   const checks: Array<[string, boolean]> = [
     ['Alliance',          !!program.alliance],
-    ['Hubs',              (program.hubs?.length ?? 0) > 0],
+    ...(isHotel ? [] : [['Hubs', (program.hubs?.length ?? 0) > 0] as [string, boolean]]),
     ['Intro',             !!program.intro?.trim()],
     ['Transfer partners', (program.transfer_partners?.length ?? 0) > 0],
     ['How to spend',      !!program.how_to_spend?.trim()],
@@ -191,6 +192,7 @@ export default function ProgramsTable({ programs }: { programs: Program[] }) {
                         <ProgramPageContentEditor
                           programId={program.id}
                           programName={program.name}
+                          programType={program.type}
                           initialIntro={program.intro}
                           initialTransferPartners={program.transfer_partners}
                           initialSweetSpots={program.sweet_spots}

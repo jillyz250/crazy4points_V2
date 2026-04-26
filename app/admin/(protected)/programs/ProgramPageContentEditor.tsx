@@ -117,6 +117,7 @@ function textToPartners(text: string): { rows: TransferPartnerRow[] | null; erro
 export default function ProgramPageContentEditor({
   programId,
   programName,
+  programType,
   initialIntro,
   initialTransferPartners,
   initialSweetSpots,
@@ -131,6 +132,7 @@ export default function ProgramPageContentEditor({
 }: {
   programId: string
   programName: string
+  programType?: string | null
   initialIntro: string | null
   initialTransferPartners: TransferPartnerRow[] | null
   initialSweetSpots: string | null
@@ -274,7 +276,7 @@ export default function ProgramPageContentEditor({
         Public page content — {programName}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: programType === 'hotel' ? '1fr' : '1fr 1fr', gap: '0.75rem' }}>
         <div>
           <label style={labelStyle}>Alliance</label>
           <select
@@ -289,17 +291,19 @@ export default function ProgramPageContentEditor({
             ))}
           </select>
         </div>
-        <div>
-          <label style={labelStyle}>Hubs (comma-separated airport codes)</label>
-          <input
-            type="text"
-            value={hubsText}
-            onChange={(e) => setHubsText(e.target.value)}
-            placeholder="CDG, AMS"
-            className="admin-input"
-            style={{ fontSize: '0.8125rem' }}
-          />
-        </div>
+        {programType !== 'hotel' && (
+          <div>
+            <label style={labelStyle}>Hubs (comma-separated airport codes)</label>
+            <input
+              type="text"
+              value={hubsText}
+              onChange={(e) => setHubsText(e.target.value)}
+              placeholder="CDG, AMS"
+              className="admin-input"
+              style={{ fontSize: '0.8125rem' }}
+            />
+          </div>
+        )}
       </div>
 
       <div>
@@ -329,32 +333,6 @@ export default function ProgramPageContentEditor({
       </div>
 
       <div>
-        <label style={labelStyle}>Sweet spots (markdown — examples with mile cost)</label>
-        <textarea
-          value={sweetSpots}
-          onChange={(e) => setSweetSpots(e.target.value)}
-          rows={6}
-          placeholder="- 50k each way to Tokyo in J on partner X
-- 30k roundtrip US-Caribbean in Y on partner Z"
-          className="admin-input"
-          style={{ fontSize: '0.8125rem' }}
-        />
-      </div>
-
-      <div>
-        <label style={labelStyle}>Tips & quirks (markdown — expiry, pooling, stopovers, etc.)</label>
-        <textarea
-          value={quirks}
-          onChange={(e) => setQuirks(e.target.value)}
-          rows={5}
-          placeholder="- Miles expire after 24 months of inactivity
-- Family pooling allowed up to 8 members"
-          className="admin-input"
-          style={{ fontSize: '0.8125rem' }}
-        />
-      </div>
-
-      <div>
         <label style={labelStyle}>How to spend miles (markdown — redemption types)</label>
         <textarea
           value={howToSpend}
@@ -364,6 +342,19 @@ export default function ProgramPageContentEditor({
 - Seat upgrades from paid tickets
 - Hotels and car rentals (poor value)
 - Lounge access at Paris CDG and Amsterdam"
+          className="admin-input"
+          style={{ fontSize: '0.8125rem' }}
+        />
+      </div>
+
+      <div>
+        <label style={labelStyle}>Sweet spots (markdown — examples with mile cost)</label>
+        <textarea
+          value={sweetSpots}
+          onChange={(e) => setSweetSpots(e.target.value)}
+          rows={6}
+          placeholder="- 50k each way to Tokyo in J on partner X
+- 30k roundtrip US-Caribbean in Y on partner Z"
           className="admin-input"
           style={{ fontSize: '0.8125rem' }}
         />
@@ -404,6 +395,19 @@ export default function ProgramPageContentEditor({
 
 ### Notable flagships
 - La Première Lounge at CDG — invitation-only, private chefs, spa, direct-to-gate transfer"
+          className="admin-input"
+          style={{ fontSize: '0.8125rem' }}
+        />
+      </div>
+
+      <div>
+        <label style={labelStyle}>Tips & quirks (markdown — expiry, pooling, stopovers, etc.)</label>
+        <textarea
+          value={quirks}
+          onChange={(e) => setQuirks(e.target.value)}
+          rows={5}
+          placeholder="- Miles expire after 24 months of inactivity
+- Family pooling allowed up to 8 members"
           className="admin-input"
           style={{ fontSize: '0.8125rem' }}
         />
