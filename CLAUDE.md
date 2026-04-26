@@ -85,10 +85,19 @@ Always use these classes for layout and buttons — do not invent new patterns.
 - New components go in `components/` organized by section
 - Do not add `output: 'export'` to `next.config.ts` — Vercel handles server rendering
 
-## Adding airline reference pages
+## Adding program reference pages (airlines, hotels, etc.)
 When the user wants to author or refresh a per-program reference page at `/programs/[slug]`:
-- Trigger phrase: **"let's do `<airline>` next"** (also: "add airline X", "next airline", "start `<airline>`", "let's tackle `<airline>`")
-- Skill: `add-airline` (defined at `.claude/skills/add-airline/SKILL.md`) — orchestrates the 11-step pipeline one step at a time
-- Full runbook: `plans/airline-page-runbook.md`
-- Quick-start cheat sheet: `plans/AIRLINE-QUICK-START.md`
-- Per-airline source archive: `plans/sources/[slug].md`
+- Trigger phrase: **"let's do `<program>` next"** (also: "add airline X", "next airline", "start `<program>`", "let's tackle `<program>`")
+- Skill: `add-airline` (defined at `.claude/skills/add-airline/SKILL.md`) — named for airlines but generic-by-data-shape; orchestrates the 11-step pipeline one step at a time
+
+**Use the type-specific runbook based on what's being authored:**
+
+| Program type | Runbook | Quick-start |
+|---|---|---|
+| Airlines | `plans/airline-page-runbook.md` | `plans/AIRLINE-QUICK-START.md` |
+| Hotels | `plans/hotel-page-runbook.md` | `plans/HOTEL-QUICK-START.md` |
+
+The 11 steps are identical across types; the per-step content guidance shifts (e.g. hotels set `alliance` to "None", use stay-based tiers instead of XP, surface Free Night Certificates in `quirks`).
+
+- Per-program source archive: `plans/sources/[slug].md` (one file per program, regardless of type)
+- Future: when 3+ hotels authored, rename skill `add-airline` → `add-program` for clarity.
