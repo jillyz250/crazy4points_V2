@@ -89,6 +89,14 @@ export default function Header() {
             </div>
 
             <Link
+              href="/blog"
+              className="group relative font-ui text-xs font-medium uppercase tracking-[0.14em] text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-primary)]"
+            >
+              Blog
+              <span className="absolute -bottom-1 left-0 h-0.5 w-full origin-left scale-x-0 bg-[var(--color-accent)] transition-transform duration-200 group-hover:scale-x-100" />
+            </Link>
+
+            <Link
               href="/newsletter"
               className="group relative font-ui text-xs font-medium uppercase tracking-[0.14em] text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-primary)]"
             >
@@ -173,6 +181,14 @@ export default function Header() {
                 </Link>
               )
             )}
+
+          <Link
+            href="/blog"
+            onClick={() => setMenuOpen(false)}
+            className="flex min-h-[44px] items-center border-b border-[var(--color-border-soft)] px-6 font-ui text-sm font-medium uppercase tracking-[0.14em] text-[var(--color-text-secondary)]"
+          >
+            Blog
+          </Link>
 
           <Link
             href="/newsletter"

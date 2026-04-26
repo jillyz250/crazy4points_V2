@@ -10,6 +10,9 @@ import { voiceCheckArticle } from '@/utils/ai/voiceCheckArticle'
 import { originalityCheck } from '@/utils/ai/originalityCheck'
 import { programsToSourceText, PROGRAM_FIELDS_FOR_SOURCE } from '@/utils/ai/programSourceText'
 import type { Program } from '@/utils/supabase/queries'
+import { preparePublishUpdates } from './_lib/preparePublish'
+import { computeReadingTimeMinutes } from '@/lib/blog/readingTime'
+import { isBlogCategorySlug, BLOG_CATEGORY_SLUGS } from '@/lib/blog/categories'
 
 type ProgramSource = Pick<
   Program,
@@ -93,52 +96,43 @@ export async function updateContentIdeaStatusAction(
   }
   const supabase = createAdminClient()
 
-  // Publish gate: to flip to 'published', all four verification pills must be
-  // green. Written = has body + written_at. Fact-checked = checked and no
-  // high-severity unsupported claim. Voice = checked and voice_pass. Original
-  // = checked and originality_pass.
+  // Publish gate: extracted to preparePublishUpdates() so the validation logic is
+  // testable. Hard blocks (article body, excerpt-or-pitch) cannot be overridden.
+  // Soft gates (category, fact-check, voice, originality) can be overridden by
+  // setting override_reason on the idea row.
   if (status === 'published') {
     const { data: idea, error: fetchErr } = await supabase
       .from('content_ideas')
-      .select('title, type, slug, article_body, written_at, fact_checked_at, fact_check_claims, voice_checked_at, voice_pass, originality_checked_at, originality_pass, override_reason')
+      .select('id, title, type, slug, pitch, excerpt, category, article_body, written_at, fact_checked_at, fact_check_claims, voice_checked_at, voice_pass, originality_checked_at, originality_pass, override_reason')
       .eq('id', id)
       .single()
     if (fetchErr || !idea) throw new Error(fetchErr?.message ?? 'Idea not found')
 
-    const missing: string[] = []
-    if (!idea.article_body || !idea.written_at) missing.push('article not drafted')
-    if (!idea.fact_checked_at) {
-      missing.push('fact-check not run')
-    } else {
-      const claims = Array.isArray(idea.fact_check_claims)
-        ? (idea.fact_check_claims as { supported?: boolean; severity?: string; acknowledged?: boolean }[])
-        : []
-      const openHigh = claims.some((c) => !c.supported && c.severity === 'high' && !c.acknowledged)
-      if (openHigh) missing.push('unresolved high-severity fact-check claim')
-    }
-    if (!idea.voice_checked_at || idea.voice_pass !== true) missing.push('voice check not passing')
-    if (!idea.originality_checked_at || idea.originality_pass !== true) missing.push('originality check not passing')
-
-    // Override: a non-empty override_reason bypasses the gate. Article body
-    // is still required (you can't publish nothing); everything else can be
-    // overridden as long as you've recorded WHY.
-    const hasArticle = idea.article_body && idea.written_at
+    const plan = preparePublishUpdates(idea as Parameters<typeof preparePublishUpdates>[0])
     const overridden = (idea.override_reason ?? '').trim().length > 0
-    if (!hasArticle) {
-      throw new Error('Cannot publish — article not drafted')
+
+    if (plan.blockers.length > 0) {
+      throw new Error(`Cannot publish — ${plan.blockers.join('; ')}.`)
     }
-    if (missing.length > 0 && !overridden) {
-      throw new Error(`Cannot publish — ${missing.join('; ')}. (Set Override Reason on the idea to publish anyway.)`)
+    if (plan.missing.length > 0 && !overridden) {
+      throw new Error(`Cannot publish — ${plan.missing.join('; ')}. (Set Override Reason on the idea to publish anyway.)`)
     }
-    if (missing.length > 0 && overridden) {
-      console.log(`[content-ideas] override publishing idea ${id} despite: ${missing.join('; ')} — reason: ${idea.override_reason}`)
+    if (plan.missing.length > 0 && overridden) {
+      console.log(`[content-ideas] override publishing idea ${id} despite: ${plan.missing.join('; ')} — reason: ${idea.override_reason}`)
     }
 
     const now = new Date().toISOString()
     const slug = idea.slug ?? (await uniqueSlug(supabase, idea.title, id))
     const { error: pubErr } = await supabase
       .from('content_ideas')
-      .update({ status, slug, published_at: now, updated_at: now })
+      .update({
+        status,
+        slug,
+        published_at: now,
+        updated_at: now,
+        excerpt: plan.updates.excerpt,
+        reading_time_minutes: plan.updates.reading_time_minutes,
+      })
       .eq('id', id)
     if (pubErr) throw pubErr
     revalidatePath('/admin/content-ideas')
@@ -202,6 +196,9 @@ export async function writeArticleAction(id: string): Promise<WriteArticleResult
       article_body: draft.body,
       written_by: draft.written_by,
       written_at: now,
+      // Recompute reading time whenever the body changes — keeps it accurate
+      // if the writer step ever runs again on a published post.
+      reading_time_minutes: computeReadingTimeMinutes(draft.body),
       fact_checked_at: null,
       fact_check_claims: null,
       voice_checked_at: null,
@@ -553,6 +550,67 @@ export async function updateContentIdeaOverrideAction(
     .from('content_ideas')
     .update({ override_reason: value || null, updated_at: new Date().toISOString() })
     .eq('id', id)
+  if (error) throw error
+  revalidatePath('/admin/content-ideas')
+}
+
+/**
+ * Save the blog-publishing metadata fields on a content_ideas row.
+ * Used by the inline form on the content-ideas admin card.
+ *
+ * Validates category against the 6 allowed slugs (or null). Coerces empty
+ * strings to null so the DB CHECK constraint can compare cleanly.
+ */
+export async function updateContentIdeaBlogFieldsAction(
+  id: string,
+  formData: FormData
+): Promise<void> {
+  const supabase = createAdminClient()
+
+  const rawCategory = (formData.get('category') as string | null)?.trim() ?? ''
+  const rawExcerpt = (formData.get('excerpt') as string | null)?.trim() ?? ''
+  const rawHeroImageUrl = (formData.get('hero_image_url') as string | null)?.trim() ?? ''
+  const rawProgramSlug = (formData.get('primary_program_slug') as string | null)?.trim() ?? ''
+  const featured = formData.get('featured') === 'on'
+  const rawFeaturedRank = (formData.get('featured_rank') as string | null)?.trim() ?? ''
+
+  // Validate category if provided. We accept '' (drafts) or one of the 6 slugs.
+  if (rawCategory && !isBlogCategorySlug(rawCategory)) {
+    throw new Error(
+      `Invalid category "${rawCategory}". Must be one of: ${BLOG_CATEGORY_SLUGS.join(', ')}.`
+    )
+  }
+
+  // Hero image URL must be https when present.
+  if (rawHeroImageUrl) {
+    try {
+      const u = new URL(rawHeroImageUrl)
+      if (u.protocol !== 'https:') throw new Error('http:// not allowed')
+    } catch {
+      throw new Error('Hero image URL must be a valid https:// URL.')
+    }
+  }
+
+  let featured_rank: number | null = null
+  if (rawFeaturedRank) {
+    const n = parseInt(rawFeaturedRank, 10)
+    if (!Number.isFinite(n)) throw new Error('Featured rank must be a whole number.')
+    featured_rank = n
+  }
+
+  const { error } = await supabase
+    .from('content_ideas')
+    .update({
+      category: rawCategory || null,
+      excerpt: rawExcerpt || null,
+      hero_image_url: rawHeroImageUrl || null,
+      primary_program_slug: rawProgramSlug || null,
+      featured,
+      featured_rank,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+
   if (error) throw error
   revalidatePath('/admin/content-ideas')
 }

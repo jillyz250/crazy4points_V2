@@ -5,6 +5,7 @@ const footerNav = [
     heading: "Explore",
     links: [
       { label: "Alerts", href: "/alerts" },
+      { label: "Blog", href: "/blog" },
       { label: "Decision Engine", href: "/decision-engine" },
     ],
   },
