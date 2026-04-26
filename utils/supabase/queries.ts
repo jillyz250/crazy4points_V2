@@ -117,6 +117,14 @@ export interface Alert {
   why_this_matters: string | null
   /** Set to record an editorial override on a borderline call. */
   override_reason: string | null
+  /** Phase 5b — brand voice check stamps. */
+  voice_checked_at: string | null
+  voice_pass: boolean | null
+  voice_notes: string | null
+  /** Phase 5b — originality check stamps. */
+  originality_checked_at: string | null
+  originality_pass: boolean | null
+  originality_notes: string | null
   created_at: string
   updated_at: string
 }
@@ -183,7 +191,7 @@ export type AlertWithPrograms = Alert & {
   alert_programs: (AlertProgram & { programs: Program })[]
 }
 
-export type AlertInsert = Omit<Alert, 'id' | 'created_at' | 'updated_at' | 'computed_score' | 'score_last_computed_at' | 'approved_at' | 'source_intel_id' | 'fact_check_claims' | 'fact_check_at' | 'revision_log' | 'decided_at' | 'revisit_after' | 'rejected_reason' | 'why_this_matters' | 'override_reason'>
+export type AlertInsert = Omit<Alert, 'id' | 'created_at' | 'updated_at' | 'computed_score' | 'score_last_computed_at' | 'approved_at' | 'source_intel_id' | 'fact_check_claims' | 'fact_check_at' | 'revision_log' | 'decided_at' | 'revisit_after' | 'rejected_reason' | 'why_this_matters' | 'override_reason' | 'voice_checked_at' | 'voice_pass' | 'voice_notes' | 'originality_checked_at' | 'originality_pass' | 'originality_notes'>
 
 // Phase 2 — decision memory.
 // How long Scout suppresses similar findings after each decision, in days.
