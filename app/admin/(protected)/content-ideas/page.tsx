@@ -66,13 +66,17 @@ const NEXT_STATUS: Record<IdeaStatus, { label: string; to: IdeaStatus; variant?:
 export default async function ContentIdeasPage({
   searchParams,
 }: {
-  searchParams: Promise<{ type?: string; status?: string; q?: string; program?: string }>
+  searchParams: Promise<{ type?: string; status?: string; q?: string; program?: string; sortBy?: string }>
 }) {
   const sp = await searchParams
   const typeFilter = sp.type
   const statusFilter = sp.status
   const q = (sp.q ?? '').trim()
   const programSlug = (sp.program ?? '').trim()
+  type SortMode = 'urgency' | 'newest' | 'oldest'
+  const sortMode: SortMode =
+    sp.sortBy === 'newest' ? 'newest' :
+    sp.sortBy === 'oldest' ? 'oldest' : 'urgency'
   const supabase = createAdminClient()
 
   // Program filter: get tagged alert_ids AND capture the program name so we
@@ -153,16 +157,26 @@ export default async function ContentIdeasPage({
     }
     return 3
   }
-  const sortIdeas = (list: ContentIdeaRow[]) =>
-    [...list].sort((a, b) => {
+  const sortIdeas = (list: ContentIdeaRow[]) => {
+    const byCreatedDesc = (a: ContentIdeaRow, b: ContentIdeaRow) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    const byCreatedAsc = (a: ContentIdeaRow, b: ContentIdeaRow) =>
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+
+    if (sortMode === 'newest') return [...list].sort(byCreatedDesc)
+    if (sortMode === 'oldest') return [...list].sort(byCreatedAsc)
+
+    // Default: urgency-first (deadline tier → score → newest).
+    return [...list].sort((a, b) => {
       const ra = rankScore(a)
       const rb = rankScore(b)
       if (ra !== rb) return ra - rb
       const sa = a.source_alert?.computed_score ?? -Infinity
       const sb = b.source_alert?.computed_score ?? -Infinity
       if (sa !== sb) return sb - sa
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      return byCreatedDesc(a, b)
     })
+  }
 
   const newsletter = sortIdeas(ideas.filter((i) => i.type === 'newsletter'))
   const blog = sortIdeas(ideas.filter((i) => i.type === 'blog'))
@@ -197,18 +211,13 @@ export default async function ContentIdeasPage({
         </select>
         {typeFilter && <input type="hidden" name="type" value={typeFilter} />}
         {statusFilter && <input type="hidden" name="status" value={statusFilter} />}
+        {sp.sortBy && <input type="hidden" name="sortBy" value={sp.sortBy} />}
         <button type="submit" className="admin-btn admin-btn-primary admin-btn-sm">
           Search
         </button>
         {(q || programSlug) && (
           <Link
-            href={`/admin/content-ideas${
-              typeFilter || statusFilter
-                ? `?${[typeFilter && `type=${typeFilter}`, statusFilter && `status=${statusFilter}`]
-                    .filter(Boolean)
-                    .join('&')}`
-                : ''
-            }`}
+            href={buildHref({ type: typeFilter, status: statusFilter, sortBy: sp.sortBy })}
             className="admin-btn admin-btn-ghost admin-btn-sm"
           >
             Clear
@@ -216,12 +225,19 @@ export default async function ContentIdeasPage({
         )}
       </form>
 
-      <div style={{ display: 'flex', gap: '0.375rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
-        <FilterLink href={buildHref({ q, program: programSlug })} active={!typeFilter && !statusFilter} label="Open" />
-        <FilterLink href={buildHref({ q, program: programSlug, type: 'newsletter' })} active={typeFilter === 'newsletter' && !statusFilter} label="Newsletter only" />
-        <FilterLink href={buildHref({ q, program: programSlug, type: 'blog' })} active={typeFilter === 'blog' && !statusFilter} label="Blog only" />
-        <FilterLink href={buildHref({ q, program: programSlug, status: 'published' })} active={statusFilter === 'published'} label="Published" />
-        <FilterLink href={buildHref({ q, program: programSlug, status: 'dismissed' })} active={statusFilter === 'dismissed'} label="Dismissed" />
+      <div style={{ display: 'flex', gap: '0.375rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+        <FilterLink href={buildHref({ q, program: programSlug, sortBy: sp.sortBy })} active={!typeFilter && !statusFilter} label="Open" />
+        <FilterLink href={buildHref({ q, program: programSlug, type: 'newsletter', sortBy: sp.sortBy })} active={typeFilter === 'newsletter' && !statusFilter} label="Newsletter only" />
+        <FilterLink href={buildHref({ q, program: programSlug, type: 'blog', sortBy: sp.sortBy })} active={typeFilter === 'blog' && !statusFilter} label="Blog only" />
+        <FilterLink href={buildHref({ q, program: programSlug, status: 'published', sortBy: sp.sortBy })} active={statusFilter === 'published'} label="Published" />
+        <FilterLink href={buildHref({ q, program: programSlug, status: 'dismissed', sortBy: sp.sortBy })} active={statusFilter === 'dismissed'} label="Dismissed" />
+      </div>
+
+      <div style={{ display: 'flex', gap: '0.375rem', marginBottom: '1.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
+        <span style={{ fontSize: '0.8125rem', color: 'var(--admin-text-muted)', marginRight: '0.25rem' }}>Sort</span>
+        <FilterLink href={buildHref({ q, program: programSlug, type: typeFilter, status: statusFilter })} active={sortMode === 'urgency'} label="Urgency" />
+        <FilterLink href={buildHref({ q, program: programSlug, type: typeFilter, status: statusFilter, sortBy: 'newest' })} active={sortMode === 'newest'} label="Newest" />
+        <FilterLink href={buildHref({ q, program: programSlug, type: typeFilter, status: statusFilter, sortBy: 'oldest' })} active={sortMode === 'oldest'} label="Oldest first" />
       </div>
 
       <IdeaSection title="Newsletter Candidates" ideas={newsletter} />
@@ -234,12 +250,13 @@ export default async function ContentIdeasPage({
   )
 }
 
-function buildHref(parts: { q?: string; program?: string; type?: string; status?: string }): string {
+function buildHref(parts: { q?: string; program?: string; type?: string; status?: string; sortBy?: string }): string {
   const search = new URLSearchParams()
   if (parts.q) search.set('q', parts.q)
   if (parts.program) search.set('program', parts.program)
   if (parts.type) search.set('type', parts.type)
   if (parts.status) search.set('status', parts.status)
+  if (parts.sortBy) search.set('sortBy', parts.sortBy)
   const qs = search.toString()
   return qs ? `/admin/content-ideas?${qs}` : '/admin/content-ideas'
 }
