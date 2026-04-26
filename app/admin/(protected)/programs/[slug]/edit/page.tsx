@@ -50,6 +50,7 @@ export default async function ProgramEditPage({ params }: Props) {
         <ProgramPageContentEditor
           programId={program.id}
           programName={program.name}
+          programType={program.type}
           initialIntro={program.intro}
           initialTransferPartners={program.transfer_partners}
           initialSweetSpots={program.sweet_spots}
