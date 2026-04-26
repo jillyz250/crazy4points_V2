@@ -5,14 +5,14 @@ import {
   updateContentIdeaStatusAction,
   updateContentIdeaNotesAction,
   updateContentIdeaOverrideAction,
-  updateContentIdeaBlogFieldsAction,
 } from './actions'
-import { BLOG_CATEGORIES, getBlogCategoryLabel } from '@/lib/blog/categories'
+import { getBlogCategoryLabel } from '@/lib/blog/categories'
 import WriteArticleButton from '@/components/admin/WriteArticleButton'
 import FactCheckButton from '@/components/admin/FactCheckButton'
 import BrandCheckButton from '@/components/admin/BrandCheckButton'
 import CheckOriginalityButton from '@/components/admin/CheckOriginalityButton'
 import RunAllChecksButton from '@/components/admin/RunAllChecksButton'
+import BlogMetadataForm from '@/components/admin/BlogMetadataForm'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Badge } from '@/components/admin/ui/Badge'
 import { EmptyState } from '@/components/admin/ui/EmptyState'
@@ -138,6 +138,33 @@ export default async function ContentIdeasPage({
   if (queryRes.error) throw queryRes.error
   let ideas = (queryRes.data ?? []) as ContentIdeaRow[]
 
+  // Auto-suggest primary program for blog ideas: for any idea that has a
+  // source_alert_id but no primary_program_slug set yet, infer the program
+  // from alert_programs. We pick the program tagged role='primary' if one
+  // exists, otherwise the first linked program. Skips ideas that already
+  // have primary_program_slug set or have no source alert.
+  const sourceAlertIdsForSuggest = ideas
+    .filter((i) => i.type === 'blog' && i.source_alert_id && !i.primary_program_slug)
+    .map((i) => i.source_alert_id as string)
+  const suggestedProgramByAlertId: Record<string, string> = {}
+  if (sourceAlertIdsForSuggest.length > 0) {
+    const { data: links } = await supabase
+      .from('alert_programs')
+      .select('alert_id, role, programs!inner(slug)')
+      .in('alert_id', sourceAlertIdsForSuggest)
+    type LinkRow = { alert_id: string; role: string | null; programs: { slug: string } | null }
+    const rows = (links ?? []) as unknown as LinkRow[]
+    for (const row of rows) {
+      if (!row.programs?.slug) continue
+      // Prefer 'primary' role; otherwise take the first link we see for the alert.
+      if (row.role === 'primary') {
+        suggestedProgramByAlertId[row.alert_id] = row.programs.slug
+      } else if (!suggestedProgramByAlertId[row.alert_id]) {
+        suggestedProgramByAlertId[row.alert_id] = row.programs.slug
+      }
+    }
+  }
+
   // Program filter: keep ideas whose source_alert is tagged OR whose text
   // mentions the program by name (works around upstream untagged alerts).
   if (programNameNeedle) {
@@ -254,8 +281,8 @@ export default async function ContentIdeasPage({
         <FilterLink href={buildHref({ q, program: programSlug, type: typeFilter, status: statusFilter, sortBy: 'oldest' })} active={sortMode === 'oldest'} label="Oldest first" />
       </div>
 
-      <IdeaSection title="Newsletter Candidates" ideas={newsletter} programs={programs} />
-      <IdeaSection title="Blog Ideas" ideas={blog} programs={programs} />
+      <IdeaSection title="Newsletter Candidates" ideas={newsletter} programs={programs} suggestedProgramByAlertId={suggestedProgramByAlertId} />
+      <IdeaSection title="Blog Ideas" ideas={blog} programs={programs} suggestedProgramByAlertId={suggestedProgramByAlertId} />
 
       {ideas.length === 0 && (
         <EmptyState title="Nothing here" description="The daily brief adds ideas automatically." />
@@ -283,7 +310,17 @@ function FilterLink({ href, active, label }: { href: string; active: boolean; la
   )
 }
 
-function IdeaSection({ title, ideas, programs }: { title: string; ideas: ContentIdeaRow[]; programs: Program[] }) {
+function IdeaSection({
+  title,
+  ideas,
+  programs,
+  suggestedProgramByAlertId,
+}: {
+  title: string
+  ideas: ContentIdeaRow[]
+  programs: Program[]
+  suggestedProgramByAlertId: Record<string, string>
+}) {
   if (ideas.length === 0) return null
   return (
     <section style={{ marginBottom: '1.75rem' }}>
@@ -293,7 +330,16 @@ function IdeaSection({ title, ideas, programs }: { title: string; ideas: Content
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         {ideas.map((idea) => (
-          <IdeaCard key={idea.id} idea={idea} programs={programs} />
+          <IdeaCard
+            key={idea.id}
+            idea={idea}
+            programs={programs}
+            suggestedProgramSlug={
+              idea.source_alert_id
+                ? suggestedProgramByAlertId[idea.source_alert_id] ?? null
+                : null
+            }
+          />
         ))}
       </div>
     </section>
@@ -381,7 +427,15 @@ function formatIdeaAge(iso: string): string {
   return `${dateStr} · ${rel}`
 }
 
-function IdeaCard({ idea, programs }: { idea: ContentIdeaRow; programs: Program[] }) {
+function IdeaCard({
+  idea,
+  programs,
+  suggestedProgramSlug,
+}: {
+  idea: ContentIdeaRow
+  programs: Program[]
+  suggestedProgramSlug: string | null
+}) {
   const statusDef = STATUS_TONE[idea.status]
   const actions = NEXT_STATUS[idea.status] ?? []
   const rank = rankLabel(idea)
@@ -415,6 +469,8 @@ function IdeaCard({ idea, programs }: { idea: ContentIdeaRow; programs: Program[
       )}
 
       <VerificationRow pills={pills} />
+
+      <FailureNotes idea={idea} />
 
       <p style={{ margin: '0 0 0.75rem', color: 'var(--admin-text-muted)', fontSize: '0.875rem', lineHeight: 1.5 }}>
         {idea.pitch}
@@ -452,7 +508,11 @@ function IdeaCard({ idea, programs }: { idea: ContentIdeaRow; programs: Program[
       )}
 
       {idea.type === 'blog' && (
-        <BlogMetadataForm idea={idea} programs={programs} />
+        <BlogMetadataForm
+          idea={idea}
+          programs={programs}
+          suggestedProgramSlug={suggestedProgramSlug}
+        />
       )}
 
       <form action={updateContentIdeaNotesAction.bind(null, idea.id)} style={{ marginBottom: '0.5rem' }}>
@@ -509,127 +569,100 @@ function IdeaCard({ idea, programs }: { idea: ContentIdeaRow; programs: Program[
   )
 }
 
-function BlogMetadataForm({ idea, programs }: { idea: ContentIdeaRow; programs: Program[] }) {
-  const summary = idea.category
-    ? `${getBlogCategoryLabel(idea.category)}${idea.featured ? ' · Featured' : ''}`
-    : 'Blog metadata — set before publish'
+interface FlaggedClaim {
+  text?: string
+  claim?: string
+  supported?: boolean
+  severity?: string
+  acknowledged?: boolean
+  reason?: string
+  notes?: string
+}
+
+/**
+ * Surfaces the actual error text from voice / originality / fact-check
+ * failures inline below the verification pills, so the editor can see
+ * what went wrong without hovering tooltips.
+ */
+function FailureNotes({ idea }: { idea: ContentIdeaRow }) {
+  const issues: { label: string; severity: 'warn' | 'fail'; body: string }[] = []
+
+  // Fact-check: list each unsupported claim
+  if (Array.isArray(idea.fact_check_claims)) {
+    const claims = idea.fact_check_claims as FlaggedClaim[]
+    const flagged = claims.filter(
+      (c) => c && c.supported === false && !c.acknowledged
+    )
+    for (const c of flagged) {
+      const text = c.text ?? c.claim ?? '(no claim text)'
+      const reason = c.reason ?? c.notes ?? 'unsupported by sources'
+      const sev = c.severity ?? 'medium'
+      issues.push({
+        label: `Fact-check (${sev})`,
+        severity: sev === 'high' ? 'fail' : 'warn',
+        body: `“${text}” — ${reason}`,
+      })
+    }
+  }
+
+  // Voice: if checked but failed, show the voice notes
+  if (idea.voice_checked_at && idea.voice_pass === false) {
+    issues.push({
+      label: 'Voice check',
+      severity: 'fail',
+      body: idea.voice_notes ?? 'Voice check failed (no notes recorded).',
+    })
+  }
+
+  // Originality: if checked but failed, show the originality notes
+  if (idea.originality_checked_at && idea.originality_pass === false) {
+    issues.push({
+      label: 'Originality',
+      severity: 'fail',
+      body: idea.originality_notes ?? 'Originality check failed (no notes recorded).',
+    })
+  }
+
+  if (issues.length === 0) return null
 
   return (
-    <details style={{ marginBottom: '0.5rem' }} open={!idea.category && idea.status !== 'new'}>
-      <summary
-        style={{
-          cursor: 'pointer',
-          fontSize: '0.75rem',
-          fontFamily: 'var(--font-ui)',
-          color: idea.category ? 'var(--admin-text-muted)' : '#b45309',
-        }}
-      >
-        {idea.category ? '✓ ' : '⚠ '}
-        Blog metadata: {summary}
-      </summary>
-
-      <form
-        action={updateContentIdeaBlogFieldsAction.bind(null, idea.id)}
-        style={{
-          marginTop: '0.5rem',
-          display: 'grid',
-          gap: '0.5rem',
-          padding: '0.625rem',
-          background: 'var(--admin-surface-alt)',
-          borderRadius: 'var(--admin-radius)',
-          border: '1px solid var(--admin-border)',
-        }}
-      >
-        <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.75rem', fontFamily: 'var(--font-ui)' }}>
-          <span style={{ color: 'var(--admin-text-muted)' }}>Category (required to publish)</span>
-          <select
-            name="category"
-            defaultValue={idea.category ?? ''}
-            className="admin-input"
-            style={{ width: '100%' }}
+    <div
+      style={{
+        marginBottom: '0.75rem',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '0.375rem',
+      }}
+    >
+      {issues.map((iss, idx) => (
+        <div
+          key={idx}
+          style={{
+            padding: '0.5rem 0.625rem',
+            borderRadius: 'var(--admin-radius)',
+            border: `1px solid ${iss.severity === 'fail' ? '#fca5a5' : '#fcd34d'}`,
+            background: iss.severity === 'fail' ? '#fef2f2' : '#fffbeb',
+            fontSize: '0.8125rem',
+            lineHeight: 1.45,
+          }}
+        >
+          <span
+            style={{
+              display: 'inline-block',
+              fontFamily: 'var(--font-ui)',
+              fontWeight: 700,
+              fontSize: '0.6875rem',
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em',
+              color: iss.severity === 'fail' ? '#b91c1c' : '#92400e',
+              marginRight: '0.5rem',
+            }}
           >
-            <option value="">— none —</option>
-            {BLOG_CATEGORIES.map((c) => (
-              <option key={c.slug} value={c.slug}>
-                {c.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.75rem', fontFamily: 'var(--font-ui)' }}>
-          <span style={{ color: 'var(--admin-text-muted)' }}>Excerpt (public dek; falls back to pitch if blank)</span>
-          <textarea
-            name="excerpt"
-            defaultValue={idea.excerpt ?? ''}
-            placeholder="200 chars max — appears under the headline"
-            rows={2}
-            className="admin-input"
-            style={{ width: '100%', resize: 'vertical' }}
-          />
-        </label>
-
-        <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.75rem', fontFamily: 'var(--font-ui)' }}>
-          <span style={{ color: 'var(--admin-text-muted)' }}>Hero image URL (optional; branded card used if blank)</span>
-          <input
-            type="url"
-            name="hero_image_url"
-            defaultValue={idea.hero_image_url ?? ''}
-            placeholder="https://…"
-            className="admin-input"
-            style={{ width: '100%' }}
-          />
-        </label>
-
-        <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.75rem', fontFamily: 'var(--font-ui)' }}>
-          <span style={{ color: 'var(--admin-text-muted)' }}>Primary program (optional)</span>
-          <select
-            name="primary_program_slug"
-            defaultValue={idea.primary_program_slug ?? ''}
-            className="admin-input"
-            style={{ width: '100%' }}
-          >
-            <option value="">— none —</option>
-            {programs.map((p) => (
-              <option key={p.id} value={p.slug}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.75rem', fontFamily: 'var(--font-ui)' }}>
-            <input
-              type="checkbox"
-              name="featured"
-              defaultChecked={idea.featured ?? false}
-            />
-            Featured (pins to top of /blog)
-          </label>
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.75rem', fontFamily: 'var(--font-ui)' }}>
-            <span style={{ color: 'var(--admin-text-muted)' }}>Rank</span>
-            <input
-              type="number"
-              name="featured_rank"
-              defaultValue={idea.featured_rank ?? ''}
-              placeholder="1"
-              min={0}
-              className="admin-input"
-              style={{ width: '4rem' }}
-            />
-          </label>
-          {idea.reading_time_minutes !== null && (
-            <span style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)' }}>
-              · Reading time: {idea.reading_time_minutes} min
-            </span>
-          )}
+            {iss.label}
+          </span>
+          <span style={{ color: 'var(--admin-text)' }}>{iss.body}</span>
         </div>
-
-        <button type="submit" className="admin-btn admin-btn-ghost admin-btn-sm" style={{ alignSelf: 'flex-start' }}>
-          Save blog metadata
-        </button>
-      </form>
-    </details>
+      ))}
+    </div>
   )
 }

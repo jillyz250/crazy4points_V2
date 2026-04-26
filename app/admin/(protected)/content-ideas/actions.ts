@@ -555,62 +555,104 @@ export async function updateContentIdeaOverrideAction(
 }
 
 /**
+ * Result type used by useActionState in the form. The action never throws —
+ * it always returns a structured result so the client can render success or
+ * error inline rather than relying on Next.js error overlays.
+ */
+export type BlogFieldsResult =
+  | { ok: true; savedAt: string }
+  | { ok: false; error: string }
+
+/**
  * Save the blog-publishing metadata fields on a content_ideas row.
  * Used by the inline form on the content-ideas admin card.
  *
  * Validates category against the 6 allowed slugs (or null). Coerces empty
  * strings to null so the DB CHECK constraint can compare cleanly.
+ *
+ * Signature is `(_prevState, formData) => Promise<BlogFieldsResult>` so it can
+ * be passed to useActionState. The bound `id` arg is provided via .bind() at
+ * the call site.
  */
 export async function updateContentIdeaBlogFieldsAction(
   id: string,
+  _prevState: BlogFieldsResult | null,
   formData: FormData
-): Promise<void> {
-  const supabase = createAdminClient()
+): Promise<BlogFieldsResult> {
+  try {
+    const rawCategory = (formData.get('category') as string | null)?.trim() ?? ''
+    const rawExcerpt = (formData.get('excerpt') as string | null)?.trim() ?? ''
+    const rawHeroImageUrl = (formData.get('hero_image_url') as string | null)?.trim() ?? ''
+    const rawProgramSlug = (formData.get('primary_program_slug') as string | null)?.trim() ?? ''
+    const featured = formData.get('featured') === 'on'
+    const rawFeaturedRank = (formData.get('featured_rank') as string | null)?.trim() ?? ''
 
-  const rawCategory = (formData.get('category') as string | null)?.trim() ?? ''
-  const rawExcerpt = (formData.get('excerpt') as string | null)?.trim() ?? ''
-  const rawHeroImageUrl = (formData.get('hero_image_url') as string | null)?.trim() ?? ''
-  const rawProgramSlug = (formData.get('primary_program_slug') as string | null)?.trim() ?? ''
-  const featured = formData.get('featured') === 'on'
-  const rawFeaturedRank = (formData.get('featured_rank') as string | null)?.trim() ?? ''
+    console.log(`[content-ideas:blog-fields] id=${id} category="${rawCategory}" featured=${featured}`)
 
-  // Validate category if provided. We accept '' (drafts) or one of the 6 slugs.
-  if (rawCategory && !isBlogCategorySlug(rawCategory)) {
-    throw new Error(
-      `Invalid category "${rawCategory}". Must be one of: ${BLOG_CATEGORY_SLUGS.join(', ')}.`
-    )
-  }
+    // Validate category if provided. We accept '' (drafts) or one of the 6 slugs.
+    if (rawCategory && !isBlogCategorySlug(rawCategory)) {
+      return {
+        ok: false,
+        error: `Invalid category "${rawCategory}". Must be one of: ${BLOG_CATEGORY_SLUGS.join(', ')}.`,
+      }
+    }
 
-  // Hero image URL must be https when present.
-  if (rawHeroImageUrl) {
-    try {
-      const u = new URL(rawHeroImageUrl)
-      if (u.protocol !== 'https:') throw new Error('http:// not allowed')
-    } catch {
-      throw new Error('Hero image URL must be a valid https:// URL.')
+    // Hero image URL must be https when present.
+    if (rawHeroImageUrl) {
+      try {
+        const u = new URL(rawHeroImageUrl)
+        if (u.protocol !== 'https:') {
+          return { ok: false, error: 'Hero image URL must be https://, not http://.' }
+        }
+      } catch {
+        return { ok: false, error: 'Hero image URL must be a valid URL.' }
+      }
+    }
+
+    let featured_rank: number | null = null
+    if (rawFeaturedRank) {
+      const n = parseInt(rawFeaturedRank, 10)
+      if (!Number.isFinite(n)) {
+        return { ok: false, error: 'Featured rank must be a whole number.' }
+      }
+      featured_rank = n
+    }
+
+    const supabase = createAdminClient()
+    const { data, error } = await supabase
+      .from('content_ideas')
+      .update({
+        category: rawCategory || null,
+        excerpt: rawExcerpt || null,
+        hero_image_url: rawHeroImageUrl || null,
+        primary_program_slug: rawProgramSlug || null,
+        featured,
+        featured_rank,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select('id')
+
+    if (error) {
+      console.error(`[content-ideas:blog-fields] supabase error id=${id}:`, error)
+      return { ok: false, error: `Database error: ${error.message}` }
+    }
+
+    if (!data || data.length === 0) {
+      console.warn(`[content-ideas:blog-fields] no row matched id=${id}`)
+      return {
+        ok: false,
+        error: `No idea found with id ${id}. Was it deleted? Try refreshing the page.`,
+      }
+    }
+
+    revalidatePath('/admin/content-ideas')
+    return { ok: true, savedAt: new Date().toISOString() }
+  } catch (err) {
+    console.error(`[content-ideas:blog-fields] unexpected error id=${id}:`, err)
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : 'Unexpected error saving metadata.',
     }
   }
-
-  let featured_rank: number | null = null
-  if (rawFeaturedRank) {
-    const n = parseInt(rawFeaturedRank, 10)
-    if (!Number.isFinite(n)) throw new Error('Featured rank must be a whole number.')
-    featured_rank = n
-  }
-
-  const { error } = await supabase
-    .from('content_ideas')
-    .update({
-      category: rawCategory || null,
-      excerpt: rawExcerpt || null,
-      hero_image_url: rawHeroImageUrl || null,
-      primary_program_slug: rawProgramSlug || null,
-      featured,
-      featured_rank,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', id)
-
-  if (error) throw error
-  revalidatePath('/admin/content-ideas')
 }
