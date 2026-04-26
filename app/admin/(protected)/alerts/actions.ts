@@ -17,6 +17,8 @@ import { writeAlertDraft } from '@/utils/ai/writeAlertDraft'
 import { editAlertDraft } from '@/utils/ai/editAlertDraft'
 import { verifyAlertDraft, webVerifyClaims, type VerifyClaim } from '@/utils/ai/verifyAlertDraft'
 import { reviseAlertDraft, type RevisionLogEntry } from '@/utils/ai/reviseAlertDraft'
+import { voiceCheckArticle } from '@/utils/ai/voiceCheckArticle'
+import { originalityCheck } from '@/utils/ai/originalityCheck'
 
 function errMessage(err: unknown): string {
   if (err instanceof Error) return err.message
@@ -496,4 +498,126 @@ export async function expireAlertAction(id: string) {
   const supabase = createAdminClient()
   await expireAlert(supabase, id)
   redirect('/admin/alerts')
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Phase 5b — bring brand voice + originality checks to alerts.
+// Reuses voiceCheckArticle + originalityCheck from blog drafts; the body
+// passed in is the alert's description (or summary if description is empty).
+// ────────────────────────────────────────────────────────────────────────────
+
+export type AlertVoiceCheckResult =
+  | { ok: true; pass: boolean }
+  | { ok: false; error: string }
+
+export async function voiceCheckAlertAction(id: string): Promise<AlertVoiceCheckResult> {
+  const supabase = createAdminClient()
+  const { data: alert } = await supabase
+    .from('alerts')
+    .select('id, title, description, summary')
+    .eq('id', id)
+    .single()
+  if (!alert) return { ok: false, error: 'Alert not found' }
+  const body = alert.description || alert.summary || ''
+  if (!body.trim()) return { ok: false, error: 'No description or summary to check' }
+
+  const res = await voiceCheckArticle({ title: alert.title, article_body: body })
+  if (!res) return { ok: false, error: 'Voice-check call failed (see logs)' }
+
+  const { error } = await supabase
+    .from('alerts')
+    .update({
+      voice_checked_at: res.checked_at,
+      voice_pass: res.pass,
+      voice_notes: res.notes,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+  if (error) return { ok: false, error: error.message }
+
+  revalidatePath('/admin/alerts')
+  revalidatePath(`/admin/alerts/${id}/edit`)
+  return { ok: true, pass: res.pass }
+}
+
+export type AlertOriginalityCheckResult =
+  | { ok: true; pass: boolean; notes: string }
+  | { ok: false; error: string }
+
+export async function originalityCheckAlertAction(id: string): Promise<AlertOriginalityCheckResult> {
+  const supabase = createAdminClient()
+  const { data: alert } = await supabase
+    .from('alerts')
+    .select('id, title, description, summary')
+    .eq('id', id)
+    .single()
+  if (!alert) return { ok: false, error: 'Alert not found' }
+  const body = alert.description || alert.summary || ''
+  if (!body.trim()) return { ok: false, error: 'No description or summary to check' }
+
+  const res = await originalityCheck({ title: alert.title, article_body: body })
+  if (!res) return { ok: false, error: 'Originality check failed (see logs)' }
+
+  const { error } = await supabase
+    .from('alerts')
+    .update({
+      originality_checked_at: res.checked_at,
+      originality_pass: res.pass,
+      originality_notes: res.notes,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+  if (error) return { ok: false, error: error.message }
+
+  revalidatePath('/admin/alerts')
+  revalidatePath(`/admin/alerts/${id}/edit`)
+  return { ok: true, pass: res.pass, notes: res.notes }
+}
+
+/**
+ * One-click pipeline for alerts. Runs Regenerate (writer + fact-check + web
+ * verify) → voice + originality in parallel. Same shape as runAllChecksAction
+ * for blog drafts.
+ */
+export type AlertPipelineResult =
+  | {
+      ok: true
+      regenerated: boolean
+      facts: { ran: boolean; flagged: number; error?: string }
+      voice: { ran: boolean; pass: boolean; error?: string }
+      originality: { ran: boolean; pass: boolean; error?: string }
+      ready: boolean
+    }
+  | { ok: false; error: string }
+
+export async function runAllChecksAlertAction(id: string): Promise<AlertPipelineResult> {
+  // Regenerate already runs writer + fact-check + web-verify in one shot.
+  const regen = await regenerateAlertDraftAction(id)
+  if (!regen.ok) {
+    return { ok: false, error: `regenerate failed — ${regen.error ?? 'unknown'}` }
+  }
+
+  const [voiceRes, origRes] = await Promise.all([
+    voiceCheckAlertAction(id),
+    originalityCheckAlertAction(id),
+  ])
+
+  const counts = regen.verdictCounts ?? { likely_correct: 0, likely_wrong: 0, unverifiable: 0, supported: 0 }
+  // "Flagged" for the alert pipeline = high-severity unsupported claims that
+  // web-verify scored likely_wrong. Other unsupported (unverifiable) is noise.
+  const flagged = counts.likely_wrong
+
+  const facts = { ran: true, flagged }
+  const voice = voiceRes.ok
+    ? { ran: true, pass: voiceRes.pass }
+    : { ran: false, pass: false, error: voiceRes.error }
+  const originality = origRes.ok
+    ? { ran: true, pass: origRes.pass }
+    : { ran: false, pass: false, error: origRes.error }
+
+  const ready = facts.flagged === 0 && voice.ran && voice.pass && originality.ran && originality.pass
+
+  revalidatePath('/admin/alerts')
+  revalidatePath(`/admin/alerts/${id}/edit`)
+  return { ok: true, regenerated: true, facts, voice, originality, ready }
 }

@@ -3,6 +3,8 @@
 import { updateAlertAction } from './actions'
 import type { Alert, Program } from '@/utils/supabase/queries'
 import FactCheckWarnings from '@/components/admin/FactCheckWarnings'
+import RunAllChecksAlertButton from '@/components/admin/RunAllChecksAlertButton'
+import { Badge } from '@/components/admin/ui/Badge'
 import { ALERT_TYPES, ACTION_TYPES } from '@/lib/admin/alertTypes'
 import TextField from '@/components/admin/form/TextField'
 import TextAreaField from '@/components/admin/form/TextAreaField'
@@ -49,6 +51,69 @@ export default function EditAlertForm({ alert, programs, taggedProgramIds }: Pro
     <form onSubmit={handleSubmit} style={{ maxWidth: '640px' }}>
       {/* Preserve published_at so update action can keep it unchanged */}
       <input type="hidden" name="existing_published_at" value={alert.published_at ?? ''} />
+
+      {/* Phase 5b — verification pills + one-click pipeline. Mirrors the blog
+          drafts UI on /admin/content-ideas so the alert review workflow has
+          parity. */}
+      {(() => {
+        const claims = Array.isArray(alert.fact_check_claims)
+          ? (alert.fact_check_claims as { supported?: boolean; severity?: string; acknowledged?: boolean }[])
+          : []
+        const flagged = claims.some((c) => !c.supported && c.severity === 'high' && !c.acknowledged)
+        const factOn = Boolean(alert.fact_check_at) && !flagged
+        const voiceOn = Boolean(alert.voice_checked_at) && alert.voice_pass === true
+        const origOn = Boolean(alert.originality_checked_at) && alert.originality_pass === true
+        const pills: { label: string; on: boolean; hint: string }[] = [
+          {
+            label: 'Written',
+            on: Boolean(alert.description) || Boolean(alert.summary),
+            hint: alert.description ? 'Description present' : alert.summary ? 'Summary only' : 'Empty',
+          },
+          {
+            label: 'Fact-checked',
+            on: factOn,
+            hint: alert.fact_check_at
+              ? flagged
+                ? 'Has unresolved high-severity flags'
+                : `Fact-checked ${new Date(alert.fact_check_at).toLocaleDateString()}`
+              : 'Not fact-checked',
+          },
+          {
+            label: 'On-brand voice',
+            on: voiceOn,
+            hint: alert.voice_checked_at
+              ? alert.voice_notes
+                ? `${alert.voice_pass ? 'PASS' : 'FAIL'} — ${alert.voice_notes}`
+                : `Voice-checked ${new Date(alert.voice_checked_at).toLocaleDateString()}`
+              : 'Not voice-checked',
+          },
+          {
+            label: 'Original',
+            on: origOn,
+            hint: alert.originality_checked_at
+              ? alert.originality_notes
+                ? `${alert.originality_pass ? 'PASS' : 'FAIL'} — ${alert.originality_notes}`
+                : `Originality checked ${new Date(alert.originality_checked_at).toLocaleDateString()}`
+              : 'Originality not checked',
+          },
+        ]
+        return (
+          <div style={{ marginBottom: '1.25rem' }}>
+            <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap', marginBottom: '0.625rem' }}>
+              {pills.map((p) => (
+                <span key={p.label} title={p.hint}>
+                  <Badge tone={p.on ? 'success' : 'neutral'}>
+                    {p.on ? '✓' : '○'} {p.label}
+                  </Badge>
+                </span>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <RunAllChecksAlertButton alertId={alert.id} />
+            </div>
+          </div>
+        )
+      })()}
 
       <div style={{ marginBottom: '1.25rem' }}>
         <FactCheckWarnings alertId={alert.id} claims={alert.fact_check_claims} />
