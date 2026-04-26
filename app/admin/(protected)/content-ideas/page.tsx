@@ -342,6 +342,14 @@ function VerificationRow({ pills }: { pills: VerificationPill[] }) {
   )
 }
 
+function formatIdeaAge(iso: string): string {
+  const d = new Date(iso)
+  const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  const days = Math.floor((Date.now() - d.getTime()) / 86400000)
+  const rel = days === 0 ? 'today' : days === 1 ? 'yesterday' : `${days}d ago`
+  return `${dateStr} · ${rel}`
+}
+
 function IdeaCard({ idea }: { idea: ContentIdeaRow }) {
   const statusDef = STATUS_TONE[idea.status]
   const actions = NEXT_STATUS[idea.status] ?? []
@@ -350,9 +358,20 @@ function IdeaCard({ idea }: { idea: ContentIdeaRow }) {
   const pills = verificationPills(idea)
   return (
     <div className="admin-card" style={{ padding: '1rem 1.125rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', marginBottom: '0.25rem' }}>
         <h3 style={{ fontSize: '1rem', margin: 0, flex: 1, color: 'var(--admin-text)' }}>{idea.title}</h3>
         <Badge tone={statusDef.tone}>{statusDef.label}</Badge>
+      </div>
+      <div
+        style={{
+          fontFamily: 'var(--font-ui)',
+          fontSize: '0.75rem',
+          color: 'var(--admin-text-muted)',
+          marginBottom: '0.5rem',
+        }}
+        title={`Created ${new Date(idea.created_at).toLocaleString()}`}
+      >
+        {formatIdeaAge(idea.created_at)}
       </div>
 
       {(rank || typeof score === 'number') && (
