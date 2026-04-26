@@ -114,17 +114,38 @@ export async function GET(req: NextRequest) {
     summary: (r.summary as string) ?? '',
   }))
 
-  // Existing open blog ideas — passed to the planner so it doesn't propose duplicates.
-  // We fetch up to 200 most-recent open ideas and the planner caps to 100 in the prompt.
-  const { data: openIdeasRows } = await supabase
-    .from('content_ideas')
-    .select('title')
-    .eq('type', 'blog')
-    .in('status', ['new', 'queued', 'drafted'])
-    .order('created_at', { ascending: false })
-    .limit(200)
-  const existingOpenBlogIdeas = (openIdeasRows ?? [])
-    .map((r) => (r.title as string | null) ?? '')
+  // Existing blog ideas to dedupe against — passed to the planner so it doesn't propose
+  // duplicates. Two buckets:
+  //   1. Open queue (status: new | queued | drafted) — anything not yet published.
+  //   2. Recently published (last 90 days) — so we don't immediately re-pitch what we just shipped.
+  // Older published articles are intentionally excluded so periodic "refresh" content (e.g.
+  // updating a 2024 sweet-spots post for 2026) is still allowed.
+  const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000
+  const ninetyDaysAgo = new Date(Date.now() - NINETY_DAYS_MS).toISOString()
+
+  const [openIdeasResult, recentPublishedResult] = await Promise.all([
+    supabase
+      .from('content_ideas')
+      .select('title')
+      .eq('type', 'blog')
+      .in('status', ['new', 'queued', 'drafted'])
+      .order('created_at', { ascending: false })
+      .limit(150),
+    supabase
+      .from('content_ideas')
+      .select('title')
+      .eq('type', 'blog')
+      .eq('status', 'published')
+      .gte('published_at', ninetyDaysAgo)
+      .order('published_at', { ascending: false })
+      .limit(50),
+  ])
+
+  const existingOpenBlogIdeas = [
+    ...((openIdeasResult.data ?? []) as { title: string | null }[]),
+    ...((recentPublishedResult.data ?? []) as { title: string | null }[]),
+  ]
+    .map((r) => r.title ?? '')
     .filter((t) => t.length > 0)
 
   // Call Sonnet (best-effort — if it fails, fall back to the old layout)
