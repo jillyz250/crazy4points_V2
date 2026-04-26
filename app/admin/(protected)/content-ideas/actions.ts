@@ -32,25 +32,49 @@ type ProgramSource = Pick<
 >
 
 /**
- * Returns Program rows linked to an idea — via its source_alert_id (if any)
- * through the alert_programs junction. Used as authoritative source material
- * for both the writer and the fact-checker, so anything we publish about
- * Flying Blue (etc.) is grounded in our own page content, not just an alert.
+ * Returns Program rows that should be used as authoritative source material
+ * for an idea. Two paths, deduped by slug:
+ *   1. source_alert_id → alert_programs junction (existing behavior).
+ *      Useful when the idea was generated from a tagged alert.
+ *   2. primary_program_slug on the idea row itself (added Apr 26, 2026).
+ *      Useful when the user creates an idea via the prompt flow or
+ *      manually picks a program in the Blog Metadata form.
+ *
+ * Either path can be empty. Merged so an article about Hyatt tied to a
+ * non-Hyatt source alert still gets Hyatt's program-page data pulled in,
+ * AND vice versa.
  */
 async function getProgramsForIdea(
   supabase: ReturnType<typeof createAdminClient>,
   sourceAlertId: string | null,
+  primaryProgramSlug: string | null = null,
 ): Promise<ProgramSource[]> {
-  if (!sourceAlertId) return []
-  const { data, error } = await supabase
-    .from('alert_programs')
-    .select(`programs!inner(${PROGRAM_FIELDS_FOR_SOURCE})`)
-    .eq('alert_id', sourceAlertId)
-  if (error || !data) return []
-  // Supabase typed-array returns: each row has { programs: ProgramRow }
-  return data
-    .map((row) => (row as unknown as { programs: ProgramSource | null }).programs)
-    .filter((p): p is ProgramSource => p !== null)
+  const collected = new Map<string, ProgramSource>()
+
+  if (sourceAlertId) {
+    const { data } = await supabase
+      .from('alert_programs')
+      .select(`programs!inner(${PROGRAM_FIELDS_FOR_SOURCE})`)
+      .eq('alert_id', sourceAlertId)
+    const rows = (data ?? []) as unknown as { programs: ProgramSource | null }[]
+    for (const r of rows) {
+      if (r.programs?.slug) collected.set(r.programs.slug, r.programs)
+    }
+  }
+
+  if (primaryProgramSlug && !collected.has(primaryProgramSlug)) {
+    const { data } = await supabase
+      .from('programs')
+      .select(PROGRAM_FIELDS_FOR_SOURCE)
+      .eq('slug', primaryProgramSlug)
+      .maybeSingle()
+    if (data) {
+      const row = data as ProgramSource
+      if (row.slug) collected.set(row.slug, row)
+    }
+  }
+
+  return Array.from(collected.values())
 }
 
 type IdeaStatus = 'new' | 'queued' | 'drafted' | 'published' | 'dismissed'
@@ -159,7 +183,7 @@ export async function writeArticleAction(id: string): Promise<WriteArticleResult
   const supabase = createAdminClient()
   const { data: idea, error: fetchErr } = await supabase
     .from('content_ideas')
-    .select('id, type, title, pitch, source_alert_id')
+    .select('id, type, title, pitch, source_alert_id, primary_program_slug')
     .eq('id', id)
     .single()
   if (fetchErr || !idea) return { ok: false, error: fetchErr?.message ?? 'Idea not found' }
@@ -177,7 +201,11 @@ export async function writeArticleAction(id: string): Promise<WriteArticleResult
     if (alert) sourceAlert = alert
   }
 
-  const programs = await getProgramsForIdea(supabase, idea.source_alert_id)
+  const programs = await getProgramsForIdea(
+    supabase,
+    idea.source_alert_id,
+    idea.primary_program_slug,
+  )
   const programContext = programs.length > 0 ? programsToSourceText(programs) : null
 
   const draft = await writeArticleBody({
@@ -224,7 +252,7 @@ export async function factCheckArticleAction(id: string): Promise<FactCheckResul
   const supabase = createAdminClient()
   const { data: idea, error: fetchErr } = await supabase
     .from('content_ideas')
-    .select('id, title, article_body, source_alert_id, source_intel_id')
+    .select('id, title, article_body, source_alert_id, source_intel_id, primary_program_slug')
     .eq('id', id)
     .single()
   if (fetchErr || !idea) return { ok: false, error: fetchErr?.message ?? 'Idea not found' }
@@ -253,7 +281,11 @@ export async function factCheckArticleAction(id: string): Promise<FactCheckResul
       sourceUrl = intel.source_url ?? null
     }
   }
-  const programs = await getProgramsForIdea(supabase, idea.source_alert_id)
+  const programs = await getProgramsForIdea(
+    supabase,
+    idea.source_alert_id,
+    idea.primary_program_slug,
+  )
   if (programs.length > 0) {
     sourceText = `${sourceText}\n\n═══ OFFICIAL PROGRAM PAGE CONTENT ═══\n\n${programsToSourceText(programs)}`.trim()
   }
@@ -340,7 +372,7 @@ export async function checkArticleAction(id: string): Promise<CheckArticleResult
   const supabase = createAdminClient()
   const { data: idea, error: fetchErr } = await supabase
     .from('content_ideas')
-    .select('id, title, article_body, source_alert_id, source_intel_id')
+    .select('id, title, article_body, source_alert_id, source_intel_id, primary_program_slug')
     .eq('id', id)
     .single()
   if (fetchErr || !idea) return { ok: false, error: fetchErr?.message ?? 'Idea not found' }
@@ -375,7 +407,11 @@ export async function checkArticleAction(id: string): Promise<CheckArticleResult
   // Treat the official program page(s) as authoritative source material.
   // Anything we wrote on the Page (sweet spots, transfer partners, hubs, etc.)
   // becomes legal grounding for fact-check claims.
-  const programs = await getProgramsForIdea(supabase, idea.source_alert_id)
+  const programs = await getProgramsForIdea(
+    supabase,
+    idea.source_alert_id,
+    idea.primary_program_slug,
+  )
   if (programs.length > 0) {
     sourceText = `${sourceText}\n\n═══ OFFICIAL PROGRAM PAGE CONTENT ═══\n\n${programsToSourceText(programs)}`.trim()
   }
