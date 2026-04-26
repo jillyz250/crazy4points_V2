@@ -4,11 +4,37 @@ import { createAdminClient } from '@/utils/supabase/server'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
+// Reject names that look bot-generated: long unbroken alphanumeric runs with no
+// vowels or no lowercase variation (e.g. "VFliqEpmUtoRKpeTJbrNtB").
+function looksLikeBotName(name: string): boolean {
+  const trimmed = name.trim()
+  if (trimmed.length > 40) return true
+  // Must contain at least one vowel
+  if (!/[aeiouAEIOU]/.test(trimmed)) return true
+  // Pure alphanumeric with mixed case and >14 chars and no spaces = random string
+  if (trimmed.length > 14 && !/\s/.test(trimmed) && /[A-Z]/.test(trimmed) && /[a-z]/.test(trimmed) && !/[aeiou]{1}.*[aeiou]{1}/i.test(trimmed)) {
+    return true
+  }
+  return false
+}
+
 export async function POST(req: NextRequest) {
-  const { email, firstName } = await req.json()
+  const { email, firstName, lastName, website } = await req.json()
+
+  // Honeypot — bots fill hidden fields; humans don't see it.
+  if (website && String(website).trim() !== '') {
+    return NextResponse.json({ success: true })
+  }
 
   if (!email || !email.includes('@')) {
     return NextResponse.json({ error: 'Valid email required.' }, { status: 400 })
+  }
+
+  if (firstName && looksLikeBotName(String(firstName))) {
+    return NextResponse.json({ success: true })
+  }
+  if (lastName && looksLikeBotName(String(lastName))) {
+    return NextResponse.json({ success: true })
   }
 
   const supabase = createAdminClient()
@@ -29,7 +55,11 @@ export async function POST(req: NextRequest) {
     // Reactivate unsubscribed user
     const { error: reactivateError } = await supabase
       .from('subscribers')
-      .update({ active: true, first_name: firstName?.trim() || null })
+      .update({
+        active: true,
+        first_name: firstName?.trim() || null,
+        last_name: lastName?.trim() || null,
+      })
       .eq('id', existing.id)
     if (reactivateError) {
       console.error('[subscribe] Reactivate error:', reactivateError)
@@ -39,7 +69,11 @@ export async function POST(req: NextRequest) {
     // New subscriber
     const { error: dbError } = await supabase
       .from('subscribers')
-      .insert({ email: normalizedEmail, first_name: firstName?.trim() || null })
+      .insert({
+        email: normalizedEmail,
+        first_name: firstName?.trim() || null,
+        last_name: lastName?.trim() || null,
+      })
     if (dbError) {
       console.error('[subscribe] DB error:', dbError)
       return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })

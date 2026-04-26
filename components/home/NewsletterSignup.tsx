@@ -5,6 +5,8 @@ import { useState } from 'react'
 export default function NewsletterSignup() {
   const [email, setEmail] = useState('')
   const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [website, setWebsite] = useState('')
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [message, setMessage] = useState('')
 
@@ -16,7 +18,7 @@ export default function NewsletterSignup() {
     const res = await fetch('/api/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, firstName }),
+      body: JSON.stringify({ email, firstName, lastName, website }),
     })
 
     const data = await res.json()
@@ -26,6 +28,7 @@ export default function NewsletterSignup() {
       setMessage('You\'re in! Check your inbox for a welcome email.')
       setEmail('')
       setFirstName('')
+      setLastName('')
     } else {
       setStatus('error')
       setMessage(data.error || 'Something went wrong. Please try again.')
@@ -43,14 +46,34 @@ export default function NewsletterSignup() {
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="rounded-xl border border-[var(--color-border-soft)] bg-[var(--color-background)] px-8 py-10">
-          <div className="flex flex-col gap-4 sm:flex-row">
+          {/* Honeypot — hidden from humans, bots fill it. Do not remove. */}
+          <div aria-hidden="true" style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, overflow: 'hidden' }}>
+            <label>
+              Website
+              <input
+                type="text"
+                tabIndex={-1}
+                autoComplete="off"
+                value={website}
+                onChange={e => setWebsite(e.target.value)}
+              />
+            </label>
+          </div>
+          <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap">
             <input
               type="text"
               placeholder="First name"
               value={firstName}
               onChange={e => setFirstName(e.target.value)}
               required
-              className="w-full rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-4 py-3 font-body text-base text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] sm:w-52 sm:shrink-0"
+              className="w-full rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-4 py-3 font-body text-base text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] sm:w-40 sm:shrink-0"
+            />
+            <input
+              type="text"
+              placeholder="Last name (optional)"
+              value={lastName}
+              onChange={e => setLastName(e.target.value)}
+              className="w-full rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-4 py-3 font-body text-base text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] sm:w-44 sm:shrink-0"
             />
             <input
               type="email"
