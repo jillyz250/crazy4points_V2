@@ -114,10 +114,24 @@ export async function GET(req: NextRequest) {
     summary: (r.summary as string) ?? '',
   }))
 
+  // Existing open blog ideas — passed to the planner so it doesn't propose duplicates.
+  // We fetch up to 200 most-recent open ideas and the planner caps to 100 in the prompt.
+  const { data: openIdeasRows } = await supabase
+    .from('content_ideas')
+    .select('title')
+    .eq('type', 'blog')
+    .in('status', ['new', 'queued', 'drafted'])
+    .order('created_at', { ascending: false })
+    .limit(200)
+  const existingOpenBlogIdeas = (openIdeasRows ?? [])
+    .map((r) => (r.title as string | null) ?? '')
+    .filter((t) => t.length > 0)
+
   // Call Sonnet (best-effort — if it fails, fall back to the old layout)
   const plan = await generateEditorialPlan({
     today_intel: todayIntel,
     voice_samples: voiceSamples,
+    existing_open_blog_ideas: existingOpenBlogIdeas,
   })
 
   // Persist the brief — even on plan failure, so actions log still works (empty plan)
