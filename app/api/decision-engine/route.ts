@@ -182,12 +182,20 @@ export async function POST(request: Request) {
   if (filters.tripLength) query = query.contains('trip_length', [filters.tripLength])
   if (filters.whoIsGoing) query = query.contains('who_is_going', [filters.whoIsGoing])
 
-  // Hide Level 4 ("Do Not Travel") destinations from default spins. They
-  // still surface when the user explicitly picks the continent containing
-  // them — informed adults can opt in. Levels 1-3 always show; the UI
-  // surfaces a colored advisory badge so readers can self-screen.
+  // Default-spin scope:
+  //   1. Restrict to continents most US-based readers actually consider
+  //      for vacation: North America, Central America, Caribbean, Europe.
+  //      Asia / South America / Middle East / Africa / South Pacific
+  //      surface only when the user explicitly picks that continent.
+  //   2. Hide Level 3 ("Reconsider Travel") and Level 4 ("Do Not Travel")
+  //      destinations within those continents — informed adults can still
+  //      opt in by picking the continent directly.
+  // Both rules drop when filters.continent is set, so picking "Asia"
+  // returns Asia destinations (with their own advisory badges intact).
+  const SAFER_DEFAULT_CONTINENTS = ['north_america', 'central_america', 'caribbean', 'europe']
   if (!filters.continent) {
-    query = query.or('advisory_level.is.null,advisory_level.lt.4')
+    query = query.in('continent', SAFER_DEFAULT_CONTINENTS)
+    query = query.or('advisory_level.is.null,advisory_level.lt.3')
   }
 
   const { data, error } = await query

@@ -247,14 +247,19 @@ export default async function DestinationDetailPage(
                 }}>
                   {MONTH_ORDER.map(m => {
                     const w = weather[m]
+                    // Traffic-light colors — match the Decision Engine
+                    // grid so the visual language is consistent site-wide.
                     const bg =
-                      w === 'great' ? 'var(--color-accent)' :
-                      w === 'good'  ? '#EADCC0' :
-                      w === 'mixed' ? '#F0EAF8' :
-                                      '#F5F5F5'
+                      w === 'great' ? '#2D8B5F' :
+                      w === 'good'  ? '#F4C430' :
+                      w === 'mixed' ? '#F4A38C' :
+                      w === 'poor'  ? '#D85C50' :
+                                      '#EDE6F2'
                     const color =
                       w === 'great' ? 'white' :
-                      w === 'good'  ? '#6B4A10' :
+                      w === 'good'  ? '#5A4500' :
+                      w === 'mixed' ? '#6B2418' :
+                      w === 'poor'  ? 'white' :
                                       'var(--color-text-secondary)'
                     return (
                       <div
@@ -272,13 +277,28 @@ export default async function DestinationDetailPage(
                     )
                   })}
                 </div>
-                <p style={{
-                  fontFamily: 'var(--font-body)', fontSize: '12px',
+                <div style={{
+                  display: 'flex', flexWrap: 'wrap', gap: '10px',
+                  marginTop: '10px',
+                  fontFamily: 'var(--font-body)', fontSize: '11px',
                   color: 'var(--color-text-secondary)',
-                  margin: '10px 0 0 0',
                 }}>
-                  Gold = ideal · Cream = pleasant
-                </p>
+                  {[
+                    ['#2D8B5F', 'Ideal'],
+                    ['#F4C430', 'Good'],
+                    ['#F4A38C', 'Mixed'],
+                    ['#D85C50', 'Avoid'],
+                  ].map(([color, label]) => (
+                    <span key={label} style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '5px',
+                    }}>
+                      <span style={{
+                        width: '8px', height: '8px', borderRadius: '2px', background: color,
+                      }} />
+                      {label}
+                    </span>
+                  ))}
+                </div>
               </SidebarBlock>
             )}
           </aside>
