@@ -34,6 +34,15 @@ export default async function ProgramEditPage({ params }: Props) {
         description={`Editing program-page content for ${program.slug}. The writer + fact-check pipelines treat this as authoritative source material.`}
         actions={
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            {program.type === 'hotel' && (
+              <Link
+                href={`/admin/programs/${program.slug}/properties`}
+                className="admin-btn admin-btn-secondary admin-btn-sm"
+                title="Manage per-property data (categories, points, brand)"
+              >
+                Properties →
+              </Link>
+            )}
             <Link
               href={`/programs/${program.slug}`}
               target="_blank"
