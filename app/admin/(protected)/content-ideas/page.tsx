@@ -855,7 +855,7 @@ function WorkflowSteps({
             ? `Fact check  (${verifiedCount} verified · ${flaggedCount} flagged)`
             : 'Fact check'
         }
-        done={factChecked && flaggedCount === 0}
+        done={factChecked}
         active={nextStep === 2}
       >
         <FactCheckButton ideaId={idea.id} hasBody={hasBody} />
