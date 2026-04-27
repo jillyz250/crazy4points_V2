@@ -164,6 +164,9 @@ export async function updateContentIdeaStatusAction(
     if (idea.type === 'blog') {
       revalidatePath('/blog')
       revalidatePath(`/blog/${slug}`)
+      // Sitemap has a 1-hour ISR cache; force regeneration so the new
+      // post URL is discoverable by Google + crawlers immediately.
+      revalidatePath('/sitemap.xml')
     }
     return
   }
