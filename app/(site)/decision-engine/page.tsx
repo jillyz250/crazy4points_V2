@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { styleForLevel } from '@/utils/destinations/advisoryLevels'
+import { flagUrlForCountry } from '@/utils/destinations/countryFlags'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -571,9 +572,12 @@ function PurpleBadge({ label }: { label: string }) {
   )
 }
 
-// 12-month calendar grid showing weather tier per month. Mirrors the
-// existing pattern on /destinations/[slug] for visual consistency. Gold
-// fill = "great", cream = "good", lavender = "mixed", muted gray = "poor".
+// 12-month calendar grid showing weather tier per month. Traffic-light
+// colors so readers can scan without reading a legend:
+//   great → green ("go")
+//   good  → yellow ("caution but fine")
+//   mixed → light red ("not recommended but doable")
+//   poor  → red    ("avoid")
 function MonthGrid({ weather, compact = false }: {
   weather: Record<string, string> | null | undefined
   compact?: boolean
@@ -591,13 +595,16 @@ function MonthGrid({ weather, compact = false }: {
         {MONTH_ORDER.map(m => {
           const w = weather[m]
           const bg =
-            w === 'great' ? 'var(--color-accent)' :
-            w === 'good'  ? '#EADCC0' :
-            w === 'mixed' ? '#F0EAF8' :
-                            '#F5F5F5'
+            w === 'great' ? '#2D8B5F' :   // green
+            w === 'good'  ? '#F4C430' :   // yellow / saffron
+            w === 'mixed' ? '#F4A38C' :   // light red / peach
+            w === 'poor'  ? '#D85C50' :   // red
+                            '#EDE6F2'    // null / unknown — neutral
           const color =
             w === 'great' ? 'white' :
-            w === 'good'  ? '#6B4A10' :
+            w === 'good'  ? '#5A4500' :
+            w === 'mixed' ? '#6B2418' :
+            w === 'poor'  ? 'white' :
                             '#9A8AAA'
           return (
             <div
@@ -615,14 +622,29 @@ function MonthGrid({ weather, compact = false }: {
           )
         })}
       </div>
-      <p style={{
+      <div style={{
+        display: 'flex', flexWrap: 'wrap', gap: '10px',
+        marginTop: '8px',
         fontFamily: 'var(--font-body)', fontSize: '11px',
         color: 'var(--color-text-secondary)',
-        margin: '8px 0 0 0',
       }}>
-        Gold = ideal · Cream = pleasant · Gray = avoid
-      </p>
+        <LegendDot color="#2D8B5F" label="Ideal" />
+        <LegendDot color="#F4C430" label="Good" />
+        <LegendDot color="#F4A38C" label="Mixed" />
+        <LegendDot color="#D85C50" label="Avoid" />
+      </div>
     </div>
+  )
+}
+
+function LegendDot({ color, label }: { color: string; label: string }) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+      <span style={{
+        width: '8px', height: '8px', borderRadius: '2px', background: color,
+      }} />
+      {label}
+    </span>
   )
 }
 
@@ -746,7 +768,13 @@ function LockIcon() {
 // back to a coming-soon stub when no hotels are seeded yet (e.g. the country
 // has no rows in hotel_properties, or no programs are seeded for it).
 
-function HotelOptionsBlock({ hotels, country }: { hotels: SampleHotel[]; country: string | null }) {
+function HotelOptionsBlock({
+  hotels, country, destinationTitle,
+}: {
+  hotels: SampleHotel[]
+  country: string | null
+  destinationTitle: string
+}) {
   // Empty state — render the same coming-soon stub as before so the card
   // doesn't lose its preview-feature texture
   if (hotels.length === 0) {
@@ -784,6 +812,17 @@ function HotelOptionsBlock({ hotels, country }: { hotels: SampleHotel[]; country
     else byProgram.set(h.program_slug, [h])
   }
 
+  // Detect whether the API returned hotels actually IN the destination
+  // (city match) or fell back to country-wide samples. We can tell by
+  // checking if any hotel's city matches the destination title.
+  const titleLower = destinationTitle.trim().toLowerCase()
+  const cityMatched = hotels.some((h) => h.city?.trim().toLowerCase() === titleLower)
+  const headerText = cityMatched
+    ? `Hotels in ${destinationTitle}`
+    : country
+      ? `Hotels nearby in ${country}`
+      : 'Hotels nearby'
+
   return (
     <div>
       <div style={{
@@ -791,7 +830,7 @@ function HotelOptionsBlock({ hotels, country }: { hotels: SampleHotel[]; country
         letterSpacing: '0.12em', textTransform: 'uppercase',
         color: '#6B2D8F', marginBottom: '10px',
       }}>
-        Hotels in {country ?? 'destination'}
+        {headerText}
       </div>
       {[...byProgram.entries()].map(([slug, list]) => {
         const programName = list[0]?.program_name ?? slug
@@ -827,16 +866,24 @@ function HotelOptionsBlock({ hotels, country }: { hotels: SampleHotel[]; country
                     fontWeight: 500, color: '#1A1A1A',
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                   }}>
-                    {h.hotel_url ? (
-                      <a
-                        href={h.hotel_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ color: '#1A1A1A', textDecoration: 'none' }}
-                      >
-                        {h.name}
-                      </a>
-                    ) : h.name}
+                    {(() => {
+                      // Prefer hotel_url when set. Otherwise open a Google
+                      // search for the hotel name + city — gets the reader
+                      // to the booking page in one extra click without
+                      // requiring us to scrape per-property URLs first.
+                      const href = h.hotel_url
+                        ?? `https://www.google.com/search?q=${encodeURIComponent(`${h.name} ${h.city ?? ''}`.trim())}`
+                      return (
+                        <a
+                          href={href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ color: '#1A1A1A', textDecoration: 'none', borderBottom: '1px dotted #C9B0DD' }}
+                        >
+                          {h.name}
+                        </a>
+                      )
+                    })()}
                     {h.all_inclusive && (
                       <span style={{
                         marginLeft: '6px', fontSize: '9px',
@@ -903,20 +950,31 @@ function WinnerCard({ dest, visible }: { dest: Destination; visible: boolean }) 
       maxWidth: '780px',
       margin: '0 auto',
     }}>
-      {dest.imageUrl && (
-        <div
-          role="img"
-          aria-label={dest.title}
-          style={{
-            width: '100%',
-            height: '200px',
-            backgroundImage: `url(${dest.imageUrl})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            borderBottom: '1px solid #F0EAF8',
-          }}
-        />
-      )}
+      {(() => {
+        // Prefer editorial imageUrl. Fall back to country flag if absent —
+        // better than a blank top, and gives the destination geographic
+        // grounding even before we have a real photo.
+        const flagUrl = !dest.imageUrl ? flagUrlForCountry(dest.country) : null
+        const imageSrc = dest.imageUrl ?? flagUrl
+        const isFlag   = !dest.imageUrl && !!flagUrl
+        if (!imageSrc) return null
+        return (
+          <div
+            role="img"
+            aria-label={isFlag ? `${dest.country} flag` : dest.title}
+            style={{
+              width: '100%',
+              height: '200px',
+              backgroundImage: `url(${imageSrc})`,
+              backgroundSize: isFlag ? 'contain' : 'cover',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat',
+              backgroundColor: isFlag ? '#FAF8FB' : 'transparent',
+              borderBottom: '1px solid #F0EAF8',
+            }}
+          />
+        )
+      })()}
       <div style={{ padding: '22px 28px 20px' }}>
       {/* Label */}
       <div style={{
@@ -1060,41 +1118,13 @@ function WinnerCard({ dest, visible }: { dest: Destination; visible: boolean }) 
       {/* Divider */}
       <div style={{ borderTop: '1px solid #F0EAF8', margin: '0 0 14px' }} />
 
-      {/* Hotel options — real data when we have any, fallback to coming-soon stub */}
-      <HotelOptionsBlock hotels={dest.hotels ?? []} country={dest.country} />
-
-      {/* Coming soon — leave the other two stubs untouched until those features land */}
-      <div style={{ opacity: 0.6, marginTop: '18px' }}>
-        <div style={{
-          fontFamily: 'var(--font-ui)', fontSize: '10px', fontWeight: 700,
-          letterSpacing: '0.12em', textTransform: 'uppercase',
-          color: '#9A7ACC', marginBottom: '12px',
-        }}>
-          More Coming Soon
-        </div>
-        {['Best award redemptions', 'Current transfer bonuses'].map(item => (
-          <div key={item} style={{
-            display: 'flex', alignItems: 'center', gap: '10px',
-            padding: '9px 0',
-            borderBottom: '1px solid #F5F0FF',
-          }}>
-            <LockIcon />
-            <span style={{
-              fontFamily: 'var(--font-body)', fontSize: '13px',
-              color: '#6A5A8A', flex: 1,
-            }}>
-              {item}
-            </span>
-            <span style={{
-              padding: '2px 9px', borderRadius: '999px',
-              border: '1px solid #D4C8E8', color: '#9A8AAA',
-              fontFamily: 'var(--font-ui)', fontSize: '10px', fontWeight: 600,
-            }}>
-              Coming Soon
-            </span>
-          </div>
-        ))}
-      </div>
+      {/* Hotel options — real data when seeded, fallback to a single
+          coming-soon stub when no hotels match the destination yet. */}
+      <HotelOptionsBlock
+        hotels={dest.hotels ?? []}
+        country={dest.country}
+        destinationTitle={dest.title}
+      />
       </div>
     </div>
   )
