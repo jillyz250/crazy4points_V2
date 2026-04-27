@@ -223,7 +223,9 @@ export async function writeArticleAction(id: string): Promise<WriteArticleResult
     .from('content_ideas')
     .update({
       article_body: draft.body,
-      written_by: draft.written_by,
+      // Don't overwrite written_by with the AI model id. The column's
+      // default ('Jill Zeller') is the public-facing byline; the model id
+      // belongs in telemetry, not display.
       written_at: now,
       // Recompute reading time whenever the body changes — keeps it accurate
       // if the writer step ever runs again on a published post.
@@ -901,7 +903,8 @@ export async function rewriteFromVerifiedFactsAction(
     .from('content_ideas')
     .update({
       article_body: result.body,
-      written_by: result.written_by,
+      // Same as writeArticleAction — keep the editor's byline; don't
+      // stamp the AI model id over it.
       written_at: now,
       reading_time_minutes: computeReadingTimeMinutes(result.body),
       // Clear all check state so the editor re-runs each step on the new body.
