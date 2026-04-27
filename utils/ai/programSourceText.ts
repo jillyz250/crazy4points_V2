@@ -12,6 +12,7 @@ type ProgramSubset = Pick<
   | 'slug'
   | 'type'
   | 'intro'
+  | 'award_chart'
   | 'sweet_spots'
   | 'how_to_spend'
   | 'quirks'
@@ -24,7 +25,7 @@ type ProgramSubset = Pick<
 >
 
 export const PROGRAM_FIELDS_FOR_SOURCE =
-  'slug, name, type, intro, sweet_spots, how_to_spend, quirks, lounge_access, transfer_partners, tier_benefits, alliance, hubs, description'
+  'slug, name, type, intro, award_chart, sweet_spots, how_to_spend, quirks, lounge_access, transfer_partners, tier_benefits, alliance, hubs, description'
 
 export function programToSourceText(program: ProgramSubset): string {
   const out: string[] = []
@@ -34,6 +35,12 @@ export function programToSourceText(program: ProgramSubset): string {
   if (program.hubs && program.hubs.length > 0) out.push(`Hubs: ${program.hubs.join(', ')}`)
   if (program.description) out.push(`\nDescription:\n${program.description}`)
   if (program.intro) out.push(`\nIntro:\n${program.intro}`)
+  // Award chart is the most authoritative reference data we have. Place it
+  // prominently so the writer + fact-checker see it before editorial sweet
+  // spots / quirks.
+  if (program.award_chart) {
+    out.push(`\nOFFICIAL AWARD CHART (source of truth for redemption costs):\n${program.award_chart}`)
+  }
   if (program.sweet_spots) out.push(`\nSweet spots:\n${program.sweet_spots}`)
   if (program.how_to_spend) out.push(`\nHow to spend:\n${program.how_to_spend}`)
   if (program.quirks) out.push(`\nQuirks / fine print:\n${program.quirks}`)

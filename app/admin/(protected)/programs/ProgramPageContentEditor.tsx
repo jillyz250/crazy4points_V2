@@ -128,6 +128,7 @@ export default function ProgramPageContentEditor({
   initialAlliance,
   initialHubs,
   initialUpdatedAt,
+  initialAwardChart = null,
   alwaysOpen = false,
 }: {
   programId: string
@@ -143,12 +144,14 @@ export default function ProgramPageContentEditor({
   initialAlliance: Alliance | null
   initialHubs: string[] | null
   initialUpdatedAt: string | null
+  initialAwardChart?: string | null
   /** When true, render the form inline (no toggle button). Used by the
       dedicated /admin/programs/[slug]/edit route. */
   alwaysOpen?: boolean
 }) {
   const [open, setOpen] = useState(alwaysOpen)
   const [intro, setIntro] = useState(initialIntro ?? '')
+  const [awardChart, setAwardChart] = useState(initialAwardChart ?? '')
   const [partnersText, setPartnersText] = useState(partnersToText(initialTransferPartners))
   const [sweetSpots, setSweetSpots] = useState(initialSweetSpots ?? '')
   const [quirks, setQuirks] = useState(initialQuirks ?? '')
@@ -164,6 +167,7 @@ export default function ProgramPageContentEditor({
   const fresh = freshnessLabel(daysSince(updatedAt))
   const hasContent =
     !!(initialIntro ?? '').trim() ||
+    !!(initialAwardChart ?? '').trim() ||
     (initialTransferPartners?.length ?? 0) > 0 ||
     !!(initialSweetSpots ?? '').trim() ||
     !!(initialQuirks ?? '').trim() ||
@@ -191,6 +195,7 @@ export default function ProgramPageContentEditor({
       .filter((h) => h.length > 0)
     const input = {
       intro: intro.trim() ? intro : null,
+      award_chart: awardChart.trim() ? awardChart : null,
       transfer_partners: partners.rows,
       sweet_spots: sweetSpots.trim() ? sweetSpots : null,
       quirks: quirks.trim() ? quirks : null,
@@ -202,6 +207,7 @@ export default function ProgramPageContentEditor({
     }
     const anyContent =
       !!input.intro ||
+      !!input.award_chart ||
       (input.transfer_partners?.length ?? 0) > 0 ||
       !!input.sweet_spots ||
       !!input.quirks ||
@@ -316,6 +322,31 @@ export default function ProgramPageContentEditor({
           className="admin-input"
           style={{ fontSize: '0.8125rem' }}
         />
+      </div>
+
+      <div>
+        <label style={labelStyle}>
+          Award chart (markdown — official redemption costs; treated as source of truth)
+        </label>
+        <textarea
+          value={awardChart}
+          onChange={(e) => setAwardChart(e.target.value)}
+          rows={12}
+          placeholder={`**Hotels — Standard Room (full points):**
+
+| Category | Off-peak | Standard | Peak    |
+|----------|----------|----------|---------|
+| 1        | 3,500    | 5,000    | 6,500   |
+| ...
+
+For dynamic-pricing programs, use this field for "How pricing works" with example ranges instead.`}
+          className="admin-input"
+          style={{ fontFamily: 'var(--font-mono, ui-monospace, monospace)', fontSize: '0.75rem' }}
+        />
+        <p style={{ fontSize: '0.6875rem', color: 'var(--admin-text-muted)', marginTop: '0.25rem' }}>
+          The writer + fact-checker treat this as the most authoritative source.
+          Keep it factual and current; opinion goes in Sweet spots.
+        </p>
       </div>
 
       <div>

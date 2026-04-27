@@ -20,6 +20,7 @@ type ProgramSource = Pick<
   | 'slug'
   | 'type'
   | 'intro'
+  | 'award_chart'
   | 'sweet_spots'
   | 'how_to_spend'
   | 'quirks'

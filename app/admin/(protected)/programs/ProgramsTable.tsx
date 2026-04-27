@@ -194,6 +194,7 @@ export default function ProgramsTable({ programs }: { programs: Program[] }) {
                           programName={program.name}
                           programType={program.type}
                           initialIntro={program.intro}
+                          initialAwardChart={program.award_chart}
                           initialTransferPartners={program.transfer_partners}
                           initialSweetSpots={program.sweet_spots}
                           initialQuirks={program.quirks}
