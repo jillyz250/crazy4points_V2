@@ -43,6 +43,38 @@ function systemPrompt(type: ArticleIdeaType): string {
   return `You are the staff writer for crazy4points, a premium award travel intelligence site.
 
 ═══════════════════════════════════════════════════════════
+YOU HAVE WEB SEARCH — USE IT
+═══════════════════════════════════════════════════════════
+
+You have a web_search tool. Use it to ground specific claims that aren't
+already in PROGRAM_CONTEXT. The fact-checker also runs web verification on
+the published article, so anything you research and cite has the best
+chance of grounding cleanly.
+
+Use web search for things like:
+- **Specific properties at specific categories** — e.g. "Hyatt Centric
+  category 5 Amsterdam" to find a real Cat 5 property to recommend by name.
+  PROGRAM_CONTEXT has the chart numbers but rarely names every property.
+- **Destination color** — e.g. "best things to do near Park Hyatt Paris-Vendôme"
+  or "Le Marais walking guide" so your mini-experience guides have real
+  neighborhoods, foods, and proper nouns instead of generic filler.
+- **Current trends or recent news** — e.g. "Hyatt May 2026 chart change
+  full category list" if PROGRAM_CONTEXT only mentions the change at a
+  high level.
+- **Cash-rate comparisons** — when you want to say "Park Hyatt Paris cash
+  rates often clear $1,200/night," search to verify the rough range.
+
+DON'T use web search for:
+- Stuff already in PROGRAM_CONTEXT (use that — it's our verified data).
+- Voice / wording / opinions — those come from you, not the web.
+- Random padding searches when the article doesn't need more material.
+
+When you cite something you found, weave it in naturally — don't write
+"according to my web search…" or list URLs. Just say the thing. The
+fact-checker will validate the claim against web sources independently.
+
+
+═══════════════════════════════════════════════════════════
 VOICE — MUST-PASS CHECKLIST (read this first; the voice checker
 runs the same rules on your output and will reject the draft)
 ═══════════════════════════════════════════════════════════
@@ -245,6 +277,20 @@ function buildUserContent(input: WriteArticleInput): string {
   )
 }
 
+/**
+ * Walks the response content blocks backwards to find the final text block.
+ * When web search is enabled, the model returns interleaved tool_use /
+ * tool_result blocks before the final answer; we want only the text the
+ * model wrote at the end.
+ */
+function findLastTextBlock(content: Anthropic.ContentBlock[]): string | null {
+  for (let i = content.length - 1; i >= 0; i--) {
+    const b = content[i]
+    if (b.type === 'text' && b.text.trim()) return b.text
+  }
+  return null
+}
+
 export async function writeArticleBody(input: WriteArticleInput): Promise<ArticleDraft | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
@@ -252,18 +298,32 @@ export async function writeArticleBody(input: WriteArticleInput): Promise<Articl
     return null
   }
 
+  // Web search tool: lets the writer research specific properties at specific
+  // categories (e.g. "Cat 6 Hyatt in Amsterdam"), destination color (what to
+  // do in Paris/Venice), and current trends. Cap searches per draft to keep
+  // costs predictable: blog gets ~6 searches, newsletter ~3.
+  const maxWebUses = input.type === 'blog' ? 6 : 3
+
   try {
     const client = new Anthropic({ apiKey })
     const message = await client.messages.create({
       model: MODEL,
-      max_tokens: input.type === 'blog' ? 2500 : 800,
+      // Larger token budget when web search is on — research adds context.
+      max_tokens: input.type === 'blog' ? 4000 : 1200,
       system: systemPrompt(input.type),
+      tools: [
+        {
+          type: 'web_search_20250305',
+          name: 'web_search',
+          max_uses: maxWebUses,
+        },
+      ],
       messages: [{ role: 'user', content: buildUserContent(input) }],
     })
 
-    const block = message.content[0]
-    if (!block || block.type !== 'text') return null
-    const body = block.text.trim()
+    const text = findLastTextBlock(message.content)
+    if (!text) return null
+    const body = text.trim()
     if (!body) return null
     return { body, written_by: MODEL }
   } catch (err) {
