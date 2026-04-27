@@ -33,9 +33,20 @@ export default async function ProgramEditPage({ params }: Props) {
         title={program.name}
         description={`Editing program-page content for ${program.slug}. The writer + fact-check pipelines treat this as authoritative source material.`}
         actions={
-          <Link href="/admin/programs" className="admin-btn admin-btn-ghost admin-btn-sm">
-            ← All programs
-          </Link>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <Link
+              href={`/programs/${program.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="admin-btn admin-btn-secondary admin-btn-sm"
+              title="Open the public program page in a new tab"
+            >
+              ↗ View public page
+            </Link>
+            <Link href="/admin/programs" className="admin-btn admin-btn-ghost admin-btn-sm">
+              ← All programs
+            </Link>
+          </div>
         }
       />
 
