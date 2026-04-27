@@ -73,8 +73,16 @@ export function preparePublishUpdates(idea: IdeaForPublish): PublishPlan {
     missing.push('fact-check not run');
   } else {
     const claims = Array.isArray(idea.fact_check_claims) ? idea.fact_check_claims : [];
+    // A claim only blocks publish if it's high-severity, unsupported by source,
+    // unacknowledged, AND not rescued by web verification (likely_correct).
+    // Web-verified-correct claims are de facto resolved.
     const openHigh = claims.some(
-      (c) => c && c.supported === false && c.severity === 'high' && !c.acknowledged
+      (c) =>
+        c &&
+        c.supported === false &&
+        c.severity === 'high' &&
+        !c.acknowledged &&
+        (c as { web_verdict?: string }).web_verdict !== 'likely_correct'
     );
     if (openHigh) missing.push('unresolved high-severity fact-check claim');
   }

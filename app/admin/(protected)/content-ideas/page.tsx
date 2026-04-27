@@ -376,8 +376,22 @@ interface VerificationPill {
 }
 
 function verificationPills(idea: ContentIdeaRow): VerificationPill[] {
+  // A claim is "flagged" only if source comparison failed AND web verification
+  // didn't rescue it. Web-verified-correct claims are resolved.
   const flagged = Array.isArray(idea.fact_check_claims)
-    ? (idea.fact_check_claims as { supported?: boolean }[]).some((c) => c && c.supported === false)
+    ? (
+        idea.fact_check_claims as {
+          supported?: boolean
+          acknowledged?: boolean
+          web_verdict?: string | null
+        }[]
+      ).some(
+        (c) =>
+          c &&
+          c.supported === false &&
+          !c.acknowledged &&
+          c.web_verdict !== 'likely_correct'
+      )
     : false
   return [
     {
