@@ -57,17 +57,19 @@ export default function ArticleHeroCard({
         )}
       </div>
 
-      <div className="relative">
-        <h2
-          className={`font-display font-semibold leading-tight text-white ${
-            isFull
-              ? 'text-3xl md:text-4xl lg:text-5xl'
-              : 'text-lg leading-snug'
-          } ${allowFullTitleWrap ? '' : isFull ? 'line-clamp-4' : 'line-clamp-3'}`}
-        >
-          {title}
-        </h2>
-      </div>
+      {/* Title only in the full hero — index thumbnails leave title to the
+          card body below, which has room to render it cleanly. */}
+      {isFull && (
+        <div className="relative">
+          <h2
+            className={`font-display font-semibold leading-tight text-white text-3xl md:text-4xl lg:text-5xl ${
+              allowFullTitleWrap ? '' : 'line-clamp-4'
+            }`}
+          >
+            {title}
+          </h2>
+        </div>
+      )}
 
       <div className="relative flex items-end justify-between">
         <span
