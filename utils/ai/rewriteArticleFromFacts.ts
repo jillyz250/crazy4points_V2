@@ -52,23 +52,56 @@ caught. You will produce a new, shorter, cleaner draft that says fewer things �
 right.
 
 ═══════════════════════════════════════════════════════════
+WHAT TO PRESERVE FROM THE ORIGINAL DRAFT
+═══════════════════════════════════════════════════════════
+
+The original draft has flawed FACTS but probably has correct VOICE, COLOR,
+and STRUCTURE. Don't strip those out trying to be safe. KEEP:
+
+- **Voice and personality** — opening hooks, sentence rhythm, dry-warm tone,
+  anchor phrases, wink lines, one-liner section closers. These aren't claims;
+  they don't need fact-grounding.
+- **Travel/destination color** — sensory language ("the lobby smells like
+  money and quiet confidence", "fresh bread every morning"). KEEP. This is
+  voice, not fact.
+- **Mini-experience guides** — "what to do in Paris" lists, neighborhood
+  recommendations, food pairings. These don't need a points-related fact
+  to anchor them. KEEP, unless they name a specific Hyatt property at a
+  specific category that's NOT in VERIFIED_FACTS.
+- **Editorial picks (when grounded)** — if the original picked a specific
+  property and that property→category is in VERIFIED_FACTS, KEEP the pick.
+- **Structure** — section headings, sub-section labels, bullet lists. The
+  rewrite should have similar shape; just with the wrong facts swapped.
+
+═══════════════════════════════════════════════════════════
 HARD CONSTRAINTS (must-pass; the fact-checker WILL recheck the output)
 ═══════════════════════════════════════════════════════════
 
-1. **DO NOT introduce any new factual claims** beyond what's in VERIFIED_FACTS or PROGRAM_CONTEXT.
-   No specific property names, point amounts, dates, partners, or rates that aren't grounded
-   in those two sources. If a fact you'd like to use isn't there, leave it out.
+1. **DO NOT introduce any new factual claims** beyond what's in VERIFIED_FACTS
+   or PROGRAM_CONTEXT. No specific property names, point amounts, dates,
+   partners, or rates that aren't grounded in those two sources. If a fact
+   you'd like to use isn't there, leave it out.
 
-2. **DROP unsupported sections entirely.** If the original draft had a section about "Hyatt
-   Centric properties in Athens and Porto" but those property→category mappings aren't in
-   VERIFIED_FACTS, do not include them in the rewrite. Cut the section.
+2. **Replace unsupported facts with general framing — DON'T just delete
+   the section.** If the original draft had a paragraph about "Hyatt Centric
+   Athens at Cat 4" and that property isn't in VERIFIED_FACTS, don't drop
+   the whole paragraph. Rewrite as "Cat 4 properties typically run 15K
+   standard — search by city for what's available," and KEEP the surrounding
+   voice and color. Only drop a section if it's 100% unsupported facts with
+   no salvageable framing.
 
-3. **Do NOT speculate.** No "may", "could", "likely", "is set to". Just say what you can stand
-   behind, or don't say it.
+3. **Do NOT speculate.** No "may", "could", "likely", "is set to". Just say
+   what you can stand behind, or don't say it.
 
-4. **Keep general framing OK.** Rules of the program (categories, off-peak/standard/peak
-   structure, etc.) from PROGRAM_CONTEXT are fine to use generically without naming specific
-   properties.
+4. **General program framing is fine.** Rules of the program (off-peak /
+   standard / peak structure, transfer ratios, expiration policy, etc.)
+   from PROGRAM_CONTEXT are fine without naming specific properties.
+
+5. **Voice + color paragraphs do NOT need a verified fact.** A paragraph
+   about Paris activities ("Golden hour along the Seine — the stretch
+   from Pont des Arts to Île de la Cité is pure magic") is travel voice,
+   not a factual claim. The fact-checker won't flag it; you don't need
+   to remove it.
 
 ═══════════════════════════════════════════════════════════
 VOICE — same rules as the original writer
