@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/utils/supabase/server'
 import { verifyAlertDraft, webVerifyClaims, type VerifyClaim } from '@/utils/ai/verifyAlertDraft'
+import { buildProgramReferenceForDraft } from '@/utils/ai/programReferenceData'
 import { reviseAlertDraft, type RevisionLogEntry } from '@/utils/ai/reviseAlertDraft'
 import { logSystemError, type AlertType } from '@/utils/supabase/queries'
 
@@ -87,7 +88,7 @@ export async function reviseAlertAction(alertId: string): Promise<ReviseActionRe
 
   const { data: alert, error: alertErr } = await supabase
     .from('alerts')
-    .select('id, title, summary, description, type, source_url, source_intel_id, fact_check_claims, revision_log')
+    .select('id, title, summary, description, type, source_url, source_intel_id, fact_check_claims, revision_log, primary_program_id')
     .eq('id', alertId)
     .maybeSingle()
 
@@ -153,11 +154,18 @@ export async function reviseAlertAction(alertId: string): Promise<ReviseActionRe
   // Re-run fact-check on the new draft to refresh claim verdicts.
   let refreshed: VerifyClaim[] = []
   try {
+    const reverifyDraftText = `${revised.revised.title}\n${revised.revised.summary}\n${revised.revised.description ?? ''}`
+    const programReference = await buildProgramReferenceForDraft(
+      supabase,
+      (alert.primary_program_id as string | null) ?? null,
+      reverifyDraftText
+    )
     const reverify = await verifyAlertDraft({
       draft: revised.revised,
       raw_text: rawText,
       source_url: (alert.source_url as string | null) ?? null,
       alert_type: (alert.type as AlertType | null) ?? null,
+      program_reference: programReference,
     })
     const newClaims = reverify?.claims ?? []
     if (newClaims.some((c) => !c.supported)) {

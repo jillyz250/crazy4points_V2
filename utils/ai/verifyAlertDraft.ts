@@ -134,6 +134,30 @@ Numbers and dates MUST match exactly to count as supported. "400+ properties" wh
 says nothing about count → supported=false. "May 16" when SOURCE_TEXT says "May 15" → supported=false.
 
 ═══════════════════════════════════════════════════════════
+PROGRAM_REFERENCE (authoritative property/category data, optional)
+═══════════════════════════════════════════════════════════
+
+The user payload may include "program_reference" — a list of authoritative
+fact rows for properties the draft mentions, sourced from our internal DB.
+Each line is roughly:
+  "Park Hyatt Tokyo — Cat 7 — Tokyo, Japan — 25K/30K/35K"
+
+When PROGRAM_REFERENCE is provided, treat it as ground truth that overrides
+SOURCE_TEXT for property and category claims. Specifically:
+
+• If a draft claim about a named property contradicts PROGRAM_REFERENCE
+  (wrong category, wrong location, wrong points, wrong all-inclusive flag),
+  mark the claim supported=false, severity="high", source_excerpt=null.
+• If a draft claim about a named property is consistent with PROGRAM_REFERENCE,
+  it is supported even if SOURCE_TEXT doesn't explicitly mention it. Use the
+  matching reference line as source_excerpt (prefix it with "REF: ").
+• PROGRAM_REFERENCE is not exhaustive — only properties the draft mentions
+  appear there. Properties NOT in the reference fall back to SOURCE_TEXT
+  grounding as usual.
+
+When PROGRAM_REFERENCE is absent or empty, ignore this section.
+
+═══════════════════════════════════════════════════════════
 SEVERITY
 ═══════════════════════════════════════════════════════════
 
@@ -305,6 +329,13 @@ export async function verifyAlertDraft(args: {
   raw_text: string | null
   source_url: string | null
   alert_type?: AlertType | null
+  /**
+   * Authoritative property/category facts from `hotel_properties`, formatted
+   * by `buildProgramReferenceForDraft`. Only present for hotel programs whose
+   * draft actually mentions one of their properties. When set, Sonnet treats
+   * it as ground truth that overrides SOURCE_TEXT for property-level claims.
+   */
+  program_reference?: string | null
 }): Promise<VerifyResult | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
@@ -337,6 +368,7 @@ export async function verifyAlertDraft(args: {
       source_url: args.source_url,
       source_text: sourceText,
       alert_type: args.alert_type ?? null,
+      program_reference: args.program_reference ?? null,
     },
     null,
     2
