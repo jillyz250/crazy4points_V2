@@ -12,6 +12,7 @@ import FactCheckButton from '@/components/admin/FactCheckButton'
 import BrandCheckButton from '@/components/admin/BrandCheckButton'
 import CheckOriginalityButton from '@/components/admin/CheckOriginalityButton'
 import RunAllChecksButton from '@/components/admin/RunAllChecksButton'
+import RewriteFromVerifiedFactsButton from '@/components/admin/RewriteFromVerifiedFactsButton'
 import BlogMetadataForm from '@/components/admin/BlogMetadataForm'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Badge } from '@/components/admin/ui/Badge'
@@ -557,23 +558,7 @@ function IdeaCard({
         </form>
       </details>
 
-      <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap', alignItems: 'center' }}>
-        <RunAllChecksButton ideaId={idea.id} />
-        <WriteArticleButton ideaId={idea.id} hasBody={Boolean(idea.article_body)} />
-        <FactCheckButton ideaId={idea.id} hasBody={Boolean(idea.article_body)} />
-        <BrandCheckButton ideaId={idea.id} hasBody={Boolean(idea.article_body)} />
-        <CheckOriginalityButton ideaId={idea.id} hasBody={Boolean(idea.article_body)} />
-        {actions.map((a) => (
-          <form key={a.to} action={updateContentIdeaStatusAction.bind(null, idea.id, a.to)}>
-            <button
-              type="submit"
-              className={`admin-btn admin-btn-sm ${a.variant === 'primary' ? 'admin-btn-primary' : 'admin-btn-secondary'}`}
-            >
-              {a.label}
-            </button>
-          </form>
-        ))}
-      </div>
+      <WorkflowSteps idea={idea} actions={actions} />
     </div>
   )
 }
@@ -779,5 +764,262 @@ function WebVerdictBadge({
     >
       {palette.label}
     </span>
+  )
+}
+
+/**
+ * Renders the per-idea workflow as a numbered, ordered checklist:
+ *   1. Draft   →  2. Fact check  →  3. Rewrite (if flags)  →  4. Voice  →  5. Originality  →  6. Publish
+ *
+ * Each step shows its done/pending state, the relevant action button, and
+ * highlights the "next step" the editor should click. The "⚡ Run all checks"
+ * shortcut at the bottom remains for first-pass mass-runs.
+ */
+function WorkflowSteps({
+  idea,
+  actions,
+}: {
+  idea: ContentIdeaRow
+  actions: { label: string; to: IdeaStatus; variant?: 'primary' | 'secondary' }[]
+}) {
+  const hasBody = Boolean(idea.article_body)
+  const factChecked = Boolean(idea.fact_checked_at)
+  const voiceChecked = Boolean(idea.voice_checked_at)
+  const voicePass = idea.voice_pass === true
+  const originalityChecked = Boolean(idea.originality_checked_at)
+  const originalityPass = idea.originality_pass === true
+
+  const claims = Array.isArray(idea.fact_check_claims)
+    ? (idea.fact_check_claims as FlaggedClaim[])
+    : []
+  const flaggedCount = claims.filter(
+    (c) => c.supported === false && !c.acknowledged
+  ).length
+  const verifiedCount = claims.filter(
+    (c) => c.supported === true || c.web_verdict === 'likely_correct'
+  ).length
+
+  // Determine which step is "next" (highlight it). Steps are required-in-order.
+  let nextStep = 1
+  if (hasBody) nextStep = 2
+  if (factChecked) nextStep = flaggedCount > 0 ? 3 : 4
+  if (factChecked && flaggedCount === 0 && voiceChecked && voicePass) nextStep = 5
+  if (
+    factChecked &&
+    flaggedCount === 0 &&
+    voiceChecked &&
+    voicePass &&
+    originalityChecked &&
+    originalityPass
+  )
+    nextStep = 6
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '0.375rem',
+        marginTop: '0.5rem',
+        paddingTop: '0.625rem',
+        borderTop: '1px solid var(--admin-border)',
+      }}
+    >
+      <div
+        style={{
+          fontFamily: 'var(--font-ui)',
+          fontSize: '0.6875rem',
+          fontWeight: 700,
+          textTransform: 'uppercase',
+          letterSpacing: '0.08em',
+          color: 'var(--admin-text-muted)',
+          marginBottom: '0.125rem',
+        }}
+      >
+        Workflow
+      </div>
+
+      <Step
+        n={1}
+        label="Draft article"
+        done={hasBody}
+        active={nextStep === 1}
+      >
+        <WriteArticleButton ideaId={idea.id} hasBody={hasBody} />
+      </Step>
+
+      <Step
+        n={2}
+        label={
+          factChecked
+            ? `Fact check  (${verifiedCount} verified · ${flaggedCount} flagged)`
+            : 'Fact check'
+        }
+        done={factChecked && flaggedCount === 0}
+        active={nextStep === 2}
+      >
+        <FactCheckButton ideaId={idea.id} hasBody={hasBody} />
+      </Step>
+
+      <Step
+        n={3}
+        label={
+          flaggedCount === 0 && factChecked
+            ? 'Rewrite from verified facts (skip — no flags)'
+            : 'Rewrite from verified facts'
+        }
+        done={false /* never auto-marked done; this is an intermediate step */}
+        active={nextStep === 3}
+        muted={factChecked && flaggedCount === 0}
+      >
+        <RewriteFromVerifiedFactsButton
+          ideaId={idea.id}
+          factChecked={factChecked}
+          verifiedCount={verifiedCount}
+          flaggedCount={flaggedCount}
+        />
+      </Step>
+
+      <Step
+        n={4}
+        label="Voice check"
+        done={voiceChecked && voicePass}
+        active={nextStep === 4}
+      >
+        <BrandCheckButton ideaId={idea.id} hasBody={hasBody} />
+      </Step>
+
+      <Step
+        n={5}
+        label="Originality check"
+        done={originalityChecked && originalityPass}
+        active={nextStep === 5}
+      >
+        <CheckOriginalityButton ideaId={idea.id} hasBody={hasBody} />
+      </Step>
+
+      <Step n={6} label="Publish" done={idea.status === 'published'} active={nextStep === 6}>
+        <span style={{ display: 'inline-flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+          {actions.map((a) => (
+            <form key={a.to} action={updateContentIdeaStatusAction.bind(null, idea.id, a.to)}>
+              <button
+                type="submit"
+                className={`admin-btn admin-btn-sm ${
+                  a.variant === 'primary' ? 'admin-btn-primary' : 'admin-btn-secondary'
+                }`}
+              >
+                {a.label}
+              </button>
+            </form>
+          ))}
+        </span>
+      </Step>
+
+      {/* First-pass shortcut */}
+      <div
+        style={{
+          marginTop: '0.5rem',
+          paddingTop: '0.5rem',
+          borderTop: '1px dashed var(--admin-border)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          flexWrap: 'wrap',
+        }}
+      >
+        <span
+          style={{
+            fontFamily: 'var(--font-ui)',
+            fontSize: '0.6875rem',
+            color: 'var(--admin-text-muted)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            fontWeight: 600,
+          }}
+        >
+          Shortcut
+        </span>
+        <RunAllChecksButton ideaId={idea.id} />
+        <span style={{ fontSize: '0.6875rem', color: 'var(--admin-text-muted)', fontFamily: 'var(--font-ui)' }}>
+          (runs draft → fact → voice → originality in one go)
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function Step({
+  n,
+  label,
+  done,
+  active,
+  muted,
+  children,
+}: {
+  n: number
+  label: string
+  done: boolean
+  active: boolean
+  muted?: boolean
+  children: React.ReactNode
+}) {
+  const numColor = done
+    ? '#15803d'
+    : active
+      ? 'var(--admin-accent)'
+      : muted
+        ? 'var(--admin-text-muted)'
+        : 'var(--admin-text-muted)'
+  const numBg = done
+    ? '#dcfce7'
+    : active
+      ? 'var(--admin-accent-soft)'
+      : 'var(--admin-surface-alt)'
+  const labelOpacity = muted ? 0.5 : 1
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.625rem',
+        padding: '0.375rem 0',
+        opacity: labelOpacity,
+      }}
+    >
+      <span
+        aria-hidden
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: '1.5rem',
+          height: '1.5rem',
+          borderRadius: '999px',
+          background: numBg,
+          color: numColor,
+          fontFamily: 'var(--font-ui)',
+          fontSize: '0.75rem',
+          fontWeight: 700,
+          flexShrink: 0,
+        }}
+      >
+        {done ? '✓' : n}
+      </span>
+      <span
+        style={{
+          fontFamily: 'var(--font-ui)',
+          fontSize: '0.8125rem',
+          fontWeight: active ? 600 : 500,
+          color: active ? 'var(--admin-text)' : 'var(--admin-text-muted)',
+          minWidth: '11rem',
+        }}
+      >
+        {label}
+      </span>
+      <span style={{ display: 'inline-flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+        {children}
+      </span>
+    </div>
   )
 }

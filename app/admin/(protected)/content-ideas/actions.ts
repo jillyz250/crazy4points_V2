@@ -788,3 +788,143 @@ export async function createIdeaFromPromptAction(
     }
   }
 }
+
+/**
+ * Rewrites an article using only verified-correct claims.
+ *
+ * Reads fact_check_claims, filters to claims that are either:
+ *   - supported=true (matched against source data via verifyArticleBody), or
+ *   - web_verdict='likely_correct' (web-search backed)
+ *
+ * Calls rewriteArticleFromFacts with that constrained list, saves the new
+ * body, and clears all check timestamps so the editor re-runs them on the
+ * new draft.
+ */
+export type RewriteFromFactsActionResult =
+  | { ok: true; verified_count: number; old_length: number; new_length: number }
+  | { ok: false; error: string }
+
+export async function rewriteFromVerifiedFactsAction(
+  id: string
+): Promise<RewriteFromFactsActionResult> {
+  const supabase = createAdminClient()
+
+  const { data: idea, error: fetchErr } = await supabase
+    .from('content_ideas')
+    .select(
+      'id, type, title, pitch, article_body, fact_checked_at, fact_check_claims, source_alert_id, primary_program_slug'
+    )
+    .eq('id', id)
+    .single()
+
+  if (fetchErr || !idea) {
+    return { ok: false, error: fetchErr?.message ?? 'Idea not found' }
+  }
+  if (idea.type !== 'blog' && idea.type !== 'newsletter') {
+    return { ok: false, error: `Unsupported idea type: ${idea.type}` }
+  }
+  if (!idea.article_body) {
+    return { ok: false, error: 'No article body to rewrite — draft first.' }
+  }
+  if (!idea.fact_checked_at) {
+    return { ok: false, error: 'Run fact check first — there are no verdicts to filter.' }
+  }
+
+  type ClaimShape = {
+    claim?: string
+    supported?: boolean
+    web_verdict?: 'likely_correct' | 'likely_wrong' | 'unverifiable' | null
+    web_evidence?: string | null
+    source_excerpt?: string | null
+  }
+
+  const claims = Array.isArray(idea.fact_check_claims)
+    ? (idea.fact_check_claims as ClaimShape[])
+    : []
+
+  // A claim is "verified" if either:
+  //  - the source-comparison pass marked it supported (with a real source_excerpt), OR
+  //  - the web-verification pass marked it likely_correct
+  const verifiedFacts = claims
+    .filter((c) => {
+      if (c.supported === true && c.source_excerpt) return true
+      if (c.web_verdict === 'likely_correct') return true
+      return false
+    })
+    .map((c) => ({
+      claim: typeof c.claim === 'string' ? c.claim : '',
+      evidence: (c.source_excerpt ?? c.web_evidence) || null,
+    }))
+    .filter((f) => f.claim.length > 0)
+
+  if (verifiedFacts.length < 2) {
+    return {
+      ok: false,
+      error: `Only ${verifiedFacts.length} verified claim${
+        verifiedFacts.length === 1 ? '' : 's'
+      } available — too thin to rewrite. Edit manually or rewrite the original draft.`,
+    }
+  }
+
+  // Pull program data so the rewriter has the same authoritative source the
+  // writer + fact-checker use. This lets the rewrite generalize ("Cat 4
+  // properties typically run 15K standard") instead of restating only the
+  // narrow set of named properties that survived fact-check.
+  const programs = await getProgramsForIdea(
+    supabase,
+    idea.source_alert_id,
+    idea.primary_program_slug,
+  )
+  const programContext =
+    programs.length > 0 ? programsToSourceText(programs) : null
+
+  const { rewriteArticleFromFacts } = await import('@/utils/ai/rewriteArticleFromFacts')
+  const result = await rewriteArticleFromFacts({
+    type: idea.type,
+    title: idea.title,
+    pitch: idea.pitch,
+    current_body: idea.article_body,
+    verified_facts: verifiedFacts,
+    program_context: programContext,
+  })
+
+  if (!result) {
+    return { ok: false, error: 'Rewriter returned no draft (check logs / API key).' }
+  }
+
+  const oldLength = idea.article_body.length
+  const newLength = result.body.length
+  const now = new Date().toISOString()
+
+  const { error: updateErr } = await supabase
+    .from('content_ideas')
+    .update({
+      article_body: result.body,
+      written_by: result.written_by,
+      written_at: now,
+      reading_time_minutes: computeReadingTimeMinutes(result.body),
+      // Clear all check state so the editor re-runs each step on the new body.
+      fact_checked_at: null,
+      fact_check_claims: null,
+      voice_checked_at: null,
+      voice_notes: null,
+      voice_pass: null,
+      originality_checked_at: null,
+      originality_notes: null,
+      originality_pass: null,
+      updated_at: now,
+    })
+    .eq('id', id)
+
+  if (updateErr) {
+    return { ok: false, error: updateErr.message }
+  }
+
+  revalidatePath('/admin/content-ideas')
+  return {
+    ok: true,
+    verified_count: verifiedFacts.length,
+    old_length: oldLength,
+    new_length: newLength,
+  }
+}
