@@ -196,7 +196,15 @@ export default function SourcesTable({
                       </span>
                     </td>
                     <td style={{ textAlign: 'right' }}>
-                      <DeleteSourceButton id={source.id} name={source.name} />
+                      <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-end', alignItems: 'center' }}>
+                        <a
+                          href={`/admin/sources/${source.id}/edit`}
+                          className="admin-btn admin-btn-ghost admin-btn-sm"
+                        >
+                          Edit
+                        </a>
+                        <DeleteSourceButton id={source.id} name={source.name} />
+                      </div>
                     </td>
                   </tr>
                 )
