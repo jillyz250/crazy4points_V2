@@ -26,11 +26,12 @@ const ALLIANCE_COLOR: Record<string, string> = {
 }
 
 /**
- * Counts how many of the 9 page-content sections a program has populated.
+ * Counts how many of the page-content sections a program has populated.
  * Surfaces in admin so authors can see at-a-glance what's done vs. todo.
  *
- * Sections (9): alliance, hubs, intro, transfer_partners, how_to_spend,
- * sweet_spots, tier_benefits, lounge_access, quirks.
+ * Sections: alliance, hubs (airlines only), intro, award_chart,
+ * transfer_partners, how_to_spend, sweet_spots, tier_benefits, lounge_access,
+ * quirks. Total: 10 for airlines, 9 for hotels (no hubs).
  */
 function pageCompleteness(program: Program): { filled: number; total: number; missing: string[] } {
   const isHotel = program.type === 'hotel'
@@ -38,6 +39,7 @@ function pageCompleteness(program: Program): { filled: number; total: number; mi
     ['Alliance',          !!program.alliance],
     ...(isHotel ? [] : [['Hubs', (program.hubs?.length ?? 0) > 0] as [string, boolean]]),
     ['Intro',             !!program.intro?.trim()],
+    ['Award chart',       !!program.award_chart?.trim()],
     ['Transfer partners', (program.transfer_partners?.length ?? 0) > 0],
     ['How to spend',      !!program.how_to_spend?.trim()],
     ['Sweet spots',       !!program.sweet_spots?.trim()],
