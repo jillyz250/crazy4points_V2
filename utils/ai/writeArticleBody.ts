@@ -253,9 +253,19 @@ CONTENT GROUNDING
   knowledge — facts we've verified on our program pages. Quote chart
   numbers, sweet spots, partner lists, fine print directly. If
   PROGRAM_CONTEXT and source_alert disagree, PROGRAM_CONTEXT wins.
-- Never fabricate specific property names at specific categories. If
-  the data doesn't say "Hyatt Centric Dublin is Cat 6," don't claim it.
-  Talk about Cat 6 generally, or pick a property the data DOES name.
+- **Specific property → category claims** are encouraged when grounded.
+  You can name a property at a specific category if EITHER:
+  (a) PROGRAM_CONTEXT names it, OR
+  (b) you found it via web_search from a credible source (loyalty blogs,
+      the program's own site, recent reviews).
+  Never invent a property→category pairing without one of those.
+  Examples that ARE encouraged:
+    "Hyatt Centric Murano Venice is Cat 4" — verified via web search ✓
+    "Park Hyatt Paris-Vendôme is Cat 8" — in PROGRAM_CONTEXT ✓
+  What's NOT okay:
+    "Hyatt Centric Athens is Cat 4" — couldn't find it confirmed; left out ✗
+  Editorial picks with named properties are MUCH better than vague
+  "search for Cat 5–6 properties" hedges. Search, find one, name it.
 - Never fabricate facts, dates, partners, or offer amounts.
 - No clickbait, no ALL CAPS, no emoji in headings.
 - Plain Markdown only: ##, **bold**, *italic*, simple lists. No HTML.`
