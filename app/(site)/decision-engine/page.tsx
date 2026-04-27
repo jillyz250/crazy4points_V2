@@ -775,34 +775,11 @@ function HotelOptionsBlock({
   country: string | null
   destinationTitle: string
 }) {
-  // Empty state — render the same coming-soon stub as before so the card
-  // doesn't lose its preview-feature texture
-  if (hotels.length === 0) {
-    return (
-      <div style={{ opacity: 0.6 }}>
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: '10px',
-          padding: '9px 0',
-          borderBottom: '1px solid #F5F0FF',
-        }}>
-          <LockIcon />
-          <span style={{
-            fontFamily: 'var(--font-body)', fontSize: '13px',
-            color: '#6A5A8A', flex: 1,
-          }}>
-            Hotel options + points costs
-          </span>
-          <span style={{
-            padding: '2px 9px', borderRadius: '999px',
-            border: '1px solid #D4C8E8', color: '#9A8AAA',
-            fontFamily: 'var(--font-ui)', fontSize: '10px', fontWeight: 600,
-          }}>
-            Coming Soon
-          </span>
-        </div>
-      </div>
-    )
-  }
+  // Empty state — hide the section entirely. We used to render a "Coming
+  // Soon" stub when no hotels matched, but readers found it more confusing
+  // than informative ("why is this Coming Soon when other destinations
+  // show real data?"). Cleaner to omit the block.
+  if (hotels.length === 0) return null
 
   // Group by program — the API already orders within each program by points
   const byProgram = new Map<string, SampleHotel[]>()
@@ -1115,16 +1092,18 @@ function WinnerCard({ dest, visible }: { dest: Destination; visible: boolean }) 
         </Link>
       )}
 
-      {/* Divider */}
-      <div style={{ borderTop: '1px solid #F0EAF8', margin: '0 0 14px' }} />
-
-      {/* Hotel options — real data when seeded, fallback to a single
-          coming-soon stub when no hotels match the destination yet. */}
-      <HotelOptionsBlock
-        hotels={dest.hotels ?? []}
-        country={dest.country}
-        destinationTitle={dest.title}
-      />
+      {/* Hotel options — section renders nothing when no hotels match,
+          so wrap divider + block together to avoid a dangling divider. */}
+      {(dest.hotels?.length ?? 0) > 0 && (
+        <>
+          <div style={{ borderTop: '1px solid #F0EAF8', margin: '0 0 14px' }} />
+          <HotelOptionsBlock
+            hotels={dest.hotels ?? []}
+            country={dest.country}
+            destinationTitle={dest.title}
+          />
+        </>
+      )}
       </div>
     </div>
   )
