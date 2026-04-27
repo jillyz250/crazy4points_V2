@@ -140,7 +140,7 @@ const WHO_LABELS: Record<string, string> = {
   solo: 'Solo', couple: 'Couple', family: 'Family', group: 'Group',
 }
 const TRIP_LABELS: Record<string, string> = {
-  short: 'Short (2–4 days)', medium: 'Medium (5–7 days)', long: 'Long (8+ days)',
+  short: 'Short · 2–4d', medium: 'Medium · 5–7d', long: 'Long · 8+d',
 }
 
 function getFilterSummary(filters: Filters): string {
@@ -546,11 +546,11 @@ function FilterModal({
 function GoldBadge({ label }: { label: string }) {
   return (
     <span style={{
-      padding: '4px 12px', borderRadius: '999px',
+      padding: '3px 10px', borderRadius: '999px',
       background: 'linear-gradient(135deg, #F5E170, #D4AF37)',
       color: '#1A0A2E',
-      fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 600,
-      whiteSpace: 'nowrap',
+      fontFamily: 'var(--font-ui)', fontSize: '10.5px', fontWeight: 600,
+      whiteSpace: 'nowrap', lineHeight: 1.5,
     }}>{label}</span>
   )
 }
@@ -558,11 +558,11 @@ function GoldBadge({ label }: { label: string }) {
 function PurpleBadge({ label }: { label: string }) {
   return (
     <span style={{
-      padding: '4px 12px', borderRadius: '999px',
-      background: '#F3EEF9', border: '1.5px solid #6B2D8F',
+      padding: '3px 10px', borderRadius: '999px',
+      background: '#F3EEF9', border: '1px solid #C9B0DD',
       color: '#6B2D8F',
-      fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 600,
-      whiteSpace: 'nowrap',
+      fontFamily: 'var(--font-ui)', fontSize: '10.5px', fontWeight: 600,
+      whiteSpace: 'nowrap', lineHeight: 1.5,
     }}>{label}</span>
   )
 }
@@ -595,20 +595,20 @@ function MonthDot({ month, tier }: { month: string; tier: 'great' | 'good' }) {
 function WeatherLegend() {
   return (
     <div style={{
-      display: 'flex', gap: '14px', alignItems: 'center',
-      marginTop: '8px',
-      fontFamily: 'var(--font-ui)', fontSize: '10px', fontWeight: 600,
-      color: '#6A5A8A',
+      display: 'flex', gap: '10px', alignItems: 'center',
+      marginTop: '6px',
+      fontFamily: 'var(--font-ui)', fontSize: '9.5px', fontWeight: 600,
+      color: '#9A8AAA', textTransform: 'uppercase', letterSpacing: '0.06em',
     }}>
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
         <span style={{
-          width: '8px', height: '8px', borderRadius: '50%', background: WEATHER_GREEN,
+          width: '6px', height: '6px', borderRadius: '50%', background: WEATHER_GREEN,
         }} />
         Great
       </span>
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
         <span style={{
-          width: '8px', height: '8px', borderRadius: '50%', background: WEATHER_AMBER,
+          width: '6px', height: '6px', borderRadius: '50%', background: WEATHER_AMBER,
         }} />
         Good
       </span>
@@ -622,9 +622,9 @@ function InfoSection({ label, children }: { label: string; children: React.React
       <div style={{
         fontFamily: 'var(--font-ui)', fontSize: '10px', fontWeight: 700,
         letterSpacing: '0.12em', textTransform: 'uppercase',
-        color: '#9A7ACC', marginBottom: '8px',
+        color: '#6B2D8F', marginBottom: '6px',
       }}>{label}</div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>{children}</div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>{children}</div>
     </div>
   )
 }
@@ -817,12 +817,12 @@ function WinnerCard({ dest, visible }: { dest: Destination; visible: boolean }) 
           }}
         />
       )}
-      <div style={{ padding: '28px 32px 24px' }}>
+      <div style={{ padding: '22px 28px 20px' }}>
       {/* Label */}
       <div style={{
         fontFamily: 'var(--font-ui)', fontSize: '10px', fontWeight: 700,
         letterSpacing: '0.14em', textTransform: 'uppercase',
-        color: '#D4AF37', marginBottom: '10px',
+        color: '#D4AF37', marginBottom: '8px',
       }}>
         Your Next Adventure
       </div>
@@ -830,8 +830,8 @@ function WinnerCard({ dest, visible }: { dest: Destination; visible: boolean }) 
       {/* Headline + subtitle */}
       <h2 style={{
         fontFamily: 'var(--font-display), "Playfair Display", serif',
-        fontSize: 'clamp(1.6rem, 4vw, 2.2rem)', fontWeight: 700,
-        color: '#6B2D8F', margin: '0 0 6px 0', lineHeight: 1.15,
+        fontSize: 'clamp(1.5rem, 3.6vw, 2rem)', fontWeight: 700,
+        color: '#6B2D8F', margin: '0 0 4px 0', lineHeight: 1.15,
       }}>
         {dest.title}
       </h2>
@@ -866,22 +866,26 @@ function WinnerCard({ dest, visible }: { dest: Destination; visible: boolean }) 
       {dest.summary && (
         <p style={{
           fontFamily: 'var(--font-body), Lato, sans-serif',
-          fontSize: '15px', lineHeight: 1.75, color: '#2A1A3A',
-          margin: '0 0 24px 0',
+          fontSize: '14.5px', lineHeight: 1.6, color: '#2A1A3A',
+          margin: '0 0 18px 0',
         }}>
           {dest.summary}
         </p>
       )}
 
       {/* Divider */}
-      <div style={{ borderTop: '1px solid #F0EAF8', marginBottom: '22px' }} />
+      <div style={{ borderTop: '1px solid #F0EAF8', marginBottom: '14px' }} />
 
-      {/* Info grid — 2 cols on desktop, 1 on mobile */}
+      {/* Info grid — 2 cols on desktop, 1 on narrow mobile. The 4 sections
+          (Vibe, Perfect For, Months, Trip Length) sit in a tight 2x2 so
+          nothing wraps awkwardly. Rows are aligned-start so a section with
+          fewer pills doesn't stretch its sibling. */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
-        gap: '20px',
-        marginBottom: '24px',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+        gap: '14px 18px',
+        marginBottom: '18px',
+        alignItems: 'start',
       }}>
         {dest.vibe && dest.vibe.length > 0 && (
           <InfoSection label="The Vibe">
@@ -897,7 +901,7 @@ function WinnerCard({ dest, visible }: { dest: Destination; visible: boolean }) 
 
         {hasWeather && (
           <InfoSection label="Best Time to Visit">
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
               {greatMonths.map(m => <MonthDot key={m} month={MONTH_SHORT[m]} tier="great" />)}
               {goodMonths.map(m  => <MonthDot key={m} month={MONTH_SHORT[m]} tier="good" />)}
             </div>
@@ -906,7 +910,7 @@ function WinnerCard({ dest, visible }: { dest: Destination; visible: boolean }) 
         )}
 
         {dest.tripLength && dest.tripLength.length > 0 && (
-          <InfoSection label="Recommended Trip">
+          <InfoSection label="Trip Length">
             {dest.tripLength.map(t => <PurpleBadge key={t} label={TRIP_LABELS[t] ?? t} />)}
           </InfoSection>
         )}
@@ -917,14 +921,14 @@ function WinnerCard({ dest, visible }: { dest: Destination; visible: boolean }) 
         <Link
           href={`/destinations/${dest.slug}`}
           style={{
-            display: 'inline-block', padding: '11px 28px',
+            display: 'inline-block', padding: '9px 22px',
             borderRadius: '999px',
             background: 'linear-gradient(135deg, #6B2D8F, #8B3DAF)',
-            color: 'white', fontFamily: 'var(--font-ui)', fontSize: '12px',
+            color: 'white', fontFamily: 'var(--font-ui)', fontSize: '11px',
             fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
             textDecoration: 'none',
             boxShadow: '0 3px 12px rgba(107,45,143,0.3)',
-            marginBottom: '24px',
+            marginBottom: '18px',
           }}
         >
           View Full Destination
@@ -932,7 +936,7 @@ function WinnerCard({ dest, visible }: { dest: Destination; visible: boolean }) 
       )}
 
       {/* Divider */}
-      <div style={{ borderTop: '1px solid #F0EAF8', margin: '4px 0 18px' }} />
+      <div style={{ borderTop: '1px solid #F0EAF8', margin: '0 0 14px' }} />
 
       {/* Hotel options — real data when we have any, fallback to coming-soon stub */}
       <HotelOptionsBlock hotels={dest.hotels ?? []} country={dest.country} />
