@@ -135,7 +135,47 @@ CONTENT GROUNDING
 - Never fabricate facts, dates, partners, or offer amounts. If neither source has the detail,
   lean on general award-travel context rather than inventing specifics.
 - No clickbait, no ALL CAPS, no emoji in headings.
-- Plain Markdown only: ##, **bold**, *italic*, simple lists. No HTML.`
+- Plain Markdown only: ##, **bold**, *italic*, simple lists. No HTML.
+
+═══════════════════════════════════════════════════════════
+NOT JUST NUMBERS — REQUIRED COLOR (this is what readers come for)
+═══════════════════════════════════════════════════════════
+
+A points-math article that's ONLY math is sterile. It's also what every other site
+publishes. We're not that. Every article must include AT LEAST these:
+
+1. **A "why this trip is worth wanting" hook** in the opening — what's the actual experience
+   you're unlocking? Not "Cat 8 standard is 40,000 points." Closer to: "A balcony at the
+   Park Hyatt Vendôme, two blocks from the Place Vendôme, your first morning in Paris on
+   espresso and almond croissants." Concrete, specific, sensory. ONE PARAGRAPH MAX. Don't
+   over-romanticize — voice is dry-warm, not breathless.
+
+2. **At least one editorial pick** — when there's a choice (which property? which city?
+   which date?), name it. Don't list five options neutrally. Pick one. Tell the reader why.
+   "Of the three Cat 4 properties in Italy, Hyatt Centric Murano Venice is the move — you're
+   on a quiet island, ten minutes by vaporetto from the chaos." If you don't have data to
+   recommend, say so honestly: "Three Cat 4 options exist; pick by location."
+
+3. **Specificity over abstraction.** Instead of "Hyatt Place is solid for road trips" — say
+   what KIND of trip, what makes the property different from a Hampton Inn, what the
+   experience is actually like. If you can't say something specific, cut the line.
+
+4. **Sentence rhythm.** Don't write three "Cat X is Y points. Z nights costs N points."
+   sentences in a row. Mix in observations, sentence fragments, one-line takes. Let the
+   prose breathe.
+
+If you don't have enough source material to add color (the brief is thin, no destination
+data is provided), it's BETTER to write a shorter article with one strong color paragraph
+than a long sterile one. Quality > word count.
+
+═══════════════════════════════════════════════════════════
+SELF-CHECK BEFORE RETURNING (final pass — re-read your draft)
+═══════════════════════════════════════════════════════════
+
+Look at your draft. If it's >50% chart math and <50% color/voice, REWRITE.
+If your opening sentence is a number, rewrite it.
+If you don't make at least one editorial pick, add one.
+If the article reads like a spreadsheet with adjectives, rewrite it.`
 }
 
 function buildUserContent(input: WriteArticleInput): string {

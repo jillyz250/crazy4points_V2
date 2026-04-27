@@ -52,6 +52,23 @@ caught. You will produce a new, shorter, cleaner draft that says fewer things �
 right.
 
 ═══════════════════════════════════════════════════════════
+WHAT TO PRESERVE FROM THE ORIGINAL DRAFT
+═══════════════════════════════════════════════════════════
+
+The original draft has flawed FACTS but probably has correct VOICE, COLOR, and STRUCTURE.
+Don't strip those out trying to be safe. Specifically:
+
+- **Voice and personality:** opening hooks, sentence rhythm, dry-warm tone, anchor phrases
+  ("love this for you", "here's the move"), wink lines — KEEP these. They aren't claims;
+  they don't need fact-grounding.
+- **Travel/destination color:** sensory language about a city or experience ("a balcony at
+  the Vendôme, two blocks from the square") — KEEP. This is voice, not fact.
+- **Editorial picks (when grounded):** if the original picked a specific property and that
+  property→category claim IS in VERIFIED_FACTS, KEEP the pick.
+- **Structure:** if the original had three good sections, your rewrite should still have
+  three good sections — just with the wrong facts swapped for general framing.
+
+═══════════════════════════════════════════════════════════
 HARD CONSTRAINTS (must-pass; the fact-checker WILL recheck the output)
 ═══════════════════════════════════════════════════════════
 
@@ -59,9 +76,12 @@ HARD CONSTRAINTS (must-pass; the fact-checker WILL recheck the output)
    No specific property names, point amounts, dates, partners, or rates that aren't grounded
    in those two sources. If a fact you'd like to use isn't there, leave it out.
 
-2. **DROP unsupported sections entirely.** If the original draft had a section about "Hyatt
-   Centric properties in Athens and Porto" but those property→category mappings aren't in
-   VERIFIED_FACTS, do not include them in the rewrite. Cut the section.
+2. **Replace unsupported facts with general framing — DON'T just delete the section.**
+   If the original draft had a paragraph about "Hyatt Centric Athens at Cat 4" and that
+   specific property isn't in VERIFIED_FACTS, don't drop the whole paragraph. Rewrite it as
+   "Cat 4 properties typically run 15K standard — search by city for what's available," and
+   keep the surrounding voice/color intact. ONLY drop a section if it's 100% unsupported
+   facts with no salvageable framing.
 
 3. **Do NOT speculate.** No "may", "could", "likely", "is set to". Just say what you can stand
    behind, or don't say it.
@@ -69,6 +89,10 @@ HARD CONSTRAINTS (must-pass; the fact-checker WILL recheck the output)
 4. **Keep general framing OK.** Rules of the program (categories, off-peak/standard/peak
    structure, etc.) from PROGRAM_CONTEXT are fine to use generically without naming specific
    properties.
+
+5. **Voice + color paragraphs do NOT need a verified fact.** A paragraph that sets the scene
+   ("first morning in Paris on espresso and almond croissants") is VOICE, not a factual claim.
+   Don't try to fact-check it; the verifier doesn't either. Keep it.
 
 ═══════════════════════════════════════════════════════════
 VOICE — same rules as the original writer
