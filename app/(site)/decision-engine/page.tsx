@@ -5,6 +5,22 @@ import Link from 'next/link'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+type SampleHotel = {
+  id: string
+  name: string
+  brand: string | null
+  city: string | null
+  country: string | null
+  category: string | null
+  off_peak_points: number | null
+  standard_points: number | null
+  peak_points: number | null
+  hotel_url: string | null
+  all_inclusive: boolean
+  program_slug: string
+  program_name: string
+}
+
 type Destination = {
   title: string
   slug: string
@@ -16,6 +32,7 @@ type Destination = {
   tripLength?: string[] | null
   whoIsGoing?: string[] | null
   imageUrl?: string | null
+  hotels?: SampleHotel[]
 }
 
 type Filters = {
@@ -571,6 +588,147 @@ function LockIcon() {
   )
 }
 
+// ─── HotelOptionsBlock ────────────────────────────────────────────────────────
+//
+// Lists 1-2 sample hotels per program for the destination's country. Falls
+// back to a coming-soon stub when no hotels are seeded yet (e.g. the country
+// has no rows in hotel_properties, or no programs are seeded for it).
+
+function HotelOptionsBlock({ hotels, country }: { hotels: SampleHotel[]; country: string | null }) {
+  // Empty state — render the same coming-soon stub as before so the card
+  // doesn't lose its preview-feature texture
+  if (hotels.length === 0) {
+    return (
+      <div style={{ opacity: 0.6 }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '10px',
+          padding: '9px 0',
+          borderBottom: '1px solid #F5F0FF',
+        }}>
+          <LockIcon />
+          <span style={{
+            fontFamily: 'var(--font-body)', fontSize: '13px',
+            color: '#6A5A8A', flex: 1,
+          }}>
+            Hotel options + points costs
+          </span>
+          <span style={{
+            padding: '2px 9px', borderRadius: '999px',
+            border: '1px solid #D4C8E8', color: '#9A8AAA',
+            fontFamily: 'var(--font-ui)', fontSize: '10px', fontWeight: 600,
+          }}>
+            Coming Soon
+          </span>
+        </div>
+      </div>
+    )
+  }
+
+  // Group by program — the API already orders within each program by points
+  const byProgram = new Map<string, SampleHotel[]>()
+  for (const h of hotels) {
+    const list = byProgram.get(h.program_slug)
+    if (list) list.push(h)
+    else byProgram.set(h.program_slug, [h])
+  }
+
+  return (
+    <div>
+      <div style={{
+        fontFamily: 'var(--font-ui)', fontSize: '10px', fontWeight: 700,
+        letterSpacing: '0.12em', textTransform: 'uppercase',
+        color: '#6B2D8F', marginBottom: '10px',
+      }}>
+        Hotels in {country ?? 'destination'}
+      </div>
+      {[...byProgram.entries()].map(([slug, list]) => {
+        const programName = list[0]?.program_name ?? slug
+        return (
+          <div key={slug} style={{ marginBottom: '12px' }}>
+            <div style={{
+              display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
+              marginBottom: '4px',
+            }}>
+              <Link
+                href={`/programs/${slug}`}
+                style={{
+                  fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 700,
+                  textTransform: 'uppercase', letterSpacing: '0.06em',
+                  color: '#6B2D8F', textDecoration: 'none',
+                }}
+              >
+                {programName} →
+              </Link>
+            </div>
+            {list.map((h) => (
+              <div
+                key={h.id}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '10px',
+                  padding: '8px 0',
+                  borderBottom: '1px solid #F5F0FF',
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    fontFamily: 'var(--font-body)', fontSize: '13px',
+                    fontWeight: 500, color: '#1A1A1A',
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>
+                    {h.hotel_url ? (
+                      <a
+                        href={h.hotel_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: '#1A1A1A', textDecoration: 'none' }}
+                      >
+                        {h.name}
+                      </a>
+                    ) : h.name}
+                    {h.all_inclusive && (
+                      <span style={{
+                        marginLeft: '6px', fontSize: '9px',
+                        fontFamily: 'var(--font-ui)', fontWeight: 700,
+                        textTransform: 'uppercase', letterSpacing: '0.04em',
+                        color: '#D4AF37',
+                      }}>AI</span>
+                    )}
+                  </div>
+                  {h.city && (
+                    <div style={{
+                      fontFamily: 'var(--font-body)', fontSize: '11px',
+                      color: '#6A5A8A',
+                    }}>{h.city}</div>
+                  )}
+                </div>
+                {h.category && (
+                  <span style={{
+                    padding: '3px 10px', borderRadius: '999px',
+                    background: '#F5F0FF', color: '#6B2D8F',
+                    fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 700,
+                    whiteSpace: 'nowrap',
+                  }}>
+                    Cat {h.category}
+                  </span>
+                )}
+                {h.standard_points ? (
+                  <span style={{
+                    fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 600,
+                    color: '#4A4A4A', fontVariantNumeric: 'tabular-nums',
+                    minWidth: '54px', textAlign: 'right',
+                  }}>
+                    {(h.standard_points / 1000).toFixed(0)}K pts
+                  </span>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 // ─── WinnerCard ───────────────────────────────────────────────────────────────
 
 function WinnerCard({ dest, visible }: { dest: Destination; visible: boolean }) {
@@ -703,8 +861,11 @@ function WinnerCard({ dest, visible }: { dest: Destination; visible: boolean }) 
       {/* Divider */}
       <div style={{ borderTop: '1px solid #F0EAF8', margin: '4px 0 18px' }} />
 
-      {/* Coming soon */}
-      <div style={{ opacity: 0.6 }}>
+      {/* Hotel options — real data when we have any, fallback to coming-soon stub */}
+      <HotelOptionsBlock hotels={dest.hotels ?? []} country={dest.country} />
+
+      {/* Coming soon — leave the other two stubs untouched until those features land */}
+      <div style={{ opacity: 0.6, marginTop: '18px' }}>
         <div style={{
           fontFamily: 'var(--font-ui)', fontSize: '10px', fontWeight: 700,
           letterSpacing: '0.12em', textTransform: 'uppercase',
@@ -712,7 +873,7 @@ function WinnerCard({ dest, visible }: { dest: Destination; visible: boolean }) 
         }}>
           More Coming Soon
         </div>
-        {['Hotel options + points costs', 'Best award redemptions', 'Current transfer bonuses'].map(item => (
+        {['Best award redemptions', 'Current transfer bonuses'].map(item => (
           <div key={item} style={{
             display: 'flex', alignItems: 'center', gap: '10px',
             padding: '9px 0',
