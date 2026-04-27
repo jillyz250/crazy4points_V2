@@ -16,6 +16,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { writeAlertDraft } from '@/utils/ai/writeAlertDraft'
 import { editAlertDraft } from '@/utils/ai/editAlertDraft'
 import { verifyAlertDraft, webVerifyClaims, type VerifyClaim } from '@/utils/ai/verifyAlertDraft'
+import { buildProgramReferenceForDraft } from '@/utils/ai/programReferenceData'
 import { reviseAlertDraft, type RevisionLogEntry } from '@/utils/ai/reviseAlertDraft'
 import { voiceCheckArticle } from '@/utils/ai/voiceCheckArticle'
 import { originalityCheck } from '@/utils/ai/originalityCheck'
@@ -394,11 +395,14 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
   let checkedAt: string | null = null
   let reviseLog: RevisionLogEntry[] = []
   try {
+    const draftText = `${draft.title}\n${draft.summary}\n${draft.description ?? ''}`
+    const programReference = await buildProgramReferenceForDraft(supabase, primaryId, draftText)
     const verify = await verifyAlertDraft({
       draft: { title: draft.title, summary: draft.summary, description: draft.description },
       raw_text: (intel.raw_text as string | null) ?? null,
       source_url: (intel.source_url as string | null) ?? null,
       alert_type: intel.alert_type,
+      program_reference: programReference,
     })
     if (verify) {
       finalClaims = verify.claims
@@ -449,11 +453,18 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
             description: workingDraft.description,
           })
 
+          const reverifyDraftText = `${workingDraft.title}\n${workingDraft.summary}\n${workingDraft.description ?? ''}`
+          const reverifyProgramReference = await buildProgramReferenceForDraft(
+            supabase,
+            primaryId,
+            reverifyDraftText
+          )
           const reverify = await verifyAlertDraft({
             draft: workingDraft,
             raw_text: (intel.raw_text as string | null) ?? null,
             source_url: (intel.source_url as string | null) ?? null,
             alert_type: intel.alert_type,
+            program_reference: reverifyProgramReference,
           })
           if (!reverify) break
           let reverified = reverify.claims

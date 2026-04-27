@@ -10,6 +10,7 @@ import {
 import { writeAlertDraft, type WriteDraftProgram } from '@/utils/ai/writeAlertDraft'
 import { editAlertDraft } from '@/utils/ai/editAlertDraft'
 import { verifyAlertDraft, webVerifyClaims, highSeverityUnsupported } from '@/utils/ai/verifyAlertDraft'
+import { buildProgramReferenceForDraft } from '@/utils/ai/programReferenceData'
 import { reviseAlertDraft, type RevisionLogEntry } from '@/utils/ai/reviseAlertDraft'
 import type { ApproveMeta } from '@/utils/ai/briefEmail'
 import { updateAlert, setAlertPrograms, logSystemError } from '@/utils/supabase/queries'
@@ -318,11 +319,18 @@ export async function GET(req: NextRequest) {
         // Fact-check pass: ground every factual claim in the draft against
         // the intel raw_text. Unsupported high-severity claims surface as
         // red warnings in admin review before publish.
+        const initialDraftText = `${draft.title}\n${draft.summary}\n${draft.description ?? ''}`
+        const initialProgramReference = await buildProgramReferenceForDraft(
+          supabase,
+          primaryId,
+          initialDraftText
+        )
         const verify = await verifyAlertDraft({
           draft: { title: draft.title, summary: draft.summary, description: draft.description },
           raw_text: (intel.raw_text as string | null) ?? null,
           source_url: (intel.source_url as string | null) ?? null,
           alert_type: intel.alert_type,
+          program_reference: initialProgramReference,
         })
         if (verify) {
           fact_checks_run++
@@ -397,11 +405,18 @@ export async function GET(req: NextRequest) {
                   description: workingDraft.description,
                 })
 
+                const reverifyDraftText = `${workingDraft.title}\n${workingDraft.summary}\n${workingDraft.description ?? ''}`
+                const reverifyProgramReference = await buildProgramReferenceForDraft(
+                  supabase,
+                  primaryId,
+                  reverifyDraftText
+                )
                 const reverify = await verifyAlertDraft({
                   draft: workingDraft,
                   raw_text: (intel.raw_text as string | null) ?? null,
                   source_url: (intel.source_url as string | null) ?? null,
                   alert_type: intel.alert_type,
+                  program_reference: reverifyProgramReference,
                 })
                 if (!reverify) break
                 let reverified = reverify.claims
