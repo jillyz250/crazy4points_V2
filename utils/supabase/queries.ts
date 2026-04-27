@@ -1386,3 +1386,136 @@ export async function deleteHotelPropertyById(
   if (error) throw error
 }
 
+// ─── Credit Cards ─────────────────────────────────────────────────────────
+// See plans/credit-cards-architecture.md (Round 3) and migration 044.
+
+export interface Issuer {
+  id: string
+  slug: string
+  name: string
+  logo_url: string | null
+  intro: string | null
+  website_url: string | null
+  notes: string | null
+  last_verified: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type CardType = 'personal' | 'business'
+export type CardTier = 'premium' | 'mid' | 'starter' | 'hotel_cobrand' | 'airline_cobrand' | 'business' | 'secured' | 'charge'
+export type AffiliateNetwork = 'cj' | 'rakuten' | 'impact' | 'issuer_direct' | 'other'
+export type CreditScoreRecommended = 'fair' | 'good' | 'excellent'
+
+export interface CreditCard {
+  id: string
+  slug: string
+  issuer_id: string
+  name: string
+  image_url: string | null
+  intro: string | null
+  official_url: string | null
+  affiliate_url: string | null
+  affiliate_network: AffiliateNetwork | null
+  affiliate_id: string | null
+  deep_link_template: string | null
+  annual_fee_usd: number | null
+  card_type: CardType
+  card_tier: CardTier | null
+  currency_program_id: string | null
+  co_brand_program_id: string | null
+  foreign_transaction_fee_pct: number | null
+  chase_5_24_subject: boolean
+  credit_score_recommended: CreditScoreRecommended | null
+  tags: string[]
+  intended_user: string[]
+  is_active: boolean
+  notes: string | null
+  last_verified: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type EarnRateBookingChannel = 'direct' | 'portal' | 'any'
+export type EarnRateCapPeriod = 'quarterly' | 'annual' | 'monthly' | 'lifetime'
+
+export interface CreditCardEarnRate {
+  id: string
+  card_id: string
+  category: string
+  multiplier: number
+  cap_amount_usd: number | null
+  cap_period: EarnRateCapPeriod | null
+  rotating: boolean
+  booking_channel: EarnRateBookingChannel
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type BenefitCategory =
+  | 'statement_credit' | 'travel_credit' | 'lounge_access' | 'insurance'
+  | 'free_night' | 'status_conferred' | 'protection' | 'spend_unlock'
+  | 'portal_redemption' | 'transfer_partner_unlock' | 'other'
+
+export type BenefitFrequency = 'per_trip' | 'annual' | 'anniversary' | 'monthly' | 'lifetime' | 'one_time' | 'quarterly'
+export type BenefitValueUnit = 'USD' | 'nights' | 'pct' | 'points' | 'miles' | 'points_per_dollar'
+
+export interface CreditCardBenefit {
+  id: string
+  card_id: string
+  category: BenefitCategory
+  benefit_type: string // controlled list — see migration 044 CHECK; mirrored as KNOWN_BENEFIT_TYPES in admin
+  name: string
+  value_amount: number | null
+  value_unit: BenefitValueUnit | null
+  coverage_amount: number | null
+  frequency: BenefitFrequency | null
+  spend_threshold_usd: number | null
+  description: string | null
+  sort_order: number
+  metadata: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+export interface CreditCardWelcomeBonus {
+  id: string
+  card_id: string
+  bonus_amount: number
+  bonus_currency: string
+  spend_required_usd: number
+  spend_window_months: number
+  extras: string | null
+  estimated_value_usd: number | null
+  window_start: string | null
+  window_end: string | null
+  is_current: boolean
+  source_url: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ProgramTransfer {
+  id: string
+  from_program_id: string
+  to_program_id: string
+  ratio: string
+  bonus_active: boolean
+  bonus_pct: number | null
+  bonus_starts: string | null
+  bonus_ends: string | null
+  notes: string | null
+  last_verified: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type IssuerInsert            = Omit<Issuer, 'id' | 'created_at' | 'updated_at'>
+export type CreditCardInsert        = Omit<CreditCard, 'id' | 'created_at' | 'updated_at'>
+export type CreditCardEarnRateInsert  = Omit<CreditCardEarnRate, 'id' | 'created_at' | 'updated_at'>
+export type CreditCardBenefitInsert   = Omit<CreditCardBenefit, 'id' | 'created_at' | 'updated_at'>
+export type CreditCardWelcomeBonusInsert = Omit<CreditCardWelcomeBonus, 'id' | 'created_at' | 'updated_at'>
+export type ProgramTransferInsert   = Omit<ProgramTransfer, 'id' | 'created_at' | 'updated_at'>
+
