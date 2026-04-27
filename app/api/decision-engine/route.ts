@@ -110,9 +110,20 @@ function buildSampleHotels(
     }
     const inCountry = byCountry.get(d.country) ?? []
 
+    // Prefer hotels whose city matches the destination's title (case-
+    // insensitive, trimmed). For destinations like "Charlotte" with no
+    // exact city match, fall back to all hotels in the country. Avoids
+    // the obvious bug where a "Charlotte" spin returned hotels from
+    // Sterling, VA + Napa, CA just because they're all "United States".
+    const titleLower = d.title.trim().toLowerCase()
+    const cityMatched = inCountry.filter(
+      (r) => r.city && r.city.trim().toLowerCase() === titleLower
+    )
+    const candidates = cityMatched.length > 0 ? cityMatched : inCountry
+
     // Group by program slug, then sample N per program
     const byProgram = new Map<string, HotelRowWithProgram[]>()
-    for (const r of inCountry) {
+    for (const r of candidates) {
       const prog = flattenProgram(r.programs)
       if (!prog) continue
       const list = byProgram.get(prog.slug)
