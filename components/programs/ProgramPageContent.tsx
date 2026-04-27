@@ -19,17 +19,19 @@ export default async function ProgramPageContent({
   programNameBySlug: Map<string, string>
 }) {
   const hasIntro = !!program.intro?.trim()
+  const hasAwardChart = !!program.award_chart?.trim()
   const hasPartners = (program.transfer_partners?.length ?? 0) > 0
   const hasSweetSpots = !!program.sweet_spots?.trim()
   const hasQuirks = !!program.quirks?.trim()
   const hasHowToSpend = !!program.how_to_spend?.trim()
   const hasTiers = (program.tier_benefits?.length ?? 0) > 0
   const hasLounge = !!program.lounge_access?.trim()
-  const hasAny = hasIntro || hasPartners || hasSweetSpots || hasQuirks || hasHowToSpend || hasTiers || hasLounge
+  const hasAny = hasIntro || hasAwardChart || hasPartners || hasSweetSpots || hasQuirks || hasHowToSpend || hasTiers || hasLounge
 
   if (!hasAny) return null
 
   const introHtml = hasIntro ? await marked.parse(program.intro!, { async: true }) : null
+  const awardChartHtml = hasAwardChart ? await marked.parse(program.award_chart!, { async: true }) : null
   const sweetSpotsHtml = hasSweetSpots ? await marked.parse(program.sweet_spots!, { async: true }) : null
   const quirksHtml = hasQuirks ? await marked.parse(program.quirks!, { async: true }) : null
   const howToSpendHtml = hasHowToSpend ? await marked.parse(program.how_to_spend!, { async: true }) : null
@@ -91,6 +93,27 @@ export default async function ProgramPageContent({
           <TransferPartnersTable
             rows={program.transfer_partners!}
             programNameBySlug={programNameBySlug}
+          />
+        </section>
+      )}
+
+      {awardChartHtml && (
+        <section id="award-chart" style={sectionStyle}>
+          <h2 style={headingStyle}>Award chart</h2>
+          <p
+            style={{
+              fontFamily: 'var(--font-body)',
+              fontSize: '0.875rem',
+              color: 'var(--color-text-secondary)',
+              marginBottom: '0.75rem',
+            }}
+          >
+            Official redemption costs from {program.name}.
+          </p>
+          <div
+            style={proseStyle}
+            className="rg-prose"
+            dangerouslySetInnerHTML={{ __html: awardChartHtml }}
           />
         </section>
       )}

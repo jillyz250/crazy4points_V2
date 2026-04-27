@@ -164,6 +164,7 @@ export interface Program {
   logo_url: string | null
   program_url: string | null
   intro: string | null
+  award_chart: string | null
   transfer_partners: TransferPartnerRow[] | null
   sweet_spots: string | null
   quirks: string | null
@@ -1135,6 +1136,7 @@ export async function createProgram(
 
 export interface ProgramPageContentInput {
   intro: string | null
+  award_chart: string | null
   transfer_partners: TransferPartnerRow[] | null
   sweet_spots: string | null
   quirks: string | null
@@ -1152,6 +1154,7 @@ export async function updateProgramPageContent(
 ): Promise<void> {
   const anyContent =
     !!input.intro ||
+    !!input.award_chart ||
     (input.transfer_partners?.length ?? 0) > 0 ||
     !!input.sweet_spots ||
     !!input.quirks ||
@@ -1164,6 +1167,7 @@ export async function updateProgramPageContent(
     .from('programs')
     .update({
       intro: input.intro,
+      award_chart: input.award_chart,
       transfer_partners: input.transfer_partners,
       sweet_spots: input.sweet_spots,
       quirks: input.quirks,

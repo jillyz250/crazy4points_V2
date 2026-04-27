@@ -121,6 +121,7 @@ export default async function ProgramPage({
           totalAlertCount={allAlerts.length}
           sections={[
             ...(program.intro ? [{ id: 'intro', label: 'Intro' }] : []),
+            ...(program.award_chart ? [{ id: 'award-chart', label: 'Award chart' }] : []),
             ...((program.transfer_partners?.length ?? 0) > 0 ? [{ id: 'transfer-partners', label: 'Transfer partners' }] : []),
             ...(program.how_to_spend ? [{ id: 'how-to-spend', label: 'How to spend' }] : []),
             ...(program.sweet_spots ? [{ id: 'sweet-spots', label: 'Sweet spots' }] : []),

@@ -21,7 +21,7 @@ export default async function ProgramEditPage({ params }: Props) {
   const supabase = createAdminClient()
   const { data: program } = await supabase
     .from('programs')
-    .select('id, slug, name, type, intro, transfer_partners, sweet_spots, quirks, how_to_spend, tier_benefits, lounge_access, alliance, hubs, content_updated_at')
+    .select('id, slug, name, type, intro, award_chart, transfer_partners, sweet_spots, quirks, how_to_spend, tier_benefits, lounge_access, alliance, hubs, content_updated_at')
     .eq('slug', slug)
     .maybeSingle()
 
@@ -52,6 +52,7 @@ export default async function ProgramEditPage({ params }: Props) {
           programName={program.name}
           programType={program.type}
           initialIntro={program.intro}
+          initialAwardChart={program.award_chart}
           initialTransferPartners={program.transfer_partners}
           initialSweetSpots={program.sweet_spots}
           initialQuirks={program.quirks}
