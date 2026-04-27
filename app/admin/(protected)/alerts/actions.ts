@@ -66,6 +66,20 @@ export async function acknowledgeFactCheckClaimAction(alertId: string, claimInde
   revalidatePath(`/admin/alerts/${alertId}/edit`)
 }
 
+/**
+ * Refreshes the public surfaces an alert publish/unpublish affects:
+ * - /alerts index
+ * - /alerts/[slug] detail
+ * - /sitemap.xml (so new alert URLs are crawlable)
+ * Plus admin paths.
+ */
+function revalidatePublishedAlert(slug: string | null | undefined) {
+  revalidatePath('/admin/alerts')
+  revalidatePath('/alerts')
+  if (slug) revalidatePath(`/alerts/${slug}`)
+  revalidatePath('/sitemap.xml')
+}
+
 export async function publishAlertAction(id: string) {
   const supabase = createAdminClient()
   const prev = await getAlertById(supabase, id)
@@ -76,6 +90,7 @@ export async function publishAlertAction(id: string) {
     decided_at: now,
   })
   await trackSourceApprovalIfNeeded(supabase, prev, 'published')
+  revalidatePublishedAlert(prev?.slug)
   redirect('/admin/alerts')
 }
 
@@ -90,6 +105,7 @@ export async function approveIntelAlertAction(id: string) {
     decided_at: now,
   })
   await trackSourceApprovalIfNeeded(supabase, prev, 'published')
+  revalidatePublishedAlert(prev?.slug)
   redirect('/admin/alerts')
 }
 
@@ -97,6 +113,7 @@ export async function bulkApproveIntelAlertsAction(ids: string[]) {
   if (!Array.isArray(ids) || ids.length === 0) return
   const supabase = createAdminClient()
   const now = new Date().toISOString()
+  const slugs: string[] = []
   for (const id of ids) {
     const prev = await getAlertById(supabase, id).catch(() => null)
     if (!prev) continue
@@ -108,8 +125,13 @@ export async function bulkApproveIntelAlertsAction(ids: string[]) {
       decided_at: now,
     })
     await trackSourceApprovalIfNeeded(supabase, prev, 'published')
+    if (prev.slug) slugs.push(prev.slug)
   }
+  // Bulk: revalidate index + sitemap once, plus each affected detail page.
   revalidatePath('/admin/alerts')
+  revalidatePath('/alerts')
+  for (const slug of slugs) revalidatePath(`/alerts/${slug}`)
+  revalidatePath('/sitemap.xml')
   redirect('/admin/alerts')
 }
 
