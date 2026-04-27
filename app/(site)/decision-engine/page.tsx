@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
+import { styleForLevel } from '@/utils/destinations/advisoryLevels'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -32,6 +33,9 @@ type Destination = {
   tripLength?: string[] | null
   whoIsGoing?: string[] | null
   imageUrl?: string | null
+  advisoryLevel?: number | null
+  advisoryUrl?: string | null
+  advisorySummary?: string | null
   hotels?: SampleHotel[]
 }
 
@@ -567,52 +571,150 @@ function PurpleBadge({ label }: { label: string }) {
   )
 }
 
-// Weather rating dot + month label. Green = great, amber = good. Used in
-// place of the gold/purple pill mix that made it hard to tell at a glance
-// which months were truly best.
-const WEATHER_GREEN = '#2D8B5F'
-const WEATHER_AMBER = '#D4A52E'
-
-function MonthDot({ month, tier }: { month: string; tier: 'great' | 'good' }) {
-  const color = tier === 'great' ? WEATHER_GREEN : WEATHER_AMBER
+// 12-month calendar grid showing weather tier per month. Mirrors the
+// existing pattern on /destinations/[slug] for visual consistency. Gold
+// fill = "great", cream = "good", lavender = "mixed", muted gray = "poor".
+function MonthGrid({ weather, compact = false }: {
+  weather: Record<string, string> | null | undefined
+  compact?: boolean
+}) {
+  if (!weather) return null
+  const cellSize = compact ? '5px 0' : '6px 0'
+  const fontSize = compact ? '9px' : '10px'
   return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: '6px',
-      padding: '3px 10px 3px 8px', borderRadius: '999px',
-      background: '#FAF8FB', border: '1px solid #EDE6F2',
-      fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 600,
-      color: '#2A1A3A', whiteSpace: 'nowrap',
-    }}>
-      <span style={{
-        width: '8px', height: '8px', borderRadius: '50%',
-        background: color, flexShrink: 0,
-      }} />
-      {month}
-    </span>
+    <div>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(6, 1fr)',
+        gap: '4px',
+      }}>
+        {MONTH_ORDER.map(m => {
+          const w = weather[m]
+          const bg =
+            w === 'great' ? 'var(--color-accent)' :
+            w === 'good'  ? '#EADCC0' :
+            w === 'mixed' ? '#F0EAF8' :
+                            '#F5F5F5'
+          const color =
+            w === 'great' ? 'white' :
+            w === 'good'  ? '#6B4A10' :
+                            '#9A8AAA'
+          return (
+            <div
+              key={m}
+              style={{
+                background: bg, color,
+                fontFamily: 'var(--font-ui)', fontSize,
+                fontWeight: 700, letterSpacing: '0.06em',
+                textAlign: 'center', padding: cellSize,
+                borderRadius: '4px', textTransform: 'uppercase',
+              }}
+            >
+              {MONTH_SHORT[m]}
+            </div>
+          )
+        })}
+      </div>
+      <p style={{
+        fontFamily: 'var(--font-body)', fontSize: '11px',
+        color: 'var(--color-text-secondary)',
+        margin: '8px 0 0 0',
+      }}>
+        Gold = ideal · Cream = pleasant · Gray = avoid
+      </p>
+    </div>
   )
 }
 
-function WeatherLegend() {
+// Small chip warning when the *current* month is rated "poor" for this
+// destination. Cheap UX win using existing weather data — no extra source
+// needed for hurricane / monsoon / heat-dome warnings since editorial
+// already encodes them as "poor" months.
+function WeatherHazardChip({ weather }: {
+  weather: Record<string, string> | null | undefined
+}) {
+  if (!weather) return null
+  const currentMonth = MONTH_ORDER[new Date().getMonth()]
+  if (weather[currentMonth] !== 'poor') return null
+  // Find the next "great" or "good" month to suggest
+  const nextOk: string[] = []
+  for (let i = 1; i <= 6; i++) {
+    const m = MONTH_ORDER[(new Date().getMonth() + i) % 12]
+    if (weather[m] === 'great' || weather[m] === 'good') {
+      nextOk.push(MONTH_SHORT[m])
+      if (nextOk.length >= 2) break
+    }
+  }
   return (
     <div style={{
-      display: 'flex', gap: '10px', alignItems: 'center',
-      marginTop: '6px',
-      fontFamily: 'var(--font-ui)', fontSize: '9.5px', fontWeight: 600,
-      color: '#9A8AAA', textTransform: 'uppercase', letterSpacing: '0.06em',
+      display: 'inline-flex', alignItems: 'center', gap: '6px',
+      padding: '4px 12px', borderRadius: '999px',
+      background: '#FFF3E5', border: '1px solid #D97933',
+      color: '#8B4A1A',
+      fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 700,
+      letterSpacing: '0.04em', marginBottom: '12px',
     }}>
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-        <span style={{
-          width: '6px', height: '6px', borderRadius: '50%', background: WEATHER_GREEN,
-        }} />
-        Great
-      </span>
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-        <span style={{
-          width: '6px', height: '6px', borderRadius: '50%', background: WEATHER_AMBER,
-        }} />
-        Good
-      </span>
+      <span aria-hidden style={{ fontSize: '12px', lineHeight: 1 }}>⚠</span>
+      {`Tough weather in ${MONTH_SHORT[currentMonth]}${nextOk.length > 0 ? ` — try ${nextOk.join(' or ')}` : ''}`}
     </div>
+  )
+}
+
+// US State Dept travel advisory badge. Color-coded by level (1-4); links
+// to the official country-specific advisory page when available.
+function TravelAdvisoryBadge({
+  level, url, summary, compact = false,
+}: {
+  level: number | null | undefined
+  url: string | null | undefined
+  summary?: string | null
+  compact?: boolean
+}) {
+  const style = styleForLevel(level)
+  if (!style) return null
+  const padding = compact ? '3px 9px' : '5px 12px'
+  const fontSize = compact ? '10px' : '11px'
+  const inner = (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: '6px',
+      padding, borderRadius: '999px',
+      background: style.bg, border: `1px solid ${style.border}`,
+      color: style.fg,
+      fontFamily: 'var(--font-ui)', fontSize, fontWeight: 700,
+      letterSpacing: '0.04em', textDecoration: 'none',
+      cursor: url ? 'pointer' : 'default',
+    }} title={summary ?? style.label}>
+      <span style={{
+        width: '8px', height: '8px', borderRadius: '50%',
+        background: style.dot, flexShrink: 0,
+      }} />
+      {compact ? `L${style.level}` : style.shortLabel}
+    </span>
+  )
+  if (!url) return inner
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{ textDecoration: 'none' }}
+    >
+      {inner}
+    </a>
+  )
+}
+
+// Slimmer, fill-only Trip Length pill so it stops looking identical to
+// Perfect For (which uses PurpleBadge). Same purple family, no border,
+// smaller vertical padding.
+function TripLengthBadge({ label }: { label: string }) {
+  return (
+    <span style={{
+      padding: '3px 10px', borderRadius: '999px',
+      background: '#EFE6F5', color: '#5A237A',
+      fontFamily: 'var(--font-ui)', fontSize: '10.5px', fontWeight: 600,
+      whiteSpace: 'nowrap', lineHeight: 1.5,
+    }}>{label}</span>
   )
 }
 
@@ -782,9 +884,7 @@ function HotelOptionsBlock({ hotels, country }: { hotels: SampleHotel[]; country
 // ─── WinnerCard ───────────────────────────────────────────────────────────────
 
 function WinnerCard({ dest, visible }: { dest: Destination; visible: boolean }) {
-  const greatMonths = MONTH_ORDER.filter(m => dest.weatherByMonth?.[m] === 'great')
-  const goodMonths  = MONTH_ORDER.filter(m => dest.weatherByMonth?.[m] === 'good')
-  const hasWeather  = greatMonths.length > 0 || goodMonths.length > 0
+  const hasWeather   = !!dest.weatherByMonth && Object.values(dest.weatherByMonth).some(v => v === 'great' || v === 'good')
   const currentMonth = MONTH_ORDER[new Date().getMonth()]
   const currentTier  = dest.weatherByMonth?.[currentMonth] ?? null
   const currentLabel = MONTH_SHORT[currentMonth]
@@ -844,23 +944,49 @@ function WinnerCard({ dest, visible }: { dest: Destination; visible: boolean }) 
             .filter(Boolean).join(' · ')}
         </p>
       )}
-      {(currentTier === 'great' || currentTier === 'good') && (
-        <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: '6px',
-          padding: '4px 12px', borderRadius: '999px',
-          background: currentTier === 'great' ? '#E8F5EE' : '#FFF7E0',
-          border: `1px solid ${currentTier === 'great' ? WEATHER_GREEN : WEATHER_AMBER}`,
-          color: currentTier === 'great' ? WEATHER_GREEN : '#8B6F1A',
-          fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 700,
-          letterSpacing: '0.04em', marginBottom: '18px',
-        }}>
-          <span style={{
-            width: '8px', height: '8px', borderRadius: '50%',
-            background: currentTier === 'great' ? WEATHER_GREEN : WEATHER_AMBER,
-          }} />
-          {currentTier === 'great' ? `Great in ${currentLabel}` : `Good in ${currentLabel}`}
-        </div>
-      )}
+      {/* Status row: weather hazard / current-month confidence + travel advisory */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '14px' }}>
+        <WeatherHazardChip weather={dest.weatherByMonth} />
+        {currentTier === 'great' && (
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: '6px',
+            padding: '4px 12px', borderRadius: '999px',
+            background: '#E8F5EE',
+            border: '1px solid #2D8B5F',
+            color: '#1F5F40',
+            fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 700,
+            letterSpacing: '0.04em',
+          }}>
+            <span style={{
+              width: '8px', height: '8px', borderRadius: '50%',
+              background: '#2D8B5F',
+            }} />
+            {`Great in ${currentLabel}`}
+          </div>
+        )}
+        {currentTier === 'good' && (
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: '6px',
+            padding: '4px 12px', borderRadius: '999px',
+            background: '#FFF7E0',
+            border: '1px solid #D4A52E',
+            color: '#8B6F1A',
+            fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 700,
+            letterSpacing: '0.04em',
+          }}>
+            <span style={{
+              width: '8px', height: '8px', borderRadius: '50%',
+              background: '#D4A52E',
+            }} />
+            {`Good in ${currentLabel}`}
+          </div>
+        )}
+        <TravelAdvisoryBadge
+          level={dest.advisoryLevel}
+          url={dest.advisoryUrl}
+          summary={dest.advisorySummary}
+        />
+      </div>
 
       {/* Summary */}
       {dest.summary && (
@@ -900,18 +1026,14 @@ function WinnerCard({ dest, visible }: { dest: Destination; visible: boolean }) 
         )}
 
         {hasWeather && (
-          <InfoSection label="Best Time to Visit">
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
-              {greatMonths.map(m => <MonthDot key={m} month={MONTH_SHORT[m]} tier="great" />)}
-              {goodMonths.map(m  => <MonthDot key={m} month={MONTH_SHORT[m]} tier="good" />)}
-            </div>
-            <WeatherLegend />
+          <InfoSection label="Best Months">
+            <MonthGrid weather={dest.weatherByMonth} />
           </InfoSection>
         )}
 
         {dest.tripLength && dest.tripLength.length > 0 && (
           <InfoSection label="Trip Length">
-            {dest.tripLength.map(t => <PurpleBadge key={t} label={TRIP_LABELS[t] ?? t} />)}
+            {dest.tripLength.map(t => <TripLengthBadge key={t} label={TRIP_LABELS[t] ?? t} />)}
           </InfoSection>
         )}
       </div>
@@ -981,9 +1103,7 @@ function WinnerCard({ dest, visible }: { dest: Destination; visible: boolean }) 
 // ─── AlternativeCard ──────────────────────────────────────────────────────────
 
 function AlternativeCard({ dest, visible, index }: { dest: Destination; visible: boolean; index: number }) {
-  const greatMonths = MONTH_ORDER.filter(m => dest.weatherByMonth?.[m] === 'great')
-  const goodMonths  = MONTH_ORDER.filter(m => dest.weatherByMonth?.[m] === 'good')
-  const hasWeather  = greatMonths.length > 0 || goodMonths.length > 0
+  const hasWeather = !!dest.weatherByMonth && Object.values(dest.weatherByMonth).some(v => v === 'great' || v === 'good')
   return (
     <div style={{
       background: 'white',
@@ -1027,12 +1147,19 @@ function AlternativeCard({ dest, visible, index }: { dest: Destination; visible:
           ))}
         </div>
       )}
+      {dest.advisoryLevel != null && (
+        <div style={{ marginBottom: '10px' }}>
+          <TravelAdvisoryBadge
+            level={dest.advisoryLevel}
+            url={dest.advisoryUrl}
+            summary={dest.advisorySummary}
+            compact
+          />
+        </div>
+      )}
       {hasWeather && (
-        <div style={{
-          display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '14px',
-        }}>
-          {greatMonths.map(m => <MonthDot key={m} month={MONTH_SHORT[m]} tier="great" />)}
-          {goodMonths.map(m  => <MonthDot key={m} month={MONTH_SHORT[m]} tier="good" />)}
+        <div style={{ marginBottom: '14px' }}>
+          <MonthGrid weather={dest.weatherByMonth} compact />
         </div>
       )}
       {dest.slug && (
