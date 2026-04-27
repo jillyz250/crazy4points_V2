@@ -31,6 +31,9 @@ type DestinationRow = {
   trip_length: string[] | null
   who_is_going: string[] | null
   image_url: string | null
+  advisory_level: number | null
+  advisory_url: string | null
+  advisory_summary: string | null
 }
 
 interface SampleHotel {
@@ -161,12 +164,20 @@ export async function POST(request: Request) {
 
   let query = supabase
     .from('destinations')
-    .select('title, slug, country, continent, vibe, summary_short, weather_by_month, trip_length, who_is_going, image_url')
+    .select('title, slug, country, continent, vibe, summary_short, weather_by_month, trip_length, who_is_going, image_url, advisory_level, advisory_url, advisory_summary')
 
   if (filters.continent)  query = query.eq('continent', filters.continent)
   if (filters.vibe)       query = query.contains('vibe', [filters.vibe])
   if (filters.tripLength) query = query.contains('trip_length', [filters.tripLength])
   if (filters.whoIsGoing) query = query.contains('who_is_going', [filters.whoIsGoing])
+
+  // Hide Level 4 ("Do Not Travel") destinations from default spins. They
+  // still surface when the user explicitly picks the continent containing
+  // them — informed adults can opt in. Levels 1-3 always show; the UI
+  // surfaces a colored advisory badge so readers can self-screen.
+  if (!filters.continent) {
+    query = query.or('advisory_level.is.null,advisory_level.lt.4')
+  }
 
   const { data, error } = await query
   if (error) {
@@ -207,17 +218,20 @@ export async function POST(request: Request) {
 
   // Map snake_case → camelCase for the frontend contract
   const destinations = picked.map(r => ({
-    title:          r.title,
-    slug:           r.slug,
-    country:        r.country,
-    continent:      r.continent,
-    vibe:           r.vibe,
-    summary:        r.summary_short,
-    weatherByMonth: r.weather_by_month,
-    tripLength:     r.trip_length,
-    whoIsGoing:     r.who_is_going,
-    imageUrl:       r.image_url,
-    hotels:         hotelsByDest.get(r.slug) ?? [],
+    title:           r.title,
+    slug:            r.slug,
+    country:         r.country,
+    continent:       r.continent,
+    vibe:            r.vibe,
+    summary:         r.summary_short,
+    weatherByMonth:  r.weather_by_month,
+    tripLength:      r.trip_length,
+    whoIsGoing:      r.who_is_going,
+    imageUrl:        r.image_url,
+    advisoryLevel:   r.advisory_level,
+    advisoryUrl:     r.advisory_url,
+    advisorySummary: r.advisory_summary,
+    hotels:          hotelsByDest.get(r.slug) ?? [],
   }))
 
   return NextResponse.json({ destinations })
