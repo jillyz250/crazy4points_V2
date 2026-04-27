@@ -1219,15 +1219,28 @@ export async function getPropertiesForProgram(
   supabase: SupabaseClient,
   programId: string
 ): Promise<HotelProperty[]> {
-  const { data, error } = await supabase
-    .from('hotel_properties')
-    .select('*')
-    .eq('program_id', programId)
-    .order('category', { ascending: true, nullsFirst: false })
-    .order('name', { ascending: true })
+  // Supabase's default response cap is 1,000 rows. Hyatt alone has ~1,600
+  // properties, so the cap was hiding ~600 rows from the admin table and
+  // the public list. Pull in pages of 1,000 until we've drained the table.
+  const PAGE = 1000
+  const all: HotelProperty[] = []
+  let from = 0
+  while (true) {
+    const { data, error } = await supabase
+      .from('hotel_properties')
+      .select('*')
+      .eq('program_id', programId)
+      .order('category', { ascending: true, nullsFirst: false })
+      .order('name', { ascending: true })
+      .range(from, from + PAGE - 1)
 
-  if (error) throw error
-  return (data ?? []) as HotelProperty[]
+    if (error) throw error
+    const rows = (data ?? []) as HotelProperty[]
+    all.push(...rows)
+    if (rows.length < PAGE) break
+    from += PAGE
+  }
+  return all
 }
 
 /**
