@@ -2,12 +2,13 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { createAdminClient } from '@/utils/supabase/server'
-import { getAlertsByProgramSlug, getAllPrograms } from '@/utils/supabase/queries'
-import type { AlertWithPrograms } from '@/utils/supabase/queries'
+import { getAlertsByProgramSlug, getAllPrograms, getPropertiesForProgram } from '@/utils/supabase/queries'
+import type { AlertWithPrograms, HotelProperty } from '@/utils/supabase/queries'
 import AlertsGridSB from '@/components/alerts/AlertsGridSB'
 import ExpiredAlertsList from '@/components/alerts/ExpiredAlertsList'
 import ProgramPageContent from '@/components/programs/ProgramPageContent'
 import ProgramPageHero from '@/components/programs/ProgramPageHero'
+import PropertiesTable from '@/components/programs/PropertiesTable'
 
 export const revalidate = 60
 
@@ -65,6 +66,17 @@ export default async function ProgramPage({
     programNameBySlug = new Map(allPrograms.map((p) => [p.slug, p.name]))
   } catch {
     notFound()
+  }
+
+  // Per-property data: only meaningful for hotel programs. Skip the query
+  // entirely for non-hotels — even if a row existed, we wouldn't render it.
+  let properties: HotelProperty[] = []
+  if (program.type === 'hotel') {
+    try {
+      properties = await getPropertiesForProgram(supabase, program.id)
+    } catch (err) {
+      console.error('[programs/[slug]] getPropertiesForProgram failed:', err)
+    }
   }
 
   const now = new Date()
@@ -128,6 +140,7 @@ export default async function ProgramPage({
             ...((program.tier_benefits?.length ?? 0) > 0 ? [{ id: 'tiers', label: 'Tiers' }] : []),
             ...(program.lounge_access ? [{ id: 'lounge-access', label: 'Lounges' }] : []),
             ...(program.quirks ? [{ id: 'quirks', label: 'Tips' }] : []),
+            ...(properties.length > 0 ? [{ id: 'properties', label: 'Hotels' }] : []),
             ...(allAlerts.length > 0 ? [{ id: 'alerts', label: 'Alerts' }] : []),
           ]}
         />
@@ -135,8 +148,42 @@ export default async function ProgramPage({
         {/* Editorial content (intro / transfer partners / sweet spots / quirks) */}
         <ProgramPageContent program={program} programNameBySlug={programNameBySlug} />
 
+        {/* Per-property table — hotels only. */}
+        {properties.length > 0 && (
+          <section
+            id="properties"
+            style={{
+              marginBottom: '2.5rem',
+              scrollMarginTop: '2rem',
+            }}
+          >
+            <h2
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: '1.5rem',
+                fontWeight: 700,
+                color: 'var(--color-primary)',
+                marginBottom: '0.5rem',
+              }}
+            >
+              Hotels
+            </h2>
+            <p
+              style={{
+                fontFamily: 'var(--font-body)',
+                fontSize: '0.875rem',
+                color: 'var(--color-text-secondary)',
+                marginBottom: '1rem',
+              }}
+            >
+              Every {program.name} property we have on file ({properties.length.toLocaleString()} total). Sort, filter, and search by name, brand, city, region, or category. Categories shift over time — verify on the program&apos;s site before booking.
+            </p>
+            <PropertiesTable properties={properties} programName={program.name} />
+          </section>
+        )}
+
         {/* Alerts heading — only show when content above exists, to mark transition */}
-        {(program.intro || (program.transfer_partners?.length ?? 0) > 0 || program.sweet_spots || program.quirks) && (
+        {(program.intro || (program.transfer_partners?.length ?? 0) > 0 || program.sweet_spots || program.quirks || properties.length > 0) && (
           <h2
             id="alerts"
             style={{
