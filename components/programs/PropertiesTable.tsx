@@ -47,16 +47,21 @@ export default function PropertiesTable({
   const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [page, setPage] = useState(0)
 
-  // Decorate each property with its derived Hyatt region + coming-soon
-  // flag once, up front. Saves recomputing on every keystroke.
+  // Decorate each property with its derived Hyatt region, coming-soon flag,
+  // and pending-change flag once, up front. Saves recomputing on every keystroke.
+  const todayIso = new Date().toISOString().slice(0, 10)
   const decorated = useMemo(
     () =>
       properties.map((p) => ({
         ...p,
         _hyattRegion: hyattRegionForCountry(p.country),
         _comingSoon: isComingSoon(p.notes),
+        _pendingChange:
+          p.category_next && p.category_changes_at && p.category_changes_at >= todayIso
+            ? { from: p.category, to: p.category_next, when: p.category_changes_at }
+            : null,
       })),
-    [properties]
+    [properties, todayIso]
   )
 
   const openCount = useMemo(
@@ -64,6 +69,24 @@ export default function PropertiesTable({
     [decorated]
   )
   const comingSoonCount = decorated.length - openCount
+
+  const pendingChanges = useMemo(() => {
+    const rows = decorated.filter((p) => p._pendingChange && !p._comingSoon)
+    let up = 0
+    let down = 0
+    let when: string | null = null
+    for (const r of rows) {
+      const c = r._pendingChange!
+      if (c.from && c.to) {
+        // Numeric categories: 1-8. Letter categories: A-D. Compare lexicographically;
+        // both shapes are monotonically increasing in their domains.
+        if (c.to > c.from) up++
+        else if (c.to < c.from) down++
+      }
+      if (!when || c.when < when) when = c.when
+    }
+    return { count: rows.length, up, down, when }
+  }, [decorated])
 
   const categories = useMemo(() => {
     const set = new Set<string>()
@@ -182,8 +205,58 @@ export default function PropertiesTable({
     return n.toLocaleString()
   }
 
+  function formatChangeDate(iso: string | null): string {
+    if (!iso) return ''
+    const d = new Date(`${iso}T00:00:00`)
+    return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+  }
+
   return (
     <div>
+      {pendingChanges.count > 0 && (
+        <div
+          style={{
+            background: 'var(--color-background-soft)',
+            border: '1px solid var(--color-border-soft)',
+            borderRadius: 'var(--radius-card)',
+            padding: '0.75rem 1rem',
+            marginBottom: '0.875rem',
+            fontFamily: 'var(--font-ui)',
+            fontSize: '0.875rem',
+            color: 'var(--color-text-primary)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.625rem',
+            flexWrap: 'wrap',
+          }}
+        >
+          <span
+            style={{
+              fontSize: '0.6875rem',
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em',
+              fontWeight: 700,
+              color: 'var(--color-primary)',
+              background: '#fff',
+              padding: '0.1875rem 0.5rem',
+              borderRadius: '9999px',
+              border: '1px solid var(--color-border-soft)',
+            }}
+          >
+            Heads up
+          </span>
+          <span>
+            <strong>{pendingChanges.count}</strong> {programName} {pendingChanges.count === 1 ? 'property is' : 'properties are'} changing category on{' '}
+            <strong>{formatChangeDate(pendingChanges.when)}</strong>
+            {' — '}
+            <span style={{ color: '#92400e' }}>{pendingChanges.up} moving up</span>
+            {', '}
+            <span style={{ color: '#166534' }}>{pendingChanges.down} moving down</span>
+            . Look for the <strong>→</strong> indicator in the Cat column below.
+          </span>
+        </div>
+      )}
+
       {/* Prominent search — full width, larger, above filters */}
       <input
         type="search"
@@ -422,6 +495,20 @@ export default function PropertiesTable({
                   }}
                 >
                   {p.category ?? '—'}
+                  {p._pendingChange && (
+                    <div
+                      title={`Changes to Cat ${p._pendingChange.to} on ${formatChangeDate(p._pendingChange.when)}`}
+                      style={{
+                        fontSize: '0.6875rem',
+                        fontWeight: 600,
+                        color: (p._pendingChange.to > p._pendingChange.from!) ? '#92400e' : '#166534',
+                        marginTop: '0.125rem',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      → {p._pendingChange.to} {formatChangeDate(p._pendingChange.when).split(',')[0]}
+                    </div>
+                  )}
                 </td>
                 <td
                   style={{

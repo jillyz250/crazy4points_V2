@@ -1238,9 +1238,17 @@ export interface HotelProperty {
   all_inclusive: boolean
   notes: string | null
   last_verified: string | null
+  category_next: string | null
+  category_changes_at: string | null
 }
 
-export type HotelPropertyInsert = Omit<HotelProperty, 'id' | 'created_at' | 'updated_at'>
+export type HotelPropertyInsert = Omit<
+  HotelProperty,
+  'id' | 'created_at' | 'updated_at' | 'category_next' | 'category_changes_at'
+> & {
+  category_next?: string | null
+  category_changes_at?: string | null
+}
 
 /**
  * Fetch all hotel properties for a given program, ordered by category then name.
