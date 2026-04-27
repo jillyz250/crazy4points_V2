@@ -160,11 +160,28 @@ If the program has a working RSS press room, add it to `/admin/sources`.
 
 ---
 
+## 7.6 Seed per-property data (hotels only)
+
+Hotels have a per-property table at `/admin/programs/[slug]/properties` that the public page, the writer, the fact-checker, and (eventually) the Decision Engine all read from. Skip this step for airlines.
+
+- [ ] Page through Hyatt's / Marriott's / Hilton's etc. property finder, filtered by award category
+- [ ] Build a CSV at `data/[slug]-properties-current.csv` with columns: `name,brand,city,country,region,category,off_peak_points,standard_points,peak_points,hotel_url,all_inclusive,notes`. Leave points columns blank — they get backfilled by SQL keyed on `(program_id, category)`.
+- [ ] Open `/admin/programs/[slug]/properties`, paste the full CSV into the bulk import box, click Import. Confirm the inserted/updated counts match what you pasted.
+- [ ] Write a one-shot SQL backfill at `data/[slug]-points-backfill.sql` that joins to a `VALUES` table mapping category → points (using the program's published chart). Run via Supabase SQL Editor.
+- [ ] Hard-refresh the admin properties page — Off-peak / Standard / Peak columns should be populated.
+- [ ] Spot-check the search box: filter by city ("Tokyo", "Madrid"), brand ("Park Hyatt"), category ("8") — the row count should look right.
+
+> ⚠️ Supabase's REST default caps SELECT responses at 1,000 rows. `getPropertiesForProgram` already paginates past this; if you add new query helpers that read from `hotel_properties`, do the same.
+
+---
+
 ## 8. Cross-linking & related content
 
 - [ ] **Co-brand credit card pages** that earn into this program — make sure each card's program page (when built) links back here, and this hotel page's transfer partners table links to them
 - [ ] **Reciprocal hotel benefits** — some programs have status-match-style relationships (M life Rewards reciprocal with Hyatt, Caesars Rewards with Wyndham, etc.). Note these in `quirks`.
 - [ ] **Existing alerts** on this program — they automatically appear under the editorial sections
+- [ ] **Fact-checker integration** — once seeded, `hotel_properties` is authoritative for any draft that names a property or asserts a category. The fact-check pipeline reads from this table; nothing additional to wire per-program.
+- [ ] **Decision Engine integration** — once the "hotels in this destination" feature ships, every program with seeded `hotel_properties` automatically participates. No per-program work needed beyond seeding the table in Step 7.6.
 
 ---
 
@@ -214,3 +231,4 @@ Recommended order based on US-reader value:
 - Skipping Free Night Certificate breakdown — it's a major redemption type for hotels
 - Adding a transfer partner whose program slug isn't in the DB
 - Generic "club lounge access" without naming which tier unlocks it and at which property types
+- Skipping Step 7.6 (per-property seeding) — without it, the fact-checker has nothing to verify property/category claims against, and the Decision Engine can't surface this program's hotels in destination searches

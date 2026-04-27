@@ -176,9 +176,24 @@ If the carrier has a working RSS press room:
 - If 403/blocked: have user add anyway with Firecrawl: on, check back in a week
 - Notes field should reference program slugs the source covers
 
+### Step 7.6 — Seed per-property data (HOTELS ONLY — skip for airlines)
+
+Hotels have a per-property table at `/admin/programs/[slug]/properties` that the public page, the writer, the fact-checker, and (eventually) the Decision Engine all read from.
+
+- Page through the program's official property finder, filtered by award category
+- Build CSV at `data/[slug]-properties-current.csv` with columns: `name,brand,city,country,region,category,off_peak_points,standard_points,peak_points,hotel_url,all_inclusive,notes`. Leave points columns blank — the SQL backfill below fills them in.
+- Have user paste the CSV at `/admin/programs/[slug]/properties` → Bulk import → Import. Confirm inserted/updated counts.
+- Write a one-shot SQL backfill at `data/[slug]-points-backfill.sql` joining to a `VALUES` table mapping category → points (use the program's published chart from `programs.[slug].award_chart`).
+- Have user paste the SQL into Supabase Studio → SQL Editor → Run.
+- Spot-check the admin properties page — Off-peak / Standard / Peak columns should be populated.
+
+Watch out: Supabase REST default caps SELECT at 1,000 rows. Any new query helper that reads `hotel_properties` must paginate (see `getPropertiesForProgram` for the pattern).
+
 ### Step 8 — Cross-linking (skip until cards exist)
 
 Note in the source doc which co-brand credit cards earn into this program. When Credit Cards section starts authoring, those cards will link back automatically.
+
+For hotels, also note: once Step 7.6 is done, `hotel_properties` is automatically wired into the fact-checker (verifies property/category claims) and the Decision Engine (surfaces hotels in destination searches). No per-program work beyond seeding the table.
 
 ### Step 9 — Maintenance reminder (optional)
 
