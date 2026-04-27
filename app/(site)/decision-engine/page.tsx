@@ -87,11 +87,10 @@ const TRIP_LENGTHS = [
 ]
 
 const WHO_GOING = [
-  { label: 'Solo',        value: 'solo'     },
-  { label: 'Couple',      value: 'couple'   },
-  { label: 'Family',      value: 'family'   },
-  { label: 'Group',       value: 'group'    },
-  { label: 'Surprise Me', value: 'surprise' },
+  { label: 'Solo',   value: 'solo'   },
+  { label: 'Couple', value: 'couple' },
+  { label: 'Family', value: 'family' },
+  { label: 'Group',  value: 'group'  },
 ]
 
 // Classic slot machine fruits shown during the spin
@@ -108,12 +107,14 @@ function fitFontSize(text: string): number {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function resolveFilter(value: string | null, options: { value: string }[]): string | null {
+function resolveFilter(value: string | null, _options: { value: string }[]): string | null {
   if (!value) return null
-  if (value === 'surprise') {
-    const real = options.filter(o => o.value !== 'surprise')
-    return real[Math.floor(Math.random() * real.length)].value
-  }
+  // "Surprise Me" used to roll a random concrete value (e.g. random month).
+  // That nuked otherwise-valid combinations — picking "Surprise Me" month +
+  // "Central America" continent could land on a rainy-season month with 0
+  // matching destinations. Treat "Surprise Me" as "no filter applied" so
+  // randomness comes from the destination shuffle, not the filter itself.
+  if (value === 'surprise') return null
   return value
 }
 
@@ -566,6 +567,55 @@ function PurpleBadge({ label }: { label: string }) {
   )
 }
 
+// Weather rating dot + month label. Green = great, amber = good. Used in
+// place of the gold/purple pill mix that made it hard to tell at a glance
+// which months were truly best.
+const WEATHER_GREEN = '#2D8B5F'
+const WEATHER_AMBER = '#D4A52E'
+
+function MonthDot({ month, tier }: { month: string; tier: 'great' | 'good' }) {
+  const color = tier === 'great' ? WEATHER_GREEN : WEATHER_AMBER
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: '6px',
+      padding: '3px 10px 3px 8px', borderRadius: '999px',
+      background: '#FAF8FB', border: '1px solid #EDE6F2',
+      fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 600,
+      color: '#2A1A3A', whiteSpace: 'nowrap',
+    }}>
+      <span style={{
+        width: '8px', height: '8px', borderRadius: '50%',
+        background: color, flexShrink: 0,
+      }} />
+      {month}
+    </span>
+  )
+}
+
+function WeatherLegend() {
+  return (
+    <div style={{
+      display: 'flex', gap: '14px', alignItems: 'center',
+      marginTop: '8px',
+      fontFamily: 'var(--font-ui)', fontSize: '10px', fontWeight: 600,
+      color: '#6A5A8A',
+    }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+        <span style={{
+          width: '8px', height: '8px', borderRadius: '50%', background: WEATHER_GREEN,
+        }} />
+        Great
+      </span>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+        <span style={{
+          width: '8px', height: '8px', borderRadius: '50%', background: WEATHER_AMBER,
+        }} />
+        Good
+      </span>
+    </div>
+  )
+}
+
 function InfoSection({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
@@ -735,6 +785,9 @@ function WinnerCard({ dest, visible }: { dest: Destination; visible: boolean }) 
   const greatMonths = MONTH_ORDER.filter(m => dest.weatherByMonth?.[m] === 'great')
   const goodMonths  = MONTH_ORDER.filter(m => dest.weatherByMonth?.[m] === 'good')
   const hasWeather  = greatMonths.length > 0 || goodMonths.length > 0
+  const currentMonth = MONTH_ORDER[new Date().getMonth()]
+  const currentTier  = dest.weatherByMonth?.[currentMonth] ?? null
+  const currentLabel = MONTH_SHORT[currentMonth]
 
   return (
     <div style={{
@@ -785,11 +838,28 @@ function WinnerCard({ dest, visible }: { dest: Destination; visible: boolean }) 
       {(dest.country || dest.continent) && (
         <p style={{
           fontFamily: 'var(--font-body), Lato, sans-serif',
-          fontSize: '14px', color: '#6A5A8A', margin: '0 0 18px 0', fontWeight: 500,
+          fontSize: '14px', color: '#6A5A8A', margin: '0 0 12px 0', fontWeight: 500,
         }}>
           {[dest.country, dest.continent ? CONTINENT_LABELS[dest.continent] : null]
             .filter(Boolean).join(' · ')}
         </p>
+      )}
+      {(currentTier === 'great' || currentTier === 'good') && (
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: '6px',
+          padding: '4px 12px', borderRadius: '999px',
+          background: currentTier === 'great' ? '#E8F5EE' : '#FFF7E0',
+          border: `1px solid ${currentTier === 'great' ? WEATHER_GREEN : WEATHER_AMBER}`,
+          color: currentTier === 'great' ? WEATHER_GREEN : '#8B6F1A',
+          fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 700,
+          letterSpacing: '0.04em', marginBottom: '18px',
+        }}>
+          <span style={{
+            width: '8px', height: '8px', borderRadius: '50%',
+            background: currentTier === 'great' ? WEATHER_GREEN : WEATHER_AMBER,
+          }} />
+          {currentTier === 'great' ? `Great in ${currentLabel}` : `Good in ${currentLabel}`}
+        </div>
       )}
 
       {/* Summary */}
@@ -827,8 +897,11 @@ function WinnerCard({ dest, visible }: { dest: Destination; visible: boolean }) 
 
         {hasWeather && (
           <InfoSection label="Best Time to Visit">
-            {greatMonths.map(m => <GoldBadge key={m} label={MONTH_SHORT[m]} />)}
-            {goodMonths.map(m  => <PurpleBadge key={m} label={MONTH_SHORT[m]} />)}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              {greatMonths.map(m => <MonthDot key={m} month={MONTH_SHORT[m]} tier="great" />)}
+              {goodMonths.map(m  => <MonthDot key={m} month={MONTH_SHORT[m]} tier="good" />)}
+            </div>
+            <WeatherLegend />
           </InfoSection>
         )}
 
@@ -904,6 +977,9 @@ function WinnerCard({ dest, visible }: { dest: Destination; visible: boolean }) 
 // ─── AlternativeCard ──────────────────────────────────────────────────────────
 
 function AlternativeCard({ dest, visible, index }: { dest: Destination; visible: boolean; index: number }) {
+  const greatMonths = MONTH_ORDER.filter(m => dest.weatherByMonth?.[m] === 'great')
+  const goodMonths  = MONTH_ORDER.filter(m => dest.weatherByMonth?.[m] === 'good')
+  const hasWeather  = greatMonths.length > 0 || goodMonths.length > 0
   return (
     <div style={{
       background: 'white',
@@ -934,7 +1010,7 @@ function AlternativeCard({ dest, visible, index }: { dest: Destination; visible:
         </p>
       )}
       {dest.vibe && dest.vibe.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '14px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '10px' }}>
           {dest.vibe.map(v => (
             <span key={v} style={{
               padding: '3px 9px', borderRadius: '999px',
@@ -945,6 +1021,14 @@ function AlternativeCard({ dest, visible, index }: { dest: Destination; visible:
               {VIBE_LABELS[v] ?? v}
             </span>
           ))}
+        </div>
+      )}
+      {hasWeather && (
+        <div style={{
+          display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '14px',
+        }}>
+          {greatMonths.map(m => <MonthDot key={m} month={MONTH_SHORT[m]} tier="great" />)}
+          {goodMonths.map(m  => <MonthDot key={m} month={MONTH_SHORT[m]} tier="good" />)}
         </div>
       )}
       {dest.slug && (
@@ -1535,6 +1619,31 @@ export default function DecisionEnginePage() {
             </div>
 
           </div>{/* /machine outer */}
+
+          {/* Empty-state — when API returned 0 destinations, all 3 reels are
+              "—" placeholders. Surface a clear message instead of hiding the
+              UI entirely so users understand WHY nothing rendered. */}
+          {results.length > 0 && results.every(d => d.title === '—') && cardsVisible && (
+            <div style={{
+              maxWidth: '480px', margin: '0 auto 44px', textAlign: 'center',
+              padding: '28px 32px', borderRadius: '16px',
+              background: 'white', border: '1.5px solid #E6DEEE',
+              boxShadow: '0 4px 18px rgba(107,45,143,0.08)',
+            }}>
+              <div style={{
+                fontFamily: 'var(--font-display)', fontSize: '20px', fontWeight: 700,
+                color: '#6B2D8F', marginBottom: '8px',
+              }}>
+                No matches yet
+              </div>
+              <p style={{
+                fontFamily: 'var(--font-body)', fontSize: '14px',
+                color: '#6A5A8A', lineHeight: 1.6, margin: 0,
+              }}>
+                Your filter combination didn&apos;t hit any destinations. Try loosening one — drop the month, swap continent, or set vibe to &ldquo;Surprise Me.&rdquo;
+              </p>
+            </div>
+          )}
 
           {/* Result cards */}
           {results.length > 0 && (
