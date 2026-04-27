@@ -17,6 +17,9 @@ export async function toggleProgramAction(id: string, is_active: boolean) {
   const supabase = createAdminClient()
   await toggleProgramActive(supabase, id, is_active)
   revalidatePath('/admin/programs')
+  // Sitemap inclusion is gated on is_active — invalidate so toggled programs
+  // appear/disappear in the sitemap immediately.
+  revalidatePath('/sitemap.xml')
 }
 
 const PROGRAM_TYPES: ProgramType[] = [
@@ -46,6 +49,7 @@ export async function createProgramAction(formData: FormData): Promise<{ error?:
     return { error: msg.includes('duplicate') ? `Slug "${slug}" already exists.` : msg }
   }
   revalidatePath('/admin/programs')
+  revalidatePath('/sitemap.xml')
   return {}
 }
 
@@ -60,5 +64,9 @@ export async function updateProgramPageContentAction(
     return { error: e instanceof Error ? e.message : 'Failed to save page content.' }
   }
   revalidatePath('/admin/programs')
+  // Public program page content changed — refresh public surface + sitemap
+  // (lastmod updates).
+  revalidatePath('/programs/[slug]', 'page')
+  revalidatePath('/sitemap.xml')
   return {}
 }
