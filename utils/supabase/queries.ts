@@ -1182,3 +1182,154 @@ export async function updateProgramPageContent(
   if (error) throw error
 }
 
+// ─── Hotel properties ────────────────────────────────────────────────────────
+//
+// Per-property data for hotel programs. See migrations/040_hotel_properties.sql.
+
+export type HotelRegion = 'americas' | 'europe' | 'asia_pacific' | 'middle_east_africa'
+
+export interface HotelProperty {
+  id: string
+  program_id: string
+  created_at: string
+  updated_at: string
+  name: string
+  brand: string | null
+  city: string | null
+  country: string | null
+  region: HotelRegion | null
+  category: string | null
+  off_peak_points: number | null
+  standard_points: number | null
+  peak_points: number | null
+  hotel_url: string | null
+  all_inclusive: boolean
+  notes: string | null
+  last_verified: string | null
+}
+
+export type HotelPropertyInsert = Omit<HotelProperty, 'id' | 'created_at' | 'updated_at'>
+
+/**
+ * Fetch all hotel properties for a given program, ordered by category then name.
+ * Used by the public sortable list and by the writer pipeline as authoritative
+ * reference data.
+ */
+export async function getPropertiesForProgram(
+  supabase: SupabaseClient,
+  programId: string
+): Promise<HotelProperty[]> {
+  const { data, error } = await supabase
+    .from('hotel_properties')
+    .select('*')
+    .eq('program_id', programId)
+    .order('category', { ascending: true, nullsFirst: false })
+    .order('name', { ascending: true })
+
+  if (error) throw error
+  return (data ?? []) as HotelProperty[]
+}
+
+/**
+ * Insert one property row.
+ */
+export async function insertHotelProperty(
+  supabase: SupabaseClient,
+  row: HotelPropertyInsert
+): Promise<HotelProperty> {
+  const { data, error } = await supabase
+    .from('hotel_properties')
+    .insert(row)
+    .select('*')
+    .single()
+
+  if (error) throw error
+  return data as HotelProperty
+}
+
+/**
+ * Bulk-insert with conflict handling on (program_id, lower(name)). Used by
+ * the admin CSV importer. Existing rows are updated in place; new rows are
+ * inserted. Returns counts so the importer can report what happened.
+ */
+export async function upsertHotelProperties(
+  supabase: SupabaseClient,
+  rows: HotelPropertyInsert[]
+): Promise<{ inserted: number; updated: number }> {
+  if (rows.length === 0) return { inserted: 0, updated: 0 }
+
+  // Look up existing rows for this program by lowercased name to decide
+  // insert-vs-update per row. The unique index is on lower(name), but
+  // Supabase's upsert helper needs an actual unique constraint name —
+  // we don't have one (we used a lower(name) index instead), so we do
+  // the diff in app code.
+  const programIds = new Set(rows.map((r) => r.program_id))
+  if (programIds.size > 1) {
+    throw new Error('upsertHotelProperties: rows must all share the same program_id')
+  }
+  const programId = rows[0].program_id
+  const incomingByLower = new Map(rows.map((r) => [r.name.toLowerCase(), r]))
+
+  const { data: existing, error: fetchErr } = await supabase
+    .from('hotel_properties')
+    .select('id, name')
+    .eq('program_id', programId)
+  if (fetchErr) throw fetchErr
+
+  const existingByLower = new Map(
+    (existing ?? []).map((r: { id: string; name: string }) => [r.name.toLowerCase(), r.id])
+  )
+
+  const toUpdate: Array<{ id: string; row: HotelPropertyInsert }> = []
+  const toInsert: HotelPropertyInsert[] = []
+  for (const [lowerName, row] of incomingByLower.entries()) {
+    const existingId = existingByLower.get(lowerName)
+    if (existingId) toUpdate.push({ id: existingId, row })
+    else toInsert.push(row)
+  }
+
+  if (toInsert.length > 0) {
+    const { error: insertErr } = await supabase.from('hotel_properties').insert(toInsert)
+    if (insertErr) throw insertErr
+  }
+
+  for (const { id, row } of toUpdate) {
+    const { error: updateErr } = await supabase
+      .from('hotel_properties')
+      .update(row)
+      .eq('id', id)
+    if (updateErr) throw updateErr
+  }
+
+  return { inserted: toInsert.length, updated: toUpdate.length }
+}
+
+/**
+ * Update one row by id. Used by the per-row admin edit form.
+ */
+export async function updateHotelProperty(
+  supabase: SupabaseClient,
+  id: string,
+  patch: Partial<HotelPropertyInsert>
+): Promise<void> {
+  const { error } = await supabase
+    .from('hotel_properties')
+    .update(patch)
+    .eq('id', id)
+  if (error) throw error
+}
+
+/**
+ * Delete one row by id.
+ */
+export async function deleteHotelPropertyById(
+  supabase: SupabaseClient,
+  id: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('hotel_properties')
+    .delete()
+    .eq('id', id)
+  if (error) throw error
+}
+
