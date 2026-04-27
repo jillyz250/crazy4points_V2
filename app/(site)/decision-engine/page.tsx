@@ -596,14 +596,14 @@ function MonthGrid({ weather, compact = false }: {
           const w = weather[m]
           const bg =
             w === 'great' ? '#2D8B5F' :   // green
-            w === 'good'  ? '#F4C430' :   // yellow / saffron
-            w === 'mixed' ? '#F4A38C' :   // light red / peach
+            w === 'good'  ? '#F4C430' :   // yellow
+            w === 'mixed' ? '#C9C2D4' :   // muted gray-purple (neutral)
             w === 'poor'  ? '#D85C50' :   // red
-                            '#EDE6F2'    // null / unknown — neutral
+                            '#EDE6F2'    // null / unknown
           const color =
             w === 'great' ? 'white' :
             w === 'good'  ? '#5A4500' :
-            w === 'mixed' ? '#6B2418' :
+            w === 'mixed' ? '#3F3550' :
             w === 'poor'  ? 'white' :
                             '#9A8AAA'
           return (
@@ -630,7 +630,7 @@ function MonthGrid({ weather, compact = false }: {
       }}>
         <LegendDot color="#2D8B5F" label="Ideal" />
         <LegendDot color="#F4C430" label="Good" />
-        <LegendDot color="#F4A38C" label="Mixed" />
+        <LegendDot color="#C9C2D4" label="Mixed" />
         <LegendDot color="#D85C50" label="Avoid" />
       </div>
     </div>

@@ -110,16 +110,29 @@ function buildSampleHotels(
     }
     const inCountry = byCountry.get(d.country) ?? []
 
-    // Prefer hotels whose city matches the destination's title (case-
-    // insensitive, trimmed). For destinations like "Charlotte" with no
-    // exact city match, fall back to all hotels in the country. Avoids
-    // the obvious bug where a "Charlotte" spin returned hotels from
-    // Sterling, VA + Napa, CA just because they're all "United States".
+    // Prefer hotels whose city overlaps with the destination's title
+    // (case-insensitive substring match in either direction). Catches
+    // both "Raleigh-Durham" (destination) ↔ "Raleigh" (hotel city)
+    // patterns. Exact match still wins highest priority.
     const titleLower = d.title.trim().toLowerCase()
-    const cityMatched = inCountry.filter(
-      (r) => r.city && r.city.trim().toLowerCase() === titleLower
-    )
-    const candidates = cityMatched.length > 0 ? cityMatched : inCountry
+    const cityMatched = inCountry.filter((r) => {
+      if (!r.city) return false
+      const cityLower = r.city.trim().toLowerCase()
+      return cityLower === titleLower
+        || cityLower.includes(titleLower)
+        || titleLower.includes(cityLower)
+    })
+
+    // Country-fallback only when the country is small enough that random
+    // samples are still likely useful. For huge countries (USA, China,
+    // India, etc.), random country-wide samples are noise — a "Raleigh"
+    // spin shouldn't return hotels in Chicago + Chesapeake Bay just
+    // because they're all in the United States. Cutoff is a heuristic;
+    // tune later as more programs seed.
+    const COUNTRY_FALLBACK_MAX = 25
+    const candidates = cityMatched.length > 0
+      ? cityMatched
+      : (inCountry.length <= COUNTRY_FALLBACK_MAX ? inCountry : [])
 
     // Group by program slug, then sample N per program
     const byProgram = new Map<string, HotelRowWithProgram[]>()

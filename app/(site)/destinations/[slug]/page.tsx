@@ -209,11 +209,11 @@ export default async function DestinationDetailPage(
             ))}
 
             <div style={{ marginTop: '32px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-              <Link href="/decision-engine" className="rg-btn-secondary">
+              <Link href="/decision-engine" className="rg-btn-primary">
                 Spin again
               </Link>
-              <Link href="/programs" className="rg-btn-primary">
-                Explore programs
+              <Link href="/alerts" className="rg-btn-secondary">
+                Browse all deals
               </Link>
             </div>
           </div>
@@ -252,13 +252,13 @@ export default async function DestinationDetailPage(
                     const bg =
                       w === 'great' ? '#2D8B5F' :
                       w === 'good'  ? '#F4C430' :
-                      w === 'mixed' ? '#F4A38C' :
+                      w === 'mixed' ? '#C9C2D4' :
                       w === 'poor'  ? '#D85C50' :
                                       '#EDE6F2'
                     const color =
                       w === 'great' ? 'white' :
                       w === 'good'  ? '#5A4500' :
-                      w === 'mixed' ? '#6B2418' :
+                      w === 'mixed' ? '#3F3550' :
                       w === 'poor'  ? 'white' :
                                       'var(--color-text-secondary)'
                     return (
@@ -286,7 +286,7 @@ export default async function DestinationDetailPage(
                   {[
                     ['#2D8B5F', 'Ideal'],
                     ['#F4C430', 'Good'],
-                    ['#F4A38C', 'Mixed'],
+                    ['#C9C2D4', 'Mixed'],
                     ['#D85C50', 'Avoid'],
                   ].map(([color, label]) => (
                     <span key={label} style={{
