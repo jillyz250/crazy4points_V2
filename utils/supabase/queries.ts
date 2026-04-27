@@ -768,6 +768,38 @@ export async function unrejectIntelItem(
   if (error) throw error
 }
 
+export async function getSourceById(
+  supabase: SupabaseClient,
+  id: string
+): Promise<Source | null> {
+  const { data, error } = await supabase
+    .from('sources')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (error) throw error
+  return (data as Source) ?? null
+}
+
+export type SourceUpdate = Partial<SourceInsert>
+
+export async function updateSource(
+  supabase: SupabaseClient,
+  id: string,
+  patch: SourceUpdate
+): Promise<Source> {
+  const { data, error } = await supabase
+    .from('sources')
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data as Source
+}
+
 export async function createSource(
   supabase: SupabaseClient,
   input: SourceInsert
