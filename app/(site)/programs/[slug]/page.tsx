@@ -176,7 +176,7 @@ export default async function ProgramPage({
                 marginBottom: '1rem',
               }}
             >
-              Every {program.name} property we have on file ({properties.length.toLocaleString()} total). Sort, filter, and search by name, brand, city, region, or category. Categories shift over time — verify on the program&apos;s site before booking.
+              Every {program.name} hotel you can book today. Sort, filter, and search by name, brand, city, region, or category. Categories shift over time — verify on the program&apos;s site before booking. Coming-soon properties are hidden by default; toggle them on if you want a peek.
             </p>
             <PropertiesTable properties={properties} programName={program.name} />
           </section>

@@ -2,24 +2,19 @@
 
 import { useMemo, useState } from 'react'
 import type { HotelProperty } from '@/utils/supabase/queries'
+import {
+  HYATT_REGION_LABELS,
+  HYATT_REGION_ORDER,
+  hyattRegionForCountry,
+  isComingSoon,
+  type HyattRegion,
+} from './hyattRegions'
 
 type SortKey = 'name' | 'category' | 'points'
 type SortDir = 'asc' | 'desc'
 
-const REGION_LABELS: Record<string, string> = {
-  americas: 'Americas',
-  europe: 'Europe',
-  asia_pacific: 'Asia Pacific',
-  middle_east_africa: 'Middle East & Africa',
-}
-
 const PAGE_SIZE = 50
 
-/**
- * Compares two properties by sort key. Categories are stringly typed (Hyatt
- * uses "1"-"8" for hotels, "A"-"F" for all-inclusives) — sort numerics
- * naturally and letters alphabetically, and put numerics before letters.
- */
 function compareCategory(a: string | null, b: string | null): number {
   if (a === b) return 0
   if (a === null) return 1
@@ -47,31 +42,51 @@ export default function PropertiesTable({
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [regionFilter, setRegionFilter] = useState<string>('all')
   const [aiOnly, setAiOnly] = useState(false)
+  const [showComingSoon, setShowComingSoon] = useState(false)
   const [sortKey, setSortKey] = useState<SortKey>('name')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [page, setPage] = useState(0)
 
+  // Decorate each property with its derived Hyatt region + coming-soon
+  // flag once, up front. Saves recomputing on every keystroke.
+  const decorated = useMemo(
+    () =>
+      properties.map((p) => ({
+        ...p,
+        _hyattRegion: hyattRegionForCountry(p.country),
+        _comingSoon: isComingSoon(p.notes),
+      })),
+    [properties]
+  )
+
+  const openCount = useMemo(
+    () => decorated.filter((p) => !p._comingSoon).length,
+    [decorated]
+  )
+  const comingSoonCount = decorated.length - openCount
+
   const categories = useMemo(() => {
     const set = new Set<string>()
-    for (const p of properties) {
+    for (const p of decorated) {
       if (p.category) set.add(p.category)
     }
     return [...set].sort(compareCategory)
-  }, [properties])
+  }, [decorated])
 
   const regions = useMemo(() => {
-    const set = new Set<string>()
-    for (const p of properties) {
-      if (p.region) set.add(p.region)
+    const set = new Set<HyattRegion>()
+    for (const p of decorated) {
+      if (p._hyattRegion) set.add(p._hyattRegion)
     }
-    return [...set]
-  }, [properties])
+    return HYATT_REGION_ORDER.filter((r) => set.has(r))
+  }, [decorated])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
-    return properties.filter((p) => {
+    return decorated.filter((p) => {
+      if (!showComingSoon && p._comingSoon) return false
       if (categoryFilter !== 'all' && p.category !== categoryFilter) return false
-      if (regionFilter !== 'all' && p.region !== regionFilter) return false
+      if (regionFilter !== 'all' && p._hyattRegion !== regionFilter) return false
       if (aiOnly && !p.all_inclusive) return false
       if (q) {
         const hay = [p.name, p.brand, p.city, p.country, p.notes]
@@ -82,7 +97,7 @@ export default function PropertiesTable({
       }
       return true
     })
-  }, [properties, search, categoryFilter, regionFilter, aiOnly])
+  }, [decorated, search, categoryFilter, regionFilter, aiOnly, showComingSoon])
 
   const sorted = useMemo(() => {
     const arr = [...filtered]
@@ -114,8 +129,16 @@ export default function PropertiesTable({
     setCategoryFilter('all')
     setRegionFilter('all')
     setAiOnly(false)
+    setShowComingSoon(false)
     setPage(0)
   }
+
+  const hasActiveFilters =
+    search.trim().length > 0 ||
+    categoryFilter !== 'all' ||
+    regionFilter !== 'all' ||
+    aiOnly ||
+    showComingSoon
 
   const inputStyle: React.CSSProperties = {
     fontFamily: 'var(--font-ui)',
@@ -161,26 +184,49 @@ export default function PropertiesTable({
 
   return (
     <div>
+      {/* Prominent search — full width, larger, above filters */}
+      <input
+        type="search"
+        value={search}
+        onChange={(e) => {
+          setSearch(e.target.value)
+          setPage(0)
+        }}
+        placeholder={`Search ${programName} hotels by name, brand, city, country…`}
+        style={{
+          ...inputStyle,
+          width: '100%',
+          fontSize: '1rem',
+          padding: '0.75rem 1rem',
+          marginBottom: '0.625rem',
+        }}
+        aria-label="Search properties"
+      />
+
+      {/* Filter row — compact controls under the search */}
       <div
         style={{
           display: 'flex',
-          gap: '0.625rem',
+          gap: '0.5rem',
           flexWrap: 'wrap',
           alignItems: 'center',
-          marginBottom: '0.875rem',
+          marginBottom: '0.75rem',
         }}
       >
-        <input
-          type="search"
-          value={search}
+        <select
+          value={regionFilter}
           onChange={(e) => {
-            setSearch(e.target.value)
+            setRegionFilter(e.target.value)
             setPage(0)
           }}
-          placeholder={`Search ${programName} properties — name, brand, city, country…`}
-          style={{ ...inputStyle, flex: '1 1 18rem', minWidth: '14rem' }}
-          aria-label="Search properties"
-        />
+          style={inputStyle}
+          aria-label="Filter by region"
+        >
+          <option value="all">All regions</option>
+          {regions.map((r) => (
+            <option key={r} value={r}>{HYATT_REGION_LABELS[r]}</option>
+          ))}
+        </select>
         <select
           value={categoryFilter}
           onChange={(e) => {
@@ -193,20 +239,6 @@ export default function PropertiesTable({
           <option value="all">All categories</option>
           {categories.map((c) => (
             <option key={c} value={c}>{`Cat ${c}`}</option>
-          ))}
-        </select>
-        <select
-          value={regionFilter}
-          onChange={(e) => {
-            setRegionFilter(e.target.value)
-            setPage(0)
-          }}
-          style={inputStyle}
-          aria-label="Filter by region"
-        >
-          <option value="all">All regions</option>
-          {regions.map((r) => (
-            <option key={r} value={r}>{REGION_LABELS[r] ?? r}</option>
           ))}
         </select>
         <label
@@ -230,40 +262,74 @@ export default function PropertiesTable({
           />
           All-inclusive only
         </label>
+        {comingSoonCount > 0 && (
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.375rem',
+              fontFamily: 'var(--font-ui)',
+              fontSize: '0.875rem',
+              color: 'var(--color-text-secondary)',
+              cursor: 'pointer',
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={showComingSoon}
+              onChange={(e) => {
+                setShowComingSoon(e.target.checked)
+                setPage(0)
+              }}
+            />
+            Show {comingSoonCount} coming soon
+          </label>
+        )}
       </div>
 
       <div
         style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
           fontFamily: 'var(--font-ui)',
           fontSize: '0.8125rem',
           color: 'var(--color-text-secondary)',
-          marginBottom: '0.75rem',
+          marginBottom: '0.625rem',
+          flexWrap: 'wrap',
+          gap: '0.5rem',
         }}
       >
-        Showing <strong>{sorted.length === 0 ? 0 : safePage * PAGE_SIZE + 1}-
-        {Math.min((safePage + 1) * PAGE_SIZE, sorted.length)}</strong> of{' '}
-        <strong>{sorted.length.toLocaleString()}</strong> matching{' '}
-        {sorted.length === 1 ? 'property' : 'properties'}
-        {sorted.length !== properties.length && (
-          <>
-            {' '}(of {properties.length.toLocaleString()} total){' '}
-            <button
-              type="button"
-              onClick={resetFilters}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--color-primary)',
-                cursor: 'pointer',
-                fontFamily: 'var(--font-ui)',
-                fontSize: '0.8125rem',
-                padding: 0,
-                textDecoration: 'underline',
-              }}
-            >
-              clear filters
-            </button>
-          </>
+        <span>
+          {sorted.length === 0 ? (
+            'No matching properties'
+          ) : (
+            <>
+              Showing <strong>{safePage * PAGE_SIZE + 1}-
+              {Math.min((safePage + 1) * PAGE_SIZE, sorted.length)}</strong> of{' '}
+              <strong>{sorted.length.toLocaleString()}</strong>{' '}
+              {sorted.length === 1 ? 'property' : 'properties'}
+              {hasActiveFilters && ` (of ${openCount.toLocaleString()} bookable today)`}
+            </>
+          )}
+        </span>
+        {hasActiveFilters && (
+          <button
+            type="button"
+            onClick={resetFilters}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--color-primary)',
+              cursor: 'pointer',
+              fontFamily: 'var(--font-ui)',
+              fontSize: '0.8125rem',
+              padding: 0,
+              textDecoration: 'underline',
+            }}
+          >
+            Clear filters
+          </button>
         )}
       </div>
 
@@ -321,16 +387,23 @@ export default function PropertiesTable({
                       All-inclusive
                     </span>
                   )}
-                  {p.notes && (
-                    <div
+                  {p._comingSoon && (
+                    <span
                       style={{
-                        fontSize: '0.75rem',
-                        color: 'var(--color-text-secondary)',
-                        marginTop: '0.125rem',
+                        marginLeft: '0.5rem',
+                        fontSize: '0.6875rem',
+                        fontFamily: 'var(--font-ui)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                        color: '#92400e',
+                        background: '#fef3c7',
+                        padding: '0.125rem 0.375rem',
+                        borderRadius: '9999px',
+                        fontWeight: 600,
                       }}
                     >
-                      {p.notes}
-                    </div>
+                      Coming soon
+                    </span>
                   )}
                 </td>
                 <td style={{ ...tdStyle, color: 'var(--color-text-secondary)' }}>
