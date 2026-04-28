@@ -183,6 +183,8 @@ export interface Program {
   content_updated_at: string | null
   notes: string | null
   last_verified: string | null
+  /** True for flexible currencies (UR, MR, TY, Cap1, Bilt). False for co-brand or terminal currencies. */
+  is_transferable_currency: boolean
   created_at: string
   updated_at: string
 }
@@ -1482,6 +1484,8 @@ export interface CreditCardBenefit {
   description: string | null
   sort_order: number
   metadata: Record<string, unknown>
+  /** Editorial estimate of realized annual USD value. Distinct from coverage_amount (a cap). */
+  value_estimate_usd: number | null
   created_at: string
   updated_at: string
 }

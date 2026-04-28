@@ -1,9 +1,9 @@
--- Phase 3 — first credit card authored: The World of Hyatt Credit Card (personal).
+-- Phase 3 - first credit card authored: The World of Hyatt Credit Card (personal).
 --
 -- Source 1 (offer details, earn rates, free nights, status, TQNs):
 --   https://creditcards.chase.com/travel-credit-cards/world-of-hyatt-credit-card
 --
--- Source 2 (insurance / protection benefits — Visa Signature Guide to Benefits):
+-- Source 2 (insurance / protection benefits - Visa Signature Guide to Benefits):
 --   Chase BGC11359_v2.pdf, effective 10/01/24
 --   https://chasecardbenefits.com  (claim portal)
 --
@@ -48,7 +48,7 @@ select
   'chase-world-of-hyatt',
   i.id,
   'The World of Hyatt Credit Card',
-  'If you stay at Hyatt even occasionally, this card pays for itself before you finish unpacking. $95 a year buys a Cat 1-4 free night every cardmember anniversary — typically a $200-300 value at most properties — plus a second night if you spend $15K in a calendar year. Earn 4x at Hyatt, 2x on the categories most points-people actually use (dining, airfare booked direct, transit, gym), 1x everywhere else. Comes with auto Discoverist status (the entry-level Hyatt tier), 5 elite-qualifying nights per calendar year, and 2 more for every $5K spent — uncapped, which is why this card has a cult following among status-chasers. 0% foreign transaction fees. Earns Hyatt points directly (no Chase UR detour). Subject to Chase''s 5/24 rule, so plan your card-app order accordingly.',
+  'If you stay at Hyatt even occasionally, this card pays for itself before you finish unpacking. $95 a year buys a Cat 1-4 free night every cardmember anniversary - typically a $200-300 value at most properties - plus a second night if you spend $15K in a calendar year. Earn 4x at Hyatt, 2x on the categories most points-people actually use (dining, airfare booked direct, transit, gym), 1x everywhere else. Comes with auto Discoverist status (the entry-level Hyatt tier), 5 elite-qualifying nights per calendar year, and 2 more for every $5K spent - uncapped, which is why this card has a cult following among status-chasers. 0% foreign transaction fees. Earns Hyatt points directly (no Chase UR detour). Subject to Chase''s 5/24 rule, so plan your card-app order accordingly.',
   'https://creditcards.chase.com/travel-credit-cards/world-of-hyatt-credit-card',
   95,
   'personal',
@@ -100,7 +100,7 @@ cross join (values
   ('hyatt_purchases',     4.0, 'any',    'Qualifying Hyatt hotel/resort purchases and Hyatt Experiences (hyatt.com/experiences). Stacks with WoH base earning for ~9x effective on stays.'),
   ('dining',              2.0, 'any',    'Restaurants worldwide (excluding dining at Hyatt, which earns 4x).'),
   ('airline_tickets',     2.0, 'direct', 'Airline tickets purchased directly with the airline (not OTAs).'),
-  ('local_transit',       2.0, 'any',    'Local transit and commuting — rideshare, taxis, tolls, trains, buses.'),
+  ('local_transit',       2.0, 'any',    'Local transit and commuting - rideshare, taxis, tolls, trains, buses.'),
   ('fitness_gym',         2.0, 'any',    'Fitness club and gym memberships.'),
   ('everything_else',     1.0, 'any',    null)
 ) as x(category, multiplier, booking_channel, notes)
@@ -125,14 +125,14 @@ cross join (values
   -- 1. Anniversary free night (cardmember anniversary)
   ('free_night',      'free_night_award',           'Anniversary Free Night (Cat 1-4)',
    1, 'nights', null, 'anniversary', null,
-   'A free night certificate at any Category 1-4 Hyatt hotel or resort, awarded each cardmember anniversary. Issued to the primary cardholder only (authorized users do not receive); redemption can include guest stays via Hyatt''s standard booking flow. Typically valid 12 months from issuance. Standard rooms only at Cat 1-4 hotels — not valid at Miraval, Hyatt Zilara/Ziva, or for all-inclusive packages. Resort/destination/facility fees waived (excluding Hyatt Residence Club). Cannot be used for package rates.',
+   'A free night certificate at any Category 1-4 Hyatt hotel or resort, awarded each cardmember anniversary. Issued to the primary cardholder only (authorized users do not receive); redemption can include guest stays via Hyatt''s standard booking flow. Typically valid 12 months from issuance. Standard rooms only at Cat 1-4 hotels - not valid at Miraval, Hyatt Zilara/Ziva, or for all-inclusive packages. Resort/destination/facility fees waived (excluding Hyatt Residence Club). Cannot be used for package rates.',
    1,
    '{"category_cap": 4, "expiration_months": 12, "issuance_year": "cardmember_anniversary", "issuance_delay_weeks_max": 10, "issued_to": "primary_only", "redemption_for_guests": true, "excluded_brands": ["Miraval","Hyatt Zilara","Hyatt Ziva"], "excluded_rate_types": ["all_inclusive","packages"], "fees_waived": ["resort","destination","facility"], "fees_waived_excludes": ["Hyatt Residence Club"]}'::jsonb),
 
   -- 2. $15K spend bonus free night (CALENDAR YEAR)
   ('free_night',      'free_night_after_spend',     'Bonus Free Night after $15K Spend (Cat 1-4)',
    1, 'nights', null, 'annual', 15000,
-   'A second free night certificate at any Category 1-4 Hyatt property, awarded once per calendar year after $15,000 in card purchases. Issued to primary cardholder only; redemption can include guest stays. Typically valid 12 months from issuance. Standard rooms only at Cat 1-4 hotels — not valid at Miraval, Hyatt Zilara/Ziva, or for all-inclusive packages. Up to 8 weeks for issuance after qualifying.',
+   'A second free night certificate at any Category 1-4 Hyatt property, awarded once per calendar year after $15,000 in card purchases. Issued to primary cardholder only; redemption can include guest stays. Typically valid 12 months from issuance. Standard rooms only at Cat 1-4 hotels - not valid at Miraval, Hyatt Zilara/Ziva, or for all-inclusive packages. Up to 8 weeks for issuance after qualifying.',
    2,
    '{"category_cap": 4, "expiration_months": 12, "issuance_year": "calendar", "issuance_delay_weeks_max": 8, "issued_to": "primary_only", "redemption_for_guests": true, "excluded_brands": ["Miraval","Hyatt Zilara","Hyatt Ziva"], "excluded_rate_types": ["all_inclusive","packages"]}'::jsonb),
 
@@ -153,7 +153,7 @@ cross join (values
   -- 5. 2 TQN credits per $5K spend (uncapped)
   ('spend_unlock',    'spend_unlock_perk',          '2 Tier-Qualifying Night Credits per $5,000 Spend',
    2, 'nights', null, 'annual', 5000,
-   'Two additional Tier-Qualifying Night credits for every $5,000 in card purchases — UNCAPPED. Credits are applied to the calendar year in which the spend occurred. Up to 8 weeks from end of qualifying calendar month for posting. Authorized users do not receive.',
+   'Two additional Tier-Qualifying Night credits for every $5,000 in card purchases - UNCAPPED. Credits are applied to the calendar year in which the spend occurred. Up to 8 weeks from end of qualifying calendar month for posting. Authorized users do not receive.',
    5,
    '{"counts_toward": "elite_status_tiers", "uncapped": true, "issuance_year": "calendar", "primary_only": true}'::jsonb),
 
@@ -202,14 +202,14 @@ cross join (values
   -- 12. Roadside Assistance
   ('protection',      'concierge',                  'Roadside Assistance (Pay-Per-Use)',
    null, null, null, 'per_trip', null,
-   'Pay-per-use roadside dispatch — 24/7 in the US and Canada. Includes standard 5-mile tow, tire change (must have inflated spare), battery jump or tow to charging station, lockout (no key replacement), 5-gallon fuel delivery, standard winching within 100 feet of paved road. Cardholder pays the per-service fee at dispatch. Light-duty vehicles only (≤10,000 lbs).',
+   'Pay-per-use roadside dispatch - 24/7 in the US and Canada. Includes standard 5-mile tow, tire change (must have inflated spare), battery jump or tow to charging station, lockout (no key replacement), 5-gallon fuel delivery, standard winching within 100 feet of paved road. Cardholder pays the per-service fee at dispatch. Light-duty vehicles only (≤10,000 lbs).',
    12,
    '{"included_services": ["tow_5mi","tire_change","battery_jump","lockout","fuel_delivery_5gal","winching_100ft"], "available_24_7": true, "geographic_coverage": "US + Canada", "vehicle_class": "light_duty_under_10k_lbs", "phone": "1-800-349-2634", "cost_model": "pay_per_use", "guide_version": "BGC11359_v2_20241001"}'::jsonb),
 
   -- 13. Travel and Emergency Assistance Services
   ('protection',      'concierge',                  'Travel and Emergency Assistance Services',
    null, null, null, 'per_trip', null,
-   '24/7 referral hotline for emergencies while traveling away from home. Provides arrangement and coordination ONLY — cardholder pays for any actual medical, legal, transportation, or other services. Services include emergency message relay, medical/legal/embassy referral, emergency transportation arrangement, lost ticket replacement assistance, lost luggage locator, translation service, prescription assistance, and pre-trip information.',
+   '24/7 referral hotline for emergencies while traveling away from home. Provides arrangement and coordination ONLY - cardholder pays for any actual medical, legal, transportation, or other services. Services include emergency message relay, medical/legal/embassy referral, emergency transportation arrangement, lost ticket replacement assistance, lost luggage locator, translation service, prescription assistance, and pre-trip information.',
    13,
    '{"available_24_7": true, "phone_us": "1-800-349-2634", "phone_intl": "001-214-503-2951", "cost_model": "referral_only_cardholder_pays_actuals", "service_categories": ["message_relay","medical_referral","legal_referral","emergency_transport","ticket_replacement","luggage_locator","translation","prescription_assistance","pre_trip_info"], "guide_version": "BGC11359_v2_20241001"}'::jsonb)
 ) as b(

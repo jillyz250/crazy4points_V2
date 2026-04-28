@@ -93,3 +93,7 @@ No structural changes; no benefit added or removed from the original PDF-verifie
 - Earn rates: stable; check annually or if Chase emails about changes
 - Insurance/protections: PDF effective date is 10/01/24; check for new Guide to Benefits each fall
 - Annual fee: stable since launch ($95)
+
+## Followups (backlog)
+
+- [ ] **Add referral bonus details** — existing cardholders can refer friends and earn bonus points per approved application. Need to capture: per-referral bonus amount, annual cap, eligibility, referral link mechanism. Currently the schema models welcome bonuses (what new cardholders get) but not referral bonuses (what existing cardholders earn from referrals). See architecture plan for the cross-card pattern decision.
