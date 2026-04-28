@@ -1218,6 +1218,9 @@ export async function updateProgramPageContent(
       alliance: input.alliance,
       hubs: input.hubs,
       content_updated_at: anyContent ? new Date().toISOString() : null,
+      // Auto-bump last_verified on every save: the act of editing IS verification.
+      // Drops the row out of the admin_refresh_queue view until next cadence cycle.
+      last_verified: new Date().toISOString().slice(0, 10),
     })
     .eq('id', id)
   if (error) throw error
@@ -1376,7 +1379,11 @@ export async function updateHotelProperty(
 ): Promise<void> {
   const { error } = await supabase
     .from('hotel_properties')
-    .update(patch)
+    .update({
+      ...patch,
+      // Auto-bump last_verified on every property save (unless caller explicitly set one).
+      last_verified: patch.last_verified ?? new Date().toISOString().slice(0, 10),
+    })
     .eq('id', id)
   if (error) throw error
 }
@@ -1529,6 +1536,76 @@ export type CreditCardEarnRateInsert  = Omit<CreditCardEarnRate, 'id' | 'created
 export type CreditCardBenefitInsert   = Omit<CreditCardBenefit, 'id' | 'created_at' | 'updated_at'>
 export type CreditCardWelcomeBonusInsert = Omit<CreditCardWelcomeBonus, 'id' | 'created_at' | 'updated_at'>
 export type ProgramTransferInsert   = Omit<ProgramTransfer, 'id' | 'created_at' | 'updated_at'>
+
+// ─── Admin Refresh Queue ─────────────────────────────────────────────────
+// Backed by the `admin_refresh_queue` view created in migration 048.
+// Cadences mirrored in lib/admin/refresh-cadences.ts.
+
+export interface RefreshQueueItem {
+  entity_type: string  // 'credit_card' | 'credit_card_welcome_bonus' | 'issuer' | `program_${string}` | 'hotel_properties_program'
+  entity_id: string
+  entity_slug: string
+  entity_name: string
+  last_verified: string | null
+  cadence_days: number
+  age_days: number
+  edit_url: string
+}
+
+/**
+ * Fetch all stale-content entities flagged by the admin_refresh_queue view.
+ * Sorted by age_days descending (oldest first), then entity_name asc as tiebreak.
+ * Optionally filter by entity_type (e.g. 'credit_card' to see only card rows).
+ */
+export async function getRefreshQueue(
+  supabase: SupabaseClient,
+  options: { entityType?: string; limit?: number } = {},
+): Promise<RefreshQueueItem[]> {
+  let query = supabase
+    .from('admin_refresh_queue')
+    .select('*')
+    .order('age_days', { ascending: false })
+    .order('entity_name', { ascending: true })
+
+  if (options.entityType) {
+    query = query.eq('entity_type', options.entityType)
+  }
+  if (options.limit) {
+    query = query.limit(options.limit)
+  }
+
+  const { data, error } = await query
+  if (error) throw error
+  return (data ?? []) as RefreshQueueItem[]
+}
+
+/**
+ * Lightweight count for the admin nav badge. Cached (revalidate=60) so the
+ * badge doesn't hit the DB on every admin page navigation.
+ */
+export async function getRefreshQueueCount(
+  supabase: SupabaseClient,
+): Promise<number> {
+  const { count, error } = await supabase
+    .from('admin_refresh_queue')
+    .select('*', { count: 'exact', head: true })
+  if (error) throw error
+  return count ?? 0
+}
+
+/**
+ * Group the queue by entity_type for the UI's filter chips and category counts.
+ */
+export async function getRefreshQueueByType(
+  supabase: SupabaseClient,
+): Promise<Record<string, number>> {
+  const items = await getRefreshQueue(supabase)
+  const counts: Record<string, number> = {}
+  for (const item of items) {
+    counts[item.entity_type] = (counts[item.entity_type] ?? 0) + 1
+  }
+  return counts
+}
 
 export interface CardDetailBundle {
   card: CreditCard
