@@ -1,10 +1,11 @@
 # Credit Cards Architecture Plan
 
-**Status:** Round 3 (incorporates Copilot review #2, 2026-04-27)
+**Status:** Round 4 (adds metadata-key discipline + comparison-field migration, 2026-04-28)
 **Author:** Jill + Claude Code
 **Review history:**
 - Round 1: Copilot review — flagged benefits-table flexibility, SUB sortability, transfer-partner normalization, derived layer, affiliate networks, decision-logic flags. Most accepted.
 - Round 2: Copilot review — flagged consistency enforcement on benefits, tag governance, effective AF in view, transfer-partner deferral was too aggressive, display logic layer, recommendation-engine prep, data discipline as Phase 2 priority. All accepted with one calibration (tag governance done at admin layer, not separate lookup table).
+- Round 4 (after authoring first card): added migration 047 with `value_estimate_usd` per benefit, `is_transferable_currency` flag on programs, and `metadata.status_tier_rank` convention. Codified `KNOWN_METADATA_KEYS` discipline per `benefit_type` in Phase 2 so the comparison tool can render side-by-side reliably across cards.
 
 ## Round 1 review changes applied
 
@@ -423,6 +424,32 @@ Each phase is roughly 1 session. Order is dependency-aware.
   - `KNOWN_TAGS` const in `lib/cards/tags.ts` — admin form validates `tags` input against this list, rejects unknown values, suggests near-matches
   - `KNOWN_BENEFIT_TYPES` const mirrors the DB CHECK constraint — admin form provides a typeahead, can't submit unlisted values
   - `KNOWN_INTENDED_USERS` const for the audience array
+  - **`KNOWN_METADATA_KEYS` per `benefit_type`** in `lib/cards/benefit-metadata-keys.ts` — declares the canonical metadata key vocabulary so card #2 doesn't write `us_coverage` when card #1 wrote `coverage_in_us`. Admin form for benefits exposes a typed editor per benefit_type that knows the keys, types, and allowed values. Without this, the comparison tool can't render side-by-side because metadata shapes drift across cards. Example shape:
+    ```ts
+    KNOWN_METADATA_KEYS = {
+      'rental_car_cdw_secondary': {
+        max_per_rental_usd: 'number',
+        coverage_in_us: ['primary', 'secondary'],
+        coverage_outside_us: ['primary', 'secondary'],
+        must_decline_rental_cdw: 'boolean',
+        max_rental_days: 'number',
+        excluded_vehicle_types: 'string[]',
+      },
+      'lounge_priority_pass': {
+        guests_per_visit: 'number',
+        visits_per_year: 'number | "unlimited"',
+        applies_to_authorized_users: 'boolean',
+      },
+      'trip_delay_insurance': {
+        delay_hours: 'number',
+        max_per_trip_usd: 'number',
+        max_per_year_usd: 'number',
+        covered_persons: 'string',
+      },
+      // ... one entry per known benefit_type
+    }
+    ```
+    Admin form blocks submission if metadata contains keys not in the schema for that benefit_type. Lookup table deferred until ~50 entries.
   - `last_verified` reminder column in admin table — sort by oldest, flag rows >90 days as stale
   - Required-field discipline: a card row can't be saved with status='active' unless it has at least one current SUB row, one earn rate row, and at least one benefit row. Drafts allowed without that.
 - **Deliverable:** can enter card data via admin AND data quality is enforced at write time, not discovery time
