@@ -494,6 +494,8 @@ function IdeaCard({
 
       <VerificationRow pills={pills} />
 
+      <SourcesUsed idea={idea} />
+
       <FailureNotes idea={idea} />
 
       <p style={{ margin: '0 0 0.75rem', color: 'var(--admin-text-muted)', fontSize: '0.875rem', lineHeight: 1.5 }}>
@@ -1035,5 +1037,152 @@ function Step({
         {children}
       </span>
     </div>
+  )
+}
+
+interface SourceClaim {
+  supported?: boolean
+  source_excerpt?: string | null
+  web_verdict?: string | null
+  web_url?: string | null
+}
+
+/**
+ * Surfaces which sources backed the article's claims after fact-check ran.
+ * Always shows "Your program pages" first, with the count of claims grounded
+ * directly against your programs table data (those have a source_excerpt).
+ * Then the top 3 external domains that web verification cited.
+ *
+ * If no fact-check has run, render nothing.
+ * If your-pages count is 0, that's a SIGNAL — the article's source path
+ * is broken (no primary_program_slug, or tagged program is empty).
+ */
+function SourcesUsed({ idea }: { idea: ContentIdeaRow }) {
+  if (!idea.fact_checked_at) return null
+  if (!Array.isArray(idea.fact_check_claims)) return null
+  const claims = idea.fact_check_claims as SourceClaim[]
+  if (claims.length === 0) return null
+
+  // "Your program pages" = claims grounded by source comparison (source_excerpt
+  // populated). These came from the programs table, which is the same data
+  // rendered on /programs/[slug].
+  const yourPagesCount = claims.filter(
+    (c) => c.supported === true && !!c.source_excerpt
+  ).length
+
+  // External domains cited by web verification.
+  const hostCounts = new Map<string, number>()
+  for (const c of claims) {
+    if (!c.web_url) continue
+    try {
+      const host = new URL(c.web_url).host.replace(/^www\./, '')
+      hostCounts.set(host, (hostCounts.get(host) ?? 0) + 1)
+    } catch {
+      /* skip invalid URLs */
+    }
+  }
+  const topExternal = Array.from(hostCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+
+  // If neither your pages nor external sources contributed, skip.
+  if (yourPagesCount === 0 && topExternal.length === 0) return null
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: '0.375rem',
+        marginBottom: '0.625rem',
+        fontFamily: 'var(--font-ui)',
+        fontSize: '0.75rem',
+      }}
+    >
+      <span
+        style={{
+          fontWeight: 700,
+          fontSize: '0.6875rem',
+          textTransform: 'uppercase',
+          letterSpacing: '0.06em',
+          color: 'var(--admin-text-muted)',
+          marginRight: '0.25rem',
+        }}
+      >
+        Sources used
+      </span>
+
+      <SourcePill
+        label="Your program pages"
+        count={yourPagesCount}
+        emphasized
+        warn={yourPagesCount === 0}
+      />
+
+      {topExternal.map(([host, count]) => (
+        <SourcePill key={host} label={host} count={count} />
+      ))}
+
+      {yourPagesCount === 0 && (
+        <span
+          style={{
+            fontSize: '0.6875rem',
+            color: '#b45309',
+            fontStyle: 'italic',
+            marginLeft: '0.25rem',
+          }}
+          title="Your program pages weren't used to ground any claims. Check that primary_program_slug is set AND the program row has content populated."
+        >
+          ← worth checking
+        </span>
+      )}
+    </div>
+  )
+}
+
+function SourcePill({
+  label,
+  count,
+  emphasized,
+  warn,
+}: {
+  label: string
+  count: number
+  emphasized?: boolean
+  warn?: boolean
+}) {
+  const palette = warn
+    ? { bg: '#fffbeb', border: '#fcd34d', fg: '#92400e' }
+    : emphasized
+      ? { bg: '#dcfce7', border: '#86efac', fg: '#15803d' }
+      : { bg: 'var(--admin-surface-alt)', border: 'var(--admin-border)', fg: 'var(--admin-text)' }
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '0.3125rem',
+        padding: '0.1875rem 0.5rem',
+        borderRadius: '999px',
+        background: palette.bg,
+        border: `1px solid ${palette.border}`,
+        color: palette.fg,
+        fontWeight: emphasized ? 700 : 500,
+      }}
+    >
+      <span>{label}</span>
+      <span
+        style={{
+          fontWeight: 700,
+          background: 'rgba(0,0,0,0.06)',
+          padding: '0 0.375rem',
+          borderRadius: '999px',
+          fontSize: '0.6875rem',
+        }}
+      >
+        {count}
+      </span>
+    </span>
   )
 }
