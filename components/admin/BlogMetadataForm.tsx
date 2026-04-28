@@ -21,6 +21,7 @@ interface IdeaSnapshot {
   hero_image_url: string | null;
   primary_program_slug: string | null;
   secondary_program_slugs: string[] | null;
+  card_slugs: string[] | null;
   reading_time_minutes: number | null;
   featured: boolean | null;
   featured_rank: number | null;
@@ -166,6 +167,24 @@ export default function BlogMetadataForm({ idea, programs, suggestedProgramSlug 
             For comparison or stacking pieces (Chase + Hyatt, Amex + Aeroplan).
             Each slug pulls that program's data into fact-check + writer source.
             Use the same slugs from the dropdown above (e.g. <code>hyatt</code>, <code>chase</code>).
+          </span>
+        </Field>
+
+        <Field label="Card slugs (comma-separated — for card-comparison articles)">
+          <input
+            type="text"
+            name="card_slugs"
+            defaultValue={(idea.card_slugs ?? []).join(', ')}
+            placeholder="e.g. chase-world-of-hyatt, chase-world-of-hyatt-business"
+            className="admin-input"
+            style={{ width: '100%' }}
+            autoComplete="off"
+          />
+          <span style={{ fontSize: '0.6875rem', color: 'var(--admin-text-muted)' }}>
+            Each slug pulls that card's <code>/cards/[slug]</code> content into the
+            writer + fact-checker as authoritative source. Use this for any
+            card-comparison or card-deep-dive article. Slugs match the URL —
+            e.g. <code>chase-world-of-hyatt</code>.
           </span>
         </Field>
 
