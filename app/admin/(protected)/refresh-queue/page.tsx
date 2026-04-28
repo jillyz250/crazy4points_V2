@@ -11,6 +11,7 @@ import {
   urgencyForAge,
   type RefreshEntityType,
 } from '@/lib/admin/refresh-cadences'
+import { markVerifiedAction } from './actions'
 
 export const revalidate = 60
 
@@ -190,9 +191,22 @@ function RefreshQueueRow({ item }: { item: RefreshQueueItem }) {
         <Badge tone={URGENCY_TONE[urgency]}>{URGENCY_LABEL[urgency]}</Badge>
       </td>
       <td style={{ textAlign: 'right' }}>
-        <Link href={item.edit_url} className="admin-btn admin-btn-ghost admin-btn-sm">
-          Edit
-        </Link>
+        <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-end' }}>
+          <form action={markVerifiedAction}>
+            <input type="hidden" name="entity_type" value={item.entity_type} />
+            <input type="hidden" name="entity_id" value={item.entity_id} />
+            <button
+              type="submit"
+              className="admin-btn admin-btn-ghost admin-btn-sm"
+              title="Confirm data is still current without editing"
+            >
+              ✓ Mark verified
+            </button>
+          </form>
+          <Link href={item.edit_url} className="admin-btn admin-btn-ghost admin-btn-sm">
+            Edit
+          </Link>
+        </div>
       </td>
     </tr>
   )
