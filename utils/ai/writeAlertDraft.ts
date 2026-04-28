@@ -264,9 +264,10 @@ RULES:
 7. Program-naming discipline matches summary: only name programs the
    source confirms. Do not swap in "better for US audience" picks.
 8. No headings. No bullet lists. Prose only — EXCEPT for promo-shaped
-   alerts (limited_time_offer, transfer_bonus, status_promo), which use
-   a hybrid format with one bulleted "What qualifies" block sandwiched
-   between voicey paragraphs (see PROMO-TERMS COMPLETENESS section).
+   alerts (limited_time_offer, transfer_bonus, status_promo,
+   award_availability, point_purchase), which use a hybrid format with
+   one bulleted "What qualifies" block sandwiched between voicey
+   paragraphs (see PROMO-TERMS COMPLETENESS section).
 9. FORBIDDEN stock phrases — these are BANNED, not "discouraged." If
    your draft contains any of these, rewrite the sentence from scratch:
    "The most interesting angle here is…"
@@ -318,12 +319,21 @@ PROMO-TERMS COMPLETENESS (alert_type ∈ promo-shaped only)
 ═══════════════════════════════════════════════════════════
 
 Applies when alert_type is one of:
-"limited_time_offer" · "transfer_bonus" · "status_promo"
-(award_availability does not have promo terms; not in scope here.)
+"limited_time_offer" · "transfer_bonus" · "status_promo" ·
+"award_availability" · "point_purchase"
 
 Promo readers lose money when qualifying terms are vague. For these
 alert types, your description MUST surface every applicable term
 below AND use a hybrid format that's both scannable AND voiced.
+
+GAP DISCIPLINE (overrides silent-omit):
+If a field in the type's checklist applies to this kind of offer
+but the source doesn't state it, you MUST still surface the field
+explicitly. Use a bullet that says "Not specified in source — verify
+on the offer page" rather than silently dropping the bullet. The
+fact-checker treats silently-omitted fields as a completeness failure.
+Fields that genuinely don't apply to this offer shape can be
+omitted (e.g. min_nights for a transfer bonus).
 
 ────────────────────────────────────────
 HYBRID FORMAT — required structure for promo descriptions
@@ -374,7 +384,9 @@ THREE PARTS in this exact order:
        ("this is one bonus per member"), or timing reminders.
      • ~30-60 words. Voice-heavy.
 
-Required fields to consider for the bullet block:
+Required fields to consider for the bullet block — by alert type:
+
+For limited_time_offer · transfer_bonus · status_promo · award_availability:
 1. EARNING WINDOW — book-by, register-by, or earn-by date(s)
 2. TRAVEL / STAY-COMPLETION WINDOW — when qualifying activity completes
 3. MINIMUM SPEND — dollar threshold
@@ -383,6 +395,24 @@ Required fields to consider for the bullet block:
    etc.). NEVER write "elite status" alone if the source names a tier.
 6. REGISTRATION — required yes/no, with deadline if specified
 7. EXCLUDED — brands, properties, fare classes, payment types
+
+For point_purchase (buy-points/miles bonuses) — DIFFERENT checklist:
+1. BONUS TIER STRUCTURE — flat % or tiered (e.g., "40% at 5K, 80% only
+   at 50K+"). Always name the tier shape, not just the headline %.
+2. MINIMUM PURCHASE — base miles/points required to trigger the offer
+3. ANNUAL CAP — most programs cap purchased miles per calendar year
+   (e.g., United 200K, AAdvantage 150K)
+4. SUB-PERIOD CAP — rolling 90-day or monthly limits if any
+5. PURCHASE WINDOW — sale end date
+6. POSTING TIMELINE — instant vs 48–72hr delay
+7. TARGETED VS PUBLIC — login-to-verify offers are common; flag it
+8. CPM MATH — must specify "pre-tax" or "all-in" (e.g., United adds
+   7.5% federal excise tax). NEVER quote a CPM without this label.
+9. REFUNDABILITY — almost always non-refundable; worth stating
+10. HISTORICAL CONTEXT — last sale's bonus %, best-ever bonus %, so
+    the reader can judge whether this is the time to buy or wait
+11. PAYMENT ROUTING — does the charge code as travel or as a third-
+    party processor (e.g., Points.com)? Affects card category bonuses.
 
 ────────────────────────────────────────
 WORKED EXAMPLE — Marriott Homes & Villas (target shape)
@@ -413,6 +443,48 @@ Notice:
 • Italicized parentheticals do the voice work inside bullets
   ("the squeeze," "plenty of runway," gotcha on the spend floor)
 • Close has the strategic stack tip and urgency
+
+────────────────────────────────────────
+WORKED EXAMPLE — buy-miles gold standard (point_purchase)
+────────────────────────────────────────
+
+  If you're a few thousand miles short of a Lufthansa, ANA, Singapore
+  Airlines, or EVA Air redemption you've already scoped out, this is the
+  sale that was built for that moment. The 80% bonus brings the per-mile
+  cost to 1.94 cents (USD, pre-tax) — still above the program's roughly
+  1.2-cent valuation, but well below what you'd pay cash for a premium-
+  cabin seat on a Star Alliance partner.
+
+  **What qualifies:**
+  - **Bonus:** 80% on all purchased miles *(offers may vary by account — log in to verify yours)*
+  - **Minimum purchase:** 2,000 base miles
+  - **Purchase window:** ends May 4, 2026 *(short runway)*
+  - **Annual cap:** 200,000 base miles per calendar year
+  - **90-day sub-limit:** 50,000 base miles
+  - **Posting:** instant
+  - **Payment routing:** charge processes through Points.com — does NOT code as travel
+  - **Pre-tax CPM:** 1.94¢/mi *(United adds 7.5% federal excise tax — all-in is closer to 2.09¢)*
+  - **Refundability:** non-refundable
+  - **Excluded use case:** speculative balance-building
+
+  The last sale ran at roughly 52% — this is a meaningful step up, close
+  to the best United has ever offered (100%, ~1.88¢/mi all-in). If you
+  don't have a specific redemption lined up, wait for that 100% to
+  resurface. But if award space is already sitting on Lufthansa or Swiss
+  to Europe — round-trip business class regularly prices at 140K–160K
+  miles against cash fares well north of $5,000. At 1.94¢ a mile, the
+  math works.
+
+Notice (buy-miles specifics):
+• Setup names the use-case anchor (specific partner redemptions)
+  rather than abstract "great sale"
+• Pre-tax CPM is labeled as pre-tax IN THE BULLET, plus the all-in
+  number called out in the parenthetical — never quote a CPM bare
+• Historical context (last sale 52%, best-ever 100%) gives the reader
+  the wait-or-buy decision frame
+• Payment routing flag (Points.com) is the kind of practical gotcha
+  that the casual draft misses
+• Close anchors the math against a real redemption value, not vibes
 
 ────────────────────────────────────────
 ANTI-PATTERNS — drafts that miss the format
@@ -449,11 +521,12 @@ distinction between value and gotcha):
 ACTION TYPE
 ═══════════════════════════════════════════════════════════
 
-One of: "book" | "transfer" | "apply" | "status_match" | "monitor" | "learn"
+One of: "book" | "transfer" | "apply" | "status_match" | "buy_miles" | "monitor" | "learn"
 - book: award availability, hotel/flight deals
 - transfer: transfer bonuses, point conversions
 - apply: credit card signup bonuses
 - status_match: airline/hotel elite status match or status challenge (submit existing status for a match)
+- buy_miles: buy-points/miles bonus sales (point_purchase alerts) — purchasing a program's currency directly from the program
 - monitor: devaluations, rumors, watchlist items
 - learn: sweet spots, analysis, evergreen education
 
@@ -544,7 +617,7 @@ SCHEMA
   "title": "<string>",
   "summary": "<string, 2-3 sentences>",
   "description": "<string or null>",
-  "action_type": "book" | "transfer" | "apply" | "monitor" | "learn",
+  "action_type": "book" | "transfer" | "apply" | "status_match" | "buy_miles" | "monitor" | "learn",
   "primary_program_slug": "<slug from PROGRAM LIST, or null>",
   "secondary_program_slugs": ["<slug>", ...],
   "start_date": "<ISO 8601 or null>",
@@ -569,7 +642,7 @@ function validate(draft: unknown, programs: WriteDraftProgram[]): AlertDraft {
   if (!d || typeof d !== 'object') throw new Error('Draft not an object')
   if (typeof d.title !== 'string' || !d.title.trim()) throw new Error('Missing title')
   if (typeof d.summary !== 'string' || !d.summary.trim()) throw new Error('Missing summary')
-  if (!['book', 'transfer', 'apply', 'status_match', 'monitor', 'learn'].includes(d.action_type)) {
+  if (!['book', 'transfer', 'apply', 'status_match', 'buy_miles', 'monitor', 'learn'].includes(d.action_type)) {
     throw new Error(`Invalid action_type: ${d.action_type}`)
   }
 

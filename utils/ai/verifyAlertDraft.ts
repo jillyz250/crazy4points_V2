@@ -9,6 +9,7 @@
  * that weren't in the source article.
  */
 import Anthropic from '@anthropic-ai/sdk'
+import { BRAND_VOICE } from './editorialRules'
 import type { AlertType } from '@/utils/supabase/queries'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -30,13 +31,26 @@ import type { AlertType } from '@/utils/supabase/queries'
 // prompt addition.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const PROMO_ALERT_TYPES: ReadonlySet<AlertType> = new Set<AlertType>([
+// Standard promo-shaped types share the same 7-term checklist.
+const STANDARD_PROMO_TYPES: ReadonlySet<AlertType> = new Set<AlertType>([
   'limited_time_offer',
   'transfer_bonus',
   'status_promo',
+  'award_availability',
 ])
 
-export const PROMO_TERM_LABELS: Record<string, string> = {
+// point_purchase (buy-miles bonuses) has a DIFFERENT term checklist.
+// Sale shape, annual caps, payment routing, CPM math, historical context.
+const BUY_MILES_TYPES: ReadonlySet<AlertType> = new Set<AlertType>([
+  'point_purchase',
+])
+
+const PROMO_ALERT_TYPES: ReadonlySet<AlertType> = new Set<AlertType>([
+  ...STANDARD_PROMO_TYPES,
+  ...BUY_MILES_TYPES,
+])
+
+export const STANDARD_PROMO_TERM_LABELS: Record<string, string> = {
   earning_window:             'Earning window',
   travel_window:              'Travel / stay window',
   min_spend:                  'Minimum spend',
@@ -45,12 +59,41 @@ export const PROMO_TERM_LABELS: Record<string, string> = {
   registration:               'Registration required',
   exclusions:                 'Exclusions / carve-outs',
 }
-const PROMO_TERM_KEYS = Object.keys(PROMO_TERM_LABELS)
+
+export const BUY_MILES_TERM_LABELS: Record<string, string> = {
+  bonus_tier_structure: 'Bonus tier structure',
+  min_purchase:         'Minimum purchase',
+  annual_cap:           'Annual cap',
+  sub_period_cap:       '90-day / sub-period cap',
+  purchase_window:      'Purchase window',
+  posting_timeline:     'Posting timeline',
+  targeted_vs_public:   'Targeted vs public',
+  cpm_math:             'CPM (pre-tax / all-in)',
+  refundability:        'Refundability',
+  historical_context:   'Historical context',
+  payment_routing:      'Payment routing',
+}
+
+// Back-compat alias for any existing imports.
+export const PROMO_TERM_LABELS: Record<string, string> = {
+  ...STANDARD_PROMO_TERM_LABELS,
+  ...BUY_MILES_TERM_LABELS,
+}
+
+const STANDARD_PROMO_TERM_KEYS = Object.keys(STANDARD_PROMO_TERM_LABELS)
+const BUY_MILES_TERM_KEYS = Object.keys(BUY_MILES_TERM_LABELS)
 
 type PromoTermStatus = 'present' | 'acknowledged_missing' | 'absent'
 
 function isPromoAlertType(t: AlertType | null | undefined): boolean {
   return !!t && PROMO_ALERT_TYPES.has(t)
+}
+
+function termKeysFor(t: AlertType | null | undefined): string[] {
+  if (!t) return []
+  if (BUY_MILES_TYPES.has(t)) return BUY_MILES_TERM_KEYS
+  if (STANDARD_PROMO_TYPES.has(t)) return STANDARD_PROMO_TERM_KEYS
+  return []
 }
 
 /**
@@ -59,15 +102,70 @@ function isPromoAlertType(t: AlertType | null | undefined): boolean {
  * as not-in-source. Other statuses pass cleanly.
  */
 function missingFromStatus(
+  alertType: AlertType | null | undefined,
   status: Partial<Record<string, PromoTermStatus>> | null | undefined
 ): string[] {
-  if (!status) return PROMO_TERM_KEYS.slice() // null status → assume all missing
+  const keys = termKeysFor(alertType)
+  if (keys.length === 0) return []
+  if (!status) return keys.slice() // null status → assume all missing
   const missing: string[] = []
-  for (const key of PROMO_TERM_KEYS) {
+  for (const key of keys) {
     const v = status[key]
     if (v !== 'present' && v !== 'acknowledged_missing') missing.push(key)
   }
   return missing
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MATH CHECK — buy-miles CPM sanity
+//
+// Programs in this map publish a flat base price per 1,000 miles plus a
+// (mostly US) federal excise tax on award currency purchases. For an alert
+// that claims "X cents per mile" we recompute from the stated bonus % and
+// compare. Mismatches surface as a MATH_CHECK chip — not a hard block, just
+// a flag for the human reviewer.
+//
+// Start small (programs the user explicitly listed); expand as we author
+// more buy-miles alerts.
+// ─────────────────────────────────────────────────────────────────────────────
+interface BuyMilesProgramPricing {
+  base_usd_per_1000: number  // base purchase price for 1,000 miles in USD
+  excise_tax_pct: number     // federal excise tax (US) applied on top
+  notes?: string
+}
+
+const BUY_MILES_PROGRAM_PRICING: Record<string, BuyMilesProgramPricing> = {
+  united:        { base_usd_per_1000: 35,    excise_tax_pct: 7.5 },
+  aeroplan:      { base_usd_per_1000: 30,    excise_tax_pct: 0   },
+  aa_aadvantage: { base_usd_per_1000: 33.08, excise_tax_pct: 7.5 },
+  avianca_lifemiles: { base_usd_per_1000: 33, excise_tax_pct: 0 },
+  alaska_mileage_plan: { base_usd_per_1000: 29.55, excise_tax_pct: 7.5 },
+  british_airways_avios: { base_usd_per_1000: 28.63, excise_tax_pct: 0 },
+}
+
+/** Compute expected CPM (in cents per mile) given bonus % and program pricing. */
+export function expectedCpm(
+  programKey: string,
+  bonusPct: number,
+  mode: 'pretax' | 'allin'
+): number | null {
+  const p = BUY_MILES_PROGRAM_PRICING[programKey]
+  if (!p) return null
+  const base = p.base_usd_per_1000 // $ per 1,000 base miles
+  const allInBase = mode === 'allin' ? base * (1 + p.excise_tax_pct / 100) : base
+  const milesPer1000Base = 1000 * (1 + bonusPct / 100)
+  const dollarsPerMile = allInBase / milesPer1000Base
+  return dollarsPerMile * 100 // → cents/mile
+}
+
+export interface MathCheckResult {
+  claimed_cpm: number | null
+  bonus_pct: number | null
+  program_key: string | null
+  expected_pretax_cpm: number | null
+  expected_allin_cpm: number | null
+  verdict: 'match' | 'pretax_only_no_disclaimer' | 'mismatch' | 'unverifiable'
+  notes: string | null
 }
 
 export interface VerifyClaim {
@@ -175,13 +273,12 @@ severity = "low" for descriptive color that's wrong-but-harmless:
 PROMO-TERMS COMPLETENESS (only when alert_type is provided AND ∈ promo set)
 ═══════════════════════════════════════════════════════════
 
-The user payload may include "alert_type". When alert_type is one of:
-"limited_time_offer" · "transfer_bonus" · "status_promo"
+The user payload may include "alert_type". The keys you classify depend on it.
 
-ALSO produce a "promo_terms_status" object alongside "claims" in your output.
-For each of the 7 keys below, classify the draft body (summary + description):
+GROUP A — STANDARD PROMO TYPES
+"limited_time_offer" · "transfer_bonus" · "status_promo" · "award_availability"
 
-KEYS (and what each means):
+Classify each of these 7 keys:
 • earning_window — book-by, register-by, or earn-by date(s) for the offer
 • travel_window — when qualifying travel/stay must complete (separate from earning window)
 • min_spend — dollar threshold required to trigger the bonus
@@ -191,23 +288,91 @@ KEYS (and what each means):
 • registration — does the offer require manual registration / opt-in / enrollment
 • exclusions — any excluded brands, properties, fare classes, or carve-outs
 
-For each key, return one of three values:
+GROUP B — BUY-MILES TYPE
+"point_purchase" (buy-points/miles bonus sales)
+
+Classify each of these 11 keys instead:
+• bonus_tier_structure — flat % vs tiered (e.g. "40% at 5K but 80% only at 50K+")
+• min_purchase — minimum base miles/points required to trigger the offer
+• annual_cap — calendar-year cap on purchased miles (e.g. United 200K)
+• sub_period_cap — rolling 90-day or monthly cap, if any
+• purchase_window — sale start/end date
+• posting_timeline — instant vs delayed (48–72hr) crediting
+• targeted_vs_public — flag whether the bonus varies by account / login required
+• cpm_math — explicit "pre-tax" or "all-in" label on any CPM number quoted.
+  A bare "1.94¢/mi" with no pre-tax/all-in label is NOT present.
+• refundability — note that purchases are typically non-refundable
+• historical_context — last sale's bonus %, best-ever bonus %, or similar
+  context that helps the reader decide whether to buy now or wait
+• payment_routing — whether the charge codes as travel or as a third-party
+  processor (e.g. Points.com), since this affects card category bonuses
+
+For each key in the active group, return one of three values:
 • "present" — the term is meaningfully surfaced in the draft body. Generic
-  word matches don't count — must be a real, specific term mention. Example:
-  "Silver+" or "Bonvoy Silver and above" → status_tier = present. "Platinum
-  lounge access at CDG" (a perk mention, not a tier requirement) → NOT present.
+  word matches don't count — must be a real, specific term mention.
 • "acknowledged_missing" — the writer explicitly notes the term is unspecified
-  or doesn't apply ("Travel window not specified in source", "No registration
-  required", "All elite tiers eligible"). Honest gaps, not silent omissions.
+  or doesn't apply ("Annual cap not specified in source", "All accounts targeted").
+  Honest gaps, not silent omissions.
 • "absent" — the term applies to this kind of offer but the draft is silent on
   it. THIS is the failure case we want to surface.
 
 When a term genuinely doesn't apply to the alert (e.g. min_nights for a
 transfer bonus that has no stay component), classify as "acknowledged_missing"
-rather than "absent" — the writer correctly omitted what wasn't relevant.
+rather than "absent".
 
-If alert_type is NOT in the promo set (or is missing from payload), do NOT
+If alert_type is NOT in either promo group (or is missing from payload), do NOT
 produce the promo_terms_status field at all.
+
+═══════════════════════════════════════════════════════════
+BRAND VOICE SCORE (every alert, regardless of type)
+═══════════════════════════════════════════════════════════
+
+Score the draft 1–5 against the crazy4points BRAND_VOICE rubric included
+in the user payload (under "brand_voice_rubric"). Brand voice is sassy +
+funny like a well-traveled friend — never obnoxious, never mean.
+
+Common failure modes that drag the score below 4:
+• Flat marketing copy ("a great way to earn points")
+• Repeated urgency phrases ("pull the trigger" + "buy before X" + "don't sleep")
+• Missing the "why care" hook in sentence 1 of the summary
+• No specific use-case anchor (a real redemption the reader can picture)
+• Press-release verbs ("expanded eligibility", "rolls out", "is pleased to")
+• Over-explaining ("meaning [X]", "which is to say")
+
+Scoring guide:
+• 5 — sounds like the brand on a great day
+• 4 — clean and on-brand, no obvious failures
+• 3 — passable but flat or generic in places
+• 2 — clear voice failures (multiple flat sections, or one bad pattern repeated)
+• 1 — off-brand entirely (corporate, mean, clickbait, or all of the above)
+
+Return:
+• brand_voice_score: integer 1–5
+• brand_voice_notes: 1–2 short sentences explaining the score, naming the
+  specific failure mode if score ≤3.
+
+═══════════════════════════════════════════════════════════
+MATH CHECK (only for point_purchase and transfer_bonus)
+═══════════════════════════════════════════════════════════
+
+If alert_type is "point_purchase" or "transfer_bonus", scan the draft for any
+"X cents per mile/point" or "X¢/mi" claim (CPM = cost per mile).
+
+When you find one, return:
+• cpm_extraction.claimed_cpm_cents — the number the draft quotes (e.g. 1.94)
+• cpm_extraction.bonus_pct — the bonus % the draft quotes (e.g. 80)
+• cpm_extraction.is_pretax_labeled — true if the draft explicitly says "pre-tax"
+  near the CPM, false otherwise
+• cpm_extraction.is_allin_labeled — true if the draft explicitly says "all-in"
+  or "after tax" near the CPM, false otherwise
+• cpm_extraction.program_key — best guess from this set or null if no match:
+    "united", "aeroplan", "aa_aadvantage", "avianca_lifemiles",
+    "alaska_mileage_plan", "british_airways_avios"
+
+If no CPM number is quoted, return cpm_extraction = null.
+
+Do NOT compute pre-tax/all-in math yourself — the verifier code does that.
+You only extract what the draft says.
 
 ═══════════════════════════════════════════════════════════
 OUTPUT
@@ -225,21 +390,28 @@ Return a single JSON object. No prose, no markdown fences.
     }
   ],
   "promo_terms_status": {
-    "earning_window": "present" | "acknowledged_missing" | "absent",
-    "travel_window": "present" | "acknowledged_missing" | "absent",
-    "min_spend": "present" | "acknowledged_missing" | "absent",
-    "min_nights_or_transactions": "present" | "acknowledged_missing" | "absent",
-    "status_tier": "present" | "acknowledged_missing" | "absent",
-    "registration": "present" | "acknowledged_missing" | "absent",
-    "exclusions": "present" | "acknowledged_missing" | "absent"
-  }
+    // 7 keys for Group A, OR 11 keys for Group B — match the alert_type group
+    "<key>": "present" | "acknowledged_missing" | "absent"
+  },
+  "brand_voice_score": 1 | 2 | 3 | 4 | 5,
+  "brand_voice_notes": "<1-2 sentences>",
+  "cpm_extraction": {
+    "claimed_cpm_cents": <number>,
+    "bonus_pct": <number>,
+    "is_pretax_labeled": <bool>,
+    "is_allin_labeled": <bool>,
+    "program_key": "<key or null>"
+  } | null
 }
 
-The promo_terms_status field MUST be present when alert_type is in the promo set
-("limited_time_offer", "transfer_bonus", "status_promo"), and MUST be omitted
-otherwise.
+The promo_terms_status field is required only when alert_type is in either
+promo group; omit otherwise.
+The cpm_extraction field is required only for point_purchase / transfer_bonus
+draft inputs; for other types omit it or set null.
+brand_voice_score is required for ALL alerts.
 
-If the draft contains no factual claims (unlikely), return { "claims": [] }.`
+If the draft contains no factual claims (unlikely), return { "claims": [] } and
+still include brand_voice_score.`
 
 function extractJson(text: string): string {
   const trimmed = text.trim()
@@ -254,18 +426,32 @@ function extractJson(text: string): string {
   return trimmed
 }
 
+interface CpmExtraction {
+  claimed_cpm_cents: number | null
+  bonus_pct: number | null
+  is_pretax_labeled: boolean
+  is_allin_labeled: boolean
+  program_key: string | null
+}
+
 interface ParsedVerifyResponse {
   claims: VerifyClaim[]
   promoTermsStatus: Partial<Record<string, PromoTermStatus>> | null
+  brandVoiceScore: number | null
+  brandVoiceNotes: string | null
+  cpmExtraction: CpmExtraction | null
 }
 
 function parsePromoTermsStatus(
+  alertType: AlertType | null | undefined,
   raw: unknown
 ): Partial<Record<string, PromoTermStatus>> | null {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const keys = termKeysFor(alertType)
+  if (keys.length === 0) return null
   const obj = raw as Record<string, unknown>
   const out: Partial<Record<string, PromoTermStatus>> = {}
-  for (const key of PROMO_TERM_KEYS) {
+  for (const key of keys) {
     const v = obj[key]
     if (v === 'present' || v === 'acknowledged_missing' || v === 'absent') {
       out[key] = v
@@ -274,8 +460,29 @@ function parsePromoTermsStatus(
   return Object.keys(out).length > 0 ? out : null
 }
 
-function validate(parsed: unknown): ParsedVerifyResponse {
-  const obj = parsed as { claims?: unknown; promo_terms_status?: unknown }
+function parseCpmExtraction(raw: unknown): CpmExtraction | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const obj = raw as Record<string, unknown>
+  const claimed = typeof obj.claimed_cpm_cents === 'number' ? obj.claimed_cpm_cents : null
+  const bonus = typeof obj.bonus_pct === 'number' ? obj.bonus_pct : null
+  if (claimed === null && bonus === null) return null
+  return {
+    claimed_cpm_cents: claimed,
+    bonus_pct: bonus,
+    is_pretax_labeled: obj.is_pretax_labeled === true,
+    is_allin_labeled: obj.is_allin_labeled === true,
+    program_key: typeof obj.program_key === 'string' ? obj.program_key : null,
+  }
+}
+
+function validate(parsed: unknown, alertType: AlertType | null | undefined): ParsedVerifyResponse {
+  const obj = parsed as {
+    claims?: unknown
+    promo_terms_status?: unknown
+    brand_voice_score?: unknown
+    brand_voice_notes?: unknown
+    cpm_extraction?: unknown
+  }
   if (!obj || typeof obj !== 'object' || !Array.isArray(obj.claims)) {
     throw new Error('Verify result missing claims array')
   }
@@ -291,9 +498,18 @@ function validate(parsed: unknown): ParsedVerifyResponse {
       }
     })
     .filter((c): c is VerifyClaim => c !== null)
+
+  let brandVoiceScore: number | null = null
+  if (typeof obj.brand_voice_score === 'number' && obj.brand_voice_score >= 1 && obj.brand_voice_score <= 5) {
+    brandVoiceScore = Math.round(obj.brand_voice_score)
+  }
+
   return {
     claims,
-    promoTermsStatus: parsePromoTermsStatus(obj.promo_terms_status),
+    promoTermsStatus: parsePromoTermsStatus(alertType, obj.promo_terms_status),
+    brandVoiceScore,
+    brandVoiceNotes: typeof obj.brand_voice_notes === 'string' ? obj.brand_voice_notes.trim().slice(0, 300) : null,
+    cpmExtraction: parseCpmExtraction(obj.cpm_extraction),
   }
 }
 
@@ -314,10 +530,82 @@ function buildMissingPromoTermsClaim(
 ): VerifyClaim | null {
   if (!isPromoAlertType(alertType)) return null
   if (!promoTermsStatus) return null
-  const missing = missingFromStatus(promoTermsStatus)
+  const missing = missingFromStatus(alertType, promoTermsStatus)
   if (missing.length === 0) return null
   return {
     claim: `MISSING_PROMO_TERMS: ${missing.join(', ')}`,
+    supported: false,
+    severity: 'high',
+    source_excerpt: null,
+  }
+}
+
+/**
+ * OFF_BRAND_VOICE chip — emitted when score ≤ 3. Notes from the LLM are
+ * appended so the human reviewer knows which failure mode to fix.
+ */
+function buildBrandVoiceClaim(
+  score: number | null,
+  notes: string | null
+): VerifyClaim | null {
+  if (score === null || score > 3) return null
+  const noteSuffix = notes ? ` — ${notes}` : ''
+  return {
+    claim: `OFF_BRAND_VOICE (${score}/5)${noteSuffix}`.slice(0, 300),
+    supported: false,
+    severity: score <= 2 ? 'high' : 'low',
+    source_excerpt: null,
+  }
+}
+
+/**
+ * MATH_CHECK chip for buy-miles / transfer-bonus CPM claims. Recomputes the
+ * expected CPM from the bonus % + base price + tax; emits a chip when the
+ * draft's number disagrees, OR when a pre-tax-only number is quoted without
+ * a "pre-tax" disclaimer (the United 1.94¢ trap).
+ *
+ * Returns null when:
+ * • alert_type isn't point_purchase / transfer_bonus
+ * • LLM didn't extract a CPM (no number in draft)
+ * • program isn't in BUY_MILES_PROGRAM_PRICING (can't recompute)
+ */
+function buildMathCheckClaim(
+  alertType: AlertType | null | undefined,
+  cpm: CpmExtraction | null
+): VerifyClaim | null {
+  if (!cpm) return null
+  if (alertType !== 'point_purchase' && alertType !== 'transfer_bonus') return null
+  if (cpm.claimed_cpm_cents === null || cpm.bonus_pct === null) return null
+  if (!cpm.program_key) return null
+
+  const expectedPretax = expectedCpm(cpm.program_key, cpm.bonus_pct, 'pretax')
+  const expectedAllIn = expectedCpm(cpm.program_key, cpm.bonus_pct, 'allin')
+  if (expectedPretax === null || expectedAllIn === null) return null
+
+  const claimed = cpm.claimed_cpm_cents
+  const tolerance = 0.05 // ¢/mi rounding wiggle room
+  const matchesPretax = Math.abs(claimed - expectedPretax) <= tolerance
+  const matchesAllIn = Math.abs(claimed - expectedAllIn) <= tolerance
+
+  // pre-tax-only number quoted without disclaimer → flag it
+  if (matchesPretax && !cpm.is_pretax_labeled && expectedAllIn > expectedPretax + tolerance) {
+    return {
+      claim:
+        `MATH_CHECK: claimed=${claimed.toFixed(2)}¢ matches pre-tax but not labeled — ` +
+        `all-in is ${expectedAllIn.toFixed(2)}¢ (${cpm.program_key} @ ${cpm.bonus_pct}% bonus)`,
+      supported: false,
+      severity: 'high',
+      source_excerpt: null,
+    }
+  }
+
+  if (matchesPretax || matchesAllIn) return null
+
+  // Genuine mismatch — neither pre-tax nor all-in matches.
+  return {
+    claim:
+      `MATH_CHECK: claimed=${claimed.toFixed(2)}¢, expected pre-tax=${expectedPretax.toFixed(2)}¢ ` +
+      `or all-in=${expectedAllIn.toFixed(2)}¢ (${cpm.program_key} @ ${cpm.bonus_pct}% bonus)`,
     supported: false,
     severity: 'high',
     source_excerpt: null,
@@ -369,6 +657,7 @@ export async function verifyAlertDraft(args: {
       source_text: sourceText,
       alert_type: args.alert_type ?? null,
       program_reference: args.program_reference ?? null,
+      brand_voice_rubric: BRAND_VOICE,
     },
     null,
     2
@@ -378,7 +667,7 @@ export async function verifyAlertDraft(args: {
     const client = new Anthropic({ apiKey })
     const message = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 2200,
+      max_tokens: 2400,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userContent }],
     })
@@ -387,11 +676,19 @@ export async function verifyAlertDraft(args: {
     if (block.type !== 'text') return null
 
     const parsed = JSON.parse(extractJson(block.text))
-    const { claims, promoTermsStatus } = validate(parsed)
+    const { claims, promoTermsStatus, brandVoiceScore, brandVoiceNotes, cpmExtraction } =
+      validate(parsed, args.alert_type)
+
+    const extras: VerifyClaim[] = []
     const promoChip = buildMissingPromoTermsClaim(args.alert_type, promoTermsStatus)
+    if (promoChip) extras.push(promoChip)
+    const voiceChip = buildBrandVoiceClaim(brandVoiceScore, brandVoiceNotes)
+    if (voiceChip) extras.push(voiceChip)
+    const mathChip = buildMathCheckClaim(args.alert_type, cpmExtraction)
+    if (mathChip) extras.push(mathChip)
 
     return {
-      claims: promoChip ? [...claims, promoChip] : claims,
+      claims: extras.length > 0 ? [...claims, ...extras] : claims,
       checked_at: new Date().toISOString(),
     }
   } catch (err) {

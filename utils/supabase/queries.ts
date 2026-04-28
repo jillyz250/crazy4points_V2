@@ -37,7 +37,14 @@ export type AlertStatus =
   | 'soft_rejected'
   | 'expired'
 
-export type AlertActionType = 'book' | 'transfer' | 'apply' | 'status_match' | 'monitor' | 'learn'
+export type AlertActionType =
+  | 'book'
+  | 'transfer'
+  | 'apply'
+  | 'status_match'
+  | 'buy_miles'
+  | 'monitor'
+  | 'learn'
 
 export type ConfidenceLevel = 'low' | 'medium' | 'high'
 

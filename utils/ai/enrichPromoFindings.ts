@@ -29,6 +29,8 @@ const PROMO_ALERT_TYPES = new Set<string>([
   'limited_time_offer',
   'transfer_bonus',
   'status_promo',
+  'award_availability',
+  'point_purchase',
 ])
 
 const RAW_TEXT_MIN_CHARS = 500

@@ -29,6 +29,7 @@ function verdictStyle(v?: string | null) {
 const MISSING_PROMO_PREFIX = 'MISSING_PROMO_TERMS:'
 
 const PROMO_TERM_LABELS: Record<string, string> = {
+  // Standard promo types (limited_time_offer, transfer_bonus, status_promo, award_availability)
   earning_window:             'Earning window',
   travel_window:              'Travel / stay window',
   min_spend:                  'Minimum spend',
@@ -36,7 +37,22 @@ const PROMO_TERM_LABELS: Record<string, string> = {
   status_tier:                'Status tier',
   registration:               'Registration',
   exclusions:                 'Exclusions',
+  // Buy-miles type (point_purchase)
+  bonus_tier_structure:       'Bonus tier structure',
+  min_purchase:               'Minimum purchase',
+  annual_cap:                 'Annual cap',
+  sub_period_cap:             '90-day / sub-period cap',
+  purchase_window:            'Purchase window',
+  posting_timeline:           'Posting timeline',
+  targeted_vs_public:         'Targeted vs public',
+  cpm_math:                   'CPM (pre-tax / all-in)',
+  refundability:              'Refundability',
+  historical_context:         'Historical context (last sale / best ever)',
+  payment_routing:            'Payment routing (Points.com vs travel)',
 }
+
+const OFF_BRAND_VOICE_PREFIX = 'OFF_BRAND_VOICE'
+const MATH_CHECK_PREFIX = 'MATH_CHECK:'
 
 function parseMissingPromoTerms(claim: string): string[] | null {
   if (!claim.startsWith(MISSING_PROMO_PREFIX)) return null
@@ -182,6 +198,38 @@ export default function FactCheckWarnings({
                   />
                 )
               }
+              // Synthetic OFF_BRAND_VOICE chip — distinct purple chip.
+              if (claim.claim.startsWith(OFF_BRAND_VOICE_PREFIX)) {
+                return (
+                  <SyntheticChip
+                    key={originalIndex}
+                    alertId={alertId}
+                    originalIndex={originalIndex}
+                    label="off-brand voice"
+                    bg="#f3e8ff"
+                    border="#a855f7"
+                    color="#581c87"
+                    body={claim.claim.slice(OFF_BRAND_VOICE_PREFIX.length).replace(/^[\s:]+/, '')}
+                    helper="Tighten the voice (sassy + funny per BRAND_VOICE), or acknowledge if intentional, then mark verified."
+                  />
+                )
+              }
+              // Synthetic MATH_CHECK chip — distinct blue chip.
+              if (claim.claim.startsWith(MATH_CHECK_PREFIX)) {
+                return (
+                  <SyntheticChip
+                    key={originalIndex}
+                    alertId={alertId}
+                    originalIndex={originalIndex}
+                    label="math check"
+                    bg="#dbeafe"
+                    border="#3b82f6"
+                    color="#1e3a8a"
+                    body={claim.claim.slice(MATH_CHECK_PREFIX.length).trim()}
+                    helper="Recompute CPM against the program's base price + tax. Add a pre-tax / all-in label or fix the number, then mark verified."
+                  />
+                )
+              }
               const v = verdictStyle(claim.web_verdict)
               const hasEvidence = Boolean(claim.web_evidence || claim.web_url)
               return (
@@ -246,6 +294,63 @@ export default function FactCheckWarnings({
         )}
       </div>
     </details>
+  )
+}
+
+// Generic synthetic-chip renderer for OFF_BRAND_VOICE and MATH_CHECK claims.
+// Shape mirrors MissingPromoTermsChip but caller picks the colors + copy.
+function SyntheticChip({
+  alertId,
+  originalIndex,
+  label,
+  bg,
+  border,
+  color,
+  body,
+  helper,
+}: {
+  alertId: string
+  originalIndex: number
+  label: string
+  bg: string
+  border: string
+  color: string
+  body: string
+  helper: string
+}) {
+  return (
+    <li
+      style={{
+        padding: '0.5rem 0.625rem',
+        background: bg,
+        border: `1px solid ${border}`,
+        borderRadius: 'var(--radius-ui)',
+        color,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <span
+          style={{
+            fontSize: '0.6875rem',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.04em',
+            padding: '0.1rem 0.4rem',
+            background: color,
+            color: '#fff',
+            borderRadius: '3px',
+            flexShrink: 0,
+          }}
+        >
+          ⚠ {label}
+        </span>
+        <span style={{ fontWeight: 600, flex: 1, minWidth: '12rem', lineHeight: 1.4 }}>{body}</span>
+        <AckButton alertId={alertId} originalIndex={originalIndex} color={color} />
+      </div>
+      <p style={{ margin: '0.4rem 0 0 0', fontSize: '0.75rem', fontStyle: 'italic' }}>
+        {helper}
+      </p>
+    </li>
   )
 }
 
