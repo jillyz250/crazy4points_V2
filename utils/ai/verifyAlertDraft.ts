@@ -812,13 +812,36 @@ export async function webVerifyClaims(args: {
   })
 
   const text = findLastTextBlock(response.content)
+  // Graceful degradation: if Sonnet hedged with prose ("This validation…")
+  // instead of JSON, or returned nothing parseable, don't kill the regenerate
+  // loop — pass through the original claims tagged "unverifiable". Caller
+  // already treats unverifiable as a soft state (admin reviews manually).
+  const fallback = (): VerifyClaim[] =>
+    args.claims.map((c) =>
+      c.supported
+        ? c
+        : { ...c, web_verdict: 'unverifiable' as const, web_evidence: null, web_url: null }
+    )
+
   if (!text) {
-    throw new Error('webVerifyClaims: no text block in Sonnet response')
+    console.warn('[webVerifyClaims] no text block in Sonnet response — falling back to unverifiable')
+    return fallback()
   }
 
-  const parsed = JSON.parse(extractJson(text)) as { verdicts?: WebVerdict[] }
+  let parsed: { verdicts?: WebVerdict[] }
+  try {
+    parsed = JSON.parse(extractJson(text)) as { verdicts?: WebVerdict[] }
+  } catch (err) {
+    console.warn(
+      '[webVerifyClaims] JSON parse failed — falling back to unverifiable. Sample:',
+      text.slice(0, 200),
+      err
+    )
+    return fallback()
+  }
   if (!Array.isArray(parsed.verdicts)) {
-    throw new Error('webVerifyClaims: response missing verdicts array')
+    console.warn('[webVerifyClaims] response missing verdicts array — falling back to unverifiable')
+    return fallback()
   }
 
   const byClaim = new Map<string, WebVerdict>()
