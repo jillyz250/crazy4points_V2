@@ -1216,6 +1216,9 @@ export async function updateProgramPageContent(
       alliance: input.alliance,
       hubs: input.hubs,
       content_updated_at: anyContent ? new Date().toISOString() : null,
+      // Auto-bump last_verified on every save: the act of editing IS verification.
+      // Drops the row out of the admin_refresh_queue view until next cadence cycle.
+      last_verified: new Date().toISOString().slice(0, 10),
     })
     .eq('id', id)
   if (error) throw error
@@ -1374,7 +1377,11 @@ export async function updateHotelProperty(
 ): Promise<void> {
   const { error } = await supabase
     .from('hotel_properties')
-    .update(patch)
+    .update({
+      ...patch,
+      // Auto-bump last_verified on every property save (unless caller explicitly set one).
+      last_verified: patch.last_verified ?? new Date().toISOString().slice(0, 10),
+    })
     .eq('id', id)
   if (error) throw error
 }
