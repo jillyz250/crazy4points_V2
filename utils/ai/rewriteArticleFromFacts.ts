@@ -43,8 +43,10 @@ export interface RewriteFromFactsResult {
 function systemPrompt(type: 'newsletter' | 'blog'): string {
   const lengthRule =
     type === 'newsletter'
-      ? `LENGTH: 120–180 words. One clean section, no headings.`
-      : `LENGTH: 400–700 words. Two to four short sections with H2 (##) headings. Shorter than the original is FINE — quality > quantity.`
+      ? `LENGTH: 120–180 words HARD MINIMUM. One clean section, no headings.`
+      : `LENGTH: 400–700 words HARD MINIMUM. Two to four short sections with H2 (##) headings.
+
+Shorter than the original is fine, but DON'T collapse the article. If you find yourself with only 200 words after dropping unsupported sections, you've over-pruned. Keep voice/color paragraphs, replace unsupported facts with general framing (e.g. "Cat 4 properties typically run 15K standard"), and write a complete article. A 2-sentence stub is a failure, not a quality decision.`
 
   return `You are the staff writer for crazy4points. Your job: rewrite a draft article using
 ONLY the verified facts provided. The original draft contained factual errors that fact-checking
@@ -158,14 +160,36 @@ export async function rewriteArticleFromFacts(
     const client = new Anthropic({ apiKey })
     const message = await client.messages.create({
       model: MODEL,
-      max_tokens: input.type === 'blog' ? 2500 : 800,
+      // Bumped from 2500 to give the rewriter room for full-length articles.
+      // Sonnet 4.6 supports up to ~16K output; 6K is plenty for 400-700 words.
+      max_tokens: input.type === 'blog' ? 6000 : 1200,
       system: systemPrompt(input.type),
       messages: [{ role: 'user', content: userContent }],
     })
-    const block = message.content[0]
-    if (!block || block.type !== 'text') return null
-    const body = block.text.trim()
+    // Pick the longest text block — guards against the model adding a short
+    // confirmation/closing block after the actual rewrite, which we'd
+    // otherwise accidentally pick if we used content[0] or "last block."
+    let bestText: string | null = null
+    let bestLen = 0
+    for (const b of message.content) {
+      if (b.type !== 'text') continue
+      if (b.text.trim().length > bestLen) {
+        bestText = b.text
+        bestLen = b.text.trim().length
+      }
+    }
+    if (!bestText) return null
+    const body = bestText.trim()
     if (!body) return null
+    // Sanity check: a rewrite that collapses below ~1200 chars (~200 words)
+    // for a blog has dropped too much. The action's caller should treat this
+    // as a recoverable failure and not overwrite the original draft.
+    const minBlogChars = input.type === 'blog' ? 1200 : 300
+    if (body.length < minBlogChars) {
+      console.warn(
+        `[rewriteArticleFromFacts] rewrite collapsed too far: ${body.length} chars (min expected ${minBlogChars}). Returning anyway but caller may want to reject. Verified facts count: ${input.verified_facts.length}.`
+      )
+    }
     return { body, written_by: MODEL }
   } catch (err) {
     console.error('[rewriteArticleFromFacts] Sonnet call failed:', err)

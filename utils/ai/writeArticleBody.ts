@@ -37,8 +37,10 @@ const MODEL = 'claude-sonnet-4-6'
 function systemPrompt(type: ArticleIdeaType): string {
   const lengthRule =
     type === 'newsletter'
-      ? `LENGTH: 120–180 words. One clean section, no headings. This is a newsletter item, not a full post.`
-      : `LENGTH: 500–800 words. Three to five short sections with H2 (##) headings. This is a blog post.`
+      ? `LENGTH: 120–180 words HARD MINIMUM. One clean section, no headings. This is a newsletter item, not a full post.`
+      : `LENGTH: 500–800 words HARD MINIMUM. Three to five short sections with H2 (##) headings. This is a blog post. If your draft is under 500 words, you're not done — keep writing.
+
+CRITICAL OUTPUT RULE: If you used web_search, your FINAL text response must contain the COMPLETE article body. Do not write a partial article in an early text block, then run searches, then end with just a closing line — the system extracts your single longest text block as the article. Always write the full final draft AFTER all your research is done, in one continuous block of Markdown.`
 
   return `You are the staff writer for crazy4points, a premium award travel intelligence site.
 
@@ -288,17 +290,28 @@ function buildUserContent(input: WriteArticleInput): string {
 }
 
 /**
- * Walks the response content blocks backwards to find the final text block.
- * When web search is enabled, the model returns interleaved tool_use /
- * tool_result blocks before the final answer; we want only the text the
- * model wrote at the end.
+ * Returns the LONGEST text block from the response content. With web search
+ * enabled the model returns interleaved text + tool_use + tool_result blocks,
+ * and the actual article body is typically the longest text block — not
+ * necessarily the last one. The previous "last text block" approach broke
+ * when the model wrote the article body, then ran additional searches, and
+ * finished with a short closing block — we'd grab the short closing and
+ * discard the article.
+ *
+ * Falls back to null if no text block has any content.
  */
-function findLastTextBlock(content: Anthropic.ContentBlock[]): string | null {
-  for (let i = content.length - 1; i >= 0; i--) {
-    const b = content[i]
-    if (b.type === 'text' && b.text.trim()) return b.text
+function findArticleTextBlock(content: Anthropic.ContentBlock[]): string | null {
+  let best: string | null = null
+  let bestLen = 0
+  for (const b of content) {
+    if (b.type !== 'text') continue
+    const t = b.text.trim()
+    if (t.length > bestLen) {
+      best = b.text
+      bestLen = t.length
+    }
   }
-  return null
+  return best
 }
 
 export async function writeArticleBody(input: WriteArticleInput): Promise<ArticleDraft | null> {
@@ -319,7 +332,10 @@ export async function writeArticleBody(input: WriteArticleInput): Promise<Articl
     const message = await client.messages.create({
       model: MODEL,
       // Larger token budget when web search is on — research adds context.
-      max_tokens: input.type === 'blog' ? 4000 : 1200,
+      // Larger budget so web-search results don't crowd out the actual
+      // article. Sonnet 4.6 supports up to ~16K output; 8K leaves headroom
+      // for several searches plus a 600-800 word article.
+      max_tokens: input.type === 'blog' ? 8000 : 2000,
       system: systemPrompt(input.type),
       tools: [
         {
@@ -331,10 +347,20 @@ export async function writeArticleBody(input: WriteArticleInput): Promise<Articl
       messages: [{ role: 'user', content: buildUserContent(input) }],
     })
 
-    const text = findLastTextBlock(message.content)
+    const text = findArticleTextBlock(message.content)
     if (!text) return null
     const body = text.trim()
     if (!body) return null
+    // Sanity check: an article body under 600 chars (~100 words) means
+    // something went wrong (truncation, model decided to be brief, picked
+    // wrong text block). Log loudly and still return — the editor sees the
+    // result and can re-run — but make it visible in Vercel logs.
+    const minBlogChars = input.type === 'blog' ? 600 : 200
+    if (body.length < minBlogChars) {
+      console.warn(
+        `[writeArticleBody] suspiciously short ${input.type} body: ${body.length} chars (min expected ${minBlogChars}). May indicate truncation or wrong text block extracted. Total content blocks: ${message.content.length}.`
+      )
+    }
     return { body, written_by: MODEL }
   } catch (err) {
     console.error('[writeArticleBody] Sonnet call failed:', err)
