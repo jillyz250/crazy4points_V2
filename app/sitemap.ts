@@ -9,6 +9,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let alertEntries: MetadataRoute.Sitemap = []
   let programEntries: MetadataRoute.Sitemap = []
   let blogEntries: MetadataRoute.Sitemap = []
+  let cardEntries: MetadataRoute.Sitemap = []
 
   try {
     const supabase = await createClient()
@@ -55,6 +56,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.7,
       })
     )
+
+    const { data: cards } = await supabase
+      .from('credit_cards')
+      .select('slug, updated_at')
+      .eq('is_active', true)
+      .order('updated_at', { ascending: false })
+
+    cardEntries = (cards ?? []).map((c: { slug: string; updated_at: string | null }) => ({
+      url: `${BASE_URL}/cards/${c.slug}`,
+      lastModified: c.updated_at ?? undefined,
+      changeFrequency: 'weekly' as const,
+      priority: 0.8,
+    }))
   } catch {
     // Supabase unavailable — return static pages only
   }
@@ -66,5 +80,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/daily-brief`, changeFrequency: 'hourly', priority: 0.9 },
   ]
 
-  return [...staticPages, ...programEntries, ...blogEntries, ...alertEntries]
+  return [...staticPages, ...programEntries, ...cardEntries, ...blogEntries, ...alertEntries]
 }
