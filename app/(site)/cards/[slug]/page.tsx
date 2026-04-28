@@ -112,6 +112,17 @@ export default async function CardPage({
   const orderedCategories = BENEFIT_CATEGORY_ORDER.filter((c) => benefitGroups.has(c))
   const applyUrl = card.affiliate_url ?? card.official_url
 
+  // TOC entries — auto-generated from sections that actually have content.
+  // Required on every card detail page per plans/credit-cards-architecture.md.
+  const tocSections: Array<{ id: string; label: string }> = [
+    ...(sub ? [{ id: 'welcome-bonus', label: 'Welcome bonus' }] : []),
+    ...(earn_rates.length > 0 ? [{ id: 'earn-rates', label: 'Earn rates' }] : []),
+    ...orderedCategories.map((cat) => ({
+      id: `benefit-${cat}`,
+      label: BENEFIT_CATEGORY_LABELS[cat] ?? cat.replace(/_/g, ' '),
+    })),
+  ]
+
   // Schema.org structured data — CreditCard extends LoanOrCredit extends FinancialProduct.
   // Helps Google + AI assistants represent this page as a financial product, not generic content.
   const jsonLd = {
@@ -235,6 +246,60 @@ export default async function CardPage({
         )}
       </section>
 
+      {/* Section TOC — required on every card page (plans/credit-cards-architecture.md) */}
+      {tocSections.length > 0 && (
+        <nav
+          aria-label="Page sections"
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '0.5rem',
+            padding: '0.875rem 1rem',
+            background: 'var(--color-background-soft)',
+            border: '1px solid var(--color-border-soft)',
+            borderRadius: 'var(--radius-card)',
+            marginBottom: '2.5rem',
+            position: 'sticky',
+            top: '0.5rem',
+            zIndex: 5,
+            backdropFilter: 'blur(6px)',
+          }}
+        >
+          <span
+            style={{
+              fontSize: '0.6875rem',
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em',
+              fontWeight: 700,
+              color: 'var(--color-text-secondary)',
+              alignSelf: 'center',
+              marginRight: '0.25rem',
+            }}
+          >
+            Jump to:
+          </span>
+          {tocSections.map((s) => (
+            <a
+              key={s.id}
+              href={`#${s.id}`}
+              style={{
+                fontFamily: 'var(--font-ui)',
+                fontSize: '0.8125rem',
+                fontWeight: 500,
+                padding: '0.25rem 0.625rem',
+                borderRadius: '9999px',
+                background: 'var(--color-background)',
+                color: 'var(--color-primary)',
+                border: '1px solid var(--color-border-soft)',
+                textDecoration: 'none',
+              }}
+            >
+              {s.label}
+            </a>
+          ))}
+        </nav>
+      )}
+
       {/* Intro */}
       {card.intro && (
         <section style={{ marginBottom: '2.5rem', maxWidth: '46rem' }}>
@@ -244,7 +309,7 @@ export default async function CardPage({
 
       {/* Welcome bonus details */}
       {sub && (
-        <section style={{ marginBottom: '2.5rem' }}>
+        <section id="welcome-bonus" style={{ marginBottom: '2.5rem', scrollMarginTop: '2rem' }}>
           <h2>Welcome bonus details</h2>
           <p style={{ marginBottom: '0.5rem' }}>
             <strong>{sub.bonus_amount.toLocaleString()} {sub.bonus_currency}</strong> after spending{' '}
@@ -264,7 +329,7 @@ export default async function CardPage({
 
       {/* Earn rates */}
       {earn_rates.length > 0 && (
-        <section style={{ marginBottom: '2.5rem' }}>
+        <section id="earn-rates" style={{ marginBottom: '2.5rem', scrollMarginTop: '2rem' }}>
           <h2>Earn rates</h2>
           <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', marginBottom: '0.75rem' }}>
             Card-level multipliers. {currency_program && (
@@ -300,7 +365,7 @@ export default async function CardPage({
 
       {/* Benefits, grouped by category */}
       {orderedCategories.map((cat) => (
-        <section key={cat} style={{ marginBottom: '2rem' }}>
+        <section key={cat} id={`benefit-${cat}`} style={{ marginBottom: '2rem', scrollMarginTop: '2rem' }}>
           <h2>{BENEFIT_CATEGORY_LABELS[cat] ?? cat.replace(/_/g, ' ')}</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {(benefitGroups.get(cat) ?? []).map((b) => (

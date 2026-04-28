@@ -121,14 +121,22 @@ Wait for "saved" before continuing.
 
 After Vercel deploys (~2 min), have user visit `https://crazy4points.com/programs/[slug]?nocache=1`.
 
-Checklist:
+Checklist (program pages):
 - Hero header with alliance pill, hubs, active-alerts pill, last-reviewed date
 - TOC strip listing all populated sections
 - Active-alerts callout banner if any alerts exist
 - Each section renders with anchor scroll
 - Transfer partners table — every partner shows real name (not raw slug). Flag any that show as raw slugs (means partner program is missing from DB).
+- "Cards that earn into [program]" section auto-renders if any credit cards have `co_brand_program_id` or `currency_program_id` matching this program. Don't author this manually — it's derived from the credit_cards table.
 - Footer disclaimer with "Last reviewed [Month YYYY]"
 - Mobile width — table scrolls cleanly
+
+If the entity is a **credit card** (URL is `/cards/[slug]`), the verify checklist is different:
+- Hero with issuer chip, tier badge, co-brand link, AF, current SUB, FX fee, Apply CTA
+- **Section TOC bar (sticky) below the hero** with anchor links to: Welcome bonus, Earn rates, and each populated benefits category. Required on every card page (plans/credit-cards-architecture.md). Auto-generated from sections that have content.
+- JSON-LD `CreditCard` schema in page source (view source, search for `application/ld+json`)
+- Affiliate disclosure renders only when `affiliate_url` is null
+- Apply button uses `affiliate_url` if set, else `official_url`
 
 If any partner shows as a raw slug, capture it as a backlog item: "Add <slug> program row to DB."
 

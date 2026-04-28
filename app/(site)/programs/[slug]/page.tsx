@@ -2,13 +2,14 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { createAdminClient } from '@/utils/supabase/server'
-import { getAlertsByProgramSlug, getAllPrograms, getPropertiesForProgram } from '@/utils/supabase/queries'
-import type { AlertWithPrograms, HotelProperty } from '@/utils/supabase/queries'
+import { getAlertsByProgramSlug, getAllPrograms, getPropertiesForProgram, getCardsThatEarnIntoProgram } from '@/utils/supabase/queries'
+import type { AlertWithPrograms, HotelProperty, CardThatEarnsIn } from '@/utils/supabase/queries'
 import AlertsGridSB from '@/components/alerts/AlertsGridSB'
 import ExpiredAlertsList from '@/components/alerts/ExpiredAlertsList'
 import ProgramPageContent from '@/components/programs/ProgramPageContent'
 import ProgramPageHero from '@/components/programs/ProgramPageHero'
 import PropertiesTable from '@/components/programs/PropertiesTable'
+import CardsThatEarnIntoProgram from '@/components/cards/CardsThatEarnIntoProgram'
 
 export const revalidate = 60
 
@@ -79,6 +80,16 @@ export default async function ProgramPage({
     }
   }
 
+  // Cards that earn into this program (direct co-brand + transfer-partner cards).
+  // Auto-derived from credit_cards.{co_brand_program_id, currency_program_id};
+  // appears for any program that has at least one matching card.
+  let earnIntoCards: CardThatEarnsIn[] = []
+  try {
+    earnIntoCards = await getCardsThatEarnIntoProgram(supabase, program.id)
+  } catch (err) {
+    console.error('[programs/[slug]] getCardsThatEarnIntoProgram failed:', err)
+  }
+
   const now = new Date()
 
   // Split active vs expired
@@ -141,6 +152,7 @@ export default async function ProgramPage({
             ...(program.lounge_access ? [{ id: 'lounge-access', label: 'Lounges' }] : []),
             ...(program.quirks ? [{ id: 'quirks', label: 'Tips' }] : []),
             ...(properties.length > 0 ? [{ id: 'properties', label: 'Hotels' }] : []),
+            ...(earnIntoCards.length > 0 ? [{ id: 'earn-into', label: 'Cards' }] : []),
             ...(allAlerts.length > 0 ? [{ id: 'alerts', label: 'Alerts' }] : []),
           ]}
         />
@@ -179,6 +191,30 @@ export default async function ProgramPage({
               Every {program.name} hotel you can book today. Sort, filter, and search by name, brand, city, region, or category. Categories shift over time — verify on the program&apos;s site before booking. Coming-soon properties are hidden by default; toggle them on if you want a peek.
             </p>
             <PropertiesTable properties={properties} programName={program.name} />
+          </section>
+        )}
+
+        {/* Cards that earn into this program — auto-derived. */}
+        {earnIntoCards.length > 0 && (
+          <section
+            id="earn-into"
+            style={{
+              marginBottom: '2.5rem',
+              scrollMarginTop: '2rem',
+            }}
+          >
+            <h2
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: '1.5rem',
+                fontWeight: 700,
+                color: 'var(--color-primary)',
+                marginBottom: '0.5rem',
+              }}
+            >
+              Cards that earn into {program.name}
+            </h2>
+            <CardsThatEarnIntoProgram cards={earnIntoCards} programName={program.name} />
           </section>
         )}
 
