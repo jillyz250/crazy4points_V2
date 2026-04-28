@@ -591,6 +591,7 @@ interface FlaggedClaim {
   acknowledged?: boolean
   reason?: string
   notes?: string
+  source_excerpt?: string | null
   // Web-verification fields populated by webVerifyClaims after the first
   // grounding pass. likely_correct / likely_wrong / unverifiable.
   web_verdict?: 'likely_correct' | 'likely_wrong' | 'unverifiable' | null
@@ -829,6 +830,15 @@ function WorkflowSteps({
   const verifiedCount = claims.filter(
     (c) => c.supported === true || c.web_verdict === 'likely_correct'
   ).length
+  // Data gaps = web confirmed the claim but your own pages didn't have it.
+  // These aren't fact-check failures (article is correct), they're signals
+  // you should add the fact to your card / program record.
+  const dataGapCount = claims.filter(
+    (c) =>
+      c.supported === false &&
+      c.web_verdict === 'likely_correct' &&
+      !c.source_excerpt
+  ).length
 
   // Determine which step is "next" (highlight it). Steps are required-in-order.
   let nextStep = 1
@@ -883,7 +893,7 @@ function WorkflowSteps({
         n={2}
         label={
           factChecked
-            ? `Fact check  (${verifiedCount} verified · ${flaggedCount} flagged)`
+            ? `Fact check  (${verifiedCount} verified · ${flaggedCount} flagged${dataGapCount > 0 ? ` · ${dataGapCount} gap${dataGapCount === 1 ? '' : 's'}` : ''})`
             : 'Fact check'
         }
         done={factChecked}
@@ -1287,24 +1297,28 @@ interface FullClaim {
   web_url?: string | null
 }
 
-type ClaimStatus = 'your-data' | 'web-correct' | 'web-wrong' | 'unverifiable' | 'no-verdict'
+type ClaimStatus = 'your-data' | 'your-data-gap' | 'web-wrong' | 'unverifiable' | 'no-verdict'
 
 function classifyClaim(c: FullClaim): ClaimStatus {
   if (c.supported === true && c.source_excerpt) return 'your-data'
-  if (c.web_verdict === 'likely_correct') return 'web-correct'
+  // Web confirmed BUT your own pages didn't have the claim → that's a gap
+  // in your authoritative data. Surface it so you can fill it in.
+  if (c.web_verdict === 'likely_correct') return 'your-data-gap'
   if (c.web_verdict === 'likely_wrong') return 'web-wrong'
   if (c.web_verdict === 'unverifiable') return 'unverifiable'
   return 'no-verdict'
 }
 
-const STATUS_ORDER: ClaimStatus[] = ['your-data', 'web-correct', 'web-wrong', 'unverifiable', 'no-verdict']
+const STATUS_ORDER: ClaimStatus[] = ['your-data', 'your-data-gap', 'web-wrong', 'unverifiable', 'no-verdict']
 
 const STATUS_META: Record<ClaimStatus, { label: string; bg: string; border: string; fg: string }> = {
-  'your-data':    { label: '✓ Your data',     bg: '#dcfce7', border: '#86efac', fg: '#15803d' },
-  'web-correct':  { label: '✓ Web confirms',  bg: '#dcfce7', border: '#86efac', fg: '#15803d' },
-  'web-wrong':    { label: '✗ Web contradicts',bg: '#fef2f2', border: '#fca5a5', fg: '#b91c1c' },
-  'unverifiable': { label: '? Inconclusive',  bg: '#fffbeb', border: '#fcd34d', fg: '#92400e' },
-  'no-verdict':   { label: '— No verdict',    bg: '#f3f4f6', border: '#d1d5db', fg: '#4b5563' },
+  'your-data':     { label: '✓ Your data',                            bg: '#dcfce7', border: '#86efac', fg: '#15803d' },
+  // Amber, not green — web confirmed it but your pages don't have it.
+  // Actionable: add to your card/program record so future fact checks ground T1.
+  'your-data-gap': { label: '⚠ Web confirms — gap on your pages',     bg: '#fffbeb', border: '#fcd34d', fg: '#92400e' },
+  'web-wrong':     { label: '✗ Web contradicts',                      bg: '#fef2f2', border: '#fca5a5', fg: '#b91c1c' },
+  'unverifiable':  { label: '? Inconclusive',                         bg: '#fffbeb', border: '#fcd34d', fg: '#92400e' },
+  'no-verdict':    { label: '— No verdict',                           bg: '#f3f4f6', border: '#d1d5db', fg: '#4b5563' },
 }
 
 /**
@@ -1421,6 +1435,19 @@ function ClaimCard({ claim, status }: { claim: FullClaim; status: ClaimStatus })
       {claim.web_evidence && !claim.source_excerpt && (
         <div style={{ color: 'var(--admin-text)', fontSize: '0.75rem' }}>
           <strong style={{ color: meta.fg }}>Web:</strong> {claim.web_evidence}
+        </div>
+      )}
+      {status === 'your-data-gap' && (
+        <div
+          style={{
+            fontFamily: 'var(--font-ui)',
+            fontSize: '0.6875rem',
+            color: meta.fg,
+            fontWeight: 600,
+            paddingTop: '0.125rem',
+          }}
+        >
+          → Add this fact to your card / program page so the next fact check grounds against T1.
         </div>
       )}
       {claim.web_url && (
