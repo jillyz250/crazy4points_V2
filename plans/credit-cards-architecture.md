@@ -567,6 +567,22 @@ This plan creates `program_transfers` (the normalized join table) in Phase 1 but
 
 These are tracked separately from this plan but flagged as **dependencies** for Phase 7 (Cards that earn into me) — that phase reads from `program_transfers` only, never the JSONB. If backfill hasn't happened by Phase 7, the reverse-query just returns empty for currencies whose transfers aren't yet ingested.
 
+## Backlog (out of scope for current phases, captured for later)
+
+### Referral bonuses
+Existing cardholders can refer new applicants and earn bonus points per approved referral. This is structurally different from `credit_card_welcome_bonuses` (what new cardholders get) — it's a perk of *holding* the card, not getting it.
+
+Options to model later:
+- **(a)** Add a dedicated `credit_card_referral_bonuses` table with: `card_id`, `bonus_per_referral`, `bonus_currency`, `annual_cap_total`, `annual_cap_referrals`, `eligibility`, `referral_link_template`, `is_current`, `source_url`
+- **(b)** Add as a benefit row with `category='referral_bonus_earn'` and `metadata` carrying the structured fields
+- **(c)** Skip structured modeling and surface as freeform editorial copy in `credit_cards.intro` or a `referral_perks_md` text column
+
+Recommendation: **(a)** if referrals become a real feature with mechanics and tracking; **(b)** if just informational. Decide when authoring card #2 and seeing how the data shapes up.
+
+Trigger to design this properly: when **3+ cards** have referral bonuses to model. Until then, log them as followups in each card's source archive.
+
+First instance flagged: Chase World of Hyatt (this session, 2026-04-28).
+
 ## Non-goals (explicitly NOT in this plan)
 
 - **Personalized account-based recommendations** ("which card should I get based on my spend?"). Would need user accounts. The `intended_user` array prepares the *data shape* for static recommendation pages (e.g. `/cards/best-for-beginners`), but no per-user logic.
