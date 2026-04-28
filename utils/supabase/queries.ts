@@ -1607,6 +1607,114 @@ export async function getRefreshQueueByType(
   return counts
 }
 
+/**
+ * "Cards that earn into me" — given a program (e.g. Hyatt), returns:
+ *   1. Direct co-brand cards (where co_brand_program_id = this program)
+ *   2. Cards whose currency_program transfers to this program via program_transfers
+ *
+ * Returns a flat list with a `relationship` discriminator. Sorted: direct
+ * co-brands first, then by annual_fee_usd asc.
+ *
+ * Note: program_transfers is empty until the JSONB-to-table backfill runs.
+ * Until then this only surfaces direct co-brands. Transfer-partner cards
+ * appear automatically once the backfill lands — no UI changes needed.
+ */
+export interface CardThatEarnsIn {
+  card: CreditCard
+  issuer: Pick<Issuer, 'slug' | 'name'>
+  relationship: 'direct_co_brand' | 'transfer_partner'
+  current_welcome_bonus: Pick<CreditCardWelcomeBonus, 'bonus_amount' | 'bonus_currency' | 'estimated_value_usd'> | null
+}
+
+export async function getCardsThatEarnIntoProgram(
+  supabase: SupabaseClient,
+  programId: string,
+): Promise<CardThatEarnsIn[]> {
+  const { data: directCards, error: directError } = await supabase
+    .from('credit_cards')
+    .select('*, issuer:issuers!issuer_id(slug, name)')
+    .eq('co_brand_program_id', programId)
+    .eq('is_active', true)
+  if (directError) throw directError
+
+  const { data: transferRows } = await supabase
+    .from('program_transfers')
+    .select('from_program_id')
+    .eq('to_program_id', programId)
+
+  const transferableCurrencyIds = (transferRows ?? []).map((r: { from_program_id: string }) => r.from_program_id)
+
+  let transferCards: Array<CreditCard & { issuer: Pick<Issuer, 'slug' | 'name'> }> = []
+  if (transferableCurrencyIds.length > 0) {
+    const { data: tCards, error: tErr } = await supabase
+      .from('credit_cards')
+      .select('*, issuer:issuers!issuer_id(slug, name)')
+      .in('currency_program_id', transferableCurrencyIds)
+      .eq('is_active', true)
+    if (tErr) throw tErr
+    transferCards = (tCards ?? []) as Array<CreditCard & { issuer: Pick<Issuer, 'slug' | 'name'> }>
+  }
+
+  const allCards = [
+    ...((directCards ?? []) as Array<CreditCard & { issuer: Pick<Issuer, 'slug' | 'name'> }>),
+    ...transferCards,
+  ]
+  const cardIds = allCards.map((c) => c.id)
+
+  const subsByCardId = new Map<string, Pick<CreditCardWelcomeBonus, 'bonus_amount' | 'bonus_currency' | 'estimated_value_usd'>>()
+  if (cardIds.length > 0) {
+    const { data: subs } = await supabase
+      .from('credit_card_welcome_bonuses')
+      .select('card_id, bonus_amount, bonus_currency, estimated_value_usd')
+      .in('card_id', cardIds)
+      .eq('is_current', true)
+    for (const s of (subs ?? []) as Array<{ card_id: string } & Pick<CreditCardWelcomeBonus, 'bonus_amount' | 'bonus_currency' | 'estimated_value_usd'>>) {
+      subsByCardId.set(s.card_id, {
+        bonus_amount: s.bonus_amount,
+        bonus_currency: s.bonus_currency,
+        estimated_value_usd: s.estimated_value_usd,
+      })
+    }
+  }
+
+  const seen = new Set<string>()
+  const result: CardThatEarnsIn[] = []
+
+  for (const card of (directCards ?? []) as Array<CreditCard & { issuer: Pick<Issuer, 'slug' | 'name'> }>) {
+    if (seen.has(card.id)) continue
+    seen.add(card.id)
+    const { issuer, ...rest } = card
+    result.push({
+      card: rest as CreditCard,
+      issuer,
+      relationship: 'direct_co_brand',
+      current_welcome_bonus: subsByCardId.get(card.id) ?? null,
+    })
+  }
+  for (const card of transferCards) {
+    if (seen.has(card.id)) continue
+    seen.add(card.id)
+    const { issuer, ...rest } = card
+    result.push({
+      card: rest as CreditCard,
+      issuer,
+      relationship: 'transfer_partner',
+      current_welcome_bonus: subsByCardId.get(card.id) ?? null,
+    })
+  }
+
+  result.sort((a, b) => {
+    if (a.relationship !== b.relationship) {
+      return a.relationship === 'direct_co_brand' ? -1 : 1
+    }
+    const aFee = a.card.annual_fee_usd ?? Number.POSITIVE_INFINITY
+    const bFee = b.card.annual_fee_usd ?? Number.POSITIVE_INFINITY
+    return aFee - bFee
+  })
+
+  return result
+}
+
 export interface CardDetailBundle {
   card: CreditCard
   issuer: Issuer
