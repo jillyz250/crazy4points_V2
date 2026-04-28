@@ -500,6 +500,8 @@ function IdeaCard({
 
       <FailureNotes idea={idea} />
 
+      <AllClaimsViewer idea={idea} />
+
       <p style={{ margin: '0 0 0.75rem', color: 'var(--admin-text-muted)', fontSize: '0.875rem', lineHeight: 1.5 }}>
         {idea.pitch}
       </p>
@@ -1260,5 +1262,188 @@ function SourcePill({
     <span style={baseStyle} title={title}>
       {inner}
     </span>
+  )
+}
+
+interface FullClaim {
+  claim?: string
+  supported?: boolean
+  severity?: string
+  acknowledged?: boolean
+  source_excerpt?: string | null
+  web_verdict?: 'likely_correct' | 'likely_wrong' | 'unverifiable' | null
+  web_evidence?: string | null
+  web_url?: string | null
+}
+
+type ClaimStatus = 'your-data' | 'web-correct' | 'web-wrong' | 'unverifiable' | 'no-verdict'
+
+function classifyClaim(c: FullClaim): ClaimStatus {
+  if (c.supported === true && c.source_excerpt) return 'your-data'
+  if (c.web_verdict === 'likely_correct') return 'web-correct'
+  if (c.web_verdict === 'likely_wrong') return 'web-wrong'
+  if (c.web_verdict === 'unverifiable') return 'unverifiable'
+  return 'no-verdict'
+}
+
+const STATUS_ORDER: ClaimStatus[] = ['your-data', 'web-correct', 'web-wrong', 'unverifiable', 'no-verdict']
+
+const STATUS_META: Record<ClaimStatus, { label: string; bg: string; border: string; fg: string }> = {
+  'your-data':    { label: '✓ Your data',     bg: '#dcfce7', border: '#86efac', fg: '#15803d' },
+  'web-correct':  { label: '✓ Web confirms',  bg: '#dcfce7', border: '#86efac', fg: '#15803d' },
+  'web-wrong':    { label: '✗ Web contradicts',bg: '#fef2f2', border: '#fca5a5', fg: '#b91c1c' },
+  'unverifiable': { label: '? Inconclusive',  bg: '#fffbeb', border: '#fcd34d', fg: '#92400e' },
+  'no-verdict':   { label: '— No verdict',    bg: '#f3f4f6', border: '#d1d5db', fg: '#4b5563' },
+}
+
+/**
+ * Expandable details element listing every fact-check claim grouped by status.
+ * Lets the editor see at a glance: what was verified by your data, what was
+ * verified by web, what was contradicted, what couldn't be confirmed.
+ *
+ * Renders nothing when fact-check hasn't run.
+ */
+function AllClaimsViewer({ idea }: { idea: ContentIdeaRow }) {
+  if (!idea.fact_checked_at) return null
+  if (!Array.isArray(idea.fact_check_claims)) return null
+  const claims = idea.fact_check_claims as FullClaim[]
+  if (claims.length === 0) return null
+
+  // Group claims by status, preserving original order within each group.
+  const grouped = new Map<ClaimStatus, FullClaim[]>()
+  for (const c of claims) {
+    const s = classifyClaim(c)
+    const arr = grouped.get(s) ?? []
+    arr.push(c)
+    grouped.set(s, arr)
+  }
+
+  const totalsByStatus = STATUS_ORDER
+    .map((s) => ({ status: s, count: (grouped.get(s) ?? []).length }))
+    .filter((x) => x.count > 0)
+  const totalSummary = totalsByStatus
+    .map((x) => `${x.count} ${STATUS_META[x.status].label.toLowerCase()}`)
+    .join(', ')
+
+  return (
+    <details
+      style={{
+        marginBottom: '0.75rem',
+      }}
+    >
+      <summary
+        style={{
+          cursor: 'pointer',
+          fontFamily: 'var(--font-ui)',
+          fontSize: '0.75rem',
+          color: 'var(--admin-text-muted)',
+          padding: '0.25rem 0',
+        }}
+      >
+        All {claims.length} claim{claims.length === 1 ? '' : 's'} — {totalSummary || 'click to view'}
+      </summary>
+
+      <div
+        style={{
+          marginTop: '0.5rem',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.5rem',
+        }}
+      >
+        {STATUS_ORDER.map((status) => {
+          const list = grouped.get(status)
+          if (!list || list.length === 0) return null
+          const meta = STATUS_META[status]
+          return (
+            <div key={status}>
+              <div
+                style={{
+                  fontFamily: 'var(--font-ui)',
+                  fontSize: '0.6875rem',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
+                  color: meta.fg,
+                  marginBottom: '0.25rem',
+                  paddingLeft: '0.125rem',
+                }}
+              >
+                {meta.label} ({list.length})
+              </div>
+              {list.map((c, idx) => (
+                <ClaimCard key={`${status}-${idx}`} claim={c} status={status} />
+              ))}
+            </div>
+          )
+        })}
+      </div>
+    </details>
+  )
+}
+
+function ClaimCard({ claim, status }: { claim: FullClaim; status: ClaimStatus }) {
+  const meta = STATUS_META[status]
+  return (
+    <div
+      style={{
+        padding: '0.5rem 0.625rem',
+        marginBottom: '0.375rem',
+        borderRadius: 'var(--admin-radius)',
+        border: `1px solid ${meta.border}`,
+        background: meta.bg,
+        fontSize: '0.8125rem',
+        lineHeight: 1.45,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '0.25rem',
+      }}
+    >
+      <div style={{ fontStyle: 'italic', color: 'var(--admin-text)' }}>
+        “{claim.claim ?? '(no claim text)'}”
+      </div>
+      {claim.source_excerpt && (
+        <div style={{ color: 'var(--admin-text)', fontSize: '0.75rem' }}>
+          <strong style={{ color: meta.fg }}>Your data:</strong> {claim.source_excerpt}
+        </div>
+      )}
+      {claim.web_evidence && !claim.source_excerpt && (
+        <div style={{ color: 'var(--admin-text)', fontSize: '0.75rem' }}>
+          <strong style={{ color: meta.fg }}>Web:</strong> {claim.web_evidence}
+        </div>
+      )}
+      {claim.web_url && (
+        <a
+          href={claim.web_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            fontFamily: 'var(--font-ui)',
+            fontSize: '0.6875rem',
+            color: 'var(--admin-accent)',
+            fontWeight: 600,
+            textDecoration: 'none',
+          }}
+        >
+          ↗ Open source ({(() => {
+            try { return new URL(claim.web_url).host.replace(/^www\./, '') } catch { return 'link' }
+          })()})
+        </a>
+      )}
+      {claim.severity === 'high' && (
+        <span
+          style={{
+            display: 'inline-block',
+            fontSize: '0.625rem',
+            fontFamily: 'var(--font-ui)',
+            fontWeight: 700,
+            color: meta.fg,
+            opacity: 0.7,
+          }}
+        >
+          HIGH SEVERITY
+        </span>
+      )}
+    </div>
   )
 }
