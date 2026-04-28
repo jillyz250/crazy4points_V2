@@ -18,7 +18,16 @@ export interface GeneratedIdeaMetadata {
   pitch: string
   excerpt: string
   category: BlogCategorySlug
+  /** Single most-relevant program — used for filtering and as the lead
+      tag. Null if the article isn't about any specific program. */
   primary_program_slug: string | null
+  /**
+   * Other programs the article meaningfully covers. Empty for single-program
+   * articles. Useful for comparison or stacking pieces (e.g. "Chase Hyatt
+   * Personal vs Business" → primary='chase', secondary=['hyatt']).
+   * Excludes whatever was chosen as primary.
+   */
+  secondary_program_slugs: string[]
   /** Short note from the AI to the writer step about angle, caveats, gaps. */
   writer_notes: string
 }
@@ -59,9 +68,23 @@ excerpt: Reader-facing dek that appears under the headline on /blog/[slug].
 category: MUST be one of these slugs:
 ${CATEGORY_LIST}
 
-primary_program_slug: One of the known program slugs below, or null if the
-                     article is not about a specific program. NEVER invent.
+primary_program_slug: The SINGLE most-relevant known program slug, or null if
+                     the article isn't about a specific program. NEVER invent.
 KNOWN PROGRAM SLUGS: ${programList}
+
+secondary_program_slugs: An array of OTHER program slugs the article
+                        meaningfully covers. Use this for comparison or
+                        stacking pieces.
+                        Examples:
+                          • "Chase Hyatt personal vs business" →
+                            primary='chase', secondary=['hyatt']
+                          • "Stack Amex transfer bonus + Aeroplan award" →
+                            primary='aeroplan', secondary=['amex']
+                          • "Hyatt 80K in Europe" →
+                            primary='hyatt', secondary=[]
+                        Each slug must be in KNOWN PROGRAM SLUGS. Don't list
+                        the same slug as primary AND secondary. Empty array
+                        is fine for single-program articles.
 
 writer_notes: 1-2 sentences. Surface caveats, structural hints, or gaps the
               user mentioned. ≤300 chars. Empty string OK if nothing to add.
@@ -78,6 +101,7 @@ Return a single JSON object. No prose outside the JSON, no markdown fences.
   "excerpt": "<≤200 chars, reader voice>",
   "category": "<one of the 6 slugs>",
   "primary_program_slug": "<a known slug or null>",
+  "secondary_program_slugs": ["<known slug>", "<known slug>"],
   "writer_notes": "<≤300 chars, may be empty>"
 }`
 }
@@ -141,12 +165,39 @@ function validateAndCoerce(
     }
   }
 
+  // Secondary slugs: keep only entries that are (a) strings, (b) in the
+  // known list, (c) not equal to the primary, and (d) not duplicated.
+  const rawSecondary = Array.isArray(obj.secondary_program_slugs)
+    ? obj.secondary_program_slugs
+    : []
+  const secondary_program_slugs = Array.from(
+    new Set(
+      rawSecondary
+        .filter((s): s is string => typeof s === 'string' && s.length > 0)
+        .filter((s) => programSlugs.includes(s))
+        .filter((s) => s !== primary_program_slug)
+    )
+  )
+  if (rawSecondary.length !== secondary_program_slugs.length) {
+    console.warn(
+      `[generateBlogIdeaFromPrompt] dropped ${rawSecondary.length - secondary_program_slugs.length} invalid/duplicate secondary slug(s)`
+    )
+  }
+
   const writer_notes = clamp(
     typeof obj.writer_notes === 'string' ? obj.writer_notes.trim() : '',
     300
   )
 
-  return { title, pitch, excerpt, category, primary_program_slug, writer_notes }
+  return {
+    title,
+    pitch,
+    excerpt,
+    category,
+    primary_program_slug,
+    secondary_program_slugs,
+    writer_notes,
+  }
 }
 
 /**

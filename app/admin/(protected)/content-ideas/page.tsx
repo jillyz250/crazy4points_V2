@@ -52,6 +52,7 @@ interface ContentIdeaRow {
   excerpt: string | null
   hero_image_url: string | null
   primary_program_slug: string | null
+  secondary_program_slugs: string[] | null
   reading_time_minutes: number | null
   featured: boolean | null
   featured_rank: number | null

@@ -49,6 +49,7 @@ async function getProgramsForIdea(
   supabase: ReturnType<typeof createAdminClient>,
   sourceAlertId: string | null,
   primaryProgramSlug: string | null = null,
+  secondaryProgramSlugs: string[] | null = null,
 ): Promise<ProgramSource[]> {
   const collected = new Map<string, ProgramSource>()
 
@@ -63,14 +64,23 @@ async function getProgramsForIdea(
     }
   }
 
-  if (primaryProgramSlug && !collected.has(primaryProgramSlug)) {
+  // Build the union of slugs we still need to fetch (primary + secondaries),
+  // skipping any already collected from the source alert.
+  const explicitSlugs: string[] = []
+  if (primaryProgramSlug) explicitSlugs.push(primaryProgramSlug)
+  if (Array.isArray(secondaryProgramSlugs)) {
+    for (const s of secondaryProgramSlugs) {
+      if (typeof s === 'string' && s.trim()) explicitSlugs.push(s.trim())
+    }
+  }
+  const needed = explicitSlugs.filter((s) => !collected.has(s))
+
+  if (needed.length > 0) {
     const { data } = await supabase
       .from('programs')
       .select(PROGRAM_FIELDS_FOR_SOURCE)
-      .eq('slug', primaryProgramSlug)
-      .maybeSingle()
-    if (data) {
-      const row = data as ProgramSource
+      .in('slug', needed)
+    for (const row of (data ?? []) as ProgramSource[]) {
       if (row.slug) collected.set(row.slug, row)
     }
   }
@@ -187,7 +197,7 @@ export async function writeArticleAction(id: string): Promise<WriteArticleResult
   const supabase = createAdminClient()
   const { data: idea, error: fetchErr } = await supabase
     .from('content_ideas')
-    .select('id, type, title, pitch, source_alert_id, primary_program_slug')
+    .select('id, type, title, pitch, source_alert_id, primary_program_slug, secondary_program_slugs')
     .eq('id', id)
     .single()
   if (fetchErr || !idea) return { ok: false, error: fetchErr?.message ?? 'Idea not found' }
@@ -209,6 +219,7 @@ export async function writeArticleAction(id: string): Promise<WriteArticleResult
     supabase,
     idea.source_alert_id,
     idea.primary_program_slug,
+    idea.secondary_program_slugs,
   )
   const programContext = programs.length > 0 ? programsToSourceText(programs) : null
 
@@ -258,7 +269,7 @@ export async function factCheckArticleAction(id: string): Promise<FactCheckResul
   const supabase = createAdminClient()
   const { data: idea, error: fetchErr } = await supabase
     .from('content_ideas')
-    .select('id, title, article_body, source_alert_id, source_intel_id, primary_program_slug')
+    .select('id, title, article_body, source_alert_id, source_intel_id, primary_program_slug, secondary_program_slugs')
     .eq('id', id)
     .single()
   if (fetchErr || !idea) return { ok: false, error: fetchErr?.message ?? 'Idea not found' }
@@ -291,6 +302,7 @@ export async function factCheckArticleAction(id: string): Promise<FactCheckResul
     supabase,
     idea.source_alert_id,
     idea.primary_program_slug,
+    idea.secondary_program_slugs,
   )
   if (programs.length > 0) {
     sourceText = `${sourceText}\n\n═══ OFFICIAL PROGRAM PAGE CONTENT ═══\n\n${programsToSourceText(programs)}`.trim()
@@ -378,7 +390,7 @@ export async function checkArticleAction(id: string): Promise<CheckArticleResult
   const supabase = createAdminClient()
   const { data: idea, error: fetchErr } = await supabase
     .from('content_ideas')
-    .select('id, title, article_body, source_alert_id, source_intel_id, primary_program_slug')
+    .select('id, title, article_body, source_alert_id, source_intel_id, primary_program_slug, secondary_program_slugs')
     .eq('id', id)
     .single()
   if (fetchErr || !idea) return { ok: false, error: fetchErr?.message ?? 'Idea not found' }
@@ -417,6 +429,7 @@ export async function checkArticleAction(id: string): Promise<CheckArticleResult
     supabase,
     idea.source_alert_id,
     idea.primary_program_slug,
+    idea.secondary_program_slugs,
   )
   if (programs.length > 0) {
     sourceText = `${sourceText}\n\n═══ OFFICIAL PROGRAM PAGE CONTENT ═══\n\n${programsToSourceText(programs)}`.trim()
@@ -626,10 +639,24 @@ export async function updateContentIdeaBlogFieldsAction(
     const rawExcerpt = (formData.get('excerpt') as string | null)?.trim() ?? ''
     const rawHeroImageUrl = (formData.get('hero_image_url') as string | null)?.trim() ?? ''
     const rawProgramSlug = (formData.get('primary_program_slug') as string | null)?.trim() ?? ''
+    // Secondary programs come in as a comma-separated text input. Parse,
+    // trim, dedupe, and exclude the primary so the same slug isn't listed
+    // twice. Empty / whitespace-only entries are dropped.
+    const rawSecondary = (formData.get('secondary_program_slugs') as string | null) ?? ''
+    const secondaryProgramSlugs = Array.from(
+      new Set(
+        rawSecondary
+          .split(',')
+          .map((s) => s.trim().toLowerCase())
+          .filter((s) => s.length > 0 && s !== rawProgramSlug)
+      )
+    )
     const featured = formData.get('featured') === 'on'
     const rawFeaturedRank = (formData.get('featured_rank') as string | null)?.trim() ?? ''
 
-    console.log(`[content-ideas:blog-fields] id=${id} category="${rawCategory}" featured=${featured}`)
+    console.log(
+      `[content-ideas:blog-fields] id=${id} category="${rawCategory}" featured=${featured} secondary=${JSON.stringify(secondaryProgramSlugs)}`
+    )
 
     // Validate category if provided. We accept '' (drafts) or one of the 6 slugs.
     if (rawCategory && !isBlogCategorySlug(rawCategory)) {
@@ -668,6 +695,7 @@ export async function updateContentIdeaBlogFieldsAction(
         excerpt: rawExcerpt || null,
         hero_image_url: rawHeroImageUrl || null,
         primary_program_slug: rawProgramSlug || null,
+        secondary_program_slugs: secondaryProgramSlugs.length > 0 ? secondaryProgramSlugs : null,
         featured,
         featured_rank,
         updated_at: new Date().toISOString(),
@@ -760,6 +788,10 @@ export async function createIdeaFromPromptAction(
         excerpt: meta.excerpt,
         category: meta.category,
         primary_program_slug: meta.primary_program_slug,
+        secondary_program_slugs:
+          meta.secondary_program_slugs && meta.secondary_program_slugs.length > 0
+            ? meta.secondary_program_slugs
+            : null,
         notes: meta.writer_notes || null,
         source: 'manual',
         written_by: 'Jill Zeller',
@@ -818,7 +850,7 @@ export async function rewriteFromVerifiedFactsAction(
   const { data: idea, error: fetchErr } = await supabase
     .from('content_ideas')
     .select(
-      'id, type, title, pitch, article_body, fact_checked_at, fact_check_claims, source_alert_id, primary_program_slug'
+      'id, type, title, pitch, article_body, fact_checked_at, fact_check_claims, source_alert_id, primary_program_slug, secondary_program_slugs'
     )
     .eq('id', id)
     .single()
@@ -880,6 +912,7 @@ export async function rewriteFromVerifiedFactsAction(
     supabase,
     idea.source_alert_id,
     idea.primary_program_slug,
+    idea.secondary_program_slugs,
   )
   const programContext =
     programs.length > 0 ? programsToSourceText(programs) : null

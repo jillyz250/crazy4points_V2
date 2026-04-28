@@ -20,6 +20,7 @@ interface IdeaSnapshot {
   excerpt: string | null;
   hero_image_url: string | null;
   primary_program_slug: string | null;
+  secondary_program_slugs: string[] | null;
   reading_time_minutes: number | null;
   featured: boolean | null;
   featured_rank: number | null;
@@ -149,6 +150,23 @@ export default function BlogMetadataForm({ idea, programs, suggestedProgramSlug 
               </option>
             ))}
           </select>
+        </Field>
+
+        <Field label="Additional programs (comma-separated slugs — for multi-program articles)">
+          <input
+            type="text"
+            name="secondary_program_slugs"
+            defaultValue={(idea.secondary_program_slugs ?? []).join(', ')}
+            placeholder="e.g. hyatt, amex"
+            className="admin-input"
+            style={{ width: '100%' }}
+            autoComplete="off"
+          />
+          <span style={{ fontSize: '0.6875rem', color: 'var(--admin-text-muted)' }}>
+            For comparison or stacking pieces (Chase + Hyatt, Amex + Aeroplan).
+            Each slug pulls that program's data into fact-check + writer source.
+            Use the same slugs from the dropdown above (e.g. <code>hyatt</code>, <code>chase</code>).
+          </span>
         </Field>
 
         <div
