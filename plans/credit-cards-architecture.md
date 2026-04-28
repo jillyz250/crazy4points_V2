@@ -465,7 +465,8 @@ Plus the issuer row for Chase. Each card includes 5-15 earn rate rows + 10-25 be
 
 ### Phase 4 — Public card detail page (`/cards/[slug]`)
 - Server-rendered page that pulls the card + nested rows
-- Sections: hero (image + name + AF + SUB + apply button), intro, earn rates table, benefits accordion grouped by category, fine-print
+- Sections: hero (image + name + AF + SUB + apply button), **"Good to know" callout**, intro, earn rates table, benefits accordion grouped by category, fine-print
+- **Required: "Good to know before you apply" callout** above the intro on every card. Stores 3-7 newline-separated bullets in `credit_cards.good_to_know` capturing the things readers most often miss before applying — 5/24 rule, free-night exclusions, mechanic gotchas (e.g. "Chase auto-picks your top 3 categories — no enrollment needed"), key differences from sibling cards, hard-cap surprises. **Each card's Step 2 (draft) MUST include populating this field.** Renders as a styled callout box.
 - **Required: section-jump TOC at the top of the page.** Below the hero, a sticky-or-scrolling TOC bar shows section names (Welcome bonus, Earn rates, Free nights, Status, Insurance, Protection, etc.) — clickable anchor links that scroll to the matching section. Same pattern as program pages use today. Cards have lots of dense content; readers shouldn't have to scroll the whole page to find baggage delay terms or the SUB. **Applies to every card going forward** — gets rendered automatically from whichever sections actually have content (hide TOC entries for empty categories).
 - Schema.org structured data (Product / FinancialProduct) for AI visibility per memory `project_ai_visibility.md`
 - **Benefit display mapping (frontend renderer per `benefit_type`):** a single `<BenefitCell />` component takes a benefit row and dispatches to type-specific renderers based on `benefit_type`. Each renderer knows how to format its `metadata` shape:

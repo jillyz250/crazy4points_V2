@@ -291,6 +291,43 @@ export default async function CardPage({
         </nav>
       )}
 
+      {/* Good to know callout — surfaces 3-7 things readers most often miss before applying */}
+      {card.good_to_know && (
+        <section
+          style={{
+            marginBottom: '2.5rem',
+            padding: '1.25rem 1.5rem',
+            background: 'var(--color-background-soft)',
+            border: '1px solid var(--color-border-soft)',
+            borderRadius: 'var(--radius-card)',
+          }}
+        >
+          <div
+            style={{
+              fontSize: '0.6875rem',
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              fontWeight: 700,
+              color: 'var(--color-primary)',
+              marginBottom: '0.625rem',
+            }}
+          >
+            Good to know before you apply
+          </div>
+          <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.9375rem', lineHeight: 1.6 }}>
+            {card.good_to_know
+              .split('\n')
+              .map((line) => line.trim())
+              .filter((line) => line.startsWith('- '))
+              .map((line, i) => (
+                <li key={i} style={{ marginBottom: '0.375rem' }}>
+                  {line.slice(2)}
+                </li>
+              ))}
+          </ul>
+        </section>
+      )}
+
       {/* Intro */}
       {card.intro && (
         <section style={{ marginBottom: '2.5rem', maxWidth: '46rem' }}>
