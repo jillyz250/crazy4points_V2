@@ -133,7 +133,8 @@ Checklist (program pages):
 
 If the entity is a **credit card** (URL is `/cards/[slug]`), the verify checklist is different:
 - Hero with issuer chip, tier badge, co-brand link, AF, current SUB, FX fee, Apply CTA
-- **Section TOC bar (sticky) below the hero** with anchor links to: Welcome bonus, Earn rates, and each populated benefits category. Required on every card page (plans/credit-cards-architecture.md). Auto-generated from sections that have content.
+- **"Good to know before you apply" callout box** below the hero (above the intro) — 3-7 bullet points covering 5/24 rule, free-night exclusions, mechanic gotchas, sibling-card differences, hard-cap surprises. REQUIRED on every card page. Stored in `credit_cards.good_to_know` (newline-separated bullets, each starting with "- "). Step 2 of the workflow MUST author this field.
+- **Section TOC bar (sticky) below the callout** with anchor links to: Welcome bonus, Earn rates, and each populated benefits category. Required on every card page. Auto-generated from sections that have content.
 - JSON-LD `CreditCard` schema in page source (view source, search for `application/ld+json`)
 - Affiliate disclosure renders only when `affiliate_url` is null
 - Apply button uses `affiliate_url` if set, else `official_url`
