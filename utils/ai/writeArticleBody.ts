@@ -290,28 +290,30 @@ function buildUserContent(input: WriteArticleInput): string {
 }
 
 /**
- * Returns the LONGEST text block from the response content. With web search
- * enabled the model returns interleaved text + tool_use + tool_result blocks,
- * and the actual article body is typically the longest text block — not
- * necessarily the last one. The previous "last text block" approach broke
- * when the model wrote the article body, then ran additional searches, and
- * finished with a short closing block — we'd grab the short closing and
- * discard the article.
+ * Concatenates all text blocks from the response content. With web search
+ * enabled, Sonnet writes the article INCREMENTALLY across multiple text
+ * blocks — interleaved with tool_use / tool_result blocks for each search.
+ * Picking just the longest text block (or the last one) discards the rest
+ * of the article and yields stub output.
+ *
+ * Concatenating all text blocks recovers the full article. Risk: short
+ * "preamble" text blocks like "Let me research X first" get included. We
+ * mitigate by joining with two newlines (so they read as paragraph breaks
+ * rather than running together), and by relying on the prompt to keep
+ * preamble out of the response. Most preamble is a single short line that
+ * adds <50 chars to a 3000-char article — negligible.
  *
  * Falls back to null if no text block has any content.
  */
 function findArticleTextBlock(content: Anthropic.ContentBlock[]): string | null {
-  let best: string | null = null
-  let bestLen = 0
+  const parts: string[] = []
   for (const b of content) {
     if (b.type !== 'text') continue
     const t = b.text.trim()
-    if (t.length > bestLen) {
-      best = b.text
-      bestLen = t.length
-    }
+    if (t.length > 0) parts.push(t)
   }
-  return best
+  if (parts.length === 0) return null
+  return parts.join('\n\n')
 }
 
 export async function writeArticleBody(input: WriteArticleInput): Promise<ArticleDraft | null> {
