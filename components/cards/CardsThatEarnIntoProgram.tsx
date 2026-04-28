@@ -74,11 +74,6 @@ function CardTile({ entry }: { entry: CardThatEarnsIn }) {
             </div>
             <div style={{ fontWeight: 600, fontFamily: 'var(--font-ui)' }}>
               {sub.bonus_amount.toLocaleString()}
-              {sub.estimated_value_usd && (
-                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', fontWeight: 400 }}>
-                  {' '}~${Number(sub.estimated_value_usd).toLocaleString()}
-                </span>
-              )}
             </div>
           </div>
         )}

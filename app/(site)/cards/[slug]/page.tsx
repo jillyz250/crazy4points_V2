@@ -144,10 +144,6 @@ export default async function CardPage({
       ? {
           '@type': 'Offer',
           description: `Earn ${sub.bonus_amount.toLocaleString()} ${sub.bonus_currency} after spending $${sub.spend_required_usd.toLocaleString()} in the first ${sub.spend_window_months} months.`,
-          ...(sub.estimated_value_usd && {
-            price: Number(sub.estimated_value_usd),
-            priceCurrency: 'USD',
-          }),
         }
       : undefined,
   }
@@ -213,11 +209,6 @@ export default async function CardPage({
               <div style={{ fontSize: '1.5rem', fontWeight: 600 }}>
                 {sub.bonus_amount.toLocaleString()} <span style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>{sub.bonus_currency}</span>
               </div>
-              {sub.estimated_value_usd && (
-                <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
-                  ~${Number(sub.estimated_value_usd).toLocaleString()} est. value
-                </div>
-              )}
             </div>
           )}
           <div>
