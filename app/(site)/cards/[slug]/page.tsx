@@ -424,8 +424,13 @@ export default async function CardPage({
         </section>
       )}
 
-      {/* Earn rates */}
-      {earn_rates.length > 0 && (
+      {/* Earn rates — Channel column only renders when 2+ rows have non-default values
+          (otherwise the column is mostly em-dashes and adds noise; the channel restriction
+          is already conveyed in each row's notes). */}
+      {earn_rates.length > 0 && (() => {
+        const channelRows = earn_rates.filter((r) => r.booking_channel && r.booking_channel !== 'any').length
+        const showChannel = channelRows >= 2
+        return (
         <section id="earn-rates" style={{ marginBottom: '2.5rem', scrollMarginTop: '2rem' }}>
           <h2>Earn rates</h2>
           <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', marginBottom: '0.75rem' }}>
@@ -438,7 +443,9 @@ export default async function CardPage({
               <tr style={{ borderBottom: '2px solid var(--color-border-soft)' }}>
                 <th style={{ textAlign: 'left', padding: '0.5rem 0.75rem' }}>Category</th>
                 <th style={{ textAlign: 'right', padding: '0.5rem 0.75rem' }}>Multiplier</th>
-                <th style={{ textAlign: 'left', padding: '0.5rem 0.75rem' }}>Channel</th>
+                {showChannel && (
+                  <th style={{ textAlign: 'left', padding: '0.5rem 0.75rem' }}>Channel</th>
+                )}
                 <th style={{ textAlign: 'left', padding: '0.5rem 0.75rem' }}>Notes</th>
               </tr>
             </thead>
@@ -447,9 +454,11 @@ export default async function CardPage({
                 <tr key={r.id} style={{ borderBottom: '1px solid var(--color-border-soft)' }}>
                   <td style={{ padding: '0.625rem 0.75rem', fontWeight: 500 }}>{formatEarnCategory(r.category)}</td>
                   <td style={{ padding: '0.625rem 0.75rem', textAlign: 'right', fontWeight: 600 }}>{Number(r.multiplier)}x</td>
-                  <td style={{ padding: '0.625rem 0.75rem', color: 'var(--color-text-secondary)' }}>
-                    {r.booking_channel === 'any' ? '—' : r.booking_channel}
-                  </td>
+                  {showChannel && (
+                    <td style={{ padding: '0.625rem 0.75rem', color: 'var(--color-text-secondary)' }}>
+                      {r.booking_channel === 'any' ? '—' : r.booking_channel}
+                    </td>
+                  )}
                   <td style={{ padding: '0.625rem 0.75rem', color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
                     {r.notes ?? ''}
                   </td>
@@ -458,7 +467,8 @@ export default async function CardPage({
             </tbody>
           </table>
         </section>
-      )}
+        )
+      })()}
 
       {/* Benefits, grouped by category */}
       {orderedCategories.map((cat) => (
