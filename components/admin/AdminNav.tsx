@@ -8,6 +8,8 @@ type NavItem = {
   label: string
   abbr: string
   match?: (pathname: string) => boolean
+  /** Key into the `badges` prop (set by the parent layout). */
+  badgeKey?: 'refreshQueue'
 }
 type NavGroup = { label: string | null; items: NavItem[] }
 
@@ -50,6 +52,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Ops',
     items: [
+      { href: '/admin/refresh-queue', label: 'Refresh queue', abbr: 'Rq', badgeKey: 'refreshQueue' },
       { href: '/admin/jobs', label: 'Jobs', abbr: 'Jo' },
       { href: '/admin/briefs', label: 'Briefs', abbr: 'Br' },
       { href: '/admin/fact-checks', label: 'Fact Checks', abbr: 'Fc' },
@@ -58,6 +61,10 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ]
 
+export type AdminNavBadges = {
+  refreshQueue?: number
+}
+
 function defaultIsActive(pathname: string, href: string): boolean {
   // Strip any query string from the href before comparing.
   const justPath = href.split('?')[0]
@@ -65,7 +72,7 @@ function defaultIsActive(pathname: string, href: string): boolean {
   return pathname === justPath || pathname.startsWith(justPath + '/')
 }
 
-export default function AdminNav() {
+export default function AdminNav({ badges = {} }: { badges?: AdminNavBadges }) {
   const pathname = usePathname() ?? '/admin'
 
   return (
@@ -77,6 +84,7 @@ export default function AdminNav() {
             const active = item.match
               ? item.match(pathname)
               : defaultIsActive(pathname, item.href)
+            const badgeCount = item.badgeKey ? badges[item.badgeKey] ?? 0 : 0
             return (
               <Link
                 key={item.href}
@@ -84,7 +92,28 @@ export default function AdminNav() {
                 className={`admin-nav-link${active ? ' is-active' : ''}`}
                 title={item.label}
               >
-                <span className="admin-nav-label">{item.label}</span>
+                <span className="admin-nav-label">
+                  {item.label}
+                  {badgeCount > 0 && (
+                    <span
+                      style={{
+                        marginLeft: '0.5rem',
+                        display: 'inline-block',
+                        minWidth: '1.25rem',
+                        padding: '0.0625rem 0.375rem',
+                        borderRadius: '9999px',
+                        background: 'var(--admin-warning, #d97706)',
+                        color: '#fff',
+                        fontSize: '0.6875rem',
+                        fontWeight: 700,
+                        textAlign: 'center',
+                        lineHeight: '1.1',
+                      }}
+                    >
+                      {badgeCount > 99 ? '99+' : badgeCount}
+                    </span>
+                  )}
+                </span>
                 <span className="admin-nav-abbr" aria-hidden="true">{item.abbr}</span>
               </Link>
             )

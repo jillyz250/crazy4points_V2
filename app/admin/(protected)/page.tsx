@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { createAdminClient } from '@/utils/supabase/server'
-import { countUnresolvedSystemErrors } from '@/utils/supabase/queries'
+import { countUnresolvedSystemErrors, getRefreshQueueCount, getRefreshQueue } from '@/utils/supabase/queries'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Card } from '@/components/admin/ui/Card'
 import { LinkButton } from '@/components/admin/ui/Button'
@@ -29,6 +29,7 @@ const TILES: Tile[] = [
   { title: 'Jobs', description: 'Manually trigger scout or brief runs.', href: '/admin/jobs', cta: 'Run' },
   { title: 'Fact Checks', description: 'Claim-level drill-down and flag-rate stats.', href: '/admin/fact-checks', cta: 'View' },
   { title: 'Errors', description: 'Background-job failures. Resolve after investigating.', href: '/admin/errors', cta: 'View' },
+  { title: 'Refresh Queue', description: 'Editorial content due for re-verification (cards, programs, properties).', href: '/admin/refresh-queue', cta: 'View' },
 ]
 
 async function loadStats() {
@@ -43,6 +44,8 @@ async function loadStats() {
     unresolvedErrors,
     lastBrief,
     currentNewsletter,
+    refreshQueueCount,
+    refreshQueueTopFive,
   ] = await Promise.all([
     supabase.from('alerts').select('id', { count: 'exact', head: true }).eq('status', 'pending_review'),
     supabase.from('intel_items').select('id', { count: 'exact', head: true }).eq('processed', false).is('rejected_at', null).gte('created_at', dayAgo),
@@ -51,6 +54,8 @@ async function loadStats() {
     countUnresolvedSystemErrors(supabase),
     supabase.from('daily_briefs').select('brief_date, sent_at').order('brief_date', { ascending: false }).limit(1).maybeSingle(),
     supabase.from('newsletters').select('week_of, status').order('week_of', { ascending: false }).limit(1).maybeSingle(),
+    getRefreshQueueCount(supabase),
+    getRefreshQueue(supabase, { limit: 5 }),
   ])
 
   return {
@@ -61,6 +66,8 @@ async function loadStats() {
     unresolvedErrors,
     lastBrief: lastBrief.data as { brief_date: string; sent_at: string | null } | null,
     currentNewsletter: currentNewsletter.data as { week_of: string; status: string } | null,
+    refreshQueueCount,
+    refreshQueueTopFive,
   }
 }
 
@@ -110,6 +117,13 @@ export default async function AdminDashboard() {
       tone: stats.unresolvedErrors > 0 ? 'danger' : 'success',
       href: '/admin/errors',
       hint: stats.unresolvedErrors > 0 ? 'investigate' : 'none open',
+    },
+    {
+      label: 'Refresh queue',
+      value: stats.refreshQueueCount,
+      tone: stats.refreshQueueCount > 50 ? 'danger' : stats.refreshQueueCount > 0 ? 'warning' : 'success',
+      href: '/admin/refresh-queue',
+      hint: stats.refreshQueueCount > 0 ? 'cards / programs / properties' : 'all current',
     },
   ]
 
@@ -184,6 +198,32 @@ export default async function AdminDashboard() {
           )}
         </Card>
       </div>
+
+      {stats.refreshQueueTopFive.length > 0 && (
+        <Card style={{ padding: '0.875rem 1rem', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.625rem' }}>
+            <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, color: 'var(--admin-text-muted)' }}>
+              Refresh queue — top 5 oldest
+            </div>
+            <Link href="/admin/refresh-queue" style={{ fontSize: '0.8125rem' }}>See all {stats.refreshQueueCount} →</Link>
+          </div>
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+            {stats.refreshQueueTopFive.map((item) => (
+              <li key={`${item.entity_type}-${item.entity_id}`} style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', fontSize: '0.875rem' }}>
+                <span style={{ color: 'var(--admin-text-muted)', fontSize: '0.75rem', minWidth: '5rem' }}>
+                  {item.entity_type.replace(/^program_/, '').replace(/_/g, ' ')}
+                </span>
+                <Link href={item.edit_url} style={{ flex: 1, fontWeight: 500 }}>
+                  {item.entity_name}
+                </Link>
+                <span style={{ color: 'var(--admin-text-muted)', fontSize: '0.75rem' }}>
+                  {item.last_verified ? `${item.age_days}d` : 'never'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       <div style={{ marginBottom: '0.75rem', fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, color: 'var(--admin-text-muted)' }}>
         All sections
