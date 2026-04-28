@@ -107,6 +107,23 @@ export default async function AlertDetailPage({ params }: Props) {
   const expiry = daysRemaining(alert.end_date)
   const isExpired = expiry === 'Expired'
 
+  // CTA target — link to the alert's primary program reference page rather
+  // than the original news article (which often lives off-site and bounces
+  // the reader away). Falls back to /alerts when no program is set.
+  let ctaHref = '/alerts'
+  let ctaLabel = 'Browse all alerts'
+  if (alert.primary_program_id) {
+    const { data: program } = await supabase
+      .from('programs')
+      .select('slug, name')
+      .eq('id', alert.primary_program_id)
+      .maybeSingle()
+    if (program?.slug) {
+      ctaHref = `/programs/${program.slug}`
+      ctaLabel = `Explore ${program.name}`
+    }
+  }
+
   // Render description as markdown — promo alerts use a hybrid format
   // (voicey paragraphs + a "What qualifies" bulleted block). Other alert
   // types are still prose-only so markdown is just a passthrough for them.
@@ -206,17 +223,10 @@ export default async function AlertDetailPage({ params }: Props) {
           </div>
         )}
 
-        {/* CTA */}
-        {alert.source_url && !isExpired && (
-          <a
-            href={alert.source_url}
-            target="_blank"
-            rel="noopener noreferrer nofollow"
-            className="rg-btn-primary inline-block"
-          >
-            {ACTION_LABELS[alert.action_type] ?? 'View Deal'} →
-          </a>
-        )}
+        {/* CTA — internal navigation only. Reader stays on the site. */}
+        <Link href={ctaHref} className="rg-btn-primary inline-block">
+          {ctaLabel} →
+        </Link>
 
       </div>
     </article>
