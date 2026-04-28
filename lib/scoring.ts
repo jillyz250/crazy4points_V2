@@ -8,6 +8,7 @@ const TIME_SENSITIVE_TYPES = new Set([
   'limited_time_offer',
   'award_availability',
   'status_promo',
+  'point_purchase',
 ])
 
 const CONFIDENCE_NUMERIC: Record<string, number> = {
