@@ -9,6 +9,7 @@ import { webVerifyClaims } from '@/utils/ai/verifyAlertDraft'
 import { voiceCheckArticle } from '@/utils/ai/voiceCheckArticle'
 import { originalityCheck } from '@/utils/ai/originalityCheck'
 import { programsToSourceText, PROGRAM_FIELDS_FOR_SOURCE } from '@/utils/ai/programSourceText'
+import { cardsToSourceText, CARD_FIELDS_FOR_SOURCE, type CardSource } from '@/utils/ai/cardSourceText'
 import type { Program } from '@/utils/supabase/queries'
 import { preparePublishUpdates } from './_lib/preparePublish'
 import { computeReadingTimeMinutes } from '@/lib/blog/readingTime'
@@ -86,6 +87,27 @@ async function getProgramsForIdea(
   }
 
   return Array.from(collected.values())
+}
+
+/**
+ * Fetches credit_cards rows for an idea's tagged card_slugs. Used so card-
+ * comparison articles can ground claims against /cards/[slug] data instead
+ * of going to thepointsguy or chase.com via web verify.
+ */
+async function getCardsForIdea(
+  supabase: ReturnType<typeof createAdminClient>,
+  cardSlugs: string[] | null,
+): Promise<CardSource[]> {
+  if (!Array.isArray(cardSlugs) || cardSlugs.length === 0) return []
+  const cleaned = Array.from(
+    new Set(cardSlugs.filter((s): s is string => typeof s === 'string' && s.trim().length > 0))
+  )
+  if (cleaned.length === 0) return []
+  const { data } = await supabase
+    .from('credit_cards')
+    .select(CARD_FIELDS_FOR_SOURCE)
+    .in('slug', cleaned)
+  return (data ?? []) as CardSource[]
 }
 
 type IdeaStatus = 'new' | 'queued' | 'drafted' | 'published' | 'dismissed'
@@ -197,7 +219,7 @@ export async function writeArticleAction(id: string): Promise<WriteArticleResult
   const supabase = createAdminClient()
   const { data: idea, error: fetchErr } = await supabase
     .from('content_ideas')
-    .select('id, type, title, pitch, source_alert_id, primary_program_slug, secondary_program_slugs')
+    .select('id, type, title, pitch, source_alert_id, primary_program_slug, secondary_program_slugs, card_slugs')
     .eq('id', id)
     .single()
   if (fetchErr || !idea) return { ok: false, error: fetchErr?.message ?? 'Idea not found' }
@@ -215,13 +237,25 @@ export async function writeArticleAction(id: string): Promise<WriteArticleResult
     if (alert) sourceAlert = alert
   }
 
-  const programs = await getProgramsForIdea(
-    supabase,
-    idea.source_alert_id,
-    idea.primary_program_slug,
-    idea.secondary_program_slugs,
-  )
-  const programContext = programs.length > 0 ? programsToSourceText(programs) : null
+  const [programs, cards] = await Promise.all([
+    getProgramsForIdea(
+      supabase,
+      idea.source_alert_id,
+      idea.primary_program_slug,
+      idea.secondary_program_slugs,
+    ),
+    getCardsForIdea(supabase, idea.card_slugs),
+  ])
+  // Combine program + card content into one program_context block. The
+  // writer treats both as authoritative first-party knowledge.
+  const programContextParts: string[] = []
+  if (programs.length > 0) programContextParts.push(programsToSourceText(programs))
+  if (cards.length > 0) {
+    programContextParts.push(
+      `═══ OFFICIAL CARD PAGE CONTENT ═══\n\n${cardsToSourceText(cards)}`
+    )
+  }
+  const programContext = programContextParts.length > 0 ? programContextParts.join('\n\n') : null
 
   const draft = await writeArticleBody({
     type: idea.type,
@@ -269,7 +303,7 @@ export async function factCheckArticleAction(id: string): Promise<FactCheckResul
   const supabase = createAdminClient()
   const { data: idea, error: fetchErr } = await supabase
     .from('content_ideas')
-    .select('id, title, article_body, source_alert_id, source_intel_id, primary_program_slug, secondary_program_slugs')
+    .select('id, title, article_body, source_alert_id, source_intel_id, primary_program_slug, secondary_program_slugs, card_slugs')
     .eq('id', id)
     .single()
   if (fetchErr || !idea) return { ok: false, error: fetchErr?.message ?? 'Idea not found' }
@@ -298,14 +332,20 @@ export async function factCheckArticleAction(id: string): Promise<FactCheckResul
       sourceUrl = intel.source_url ?? null
     }
   }
-  const programs = await getProgramsForIdea(
-    supabase,
-    idea.source_alert_id,
-    idea.primary_program_slug,
-    idea.secondary_program_slugs,
-  )
+  const [programs, cards] = await Promise.all([
+    getProgramsForIdea(
+      supabase,
+      idea.source_alert_id,
+      idea.primary_program_slug,
+      idea.secondary_program_slugs,
+    ),
+    getCardsForIdea(supabase, idea.card_slugs),
+  ])
   if (programs.length > 0) {
     sourceText = `${sourceText}\n\n═══ OFFICIAL PROGRAM PAGE CONTENT ═══\n\n${programsToSourceText(programs)}`.trim()
+  }
+  if (cards.length > 0) {
+    sourceText = `${sourceText}\n\n═══ OFFICIAL CARD PAGE CONTENT ═══\n\n${cardsToSourceText(cards)}`.trim()
   }
 
   const verifyRes = await verifyArticleBody({
@@ -390,7 +430,7 @@ export async function checkArticleAction(id: string): Promise<CheckArticleResult
   const supabase = createAdminClient()
   const { data: idea, error: fetchErr } = await supabase
     .from('content_ideas')
-    .select('id, title, article_body, source_alert_id, source_intel_id, primary_program_slug, secondary_program_slugs')
+    .select('id, title, article_body, source_alert_id, source_intel_id, primary_program_slug, secondary_program_slugs, card_slugs')
     .eq('id', id)
     .single()
   if (fetchErr || !idea) return { ok: false, error: fetchErr?.message ?? 'Idea not found' }
@@ -422,17 +462,23 @@ export async function checkArticleAction(id: string): Promise<CheckArticleResult
     }
   }
 
-  // Treat the official program page(s) as authoritative source material.
-  // Anything we wrote on the Page (sweet spots, transfer partners, hubs, etc.)
-  // becomes legal grounding for fact-check claims.
-  const programs = await getProgramsForIdea(
-    supabase,
-    idea.source_alert_id,
-    idea.primary_program_slug,
-    idea.secondary_program_slugs,
-  )
+  // Treat the official program page(s) AND card page(s) as authoritative
+  // source material. Anything we wrote on those pages becomes legal grounding
+  // for fact-check claims.
+  const [programs, cards] = await Promise.all([
+    getProgramsForIdea(
+      supabase,
+      idea.source_alert_id,
+      idea.primary_program_slug,
+      idea.secondary_program_slugs,
+    ),
+    getCardsForIdea(supabase, idea.card_slugs),
+  ])
   if (programs.length > 0) {
     sourceText = `${sourceText}\n\n═══ OFFICIAL PROGRAM PAGE CONTENT ═══\n\n${programsToSourceText(programs)}`.trim()
+  }
+  if (cards.length > 0) {
+    sourceText = `${sourceText}\n\n═══ OFFICIAL CARD PAGE CONTENT ═══\n\n${cardsToSourceText(cards)}`.trim()
   }
 
   const [verifyRes, voiceRes] = await Promise.all([
@@ -651,6 +697,18 @@ export async function updateContentIdeaBlogFieldsAction(
           .filter((s) => s.length > 0 && s !== rawProgramSlug)
       )
     )
+    // Card slugs (e.g. "chase-world-of-hyatt, chase-world-of-hyatt-business")
+    // come in as a comma-separated text input. Same parsing as secondary
+    // programs. Each slug pulls that card's content into source.
+    const rawCardSlugs = (formData.get('card_slugs') as string | null) ?? ''
+    const cardSlugs = Array.from(
+      new Set(
+        rawCardSlugs
+          .split(',')
+          .map((s) => s.trim().toLowerCase())
+          .filter((s) => s.length > 0)
+      )
+    )
     const featured = formData.get('featured') === 'on'
     const rawFeaturedRank = (formData.get('featured_rank') as string | null)?.trim() ?? ''
 
@@ -696,6 +754,7 @@ export async function updateContentIdeaBlogFieldsAction(
         hero_image_url: rawHeroImageUrl || null,
         primary_program_slug: rawProgramSlug || null,
         secondary_program_slugs: secondaryProgramSlugs.length > 0 ? secondaryProgramSlugs : null,
+        card_slugs: cardSlugs.length > 0 ? cardSlugs : null,
         featured,
         featured_rank,
         updated_at: new Date().toISOString(),
@@ -850,7 +909,7 @@ export async function rewriteFromVerifiedFactsAction(
   const { data: idea, error: fetchErr } = await supabase
     .from('content_ideas')
     .select(
-      'id, type, title, pitch, article_body, fact_checked_at, fact_check_claims, source_alert_id, primary_program_slug, secondary_program_slugs'
+      'id, type, title, pitch, article_body, fact_checked_at, fact_check_claims, source_alert_id, primary_program_slug, secondary_program_slugs, card_slugs'
     )
     .eq('id', id)
     .single()
@@ -908,14 +967,24 @@ export async function rewriteFromVerifiedFactsAction(
   // writer + fact-checker use. This lets the rewrite generalize ("Cat 4
   // properties typically run 15K standard") instead of restating only the
   // narrow set of named properties that survived fact-check.
-  const programs = await getProgramsForIdea(
-    supabase,
-    idea.source_alert_id,
-    idea.primary_program_slug,
-    idea.secondary_program_slugs,
-  )
+  const [programs, cards] = await Promise.all([
+    getProgramsForIdea(
+      supabase,
+      idea.source_alert_id,
+      idea.primary_program_slug,
+      idea.secondary_program_slugs,
+    ),
+    getCardsForIdea(supabase, idea.card_slugs),
+  ])
+  const programContextParts: string[] = []
+  if (programs.length > 0) programContextParts.push(programsToSourceText(programs))
+  if (cards.length > 0) {
+    programContextParts.push(
+      `═══ OFFICIAL CARD PAGE CONTENT ═══\n\n${cardsToSourceText(cards)}`
+    )
+  }
   const programContext =
-    programs.length > 0 ? programsToSourceText(programs) : null
+    programContextParts.length > 0 ? programContextParts.join('\n\n') : null
 
   const { rewriteArticleFromFacts } = await import('@/utils/ai/rewriteArticleFromFacts')
   const result = await rewriteArticleFromFacts({

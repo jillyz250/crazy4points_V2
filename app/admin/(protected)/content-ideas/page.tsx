@@ -53,6 +53,7 @@ interface ContentIdeaRow {
   hero_image_url: string | null
   primary_program_slug: string | null
   secondary_program_slugs: string[] | null
+  card_slugs: string[] | null
   reading_time_minutes: number | null
   featured: boolean | null
   featured_rank: number | null
@@ -1071,19 +1072,27 @@ function SourcesUsed({ idea }: { idea: ContentIdeaRow }) {
     (c) => c.supported === true && !!c.source_excerpt
   ).length
 
-  // External domains cited by web verification.
-  const hostCounts = new Map<string, number>()
+  // External domains cited by web verification, plus a representative URL
+  // per host (the first claim's URL for that host) so the pill can link to
+  // the actual page that backed the claim.
+  type HostInfo = { count: number; firstUrl: string }
+  const hostInfo = new Map<string, HostInfo>()
   for (const c of claims) {
     if (!c.web_url) continue
     try {
       const host = new URL(c.web_url).host.replace(/^www\./, '')
-      hostCounts.set(host, (hostCounts.get(host) ?? 0) + 1)
+      const existing = hostInfo.get(host)
+      if (existing) {
+        existing.count += 1
+      } else {
+        hostInfo.set(host, { count: 1, firstUrl: c.web_url })
+      }
     } catch {
       /* skip invalid URLs */
     }
   }
-  const topExternal = Array.from(hostCounts.entries())
-    .sort((a, b) => b[1] - a[1])
+  const topExternal = Array.from(hostInfo.entries())
+    .sort((a, b) => b[1].count - a[1].count)
     .slice(0, 3)
 
   // If neither your pages nor external sources contributed, skip.
@@ -1115,14 +1124,41 @@ function SourcesUsed({ idea }: { idea: ContentIdeaRow }) {
       </span>
 
       <SourcePill
-        label="Your program pages"
+        label={
+          (idea.card_slugs ?? []).length > 0 && idea.primary_program_slug
+            ? '★ Your pages'
+            : (idea.card_slugs ?? []).length > 0
+              ? '★ Your card pages'
+              : '★ Your program pages'
+        }
         count={yourPagesCount}
-        emphasized
         warn={yourPagesCount === 0}
+        href={
+          // Prefer the program page if both exist; fall back to the first
+          // tagged card page. This is where the editor can eyeball the
+          // source data themselves.
+          idea.primary_program_slug
+            ? `/programs/${idea.primary_program_slug}`
+            : (idea.card_slugs ?? []).length > 0
+              ? `/cards/${idea.card_slugs![0]}`
+              : undefined
+        }
+        title={
+          yourPagesCount === 0
+            ? "No claims grounded against your pages. Click to open the source page anyway."
+            : `${yourPagesCount} claim${yourPagesCount === 1 ? '' : 's'} grounded against your data — click to open the source page.`
+        }
       />
 
-      {topExternal.map(([host, count]) => (
-        <SourcePill key={host} label={host} count={count} />
+      {topExternal.map(([host, info]) => (
+        <SourcePill
+          key={host}
+          label={host}
+          count={info.count}
+          href={info.firstUrl}
+          external
+          title={`Click to open the source web verification cited (${info.count} claim${info.count === 1 ? '' : 's'} from this domain).`}
+        />
       ))}
 
       {yourPagesCount === 0 && (
@@ -1145,33 +1181,50 @@ function SourcesUsed({ idea }: { idea: ContentIdeaRow }) {
 function SourcePill({
   label,
   count,
-  emphasized,
   warn,
+  href,
+  external,
+  title,
 }: {
   label: string
   count: number
-  emphasized?: boolean
   warn?: boolean
+  /** When set, the pill renders as an anchor and is clickable. */
+  href?: string
+  /** External link — opens in a new tab with rel=noopener. */
+  external?: boolean
+  /** Tooltip on hover. */
+  title?: string
 }) {
+  // Color logic:
+  //   - warn (yellow):    Your program pages with 0 claims — signal that something's
+  //                       missing (no primary_program_slug, empty program row, etc.)
+  //   - count > 0 (green): the source successfully verified at least one claim,
+  //                       regardless of whether it's yours or external
+  //   - count = 0 (gray):  shouldn't render at this point, but safe fallback
   const palette = warn
     ? { bg: '#fffbeb', border: '#fcd34d', fg: '#92400e' }
-    : emphasized
+    : count > 0
       ? { bg: '#dcfce7', border: '#86efac', fg: '#15803d' }
       : { bg: 'var(--admin-surface-alt)', border: 'var(--admin-border)', fg: 'var(--admin-text)' }
-  return (
-    <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '0.3125rem',
-        padding: '0.1875rem 0.5rem',
-        borderRadius: '999px',
-        background: palette.bg,
-        border: `1px solid ${palette.border}`,
-        color: palette.fg,
-        fontWeight: emphasized ? 700 : 500,
-      }}
-    >
+  // "Your program pages" pill is bold to mark it as primary/preferred source.
+  const isYours = label.startsWith('★')
+  const baseStyle: React.CSSProperties = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.3125rem',
+    padding: '0.1875rem 0.5rem',
+    borderRadius: '999px',
+    background: palette.bg,
+    border: `1px solid ${palette.border}`,
+    color: palette.fg,
+    fontWeight: isYours ? 700 : 500,
+    textDecoration: 'none',
+    cursor: href ? 'pointer' : 'default',
+    transition: 'opacity 0.12s ease',
+  }
+  const inner = (
+    <>
       <span>{label}</span>
       <span
         style={{
@@ -1184,6 +1237,28 @@ function SourcePill({
       >
         {count}
       </span>
+      {href && external && (
+        <span aria-hidden style={{ fontSize: '0.625rem', opacity: 0.7 }}>↗</span>
+      )}
+    </>
+  )
+  if (href) {
+    return (
+      <a
+        href={href}
+        title={title}
+        target={external ? '_blank' : undefined}
+        rel={external ? 'noopener noreferrer' : undefined}
+        style={baseStyle}
+        onMouseEnter={undefined}
+      >
+        {inner}
+      </a>
+    )
+  }
+  return (
+    <span style={baseStyle} title={title}>
+      {inner}
     </span>
   )
 }
