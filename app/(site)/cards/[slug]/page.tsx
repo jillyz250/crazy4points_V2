@@ -296,34 +296,103 @@ export default async function CardPage({
         <section
           style={{
             marginBottom: '2.5rem',
-            padding: '1.25rem 1.5rem',
+            padding: '1.25rem 1.5rem 1.375rem',
             background: 'var(--color-background-soft)',
-            border: '1px solid var(--color-border-soft)',
+            borderLeft: '4px solid var(--color-accent)',
+            borderTop: '1px solid var(--color-border-soft)',
+            borderRight: '1px solid var(--color-border-soft)',
+            borderBottom: '1px solid var(--color-border-soft)',
             borderRadius: 'var(--radius-card)',
           }}
         >
           <div
             style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
               fontSize: '0.6875rem',
               textTransform: 'uppercase',
-              letterSpacing: '0.08em',
+              letterSpacing: '0.1em',
               fontWeight: 700,
               color: 'var(--color-primary)',
-              marginBottom: '0.625rem',
+              marginBottom: '0.875rem',
             }}
           >
+            <span
+              aria-hidden="true"
+              style={{
+                width: '1.25rem',
+                height: '1.25rem',
+                borderRadius: '9999px',
+                background: 'var(--color-accent)',
+                color: '#fff',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+              }}
+            >
+              i
+            </span>
             Good to know before you apply
           </div>
-          <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.9375rem', lineHeight: 1.6 }}>
+          <ul
+            style={{
+              margin: 0,
+              padding: 0,
+              listStyle: 'none',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.625rem',
+              fontSize: '0.9375rem',
+              lineHeight: 1.55,
+              color: 'var(--color-text-primary)',
+            }}
+          >
             {card.good_to_know
               .split('\n')
               .map((line) => line.trim())
               .filter((line) => line.startsWith('- '))
-              .map((line, i) => (
-                <li key={i} style={{ marginBottom: '0.375rem' }}>
-                  {line.slice(2)}
-                </li>
-              ))}
+              .map((line, i) => {
+                const text = line.slice(2)
+                const isWarning = /^(NO\s|Heads up|Important|Watch out|Note:)/i.test(text)
+                // Bold the lead phrase — everything before the first " - " or " (" or
+                // ". " — the rest is detail. Makes the bullets scannable.
+                const splitMatch = text.match(/^(.*?)( - | \(|\. )(.*)$/)
+                const leadPhrase = splitMatch ? splitMatch[1] : text
+                const separator = splitMatch ? splitMatch[2] : ''
+                const detail = splitMatch ? splitMatch[3] : ''
+                return (
+                  <li
+                    key={i}
+                    style={{
+                      display: 'flex',
+                      gap: '0.625rem',
+                      alignItems: 'flex-start',
+                    }}
+                  >
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        flexShrink: 0,
+                        width: '0.5rem',
+                        height: '0.5rem',
+                        borderRadius: '9999px',
+                        marginTop: '0.4375rem',
+                        background: isWarning
+                          ? 'var(--color-accent)'
+                          : 'var(--color-primary)',
+                      }}
+                    />
+                    <span>
+                      <strong style={{ fontWeight: 600 }}>{leadPhrase}</strong>
+                      {separator}
+                      {detail}
+                    </span>
+                  </li>
+                )
+              })}
           </ul>
         </section>
       )}
