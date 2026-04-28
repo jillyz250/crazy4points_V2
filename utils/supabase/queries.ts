@@ -1526,3 +1526,55 @@ export type CreditCardBenefitInsert   = Omit<CreditCardBenefit, 'id' | 'created_
 export type CreditCardWelcomeBonusInsert = Omit<CreditCardWelcomeBonus, 'id' | 'created_at' | 'updated_at'>
 export type ProgramTransferInsert   = Omit<ProgramTransfer, 'id' | 'created_at' | 'updated_at'>
 
+export interface CardDetailBundle {
+  card: CreditCard
+  issuer: Issuer
+  currency_program: { slug: string; name: string } | null
+  co_brand_program: { slug: string; name: string } | null
+  earn_rates: CreditCardEarnRate[]
+  benefits: CreditCardBenefit[]
+  current_welcome_bonus: CreditCardWelcomeBonus | null
+}
+
+export async function getCardDetailBySlug(
+  supabase: SupabaseClient,
+  slug: string,
+): Promise<CardDetailBundle | null> {
+  const { data: card, error: cardError } = await supabase
+    .from('credit_cards')
+    .select('*')
+    .eq('slug', slug)
+    .eq('is_active', true)
+    .maybeSingle()
+  if (cardError) throw cardError
+  if (!card) return null
+  const c = card as CreditCard
+
+  const [issuerRes, currencyRes, coBrandRes, earnRatesRes, benefitsRes, subRes] = await Promise.all([
+    supabase.from('issuers').select('*').eq('id', c.issuer_id).single(),
+    c.currency_program_id
+      ? supabase.from('programs').select('slug, name').eq('id', c.currency_program_id).maybeSingle()
+      : Promise.resolve({ data: null, error: null } as { data: { slug: string; name: string } | null; error: null }),
+    c.co_brand_program_id
+      ? supabase.from('programs').select('slug, name').eq('id', c.co_brand_program_id).maybeSingle()
+      : Promise.resolve({ data: null, error: null } as { data: { slug: string; name: string } | null; error: null }),
+    supabase.from('credit_card_earn_rates').select('*').eq('card_id', c.id).order('multiplier', { ascending: false }),
+    supabase.from('credit_card_benefits').select('*').eq('card_id', c.id).order('sort_order', { ascending: true }),
+    supabase.from('credit_card_welcome_bonuses').select('*').eq('card_id', c.id).eq('is_current', true).maybeSingle(),
+  ])
+
+  if (issuerRes.error) throw issuerRes.error
+  if (earnRatesRes.error) throw earnRatesRes.error
+  if (benefitsRes.error) throw benefitsRes.error
+
+  return {
+    card: c,
+    issuer: issuerRes.data as Issuer,
+    currency_program: currencyRes.data as { slug: string; name: string } | null,
+    co_brand_program: coBrandRes.data as { slug: string; name: string } | null,
+    earn_rates: (earnRatesRes.data ?? []) as CreditCardEarnRate[],
+    benefits: (benefitsRes.data ?? []) as CreditCardBenefit[],
+    current_welcome_bonus: subRes.data as CreditCardWelcomeBonus | null,
+  }
+}
+
