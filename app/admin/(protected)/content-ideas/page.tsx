@@ -617,13 +617,18 @@ interface FailureIssue {
 function FailureNotes({ idea }: { idea: ContentIdeaRow }) {
   const issues: FailureIssue[] = []
 
-  // Fact-check: list each unsupported claim with its web verdict if present.
-  // If web verdict says likely_correct → show as 'ok' (green) so the editor
-  // can see at a glance which claims are externally verified.
+  // Fact-check: list each claim that's actually a concern. Skip claims that
+  // started as unsupported but were validated by the web-verification pass —
+  // those are already verified (just by a different mechanism) and shouldn't
+  // clutter the failures list.
   if (Array.isArray(idea.fact_check_claims)) {
     const claims = idea.fact_check_claims as FlaggedClaim[]
     const flagged = claims.filter(
-      (c) => c && c.supported === false && !c.acknowledged
+      (c) =>
+        c &&
+        c.supported === false &&
+        !c.acknowledged &&
+        c.web_verdict !== 'likely_correct'
     )
     for (const c of flagged) {
       const claimText = c.text ?? c.claim ?? '(no claim text)'
@@ -812,8 +817,14 @@ function WorkflowSteps({
   const claims = Array.isArray(idea.fact_check_claims)
     ? (idea.fact_check_claims as FlaggedClaim[])
     : []
+  // Flagged = claim that didn't match source AND wasn't rescued by web verify.
+  // Web-verified-correct claims are already counted in verifiedCount; they
+  // shouldn't double-count here.
   const flaggedCount = claims.filter(
-    (c) => c.supported === false && !c.acknowledged
+    (c) =>
+      c.supported === false &&
+      !c.acknowledged &&
+      c.web_verdict !== 'likely_correct'
   ).length
   const verifiedCount = claims.filter(
     (c) => c.supported === true || c.web_verdict === 'likely_correct'
