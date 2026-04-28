@@ -384,7 +384,12 @@ export async function factCheckArticleAction(id: string): Promise<FactCheckResul
   if (updateErr) return { ok: false, error: updateErr.message }
 
   revalidatePath('/admin/content-ideas')
-  const flagged = grounded.filter((c) => !c.supported && c.severity === 'high').length
+  // Exclude claims that the web-verification pass marked likely_correct —
+  // those are de facto resolved and shouldn't be counted as flagged in the
+  // FactCheckButton's "N flagged" toast or the workflow stepper.
+  const flagged = grounded.filter(
+    (c) => !c.supported && c.severity === 'high' && c.web_verdict !== 'likely_correct'
+  ).length
   return { ok: true, flagged }
 }
 
@@ -526,7 +531,10 @@ export async function checkArticleAction(id: string): Promise<CheckArticleResult
   if (updateErr) return { ok: false, error: updateErr.message }
 
   revalidatePath('/admin/content-ideas')
-  const factFlagged = grounded.filter((c) => !c.supported && c.severity === 'high').length
+  // Same exclusion as factCheckArticleAction — web-rescued claims aren't flagged.
+  const factFlagged = grounded.filter(
+    (c) => !c.supported && c.severity === 'high' && c.web_verdict !== 'likely_correct'
+  ).length
   return { ok: true, factFlagged, voicePass: voiceRes.pass }
 }
 
