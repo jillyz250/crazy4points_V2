@@ -220,22 +220,42 @@ export default async function BlogIndex({ searchParams }: Props) {
     return true;
   });
 
-  // Build the second-row chip list when a type is active.
+  // Compute the set of program/card slugs that actually appear on at
+  // least one post within the current category filter. A flat list of
+  // every program in the DB (40+ airlines, etc.) is unbrowsable; we
+  // only want chips for programs/cards readers can actually click into
+  // and find content for. The list grows organically as you publish.
+  const taggedProgramSlugsInCategory = new Set<string>();
+  const taggedCardSlugsInCategory = new Set<string>();
+  for (const post of allPosts) {
+    if (post.primary_program_slug) taggedProgramSlugsInCategory.add(post.primary_program_slug);
+    for (const s of post.secondary_program_slugs ?? []) {
+      if (s) taggedProgramSlugsInCategory.add(s);
+    }
+    for (const s of post.card_slugs ?? []) {
+      if (s) taggedCardSlugsInCategory.add(s);
+    }
+  }
+
+  // Build second-row chip list when a type is active. Filtered to slugs
+  // that appear in at least one post in the current category.
   let secondRowChips: { slug: string; name: string; paramKey: 'program' | 'card' }[] = [];
   if (typeFilter === 'airlines') {
     secondRowChips = programs
-      .filter((p) => p.type === 'airline')
+      .filter((p) => p.type === 'airline' && taggedProgramSlugsInCategory.has(p.slug))
       .map((p) => ({ slug: p.slug, name: p.name, paramKey: 'program' as const }));
   } else if (typeFilter === 'hotels') {
     secondRowChips = programs
-      .filter((p) => p.type === 'hotel')
+      .filter((p) => p.type === 'hotel' && taggedProgramSlugsInCategory.has(p.slug))
       .map((p) => ({ slug: p.slug, name: p.name, paramKey: 'program' as const }));
   } else if (typeFilter === 'cards') {
-    secondRowChips = cards.map((c) => ({
-      slug: c.slug,
-      name: c.name ?? c.slug,
-      paramKey: 'card' as const,
-    }));
+    secondRowChips = cards
+      .filter((c) => taggedCardSlugsInCategory.has(c.slug))
+      .map((c) => ({
+        slug: c.slug,
+        name: c.name ?? c.slug,
+        paramKey: 'card' as const,
+      }));
   }
   secondRowChips.sort((a, b) => a.name.localeCompare(b.name));
 
@@ -550,19 +570,35 @@ export default async function BlogIndex({ searchParams }: Props) {
   );
 }
 
-function CategoryChip({
+/**
+ * Unified filter chip style. Used by category / type / sub-chip rows.
+ * Earlier rounds had three different visual weights (solid purple,
+ * solid gold, light tint) for "active" — all reading as separate
+ * brand commitments. One pattern is enough: light tinted bg + primary
+ * border + primary text for active, plain white for inactive.
+ *
+ * Size variants — `compact` for the second-row sub-chips (smaller and
+ * looser tracking so a long list of program names stays scannable),
+ * default for the upper rows.
+ */
+function FilterChip({
   href,
   label,
   active,
+  size = 'default',
 }: {
   href: string;
   label: string;
   active: boolean;
+  size?: 'default' | 'compact';
 }) {
-  const base =
-    'inline-flex items-center rounded-full px-4 py-1.5 font-ui text-xs font-medium uppercase tracking-[0.1em] transition-colors';
+  const sizeCls =
+    size === 'compact'
+      ? 'px-3 py-1 text-[11px] font-medium'
+      : 'px-4 py-1.5 text-xs font-medium uppercase tracking-[0.1em]';
+  const base = `inline-flex items-center rounded-full font-ui transition-colors ${sizeCls}`;
   const activeCls =
-    'bg-[var(--color-primary)] text-white shadow-[var(--shadow-soft)]';
+    'border border-[var(--color-primary)] bg-[var(--color-background-soft)] text-[var(--color-primary)] font-semibold';
   const inactiveCls =
     'border border-[var(--color-border-soft)] bg-white text-[var(--color-text-secondary)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]';
   return (
@@ -572,31 +608,15 @@ function CategoryChip({
   );
 }
 
-/**
- * Top-level type filter (Airlines / Hotels / Credit Cards). Visually
- * distinct from CategoryChip — slightly larger, gold-accent active state
- * so the reader can tell they're working two filter axes.
- */
-function TypeChip({
-  href,
-  label,
-  active,
-}: {
-  href: string;
-  label: string;
-  active: boolean;
-}) {
-  const base =
-    'inline-flex items-center rounded-full px-4 py-1.5 font-ui text-xs font-semibold uppercase tracking-[0.1em] transition-colors';
-  const activeCls =
-    'bg-[var(--color-accent)] text-[var(--color-text-primary)] shadow-[var(--shadow-soft)]';
-  const inactiveCls =
-    'border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] text-[var(--color-text-secondary)] hover:border-[var(--color-accent)] hover:text-[var(--color-text-primary)]';
-  return (
-    <Link href={href} className={`${base} ${active ? activeCls : inactiveCls}`}>
-      {label}
-    </Link>
-  );
+// Back-compat aliases — kept so the call sites in the BlogIndex render
+// don't need to change. All three end up using FilterChip with the same
+// active style; size switches for sub-chips.
+function CategoryChip(props: { href: string; label: string; active: boolean }) {
+  return <FilterChip {...props} />;
+}
+
+function TypeChip(props: { href: string; label: string; active: boolean }) {
+  return <FilterChip {...props} />;
 }
 
 /**
@@ -629,31 +649,8 @@ function ActiveFilterPill({
   );
 }
 
-/**
- * Second-row narrowing chip (specific program or card). Smaller and
- * lighter than CategoryChip / TypeChip so the visual hierarchy reads:
- * Category > Type > Specific.
- */
-function SubChip({
-  href,
-  label,
-  active,
-}: {
-  href: string;
-  label: string;
-  active: boolean;
-}) {
-  const base =
-    'inline-flex items-center rounded-full px-3 py-1 font-ui text-[11px] font-medium tracking-wide transition-colors';
-  const activeCls =
-    'bg-[var(--color-primary)] text-white';
-  const inactiveCls =
-    'border border-[var(--color-border-soft)] bg-white text-[var(--color-text-secondary)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]';
-  return (
-    <Link href={href} className={`${base} ${active ? activeCls : inactiveCls}`}>
-      {label}
-    </Link>
-  );
+function SubChip(props: { href: string; label: string; active: boolean }) {
+  return <FilterChip {...props} size="compact" />;
 }
 
 /**
