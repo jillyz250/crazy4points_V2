@@ -6,6 +6,42 @@ Run through this top-to-bottom for every airline. Don't skip — items that look
 
 ---
 
+## ⚠ Carrier vs. loyalty program — pick the right kind of page
+
+Most airlines have one row representing both the carrier AND its loyalty program (e.g., `delta` covers both Delta Air Lines and Delta SkyMiles). That's fine — they're inseparable in reader minds.
+
+**But when two carriers share one loyalty program, they need three separate rows:**
+
+| Joint program situation | Rows |
+|---|---|
+| Alaska + Hawaiian → Atmos Rewards | `atmos` (program), `alaska` (carrier), `hawaiian` (carrier) |
+| Air France + KLM → Flying Blue | `flying_blue` (program), `air_france` (carrier), `klm` (carrier) |
+| British Airways + Iberia → Avios | `ba_avios` (program — may be renamed), `british_airways` (carrier), `iberia` (carrier) |
+
+**Why split:**
+- Reader searching "Alaska Airlines lounge" wants the carrier page (hubs, fleet, brand)
+- Reader searching "Atmos transfer partners" wants the program page (currency, status, partner charts)
+- One page can't be both without confusing both audiences
+
+**Content division:**
+
+| Content | Program page | Carrier page |
+|---|---|---|
+| Loyalty currency, transfer partners, tier benefits | ✅ | mention briefly + link to program |
+| Sweet spots, award charts, partner award booking | ✅ | — |
+| Status match policy | ✅ | — |
+| Hubs, route network | — | ✅ |
+| Fleet (widebody / regional / etc.) | — | ✅ |
+| Brand identity, customer experience | — | ✅ |
+| Lounge access (carrier-operated lounges) | — | ✅ (program page mentions alliance lounge access) |
+| Recent service changes, route launches | — | ✅ |
+
+**Cross-link in both directions:**
+- Carrier page intro → "Earn miles via [Program] →" links to program
+- Program page → "Operating carriers: [Carrier], [Carrier]" links to each
+
+---
+
 ## 0. Prep — does the program row exist?
 
 - [ ] Open `/admin/programs`, switch to **Airlines** tab, filter by carrier name
