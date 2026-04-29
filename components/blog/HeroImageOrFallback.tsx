@@ -24,14 +24,18 @@ export default function HeroImageOrFallback({
 }: Props) {
   const [errored, setErrored] = useState(false);
   const isFull = variant === 'full';
-  // Full-width hero used to be aspect-[16/9] which on a ~1280px container
-  // renders ~720px tall — half the viewport on most laptops. The article
-  // felt like it started way below the fold. Switched to a banner ratio
-  // with a hard max-height cap so the hero is present but doesn't dominate.
-  // Thumbnail variant unchanged (3:2 is right inside small grid cells).
+  // Full-width hero (article page) — 21:9 banner with hard max-height cap.
+  // Was 16:9 which rendered ~720px tall in a 1280px container, eating
+  // half the viewport.
+  //
+  // Thumbnail (blog index card) — was aspect-[3/2] which on a 2-column
+  // ~620px-wide card rendered ~415px tall. Each card was eating the
+  // viewport and pushing content below the fold. 16:9 is the standard
+  // blog-card ratio; capped at 280px so cards stay scannable at wide
+  // breakpoints.
   const aspectClass = isFull
     ? 'aspect-[21/9] max-h-[360px] md:max-h-[420px]'
-    : 'aspect-[3/2]';
+    : 'aspect-[16/9] max-h-[240px] md:max-h-[280px]';
 
   return (
     <div
