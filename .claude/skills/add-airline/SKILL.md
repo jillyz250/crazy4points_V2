@@ -142,7 +142,46 @@ Draft each of these 9 fields:
 
 Brand voice in **intro** and **sweet spots**: voicey. Brand voice in **transfer partners**, **tier benefits**, **lounge access**, **quirks**: neutral and factual.
 
-Present all 9 drafts to the user in a single message structured as paste-ready blocks. Each block clearly labeled.
+**Voice ≠ license to make things up.** "Voicey" describes HOW you say it (sassy traveler-friend, tight pacing). The FACTS underlying voicey copy must still be true. The intro is where most fact errors slip in because the playful tone makes claims feel softer ("only carrier with X", "first to do Y", "the best Z"). Those are the exact claims that get drafted from memory and turn out wrong. Treat every factual claim — even in voicey fields — as something that needs a source.
+
+**Banned voicey-field claim patterns (rewrite or verify):**
+- "only [carrier/program] that..." → verify or remove. Almost always has counterexamples.
+- "first to..." / "the original..." → verify with a dated source.
+- "best [in class]" / "most [whatever]" → opinion in fact's clothing. Hedge or attribute.
+- Cabin counts, fleet sizes, route counts, hub counts → these change quarterly. Verify against the carrier's own fleet/network page.
+- Dates of recent changes ("after the 2026 refresh", "since the 2025 launch") → verify against the carrier newsroom.
+- Comparative claims about competitors → verify both sides or drop the comparison.
+
+**Confidence tagging on every draft (REQUIRED):**
+
+Present each field's draft with a confidence score AND a per-claim audit. Format:
+
+```
+**[Field name] — Confidence: HIGH / MEDIUM / LOW**
+
+[The draft text]
+
+**Self-audit:**
+| Claim | Confidence | Source |
+|---|---|---|
+| "French flag carrier" | HIGH | stable fact |
+| "only European carrier with First Class" | LOW | memory only — Lufthansa First, BA First also exist; rewrite |
+| "2026 cabin refresh" | LOW | unverified date — drop or hedge |
+```
+
+Confidence rubric:
+- **HIGH** — directly drafted from official paste-in OR well-established stable fact (carrier exists, alliance membership, primary hub IATA code, etc.)
+- **MEDIUM** — drafted from a 2026-dated trusted blog AND cross-checked with one other source; OR detail likely-accurate-but-changes-occasionally (cabin counts, fleet types, route counts)
+- **LOW** — drafted from memory / training data with no verification; OR a "first / only / best" claim; OR a recent-date reference I haven't confirmed
+
+If ANY claim is LOW and the field would be presented as-is, either:
+1. WebSearch to upgrade it to MEDIUM/HIGH, or
+2. Remove the claim, or
+3. Hedge with "as of [date]" / "verify before relying on this"
+
+Never present LOW claims to the user as if they're verified.
+
+Present all 9 drafts to the user in a single message structured as paste-ready blocks. Each block clearly labeled with confidence + per-claim audit.
 
 ### Step 3 — Cross-fact-check via Copilot
 
