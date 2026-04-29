@@ -159,19 +159,35 @@ function ArticleCard({ post }: { post: BlogRow }) {
   const categoryLabel = getBlogCategoryLabel(post.category);
   const dateStr = formatDate(post.published_at);
 
+  // When the post has a real hero image, show it. When it doesn't, skip
+  // the branded fallback block entirely — it ate too much vertical space
+  // and added no information. A 4px purple top edge keeps the card
+  // visually anchored to the brand without occupying vertical real
+  // estate. Category pill carries the only "what is this" signal.
+  const hasHeroImage = !!post.hero_image_url;
+
   return (
     <Link
       href={`/blog/${post.slug}`}
-      className="group flex flex-col gap-4 rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-white p-5 shadow-[var(--shadow-soft)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+      className={`group flex flex-col gap-4 overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-white shadow-[var(--shadow-soft)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${
+        hasHeroImage ? 'p-5' : 'pt-0'
+      }`}
     >
-      <HeroImageOrFallback
-        imageUrl={post.hero_image_url}
-        title={post.title}
-        category={post.category}
-        variant="thumbnail"
-      />
+      {hasHeroImage ? (
+        <HeroImageOrFallback
+          imageUrl={post.hero_image_url}
+          title={post.title}
+          category={post.category}
+          variant="thumbnail"
+        />
+      ) : (
+        // 4px branded top edge in place of the fallback hero block.
+        // Category-keyed accent kept simple to start (primary purple);
+        // can split per-category later if useful.
+        <div className="h-1 w-full bg-[var(--color-primary)]" aria-hidden />
+      )}
 
-      <div className="flex flex-col gap-3">
+      <div className={`flex flex-col gap-3 ${hasHeroImage ? '' : 'p-5 pt-3'}`}>
         {categoryLabel && (
           <span className="self-start rounded-full bg-[var(--color-background-soft)] px-2.5 py-1 font-ui text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-primary)]">
             {categoryLabel}
