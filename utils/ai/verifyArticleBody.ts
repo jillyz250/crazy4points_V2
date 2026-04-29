@@ -12,6 +12,7 @@ import {
   detectUnauditedComparisons,
   stripComparisonAudits,
 } from './verifyComparisons'
+import { findSegmentForExcerpt, type SourceSegment } from './sourceTextSegments'
 
 export type { ClaimSupportState, VerifyClaim, VerifyResult } from './verifyAlertDraft'
 
@@ -273,6 +274,14 @@ export async function verifyArticleBody(args: {
   title: string
   article_body: string
   source_text: string | null
+  /**
+   * Phase 4 — optional labeled segments for per-slug grounding. When
+   * provided, each Sonnet-returned claim gets a `source_slug` stamp
+   * derived by matching its `source_excerpt` against segment text.
+   * Pre-Phase-4 callers can omit this; pills just won't get per-slug
+   * counts in that case.
+   */
+  source_segments?: SourceSegment[]
 }): Promise<VerifyResult | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
@@ -336,11 +345,28 @@ export async function verifyArticleBody(args: {
     if (!sourceText) {
       claims = claims.map((c) => ({ ...c, supported: 'unsupported' as const, source_excerpt: null }))
     }
+    // Phase 4 — stamp each Sonnet-returned claim with the slug of the
+    // segment whose text contains the excerpt. Synthetic claims from the
+    // comparison-audit pre-pass get fixed pseudo-slugs so the UI can
+    // distinguish "this came from deterministic math" from "this came
+    // from a T1 surface."
+    const segments = args.source_segments ?? []
+    const claimsWithSlug = claims.map((c) => ({
+      ...c,
+      source_slug: findSegmentForExcerpt(c.source_excerpt, segments),
+    }))
+    const auditClaimsWithSlug = auditClaims.map((c) => ({
+      ...c,
+      source_slug: 'comparison_audit' as const,
+    }))
+    const unauditedClaimsWithSlug = unauditedClaims.map((c) => ({
+      ...c,
+      source_slug: 'unaudited_comparison' as const,
+    }))
     // Phase 2 — prepend deterministic comparison-audit results. These are
     // ground truth (we computed the math ourselves), so they take priority
-    // over Sonnet's natural-language extraction. Any unaudited-comparison
-    // synthetic claims also surface here as high-severity flags.
-    const merged = [...auditClaims, ...unauditedClaims, ...claims]
+    // over Sonnet's natural-language extraction.
+    const merged = [...auditClaimsWithSlug, ...unauditedClaimsWithSlug, ...claimsWithSlug]
     return { claims: merged, checked_at: new Date().toISOString() }
   } catch (err) {
     console.error('[verifyArticleBody] Sonnet call failed:', err)

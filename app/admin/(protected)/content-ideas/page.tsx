@@ -1070,10 +1070,15 @@ function Step({
 }
 
 interface SourceClaim {
-  supported?: boolean
+  supported?: boolean | 'unsupported'
   source_excerpt?: string | null
   web_verdict?: string | null
   web_url?: string | null
+  // Phase 4 — per-slug grounding. Format: 'program:<slug>', 'card:<slug>',
+  // 'alert:<id>', 'intel:<id>', 'comparison_audit', 'unaudited_comparison',
+  // or null. Older claims (pre-Phase-4) won't have this field — pills fall
+  // back to aggregate counts in that case.
+  source_slug?: string | null
 }
 
 /**
@@ -1092,12 +1097,32 @@ function SourcesUsed({ idea }: { idea: ContentIdeaRow }) {
   const claims = idea.fact_check_claims as SourceClaim[]
   if (claims.length === 0) return null
 
-  // "Your program pages" = claims grounded by source comparison (source_excerpt
-  // populated). These came from the programs table, which is the same data
-  // rendered on /programs/[slug].
+  // "Your pages" aggregate count = claims grounded by source comparison
+  // (source_excerpt populated). These came from a tagged T1 surface — but
+  // we now track WHICH surface via source_slug.
   const yourPagesCount = claims.filter(
     (c) => c.supported === true && !!c.source_excerpt
   ).length
+
+  // Phase 4 — per-slug counts so each pill reflects what THAT surface
+  // actually contributed. Buckets:
+  //   'program:<slug>'  → /programs/<slug> pill
+  //   'card:<slug>'     → /cards/<slug> pill
+  //   'alert:<id>'      → source-alert fallback pill
+  //   (other slugs ignored here; SourceTextPanel exposes the rest.)
+  // Falls back to 0 cleanly when no claims tagged for a given slug — the
+  // pill still renders (it's a navigational link to the page) but the
+  // count chip honestly shows 0.
+  const claimCountBySlug = new Map<string, number>()
+  for (const c of claims) {
+    if (c.supported !== true || !c.source_excerpt || !c.source_slug) continue
+    claimCountBySlug.set(c.source_slug, (claimCountBySlug.get(c.source_slug) ?? 0) + 1)
+  }
+  const countFor = (slug: string) => claimCountBySlug.get(slug) ?? 0
+  // True when no claim has a source_slug at all — old fact-checks pre-
+  // Phase-4 (or empty results). In that case we fall back to showing
+  // pills without per-slug counts and rely on the aggregate badge.
+  const hasAnySlug = claims.some((c) => !!c.source_slug)
 
   // External domains cited by web verification, plus a representative URL
   // per host (the first claim's URL for that host) so the pill can link to
@@ -1151,36 +1176,76 @@ function SourcesUsed({ idea }: { idea: ContentIdeaRow }) {
       </span>
 
       {/*
+       * Aggregate T1 grounding badge — shows total claims grounded
+       * against any of your tagged surfaces. Surfaces the win at a
+       * glance regardless of how many surfaces contributed. Hidden
+       * when 0 (the per-slug pills will still render with their own
+       * 0 counts to make the gap obvious).
+       */}
+      {yourPagesCount > 0 && (
+        <SourcePill
+          label="✓ T1 grounded"
+          count={yourPagesCount}
+          title={`${yourPagesCount} claim${yourPagesCount === 1 ? '' : 's'} grounded against your tagged T1 surfaces. Per-pill counts below show which surface contributed which claims.`}
+        />
+      )}
+
+      {/*
        * One pill per actual T1 surface so the editor can see WHICH pages
-       * were in scope, not just an aggregated "Your pages" count. Each
-       * pill links to the rendered page so the editor can eyeball the
-       * source data directly. When nothing is tagged (e.g. a Bilt article
-       * before the Bilt program page exists), no pills render here — the
-       * SourceTextPanel below makes the gap explicit.
+       * were in scope. Each pill carries its own per-slug claim count
+       * (Phase 4) so you can tell at a glance whether a tagged surface
+       * actually contributed. A pill with count=0 is a real signal —
+       * either the page is empty, or the article doesn't draw from it.
+       *
+       * When the verifier hasn't stamped source_slug yet (pre-Phase-4
+       * data or extract-only mode), pills render WITHOUT count chips so
+       * we don't display a misleading 0.
        */}
       {idea.primary_program_slug && (
         <SourcePill
           label={`★ /programs/${idea.primary_program_slug}`}
-          count={yourPagesCount}
-          warn={yourPagesCount === 0}
+          count={hasAnySlug ? countFor(`program:${idea.primary_program_slug}`) : undefined}
+          warn={hasAnySlug && countFor(`program:${idea.primary_program_slug}`) === 0}
           href={`/programs/${idea.primary_program_slug}`}
-          title={`Primary program page — click to open. ${yourPagesCount} total claim${yourPagesCount === 1 ? '' : 's'} grounded against your tagged T1 surfaces.`}
+          title={
+            hasAnySlug
+              ? `Primary program page — ${countFor(`program:${idea.primary_program_slug}`)} claim${
+                  countFor(`program:${idea.primary_program_slug}`) === 1 ? '' : 's'
+                } grounded against this page. Click to open.`
+              : 'Primary program page — click to open. Re-run fact check to see per-page counts.'
+          }
         />
       )}
       {(idea.secondary_program_slugs ?? []).map((slug) => (
         <SourcePill
           key={`prog-${slug}`}
           label={`★ /programs/${slug}`}
+          count={hasAnySlug ? countFor(`program:${slug}`) : undefined}
+          warn={hasAnySlug && countFor(`program:${slug}`) === 0}
           href={`/programs/${slug}`}
-          title="Secondary program page — click to open."
+          title={
+            hasAnySlug
+              ? `Secondary program page — ${countFor(`program:${slug}`)} claim${
+                  countFor(`program:${slug}`) === 1 ? '' : 's'
+                } grounded. Click to open.`
+              : 'Secondary program page — click to open.'
+          }
         />
       ))}
       {(idea.card_slugs ?? []).map((slug) => (
         <SourcePill
           key={`card-${slug}`}
           label={`★ /cards/${slug}`}
+          count={hasAnySlug ? countFor(`card:${slug}`) : undefined}
+          warn={hasAnySlug && countFor(`card:${slug}`) === 0}
           href={`/cards/${slug}`}
-          title="Tagged card page — click to open."
+          title={
+            hasAnySlug
+              ? `Tagged card page — ${countFor(`card:${slug}`)} claim${
+                  countFor(`card:${slug}`) === 1 ? '' : 's'
+                } grounded. Click to open.`
+              : 'Tagged card page — click to open.'
+          }
         />
       ))}
       {/* Fallback: no T1 surfaces tagged but source_alert provided grounding. */}
@@ -1191,9 +1256,9 @@ function SourcesUsed({ idea }: { idea: ContentIdeaRow }) {
        idea.source_alert_id && (
         <SourcePill
           label={`★ source alert${idea.source_alert?.title ? `: ${idea.source_alert.title.slice(0, 40)}…` : ''}`}
-          count={yourPagesCount}
+          count={hasAnySlug ? countFor(`alert:${idea.source_alert_id}`) : yourPagesCount}
           href={`/admin/alerts/${idea.source_alert_id}/edit`}
-          title={`No program/card pages tagged — claims grounded against the source alert only. Click to open the alert.`}
+          title="No program/card pages tagged — claims grounded against the source alert only. Click to open the alert."
         />
       )}
 

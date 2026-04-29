@@ -197,6 +197,21 @@ export interface VerifyClaim {
   web_url?: string | null
   // Phase 3.7 — admin can dismiss a claim after confirming it themselves.
   acknowledged?: boolean
+  /**
+   * Phase 4 (per-slug grounding) — when supported=true and source_excerpt
+   * came from a tagged T1 surface, this records WHICH surface contributed
+   * the grounding. Used by the SourcesUsed pills to show per-slug claim
+   * counts. Format:
+   *   - 'program:<slug>'   for /programs/<slug>
+   *   - 'card:<slug>'      for /cards/<slug>
+   *   - 'alert:<id>'       for the source alert prose
+   *   - 'intel:<id>'       for raw intel text
+   *   - 'comparison_audit' for synthetic claims from the deterministic
+   *                        comparison-audit checker (Phase 2)
+   *   - 'unaudited_comparison' for regex safety net flags (Phase 2)
+   *   - null when no slug could be matched (web-only or pre-Phase-4)
+   */
+  source_slug?: string | null
 }
 
 export interface VerifyResult {

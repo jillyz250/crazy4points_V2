@@ -7,6 +7,7 @@ import { writeArticleBody } from '@/utils/ai/writeArticleBody'
 import { verifyArticleBody } from '@/utils/ai/verifyArticleBody'
 import { webVerifyClaims } from '@/utils/ai/verifyAlertDraft'
 import { isSupported, isNotConfirmed, isContradicted } from '@/utils/ai/claimStatus'
+import { buildSourceTextWithSegments } from '@/utils/ai/sourceTextSegments'
 import { voiceCheckArticle } from '@/utils/ai/voiceCheckArticle'
 import { originalityCheck } from '@/utils/ai/originalityCheck'
 import { programsToSourceText, PROGRAM_FIELDS_FOR_SOURCE } from '@/utils/ai/programSourceText'
@@ -88,6 +89,90 @@ async function getProgramsForIdea(
   }
 
   return Array.from(collected.values())
+}
+
+/**
+ * Phase 4 — fetch every contributing source for an idea + build the
+ * source_text + segments in one go. Replaces the duplicated inline
+ * construction inside factCheckArticleAction / checkArticleAction /
+ * getSourceTextPreviewAction so all three see byte-identical text and
+ * the same per-slug segment map.
+ */
+async function buildIdeaSourceText(
+  supabase: ReturnType<typeof createAdminClient>,
+  idea: {
+    source_alert_id: string | null
+    source_intel_id: string | null
+    primary_program_slug: string | null
+    secondary_program_slugs: string[] | null
+    card_slugs: string[] | null
+  }
+): Promise<{
+  text: string
+  segments: ReturnType<typeof buildSourceTextWithSegments>['segments']
+  sourceUrl: string | null
+  alert: { id: string; title: string | null } | null
+  intel: { id: string; hasRawText: boolean } | null
+  programs: { slug: string; name: string }[]
+  cards: { slug: string; name: string }[]
+}> {
+  let alertRow: { id: string; title: string | null; summary: string | null; description: string | null } | null = null
+  let intelRow: { id: string; raw_text: string | null } | null = null
+  let sourceUrl: string | null = null
+
+  if (idea.source_alert_id) {
+    const { data } = await supabase
+      .from('alerts')
+      .select('id, title, summary, description')
+      .eq('id', idea.source_alert_id)
+      .single()
+    if (data) {
+      alertRow = {
+        id: data.id as string,
+        title: (data.title as string | null) ?? null,
+        summary: (data.summary as string | null) ?? null,
+        description: (data.description as string | null) ?? null,
+      }
+    }
+  }
+  if (idea.source_intel_id) {
+    const { data } = await supabase
+      .from('intel_items')
+      .select('id, raw_text, source_url')
+      .eq('id', idea.source_intel_id)
+      .single()
+    if (data) {
+      intelRow = { id: data.id as string, raw_text: (data.raw_text as string | null) ?? null }
+      sourceUrl = (data.source_url as string | null) ?? null
+    }
+  }
+
+  const [programs, cards] = await Promise.all([
+    getProgramsForIdea(
+      supabase,
+      idea.source_alert_id,
+      idea.primary_program_slug,
+      idea.secondary_program_slugs,
+    ),
+    getCardsForIdea(supabase, idea.card_slugs),
+  ])
+
+  const built = buildSourceTextWithSegments({
+    alert: alertRow,
+    intel: intelRow,
+    programs,
+    cards,
+  })
+
+  return {
+    text: built.text,
+    segments: built.segments,
+    sourceUrl,
+    alert: alertRow ? { id: alertRow.id, title: alertRow.title } : null,
+    intel: intelRow ? { id: intelRow.id, hasRawText: !!intelRow.raw_text } : null,
+    programs: programs.map((p) => ({ slug: p.slug, name: p.name })),
+    cards: cards.map((c) => ({ slug: c.slug, name: c.name ?? c.slug })),
+  }
 }
 
 /**
@@ -310,49 +395,15 @@ export async function factCheckArticleAction(id: string): Promise<FactCheckResul
   if (fetchErr || !idea) return { ok: false, error: fetchErr?.message ?? 'Idea not found' }
   if (!idea.article_body) return { ok: false, error: 'No article body to check — draft first.' }
 
-  let sourceText = ''
-  let sourceUrl: string | null = null
-  if (idea.source_alert_id) {
-    const { data: alert } = await supabase
-      .from('alerts')
-      .select('title, summary, description')
-      .eq('id', idea.source_alert_id)
-      .single()
-    if (alert) {
-      sourceText = [alert.title, alert.summary, alert.description].filter(Boolean).join('\n\n')
-    }
-  }
-  if (idea.source_intel_id) {
-    const { data: intel } = await supabase
-      .from('intel_items')
-      .select('raw_text, source_url')
-      .eq('id', idea.source_intel_id)
-      .single()
-    if (intel) {
-      if (intel.raw_text) sourceText = `${sourceText}\n\n${intel.raw_text}`.trim()
-      sourceUrl = intel.source_url ?? null
-    }
-  }
-  const [programs, cards] = await Promise.all([
-    getProgramsForIdea(
-      supabase,
-      idea.source_alert_id,
-      idea.primary_program_slug,
-      idea.secondary_program_slugs,
-    ),
-    getCardsForIdea(supabase, idea.card_slugs),
-  ])
-  if (programs.length > 0) {
-    sourceText = `${sourceText}\n\n═══ OFFICIAL PROGRAM PAGE CONTENT ═══\n\n${programsToSourceText(programs)}`.trim()
-  }
-  if (cards.length > 0) {
-    sourceText = `${sourceText}\n\n═══ OFFICIAL CARD PAGE CONTENT ═══\n\n${cardsToSourceText(cards)}`.trim()
-  }
+  const built = await buildIdeaSourceText(supabase, idea)
+  const sourceText = built.text
+  const sourceUrl = built.sourceUrl
 
   const verifyRes = await verifyArticleBody({
     title: idea.title,
     article_body: idea.article_body,
     source_text: sourceText || null,
+    source_segments: built.segments,
   })
   if (!verifyRes) return { ok: false, error: 'Fact-check call failed (see logs)' }
 
@@ -444,56 +495,19 @@ export async function checkArticleAction(id: string): Promise<CheckArticleResult
   if (fetchErr || !idea) return { ok: false, error: fetchErr?.message ?? 'Idea not found' }
   if (!idea.article_body) return { ok: false, error: 'No article body to check — draft first.' }
 
-  // Build source text from the linked alert + (optional) raw intel, so the
-  // verifier has something to ground against beyond "the article itself."
-  let sourceText = ''
-  let sourceUrl: string | null = null
-  if (idea.source_alert_id) {
-    const { data: alert } = await supabase
-      .from('alerts')
-      .select('title, summary, description')
-      .eq('id', idea.source_alert_id)
-      .single()
-    if (alert) {
-      sourceText = [alert.title, alert.summary, alert.description].filter(Boolean).join('\n\n')
-    }
-  }
-  if (idea.source_intel_id) {
-    const { data: intel } = await supabase
-      .from('intel_items')
-      .select('raw_text, source_url')
-      .eq('id', idea.source_intel_id)
-      .single()
-    if (intel) {
-      if (intel.raw_text) sourceText = `${sourceText}\n\n${intel.raw_text}`.trim()
-      sourceUrl = intel.source_url ?? null
-    }
-  }
-
-  // Treat the official program page(s) AND card page(s) as authoritative
-  // source material. Anything we wrote on those pages becomes legal grounding
-  // for fact-check claims.
-  const [programs, cards] = await Promise.all([
-    getProgramsForIdea(
-      supabase,
-      idea.source_alert_id,
-      idea.primary_program_slug,
-      idea.secondary_program_slugs,
-    ),
-    getCardsForIdea(supabase, idea.card_slugs),
-  ])
-  if (programs.length > 0) {
-    sourceText = `${sourceText}\n\n═══ OFFICIAL PROGRAM PAGE CONTENT ═══\n\n${programsToSourceText(programs)}`.trim()
-  }
-  if (cards.length > 0) {
-    sourceText = `${sourceText}\n\n═══ OFFICIAL CARD PAGE CONTENT ═══\n\n${cardsToSourceText(cards)}`.trim()
-  }
+  // Build source text + per-slug segments from alert / intel / programs /
+  // cards. Same builder as factCheckArticleAction so source_text is
+  // byte-identical and per-slug grounding is consistent.
+  const built = await buildIdeaSourceText(supabase, idea)
+  const sourceText = built.text
+  const sourceUrl = built.sourceUrl
 
   const [verifyRes, voiceRes] = await Promise.all([
     verifyArticleBody({
       title: idea.title,
       article_body: idea.article_body,
       source_text: sourceText || null,
+      source_segments: built.segments,
     }),
     voiceCheckArticle({ title: idea.title, article_body: idea.article_body }),
   ])
@@ -676,56 +690,17 @@ export async function getSourceTextPreviewAction(
     .single()
   if (fetchErr || !idea) return { ok: false, error: fetchErr?.message ?? 'Idea not found' }
 
-  let sourceText = ''
-  let sourceAlert: { id: string; title: string | null } | null = null
-  let sourceIntel: { id: string; hasRawText: boolean } | null = null
-
-  if (idea.source_alert_id) {
-    const { data: alert } = await supabase
-      .from('alerts')
-      .select('id, title, summary, description')
-      .eq('id', idea.source_alert_id)
-      .single()
-    if (alert) {
-      sourceText = [alert.title, alert.summary, alert.description].filter(Boolean).join('\n\n')
-      sourceAlert = { id: alert.id, title: alert.title ?? null }
-    }
-  }
-  if (idea.source_intel_id) {
-    const { data: intel } = await supabase
-      .from('intel_items')
-      .select('id, raw_text')
-      .eq('id', idea.source_intel_id)
-      .single()
-    if (intel) {
-      if (intel.raw_text) sourceText = `${sourceText}\n\n${intel.raw_text}`.trim()
-      sourceIntel = { id: intel.id, hasRawText: !!intel.raw_text }
-    }
-  }
-  const [programs, cards] = await Promise.all([
-    getProgramsForIdea(
-      supabase,
-      idea.source_alert_id,
-      idea.primary_program_slug,
-      idea.secondary_program_slugs,
-    ),
-    getCardsForIdea(supabase, idea.card_slugs),
-  ])
-  if (programs.length > 0) {
-    sourceText = `${sourceText}\n\n═══ OFFICIAL PROGRAM PAGE CONTENT ═══\n\n${programsToSourceText(programs)}`.trim()
-  }
-  if (cards.length > 0) {
-    sourceText = `${sourceText}\n\n═══ OFFICIAL CARD PAGE CONTENT ═══\n\n${cardsToSourceText(cards)}`.trim()
-  }
-
+  // Reuse the same builder fact-check uses so the preview matches what
+  // the verifier actually sees, byte-for-byte.
+  const built = await buildIdeaSourceText(supabase, idea)
   return {
     ok: true,
-    sourceText,
+    sourceText: built.text,
     manifest: {
-      sourceAlert,
-      sourceIntel,
-      programs: programs.map((p) => ({ slug: p.slug, name: p.name })),
-      cards: cards.map((c) => ({ slug: c.slug, name: c.name ?? c.slug })),
+      sourceAlert: built.alert,
+      sourceIntel: built.intel,
+      programs: built.programs,
+      cards: built.cards,
     },
   }
 }
