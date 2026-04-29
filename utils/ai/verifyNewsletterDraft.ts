@@ -8,10 +8,10 @@
  * newsletter prose and the underlying program-page facts before sending.
  */
 import Anthropic from '@anthropic-ai/sdk'
-import type { VerifyClaim, VerifyResult } from './verifyAlertDraft'
+import type { ClaimSupportState, VerifyClaim, VerifyResult } from './verifyAlertDraft'
 import type { NewsletterDraft } from './buildNewsletter'
 
-export type { VerifyClaim, VerifyResult } from './verifyAlertDraft'
+export type { ClaimSupportState, VerifyClaim, VerifyResult } from './verifyAlertDraft'
 
 export interface VerifyNewsletterInput {
   draft: NewsletterDraft
@@ -53,17 +53,37 @@ Skip:
 Prefer FEWER, higher-quality claims over exhaustive extraction.
 
 ═══════════════════════════════════════════════════════════
-GROUNDING
+GROUNDING — THREE-STATE TRUTH MODEL
 ═══════════════════════════════════════════════════════════
 
-supported=true: claim appears verbatim or as a direct paraphrase in
-SOURCE_TEXT. Fill source_excerpt with the smallest quoted span that
-supports it (under 200 chars).
+Each claim must be classified into ONE of three states. Source SILENCE
+is its own category — do NOT collapse silence into false.
 
-supported=false: not in SOURCE_TEXT, or SOURCE_TEXT contradicts. Set
-source_excerpt to null.
+• supported = true
+  SOURCE_TEXT explicitly confirms. Fill source_excerpt with the smallest
+  quoted span (<200 chars).
 
-Numbers and dates must match exactly.
+• supported = false
+  SOURCE_TEXT explicitly CONTRADICTS the claim. source_excerpt = the
+  contradicting span. Use ONLY when there is positive evidence of
+  contradiction.
+
+• supported = "unsupported"
+  SOURCE_TEXT is silent. source_excerpt = null. Treated downstream as
+  "we don't know," not "it's wrong" — often legit info that's true but
+  absent from the source data we shipped to the writer.
+
+Numbers and dates must match exactly. If unsure, choose "unsupported".
+
+═══════════════════════════════════════════════════════════
+NEGATIVE & COMPARATIVE CLAIMS
+═══════════════════════════════════════════════════════════
+
+• Negative claims ("X has no Y", "missing Z"): require POSITIVE evidence
+  of absence in SOURCE_TEXT to mark supported=true. Source silence ≠ proof.
+• Comparative claims ("same rate as", "faster than", "double"): extract
+  the comparison itself as a separate claim. Verify the math from the
+  atomic numbers if both are in source; otherwise mark "unsupported".
 
 ═══════════════════════════════════════════════════════════
 SEVERITY
@@ -84,7 +104,7 @@ Return a single JSON object. No prose, no markdown fences.
   "claims": [
     {
       "claim": "<under 150 chars>",
-      "supported": true | false,
+      "supported": true | false | "unsupported",
       "severity": "high" | "low",
       "source_excerpt": "<span>" | null
     }
@@ -113,9 +133,19 @@ function validate(parsed: unknown): VerifyClaim[] {
     .map((c): VerifyClaim | null => {
       const raw = c as Partial<VerifyClaim>
       if (typeof raw.claim !== 'string' || !raw.claim.trim()) return null
+      // Three-state truth — preserve `'unsupported'` distinct from `false`.
+      const supportedRaw = raw.supported
+      const supported: ClaimSupportState =
+        supportedRaw === true
+          ? true
+          : supportedRaw === false
+          ? false
+          : supportedRaw === 'unsupported'
+          ? 'unsupported'
+          : 'unsupported'
       return {
         claim: raw.claim.trim().slice(0, 300),
-        supported: raw.supported === true,
+        supported,
         severity: raw.severity === 'high' ? 'high' : 'low',
         source_excerpt: typeof raw.source_excerpt === 'string' ? raw.source_excerpt.slice(0, 400) : null,
       }

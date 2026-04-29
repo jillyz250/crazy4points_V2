@@ -57,9 +57,16 @@ export default function EditAlertForm({ alert, programs, taggedProgramIds }: Pro
           parity. */}
       {(() => {
         const claims = Array.isArray(alert.fact_check_claims)
-          ? (alert.fact_check_claims as { supported?: boolean; severity?: string; acknowledged?: boolean }[])
+          ? (alert.fact_check_claims as {
+              supported?: boolean | 'unsupported'
+              severity?: string
+              acknowledged?: boolean
+            }[])
           : []
-        const flagged = claims.some((c) => !c.supported && c.severity === 'high' && !c.acknowledged)
+        // "flagged" preserves legacy semantic: anything not positively confirmed
+        // (covers contradicted false + silent 'unsupported'), high severity,
+        // unacknowledged. Surfaces both for editor review.
+        const flagged = claims.some((c) => c.supported !== true && c.severity === 'high' && !c.acknowledged)
         const factOn = Boolean(alert.fact_check_at) && !flagged
         const voiceOn = Boolean(alert.voice_checked_at) && alert.voice_pass === true
         const origOn = Boolean(alert.originality_checked_at) && alert.originality_pass === true

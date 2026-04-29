@@ -50,6 +50,11 @@ export async function summarizeAlert(input: AlertSummaryInput): Promise<string> 
     `Be concise and specific. Include the key benefit, program name if relevant, date range if present, and confidence level.`,
     `Format like: "50% transfer bonus from Chase Ultimate Rewards to Hyatt, valid Apr 14–30 2026, high confidence."`,
     ``,
+    // Lightweight version of FACTUAL_TRAPS for Haiku — full rules would
+    // balloon token cost on a per-publish call. Just the two faces that
+    // can sneak in during distillation.
+    `IMPORTANT: Use only facts present in the inputs below. Don't add specifics (numbers, dates, program names) not in the inputs. Preserve every conditional qualifier ("up to", "after $X spend", "top 3 of N", "per quarter") — those qualifiers are load-bearing; if you drop them you change the meaning.`,
+    ``,
     `Title: ${input.title}`,
     `Type: ${input.type}`,
     `Program: ${input.programName ?? 'N/A'}`,

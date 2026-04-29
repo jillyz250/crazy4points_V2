@@ -11,7 +11,7 @@
  * build-brief so editor-proposed sweet-spots flow through webVerifyClaims.
  */
 import Anthropic from '@anthropic-ai/sdk'
-import { BRAND_VOICE } from './editorialRules'
+import { BRAND_VOICE, FACTUAL_TRAPS } from './editorialRules'
 import { EDITOR_VOICE_SAMPLES } from './editorSamples'
 
 export interface EditDraftInput {
@@ -90,6 +90,14 @@ HARD RULES
 
 5. Description stays 2-3 paragraphs, ~120-220 words. Summary stays
    2-3 sentences, ≤155 chars on sentence 1.
+
+6. PRESERVE QUALIFIERS. When polishing, do NOT smooth away conditional
+   wording — "top 3 of 8", "per quarter", "up to", "after $X spend" —
+   those qualifiers are load-bearing. Tightening "earn 2x on top 3 of
+   8 categories per quarter" into "earn 2x on top categories" silently
+   changes meaning. See FACTUAL TRAPS rule #4 below.
+
+${FACTUAL_TRAPS}
 
 ═══════════════════════════════════════════════════════════
 OUTPUT

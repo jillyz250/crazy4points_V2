@@ -13,7 +13,8 @@ type Tone = 'accent' | 'success' | 'warning' | 'danger' | 'neutral' | 'info'
 
 interface Claim {
   claim: string
-  supported: boolean
+  // Three-state truth: see utils/ai/claimStatus.ts
+  supported: boolean | 'unsupported'
   severity?: string
   source_excerpt?: string | null
   web_verdict?: 'likely_correct' | 'likely_wrong' | 'unverifiable' | null
@@ -49,7 +50,10 @@ export default async function FactChecksPage({ searchParams }: { searchParams: P
 
   const enriched = alerts.map((a) => {
     const claims = parseClaims(a.fact_check_claims)
-    const unsupported = claims.filter((c) => !c.supported)
+    // Legacy "unsupported" here means "not positively confirmed" — covers both
+    // contradicted (false) and silent ('unsupported') so the existing flagged
+    // count behavior is preserved.
+    const unsupported = claims.filter((c) => c.supported !== true)
     const open = unsupported.filter((c) => !c.acknowledged)
     const likelyWrong = unsupported.filter((c) => c.web_verdict === 'likely_wrong')
     return { alert: a, claims, unsupported, open, likelyWrong }
@@ -165,7 +169,7 @@ function AlertCard({
   factCheckAt: string | null
   claims: Claim[]
 }) {
-  const unsupported = claims.filter((c) => !c.supported)
+  const unsupported = claims.filter((c) => c.supported !== true)
   const hasFlags = unsupported.length > 0
   const hasLikelyWrong = claims.some((c) => c.web_verdict === 'likely_wrong')
 
@@ -225,9 +229,15 @@ function ClaimRow({ claim }: { claim: Claim }) {
       }}
     >
       <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center', flexWrap: 'wrap' }}>
-        <Badge tone={claim.supported ? 'success' : 'danger'}>
-          {claim.supported ? '✓ supported' : '✗ unsupported'}
-        </Badge>
+        {claim.supported === true && (
+          <Badge tone="success">✓ supported</Badge>
+        )}
+        {claim.supported === false && (
+          <Badge tone="danger">✗ contradicted</Badge>
+        )}
+        {claim.supported === 'unsupported' && (
+          <Badge tone="neutral">— source silent</Badge>
+        )}
         {claim.web_verdict && (
           <Badge tone="neutral">web: {claim.web_verdict.replace('_', ' ')}</Badge>
         )}

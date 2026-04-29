@@ -21,7 +21,7 @@ type NewsletterRow = {
   recipient_count: number | null
   created_at: string
   fact_checked_at: string | null
-  fact_check_claims: { claim: string; supported: boolean; severity: string; source_excerpt?: string | null }[] | null
+  fact_check_claims: { claim: string; supported: boolean | 'unsupported'; severity: string; source_excerpt?: string | null }[] | null
 }
 
 export default async function NewsletterAdminPage({

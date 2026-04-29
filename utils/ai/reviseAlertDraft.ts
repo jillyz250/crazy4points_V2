@@ -9,7 +9,7 @@
  * publishable without manual editing.
  */
 import Anthropic from '@anthropic-ai/sdk'
-import { BRAND_VOICE } from './editorialRules'
+import { BRAND_VOICE, FACTUAL_TRAPS } from './editorialRules'
 import type { VerifyClaim } from './verifyAlertDraft'
 
 export interface ReviseDraftInput {
@@ -59,6 +59,8 @@ beats specific-but-fabricated, every time.
 
 Sass lives in FRAMING (direct address, playful cadence), never in
 invented facts.
+
+${FACTUAL_TRAPS}
 
 ═══════════════════════════════════════════════════════════
 WHAT TO CHANGE

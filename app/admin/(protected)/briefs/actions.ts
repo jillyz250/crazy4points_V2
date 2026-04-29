@@ -7,7 +7,8 @@ import type { EditorialPlan } from '@/utils/ai/generateEditorialPlan'
 
 interface FactCheckClaim {
   claim: string
-  supported: boolean
+  // Three-state truth — see utils/ai/claimStatus.ts.
+  supported: boolean | 'unsupported'
   severity?: string
   acknowledged?: boolean
   web_verdict?: string | null
@@ -113,8 +114,12 @@ export async function rebuildBriefHtmlAction(briefId: string): Promise<RebuildRe
       const claims = Array.isArray(a.fact_check_claims)
         ? (a.fact_check_claims as FactCheckClaim[])
         : []
+      // "openUnsupported" preserves legacy semantic — anything not positively
+      // confirmed (supported !== true), high-severity, unacknowledged.
+      // Includes both contradicted (false) and silent ('unsupported') so the
+      // brief surfaces every unresolved claim for human review.
       const openUnsupported = claims.filter(
-        (c) => !c.supported && !c.acknowledged && c.severity === 'high'
+        (c) => c.supported !== true && !c.acknowledged && c.severity === 'high'
       )
       const programs = programsByAlertId.get(alertId) ?? []
       const revisionLogRaw = Array.isArray(a.revision_log)

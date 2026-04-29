@@ -4,7 +4,7 @@
  * plus the model identifier used (stamped as written_by).
  */
 import Anthropic from '@anthropic-ai/sdk'
-import { BRAND_VOICE } from './editorialRules'
+import { BRAND_VOICE, FACTUAL_TRAPS } from './editorialRules'
 
 export type ArticleIdeaType = 'newsletter' | 'blog'
 
@@ -237,6 +237,8 @@ BRAND VOICE REFERENCE (anchor phrases + extended rules)
 ═══════════════════════════════════════════════════════════
 
 ${BRAND_VOICE}
+
+${FACTUAL_TRAPS}
 
 ═══════════════════════════════════════════════════════════
 OUTPUT
