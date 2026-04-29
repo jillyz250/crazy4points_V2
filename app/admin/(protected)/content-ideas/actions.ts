@@ -6,6 +6,7 @@ import { logSystemError } from '@/utils/supabase/queries'
 import { writeArticleBody } from '@/utils/ai/writeArticleBody'
 import { verifyArticleBody } from '@/utils/ai/verifyArticleBody'
 import { webVerifyClaims } from '@/utils/ai/verifyAlertDraft'
+import { isSupported, isNotConfirmed, isContradicted } from '@/utils/ai/claimStatus'
 import { voiceCheckArticle } from '@/utils/ai/voiceCheckArticle'
 import { originalityCheck } from '@/utils/ai/originalityCheck'
 import { programsToSourceText, PROGRAM_FIELDS_FOR_SOURCE } from '@/utils/ai/programSourceText'
@@ -367,7 +368,7 @@ export async function factCheckArticleAction(id: string): Promise<FactCheckResul
       title: idea.title,
     })
     grounded = verifyRes.claims.map((c) =>
-      c.supported
+      isSupported(c)
         ? c
         : { ...c, web_verdict: 'unverifiable' as const, web_evidence: null, web_url: null }
     )
@@ -384,11 +385,13 @@ export async function factCheckArticleAction(id: string): Promise<FactCheckResul
   if (updateErr) return { ok: false, error: updateErr.message }
 
   revalidatePath('/admin/content-ideas')
-  // Exclude claims that the web-verification pass marked likely_correct —
-  // those are de facto resolved and shouldn't be counted as flagged in the
-  // FactCheckButton's "N flagged" toast or the workflow stepper.
+  // Three-state truth: "flagged" still means RED contradiction only —
+  // claims the source explicitly contradicts (supported === false). Yellow
+  // 'unsupported' claims aren't blockers (might be legit new info our pages
+  // don't have yet). They surface separately in UI but don't gate the
+  // pipeline. Web-rescued (likely_correct) excluded as before.
   const flagged = grounded.filter(
-    (c) => !c.supported && c.severity === 'high' && c.web_verdict !== 'likely_correct'
+    (c) => isContradicted(c) && c.severity === 'high' && c.web_verdict !== 'likely_correct'
   ).length
   return { ok: true, flagged }
 }
@@ -510,7 +513,7 @@ export async function checkArticleAction(id: string): Promise<CheckArticleResult
       title: idea.title,
     })
     grounded = verifyRes.claims.map((c) =>
-      c.supported
+      isSupported(c)
         ? c
         : { ...c, web_verdict: 'unverifiable' as const, web_evidence: null, web_url: null }
     )
@@ -531,9 +534,11 @@ export async function checkArticleAction(id: string): Promise<CheckArticleResult
   if (updateErr) return { ok: false, error: updateErr.message }
 
   revalidatePath('/admin/content-ideas')
-  // Same exclusion as factCheckArticleAction — web-rescued claims aren't flagged.
+  // Same semantic as factCheckArticleAction — flagged = RED contradiction
+  // only (yellow 'unsupported' surfaces in UI but doesn't gate). Web-rescued
+  // claims excluded.
   const factFlagged = grounded.filter(
-    (c) => !c.supported && c.severity === 'high' && c.web_verdict !== 'likely_correct'
+    (c) => isContradicted(c) && c.severity === 'high' && c.web_verdict !== 'likely_correct'
   ).length
   return { ok: true, factFlagged, voicePass: voiceRes.pass }
 }
@@ -937,7 +942,7 @@ export async function rewriteFromVerifiedFactsAction(
 
   type ClaimShape = {
     claim?: string
-    supported?: boolean
+    supported?: boolean | 'unsupported'
     web_verdict?: 'likely_correct' | 'likely_wrong' | 'unverifiable' | null
     web_evidence?: string | null
     source_excerpt?: string | null

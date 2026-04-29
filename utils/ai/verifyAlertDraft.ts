@@ -168,12 +168,29 @@ export interface MathCheckResult {
   notes: string | null
 }
 
+/**
+ * Three-state truth model.
+ *
+ * - `true`          — source EXPLICITLY confirms the claim (positive
+ *                     evidence in source_excerpt).
+ * - `false`         — source EXPLICITLY contradicts the claim.
+ * - `'unsupported'` — source is silent / can't verify from T1. Treated as
+ *                     "we don't know" rather than "it's wrong." Editor
+ *                     decides during review (the claim might be legit new
+ *                     info our pages don't have yet — that's the amber
+ *                     data-gap signal).
+ *
+ * Old `boolean` shape stays valid for backwards compatibility with any
+ * fact_check_claims rows persisted before this change.
+ */
+export type ClaimSupportState = boolean | 'unsupported'
+
 export interface VerifyClaim {
   claim: string
-  supported: boolean
+  supported: ClaimSupportState
   severity: 'high' | 'low'
   source_excerpt: string | null
-  // Phase 3.6 — web search pass for claims where supported=false.
+  // Phase 3.6 — web search pass for claims where supported is not `true`.
   // Populated by webVerifyClaims() after the first grounding pass.
   web_verdict?: 'likely_correct' | 'likely_wrong' | 'unverifiable' | null
   web_evidence?: string | null
@@ -219,17 +236,73 @@ Prefer FEWER, higher-quality claims over exhaustive extraction. A claim is only 
 flagging if getting it wrong would actually mislead a reader or the owner.
 
 ═══════════════════════════════════════════════════════════
-GROUNDING
+GROUNDING — THREE-STATE TRUTH MODEL
 ═══════════════════════════════════════════════════════════
 
-For each claim, decide if it is explicitly supported by SOURCE_TEXT:
-• supported = true: the claim appears verbatim or as a direct paraphrase. Fill source_excerpt
-  with the smallest quoted span from SOURCE_TEXT that supports it (under 200 chars).
-• supported = false: the claim is not in SOURCE_TEXT, or SOURCE_TEXT contradicts it.
-  source_excerpt = null.
+Each claim must be classified into ONE of three states. Source SILENCE
+is its own category — do NOT collapse silence into false.
 
-Numbers and dates MUST match exactly to count as supported. "400+ properties" when SOURCE_TEXT
-says nothing about count → supported=false. "May 16" when SOURCE_TEXT says "May 15" → supported=false.
+• supported = true
+  SOURCE_TEXT explicitly confirms the claim. Fill source_excerpt with
+  the smallest quoted span from SOURCE_TEXT that supports it (<200 chars).
+
+• supported = false
+  SOURCE_TEXT explicitly CONTRADICTS the claim. (e.g. draft says "May 16"
+  and SOURCE_TEXT says "May 15".) source_excerpt = the contradicting span.
+  Use ONLY when there is positive evidence of contradiction in source.
+
+• supported = "unsupported"
+  SOURCE_TEXT is silent on the claim — neither confirms nor contradicts.
+  source_excerpt = null. The downstream pipeline treats this as "we don't
+  know," not "it's wrong." It might be legit info that's true but absent
+  from our source data.
+
+If you're unsure between false and "unsupported", choose "unsupported".
+Reserve false for cases where the source EXPLICITLY says otherwise.
+
+Numbers and dates MUST match exactly. "400+ properties" when source is
+silent on count → supported = "unsupported" (not false).
+
+═══════════════════════════════════════════════════════════
+NEGATIVE CLAIMS — special grounding rule
+═══════════════════════════════════════════════════════════
+
+A negative claim asserts the absence of something: "X doesn't have Y",
+"no X", "X is missing", "X-only".
+
+To mark a negative claim supported=true, the source must EXPLICITLY
+state the absence. Source silence is NOT proof of absence.
+
+Examples:
+  Claim: "The business card has no dining bonus."
+  Source says: "Earn 2x on top 3 of 8 eligible business categories"
+  (no enumeration of the 8)
+  → supported = "unsupported" (silence ≠ proof of absence)
+
+  Claim: "The card has no foreign transaction fee."
+  Source says: "Foreign transaction fee: none (0%)"
+  → supported = true (explicit confirmation of absence)
+
+═══════════════════════════════════════════════════════════
+COMPARATIVE / DERIVED CLAIMS — extract these as their own claims
+═══════════════════════════════════════════════════════════
+
+When the draft makes a comparison ("same rate as", "faster than", "double",
+"equal to", "more than", "less than", "beats", "ahead of"), extract the
+comparison itself as a separate claim, distinct from the atomic numbers.
+
+Example draft sentence:
+  "5 nights per $10K — the same rate as the personal card's 2 per $5K"
+
+Extract THREE claims:
+  1. "Business card earns 5 qualifying nights per $10K"  (atomic)
+  2. "Personal card earns 2 qualifying nights per $5K"   (atomic)
+  3. "Business and personal earn at the same rate per dollar"  (comparison)
+
+For the comparison claim: if both atomic numbers are in the source, you
+may verify the math directly (5/10000 = 0.0005, 2/5000 = 0.0004 → NOT
+the same → supported = false). If you can't verify the math from source,
+mark supported = "unsupported".
 
 ═══════════════════════════════════════════════════════════
 PROGRAM_REFERENCE (authoritative property/category data, optional)
@@ -384,7 +457,7 @@ Return a single JSON object. No prose, no markdown fences.
   "claims": [
     {
       "claim": "<the factual claim from the draft, under 150 chars>",
-      "supported": true | false,
+      "supported": true | false | "unsupported",
       "severity": "high" | "low",
       "source_excerpt": "<quoted span from SOURCE_TEXT, or null>"
     }
@@ -490,9 +563,23 @@ function validate(parsed: unknown, alertType: AlertType | null | undefined): Par
     .map((c): VerifyClaim | null => {
       const raw = c as Partial<VerifyClaim>
       if (typeof raw.claim !== 'string' || !raw.claim.trim()) return null
+      // Three-state truth: preserve `'unsupported'` distinct from `false`.
+      // Anything that isn't strictly `true` / `false` / `'unsupported'`
+      // (defensive — malformed or legacy boolean-only payload) defaults
+      // to `'unsupported'` so we don't accidentally mark something
+      // contradicted that the model didn't actually contradict.
+      const supportedRaw = raw.supported
+      const supported: ClaimSupportState =
+        supportedRaw === true
+          ? true
+          : supportedRaw === false
+          ? false
+          : supportedRaw === 'unsupported'
+          ? 'unsupported'
+          : 'unsupported'
       return {
         claim: raw.claim.trim().slice(0, 300),
-        supported: raw.supported === true,
+        supported,
         severity: raw.severity === 'high' ? 'high' : 'low',
         source_excerpt: typeof raw.source_excerpt === 'string' ? raw.source_excerpt.slice(0, 400) : null,
       }

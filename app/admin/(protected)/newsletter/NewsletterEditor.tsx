@@ -13,7 +13,8 @@ import { Badge } from '@/components/admin/ui/Badge'
 
 interface FactCheckClaim {
   claim: string
-  supported: boolean
+  // Three-state truth — see utils/ai/claimStatus.ts
+  supported: boolean | 'unsupported'
   severity: string
   source_excerpt?: string | null
 }
@@ -178,7 +179,10 @@ export default function NewsletterEditor({
 
       {/* Phase 6b — fact-check summary */}
       {factCheckedAt && factCheckClaims && (() => {
-        const unsupported = factCheckClaims.filter((c) => !c.supported)
+        // "Unsupported" here = anything not positively confirmed (covers both
+        // contradicted false + silent 'unsupported'). Preserves legacy
+        // semantic of the warning panel.
+        const unsupported = factCheckClaims.filter((c) => c.supported !== true)
         const high = unsupported.filter((c) => c.severity === 'high')
         const checked = new Date(factCheckedAt).toLocaleString()
         if (unsupported.length === 0) {

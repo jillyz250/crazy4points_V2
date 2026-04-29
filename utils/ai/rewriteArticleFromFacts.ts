@@ -9,7 +9,7 @@
  * Returns the new Markdown body.
  */
 import Anthropic from '@anthropic-ai/sdk'
-import { BRAND_VOICE } from './editorialRules'
+import { BRAND_VOICE, FACTUAL_TRAPS } from './editorialRules'
 
 const MODEL = 'claude-sonnet-4-6'
 
@@ -110,6 +110,8 @@ VOICE — same rules as the original writer
 ═══════════════════════════════════════════════════════════
 
 ${BRAND_VOICE}
+
+${FACTUAL_TRAPS}
 
 Most-violated rules — re-read your output before returning:
 - Lead with the reader payoff, not a news/program recap.

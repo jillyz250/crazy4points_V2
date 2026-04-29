@@ -16,6 +16,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { writeAlertDraft } from '@/utils/ai/writeAlertDraft'
 import { editAlertDraft } from '@/utils/ai/editAlertDraft'
 import { verifyAlertDraft, webVerifyClaims, type VerifyClaim } from '@/utils/ai/verifyAlertDraft'
+import { isSupported } from '@/utils/ai/claimStatus'
 import { buildProgramReferenceForDraft } from '@/utils/ai/programReferenceData'
 import { reviseAlertDraft, type RevisionLogEntry } from '@/utils/ai/reviseAlertDraft'
 import { voiceCheckArticle } from '@/utils/ai/voiceCheckArticle'
@@ -407,7 +408,7 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
     if (verify) {
       finalClaims = verify.claims
       checkedAt = verify.checked_at
-      if (finalClaims.some((c) => !c.supported)) {
+      if (finalClaims.some((c) => !isSupported(c))) {
         try {
           finalClaims = await webVerifyClaims({
             claims: finalClaims,
@@ -416,7 +417,7 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
         } catch (err) {
           await logSystemError(supabase, 'alerts:regenerate:webVerify', err, { alert_id: alertId })
           finalClaims = finalClaims.map((c) =>
-            c.supported
+            isSupported(c)
               ? c
               : { ...c, web_verdict: 'unverifiable' as const, web_evidence: null, web_url: null }
           )
@@ -469,7 +470,7 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
           if (!reverify) break
           let reverified = reverify.claims
           checkedAt = reverify.checked_at
-          if (reverified.some((c) => !c.supported)) {
+          if (reverified.some((c) => !isSupported(c))) {
             try {
               reverified = await webVerifyClaims({
                 claims: reverified,
@@ -484,7 +485,7 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
                 iter,
               })
               reverified = reverified.map((c) =>
-                c.supported
+                isSupported(c)
                   ? c
                   : { ...c, web_verdict: 'unverifiable' as const, web_evidence: null, web_url: null }
               )
@@ -535,7 +536,7 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
 
   const verdictCounts = { likely_correct: 0, likely_wrong: 0, unverifiable: 0, supported: 0 }
   for (const c of finalClaims) {
-    if (c.supported) verdictCounts.supported++
+    if (isSupported(c)) verdictCounts.supported++
     else if (c.web_verdict === 'likely_correct') verdictCounts.likely_correct++
     else if (c.web_verdict === 'likely_wrong') verdictCounts.likely_wrong++
     else verdictCounts.unverifiable++

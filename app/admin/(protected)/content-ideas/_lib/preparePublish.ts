@@ -9,7 +9,10 @@ import { isBlogCategorySlug } from '@/lib/blog/categories';
 import { computeReadingTimeMinutes } from '@/lib/blog/readingTime';
 
 export interface FactCheckClaim {
-  supported?: boolean;
+  // Three-state truth: true = source confirms; false = source contradicts;
+  // 'unsupported' = source silent. 'unsupported' is editor-decision territory,
+  // not a blocker — see openHigh logic below.
+  supported?: boolean | 'unsupported';
   severity?: string;
   acknowledged?: boolean;
 }
@@ -73,9 +76,10 @@ export function preparePublishUpdates(idea: IdeaForPublish): PublishPlan {
     missing.push('fact-check not run');
   } else {
     const claims = Array.isArray(idea.fact_check_claims) ? idea.fact_check_claims : [];
-    // A claim only blocks publish if it's high-severity, unsupported by source,
-    // unacknowledged, AND not rescued by web verification (likely_correct).
-    // Web-verified-correct claims are de facto resolved.
+    // A claim only blocks publish if source EXPLICITLY contradicts it
+    // (supported === false) AND it's high-severity AND unacknowledged AND
+    // not rescued by web verification (likely_correct). Yellow 'unsupported'
+    // claims (source silent) are NOT blockers — editor decides those.
     const openHigh = claims.some(
       (c) =>
         c &&

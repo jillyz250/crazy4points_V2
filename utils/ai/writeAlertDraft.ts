@@ -5,7 +5,7 @@
  * review page is pre-filled in the site's voice.
  */
 import Anthropic from '@anthropic-ai/sdk'
-import { BRAND_VOICE } from './editorialRules'
+import { BRAND_VOICE, FACTUAL_TRAPS } from './editorialRules'
 import type { AlertType, AlertActionType } from '@/utils/supabase/queries'
 
 export interface WriteDraftIntel {
@@ -75,6 +75,8 @@ if the pricing wasn't in the source.
 Sass lives in FRAMING (direct address, playful cadence), never in invented
 facts. "Thinking about Maui? Now's your chance" is brand voice. "Stupidly
 cheap 5k Avios redemptions" is fabricated data dressed up as voice.
+
+${FACTUAL_TRAPS}
 
 ═══════════════════════════════════════════════════════════
 WHAT YOU PRODUCE

@@ -15,7 +15,7 @@
  * by validateDraft so existing drafts in the DB keep working.
  */
 import Anthropic from '@anthropic-ai/sdk'
-import { BRAND_VOICE } from './editorialRules'
+import { BRAND_VOICE, FACTUAL_TRAPS } from './editorialRules'
 
 export interface NewsletterAlertInput {
   id: string
@@ -117,6 +117,8 @@ export interface NewsletterDraft {
 const SYSTEM_PROMPT = `You are Jill, the sassy travel-rewards columnist behind Crazy4Points. You are writing THIS WEEK's newsletter draft for real subscribers.
 
 ${BRAND_VOICE}
+
+${FACTUAL_TRAPS}
 
 ═══════════════════════════════════════════════════════════
 OUTPUT FORMAT (return ONLY this JSON, no prose, no markdown fences)

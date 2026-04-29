@@ -586,7 +586,8 @@ function IdeaCard({
 interface FlaggedClaim {
   text?: string
   claim?: string
-  supported?: boolean
+  // Three-state truth: see utils/ai/claimStatus.ts
+  supported?: boolean | 'unsupported'
   severity?: string
   acknowledged?: boolean
   reason?: string
@@ -818,24 +819,36 @@ function WorkflowSteps({
   const claims = Array.isArray(idea.fact_check_claims)
     ? (idea.fact_check_claims as FlaggedClaim[])
     : []
-  // Flagged = claim that didn't match source AND wasn't rescued by web verify.
-  // Web-verified-correct claims are already counted in verifiedCount; they
-  // shouldn't double-count here.
+  // Three-state truth model.
+  //   • Verified: positively confirmed (your data OR web)
+  //   • Flagged (RED): your data EXPLICITLY contradicted the claim AND web
+  //     didn't rescue. Real factual error. Blocks pipeline.
+  //   • Unsupported (GRAY): your data was silent on the claim AND web
+  //     didn't rescue. Editor decision (might be legit new info).
+  //     Surfaces in UI but doesn't gate the pipeline.
+  //   • Data gap: web confirmed BUT your own pages didn't (T1 incompleteness
+  //     signal — actionable but not a flag).
   const flaggedCount = claims.filter(
     (c) =>
       c.supported === false &&
       !c.acknowledged &&
       c.web_verdict !== 'likely_correct'
   ).length
+  const unsupportedCount = claims.filter(
+    (c) =>
+      c.supported === 'unsupported' &&
+      !c.acknowledged &&
+      c.web_verdict !== 'likely_correct'
+  ).length
   const verifiedCount = claims.filter(
     (c) => c.supported === true || c.web_verdict === 'likely_correct'
   ).length
-  // Data gaps = web confirmed the claim but your own pages didn't have it.
-  // These aren't fact-check failures (article is correct), they're signals
-  // you should add the fact to your card / program record.
+  // Data gaps = web confirmed the claim but your data didn't have it.
+  // Now matches three-state semantics: the unconfirmed-by-source state is
+  // either `false` or `'unsupported'`; both qualify as a gap if web rescued.
   const dataGapCount = claims.filter(
     (c) =>
-      c.supported === false &&
+      c.supported !== true &&
       c.web_verdict === 'likely_correct' &&
       !c.source_excerpt
   ).length
@@ -893,7 +906,9 @@ function WorkflowSteps({
         n={2}
         label={
           factChecked
-            ? `Fact check  (${verifiedCount} verified · ${flaggedCount} flagged${dataGapCount > 0 ? ` · ${dataGapCount} gap${dataGapCount === 1 ? '' : 's'}` : ''})`
+            ? `Fact check  (${verifiedCount} verified · ${flaggedCount} flagged${
+                unsupportedCount > 0 ? ` · ${unsupportedCount} unverified` : ''
+              }${dataGapCount > 0 ? ` · ${dataGapCount} gap${dataGapCount === 1 ? '' : 's'}` : ''})`
             : 'Fact check'
         }
         done={factChecked}
@@ -1288,7 +1303,8 @@ function SourcePill({
 
 interface FullClaim {
   claim?: string
-  supported?: boolean
+  // Three-state truth: see utils/ai/claimStatus.ts
+  supported?: boolean | 'unsupported'
   severity?: string
   acknowledged?: boolean
   source_excerpt?: string | null
@@ -1297,28 +1313,49 @@ interface FullClaim {
   web_url?: string | null
 }
 
-type ClaimStatus = 'your-data' | 'your-data-gap' | 'web-wrong' | 'unverifiable' | 'no-verdict'
+type ClaimStatus =
+  | 'your-data'
+  | 'your-data-gap'
+  | 'source-contradicted'
+  | 'source-silent'
+  | 'web-wrong'
+  | 'unverifiable'
+  | 'no-verdict'
 
 function classifyClaim(c: FullClaim): ClaimStatus {
   if (c.supported === true && c.source_excerpt) return 'your-data'
-  // Web confirmed BUT your own pages didn't have the claim → that's a gap
-  // in your authoritative data. Surface it so you can fill it in.
+  // Web confirmed BUT your own pages didn't have the claim → gap.
   if (c.web_verdict === 'likely_correct') return 'your-data-gap'
   if (c.web_verdict === 'likely_wrong') return 'web-wrong'
   if (c.web_verdict === 'unverifiable') return 'unverifiable'
+  // Three-state truth — distinguish source-contradicted from source-silent.
+  if (c.supported === false) return 'source-contradicted'
+  if (c.supported === 'unsupported') return 'source-silent'
   return 'no-verdict'
 }
 
-const STATUS_ORDER: ClaimStatus[] = ['your-data', 'your-data-gap', 'web-wrong', 'unverifiable', 'no-verdict']
+const STATUS_ORDER: ClaimStatus[] = [
+  'your-data',
+  'your-data-gap',
+  'source-contradicted',
+  'web-wrong',
+  'source-silent',
+  'unverifiable',
+  'no-verdict',
+]
 
 const STATUS_META: Record<ClaimStatus, { label: string; bg: string; border: string; fg: string }> = {
-  'your-data':     { label: '✓ Your data',                            bg: '#dcfce7', border: '#86efac', fg: '#15803d' },
-  // Amber, not green — web confirmed it but your pages don't have it.
-  // Actionable: add to your card/program record so future fact checks ground T1.
-  'your-data-gap': { label: '⚠ Web confirms — gap on your pages',     bg: '#fffbeb', border: '#fcd34d', fg: '#92400e' },
-  'web-wrong':     { label: '✗ Web contradicts',                      bg: '#fef2f2', border: '#fca5a5', fg: '#b91c1c' },
-  'unverifiable':  { label: '? Inconclusive',                         bg: '#fffbeb', border: '#fcd34d', fg: '#92400e' },
-  'no-verdict':    { label: '— No verdict',                           bg: '#f3f4f6', border: '#d1d5db', fg: '#4b5563' },
+  'your-data':            { label: '✓ Your data',                            bg: '#dcfce7', border: '#86efac', fg: '#15803d' },
+  // Amber — web confirmed but your pages don't have it. Actionable: add to T1.
+  'your-data-gap':        { label: '⚠ Web confirms — gap on your pages',     bg: '#fffbeb', border: '#fcd34d', fg: '#92400e' },
+  // Red — your source explicitly contradicted the claim. Real factual error.
+  'source-contradicted':  { label: '✗ Your data contradicts',                bg: '#fef2f2', border: '#fca5a5', fg: '#b91c1c' },
+  'web-wrong':            { label: '✗ Web contradicts',                      bg: '#fef2f2', border: '#fca5a5', fg: '#b91c1c' },
+  // Gray — source silent, no web verdict yet. "We don't know" — editor decision.
+  // Could be legit new info that needs to be added to T1, or a fact to drop.
+  'source-silent':        { label: '— Source silent (review)',               bg: '#f3f4f6', border: '#d1d5db', fg: '#4b5563' },
+  'unverifiable':         { label: '? Inconclusive',                         bg: '#fffbeb', border: '#fcd34d', fg: '#92400e' },
+  'no-verdict':           { label: '— No verdict',                           bg: '#f3f4f6', border: '#d1d5db', fg: '#4b5563' },
 }
 
 /**
