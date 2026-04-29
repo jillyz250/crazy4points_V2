@@ -6,6 +6,7 @@ import { createClient } from '@/utils/supabase/server';
 import { getBlogCategoryLabel } from '@/lib/blog/categories';
 import { sanitizeArticleHtml } from '@/lib/blog/sanitize';
 import HeroImageOrFallback from '@/components/blog/HeroImageOrFallback';
+import ArticleRelated from '@/components/blog/ArticleRelated';
 import NewsletterSignup from '@/components/home/NewsletterSignup';
 
 export const revalidate = 60;
@@ -21,6 +22,11 @@ interface BlogPost {
   hero_image_url: string | null;
   category: string | null;
   primary_program_slug: string | null;
+  // Phase — related-pages chip row at the bottom of the article needs the
+  // full set of tagged surfaces, not just primary. Both nullable; render
+  // only when populated.
+  secondary_program_slugs: string[] | null;
+  card_slugs: string[] | null;
   reading_time_minutes: number | null;
   published_at: string | null;
   updated_at: string | null;
@@ -33,7 +39,7 @@ async function getPost(slug: string): Promise<BlogPost | null> {
   const { data } = await supabase
     .from('content_ideas')
     .select(
-      'slug, title, pitch, excerpt, article_body, hero_image_url, category, primary_program_slug, reading_time_minutes, published_at, updated_at, written_by, fact_checked_at'
+      'slug, title, pitch, excerpt, article_body, hero_image_url, category, primary_program_slug, secondary_program_slugs, card_slugs, reading_time_minutes, published_at, updated_at, written_by, fact_checked_at'
     )
     .eq('slug', slug)
     .eq('type', 'blog')
@@ -214,6 +220,14 @@ export default async function BlogPostPage({ params }: Props) {
               Article body not available.
             </p>
           )}
+
+          {/* "More on these" — clickable program/card chips. Renders nothing
+              when no surfaces are tagged so old metadata-less posts stay clean. */}
+          <ArticleRelated
+            primaryProgramSlug={post.primary_program_slug}
+            secondaryProgramSlugs={post.secondary_program_slugs}
+            cardSlugs={post.card_slugs}
+          />
 
           {/* Newsletter CTA */}
           <div className="mt-16 rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-6 py-10 md:px-10 md:py-12">
