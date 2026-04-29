@@ -499,6 +499,47 @@ function extractJson(text: string): string {
   return trimmed
 }
 
+/**
+ * Tries hard to parse JSON; if Sonnet's output got truncated mid-array
+ * (hits max_tokens), recovers by trimming back to the last complete claim
+ * object and closing the JSON. Better than throwing and losing every claim
+ * we DID extract. See verifyArticleBody.ts for the same heuristic.
+ */
+function parseJsonResilient(raw: string, label: string): unknown {
+  try {
+    return JSON.parse(raw)
+  } catch (err) {
+    const claimsIdx = raw.indexOf('"claims"')
+    if (claimsIdx < 0) throw err
+    const arrayStart = raw.indexOf('[', claimsIdx)
+    if (arrayStart < 0) throw err
+    let depth = 0
+    let inString = false
+    let escape = false
+    let lastCleanEnd = -1
+    for (let i = arrayStart; i < raw.length; i++) {
+      const ch = raw[i]
+      if (escape) { escape = false; continue }
+      if (ch === '\\') { escape = true; continue }
+      if (ch === '"') { inString = !inString; continue }
+      if (inString) continue
+      if (ch === '{') depth++
+      else if (ch === '}') {
+        depth--
+        if (depth === 0) lastCleanEnd = i
+      }
+    }
+    if (lastCleanEnd < 0) throw err
+    const repaired = raw.slice(0, lastCleanEnd + 1) + ']}'
+    console.warn(
+      `[${label}] JSON truncated at position ${raw.length}; recovered ${
+        repaired.split('"claim"').length - 1
+      } claims via repair.`
+    )
+    return JSON.parse(repaired)
+  }
+}
+
 interface CpmExtraction {
   claimed_cpm_cents: number | null
   bonus_pct: number | null
@@ -754,7 +795,9 @@ export async function verifyAlertDraft(args: {
     const client = new Anthropic({ apiKey })
     const message = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 2400,
+      // Bumped from 2400 — alerts with promo_terms_status + many claims can
+      // overflow. 6000 leaves headroom; Sonnet 4.6 supports ~16K.
+      max_tokens: 6000,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userContent }],
     })
@@ -762,7 +805,8 @@ export async function verifyAlertDraft(args: {
     const block = message.content[0]
     if (block.type !== 'text') return null
 
-    const parsed = JSON.parse(extractJson(block.text))
+    // Resilient parse — recovers from mid-array truncation if max_tokens hits.
+    const parsed = parseJsonResilient(extractJson(block.text), 'verifyAlertDraft')
     const { claims, promoTermsStatus, brandVoiceScore, brandVoiceNotes, cpmExtraction } =
       validate(parsed, args.alert_type)
 
