@@ -9,6 +9,7 @@
  * Returns the new Markdown body.
  */
 import Anthropic from '@anthropic-ai/sdk'
+import { logUsage } from './logUsage'
 import { BRAND_VOICE, FACTUAL_TRAPS } from './editorialRules'
 
 const MODEL = 'claude-sonnet-4-6'
@@ -194,6 +195,7 @@ export async function rewriteArticleFromFacts(
       system: systemPrompt(input.type),
       messages: [{ role: 'user', content: userContent }],
     })
+    await logUsage(message, 'rewriteArticleFromFacts')
     // Pick the longest text block — guards against the model adding a short
     // confirmation/closing block after the actual rewrite, which we'd
     // otherwise accidentally pick if we used content[0] or "last block."

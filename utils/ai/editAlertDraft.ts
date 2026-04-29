@@ -11,6 +11,7 @@
  * build-brief so editor-proposed sweet-spots flow through webVerifyClaims.
  */
 import Anthropic from '@anthropic-ai/sdk'
+import { logUsage } from './logUsage'
 import { BRAND_VOICE, FACTUAL_TRAPS } from './editorialRules'
 import { EDITOR_VOICE_SAMPLES } from './editorSamples'
 
@@ -166,6 +167,7 @@ export async function editAlertDraft(
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userContent }],
     })
+    await logUsage(message, 'editAlertDraft')
 
     const block = message.content[0]
     if (block.type !== 'text') return null

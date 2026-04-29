@@ -9,6 +9,7 @@
  * that weren't in the source article.
  */
 import Anthropic from '@anthropic-ai/sdk'
+import { logUsage } from './logUsage'
 import { BRAND_VOICE } from './editorialRules'
 import type { AlertType } from '@/utils/supabase/queries'
 
@@ -801,6 +802,7 @@ export async function verifyAlertDraft(args: {
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userContent }],
     })
+    await logUsage(message, 'verifyAlertDraft')
 
     const block = message.content[0]
     if (block.type !== 'text') return null
@@ -941,6 +943,7 @@ export async function webVerifyClaims(args: {
     system: WEB_VERIFY_PROMPT,
     messages: [{ role: 'user', content: userContent }],
   })
+  await logUsage(response, 'verifyAlertDraft')
 
   const text = findLastTextBlock(response.content)
   // Graceful degradation: if Sonnet hedged with prose ("This validation…")

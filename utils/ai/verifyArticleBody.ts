@@ -4,6 +4,7 @@
  * the same shape as verifyAlertDraft, so existing admin renderers work.
  */
 import Anthropic from '@anthropic-ai/sdk'
+import { logUsage } from './logUsage'
 import type { ClaimSupportState, VerifyClaim, VerifyResult } from './verifyAlertDraft'
 import {
   extractComparisonAudits,
@@ -324,6 +325,7 @@ export async function verifyArticleBody(args: {
       system: systemPrompt,
       messages: [{ role: 'user', content: userContent }],
     })
+    await logUsage(message, 'verifyArticleBody')
     const block = message.content[0]
     if (!block || block.type !== 'text') return null
     // Use the resilient parser — recovers from mid-array truncation if we

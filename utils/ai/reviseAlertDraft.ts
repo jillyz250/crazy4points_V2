@@ -9,6 +9,7 @@
  * publishable without manual editing.
  */
 import Anthropic from '@anthropic-ai/sdk'
+import { logUsage } from './logUsage'
 import { BRAND_VOICE, FACTUAL_TRAPS } from './editorialRules'
 import type { VerifyClaim } from './verifyAlertDraft'
 
@@ -196,6 +197,7 @@ export async function reviseAlertDraft(args: {
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: userContent }],
   })
+  await logUsage(response, 'reviseAlertDraft')
 
   const block = response.content.find((b): b is Anthropic.TextBlock => b.type === 'text')
   if (!block) throw new Error('reviseAlertDraft: no text block in response')

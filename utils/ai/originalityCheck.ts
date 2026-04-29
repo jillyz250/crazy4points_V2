@@ -5,6 +5,7 @@
  * article from April 17").
  */
 import Anthropic from '@anthropic-ai/sdk'
+import { logUsage } from './logUsage'
 
 export interface OriginalityResult {
   pass: boolean
@@ -88,6 +89,7 @@ export async function originalityCheck(args: {
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userContent }],
     })
+    await logUsage(response, 'originalityCheck')
     const text = findLastTextBlock(response.content)
     if (!text) return null
     const parsed = JSON.parse(extractJson(text)) as { pass?: unknown; notes?: unknown }
