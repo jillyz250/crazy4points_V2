@@ -650,6 +650,51 @@ export async function updateContentIdeaNotesAction(
 }
 
 /**
+ * Updates the article body in place. Used by the inline editor on the admin
+ * card so editors can fix typos / surgical claim edits without overwriting
+ * the whole draft via Re-write.
+ *
+ * Bumps `updated_at` but leaves `written_at` and `written_by` untouched —
+ * those reflect the *original* AI generation timestamp, not the editor's
+ * cleanup. If the editor's edit changes facts, fact-check / voice-check
+ * pills should be re-run; we don't reset them here so the editor sees the
+ * stale-pill state and decides.
+ *
+ * Returns a structured result so the client can render success/error
+ * inline rather than rely on Next.js error overlays.
+ */
+export type UpdateArticleBodyResult =
+  | { ok: true; savedAt: string; chars: number }
+  | { ok: false; error: string }
+
+export async function updateArticleBodyAction(
+  id: string,
+  body: string
+): Promise<UpdateArticleBodyResult> {
+  const trimmed = body.trim()
+  if (!trimmed) {
+    return { ok: false, error: 'Article body cannot be empty.' }
+  }
+  // Sanity cap — Supabase text columns are unlimited, but prevent runaway
+  // pastes and keep the UI snappy. 50K chars ≈ ~8K words.
+  if (trimmed.length > 50_000) {
+    return { ok: false, error: `Article body too long (${trimmed.length} chars; max 50,000).` }
+  }
+  const supabase = createAdminClient()
+  const now = new Date().toISOString()
+  const { error } = await supabase
+    .from('content_ideas')
+    .update({
+      article_body: trimmed,
+      updated_at: now,
+    })
+    .eq('id', id)
+  if (error) return { ok: false, error: error.message }
+  revalidatePath('/admin/content-ideas')
+  return { ok: true, savedAt: now, chars: trimmed.length }
+}
+
+/**
  * Save / clear the editorial override reason. When non-empty, lets the
  * publish gate bypass the 4-pill check (other than article-drafted, which
  * is required regardless).
