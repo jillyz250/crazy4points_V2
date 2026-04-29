@@ -13,6 +13,7 @@ import BrandCheckButton from '@/components/admin/BrandCheckButton'
 import CheckOriginalityButton from '@/components/admin/CheckOriginalityButton'
 import RunAllChecksButton from '@/components/admin/RunAllChecksButton'
 import RewriteFromVerifiedFactsButton from '@/components/admin/RewriteFromVerifiedFactsButton'
+import ArticleBodyEditor from '@/components/admin/ArticleBodyEditor'
 import BlogMetadataForm from '@/components/admin/BlogMetadataForm'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Badge } from '@/components/admin/ui/Badge'
@@ -507,26 +508,11 @@ function IdeaCard({
       </p>
 
       {idea.article_body && (
-        <details style={{ margin: '0 0 0.75rem' }}>
-          <summary style={{ cursor: 'pointer', fontSize: '0.8125rem', color: 'var(--admin-accent)', fontWeight: 600 }}>
-            Article body ({idea.article_body.length.toLocaleString()} chars{idea.written_at ? ` · drafted ${new Date(idea.written_at).toLocaleString()}` : ''})
-          </summary>
-          <pre
-            style={{
-              marginTop: '0.5rem',
-              padding: '0.75rem 0.875rem',
-              background: 'var(--admin-surface-alt)',
-              border: '1px solid var(--admin-border)',
-              borderRadius: 'var(--admin-radius)',
-              fontSize: '0.8125rem',
-              lineHeight: 1.55,
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-            }}
-          >
-            {idea.article_body}
-          </pre>
-        </details>
+        <ArticleBodyEditor
+          ideaId={idea.id}
+          body={idea.article_body}
+          writtenAt={idea.written_at}
+        />
       )}
 
       {idea.source_alert_id && (
