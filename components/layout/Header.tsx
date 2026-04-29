@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+import { BLOG_CATEGORIES } from "@/lib/blog/categories";
 
 const toolsItems = [
   { label: "Transfer Bonus Tracker", comingSoon: true, href: null },
@@ -11,11 +12,25 @@ const toolsItems = [
   { label: "Card Benefits Search", comingSoon: true, href: null },
 ];
 
+// BLOG dropdown items — mirrors the editorial taxonomy in
+// lib/blog/categories.ts. "All Posts" first, then the 6 categories in
+// the order defined there. Each links to /blog?category=<slug>; the
+// blog index page already handles that filter param.
+const blogItems: { label: string; href: string }[] = [
+  { label: "All Posts", href: "/blog" },
+  ...BLOG_CATEGORIES.map((c) => ({
+    label: c.label,
+    href: `/blog?category=${c.slug}`,
+  })),
+];
+
 
 export default function Header() {
   const [logoError, setLogoError] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
+  // Mobile-only — desktop dropdown uses CSS hover via group-hover.
+  const [blogOpen, setBlogOpen] = useState(false);
 
   return (
     <header className="sticky top-0 z-50 border-b border-[var(--color-border-soft)] bg-[var(--color-background)]">
@@ -88,13 +103,32 @@ export default function Header() {
               </div>
             </div>
 
-            <Link
-              href="/blog"
-              className="group relative font-ui text-xs font-medium uppercase tracking-[0.14em] text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-primary)]"
-            >
-              Blog
-              <span className="absolute -bottom-1 left-0 h-0.5 w-full origin-left scale-x-0 bg-[var(--color-accent)] transition-transform duration-200 group-hover:scale-x-100" />
-            </Link>
+            {/* Blog dropdown — mirrors Tools pattern. Hover-triggered on
+                desktop via group-hover; mobile expanded inline below. */}
+            <div className="group relative">
+              <button
+                type="button"
+                className="flex items-center gap-1 font-ui !text-xs font-medium uppercase tracking-[0.14em] text-[var(--color-text-secondary)] hover:text-[var(--color-primary)]"
+              >
+                Blog
+                <svg className="h-3 w-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              <div className="invisible absolute left-0 top-full z-50 w-60 pt-2 group-hover:visible">
+                <div className="rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] py-1 shadow-[var(--shadow-soft)]">
+                  {blogItems.map((item) => (
+                    <Link
+                      key={item.label}
+                      href={item.href}
+                      className="flex items-center px-4 py-2.5 font-ui text-xs font-medium text-[var(--color-text-primary)] hover:text-[var(--color-primary)]"
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </div>
 
             <Link
               href="/newsletter"
@@ -182,13 +216,28 @@ export default function Header() {
               )
             )}
 
-          <Link
-            href="/blog"
-            onClick={() => setMenuOpen(false)}
-            className="flex min-h-[44px] items-center border-b border-[var(--color-border-soft)] px-6 font-ui text-sm font-medium uppercase tracking-[0.14em] text-[var(--color-text-secondary)]"
+          {/* Mobile Blog — expandable list like Tools */}
+          <button
+            type="button"
+            className="flex min-h-[44px] w-full items-center justify-between border-b border-[var(--color-border-soft)] px-6 font-ui text-sm font-medium uppercase tracking-[0.14em] text-[var(--color-text-secondary)]"
+            onClick={() => setBlogOpen((o) => !o)}
           >
             Blog
-          </Link>
+            <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d={blogOpen ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"} />
+            </svg>
+          </button>
+          {blogOpen &&
+            blogItems.map((item) => (
+              <Link
+                key={item.label}
+                href={item.href}
+                onClick={() => setMenuOpen(false)}
+                className="flex min-h-[44px] items-center border-b border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-8 font-ui text-sm font-medium text-[var(--color-text-primary)] hover:text-[var(--color-primary)]"
+              >
+                {item.label}
+              </Link>
+            ))}
 
           <Link
             href="/newsletter"

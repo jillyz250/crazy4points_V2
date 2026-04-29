@@ -121,6 +121,22 @@ export default async function BlogIndex({ searchParams }: Props) {
             ? 'Nothing in this category yet. Try another.'
             : 'Nothing published yet. Come back soon.'}
         </p>
+      ) : !categoryFilter && posts.length > 0 ? (
+        // /blog root — latest post (or top-featured) becomes a hero card
+        // spanning the full width, with the remaining posts in the
+        // existing 3-up grid below. Inside category views we keep the
+        // straight grid so the hero treatment doesn't fight the chip
+        // navigation.
+        <>
+          <HeroPostCard post={posts[0]} />
+          {posts.length > 1 && (
+            <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-7 lg:grid-cols-3">
+              {posts.slice(1).map((post) => (
+                <ArticleCard key={post.slug} post={post} />
+              ))}
+            </div>
+          )}
+        </>
       ) : (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-7 lg:grid-cols-3">
           {posts.map((post) => (
@@ -150,6 +166,73 @@ function CategoryChip({
   return (
     <Link href={href} className={`${base} ${active ? activeCls : inactiveCls}`}>
       {label}
+    </Link>
+  );
+}
+
+/**
+ * Larger card for the most-recent / top-featured post on /blog root.
+ * Full-width, bigger typography, image-left text-right on md+.
+ *
+ * Falls back to text-only layout when there's no hero image — same
+ * rationale as ArticleCard (#250). The 2px purple top edge keeps the
+ * brand presence without occupying real estate.
+ */
+function HeroPostCard({ post }: { post: BlogRow }) {
+  const dek = (post.excerpt && post.excerpt.trim()) || post.pitch;
+  const categoryLabel = getBlogCategoryLabel(post.category);
+  const dateStr = formatDate(post.published_at);
+  const hasHeroImage = !!post.hero_image_url;
+
+  return (
+    <Link
+      href={`/blog/${post.slug}`}
+      className="group block overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-white shadow-[var(--shadow-soft)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+    >
+      {!hasHeroImage && (
+        <div className="h-0.5 w-full bg-[var(--color-primary)]" aria-hidden />
+      )}
+
+      <div
+        className={`flex flex-col gap-6 p-6 md:gap-8 md:p-8 ${
+          hasHeroImage ? 'md:flex-row md:items-center' : ''
+        }`}
+      >
+        {hasHeroImage && (
+          <div className="md:w-[42%] md:shrink-0">
+            <HeroImageOrFallback
+              imageUrl={post.hero_image_url}
+              title={post.title}
+              category={post.category}
+              variant="thumbnail"
+            />
+          </div>
+        )}
+
+        <div className="flex flex-col gap-4">
+          {categoryLabel && (
+            <span className="self-start rounded-full bg-[var(--color-background-soft)] px-2.5 py-1 font-ui text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-primary)]">
+              {categoryLabel}
+            </span>
+          )}
+
+          <h2 className="font-display text-2xl md:text-3xl lg:text-4xl font-semibold leading-tight text-[var(--color-primary)] group-hover:underline">
+            {post.title}
+          </h2>
+
+          <p className="font-body text-base md:text-lg text-[var(--color-text-secondary)] line-clamp-3">
+            {dek}
+          </p>
+
+          <div className="flex items-center gap-2 font-ui text-xs text-[var(--color-text-secondary)]">
+            {dateStr && <span>{dateStr}</span>}
+            {dateStr && post.reading_time_minutes && <span aria-hidden>·</span>}
+            {post.reading_time_minutes && (
+              <span>{post.reading_time_minutes} min read</span>
+            )}
+          </div>
+        </div>
+      </div>
     </Link>
   );
 }
