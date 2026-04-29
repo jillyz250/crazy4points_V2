@@ -57,6 +57,7 @@ type Props = {
     type?: string;
     program?: string;
     card?: string;
+    q?: string;
   }>;
 };
 
@@ -107,12 +108,14 @@ function buildBlogHref(params: {
   type?: string | null;
   program?: string | null;
   card?: string | null;
+  q?: string | null;
 }): string {
   const search = new URLSearchParams();
   if (params.category) search.set('category', params.category);
   if (params.type) search.set('type', params.type);
   if (params.program) search.set('program', params.program);
   if (params.card) search.set('card', params.card);
+  if (params.q) search.set('q', params.q);
   const qs = search.toString();
   return qs ? `/blog?${qs}` : '/blog';
 }
@@ -125,6 +128,10 @@ export default async function BlogIndex({ searchParams }: Props) {
   // check after the DB returns the program/card lists.
   const programFilterRaw = sp.program?.trim() || null;
   const cardFilterRaw = sp.card?.trim() || null;
+  // Search query — trim, lowercase for case-insensitive ilike. Capped at
+  // 80 chars to keep URLs sane and prevent silly inputs.
+  const qRaw = sp.q?.trim() ?? '';
+  const qFilter = qRaw.length > 0 ? qRaw.slice(0, 80) : null;
 
   const supabase = await createClient();
   let query = supabase
@@ -142,6 +149,15 @@ export default async function BlogIndex({ searchParams }: Props) {
 
   if (categoryFilter) {
     query = query.eq('category', categoryFilter);
+  }
+
+  if (qFilter) {
+    // Title + excerpt search. PostgREST .or() with ilike on both columns;
+    // % wildcards on each side so substrings match. Excerpt commonly
+    // captures the article's key entities (program names, dates) so this
+    // covers most reader intent without needing to scan article_body.
+    const escaped = qFilter.replace(/[%_]/g, '\\$&');
+    query = query.or(`title.ilike.%${escaped}%,excerpt.ilike.%${escaped}%`);
   }
 
   // Fetch posts + programs + cards in parallel. Programs gives us the
@@ -231,12 +247,52 @@ export default async function BlogIndex({ searchParams }: Props) {
   // Hero card only appears on a truly clean /blog (no filters). Inside
   // any filter view we render straight grid so the hero doesn't fight
   // chip navigation.
-  const hasAnyFilter = !!(categoryFilter || typeFilter || programFilterRaw || cardFilterRaw);
+  const hasAnyFilter = !!(
+    categoryFilter ||
+    typeFilter ||
+    programFilterRaw ||
+    cardFilterRaw ||
+    qFilter
+  );
 
   // Pre-compute type-sets for cards so we don't re-derive in the render.
   const postTypesByslug = new Map(
     filteredPosts.map((p) => [p.slug, computePostTypes(p)] as const),
   );
+
+  // Phase 3 — primary-type sort. When filtering by type=airlines, posts
+  // where the AIRLINE is the primary tag rank above posts where the
+  // airline is only a secondary tag. Surfaces the most-relevant content
+  // first inside a multi-tag bucket. Same for hotels. For type=cards
+  // there's no primary/secondary distinction (cards are flat), so this
+  // is a no-op in that case.
+  //
+  // Same idea for program filter: if narrowing by program=world-of-hyatt,
+  // posts where world-of-hyatt is PRIMARY rank above posts where it's
+  // secondary.
+  function primaryRank(post: BlogRow): number {
+    if (typeFilter === 'airlines' || typeFilter === 'hotels') {
+      const primarySlug = post.primary_program_slug;
+      if (primarySlug) {
+        const t = programType.get(primarySlug);
+        const wantedType = typeFilter === 'airlines' ? 'airline' : 'hotel';
+        if (t === wantedType) return 0; // primary match
+      }
+      return 1;
+    }
+    if (programFilterRaw) {
+      return post.primary_program_slug === programFilterRaw ? 0 : 1;
+    }
+    return 0; // no preference axis active — preserve DB order
+  }
+  filteredPosts.sort((a, b) => {
+    const r = primaryRank(a) - primaryRank(b);
+    if (r !== 0) return r;
+    // Fallback to chronological (newest first) within rank ties.
+    const aDate = a.published_at ? new Date(a.published_at).getTime() : 0;
+    const bDate = b.published_at ? new Date(b.published_at).getTime() : 0;
+    return bDate - aDate;
+  });
 
   return (
     <div className="rg-container px-6 md:px-8 py-12 md:py-16">
@@ -250,7 +306,115 @@ export default async function BlogIndex({ searchParams }: Props) {
         </p>
       </header>
 
-      {/* Category filter chips — preserve type/program/card on click. */}
+      {/* Search input — submit-on-enter (no client JS, no debounce).
+          Hidden inputs preserve all current filters so a search inside a
+          filter view stays inside that view. URL stays shareable. */}
+      <form
+        action="/blog"
+        method="get"
+        role="search"
+        className="mb-6 flex flex-wrap items-center gap-2"
+      >
+        <label htmlFor="blog-search" className="sr-only">
+          Search blog
+        </label>
+        <input
+          id="blog-search"
+          type="search"
+          name="q"
+          defaultValue={qFilter ?? ''}
+          placeholder="Search posts by title or excerpt…"
+          maxLength={80}
+          className="w-full max-w-md rounded-full border border-[var(--color-border-soft)] bg-white px-4 py-2 font-ui text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20"
+        />
+        {categoryFilter && <input type="hidden" name="category" value={categoryFilter} />}
+        {typeFilter && <input type="hidden" name="type" value={typeFilter} />}
+        {programFilterRaw && <input type="hidden" name="program" value={programFilterRaw} />}
+        {cardFilterRaw && <input type="hidden" name="card" value={cardFilterRaw} />}
+        <button
+          type="submit"
+          className="rounded-full bg-[var(--color-primary)] px-4 py-2 font-ui text-xs font-semibold uppercase tracking-[0.1em] text-white hover:bg-[var(--color-primary-hover)]"
+        >
+          Search
+        </button>
+      </form>
+
+      {/* Active filter pills with [×] — visible when any filter is set.
+          Each pill removes its own filter; "Clear all" resets to /blog.
+          Same composability rules as the chip rows: removing TYPE drops
+          program/card; removing PROGRAM/CARD keeps type. */}
+      {hasAnyFilter && (
+        <div
+          aria-label="Active filters"
+          className="mb-4 flex flex-wrap items-center gap-2"
+        >
+          <span className="font-ui text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-secondary)]">
+            Active:
+          </span>
+          {categoryFilter && (
+            <ActiveFilterPill
+              label={`Category: ${getBlogCategoryLabel(categoryFilter) ?? categoryFilter}`}
+              removeHref={buildBlogHref({
+                category: null,
+                type: typeFilter,
+                program: programFilterRaw,
+                card: cardFilterRaw,
+                q: qFilter,
+              })}
+            />
+          )}
+          {typeFilter && (
+            <ActiveFilterPill
+              label={`Type: ${TYPE_BUCKETS.find((t) => t.slug === typeFilter)?.label ?? typeFilter}`}
+              // Removing TYPE drops program/card (type-scoped).
+              removeHref={buildBlogHref({
+                category: categoryFilter,
+                type: null,
+                q: qFilter,
+              })}
+            />
+          )}
+          {programFilterRaw && (
+            <ActiveFilterPill
+              label={`Program: ${programName.get(programFilterRaw) ?? programFilterRaw}`}
+              removeHref={buildBlogHref({
+                category: categoryFilter,
+                type: typeFilter,
+                q: qFilter,
+              })}
+            />
+          )}
+          {cardFilterRaw && (
+            <ActiveFilterPill
+              label={`Card: ${cardName.get(cardFilterRaw) ?? cardFilterRaw}`}
+              removeHref={buildBlogHref({
+                category: categoryFilter,
+                type: typeFilter,
+                q: qFilter,
+              })}
+            />
+          )}
+          {qFilter && (
+            <ActiveFilterPill
+              label={`Search: "${qFilter}"`}
+              removeHref={buildBlogHref({
+                category: categoryFilter,
+                type: typeFilter,
+                program: programFilterRaw,
+                card: cardFilterRaw,
+              })}
+            />
+          )}
+          <Link
+            href="/blog"
+            className="font-ui text-[11px] font-medium text-[var(--color-text-secondary)] underline hover:text-[var(--color-primary)]"
+          >
+            Clear all
+          </Link>
+        </div>
+      )}
+
+      {/* Category filter chips — preserve type/program/card/q on click. */}
       <nav
         aria-label="Filter by category"
         className="mb-4 flex flex-wrap items-center gap-2 md:gap-2.5"
@@ -261,6 +425,7 @@ export default async function BlogIndex({ searchParams }: Props) {
             type: typeFilter,
             program: programFilterRaw,
             card: cardFilterRaw,
+            q: qFilter,
           })}
           label="All"
           active={!categoryFilter}
@@ -273,6 +438,7 @@ export default async function BlogIndex({ searchParams }: Props) {
               type: typeFilter,
               program: programFilterRaw,
               card: cardFilterRaw,
+              q: qFilter,
             })}
             label={c.label}
             active={categoryFilter === c.slug}
@@ -290,6 +456,7 @@ export default async function BlogIndex({ searchParams }: Props) {
           href={buildBlogHref({
             category: categoryFilter,
             type: null,
+            q: qFilter,
           })}
           label="All Types"
           active={!typeFilter}
@@ -300,6 +467,7 @@ export default async function BlogIndex({ searchParams }: Props) {
             href={buildBlogHref({
               category: categoryFilter,
               type: t.slug,
+              q: qFilter,
             })}
             label={t.label}
             active={typeFilter === t.slug}
@@ -319,6 +487,7 @@ export default async function BlogIndex({ searchParams }: Props) {
             href={buildBlogHref({
               category: categoryFilter,
               type: typeFilter,
+              q: qFilter,
             })}
             label="All"
             active={!secondRowActiveSlug}
@@ -329,6 +498,7 @@ export default async function BlogIndex({ searchParams }: Props) {
               href={buildBlogHref({
                 category: categoryFilter,
                 type: typeFilter,
+                q: qFilter,
                 ...(item.paramKey === 'card'
                   ? { card: item.slug }
                   : { program: item.slug }),
@@ -425,6 +595,33 @@ function TypeChip({
   return (
     <Link href={href} className={`${base} ${active ? activeCls : inactiveCls}`}>
       {label}
+    </Link>
+  );
+}
+
+/**
+ * Active filter pill — surfaces a currently-applied filter with a [×]
+ * to remove just that one. The href encodes "what would the URL be
+ * WITHOUT this filter" — composability rules (e.g. removing TYPE drops
+ * program/card) live in the call site, not here.
+ */
+function ActiveFilterPill({
+  label,
+  removeHref,
+}: {
+  label: string;
+  removeHref: string;
+}) {
+  return (
+    <Link
+      href={removeHref}
+      className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-primary)] px-3 py-1 font-ui text-[11px] font-medium text-white transition-opacity hover:opacity-85"
+      title={`Remove filter: ${label}`}
+    >
+      <span>{label}</span>
+      <span aria-hidden className="text-[14px] leading-none">
+        ×
+      </span>
     </Link>
   );
 }
