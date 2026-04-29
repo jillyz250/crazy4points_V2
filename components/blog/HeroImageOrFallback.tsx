@@ -33,9 +33,15 @@ export default function HeroImageOrFallback({
   // viewport and pushing content below the fold. 16:9 is the standard
   // blog-card ratio; capped at 280px so cards stay scannable at wide
   // breakpoints.
+  // Aggressive caps — earlier rounds (#246, #247) were still too tall
+  // on real viewports. Dropping further:
+  //   full hero    → max 220 / 300 (was 360 / 420)
+  //   thumbnail    → max 160 / 180 (was 240 / 280)
+  // 16:9 still drives the natural ratio; max-h clamps when the card is
+  // wide enough that the natural height would exceed the cap.
   const aspectClass = isFull
-    ? 'aspect-[21/9] max-h-[360px] md:max-h-[420px]'
-    : 'aspect-[16/9] max-h-[240px] md:max-h-[280px]';
+    ? 'aspect-[21/9] max-h-[220px] md:max-h-[300px]'
+    : 'aspect-[16/9] max-h-[160px] md:max-h-[180px]';
 
   return (
     <div
