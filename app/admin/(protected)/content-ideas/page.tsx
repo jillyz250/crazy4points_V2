@@ -15,6 +15,7 @@ import RunAllChecksButton from '@/components/admin/RunAllChecksButton'
 import RewriteFromVerifiedFactsButton from '@/components/admin/RewriteFromVerifiedFactsButton'
 import ArticleBodyEditor from '@/components/admin/ArticleBodyEditor'
 import SourceTextPanel from '@/components/admin/SourceTextPanel'
+import OriginalityPanel from '@/components/admin/OriginalityPanel'
 import BlogMetadataForm from '@/components/admin/BlogMetadataForm'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Badge } from '@/components/admin/ui/Badge'
@@ -48,6 +49,11 @@ interface ContentIdeaRow {
   originality_checked_at: string | null
   originality_notes: string | null
   originality_pass: boolean | null
+  // Phase 5 — confidence-scored originality. Null on rows checked before
+  // migration 057 (or never checked).
+  originality_confidence_score: number | null
+  originality_threshold: number | null
+  originality_flagged_passages: unknown // jsonb — typed as FlaggedPassage[] when populated
   override_reason: string | null
   // Blog publishing metadata (Ship 1)
   category: string | null
@@ -379,6 +385,34 @@ interface VerificationPill {
   hint: string
 }
 
+/**
+ * Build the hover hint for the originality pill — surfaces confidence score,
+ * threshold, and flagged-passage count when the v2 fields are populated, and
+ * gracefully falls back to the legacy boolean+notes shape for old rows.
+ */
+function buildOriginalityHint(idea: ContentIdeaRow): string {
+  const score = idea.originality_confidence_score
+  const threshold = idea.originality_threshold ?? 70
+  const flaggedCount = Array.isArray(idea.originality_flagged_passages)
+    ? (idea.originality_flagged_passages as unknown[]).length
+    : 0
+  if (typeof score === 'number') {
+    const verdict = score >= threshold ? 'PASS' : 'FAIL'
+    const flagsLine = flaggedCount > 0 ? ` · ${flaggedCount} flagged passage${flaggedCount === 1 ? '' : 's'}` : ''
+    const notes = idea.originality_notes ? ` — ${idea.originality_notes}` : ''
+    return `${verdict} ${score}/100 (threshold ${threshold})${flagsLine}${notes}`
+  }
+  // Legacy row shape — boolean only.
+  if (idea.originality_notes) {
+    return `${idea.originality_pass ? 'PASS' : 'FAIL'} — ${idea.originality_notes}`
+  }
+  return `Originality checked ${
+    idea.originality_checked_at
+      ? new Date(idea.originality_checked_at).toLocaleDateString()
+      : ''
+  }`.trim()
+}
+
 function verificationPills(idea: ContentIdeaRow): VerificationPill[] {
   // A claim is "flagged" only if source comparison failed AND web verification
   // didn't rescue it. Web-verified-correct claims are resolved.
@@ -422,12 +456,16 @@ function verificationPills(idea: ContentIdeaRow): VerificationPill[] {
         : 'Not voice-checked yet',
     },
     {
-      label: 'Original',
+      label:
+        // Phase 5 — show the confidence number on the pill itself when we
+        // have it, so the editor sees "Original 82" at a glance and only
+        // expands the panel when something needs attention.
+        typeof idea.originality_confidence_score === 'number'
+          ? `Original ${idea.originality_confidence_score}`
+          : 'Original',
       on: Boolean(idea.originality_checked_at) && idea.originality_pass === true,
       hint: idea.originality_checked_at
-        ? idea.originality_notes
-          ? `${idea.originality_pass ? 'PASS' : 'FAIL'} — ${idea.originality_notes}`
-          : `Originality checked ${new Date(idea.originality_checked_at).toLocaleDateString()}`
+        ? buildOriginalityHint(idea)
         : 'Originality not checked yet',
     },
   ]
@@ -505,6 +543,28 @@ function IdeaCard({
       <FailureNotes idea={idea} />
 
       <AllClaimsViewer idea={idea} />
+
+      {/*
+       * Phase 5 — originality panel only renders when there's something
+       * to act on (failed score OR any flagged passages). Clean passes
+       * are silent; the score badge on the verification pill is enough.
+       */}
+      {idea.originality_checked_at && (
+        <OriginalityPanel
+          ideaId={idea.id}
+          confidenceScore={idea.originality_confidence_score ?? null}
+          threshold={idea.originality_threshold ?? null}
+          pass={idea.originality_pass ?? null}
+          notes={idea.originality_notes ?? null}
+          flaggedPassages={
+            Array.isArray(idea.originality_flagged_passages)
+              ? (idea.originality_flagged_passages as Parameters<
+                  typeof OriginalityPanel
+                >[0]['flaggedPassages'])
+              : []
+          }
+        />
+      )}
 
       <p style={{ margin: '0 0 0.75rem', color: 'var(--admin-text-muted)', fontSize: '0.875rem', lineHeight: 1.5 }}>
         {idea.pitch}
