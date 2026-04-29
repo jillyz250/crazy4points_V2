@@ -612,14 +612,17 @@ function ActiveFilterPill({
   label: string;
   removeHref: string;
 }) {
+  // Light tint instead of solid primary — these are informational
+  // indicators ("this filter is on"), not call-to-action buttons. Solid
+  // purple read too heavy against the rest of the page chrome.
   return (
     <Link
       href={removeHref}
-      className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-primary)] px-3 py-1 font-ui text-[11px] font-medium text-white transition-opacity hover:opacity-85"
+      className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-3 py-1 font-ui text-[11px] font-medium text-[var(--color-primary)] transition-colors hover:border-[var(--color-primary)] hover:bg-white"
       title={`Remove filter: ${label}`}
     >
       <span>{label}</span>
-      <span aria-hidden className="text-[14px] leading-none">
+      <span aria-hidden className="text-[14px] leading-none opacity-70">
         ×
       </span>
     </Link>
