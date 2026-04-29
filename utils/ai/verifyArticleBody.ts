@@ -118,6 +118,60 @@ function extractJson(text: string): string {
   return trimmed
 }
 
+/**
+ * Tries hard to parse JSON; if Sonnet's output got truncated mid-array
+ * (hits max_tokens), recovers by trimming back to the last complete claim
+ * object and closing the JSON. Better than throwing and losing every claim
+ * we DID extract.
+ *
+ * Strategy: walk back from the point where parse fails to find the last
+ * `}` that's followed only by whitespace/commas/newlines, then truncate
+ * there and synthesize the array+object close.
+ *
+ * Caller still gets logging through the existing `console.error` if even
+ * recovery fails, so we don't hide bugs.
+ */
+function parseJsonResilient(raw: string): unknown {
+  try {
+    return JSON.parse(raw)
+  } catch (err) {
+    // Heuristic recovery for `{"claims": [ {...}, {...}, {... <truncated>` shape.
+    const claimsIdx = raw.indexOf('"claims"')
+    if (claimsIdx < 0) throw err
+    const arrayStart = raw.indexOf('[', claimsIdx)
+    if (arrayStart < 0) throw err
+    // Find the last position where a claim object cleanly closes.
+    // We scan for `}` followed by optional whitespace + (`,` | end-of-string).
+    let depth = 0
+    let inString = false
+    let escape = false
+    let lastCleanEnd = -1
+    for (let i = arrayStart; i < raw.length; i++) {
+      const ch = raw[i]
+      if (escape) { escape = false; continue }
+      if (ch === '\\') { escape = true; continue }
+      if (ch === '"') { inString = !inString; continue }
+      if (inString) continue
+      if (ch === '{') depth++
+      else if (ch === '}') {
+        depth--
+        if (depth === 0) lastCleanEnd = i
+      }
+    }
+    if (lastCleanEnd < 0) throw err
+    // Reconstruct: everything up to and including the last clean `}`,
+    // then close the array and outer object.
+    const repaired = raw.slice(0, lastCleanEnd + 1) + ']}'
+    console.warn(
+      `[verifyArticleBody] JSON truncated at position ${raw.length}; recovered ${
+        // count claim-object opens we kept
+        repaired.split('"claim"').length - 1
+      } claims via repair.`
+    )
+    return JSON.parse(repaired)
+  }
+}
+
 function validate(parsed: unknown): VerifyClaim[] {
   const obj = parsed as { claims?: unknown }
   if (!obj || typeof obj !== 'object' || !Array.isArray(obj.claims)) {
@@ -169,13 +223,18 @@ export async function verifyArticleBody(args: {
     const client = new Anthropic({ apiKey })
     const message = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 2500,
+      // Bumped from 2500 — long blog bodies (e.g. card-comparison articles)
+      // produce 15-25 claims; at ~300 tokens each plus structure, 2500 was
+      // truncating mid-array. 8000 leaves headroom; Sonnet 4.6 supports ~16K.
+      max_tokens: 8000,
       system: systemPrompt,
       messages: [{ role: 'user', content: userContent }],
     })
     const block = message.content[0]
     if (!block || block.type !== 'text') return null
-    let claims = validate(JSON.parse(extractJson(block.text)))
+    // Use the resilient parser — recovers from mid-array truncation if we
+    // ever do exceed max_tokens, instead of dropping every claim.
+    let claims = validate(parseJsonResilient(extractJson(block.text)))
     // Belt-and-suspenders: when running without source text, force every
     // claim to supported=false even if the model accidentally returned true.
     if (!sourceText) {

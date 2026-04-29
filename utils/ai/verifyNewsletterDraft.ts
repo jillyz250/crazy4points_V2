@@ -104,6 +104,45 @@ function extractJson(text: string): string {
   return trimmed
 }
 
+/**
+ * Resilient JSON parse — if Sonnet truncates the claims array, recover what
+ * we can instead of throwing. Same heuristic as verifyArticleBody / verifyAlertDraft.
+ */
+function parseJsonResilient(raw: string): unknown {
+  try {
+    return JSON.parse(raw)
+  } catch (err) {
+    const claimsIdx = raw.indexOf('"claims"')
+    if (claimsIdx < 0) throw err
+    const arrayStart = raw.indexOf('[', claimsIdx)
+    if (arrayStart < 0) throw err
+    let depth = 0
+    let inString = false
+    let escape = false
+    let lastCleanEnd = -1
+    for (let i = arrayStart; i < raw.length; i++) {
+      const ch = raw[i]
+      if (escape) { escape = false; continue }
+      if (ch === '\\') { escape = true; continue }
+      if (ch === '"') { inString = !inString; continue }
+      if (inString) continue
+      if (ch === '{') depth++
+      else if (ch === '}') {
+        depth--
+        if (depth === 0) lastCleanEnd = i
+      }
+    }
+    if (lastCleanEnd < 0) throw err
+    const repaired = raw.slice(0, lastCleanEnd + 1) + ']}'
+    console.warn(
+      `[verifyNewsletterDraft] JSON truncated at position ${raw.length}; recovered ${
+        repaired.split('"claim"').length - 1
+      } claims via repair.`
+    )
+    return JSON.parse(repaired)
+  }
+}
+
 function validate(parsed: unknown): VerifyClaim[] {
   const obj = parsed as { claims?: unknown }
   if (!obj || typeof obj !== 'object' || !Array.isArray(obj.claims)) {
@@ -196,13 +235,15 @@ export async function verifyNewsletterDraft(args: VerifyNewsletterInput): Promis
     const client = new Anthropic({ apiKey })
     const message = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 3000,
+      // Bumped from 3000 — newsletters with many quick_wins / heads_up items
+      // can produce 15+ claims and overflow. 6000 leaves headroom.
+      max_tokens: 6000,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userContent }],
     })
     const block = message.content[0]
     if (!block || block.type !== 'text') return null
-    const claims = validate(JSON.parse(extractJson(block.text)))
+    const claims = validate(parseJsonResilient(extractJson(block.text)))
     return { claims, checked_at: new Date().toISOString() }
   } catch (err) {
     console.error('[verifyNewsletterDraft] Sonnet call failed:', err)
