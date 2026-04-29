@@ -569,7 +569,14 @@ export type PipelineResult =
       wrote: boolean
       facts: { ran: boolean; flagged: number; error?: string }
       voice: { ran: boolean; pass: boolean; error?: string }
-      originality: { ran: boolean; pass: boolean; error?: string }
+      originality: {
+        ran: boolean
+        pass: boolean
+        confidence_score?: number
+        threshold?: number
+        flagged_count?: number
+        error?: string
+      }
       ready: boolean
     }
   | { ok: false; error: string }
@@ -609,7 +616,13 @@ export async function runAllChecksAction(id: string): Promise<PipelineResult> {
     ? { ran: true, pass: voiceRes.pass }
     : { ran: false, pass: false, error: voiceRes.error }
   const originality = origRes.ok
-    ? { ran: true, pass: origRes.pass }
+    ? {
+        ran: true,
+        pass: origRes.pass,
+        confidence_score: origRes.confidence_score,
+        threshold: origRes.threshold,
+        flagged_count: origRes.flagged_count,
+      }
     : { ran: false, pass: false, error: origRes.error }
 
   const ready = facts.ran && facts.flagged === 0 && voice.ran && voice.pass && originality.ran && originality.pass
@@ -618,20 +631,36 @@ export async function runAllChecksAction(id: string): Promise<PipelineResult> {
 }
 
 export type OriginalityActionResult =
-  | { ok: true; pass: boolean; notes: string }
+  | {
+      ok: true
+      pass: boolean
+      notes: string
+      confidence_score: number
+      threshold: number
+      flagged_count: number
+    }
   | { ok: false; error: string }
 
 export async function checkOriginalityAction(id: string): Promise<OriginalityActionResult> {
   const supabase = createAdminClient()
   const { data: idea, error: fetchErr } = await supabase
     .from('content_ideas')
-    .select('id, title, article_body')
+    .select('id, title, article_body, originality_threshold')
     .eq('id', id)
     .single()
   if (fetchErr || !idea) return { ok: false, error: fetchErr?.message ?? 'Idea not found' }
   if (!idea.article_body) return { ok: false, error: 'No article body to check — draft first.' }
 
-  const res = await originalityCheck({ title: idea.title, article_body: idea.article_body })
+  // Per-idea threshold override if the editor set one in metadata; otherwise
+  // originalityCheck() falls back to DEFAULT_ORIGINALITY_THRESHOLD (70).
+  const threshold =
+    typeof idea.originality_threshold === 'number' ? idea.originality_threshold : undefined
+
+  const res = await originalityCheck({
+    title: idea.title,
+    article_body: idea.article_body,
+    threshold,
+  })
   if (!res) return { ok: false, error: 'Originality check failed (see logs)' }
 
   const { error: updateErr } = await supabase
@@ -640,13 +669,122 @@ export async function checkOriginalityAction(id: string): Promise<OriginalityAct
       originality_checked_at: res.checked_at,
       originality_notes: res.notes,
       originality_pass: res.pass,
+      // Phase 5 — confidence score + flagged passages + threshold persisted.
+      originality_confidence_score: res.confidence_score,
+      originality_threshold: res.threshold,
+      originality_flagged_passages: res.flagged_passages,
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
   if (updateErr) return { ok: false, error: updateErr.message }
 
   revalidatePath('/admin/content-ideas')
-  return { ok: true, pass: res.pass, notes: res.notes }
+  return {
+    ok: true,
+    pass: res.pass,
+    notes: res.notes,
+    confidence_score: res.confidence_score,
+    threshold: res.threshold,
+    flagged_count: res.flagged_passages.length,
+  }
+}
+
+/**
+ * Phase 5 — rewrite the article body to surgically rephrase any passages
+ * the originality checker flagged. Preserves facts, brand voice, and the
+ * comparison_audits HTML comment. Replaces the body in place, bumps
+ * `updated_at`, and clears the originality verdict so the editor knows
+ * to re-run checks (the new body might pass at a higher confidence, or
+ * still fail and need another pass).
+ *
+ * Cleared on successful rewrite:
+ *   - originality_checked_at / originality_pass / originality_confidence_score
+ *     / originality_flagged_passages — the previous verdict is now stale.
+ *   - voice_checked_at + voice_pass — surgical edits CAN nudge voice; safer
+ *     to require a re-check than carry a stale pass.
+ *   - fact_checked_at + fact_check_claims — same logic; rewrite might
+ *     touch a fact even though we tell it not to. Re-fact-check is cheap.
+ */
+export type RewriteForOriginalityResult =
+  | {
+      ok: true
+      changes_count: number
+      changes: { before: string; after: string; reason: string }[]
+    }
+  | { ok: false; error: string }
+
+export async function rewriteForOriginalityAction(
+  id: string
+): Promise<RewriteForOriginalityResult> {
+  const supabase = createAdminClient()
+  const { data: idea, error: fetchErr } = await supabase
+    .from('content_ideas')
+    .select('id, title, article_body, originality_flagged_passages')
+    .eq('id', id)
+    .single()
+  if (fetchErr || !idea) return { ok: false, error: fetchErr?.message ?? 'Idea not found' }
+  if (!idea.article_body) return { ok: false, error: 'No article body to rewrite — draft first.' }
+
+  const flagged = Array.isArray(idea.originality_flagged_passages)
+    ? (idea.originality_flagged_passages as Array<{
+        text?: unknown
+        matched_url?: unknown
+        matched_excerpt?: unknown
+        confidence?: unknown
+        why?: unknown
+      }>)
+        .map((p) => ({
+          text: typeof p.text === 'string' ? p.text : '',
+          matched_url: typeof p.matched_url === 'string' ? p.matched_url : null,
+          matched_excerpt: typeof p.matched_excerpt === 'string' ? p.matched_excerpt : null,
+          confidence: typeof p.confidence === 'number' ? p.confidence : 0,
+          why: typeof p.why === 'string' ? p.why : '',
+        }))
+        .filter((p) => p.text.length > 0)
+    : []
+
+  if (flagged.length === 0) {
+    return {
+      ok: false,
+      error: 'No flagged passages to rewrite. Re-run originality check first if you expected flags.',
+    }
+  }
+
+  const { rewriteForOriginality } = await import('@/utils/ai/rewriteForOriginality')
+  const res = await rewriteForOriginality({
+    title: idea.title,
+    current_body: idea.article_body,
+    flagged_passages: flagged,
+  })
+  if (!res) return { ok: false, error: 'Originality rewrite failed (see logs)' }
+
+  const now = new Date().toISOString()
+  const { error: updateErr } = await supabase
+    .from('content_ideas')
+    .update({
+      article_body: res.body,
+      updated_at: now,
+      // Stale-verdict cleanup — see action docstring.
+      originality_checked_at: null,
+      originality_notes: null,
+      originality_pass: null,
+      originality_confidence_score: null,
+      originality_flagged_passages: null,
+      voice_checked_at: null,
+      voice_pass: null,
+      voice_notes: null,
+      fact_checked_at: null,
+      fact_check_claims: null,
+    })
+    .eq('id', id)
+  if (updateErr) return { ok: false, error: updateErr.message }
+
+  revalidatePath('/admin/content-ideas')
+  return {
+    ok: true,
+    changes_count: res.changes.length,
+    changes: res.changes,
+  }
 }
 
 /**
