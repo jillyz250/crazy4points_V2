@@ -5,6 +5,13 @@
  */
 import Anthropic from '@anthropic-ai/sdk'
 import type { ClaimSupportState, VerifyClaim, VerifyResult } from './verifyAlertDraft'
+import {
+  extractComparisonAudits,
+  verifyComparisonAudits,
+  comparisonResultsToClaims,
+  detectUnauditedComparisons,
+  stripComparisonAudits,
+} from './verifyComparisons'
 
 export type { ClaimSupportState, VerifyClaim, VerifyResult } from './verifyAlertDraft'
 
@@ -274,7 +281,23 @@ export async function verifyArticleBody(args: {
   }
 
   const sourceText = args.source_text?.trim()
-  // Two modes:
+
+  // Phase 2 — comparison-audit pre-pass (deterministic, no LLM).
+  // Extract any <!-- comparison_audits: [...] --> block from the article
+  // body, recompute the math, and synthesize VerifyClaim entries (one per
+  // comparison). Strip the audit block from the body before sending to
+  // Sonnet so the LLM doesn't double-extract the comparison as a natural-
+  // language claim.
+  // Also run the regex safety net: comparison words ("faster", "same rate",
+  // "double", etc.) in prose with no matching audit entry → high-severity
+  // unsupported synthetic claim, forcing the editor to revise or audit.
+  const audits = extractComparisonAudits(args.article_body)
+  const auditResults = verifyComparisonAudits(audits)
+  const auditClaims = comparisonResultsToClaims(auditResults)
+  const bodyForSonnet = stripComparisonAudits(args.article_body)
+  const unauditedClaims = audits.length === 0 ? detectUnauditedComparisons(bodyForSonnet) : []
+
+  // Two modes for the Sonnet pass (downstream of comparison audit):
   //   - With source_text: compare each claim against the source (existing behavior)
   //   - Without source_text: just extract the claims and mark them all unsupported
   //     so the downstream webVerifyClaims pass can ground them in real time.
@@ -283,7 +306,7 @@ export async function verifyArticleBody(args: {
   const systemPrompt = sourceText ? SYSTEM_PROMPT_WITH_SOURCE : SYSTEM_PROMPT_EXTRACT_ONLY
   const userPayload: Record<string, unknown> = {
     title: args.title,
-    article_body: args.article_body,
+    article_body: bodyForSonnet,
   }
   if (sourceText) {
     userPayload.source_text = sourceText
@@ -313,7 +336,12 @@ export async function verifyArticleBody(args: {
     if (!sourceText) {
       claims = claims.map((c) => ({ ...c, supported: 'unsupported' as const, source_excerpt: null }))
     }
-    return { claims, checked_at: new Date().toISOString() }
+    // Phase 2 — prepend deterministic comparison-audit results. These are
+    // ground truth (we computed the math ourselves), so they take priority
+    // over Sonnet's natural-language extraction. Any unaudited-comparison
+    // synthetic claims also surface here as high-severity flags.
+    const merged = [...auditClaims, ...unauditedClaims, ...claims]
+    return { claims: merged, checked_at: new Date().toISOString() }
   } catch (err) {
     console.error('[verifyArticleBody] Sonnet call failed:', err)
     return null
