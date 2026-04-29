@@ -39,9 +39,15 @@ export default function HeroImageOrFallback({
   //   thumbnail    → max 160 / 180 (was 240 / 280)
   // 16:9 still drives the natural ratio; max-h clamps when the card is
   // wide enough that the natural height would exceed the cap.
+  // Round four — even tighter. Thumbnails on the index were still
+  // dominating; hero on the article still felt heavy.
+  //   full hero    → max 160 / 220 (was 220 / 300)
+  //   thumbnail    → max 110 / 130 (was 160 / 180)
+  // For the branded fallback (no hero_image_url) these caps make the
+  // card feel like a labelled tile rather than a giant purple block.
   const aspectClass = isFull
-    ? 'aspect-[21/9] max-h-[220px] md:max-h-[300px]'
-    : 'aspect-[16/9] max-h-[160px] md:max-h-[180px]';
+    ? 'aspect-[21/9] max-h-[160px] md:max-h-[220px]'
+    : 'aspect-[16/9] max-h-[110px] md:max-h-[130px]';
 
   return (
     <div
