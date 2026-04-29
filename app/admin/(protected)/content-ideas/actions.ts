@@ -246,7 +246,7 @@ export async function updateContentIdeaStatusAction(
   if (status === 'published') {
     const { data: idea, error: fetchErr } = await supabase
       .from('content_ideas')
-      .select('id, title, type, slug, pitch, excerpt, category, article_body, written_at, fact_checked_at, fact_check_claims, voice_checked_at, voice_pass, originality_checked_at, originality_pass, override_reason')
+      .select('id, title, type, slug, pitch, excerpt, category, article_body, written_at, fact_checked_at, fact_check_claims, voice_checked_at, voice_pass, originality_checked_at, originality_pass, override_reason, published_at')
       .eq('id', id)
       .single()
     if (fetchErr || !idea) throw new Error(fetchErr?.message ?? 'Idea not found')
@@ -266,16 +266,24 @@ export async function updateContentIdeaStatusAction(
 
     const now = new Date().toISOString()
     const slug = idea.slug ?? (await uniqueSlug(supabase, idea.title, id))
+    // Preserve the original published_at on re-publish. Was overwriting
+    // every transition into 'published' with now() — meaning a fix +
+    // re-publish stamped today's date on an article that had already
+    // been live. Treat published_at as "first time this went live" and
+    // surface re-publishes via updated_at instead.
+    const updates: Record<string, unknown> = {
+      status,
+      slug,
+      updated_at: now,
+      excerpt: plan.updates.excerpt,
+      reading_time_minutes: plan.updates.reading_time_minutes,
+    }
+    if (!idea.published_at) {
+      updates.published_at = now
+    }
     const { error: pubErr } = await supabase
       .from('content_ideas')
-      .update({
-        status,
-        slug,
-        published_at: now,
-        updated_at: now,
-        excerpt: plan.updates.excerpt,
-        reading_time_minutes: plan.updates.reading_time_minutes,
-      })
+      .update(updates)
       .eq('id', id)
     if (pubErr) throw pubErr
     revalidatePath('/admin/content-ideas')

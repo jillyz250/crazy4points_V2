@@ -189,17 +189,12 @@ function ArticleCard({ post }: { post: BlogRow }) {
 
       <div className={`flex flex-col gap-3 ${hasHeroImage ? '' : 'p-5 pt-3'}`}>
         {categoryLabel && (
-          // Tighter pill + a gold hairline beneath it. Pill went from
-          // px-2.5 py-1 → px-2 py-0.5 so it stops competing with the
-          // title for attention. The gold hairline introduces the
-          // accent token (--color-accent) the rest of the card was
-          // missing — adds editorial warmth without taking real height.
-          <div className="flex flex-col gap-1.5">
-            <span className="self-start rounded-full bg-[var(--color-background-soft)] px-2 py-0.5 font-ui text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-primary)]">
-              {categoryLabel}
-            </span>
-            <span className="h-px w-7 bg-[var(--color-accent)]" aria-hidden />
-          </div>
+          // Just the tight category pill. Earlier round had a gold
+          // hairline beneath it (#251) — felt out of place on the rest
+          // of the all-purple card. Cleaner without it.
+          <span className="self-start rounded-full bg-[var(--color-background-soft)] px-2 py-0.5 font-ui text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-primary)]">
+            {categoryLabel}
+          </span>
         )}
 
         <h2 className="font-display text-xl font-semibold leading-snug text-[var(--color-primary)] line-clamp-2 group-hover:underline">
