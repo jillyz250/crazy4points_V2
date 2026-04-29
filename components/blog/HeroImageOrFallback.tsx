@@ -24,7 +24,14 @@ export default function HeroImageOrFallback({
 }: Props) {
   const [errored, setErrored] = useState(false);
   const isFull = variant === 'full';
-  const aspectClass = isFull ? 'aspect-[16/9]' : 'aspect-[3/2]';
+  // Full-width hero used to be aspect-[16/9] which on a ~1280px container
+  // renders ~720px tall — half the viewport on most laptops. The article
+  // felt like it started way below the fold. Switched to a banner ratio
+  // with a hard max-height cap so the hero is present but doesn't dominate.
+  // Thumbnail variant unchanged (3:2 is right inside small grid cells).
+  const aspectClass = isFull
+    ? 'aspect-[21/9] max-h-[360px] md:max-h-[420px]'
+    : 'aspect-[3/2]';
 
   return (
     <div
