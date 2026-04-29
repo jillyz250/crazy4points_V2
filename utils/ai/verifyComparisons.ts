@@ -304,6 +304,13 @@ export function detectUnauditedComparisons(
     { regex: /\bsame as\b/gi, label: '"same as"' },
     { regex: /\bfaster (per|than)\b/gi, label: '"faster than/per"' },
     { regex: /\bslower (per|than)\b/gi, label: '"slower than/per"' },
+    // Caught a real miss on the Bilt article: "Iberia often prices Avios
+    // redemptions lower than BA on overlapping routes." "lower than" /
+    // "higher than" / "lower per" / "higher per" are the same comparison
+    // shape as "faster/slower" — writers reach for different verbs but
+    // mean the same thing. Add so synonym choice can't sidestep the regex.
+    { regex: /\blower (per|than)\b/gi, label: '"lower than/per"' },
+    { regex: /\bhigher (per|than)\b/gi, label: '"higher than/per"' },
     { regex: /\bdouble (the|a)\b/gi, label: '"double the"' },
     { regex: /\btwice (as|the)\b/gi, label: '"twice as"' },
     { regex: /\bequal to\b/gi, label: '"equal to"' },

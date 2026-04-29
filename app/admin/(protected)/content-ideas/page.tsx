@@ -14,6 +14,7 @@ import CheckOriginalityButton from '@/components/admin/CheckOriginalityButton'
 import RunAllChecksButton from '@/components/admin/RunAllChecksButton'
 import RewriteFromVerifiedFactsButton from '@/components/admin/RewriteFromVerifiedFactsButton'
 import ArticleBodyEditor from '@/components/admin/ArticleBodyEditor'
+import SourceTextPanel from '@/components/admin/SourceTextPanel'
 import BlogMetadataForm from '@/components/admin/BlogMetadataForm'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Badge } from '@/components/admin/ui/Badge'
@@ -498,6 +499,8 @@ function IdeaCard({
       <VerificationRow pills={pills} />
 
       <SourcesUsed idea={idea} />
+
+      {idea.fact_checked_at && <SourceTextPanel ideaId={idea.id} />}
 
       <FailureNotes idea={idea} />
 
@@ -1147,32 +1150,52 @@ function SourcesUsed({ idea }: { idea: ContentIdeaRow }) {
         Sources used
       </span>
 
-      <SourcePill
-        label={
-          (idea.card_slugs ?? []).length > 0 && idea.primary_program_slug
-            ? '★ Your pages'
-            : (idea.card_slugs ?? []).length > 0
-              ? '★ Your card pages'
-              : '★ Your program pages'
-        }
-        count={yourPagesCount}
-        warn={yourPagesCount === 0}
-        href={
-          // Prefer the program page if both exist; fall back to the first
-          // tagged card page. This is where the editor can eyeball the
-          // source data themselves.
-          idea.primary_program_slug
-            ? `/programs/${idea.primary_program_slug}`
-            : (idea.card_slugs ?? []).length > 0
-              ? `/cards/${idea.card_slugs![0]}`
-              : undefined
-        }
-        title={
-          yourPagesCount === 0
-            ? "No claims grounded against your pages. Click to open the source page anyway."
-            : `${yourPagesCount} claim${yourPagesCount === 1 ? '' : 's'} grounded against your data — click to open the source page.`
-        }
-      />
+      {/*
+       * One pill per actual T1 surface so the editor can see WHICH pages
+       * were in scope, not just an aggregated "Your pages" count. Each
+       * pill links to the rendered page so the editor can eyeball the
+       * source data directly. When nothing is tagged (e.g. a Bilt article
+       * before the Bilt program page exists), no pills render here — the
+       * SourceTextPanel below makes the gap explicit.
+       */}
+      {idea.primary_program_slug && (
+        <SourcePill
+          label={`★ /programs/${idea.primary_program_slug}`}
+          count={yourPagesCount}
+          warn={yourPagesCount === 0}
+          href={`/programs/${idea.primary_program_slug}`}
+          title={`Primary program page — click to open. ${yourPagesCount} total claim${yourPagesCount === 1 ? '' : 's'} grounded against your tagged T1 surfaces.`}
+        />
+      )}
+      {(idea.secondary_program_slugs ?? []).map((slug) => (
+        <SourcePill
+          key={`prog-${slug}`}
+          label={`★ /programs/${slug}`}
+          href={`/programs/${slug}`}
+          title="Secondary program page — click to open."
+        />
+      ))}
+      {(idea.card_slugs ?? []).map((slug) => (
+        <SourcePill
+          key={`card-${slug}`}
+          label={`★ /cards/${slug}`}
+          href={`/cards/${slug}`}
+          title="Tagged card page — click to open."
+        />
+      ))}
+      {/* Fallback: no T1 surfaces tagged but source_alert provided grounding. */}
+      {!idea.primary_program_slug &&
+       (idea.secondary_program_slugs ?? []).length === 0 &&
+       (idea.card_slugs ?? []).length === 0 &&
+       yourPagesCount > 0 &&
+       idea.source_alert_id && (
+        <SourcePill
+          label={`★ source alert${idea.source_alert?.title ? `: ${idea.source_alert.title.slice(0, 40)}…` : ''}`}
+          count={yourPagesCount}
+          href={`/admin/alerts/${idea.source_alert_id}/edit`}
+          title={`No program/card pages tagged — claims grounded against the source alert only. Click to open the alert.`}
+        />
+      )}
 
       {topExternal.map(([host, info]) => (
         <SourcePill
@@ -1211,7 +1234,8 @@ function SourcePill({
   title,
 }: {
   label: string
-  count: number
+  /** Optional — render as plain pill (no count chip) when undefined. */
+  count?: number
   warn?: boolean
   /** When set, the pill renders as an anchor and is clickable. */
   href?: string
@@ -1228,9 +1252,12 @@ function SourcePill({
   //   - count = 0 (gray):  shouldn't render at this point, but safe fallback
   const palette = warn
     ? { bg: '#fffbeb', border: '#fcd34d', fg: '#92400e' }
-    : count > 0
+    : count !== undefined && count > 0
       ? { bg: '#dcfce7', border: '#86efac', fg: '#15803d' }
-      : { bg: 'var(--admin-surface-alt)', border: 'var(--admin-border)', fg: 'var(--admin-text)' }
+      : count === undefined
+        // Pills with no count (per-slug T1 surface pills) — neutral light style.
+        ? { bg: 'var(--admin-surface-alt)', border: 'var(--admin-border)', fg: 'var(--admin-text)' }
+        : { bg: 'var(--admin-surface-alt)', border: 'var(--admin-border)', fg: 'var(--admin-text)' }
   // "Your program pages" pill is bold to mark it as primary/preferred source.
   const isYours = label.startsWith('★')
   const baseStyle: React.CSSProperties = {
@@ -1250,17 +1277,19 @@ function SourcePill({
   const inner = (
     <>
       <span>{label}</span>
-      <span
-        style={{
-          fontWeight: 700,
-          background: 'rgba(0,0,0,0.06)',
-          padding: '0 0.375rem',
-          borderRadius: '999px',
-          fontSize: '0.6875rem',
-        }}
-      >
-        {count}
-      </span>
+      {count !== undefined && (
+        <span
+          style={{
+            fontWeight: 700,
+            background: 'rgba(0,0,0,0.06)',
+            padding: '0 0.375rem',
+            borderRadius: '999px',
+            fontSize: '0.6875rem',
+          }}
+        >
+          {count}
+        </span>
+      )}
       {href && external && (
         <span aria-hidden style={{ fontSize: '0.625rem', opacity: 0.7 }}>↗</span>
       )}

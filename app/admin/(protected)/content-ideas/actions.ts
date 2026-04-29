@@ -635,6 +635,101 @@ export async function checkOriginalityAction(id: string): Promise<OriginalityAct
   return { ok: true, pass: res.pass, notes: res.notes }
 }
 
+/**
+ * Result type for the "View source data" panel — returns the exact
+ * source_text the fact-checker would receive for an idea, plus a small
+ * manifest of which surfaces contributed (alert / programs / cards).
+ *
+ * The editor uses this to answer "what did fact-check verify against?"
+ * without guessing. Invaluable when an idea has no tagged programs/cards
+ * yet (e.g. a Bilt article with no /programs/bilt-rewards page) — the
+ * preview makes the gap obvious instead of mysterious.
+ */
+export type SourceTextPreview =
+  | {
+      ok: true
+      sourceText: string
+      manifest: {
+        sourceAlert: { id: string; title: string | null } | null
+        sourceIntel: { id: string; hasRawText: boolean } | null
+        programs: { slug: string; name: string }[]
+        cards: { slug: string; name: string }[]
+      }
+    }
+  | { ok: false; error: string }
+
+/**
+ * Builds the source_text the fact-checker would see for an idea, on demand.
+ * Mirrors the construction inside factCheckArticleAction so the preview
+ * is exactly what the verifier would receive — not a paraphrase.
+ *
+ * Read-only. No DB writes, no LLM calls. Cheap.
+ */
+export async function getSourceTextPreviewAction(
+  id: string
+): Promise<SourceTextPreview> {
+  const supabase = createAdminClient()
+  const { data: idea, error: fetchErr } = await supabase
+    .from('content_ideas')
+    .select('id, source_alert_id, source_intel_id, primary_program_slug, secondary_program_slugs, card_slugs')
+    .eq('id', id)
+    .single()
+  if (fetchErr || !idea) return { ok: false, error: fetchErr?.message ?? 'Idea not found' }
+
+  let sourceText = ''
+  let sourceAlert: { id: string; title: string | null } | null = null
+  let sourceIntel: { id: string; hasRawText: boolean } | null = null
+
+  if (idea.source_alert_id) {
+    const { data: alert } = await supabase
+      .from('alerts')
+      .select('id, title, summary, description')
+      .eq('id', idea.source_alert_id)
+      .single()
+    if (alert) {
+      sourceText = [alert.title, alert.summary, alert.description].filter(Boolean).join('\n\n')
+      sourceAlert = { id: alert.id, title: alert.title ?? null }
+    }
+  }
+  if (idea.source_intel_id) {
+    const { data: intel } = await supabase
+      .from('intel_items')
+      .select('id, raw_text')
+      .eq('id', idea.source_intel_id)
+      .single()
+    if (intel) {
+      if (intel.raw_text) sourceText = `${sourceText}\n\n${intel.raw_text}`.trim()
+      sourceIntel = { id: intel.id, hasRawText: !!intel.raw_text }
+    }
+  }
+  const [programs, cards] = await Promise.all([
+    getProgramsForIdea(
+      supabase,
+      idea.source_alert_id,
+      idea.primary_program_slug,
+      idea.secondary_program_slugs,
+    ),
+    getCardsForIdea(supabase, idea.card_slugs),
+  ])
+  if (programs.length > 0) {
+    sourceText = `${sourceText}\n\n═══ OFFICIAL PROGRAM PAGE CONTENT ═══\n\n${programsToSourceText(programs)}`.trim()
+  }
+  if (cards.length > 0) {
+    sourceText = `${sourceText}\n\n═══ OFFICIAL CARD PAGE CONTENT ═══\n\n${cardsToSourceText(cards)}`.trim()
+  }
+
+  return {
+    ok: true,
+    sourceText,
+    manifest: {
+      sourceAlert,
+      sourceIntel,
+      programs: programs.map((p) => ({ slug: p.slug, name: p.name })),
+      cards: cards.map((c) => ({ slug: c.slug, name: c.name ?? c.slug })),
+    },
+  }
+}
+
 export async function updateContentIdeaNotesAction(
   id: string,
   formData: FormData
