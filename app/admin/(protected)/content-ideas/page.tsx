@@ -284,6 +284,14 @@ export default async function ContentIdeasPage({
         <FilterLink href={buildHref({ q, program: programSlug, sortBy: sp.sortBy })} active={!typeFilter && !statusFilter} label="Open" />
         <FilterLink href={buildHref({ q, program: programSlug, type: 'newsletter', sortBy: sp.sortBy })} active={typeFilter === 'newsletter' && !statusFilter} label="Newsletter only" />
         <FilterLink href={buildHref({ q, program: programSlug, type: 'blog', sortBy: sp.sortBy })} active={typeFilter === 'blog' && !statusFilter} label="Blog only" />
+        {/*
+         * Per-status filters — useful for jumping straight to the queue
+         * stage you care about. "Open" still aggregates new+queued+drafted
+         * for the default workflow view.
+         */}
+        <FilterLink href={buildHref({ q, program: programSlug, status: 'new', sortBy: sp.sortBy })} active={statusFilter === 'new'} label="New" />
+        <FilterLink href={buildHref({ q, program: programSlug, status: 'queued', sortBy: sp.sortBy })} active={statusFilter === 'queued'} label="Queued" />
+        <FilterLink href={buildHref({ q, program: programSlug, status: 'drafted', sortBy: sp.sortBy })} active={statusFilter === 'drafted'} label="Drafted" />
         <FilterLink href={buildHref({ q, program: programSlug, status: 'published', sortBy: sp.sortBy })} active={statusFilter === 'published'} label="Published" />
         <FilterLink href={buildHref({ q, program: programSlug, status: 'dismissed', sortBy: sp.sortBy })} active={statusFilter === 'dismissed'} label="Dismissed" />
       </div>
