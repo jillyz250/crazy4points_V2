@@ -52,6 +52,8 @@ export type ProgramType =
   | 'credit_card'
   | 'airline'
   | 'hotel'
+  | 'loyalty_program'
+  | 'alliance'
   | 'car_rental'
   | 'cruise'
   | 'shopping_portal'
