@@ -15,6 +15,10 @@ export interface FactCheckClaim {
   supported?: boolean | 'unsupported';
   severity?: string;
   acknowledged?: boolean;
+  // Phase 2 — needed to detect "data gap" claims (web confirmed, your
+  // data missing). High-severity gaps block publish so T1 stays complete.
+  source_excerpt?: string | null;
+  web_verdict?: 'likely_correct' | 'likely_wrong' | 'unverifiable' | string | null;
 }
 
 export interface IdeaForPublish {
@@ -86,9 +90,35 @@ export function preparePublishUpdates(idea: IdeaForPublish): PublishPlan {
         c.supported === false &&
         c.severity === 'high' &&
         !c.acknowledged &&
-        (c as { web_verdict?: string }).web_verdict !== 'likely_correct'
+        c.web_verdict !== 'likely_correct'
     );
     if (openHigh) missing.push('unresolved high-severity fact-check claim');
+
+    // Phase 2 — high-severity data gaps are HARD BLOCKERS.
+    // A "data gap" is a claim the article asserts that's confirmed by web
+    // but absent from our T1 data. Editorially-correct, but a signal that
+    // our card/program record is incomplete. Hard-blocking on high-severity
+    // gaps converts the pipeline into a self-healing knowledge graph: every
+    // publish forces T1 completion before shipping. The editor goes to the
+    // card/program admin, fills in the missing fact, re-runs fact check —
+    // gap moves into "Your data" and publish unblocks.
+    //
+    // Low-severity gaps (descriptive color) don't block — only high.
+    // Acknowledged gaps don't block — editor explicitly waved them through.
+    const openHighGap = claims.some(
+      (c) =>
+        c &&
+        c.supported !== true &&
+        c.severity === 'high' &&
+        !c.acknowledged &&
+        c.web_verdict === 'likely_correct' &&
+        !c.source_excerpt
+    );
+    if (openHighGap) {
+      blockers.push(
+        'unresolved data gap (web confirmed a fact your T1 data is missing — fill the card/program record before publishing)'
+      );
+    }
   }
 
   if (!idea.voice_checked_at || idea.voice_pass !== true) {

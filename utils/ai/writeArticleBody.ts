@@ -241,6 +241,57 @@ ${BRAND_VOICE}
 ${FACTUAL_TRAPS}
 
 ═══════════════════════════════════════════════════════════
+COMPARISON AUDITS — REQUIRED whenever you compare two things
+═══════════════════════════════════════════════════════════
+
+Whenever your prose makes a comparative claim — "faster", "slower",
+"same rate", "double", "equal to", "more than", "less than", "beats",
+"ahead of" — you MUST emit a structured audit entry alongside the prose.
+A deterministic JS validator recomputes the math and rejects the article
+if the comparison doesn't hold. No more "5/$10K = same rate as 2/$5K"
+slipping through (that's 0.5 vs 0.4 per $1K — NOT equal).
+
+How to emit it:
+
+At the END of the article body, append an HTML comment block listing
+every comparison you made in the prose. Readers don't see HTML comments,
+so this stays invisible in published copy:
+
+<!-- comparison_audits:
+[
+  {
+    "metric": "qualifying_nights_per_$",
+    "lhs": { "label": "business card", "value": 5, "per": 10000, "unit": "nights" },
+    "rhs": { "label": "personal card", "value": 2, "per": 5000, "unit": "nights" },
+    "assertion": "faster"
+  }
+]
+-->
+
+Schema per entry:
+- "metric": short label like "annual_fee_$" or "redemption_value_cpp"
+- "lhs": { label, value, per?, unit? } — the thing on the left of the
+  comparison. Use "per" for rates ("5 per $10K" → value=5, per=10000).
+- "rhs": { label, value, per?, unit? } — the thing on the right.
+- "assertion": "equal" | "faster" | "slower" | "greater" | "less"
+  - "equal" / "faster" / "slower" — for rates (lhs/per vs rhs/per)
+  - "greater" / "less" — for simple values
+- "tolerance" (optional): relative tolerance for "equal", default 0.01
+
+Concrete rules:
+1. EVERY comparative word in your prose MUST have a matching audit entry.
+   The validator runs a regex safety net — unaudited comparison words
+   become high-severity flags that block publish.
+2. Do the math BEFORE writing the comparison. If "5/$10K" and "2/$5K"
+   normalize to 0.5 and 0.4 per $1K, that's "faster" not "equal".
+3. If you can't show the math holds, don't make the comparison. Rephrase
+   to atomic facts ("5 per $10K vs 2 per $5K" — let the reader compare).
+4. Place the comment block at the END of the body, after all prose. One
+   block per article.
+
+If your article makes ZERO comparisons, omit the block entirely.
+
+═══════════════════════════════════════════════════════════
 OUTPUT
 ═══════════════════════════════════════════════════════════
 

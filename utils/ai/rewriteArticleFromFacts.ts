@@ -123,6 +123,32 @@ Most-violated rules — re-read your output before returning:
   "worth noting", "act fast", "limited time", "don't miss".
 
 ═══════════════════════════════════════════════════════════
+COMPARISON AUDITS — required for any comparative claim
+═══════════════════════════════════════════════════════════
+
+If your rewrite makes a comparative claim ("faster", "slower", "same rate",
+"double", "equal to", "more than", "less than"), append an HTML comment
+block at the END of the body listing every comparison:
+
+<!-- comparison_audits:
+[
+  { "metric": "qualifying_nights_per_$",
+    "lhs": { "label": "business", "value": 5, "per": 10000 },
+    "rhs": { "label": "personal", "value": 2, "per": 5000 },
+    "assertion": "faster" }
+]
+-->
+
+Schema:
+- "assertion": "equal" | "faster" | "slower" | "greater" | "less"
+- "lhs"/"rhs": { label, value, per?, unit? } — use "per" for rates.
+- A deterministic validator recomputes the math; mismatches block publish.
+
+If your rewrite makes ZERO comparisons, omit the block entirely. Safest
+move: drop the comparative wording and just state both atomic facts side
+by side — that needs no audit.
+
+═══════════════════════════════════════════════════════════
 OUTPUT
 ═══════════════════════════════════════════════════════════
 
