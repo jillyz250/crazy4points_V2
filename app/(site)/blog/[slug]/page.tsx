@@ -98,7 +98,10 @@ export default async function BlogPostPage({ params }: Props) {
 
   const dek = (post.excerpt && post.excerpt.trim()) || post.pitch;
   const categoryLabel = getBlogCategoryLabel(post.category);
-  const author = post.written_by || 'Jill Zeller';
+  // post.written_by stores the AI model identifier (e.g. "claude-sonnet-4-6")
+  // for cost / debug — it's NOT a public byline. Public byline is always Jill.
+  // If we ever add real co-authors, plumb a separate `author_name` column.
+  const author = 'Jill Zeller';
   const publishedStr = formatDate(post.published_at);
   const updatedStr = shouldShowUpdated(post.published_at, post.updated_at)
     ? formatDate(post.updated_at)
@@ -132,19 +135,28 @@ export default async function BlogPostPage({ params }: Props) {
     mainEntityOfPage: `https://crazy4points.com/blog/${post.slug}`,
   };
 
+  // Same approach as the index card (#250) — when there's no real hero
+  // image, drop the fallback block entirely. The branded purple block
+  // dominated the article without adding info. A 2px purple accent
+  // strip at the very top of the article keeps the brand presence.
+  const hasHeroImage = !!post.hero_image_url;
+
   return (
     <article>
-      {/* Full-width hero */}
-      <div className="bg-[var(--color-background-soft)]">
-        <div className="rg-container px-0 md:px-8 pt-6 md:pt-10">
-          <HeroImageOrFallback
-            imageUrl={post.hero_image_url}
-            title={post.title}
-            category={post.category}
-            variant="full"
-          />
+      {hasHeroImage ? (
+        <div className="bg-[var(--color-background-soft)]">
+          <div className="rg-container px-0 md:px-8 pt-6 md:pt-10">
+            <HeroImageOrFallback
+              imageUrl={post.hero_image_url}
+              title={post.title}
+              category={post.category}
+              variant="full"
+            />
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="h-0.5 w-full bg-[var(--color-primary)]" aria-hidden />
+      )}
 
       {/* Article content container */}
       <div className="rg-container px-6 md:px-8 py-10 md:py-14">
