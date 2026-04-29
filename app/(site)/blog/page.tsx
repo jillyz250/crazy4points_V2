@@ -181,17 +181,25 @@ function ArticleCard({ post }: { post: BlogRow }) {
           variant="thumbnail"
         />
       ) : (
-        // 4px branded top edge in place of the fallback hero block.
-        // Category-keyed accent kept simple to start (primary purple);
-        // can split per-category later if useful.
-        <div className="h-1 w-full bg-[var(--color-primary)]" aria-hidden />
+        // 2px branded top edge in place of the fallback hero block.
+        // Was 4px (#249) — felt more like a header bar than trim. 2px
+        // reads as an accent stripe.
+        <div className="h-0.5 w-full bg-[var(--color-primary)]" aria-hidden />
       )}
 
       <div className={`flex flex-col gap-3 ${hasHeroImage ? '' : 'p-5 pt-3'}`}>
         {categoryLabel && (
-          <span className="self-start rounded-full bg-[var(--color-background-soft)] px-2.5 py-1 font-ui text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-primary)]">
-            {categoryLabel}
-          </span>
+          // Tighter pill + a gold hairline beneath it. Pill went from
+          // px-2.5 py-1 → px-2 py-0.5 so it stops competing with the
+          // title for attention. The gold hairline introduces the
+          // accent token (--color-accent) the rest of the card was
+          // missing — adds editorial warmth without taking real height.
+          <div className="flex flex-col gap-1.5">
+            <span className="self-start rounded-full bg-[var(--color-background-soft)] px-2 py-0.5 font-ui text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-primary)]">
+              {categoryLabel}
+            </span>
+            <span className="h-px w-7 bg-[var(--color-accent)]" aria-hidden />
+          </div>
         )}
 
         <h2 className="font-display text-xl font-semibold leading-snug text-[var(--color-primary)] line-clamp-2 group-hover:underline">
