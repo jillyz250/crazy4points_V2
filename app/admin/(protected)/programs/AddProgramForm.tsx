@@ -7,6 +7,8 @@ const TYPES: Array<{ value: string; label: string }> = [
   { value: 'credit_card', label: 'Credit Card' },
   { value: 'airline', label: 'Airline' },
   { value: 'hotel', label: 'Hotel' },
+  { value: 'loyalty_program', label: 'Loyalty Program (joint, e.g. Flying Blue, Atmos)' },
+  { value: 'alliance', label: 'Alliance (e.g. SkyTeam, Star Alliance)' },
   { value: 'car_rental', label: 'Car Rental' },
   { value: 'cruise', label: 'Cruise' },
   { value: 'shopping_portal', label: 'Shopping Portal' },

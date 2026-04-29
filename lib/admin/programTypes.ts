@@ -4,6 +4,8 @@ export const PROGRAM_TYPE_LABELS: Record<ProgramType, string> = {
   credit_card: 'Credit Card',
   airline: 'Airline',
   hotel: 'Hotel',
+  loyalty_program: 'Loyalty Program',
+  alliance: 'Alliance',
   car_rental: 'Car Rental',
   cruise: 'Cruise',
   shopping_portal: 'Shopping Portal',

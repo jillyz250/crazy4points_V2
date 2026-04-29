@@ -49,19 +49,74 @@ THEN announce: "Starting <airline> — Step 0 first." Don't dump the full runboo
 
 Wait for confirmation before continuing.
 
-### Step 1 — Web research (Claude does this)
+### Step 1 — Request official source pastes from the user (BLOCKING)
 
-- Use WebSearch to pull current data from at least 3 independent sources for each section
-- Required sources to consult:
-  - The Points Guy
-  - One Mile at a Time OR Frequent Miler
-  - AwardWallet OR NerdWallet
-  - **Plus the official program site** for: expiration policy, family pooling, promo cadence, status tier rules, fuel-surcharge policy
-- For **tier benefits**: prioritize the airline's official tier-benefits page above all third-party sources
-- Cross-check current promo / sweet-spot examples against a 2026-dated article — historical articles often cite outdated discount levels (e.g. "up to 50%" when current is 25%)
-- Save **every URL** consulted; they go in the per-airline source doc later
+**Before drafting anything, ask the user to paste the relevant sections from the official sources listed below.** LLMs (Claude, Copilot, GPT) all draw from the same pool of secondary blog summaries. When two LLMs disagree on a fact, neither is authoritative — only the official source is. So we read the official source FIRST, draft directly from it, and use third-party blogs only for context/sweet-spot color.
 
-Don't move to drafting until you've consulted the official source AND ≥2 third-party sources per section.
+Surface the list to the user as a copy-paste request, scoped to the program type.
+
+**ALWAYS provide a clickable URL for every paste-in item.** Don't just describe the source ("the alliance's lounges page") — give the actual link as a markdown hyperlink the user can cmd-click. If you don't know the exact URL, WebSearch first to find it, THEN ask. Never make the user hunt for the URL themselves. Format every paste-in line as:
+
+> 1. **[What to paste]** — [URL](https://...) (one-line description of what section to grab)
+
+Example (good):
+> 1. **SkyTeam lounge eligibility text** — [skyteam.com/en/lounges](https://www.skyteam.com/en/lounges) (the eligibility paragraph above the Lounge Finder, not the airport directory)
+
+Example (bad — DO NOT do this):
+> 1. SkyTeam lounge eligibility from the alliance's lounges page
+
+If a URL might vary by region/login (e.g. Flying Blue has `flyingblue.com/en/...` vs `flyingblue.com/fr/...`, or a Chase offer page redirects based on cookie), provide the most universal URL and note the variant in parentheses.
+
+**Airlines — request these official paste-ins:**
+1. **Alliance lounge eligibility section** — from the alliance's own lounges page (e.g. `skyteam.com/en/lounges`, `staralliance.com/en/lounge-access`, `oneworld.com/lounges`). Just the eligibility rules, not the lounge directory.
+2. **Carrier-specific lounge partner rules** — if the carrier operates lounges that have separate partner-access rules (e.g. Delta Sky Club partner access, AA Admirals Club partner access, UA Club partner access). Paste the eligibility text from the carrier's own page.
+3. **Tier benefits page** — the airline's official elite-tier benefits page. Full benefit text per tier.
+4. **Mile expiry / inactivity policy** — from the program's T&C or FAQ.
+5. **Family / household pooling rules** — from the program's official pooling page (if any).
+6. **Fuel surcharge / carrier-imposed surcharges policy** — from the program's award booking T&C if available.
+7. **Stopover / open-jaw rules** — from the award booking rules page.
+8. **Current promo rewards page URL** — bookmark for sweet-spots research.
+
+**Hotels — request these official paste-ins:**
+1. **Award category chart** — full chart with off-peak / standard / peak point bands per category.
+2. **Tier benefits page** — full benefit text per stay-based tier.
+3. **Free Night Certificate rules** — from the program's terms (which co-brand cards unlock which categories, blackout rules, expiry).
+4. **Suite Upgrade Award rules** (if applicable, e.g. Hyatt, Marriott).
+5. **Club lounge / executive lounge access policy** — which tiers, which brands.
+6. **Points expiry / inactivity policy.**
+7. **Peak/off-peak pricing methodology** — from the program's official explanation page.
+8. **All-inclusive / resort property award rules** (if the program has them).
+
+**Credit cards — request these official paste-ins:**
+1. **Issuer offer page URL + current SUB language** — from the issuer's marketing page (e.g. chase.com/sapphire-reserve). The marketing page is authoritative even if the PDF agreement lags.
+2. **Cardmember agreement PDF URL** — for fee/APR disclosures.
+3. **Benefits guide / Guide to Benefits PDF** — for travel insurance, purchase protection, lounge access details.
+4. **Welcome offer T&C** — full SUB terms (spend window, eligibility, exclusions).
+5. **Annual fee + authorized user fee** — from the issuer page.
+6. **5/24 / family rules / once-per-lifetime SUB rules** — from issuer or commonly-cited issuer policy page.
+7. **Co-brand-specific benefits** (if applicable) — Free Night Cert tier, anniversary points, status conferral, lounge access. Paste from the issuer page (which usually shows what the program publishes).
+8. **Foreign transaction fee + insurance eligibility** — from the issuer page.
+
+**Required parallel research (Claude does this while waiting for official paste-ins):**
+
+Run WebSearch with **2026 date filters** against trusted blogs and compare findings against the official paste-ins when they arrive. Your training data is older than the current date — assume any policy/promo/chart you "remember" may have changed. Required sources to scan:
+- The Points Guy (TPG)
+- One Mile at a Time (OMAAT)
+- Frequent Miler
+- AwardWallet
+- Upgraded Points
+- NerdWallet (transfer ratios)
+- Milesopedia (esp. non-US programs)
+
+Use blogs for: sweet-spot examples with current mile costs, recent devaluations, promo cadence patterns, brand color, traveler-experience context. **Do NOT use blogs to fill fields where the user pasted official text** — official wins.
+
+When a 2026-dated blog disagrees with the official paste-in: official wins. Capture the disagreement in the source doc.
+When 2026-dated blogs disagree with my training-data recollection: blogs win. Update.
+When two blogs disagree: pull a third 2026-dated source to break the tie.
+
+If the user can't easily get certain official text (e.g. behind login, regionally gated), they'll say so — then it's okay to fall back to ≥2 third-party sources for that specific item, and flag it in the draft as "third-party only — verify on next review."
+
+Save **every URL** consulted; they go in the per-airline source doc later.
 
 ### Step 2 — Draft hedged content (Claude does this)
 

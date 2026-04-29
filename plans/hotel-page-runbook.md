@@ -36,6 +36,12 @@ The schema is identical across program types. The fields just hold different con
 
 ## 1. Web research (NO drafting from memory)
 
+**OFFICIAL SOURCE FIRST — ASK THE USER TO PASTE.** Before drafting, surface a paste-in request for the official text (full checklist in `.claude/skills/add-airline/SKILL.md` Step 1, hotel section). For hotels, that means: award category chart with off-peak/standard/peak bands, official tier benefits page, Free Night Certificate rules (which co-brand cards unlock which categories, blackouts, expiry), Suite Upgrade Award rules (if applicable), club lounge / executive lounge access policy, points expiry/inactivity policy, peak/off-peak pricing methodology, all-inclusive resort award rules.
+
+LLMs (Claude + any fact-checker) all draw from the same secondary blog pool — disagreements can't be settled without the official text. Don't draft program-rule fields from blogs.
+
+**Run trusted-blog research in parallel** with 2026 date filters. Treat training data as stale by default — current date is 2026 and chart/category/tier rules may have shifted.
+
 - [ ] Pull current data from at least **3 independent points-and-miles sources** for each section:
   - The Points Guy (TPG)
   - One Mile at a Time (OMAAT)

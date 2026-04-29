@@ -52,7 +52,9 @@ Most airlines have one row representing both the carrier AND its loyalty program
 
 ## 1. Web research (NO drafting from memory)
 
-- [ ] Pull current data from at least **3 independent points-and-miles sources** for each of the four content sections:
+**OFFICIAL SOURCE FIRST — ASK THE USER TO PASTE.** Before drafting anything, surface a structured paste-in request to the user (full checklist lives in `.claude/skills/add-airline/SKILL.md` Step 1). For airlines, that includes: alliance lounge eligibility text, carrier-specific lounge partner rules, official tier-benefits page, mile expiry, family pooling, fuel-surcharge policy, stopover/open-jaw rules, and current-promo URL. Both Claude AND fact-check LLMs (Copilot/etc.) draw from the same pool of secondary blogs — disagreements can only be settled with the official text. Don't skip this step.
+
+**Run trusted-blog research IN PARALLEL** with 2026 date filters. Treat training data as stale by default — current date is 2026 and any policy/promo/chart you "remember" may have changed. Pull current data from at least **3 independent points-and-miles sources** for each of the four content sections:
   - The Points Guy (TPG)
   - One Mile at a Time
   - Frequent Miler

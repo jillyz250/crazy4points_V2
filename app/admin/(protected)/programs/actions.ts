@@ -20,7 +20,7 @@ export async function toggleProgramAction(id: string, is_active: boolean) {
 }
 
 const PROGRAM_TYPES: ProgramType[] = [
-  'credit_card', 'airline', 'hotel', 'car_rental', 'cruise',
+  'credit_card', 'airline', 'hotel', 'loyalty_program', 'alliance', 'car_rental', 'cruise',
   'shopping_portal', 'travel_portal', 'lounge_network', 'ota',
 ]
 const MONITOR_TIERS: MonitorTier[] = ['daily', 'weekly', 'monthly']

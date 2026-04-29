@@ -516,7 +516,7 @@ export default async function CardPage({
           <p>Last verified {formatDate(card.last_verified)}.</p>
         )}
         <p>
-          Card terms change. Confirm details on the issuer's site before applying. crazy4points does not provide financial advice.
+          Card terms change. Confirm details on the issuer&apos;s site before applying. crazy4points does not provide financial advice. We are not responsible for application outcomes or terms accepted — see our <a href="/terms" style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>Terms of Service</a> for full details.
         </p>
         {!card.affiliate_url && (
           <p style={{ marginTop: '0.5rem' }}>
