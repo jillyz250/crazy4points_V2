@@ -3,6 +3,7 @@
  * for the day's intel brief. Never import from client components.
  */
 import Anthropic from '@anthropic-ai/sdk'
+import { logUsage } from './logUsage'
 import { BRAND_VOICE } from './editorialRules'
 
 export type RejectReason =
@@ -451,6 +452,7 @@ export async function generateEditorialPlan(
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userContent }],
     })
+    await logUsage(message, 'generateEditorialPlan')
 
     const block = message.content[0]
     if (block.type !== 'text') {

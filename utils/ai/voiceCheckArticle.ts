@@ -3,6 +3,7 @@
  * rules and returns pass/fail + short editor-facing notes.
  */
 import Anthropic from '@anthropic-ai/sdk'
+import { logUsage } from './logUsage'
 import { BRAND_VOICE } from './editorialRules'
 
 export interface VoiceCheckResult {
@@ -81,6 +82,7 @@ export async function voiceCheckArticle(args: {
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userContent }],
     })
+    await logUsage(message, 'voiceCheckArticle')
     const block = message.content[0]
     if (!block || block.type !== 'text') return null
     const parsed = JSON.parse(extractJson(block.text)) as { pass?: unknown; notes?: unknown }

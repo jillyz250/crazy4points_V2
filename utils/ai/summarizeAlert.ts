@@ -3,6 +3,7 @@
  * of a loyalty alert. Never import this from client components.
  */
 import Anthropic from '@anthropic-ai/sdk'
+import { logUsage } from './logUsage'
 import type { AlertType, ConfidenceLevel } from '@/utils/supabase/queries'
 
 export interface AlertSummaryInput {
@@ -70,6 +71,7 @@ export async function summarizeAlert(input: AlertSummaryInput): Promise<string> 
       max_tokens: 120,
       messages: [{ role: 'user', content: prompt }],
     })
+    await logUsage(message, 'summarizeAlert')
 
     const block = message.content[0]
     if (block.type === 'text' && block.text.trim()) {

@@ -19,6 +19,7 @@
  * against external publications.
  */
 import Anthropic from '@anthropic-ai/sdk'
+import { logUsage } from './logUsage'
 
 export interface FlaggedPassage {
   /** The article passage that looks suspicious. ≤300 chars. */
@@ -195,6 +196,7 @@ export async function originalityCheck(
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userContent }],
     })
+    await logUsage(response, 'originalityCheck')
     const text = findLastTextBlock(response.content)
     if (!text) return null
     const parsed = JSON.parse(extractJson(text)) as {

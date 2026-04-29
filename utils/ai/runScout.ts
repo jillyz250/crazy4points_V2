@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { logUsage } from './logUsage'
 import type { Source, AlertType, IntelConfidence } from '@/utils/supabase/queries'
 import { fetchFirecrawl } from './firecrawl'
 
@@ -213,6 +214,7 @@ ${sourceSummaries}`,
       },
     ],
   })
+  await logUsage(message, 'runScout')
 
   const raw = message.content[0].type === 'text' ? message.content[0].text.trim() : '[]'
   console.log('[runScout] Claude raw response (first 500):', raw.slice(0, 500))

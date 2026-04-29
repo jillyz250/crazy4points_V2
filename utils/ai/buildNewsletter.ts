@@ -15,6 +15,7 @@
  * by validateDraft so existing drafts in the DB keep working.
  */
 import Anthropic from '@anthropic-ai/sdk'
+import { logUsage } from './logUsage'
 import { BRAND_VOICE, FACTUAL_TRAPS } from './editorialRules'
 
 export interface NewsletterAlertInput {
@@ -325,6 +326,7 @@ export async function buildNewsletter(
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userContent }],
     })
+    await logUsage(message, 'buildNewsletter')
 
     const block = message.content[0]
     if (block.type !== 'text') {

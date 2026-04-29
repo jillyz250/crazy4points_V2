@@ -9,6 +9,7 @@
  * not creative writing. Sonnet would be overspec.
  */
 import Anthropic from '@anthropic-ai/sdk'
+import { logUsage } from './logUsage'
 import { BLOG_CATEGORIES, isBlogCategorySlug, type BlogCategorySlug } from '@/lib/blog/categories'
 
 const MODEL = 'claude-haiku-4-5-20251001'
@@ -233,6 +234,7 @@ export async function generateBlogIdeaFromPrompt(
         system: attempt === 0 ? baseSystem : baseSystem + RETRY_PROMPT_SUFFIX,
         messages: [{ role: 'user', content: trimmed }],
       })
+      await logUsage(message, 'generateBlogIdeaFromPrompt')
       const block = message.content[0]
       if (!block || block.type !== 'text') {
         throw new Error('Non-text response from Haiku')

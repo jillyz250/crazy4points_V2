@@ -5,6 +5,7 @@
  * review page is pre-filled in the site's voice.
  */
 import Anthropic from '@anthropic-ai/sdk'
+import { logUsage } from './logUsage'
 import { BRAND_VOICE, FACTUAL_TRAPS } from './editorialRules'
 import type { AlertType, AlertActionType } from '@/utils/supabase/queries'
 
@@ -697,6 +698,7 @@ export async function writeAlertDraft(args: {
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userContent }],
     })
+    await logUsage(message, 'writeAlertDraft')
 
     const block = message.content[0]
     if (block.type !== 'text') return null

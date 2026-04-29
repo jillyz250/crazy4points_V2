@@ -8,6 +8,7 @@
  * newsletter prose and the underlying program-page facts before sending.
  */
 import Anthropic from '@anthropic-ai/sdk'
+import { logUsage } from './logUsage'
 import type { ClaimSupportState, VerifyClaim, VerifyResult } from './verifyAlertDraft'
 import type { NewsletterDraft } from './buildNewsletter'
 
@@ -271,6 +272,7 @@ export async function verifyNewsletterDraft(args: VerifyNewsletterInput): Promis
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userContent }],
     })
+    await logUsage(message, 'verifyNewsletterDraft')
     const block = message.content[0]
     if (!block || block.type !== 'text') return null
     const claims = validate(parseJsonResilient(extractJson(block.text)))

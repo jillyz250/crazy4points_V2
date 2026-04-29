@@ -4,6 +4,7 @@
  * plus the model identifier used (stamped as written_by).
  */
 import Anthropic from '@anthropic-ai/sdk'
+import { logUsage } from './logUsage'
 import { BRAND_VOICE, FACTUAL_TRAPS } from './editorialRules'
 
 export type ArticleIdeaType = 'newsletter' | 'blog'
@@ -401,6 +402,7 @@ export async function writeArticleBody(input: WriteArticleInput): Promise<Articl
       ],
       messages: [{ role: 'user', content: buildUserContent(input) }],
     })
+    await logUsage(message, 'writeArticleBody')
 
     const text = findArticleTextBlock(message.content)
     if (!text) return null
