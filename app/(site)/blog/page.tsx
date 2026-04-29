@@ -6,6 +6,33 @@ import HeroImageOrFallback from '@/components/blog/HeroImageOrFallback';
 
 export const revalidate = 60;
 
+/**
+ * Phase 2 — type/program/card filter taxonomy.
+ *
+ * "Type" is the top-level filter the reader picks first: Airlines,
+ * Hotels, or Credit Cards. Each post's type-set is derived dynamically
+ * from its tagged programs (lookup type via `programs.type`) and from
+ * whether it has any `card_slugs`. Cross-type posts (e.g. Marriott →
+ * American) appear under all matching types.
+ *
+ * Editorial intent: we don't expose a fourth "Transferable Currencies"
+ * type even though programs.type='transferable' exists in the DB. Posts
+ * about Chase UR / Amex MR are tagged with the destination program (if
+ * any) so they bucket as airlines or hotels. If we author a lot of
+ * pure-transferable content later, add a 'currencies' bucket here.
+ */
+const TYPE_BUCKETS = [
+  { slug: 'airlines', label: 'Airlines', programType: 'airline' as const },
+  { slug: 'hotels', label: 'Hotels', programType: 'hotel' as const },
+  { slug: 'cards', label: 'Credit Cards', programType: null }, // 'cards' uses card_slugs, not programs
+] as const;
+
+type TypeBucketSlug = (typeof TYPE_BUCKETS)[number]['slug'];
+
+function isTypeBucketSlug(value: string | null | undefined): value is TypeBucketSlug {
+  return !!value && TYPE_BUCKETS.some((t) => t.slug === value);
+}
+
 interface BlogRow {
   slug: string;
   title: string;
@@ -14,6 +41,9 @@ interface BlogRow {
   hero_image_url: string | null;
   category: string | null;
   primary_program_slug: string | null;
+  // Phase 2 — needed for cross-type filtering and the "Hotel · Airline" badge.
+  secondary_program_slugs: string[] | null;
+  card_slugs: string[] | null;
   reading_time_minutes: number | null;
   written_by: string | null;
   published_at: string | null;
@@ -22,7 +52,12 @@ interface BlogRow {
 }
 
 type Props = {
-  searchParams: Promise<{ category?: string }>;
+  searchParams: Promise<{
+    category?: string;
+    type?: string;
+    program?: string;
+    card?: string;
+  }>;
 };
 
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
@@ -58,15 +93,44 @@ function formatDate(iso: string | null): string {
   });
 }
 
+/**
+ * Build a /blog URL preserving the active filters that should carry over,
+ * dropping the ones that should reset. Nudges:
+ *   - Changing CATEGORY preserves type/program/card so the reader can drill
+ *     across categories within the same subject.
+ *   - Changing TYPE drops program/card because those are scoped to a type
+ *     (a hotel program filter doesn't make sense after switching to airlines).
+ *   - Changing PROGRAM/CARD preserves type but drops the other axis.
+ */
+function buildBlogHref(params: {
+  category?: string | null;
+  type?: string | null;
+  program?: string | null;
+  card?: string | null;
+}): string {
+  const search = new URLSearchParams();
+  if (params.category) search.set('category', params.category);
+  if (params.type) search.set('type', params.type);
+  if (params.program) search.set('program', params.program);
+  if (params.card) search.set('card', params.card);
+  const qs = search.toString();
+  return qs ? `/blog?${qs}` : '/blog';
+}
+
 export default async function BlogIndex({ searchParams }: Props) {
   const sp = await searchParams;
   const categoryFilter = isBlogCategorySlug(sp.category) ? sp.category : null;
+  const typeFilter = isTypeBucketSlug(sp.type) ? sp.type : null;
+  // program/card filters are free-form slugs; we sanitize via existence
+  // check after the DB returns the program/card lists.
+  const programFilterRaw = sp.program?.trim() || null;
+  const cardFilterRaw = sp.card?.trim() || null;
 
   const supabase = await createClient();
   let query = supabase
     .from('content_ideas')
     .select(
-      'slug, title, pitch, excerpt, hero_image_url, category, primary_program_slug, reading_time_minutes, written_by, published_at, featured, featured_rank'
+      'slug, title, pitch, excerpt, hero_image_url, category, primary_program_slug, secondary_program_slugs, card_slugs, reading_time_minutes, written_by, published_at, featured, featured_rank'
     )
     .eq('type', 'blog')
     .eq('status', 'published')
@@ -80,8 +144,99 @@ export default async function BlogIndex({ searchParams }: Props) {
     query = query.eq('category', categoryFilter);
   }
 
-  const { data } = await query;
-  const posts = (data ?? []) as BlogRow[];
+  // Fetch posts + programs + cards in parallel. Programs gives us the
+  // slug→type map for computing each post's type-set; cards is needed
+  // to render the second-row chips when type=cards.
+  const [postsRes, programsRes, cardsRes] = await Promise.all([
+    query,
+    supabase.from('programs').select('slug, name, type'),
+    supabase.from('credit_cards').select('slug, name'),
+  ]);
+
+  const allPosts = (postsRes.data ?? []) as BlogRow[];
+  const programs = (programsRes.data ?? []) as { slug: string; name: string; type: string | null }[];
+  const cards = (cardsRes.data ?? []) as { slug: string; name: string | null }[];
+
+  const programType = new Map(programs.map((p) => [p.slug, p.type ?? null]));
+  const programName = new Map(programs.map((p) => [p.slug, p.name]));
+  const cardName = new Map(cards.map((c) => [c.slug, c.name ?? c.slug]));
+
+  // For each post, compute the set of TYPE buckets it falls into. A post
+  // with Marriott (hotel program) + American (airline program) tagged
+  // matches BOTH 'hotels' and 'airlines'. card_slugs presence adds 'cards'.
+  function computePostTypes(post: BlogRow): Set<TypeBucketSlug> {
+    const set = new Set<TypeBucketSlug>();
+    const taggedPrograms = [
+      post.primary_program_slug,
+      ...(post.secondary_program_slugs ?? []),
+    ].filter((s): s is string => !!s);
+    for (const slug of taggedPrograms) {
+      const t = programType.get(slug);
+      if (t === 'airline') set.add('airlines');
+      if (t === 'hotel') set.add('hotels');
+      // 'transferable' programs don't bucket as airlines or hotels —
+      // they're transit currencies, not destinations.
+    }
+    if (post.card_slugs && post.card_slugs.length > 0) {
+      set.add('cards');
+    }
+    return set;
+  }
+
+  // Apply type/program/card filters in-memory. (Postgres array filters
+  // exist but compose awkwardly with the type-set logic, and admin lists
+  // are bounded by limit=60.)
+  const filteredPosts = allPosts.filter((post) => {
+    if (typeFilter) {
+      const types = computePostTypes(post);
+      if (!types.has(typeFilter)) return false;
+    }
+    if (programFilterRaw) {
+      const taggedPrograms = [
+        post.primary_program_slug,
+        ...(post.secondary_program_slugs ?? []),
+      ].filter((s): s is string => !!s);
+      if (!taggedPrograms.includes(programFilterRaw)) return false;
+    }
+    if (cardFilterRaw) {
+      if (!post.card_slugs?.includes(cardFilterRaw)) return false;
+    }
+    return true;
+  });
+
+  // Build the second-row chip list when a type is active.
+  let secondRowChips: { slug: string; name: string; paramKey: 'program' | 'card' }[] = [];
+  if (typeFilter === 'airlines') {
+    secondRowChips = programs
+      .filter((p) => p.type === 'airline')
+      .map((p) => ({ slug: p.slug, name: p.name, paramKey: 'program' as const }));
+  } else if (typeFilter === 'hotels') {
+    secondRowChips = programs
+      .filter((p) => p.type === 'hotel')
+      .map((p) => ({ slug: p.slug, name: p.name, paramKey: 'program' as const }));
+  } else if (typeFilter === 'cards') {
+    secondRowChips = cards.map((c) => ({
+      slug: c.slug,
+      name: c.name ?? c.slug,
+      paramKey: 'card' as const,
+    }));
+  }
+  secondRowChips.sort((a, b) => a.name.localeCompare(b.name));
+
+  // Active filter slug for the second-row "active" highlighting:
+  // when type=cards the active slug is from cardFilterRaw; otherwise from
+  // programFilterRaw.
+  const secondRowActiveSlug = typeFilter === 'cards' ? cardFilterRaw : programFilterRaw;
+
+  // Hero card only appears on a truly clean /blog (no filters). Inside
+  // any filter view we render straight grid so the hero doesn't fight
+  // chip navigation.
+  const hasAnyFilter = !!(categoryFilter || typeFilter || programFilterRaw || cardFilterRaw);
+
+  // Pre-compute type-sets for cards so we don't re-derive in the render.
+  const postTypesByslug = new Map(
+    filteredPosts.map((p) => [p.slug, computePostTypes(p)] as const),
+  );
 
   return (
     <div className="rg-container px-6 md:px-8 py-12 md:py-16">
@@ -95,52 +250,129 @@ export default async function BlogIndex({ searchParams }: Props) {
         </p>
       </header>
 
-      {/* Category filter chips */}
+      {/* Category filter chips — preserve type/program/card on click. */}
       <nav
         aria-label="Filter by category"
-        className="mb-10 flex flex-wrap items-center gap-2 md:gap-2.5"
+        className="mb-4 flex flex-wrap items-center gap-2 md:gap-2.5"
       >
         <CategoryChip
-          href="/blog"
+          href={buildBlogHref({
+            category: null,
+            type: typeFilter,
+            program: programFilterRaw,
+            card: cardFilterRaw,
+          })}
           label="All"
           active={!categoryFilter}
         />
         {BLOG_CATEGORIES.map((c) => (
           <CategoryChip
             key={c.slug}
-            href={`/blog?category=${c.slug}`}
+            href={buildBlogHref({
+              category: c.slug,
+              type: typeFilter,
+              program: programFilterRaw,
+              card: cardFilterRaw,
+            })}
             label={c.label}
             active={categoryFilter === c.slug}
           />
         ))}
       </nav>
 
-      {posts.length === 0 ? (
+      {/* Type filter chips — Airlines / Hotels / Credit Cards. Changing
+          type drops program/card because they're type-scoped. */}
+      <nav
+        aria-label="Filter by type"
+        className="mb-4 flex flex-wrap items-center gap-2 md:gap-2.5"
+      >
+        <TypeChip
+          href={buildBlogHref({
+            category: categoryFilter,
+            type: null,
+          })}
+          label="All Types"
+          active={!typeFilter}
+        />
+        {TYPE_BUCKETS.map((t) => (
+          <TypeChip
+            key={t.slug}
+            href={buildBlogHref({
+              category: categoryFilter,
+              type: t.slug,
+            })}
+            label={t.label}
+            active={typeFilter === t.slug}
+          />
+        ))}
+      </nav>
+
+      {/* Second-row chips — populated only when a type is active. Lists
+          every airline / hotel / card we have in the DB. Selecting one
+          narrows the post list further. */}
+      {typeFilter && secondRowChips.length > 0 && (
+        <nav
+          aria-label={`Filter by ${typeFilter === 'cards' ? 'card' : 'program'}`}
+          className="mb-10 flex flex-wrap items-center gap-2 md:gap-2.5"
+        >
+          <SubChip
+            href={buildBlogHref({
+              category: categoryFilter,
+              type: typeFilter,
+            })}
+            label="All"
+            active={!secondRowActiveSlug}
+          />
+          {secondRowChips.map((item) => (
+            <SubChip
+              key={`${item.paramKey}-${item.slug}`}
+              href={buildBlogHref({
+                category: categoryFilter,
+                type: typeFilter,
+                ...(item.paramKey === 'card'
+                  ? { card: item.slug }
+                  : { program: item.slug }),
+              })}
+              label={item.name}
+              active={secondRowActiveSlug === item.slug}
+            />
+          ))}
+        </nav>
+      )}
+      {!typeFilter && <div className="mb-10" />}
+
+      {filteredPosts.length === 0 ? (
         <p className="font-body text-[var(--color-text-secondary)]">
-          {categoryFilter
-            ? 'Nothing in this category yet. Try another.'
-            : 'Nothing published yet. Come back soon.'}
+          No posts match these filters.{' '}
+          <Link href="/blog" className="text-[var(--color-primary)] underline">
+            Clear filters
+          </Link>{' '}
+          and try again.
         </p>
-      ) : !categoryFilter && posts.length > 0 ? (
-        // /blog root — latest post (or top-featured) becomes a hero card
-        // spanning the full width, with the remaining posts in the
-        // existing 3-up grid below. Inside category views we keep the
-        // straight grid so the hero treatment doesn't fight the chip
-        // navigation.
+      ) : !hasAnyFilter && filteredPosts.length > 0 ? (
+        // /blog root with no filters — latest post becomes a hero card.
         <>
-          <HeroPostCard post={posts[0]} />
-          {posts.length > 1 && (
+          <HeroPostCard post={filteredPosts[0]} />
+          {filteredPosts.length > 1 && (
             <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-7 lg:grid-cols-3">
-              {posts.slice(1).map((post) => (
-                <ArticleCard key={post.slug} post={post} />
+              {filteredPosts.slice(1).map((post) => (
+                <ArticleCard
+                  key={post.slug}
+                  post={post}
+                  postTypes={postTypesByslug.get(post.slug)}
+                />
               ))}
             </div>
           )}
         </>
       ) : (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-7 lg:grid-cols-3">
-          {posts.map((post) => (
-            <ArticleCard key={post.slug} post={post} />
+          {filteredPosts.map((post) => (
+            <ArticleCard
+              key={post.slug}
+              post={post}
+              postTypes={postTypesByslug.get(post.slug)}
+            />
           ))}
         </div>
       )}
@@ -161,6 +393,60 @@ function CategoryChip({
     'inline-flex items-center rounded-full px-4 py-1.5 font-ui text-xs font-medium uppercase tracking-[0.1em] transition-colors';
   const activeCls =
     'bg-[var(--color-primary)] text-white shadow-[var(--shadow-soft)]';
+  const inactiveCls =
+    'border border-[var(--color-border-soft)] bg-white text-[var(--color-text-secondary)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]';
+  return (
+    <Link href={href} className={`${base} ${active ? activeCls : inactiveCls}`}>
+      {label}
+    </Link>
+  );
+}
+
+/**
+ * Top-level type filter (Airlines / Hotels / Credit Cards). Visually
+ * distinct from CategoryChip — slightly larger, gold-accent active state
+ * so the reader can tell they're working two filter axes.
+ */
+function TypeChip({
+  href,
+  label,
+  active,
+}: {
+  href: string;
+  label: string;
+  active: boolean;
+}) {
+  const base =
+    'inline-flex items-center rounded-full px-4 py-1.5 font-ui text-xs font-semibold uppercase tracking-[0.1em] transition-colors';
+  const activeCls =
+    'bg-[var(--color-accent)] text-[var(--color-text-primary)] shadow-[var(--shadow-soft)]';
+  const inactiveCls =
+    'border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] text-[var(--color-text-secondary)] hover:border-[var(--color-accent)] hover:text-[var(--color-text-primary)]';
+  return (
+    <Link href={href} className={`${base} ${active ? activeCls : inactiveCls}`}>
+      {label}
+    </Link>
+  );
+}
+
+/**
+ * Second-row narrowing chip (specific program or card). Smaller and
+ * lighter than CategoryChip / TypeChip so the visual hierarchy reads:
+ * Category > Type > Specific.
+ */
+function SubChip({
+  href,
+  label,
+  active,
+}: {
+  href: string;
+  label: string;
+  active: boolean;
+}) {
+  const base =
+    'inline-flex items-center rounded-full px-3 py-1 font-ui text-[11px] font-medium tracking-wide transition-colors';
+  const activeCls =
+    'bg-[var(--color-primary)] text-white';
   const inactiveCls =
     'border border-[var(--color-border-soft)] bg-white text-[var(--color-text-secondary)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]';
   return (
@@ -237,10 +523,30 @@ function HeroPostCard({ post }: { post: BlogRow }) {
   );
 }
 
-function ArticleCard({ post }: { post: BlogRow }) {
+/** Format a Set<TypeBucketSlug> into a "Hotel · Airline" cross-type badge. */
+function formatTypeBadge(types: Set<TypeBucketSlug> | undefined): string | null {
+  if (!types || types.size < 2) return null; // Only render when cross-type
+  const order: TypeBucketSlug[] = ['hotels', 'airlines', 'cards'];
+  const labels: Record<TypeBucketSlug, string> = {
+    hotels: 'Hotel',
+    airlines: 'Airline',
+    cards: 'Card',
+  };
+  return order.filter((t) => types.has(t)).map((t) => labels[t]).join(' · ');
+}
+
+function ArticleCard({
+  post,
+  postTypes,
+}: {
+  post: BlogRow;
+  /** Pre-computed type-set from the parent. Used for the cross-type badge. */
+  postTypes?: Set<TypeBucketSlug>;
+}) {
   const dek = (post.excerpt && post.excerpt.trim()) || post.pitch;
   const categoryLabel = getBlogCategoryLabel(post.category);
   const dateStr = formatDate(post.published_at);
+  const typeBadge = formatTypeBadge(postTypes);
 
   // When the post has a real hero image, show it. When it doesn't, skip
   // the branded fallback block entirely — it ate too much vertical space
@@ -271,13 +577,25 @@ function ArticleCard({ post }: { post: BlogRow }) {
       )}
 
       <div className={`flex flex-col gap-3 ${hasHeroImage ? '' : 'p-5 pt-3'}`}>
-        {categoryLabel && (
-          // Just the tight category pill. Earlier round had a gold
-          // hairline beneath it (#251) — felt out of place on the rest
-          // of the all-purple card. Cleaner without it.
-          <span className="self-start rounded-full bg-[var(--color-background-soft)] px-2 py-0.5 font-ui text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-primary)]">
-            {categoryLabel}
-          </span>
+        {(categoryLabel || typeBadge) && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {categoryLabel && (
+              <span className="rounded-full bg-[var(--color-background-soft)] px-2 py-0.5 font-ui text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-primary)]">
+                {categoryLabel}
+              </span>
+            )}
+            {typeBadge && (
+              // Cross-type badge — only renders when this post falls into
+              // 2+ type buckets. Tells the reader why a Marriott→American
+              // post is appearing under Airlines (or Hotels).
+              <span
+                className="rounded-full border border-[var(--color-accent)] px-2 py-0.5 font-ui text-[10px] font-medium uppercase tracking-[0.1em] text-[var(--color-text-secondary)]"
+                title="This post covers multiple types"
+              >
+                {typeBadge}
+              </span>
+            )}
+          </div>
         )}
 
         <h2 className="font-display text-xl font-semibold leading-snug text-[var(--color-primary)] line-clamp-2 group-hover:underline">
