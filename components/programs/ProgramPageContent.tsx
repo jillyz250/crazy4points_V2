@@ -2,6 +2,7 @@ import { marked } from 'marked'
 import type { Program } from '@/utils/supabase/queries'
 import TransferPartnersTable from './TransferPartnersTable'
 import TierBenefitsTable from './TierBenefitsTable'
+import MemberProgramsTable from './MemberProgramsTable'
 
 /**
  * Renders the editorial content sections for a program (intro / transfer
@@ -18,15 +19,17 @@ export default async function ProgramPageContent({
   program: Program
   programNameBySlug: Map<string, string>
 }) {
+  const isAlliance = program.type === 'alliance'
   const hasIntro = !!program.intro?.trim()
-  const hasAwardChart = !!program.award_chart?.trim()
-  const hasPartners = (program.transfer_partners?.length ?? 0) > 0
+  const hasAwardChart = !!program.award_chart?.trim() && !isAlliance
+  const hasPartners = (program.transfer_partners?.length ?? 0) > 0 && !isAlliance
+  const hasMembers = isAlliance && (program.member_programs?.length ?? 0) > 0
   const hasSweetSpots = !!program.sweet_spots?.trim()
   const hasQuirks = !!program.quirks?.trim()
-  const hasHowToSpend = !!program.how_to_spend?.trim()
+  const hasHowToSpend = !!program.how_to_spend?.trim() && !isAlliance
   const hasTiers = (program.tier_benefits?.length ?? 0) > 0
   const hasLounge = !!program.lounge_access?.trim()
-  const hasAny = hasIntro || hasAwardChart || hasPartners || hasSweetSpots || hasQuirks || hasHowToSpend || hasTiers || hasLounge
+  const hasAny = hasIntro || hasAwardChart || hasPartners || hasMembers || hasSweetSpots || hasQuirks || hasHowToSpend || hasTiers || hasLounge
 
   if (!hasAny) return null
 
@@ -92,6 +95,27 @@ export default async function ProgramPageContent({
           </p>
           <TransferPartnersTable
             rows={program.transfer_partners!}
+            programNameBySlug={programNameBySlug}
+          />
+        </section>
+      )}
+
+      {hasMembers && (
+        <section id="member-airlines" style={sectionStyle}>
+          <h2 style={headingStyle}>Member airlines</h2>
+          <p
+            style={{
+              fontFamily: 'var(--font-body)',
+              fontSize: '0.875rem',
+              color: 'var(--color-text-secondary)',
+              marginBottom: '0.75rem',
+            }}
+          >
+            Carriers and loyalty programs that make up {program.name}, with each member&apos;s
+            elite tiers mapped to the alliance status levels.
+          </p>
+          <MemberProgramsTable
+            rows={program.member_programs!}
             programNameBySlug={programNameBySlug}
           />
         </section>

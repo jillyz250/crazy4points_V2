@@ -1,0 +1,38 @@
+-- Add member_programs jsonb column for alliance-type program rows.
+--
+-- BACKGROUND
+-- ----------
+-- Migrations 059 + 061 introduced 'alliance' as a program type and seeded
+-- oneworld / SkyTeam / Star Alliance rows. Alliances need to model two
+-- concepts the existing airline-shaped editorial fields don't cover well:
+--
+--   1. Member airlines (the carriers/programs in the alliance)
+--   2. Tier crossover (each member program's elite tiers mapped to
+--      alliance Emerald/Sapphire/Ruby)
+--
+-- Stuffing this into transfer_partners would render with a misleading
+-- "Transfer partners" header on the public page. Cleaner to add a
+-- dedicated jsonb column.
+--
+-- SHAPE
+-- -----
+-- jsonb array. Each item:
+--   {
+--     "program_slug":   "atmos",
+--     "carrier_slugs":  ["alaska", "hawaiian"],
+--     "joined":         "2021-03-31",
+--     "tier_crossover": [
+--       { "alliance_tier": "Emerald",  "member_tier": "Atmos Titanium" },
+--       { "alliance_tier": "Emerald",  "member_tier": "Atmos Platinum" },
+--       { "alliance_tier": "Sapphire", "member_tier": "Atmos Gold" },
+--       { "alliance_tier": "Ruby",     "member_tier": "Atmos Silver" }
+--     ],
+--     "notes": "Paid Lounge+ program is excluded from alliance ruleset"
+--   }
+--
+-- Public render branches on type='alliance' to render this as a
+-- "Member airlines" table instead of "Transfer partners".
+-- Airline/hotel/loyalty_program rows leave this column null.
+
+alter table programs
+  add column if not exists member_programs jsonb;
