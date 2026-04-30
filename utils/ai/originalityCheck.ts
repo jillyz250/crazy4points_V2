@@ -1,22 +1,21 @@
 /**
- * Originality v2 — confidence-scored, per-passage flagged.
+ * Originality v3 — source-comparison mode (no web_search).
  *
- * Up to now this returned `{ pass: boolean, notes: string }` — coarse and
- * uninformative. The editor couldn't tell HOW confident the model was, WHICH
- * passages tripped it, or what URL backed the flag. v2 returns:
+ * Previous v2 used Claude's web_search tool to scan the entire internet for
+ * matches. That ballooned input tokens to 55-69K per call (~$0.20 each) and
+ * mostly returned noise — most "matches" were generic travel-rewards facts
+ * that any publication reports identically.
  *
- *   - `confidence_score` (0-100): overall originality confidence, where
- *     100 = clearly original (nothing duplicate found) and 0 = a clear
- *     near-verbatim copy of an external source.
- *   - `threshold` (default 70): pass when confidence >= threshold. Editor
- *     can override per-idea (we persist the threshold applied so future
- *     re-checks remember the bar).
- *   - `pass` (boolean): convenience — confidence >= threshold.
- *   - `flagged_passages`: per-passage array with text, matched URL, matched
- *     excerpt, per-passage confidence, and a one-line "why" explainer.
+ * v3 checks the article ONLY against the source text(s) it was drafted from.
+ * That's where the real plagiarism risk lives: did the writer paraphrase too
+ * closely from the article being summarized? Cuts cost ~90% per call AND
+ * checks the actual risk surface.
  *
- * Self-plagiarism is OUT of scope by design — Jill's call. Only checks
- * against external publications.
+ * Self-plagiarism (overlap with prior crazy4points content) is OUT of scope —
+ * Jill's call. Only compares against the sources passed in.
+ *
+ * If no sources are provided, the check is skipped (returns null). Manual
+ * articles with no source_intel_id are by definition not at plagiarism risk.
  */
 import Anthropic from '@anthropic-ai/sdk'
 import { logUsage } from './logUsage'
@@ -24,7 +23,7 @@ import { logUsage } from './logUsage'
 export interface FlaggedPassage {
   /** The article passage that looks suspicious. ≤300 chars. */
   text: string
-  /** URL of the source the model thinks this duplicates, or null if found via training memory only. */
+  /** URL of the source the model thinks this duplicates, or null. */
   matched_url: string | null
   /** The closest matching span from the source page, ≤300 chars. */
   matched_excerpt: string | null
@@ -43,79 +42,58 @@ export interface OriginalityResult {
   threshold: number
   /** Editor-facing summary, 1-2 sentences. */
   notes: string
-  /** Passages the model flagged as possibly duplicating external content. */
+  /** Passages the model flagged as possibly duplicating source content. */
   flagged_passages: FlaggedPassage[]
   /** ISO timestamp when this check ran. */
   checked_at: string
 }
 
-/**
- * Default originality bar — calibrated empirically. Override per-idea by
- * setting `originality_threshold`. Raised to 80 (was 70) after observed
- * cases of overall-pass-but-flagged-passage slipping through.
- */
 export const DEFAULT_ORIGINALITY_THRESHOLD = 80
-
-/**
- * If ANY flagged passage has confidence at or above this value, the article
- * fails regardless of overall score. Catches the "82 overall but one passage
- * mirrors an external article at 62 confidence" case where the aggregate
- * looks fine but a single passage is borderline-plagiarized.
- */
 export const MAX_PASSAGE_CONFIDENCE = 60
 
 const SYSTEM_PROMPT = `You are an originality checker for crazy4points. You receive an article body
-and must use web_search to determine whether any passage near-duplicates content already
-published elsewhere.
+and the SOURCE TEXT(S) the article was drafted from. Your job: detect passages where the
+article paraphrases the source too closely — i.e. plagiarism risk.
 
 ═══════════════════════════════════════════════════════════
-HOW TO JUDGE
+WHAT TO CHECK
 ═══════════════════════════════════════════════════════════
 
-Pick 3-6 distinctive passages from the body — sentences with specific phrasing, unusual word
-choices, or memorable structure. Skip:
-- Generic travel-rewards truisms ("points are worth more when transferred")
-- Brand-voice flourishes that any writer would phrase the same way
-- Direct factual claims (numbers, dates, program names) — every publication reports those identically
-- Direct quotes the body explicitly attributes to a source
+Compare the article against the source text(s) below. Flag passages where the article:
+  - Reuses a distinctive phrase, sentence rhythm, or paragraph structure from a source
+  - Paraphrases a source so closely that swapping a few synonyms is the only change
+  - Mirrors a source's metaphor, analogy, or framing without adding original perspective
 
-For each distinctive passage, web_search for short distinctive phrases. You have a small budget
-(typically 6 searches) — spend them on passages most likely to overlap.
+DO NOT flag:
+  - Direct factual claims (numbers, dates, program names) — facts overlap by necessity
+  - Generic travel-rewards truisms ("points are worth more when transferred")
+  - Brand-voice flourishes any writer would phrase the same way
+  - Direct quotes the body explicitly attributes to a source
 
 ═══════════════════════════════════════════════════════════
 SCORING — overall confidence (0-100)
 ═══════════════════════════════════════════════════════════
 
-Score the article's overall originality:
+  90-100  Clearly original. Article uses its own phrasing throughout.
+  75-89   Mostly original. Maybe 1 borderline phrase that echoes the source faintly.
+  60-74   Concerning. One distinct passage paraphrases the source too closely.
+  40-59   Likely problematic. Two or more passages mirror source phrasing.
+  0-39    Plagiarism risk. Distinctive paragraphs read as paraphrased copy of the source.
 
-  90-100  Clearly original. No matches found, or only generic-fact matches every site reports.
-  75-89   Mostly original. Maybe 1 borderline phrase that overlaps a common turn of phrase but
-          doesn't suggest copying.
-  60-74   Concerning. One distinct passage closely echoes external published work, OR
-          structural overlap (sentence rhythm, paragraph order) with a known piece even if no
-          single sentence is verbatim.
-  40-59   Likely problematic. Two or more passages near-verbatim with external sources, OR
-          one passage that's clearly lifted.
-  0-39    Plagiarism risk. A distinctive paragraph reads as copy-paste of prior published work,
-          or several sentences are direct copies.
-
-Be CALIBRATED, not lenient. The editor needs to trust the score — don't inflate to be nice.
-A 75 should mean "I'd publish this comfortably"; a 60 should mean "give it another look."
+Be CALIBRATED, not lenient. A 75 should mean "I'd publish comfortably"; a 60 means "give it
+another look."
 
 ═══════════════════════════════════════════════════════════
 PER-PASSAGE FLAGS
 ═══════════════════════════════════════════════════════════
 
 For every passage where you found OR suspect a match, emit a flagged_passages entry.
-Even at high overall scores you can flag borderline passages — they help the editor decide.
 
   text             — the passage from the article (verbatim, ≤300 chars)
-  matched_url      — the URL of the source you found, or null if training-memory-only
-  matched_excerpt  — the closest span from the matching page (≤300 chars), or null
-  confidence       — 0-100 confidence THIS passage is duplicate. 100 = certain copy.
+  matched_url      — the URL of the source it matches, or null if multiple sources / unclear
+  matched_excerpt  — the closest span from the source (≤300 chars)
+  confidence       — 0-100 confidence THIS passage paraphrases source. 100 = certain copy.
   why              — one sentence: what overlaps and why it's a concern
-
-Don't flag passages just to flag them. If you found nothing concerning, return an empty array.
 
 ═══════════════════════════════════════════════════════════
 OUTPUT
@@ -125,12 +103,12 @@ Return a single JSON object. No prose, no markdown fences.
 
 {
   "confidence_score": <0-100>,
-  "notes": "<1-2 sentences explaining the score — what you searched, what you found or didn't>",
+  "notes": "<1-2 sentences explaining the score — what overlapped or didn't>",
   "flagged_passages": [
     {
       "text": "<verbatim passage from article>",
       "matched_url": "<url or null>",
-      "matched_excerpt": "<matching span or null>",
+      "matched_excerpt": "<matching span from source>",
       "confidence": <0-100>,
       "why": "<one sentence>"
     }
@@ -180,11 +158,34 @@ function sanitizePassage(raw: unknown): FlaggedPassage | null {
   }
 }
 
+export interface OriginalitySource {
+  url: string | null
+  text: string
+}
+
 export interface OriginalityCheckArgs {
   title: string
   article_body: string
+  /**
+   * Source(s) the article was drafted from. v3 compares the article against
+   * these only — no web_search. If empty/undefined, the check is skipped.
+   */
+  sources?: OriginalitySource[]
   /** Per-idea override. Defaults to DEFAULT_ORIGINALITY_THRESHOLD. */
   threshold?: number
+}
+
+/** Cap source content sent to model so a giant scrape doesn't blow up tokens. */
+const MAX_SOURCE_CHARS = 12_000
+
+function buildSourcesBlock(sources: OriginalitySource[]): string {
+  return sources
+    .map((s, i) => {
+      const text = (s.text ?? '').slice(0, MAX_SOURCE_CHARS).trim()
+      const header = `--- SOURCE ${i + 1}${s.url ? ` (${s.url})` : ''} ---`
+      return `${header}\n${text}`
+    })
+    .join('\n\n')
 }
 
 export async function originalityCheck(
@@ -195,16 +196,28 @@ export async function originalityCheck(
     console.warn('[originalityCheck] ANTHROPIC_API_KEY missing — skipping')
     return null
   }
+  const sources = (args.sources ?? []).filter((s) => s && s.text && s.text.trim().length > 0)
+  if (sources.length === 0) {
+    console.warn('[originalityCheck] no sources provided — skipping')
+    return null
+  }
   const threshold = args.threshold ?? DEFAULT_ORIGINALITY_THRESHOLD
 
-  const userContent = JSON.stringify({ title: args.title, article_body: args.article_body }, null, 2)
+  const userContent = [
+    `# ARTICLE TO CHECK`,
+    `Title: ${args.title}`,
+    ``,
+    args.article_body,
+    ``,
+    `# SOURCE TEXT(S)`,
+    buildSourcesBlock(sources),
+  ].join('\n')
 
   try {
     const client = new Anthropic({ apiKey })
     const response = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 3000,
-      tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 6 }],
+      max_tokens: 2000,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userContent }],
     })
@@ -221,10 +234,6 @@ export async function originalityCheck(
       ? parsed.flagged_passages.map(sanitizePassage).filter((p): p is FlaggedPassage => p !== null)
       : []
     const notes = typeof parsed.notes === 'string' ? parsed.notes.slice(0, 600) : ''
-    // Pass requires BOTH (a) overall confidence at threshold AND (b) no
-    // single passage scoring above MAX_PASSAGE_CONFIDENCE. The per-passage
-    // gate catches the case where the aggregate looks fine but one specific
-    // passage near-duplicates an external article.
     const worstPassage = flagged_passages.reduce(
       (max, p) => (p.confidence > max ? p.confidence : max),
       0,

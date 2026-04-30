@@ -601,14 +601,31 @@ export async function originalityCheckAlertAction(id: string): Promise<AlertOrig
   const supabase = createAdminClient()
   const { data: alert } = await supabase
     .from('alerts')
-    .select('id, title, description, summary')
+    .select('id, title, description, summary, source_intel_id, source_url')
     .eq('id', id)
     .single()
   if (!alert) return { ok: false, error: 'Alert not found' }
   const body = alert.description || alert.summary || ''
   if (!body.trim()) return { ok: false, error: 'No description or summary to check' }
 
-  const res = await originalityCheck({ title: alert.title, article_body: body })
+  // v3 — fetch the intel raw_text the alert was drafted from. Originality
+  // check now compares against the source, not the open web.
+  const sources: { url: string | null; text: string }[] = []
+  if (alert.source_intel_id) {
+    const { data: intel } = await supabase
+      .from('intel_items')
+      .select('raw_text, source_url')
+      .eq('id', alert.source_intel_id)
+      .single()
+    if (intel?.raw_text) {
+      sources.push({ url: intel.source_url ?? alert.source_url ?? null, text: intel.raw_text })
+    }
+  }
+  if (sources.length === 0) {
+    return { ok: false, error: 'No source intel to check against — manual alerts skip this check.' }
+  }
+
+  const res = await originalityCheck({ title: alert.title, article_body: body, sources })
   if (!res) return { ok: false, error: 'Originality check failed (see logs)' }
 
   const { error } = await supabase
