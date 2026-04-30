@@ -1073,17 +1073,35 @@ export async function getAlertsByProgramSlug(
 
   if (progError) throw progError
 
-  // 2. Fetch alerts via junction table
+  // 2. Determine the set of program IDs whose alerts should appear on this page.
+  //    Alliance pages aggregate alerts from every member airline (programs whose
+  //    `alliance` column matches this slug), plus alerts tagged directly to the
+  //    alliance row. Carrier / hotel / loyalty pages just use their own ID.
+  let programIds: string[] = [program.id]
+  if (program.type === 'alliance') {
+    const { data: members, error: mError } = await supabase
+      .from('programs')
+      .select('id')
+      .eq('alliance', program.slug)
+    if (mError) throw mError
+    if (members && members.length > 0) {
+      programIds = [program.id, ...members.map((m: { id: string }) => m.id)]
+    }
+  }
+
+  // 3. Fetch alerts via junction table for any of those program IDs.
   const { data: junction, error: jError } = await supabase
     .from('alert_programs')
     .select('alert_id')
-    .eq('program_id', program.id)
+    .in('program_id', programIds)
 
   if (jError) throw jError
 
-  const junctionIds = (junction ?? []).map((r: { alert_id: string }) => r.alert_id)
+  const junctionIds = Array.from(
+    new Set((junction ?? []).map((r: { alert_id: string }) => r.alert_id))
+  )
 
-  // 3. Fetch alerts by primary_program_id OR junction membership
+  // 4. Fetch alerts by primary_program_id OR junction membership.
   let query = supabase
     .from('alerts')
     .select('*, alert_programs(*, programs(*))')
@@ -1091,9 +1109,11 @@ export async function getAlertsByProgramSlug(
     .order('published_at', { ascending: false, nullsFirst: false })
 
   if (junctionIds.length > 0) {
-    query = query.or(`primary_program_id.eq.${program.id},id.in.(${junctionIds.join(',')})`)
+    query = query.or(
+      `primary_program_id.in.(${programIds.join(',')}),id.in.(${junctionIds.join(',')})`
+    )
   } else {
-    query = query.eq('primary_program_id', program.id)
+    query = query.in('primary_program_id', programIds)
   }
 
   const { data: alerts, error: alertError } = await query
