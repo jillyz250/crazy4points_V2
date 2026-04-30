@@ -57,6 +57,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/admin/briefs', label: 'Briefs', abbr: 'Br' },
       { href: '/admin/fact-checks', label: 'Fact Checks', abbr: 'Fc' },
       { href: '/admin/errors', label: 'Errors', abbr: 'Er' },
+      { href: '/admin/ai-usage', label: 'AI Usage', abbr: 'Ai' },
     ],
   },
 ]
