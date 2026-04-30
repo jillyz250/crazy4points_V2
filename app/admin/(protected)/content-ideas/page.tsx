@@ -5,7 +5,9 @@ import {
   updateContentIdeaStatusAction,
   updateContentIdeaNotesAction,
   updateContentIdeaOverrideAction,
+  updateContentIdeaTypingAction,
 } from './actions'
+import { CONTENT_TYPES, groupActivityFrames, type ContentType, type ActivityFrame } from '@/lib/admin/contentTaxonomy'
 import { getBlogCategoryLabel } from '@/lib/blog/categories'
 import WriteArticleButton from '@/components/admin/WriteArticleButton'
 import FactCheckButton from '@/components/admin/FactCheckButton'
@@ -55,6 +57,11 @@ interface ContentIdeaRow {
   originality_threshold: number | null
   originality_flagged_passages: unknown // jsonb — typed as FlaggedPassage[] when populated
   override_reason: string | null
+  // Phase 7a — content typing
+  content_type: ContentType | null
+  activity_frame: ActivityFrame | null
+  topics: string[] | null
+  cash_rate_reference: string | null
   // Blog publishing metadata (Ship 1)
   category: string | null
   excerpt: string | null
@@ -615,6 +622,80 @@ function IdeaCard({
           Save notes
         </button>
       </form>
+
+      {/* Phase 7a — content typing. Captures content_type + activity_frame +
+          topics + cash_rate_reference. Plain text fields validated against
+          the TS allowlist server-side; unknown values become null silently. */}
+      <details style={{ marginBottom: '0.5rem' }} open={!idea.content_type}>
+        <summary style={{ cursor: 'pointer', fontSize: '0.75rem', fontFamily: 'var(--font-ui)', color: idea.content_type ? 'var(--admin-text-muted)' : '#b45309' }}>
+          {idea.content_type
+            ? `Type: ${CONTENT_TYPES.find((t) => t.value === idea.content_type)?.label}${idea.activity_frame ? ` · ${idea.activity_frame}` : ''}${idea.topics && idea.topics.length > 0 ? ` · ${idea.topics.length} topic${idea.topics.length === 1 ? '' : 's'}` : ''}`
+            : '⚠ Categorize this idea'}
+        </summary>
+        <form action={updateContentIdeaTypingAction.bind(null, idea.id)} style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <label style={{ flex: '1 1 12rem', minWidth: '12rem' }}>
+              <span style={{ display: 'block', fontSize: '0.6875rem', fontFamily: 'var(--font-ui)', color: 'var(--admin-text-muted)', marginBottom: '0.125rem' }}>
+                Content type
+              </span>
+              <select name="content_type" defaultValue={idea.content_type ?? ''} className="admin-input" style={{ width: '100%' }}>
+                <option value="">— pick one —</option>
+                {CONTENT_TYPES.map((t) => (
+                  <option key={t.value} value={t.value} title={t.hint}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label style={{ flex: '1 1 12rem', minWidth: '12rem' }}>
+              <span style={{ display: 'block', fontSize: '0.6875rem', fontFamily: 'var(--font-ui)', color: 'var(--admin-text-muted)', marginBottom: '0.125rem' }}>
+                Activity frame (destination plays only)
+              </span>
+              <select name="activity_frame" defaultValue={idea.activity_frame ?? ''} className="admin-input" style={{ width: '100%' }}>
+                <option value="">— general / not applicable —</option>
+                {groupActivityFrames().map(({ group, frames }) => (
+                  <optgroup key={group} label={group}>
+                    {frames.map((f) => (
+                      <option key={f.value} value={f.value}>
+                        {f.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </label>
+          </div>
+          <label>
+            <span style={{ display: 'block', fontSize: '0.6875rem', fontFamily: 'var(--font-ui)', color: 'var(--admin-text-muted)', marginBottom: '0.125rem' }}>
+              Topics (comma-separated; e.g. baseball, chicago, hyatt)
+            </span>
+            <input
+              type="text"
+              name="topics"
+              defaultValue={(idea.topics ?? []).join(', ')}
+              placeholder="marathon, boston, hyatt"
+              className="admin-input"
+              style={{ width: '100%' }}
+            />
+          </label>
+          <label>
+            <span style={{ display: 'block', fontSize: '0.6875rem', fontFamily: 'var(--font-ui)', color: 'var(--admin-text-muted)', marginBottom: '0.125rem' }}>
+              Cash rate reference (sweet spots only — verified baseline like &quot;$480/night for May 18 dates&quot;)
+            </span>
+            <input
+              type="text"
+              name="cash_rate_reference"
+              defaultValue={idea.cash_rate_reference ?? ''}
+              placeholder="leave blank if not verified — writer will use comparative phrasing"
+              className="admin-input"
+              style={{ width: '100%' }}
+            />
+          </label>
+          <button type="submit" className="admin-btn admin-btn-ghost admin-btn-sm" style={{ alignSelf: 'flex-start' }}>
+            Save categorization
+          </button>
+        </form>
+      </details>
 
       <details style={{ marginBottom: '0.75rem' }} open={Boolean(idea.override_reason)}>
         <summary style={{ cursor: 'pointer', fontSize: '0.75rem', fontFamily: 'var(--font-ui)', color: idea.override_reason ? '#b45309' : 'var(--admin-text-muted)' }}>
