@@ -1,6 +1,27 @@
 import Link from 'next/link'
 import type { MemberProgramRow } from '@/utils/supabase/queries'
 
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+]
+
+function ordinal(n: number): string {
+  const s = ['th', 'st', 'nd', 'rd']
+  const v = n % 100
+  return n + (s[(v - 20) % 10] || s[v] || s[0])
+}
+
+function formatJoinedDate(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso.trim())
+  if (!m) return iso
+  const year = parseInt(m[1], 10)
+  const month = parseInt(m[2], 10) - 1
+  const day = parseInt(m[3], 10)
+  if (month < 0 || month > 11) return iso
+  return `${MONTHS[month]} ${ordinal(day)} ${year}`
+}
+
 /**
  * Renders an alliance's member_programs JSONB as a table.
  *
@@ -93,7 +114,7 @@ export default function MemberProgramsTable({
                   )}
                 </td>
                 <td style={{ padding: '0.75rem', fontSize: '0.875rem', color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}>
-                  {row.joined ?? '—'}
+                  {row.joined ? formatJoinedDate(row.joined) : '—'}
                 </td>
                 <td style={{ padding: '0.75rem', fontSize: '0.8125rem' }}>
                   {grouped.size === 0 ? (
