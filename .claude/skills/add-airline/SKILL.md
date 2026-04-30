@@ -1,6 +1,6 @@
 ---
 name: add-airline
-description: Orchestrate the full add-a-program workflow on the crazy4points project (works for airlines AND hotels — generic by data shape) — research, draft, fact-check, author, verify, index, and capture sources. ALWAYS trigger when user says "let's do <program> next", "add airline X", "next airline", "start <program>", "let's tackle <program>", "let's do <hotel> next", or any phrase indicating they want to author/refresh a per-program reference page at /programs/[slug]. Walks through the 11-step runbook one step at a time, never dumping the full sequence.
+description: Orchestrate the full add-a-program workflow on the crazy4points project (works for airlines, hotels, alliances, and credit cards — generic by data shape) — research, draft, fact-check, author, verify, index, and capture sources. ALWAYS trigger when user says "let's do <program> next", "add airline X", "next airline", "start <program>", "let's tackle <program>", "let's do <hotel> next", "let's do <alliance> next", or any phrase indicating they want to author/refresh a per-program reference page at /programs/[slug]. Walks through the 11-step runbook one step at a time, never dumping the full sequence.
 ---
 
 # add-airline — Per-Program Authoring Orchestrator
@@ -49,13 +49,13 @@ THEN announce: "Starting <airline> — Step 0 first." Don't dump the full runboo
 
 Wait for confirmation before continuing.
 
-### Step 1 — Request official source pastes from the user (BLOCKING)
+### Step 1 — Surface the COMPLETE paste-in list up front (BLOCKING)
 
-**Before drafting anything, ask the user to paste the relevant sections from the official sources listed below.** LLMs (Claude, Copilot, GPT) all draw from the same pool of secondary blog summaries. When two LLMs disagree on a fact, neither is authoritative — only the official source is. So we read the official source FIRST, draft directly from it, and use third-party blogs only for context/sweet-spot color.
+**Before drafting anything, surface the COMPLETE paste-in list to the user in a single message — every URL, all at once.** LLMs (Claude, Copilot, GPT) all draw from the same pool of secondary blog summaries. When two LLMs disagree on a fact, neither is authoritative — only the official source is. So we read the official source FIRST, draft directly from it, and use third-party blogs only for context/sweet-spot color.
 
-Surface the list to the user as a copy-paste request, scoped to the program type.
+**The user prefers to gather every source in one batch.** Do NOT trickle URLs out one section at a time, do NOT ask "want me to list more?", do NOT wait for one paste before requesting the next. List ALL paste-in items for the program type in a single numbered list, then let the user knock them out at their own pace. Even if some items are optional, surface them — let the user decide what they have time to grab.
 
-**ALWAYS provide a clickable URL for every paste-in item.** Don't just describe the source ("the alliance's lounges page") — give the actual link as a markdown hyperlink the user can cmd-click. If you don't know the exact URL, WebSearch first to find it, THEN ask. Never make the user hunt for the URL themselves. Format every paste-in line as:
+**ALWAYS provide a clickable markdown URL for every paste-in item.** Don't just describe the source ("the alliance's lounges page") — give the actual link as a markdown hyperlink the user can cmd-click. If you don't know the exact URL, WebSearch first to find it, THEN list. Never make the user hunt for the URL themselves. Format every paste-in line as:
 
 > 1. **[What to paste]** — [URL](https://...) (one-line description of what section to grab)
 
@@ -86,6 +86,16 @@ If a URL might vary by region/login (e.g. Flying Blue has `flyingblue.com/en/...
 6. **Points expiry / inactivity policy.**
 7. **Peak/off-peak pricing methodology** — from the program's official explanation page.
 8. **All-inclusive / resort property award rules** (if the program has them).
+
+**Alliances — request these official paste-ins:**
+1. **Member airlines list with destinations + countries** — the alliance's official members page (e.g. [oneworld.com/members](https://www.oneworld.com/members), [skyteam.com/en/about/members](https://www.skyteam.com/en/about/members), [staralliance.com/en/member-airlines](https://www.staralliance.com/en/member-airlines)). Paste the full member list including any suspended carriers and any oneworld connect / regional affiliates.
+2. **Alliance-wide tier benefits** — the alliance's benefits page covering what each tier (Emerald/Sapphire/Ruby on oneworld; Elite Plus/Elite on SkyTeam; Gold/Silver on Star Alliance) gets globally beyond lounge access. Priority boarding, extra baggage, fast-track security, priority check-in, etc.
+3. **Tier crossover from each member program** — the alliance's "Check Your Tier By Airline" page or each member airline's elite-tier mapping page. Tells us which member-program tier maps to which alliance tier (e.g. Atmos Titanium = oneworld Emerald). For oneworld: [oneworld.com/benefits](https://www.oneworld.com/benefits) has the dropdown.
+4. **Round-the-world / alliance award product rules** — the alliance's RTW page if they sell one (oneworld Explorer, Global Explorer, Circle Pacific; SkyTeam doesn't sell one; Star Alliance Round the World). Paste pricing structure, segment caps, mile bands, booking process.
+5. **Alliance lounge eligibility** — the alliance's lounges page (eligibility paragraph above the lounge finder, not the airport directory). This is the same Step-1 lounge text we ask for on carrier pages — for the alliance page it's the canonical source.
+6. **About / overview** — the alliance's "About" page for founded date, HQ, member count, market position. Used for the intro paragraph.
+7. **Recent news / membership changes** — the alliance's news page. Surface any 2025-2026 headline that affects: new full member additions, oneworld connect / SkyTeam affiliates / Star Alliance connecting partner changes, member exits, suspensions.
+8. **Optional but useful** — Wikipedia infobox + recent history section. Has the cleanest summary of founding date, member count, and recent changes.
 
 **Credit cards — request these official paste-ins:**
 1. **Issuer offer page URL + current SUB language** — from the issuer's marketing page (e.g. chase.com/sapphire-reserve). The marketing page is authoritative even if the PDF agreement lags.
@@ -119,6 +129,51 @@ If the user can't easily get certain official text (e.g. behind login, regionall
 Save **every URL** consulted; they go in the per-airline source doc later.
 
 ### Step 2 — Draft hedged content (Claude does this)
+
+**Two-pass output: combined preview first, then paste-ready blocks.**
+
+When drafts are ready, surface the entire content set as a single combined preview message FIRST so the user can verify the whole thing at once before any field-by-field paste. Format the preview as a labeled section per field with the actual draft text inline. The user reviews the preview, requests edits, and only when they say "looks good" / "ready to paste" / similar do you re-output as paste-ready code blocks per field.
+
+**Why this exists:** Going straight to per-field paste blocks means the user has to read scattered code blocks and mentally stitch them together to verify coherence. The combined preview is a single readable artifact they can scan in one pass — catching tone inconsistencies, factual issues, or missing pieces before any pasting begins.
+
+Format:
+```
+# Combined preview — {program name}
+
+## 1. Alliance / type
+{value}
+
+## 2. Hubs
+{value}
+
+## 3. Intro
+{markdown text}
+
+## 4. Transfer partners (or Member programs for alliances)
+{JSON, formatted readable}
+
+## 5. How to spend
+{markdown text}
+
+## 6. Sweet spots
+{markdown text}
+
+## 7. Tier benefits
+{JSON, formatted readable}
+
+## 8. Lounge access
+{markdown text}
+
+## 9. Tips & quirks
+{markdown text}
+
+---
+
+Review the combined preview. Reply "looks good" / "ready to paste" and I'll re-output as paste-ready blocks per field.
+Or call out anything to change first.
+```
+
+After user approval, output each field as a separate fenced code block tagged with the field name in the heading above it.
 
 Draft each of these 9 fields:
 
@@ -259,9 +314,16 @@ Note in the source doc which co-brand credit cards earn into this program. When 
 
 For hotels, also note: once Step 7.6 is done, `hotel_properties` is automatically wired into the fact-checker (verifies property/category claims) and the Decision Engine (surfaces hotels in destination searches). No per-program work beyond seeding the table.
 
-### Step 9 — Maintenance reminder (optional)
+### Step 9 — Maintenance — handled by admin, no per-program reminder needed
 
-Suggest the user set a personal calendar reminder for 6 months out to re-review the page.
+Do NOT suggest a personal calendar reminder or schedule a routine. The admin programs list surfaces stale + review-due pills automatically:
+
+- Yellow "Stale (Nd)" pill at 60 days since last edit
+- Red "Review (Nd)" pill at 180 days (6 months) — these need refreshing
+
+The user reviews `/admin/programs` periodically, sorts by staleness or toggles "Review-due only," and works through the red pills. No per-program reminder needed.
+
+If the user explicitly asks for a one-time scheduled refresh agent for a particular program (e.g. "remind me in 3 months to refresh Alaska because Hawaiian integration is still in flux"), that's fine — but don't proactively offer it. The default is the admin badge does the work.
 
 ---
 

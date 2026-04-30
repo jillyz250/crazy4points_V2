@@ -178,10 +178,16 @@ If the carrier has a working RSS press room, add it to `/admin/sources` so Scout
 
 ---
 
-## 9. Maintenance reminder
+## 9. Maintenance — handled by admin, no per-program reminder needed
 
-- [ ] Set a personal calendar reminder for **6 months out** to re-review this page (faster for top-5 airlines, slower for long-tail carriers)
-- [ ] The admin staleness pill turns yellow at 60 days — if you see it, check whether anything material has changed (transfer ratios, promo discounts, expiry policy) before just hitting Save again to reset the pill
+The admin programs list does the work for you:
+
+- [ ] Yellow **Stale** pill appears at 60 days since last edit
+- [ ] Red **Review** pill appears at 180 days (6 months) — these are the ones to refresh
+- [ ] At `/admin/programs`, use the "Sort: staleness" dropdown or the "Review-due only" toggle to surface what needs attention
+- [ ] When you re-review: don't just hit Save to reset the pill. Verify nothing material has changed (transfer ratios, promo discounts, expiry policy, alliance crossover, lounge rules) since the last edit, then save once it's actually current
+
+No personal calendar reminders. No routines. Walk into `/admin/programs` weekly, fix red pills, done.
 
 ---
 
