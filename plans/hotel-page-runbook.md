@@ -191,10 +191,16 @@ Hotels have a per-property table at `/admin/programs/[slug]/properties` that the
 
 ---
 
-## 9. Maintenance reminder
+## 9. Maintenance — handled by admin, no per-program reminder needed
 
-- [ ] Set a personal calendar reminder for **6 months out** to re-review this page
-- [ ] The admin staleness pill turns yellow at 60 days — when you see it, check whether anything material has changed (devaluation announcements, new co-brand cards, removed transfer partners) before just hitting Save again
+The admin programs list does the work for you:
+
+- [ ] Yellow **Stale** pill appears at 60 days since last edit
+- [ ] Red **Review** pill appears at 180 days (6 months) — these are the ones to refresh
+- [ ] At `/admin/programs`, use the "Sort: staleness" dropdown or the "Review-due only" toggle to surface what needs attention
+- [ ] When you re-review: don't just hit Save to reset the pill. Verify nothing material has changed (devaluation announcements, new co-brand cards, removed transfer partners, category transitions) since the last edit, then save once it's actually current
+
+No personal calendar reminders. No routines. Walk into `/admin/programs` weekly, fix red pills, done.
 
 ---
 
