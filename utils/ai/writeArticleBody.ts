@@ -6,6 +6,9 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { logUsage } from './logUsage'
 import { BRAND_VOICE, FACTUAL_TRAPS } from './editorialRules'
+import type { ContentType, ActivityFrame } from '@/lib/admin/contentTaxonomy'
+import { CONTENT_TYPE_PROMPTS } from './contentTypePrompts/types'
+import { ACTIVITY_FRAME_PROMPTS, FALLBACK_FRAME } from './contentTypePrompts/frames'
 
 export type ArticleIdeaType = 'newsletter' | 'blog'
 
@@ -26,6 +29,15 @@ export interface WriteArticleInput {
    * inventing or relying on training memory.
    */
   program_context?: string | null
+  /**
+   * Phase 7b — content_type + activity_frame routes to a type-specific
+   * structure prompt layered onto the generic writer prompt. Null falls
+   * back to the generic prompt unchanged.
+   */
+  content_type?: ContentType | null
+  activity_frame?: ActivityFrame | null
+  /** Editor-supplied verified cash baseline (sweet_spot only). */
+  cash_rate_reference?: string | null
 }
 
 export interface ArticleDraft {
@@ -34,6 +46,28 @@ export interface ArticleDraft {
 }
 
 const MODEL = 'claude-sonnet-4-6'
+
+/**
+ * Phase 7b — composes the type-specific structure block (and activity-frame
+ * sub-block for destination_play). Returns empty string when content_type is
+ * null so legacy behavior is unchanged.
+ */
+function typeSpecificBlock(
+  contentType: ContentType | null | undefined,
+  activityFrame: ActivityFrame | null | undefined,
+): string {
+  if (!contentType) return ''
+  const typeBlock = CONTENT_TYPE_PROMPTS[contentType] ?? ''
+  // Activity frame only applies to destination_play. For everything else,
+  // skip the frame block — those types don't have an activity dimension.
+  const frameBlock =
+    contentType === 'destination_play'
+      ? activityFrame
+        ? ACTIVITY_FRAME_PROMPTS[activityFrame] ?? FALLBACK_FRAME
+        : FALLBACK_FRAME
+      : ''
+  return `\n${typeBlock}\n${frameBlock}\n`
+}
 
 function systemPrompt(type: ArticleIdeaType): string {
   const lengthRule =
@@ -392,7 +426,7 @@ export async function writeArticleBody(input: WriteArticleInput): Promise<Articl
       // article. Sonnet 4.6 supports up to ~16K output; 8K leaves headroom
       // for several searches plus a 600-800 word article.
       max_tokens: input.type === 'blog' ? 8000 : 2000,
-      system: systemPrompt(input.type),
+      system: systemPrompt(input.type) + typeSpecificBlock(input.content_type, input.activity_frame),
       tools: [
         {
           type: 'web_search_20250305',

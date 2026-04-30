@@ -313,7 +313,7 @@ export async function writeArticleAction(id: string): Promise<WriteArticleResult
   const supabase = createAdminClient()
   const { data: idea, error: fetchErr } = await supabase
     .from('content_ideas')
-    .select('id, type, title, pitch, source_alert_id, primary_program_slug, secondary_program_slugs, card_slugs')
+    .select('id, type, title, pitch, source_alert_id, primary_program_slug, secondary_program_slugs, card_slugs, content_type, activity_frame, cash_rate_reference')
     .eq('id', id)
     .single()
   if (fetchErr || !idea) return { ok: false, error: fetchErr?.message ?? 'Idea not found' }
@@ -357,6 +357,17 @@ export async function writeArticleAction(id: string): Promise<WriteArticleResult
     pitch: idea.pitch,
     source_alert: sourceAlert,
     program_context: programContext,
+    // Phase 7b — route the writer prompt off the typing fields. Null/legacy
+    // ideas fall back to the generic prompt unchanged.
+    content_type: (idea as { content_type?: string }).content_type as
+      | import('@/lib/admin/contentTaxonomy').ContentType
+      | null
+      | undefined,
+    activity_frame: (idea as { activity_frame?: string }).activity_frame as
+      | import('@/lib/admin/contentTaxonomy').ActivityFrame
+      | null
+      | undefined,
+    cash_rate_reference: (idea as { cash_rate_reference?: string | null }).cash_rate_reference ?? null,
   })
   if (!draft) return { ok: false, error: 'Writer returned no draft (check logs / API key)' }
 
