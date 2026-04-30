@@ -930,6 +930,52 @@ export async function updateContentIdeaOverrideAction(
 }
 
 /**
+ * Phase 7a — saves all typing/topic fields together: content_type,
+ * activity_frame, topics (comma-separated chips), cash_rate_reference.
+ * Validates content_type + activity_frame against the TS allowlist so
+ * unknown values silently become null (rather than 22P02 errors).
+ */
+export async function updateContentIdeaTypingAction(
+  id: string,
+  formData: FormData,
+): Promise<void> {
+  const { isValidContentType, isValidActivityFrame } = await import('@/lib/admin/contentTaxonomy')
+  const rawType = (formData.get('content_type') as string | null)?.trim() ?? ''
+  const rawFrame = (formData.get('activity_frame') as string | null)?.trim() ?? ''
+  const content_type = isValidContentType(rawType) ? rawType : null
+  const activity_frame = isValidActivityFrame(rawFrame) ? rawFrame : null
+
+  // Topics arrive as a comma-separated text input. Split, normalize to
+  // lowercase-kebab, dedupe, drop empties.
+  const rawTopics = ((formData.get('topics') as string | null) ?? '').toString()
+  const topics = Array.from(
+    new Set(
+      rawTopics
+        .split(/[,\n]/)
+        .map((t) => t.trim().toLowerCase().replace(/\s+/g, '-'))
+        .filter((t) => t.length > 0 && t.length <= 50),
+    ),
+  ).slice(0, 25)
+
+  const cashRaw = (formData.get('cash_rate_reference') as string | null)?.trim() ?? ''
+  const cash_rate_reference = cashRaw ? cashRaw.slice(0, 200) : null
+
+  const supabase = createAdminClient()
+  const { error } = await supabase
+    .from('content_ideas')
+    .update({
+      content_type,
+      activity_frame,
+      topics,
+      cash_rate_reference,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+  if (error) throw error
+  revalidatePath('/admin/content-ideas')
+}
+
+/**
  * Result type used by useActionState in the form. The action never throws —
  * it always returns a structured result so the client can render success or
  * error inline rather than relying on Next.js error overlays.
