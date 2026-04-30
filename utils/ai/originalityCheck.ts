@@ -49,8 +49,20 @@ export interface OriginalityResult {
   checked_at: string
 }
 
-/** Default originality bar — calibrated empirically. Override per-idea by setting `originality_threshold`. */
-export const DEFAULT_ORIGINALITY_THRESHOLD = 70
+/**
+ * Default originality bar — calibrated empirically. Override per-idea by
+ * setting `originality_threshold`. Raised to 80 (was 70) after observed
+ * cases of overall-pass-but-flagged-passage slipping through.
+ */
+export const DEFAULT_ORIGINALITY_THRESHOLD = 80
+
+/**
+ * If ANY flagged passage has confidence at or above this value, the article
+ * fails regardless of overall score. Catches the "82 overall but one passage
+ * mirrors an external article at 62 confidence" case where the aggregate
+ * looks fine but a single passage is borderline-plagiarized.
+ */
+export const MAX_PASSAGE_CONFIDENCE = 60
 
 const SYSTEM_PROMPT = `You are an originality checker for crazy4points. You receive an article body
 and must use web_search to determine whether any passage near-duplicates content already
@@ -209,8 +221,18 @@ export async function originalityCheck(
       ? parsed.flagged_passages.map(sanitizePassage).filter((p): p is FlaggedPassage => p !== null)
       : []
     const notes = typeof parsed.notes === 'string' ? parsed.notes.slice(0, 600) : ''
+    // Pass requires BOTH (a) overall confidence at threshold AND (b) no
+    // single passage scoring above MAX_PASSAGE_CONFIDENCE. The per-passage
+    // gate catches the case where the aggregate looks fine but one specific
+    // passage near-duplicates an external article.
+    const worstPassage = flagged_passages.reduce(
+      (max, p) => (p.confidence > max ? p.confidence : max),
+      0,
+    )
+    const pass =
+      confidence_score >= threshold && worstPassage < MAX_PASSAGE_CONFIDENCE
     return {
-      pass: confidence_score >= threshold,
+      pass,
       confidence_score,
       threshold,
       notes,
