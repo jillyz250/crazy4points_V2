@@ -664,20 +664,51 @@ export async function checkOriginalityAction(id: string): Promise<OriginalityAct
   const supabase = createAdminClient()
   const { data: idea, error: fetchErr } = await supabase
     .from('content_ideas')
-    .select('id, title, article_body, originality_threshold')
+    .select('id, title, article_body, originality_threshold, source_alert_id, source_intel_id')
     .eq('id', id)
     .single()
   if (fetchErr || !idea) return { ok: false, error: fetchErr?.message ?? 'Idea not found' }
   if (!idea.article_body) return { ok: false, error: 'No article body to check — draft first.' }
 
-  // Per-idea threshold override if the editor set one in metadata; otherwise
-  // originalityCheck() falls back to DEFAULT_ORIGINALITY_THRESHOLD (70).
+  // v3 — fetch source intel(s) the idea was drafted from. Compare against
+  // those, not the open web. We pull intel directly (raw_text) plus, if the
+  // idea was spun off an alert, that alert's source_intel.
+  const sources: { url: string | null; text: string }[] = []
+  const intelIds: string[] = []
+  if (idea.source_intel_id) intelIds.push(idea.source_intel_id)
+  if (idea.source_alert_id) {
+    const { data: alertRow } = await supabase
+      .from('alerts')
+      .select('source_intel_id, source_url')
+      .eq('id', idea.source_alert_id)
+      .single()
+    if (alertRow?.source_intel_id && !intelIds.includes(alertRow.source_intel_id)) {
+      intelIds.push(alertRow.source_intel_id)
+    }
+  }
+  if (intelIds.length > 0) {
+    const { data: intelRows } = await supabase
+      .from('intel_items')
+      .select('id, raw_text, source_url')
+      .in('id', intelIds)
+    for (const r of intelRows ?? []) {
+      const raw = (r.raw_text as string | null) ?? null
+      if (raw && raw.trim()) {
+        sources.push({ url: (r.source_url as string | null) ?? null, text: raw })
+      }
+    }
+  }
+  if (sources.length === 0) {
+    return { ok: false, error: 'No source intel to check against — manual ideas skip this check.' }
+  }
+
   const threshold =
     typeof idea.originality_threshold === 'number' ? idea.originality_threshold : undefined
 
   const res = await originalityCheck({
     title: idea.title,
     article_body: idea.article_body,
+    sources,
     threshold,
   })
   if (!res) return { ok: false, error: 'Originality check failed (see logs)' }
