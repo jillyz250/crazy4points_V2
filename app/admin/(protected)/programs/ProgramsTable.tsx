@@ -29,24 +29,39 @@ const ALLIANCE_COLOR: Record<string, string> = {
  * Counts how many of the page-content sections a program has populated.
  * Surfaces in admin so authors can see at-a-glance what's done vs. todo.
  *
- * Sections: alliance, hubs (airlines only), intro, award_chart,
- * transfer_partners, how_to_spend, sweet_spots, tier_benefits, lounge_access,
- * quirks. Total: 10 for airlines, 9 for hotels (no hubs).
+ * Field set varies by type:
+ *   - airline:   10 (alliance, hubs, intro, award_chart, transfer_partners,
+ *                    how_to_spend, sweet_spots, tier_benefits, lounge_access,
+ *                    quirks)
+ *   - hotel:     9  (no hubs)
+ *   - alliance:  6  (intro, member_programs, sweet_spots, tier_benefits,
+ *                    lounge_access, quirks — alliance-specific shape)
+ *   - other:     defaults to airline shape
  */
 function pageCompleteness(program: Program): { filled: number; total: number; missing: string[] } {
   const isHotel = program.type === 'hotel'
-  const checks: Array<[string, boolean]> = [
-    ['Alliance',          !!program.alliance],
-    ...(isHotel ? [] : [['Hubs', (program.hubs?.length ?? 0) > 0] as [string, boolean]]),
-    ['Intro',             !!program.intro?.trim()],
-    ['Award chart',       !!program.award_chart?.trim()],
-    ['Transfer partners', (program.transfer_partners?.length ?? 0) > 0],
-    ['How to spend',      !!program.how_to_spend?.trim()],
-    ['Sweet spots',       !!program.sweet_spots?.trim()],
-    ['Tier benefits',     (program.tier_benefits?.length ?? 0) > 0],
-    ['Lounge access',     !!program.lounge_access?.trim()],
-    ['Tips & quirks',     !!program.quirks?.trim()],
-  ]
+  const isAlliance = program.type === 'alliance'
+  const checks: Array<[string, boolean]> = isAlliance
+    ? [
+        ['Intro',           !!program.intro?.trim()],
+        ['Member programs', (program.member_programs?.length ?? 0) > 0],
+        ['Sweet spots',     !!program.sweet_spots?.trim()],
+        ['Tier benefits',   (program.tier_benefits?.length ?? 0) > 0],
+        ['Lounge access',   !!program.lounge_access?.trim()],
+        ['Tips & quirks',   !!program.quirks?.trim()],
+      ]
+    : [
+        ['Alliance',          !!program.alliance],
+        ...(isHotel ? [] : [['Hubs', (program.hubs?.length ?? 0) > 0] as [string, boolean]]),
+        ['Intro',             !!program.intro?.trim()],
+        ['Award chart',       !!program.award_chart?.trim()],
+        ['Transfer partners', (program.transfer_partners?.length ?? 0) > 0],
+        ['How to spend',      !!program.how_to_spend?.trim()],
+        ['Sweet spots',       !!program.sweet_spots?.trim()],
+        ['Tier benefits',     (program.tier_benefits?.length ?? 0) > 0],
+        ['Lounge access',     !!program.lounge_access?.trim()],
+        ['Tips & quirks',     !!program.quirks?.trim()],
+      ]
   const filled = checks.filter(([, ok]) => ok).length
   const missing = checks.filter(([, ok]) => !ok).map(([label]) => label)
   return { filled, total: checks.length, missing }
