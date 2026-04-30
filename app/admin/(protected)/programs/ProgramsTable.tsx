@@ -67,6 +67,56 @@ function pageCompleteness(program: Program): { filled: number; total: number; mi
   return { filled, total: checks.length, missing }
 }
 
+/**
+ * Days since a program's editorial content was last touched.
+ * Returns null when there's no content yet (no review needed).
+ */
+function daysSinceReview(program: Program): number | null {
+  if (!program.content_updated_at) return null
+  const ms = Date.now() - new Date(program.content_updated_at).getTime()
+  return Math.floor(ms / (1000 * 60 * 60 * 24))
+}
+
+const STALE_DAYS = 60
+const REVIEW_DAYS = 180
+
+type ReviewStatus = 'fresh' | 'stale' | 'review-due' | 'empty'
+
+function reviewStatus(program: Program): ReviewStatus {
+  const days = daysSinceReview(program)
+  if (days === null) return 'empty'
+  if (days >= REVIEW_DAYS) return 'review-due'
+  if (days >= STALE_DAYS) return 'stale'
+  return 'fresh'
+}
+
+function ReviewBadge({ program }: { program: Program }) {
+  const status = reviewStatus(program)
+  const days = daysSinceReview(program)
+  if (status === 'empty' || status === 'fresh') return null
+  const tone = status === 'review-due'
+    ? { background: '#fee2e2', color: '#991b1b', label: `Review (${days}d)` }
+    : { background: '#fef3c7', color: '#92400e', label: `Stale (${days}d)` }
+  return (
+    <span
+      style={{
+        padding: '0.125rem 0.5rem',
+        fontSize: '0.6875rem',
+        fontWeight: 700,
+        letterSpacing: '0.04em',
+        textTransform: 'uppercase',
+        background: tone.background,
+        color: tone.color,
+        borderRadius: '9999px',
+        fontFamily: 'var(--font-ui)',
+      }}
+      title={`Editorial content last updated ${days} days ago. Threshold: stale at ${STALE_DAYS}d, review-due at ${REVIEW_DAYS}d.`}
+    >
+      {tone.label}
+    </span>
+  )
+}
+
 function MonitorBadge({ tier }: { tier: string | null }) {
   if (!tier) return null
   const color = tier === 'daily' ? '#0F766E' : tier === 'weekly' ? '#7C2D12' : '#4A4A4A'
@@ -77,18 +127,44 @@ function MonitorBadge({ tier }: { tier: string | null }) {
   )
 }
 
+type SortMode = 'default' | 'staleness'
+
 export default function ProgramsTable({ programs }: { programs: Program[] }) {
   const [filter, setFilter] = useState('')
+  const [reviewOnly, setReviewOnly] = useState(false)
+  const [sort, setSort] = useState<SortMode>('default')
+
+  const reviewDueCount = useMemo(
+    () => programs.filter((p) => reviewStatus(p) === 'review-due').length,
+    [programs]
+  )
 
   const visible = useMemo(() => {
     const q = filter.trim().toLowerCase()
-    if (!q) return programs
-    return programs.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        p.slug.toLowerCase().includes(q)
-    )
-  }, [programs, filter])
+    let rows = programs
+    if (q) {
+      rows = rows.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          p.slug.toLowerCase().includes(q)
+      )
+    }
+    if (reviewOnly) {
+      rows = rows.filter((p) => reviewStatus(p) === 'review-due')
+    }
+    if (sort === 'staleness') {
+      // Most days-since-review first; programs with no content sort last.
+      rows = [...rows].sort((a, b) => {
+        const da = daysSinceReview(a)
+        const db = daysSinceReview(b)
+        if (da === null && db === null) return 0
+        if (da === null) return 1
+        if (db === null) return -1
+        return db - da
+      })
+    }
+    return rows
+  }, [programs, filter, reviewOnly, sort])
 
   if (programs.length === 0) {
     return (
@@ -118,8 +194,37 @@ export default function ProgramsTable({ programs }: { programs: Program[] }) {
           className="admin-input"
           style={{ maxWidth: '20rem', flex: '1 1 16rem' }}
         />
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value as SortMode)}
+          className="admin-input"
+          style={{ width: 'auto', fontSize: '0.8125rem' }}
+          title="Sort programs"
+        >
+          <option value="default">Sort: default</option>
+          <option value="staleness">Sort: staleness</option>
+        </select>
+        <label
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.375rem',
+            fontSize: '0.8125rem',
+            color: reviewDueCount > 0 ? '#991b1b' : 'var(--admin-text-muted)',
+            fontWeight: reviewDueCount > 0 ? 600 : 400,
+            cursor: 'pointer',
+          }}
+          title={`${reviewDueCount} program${reviewDueCount === 1 ? '' : 's'} not reviewed in ${REVIEW_DAYS}+ days`}
+        >
+          <input
+            type="checkbox"
+            checked={reviewOnly}
+            onChange={(e) => setReviewOnly(e.target.checked)}
+          />
+          Review-due only ({reviewDueCount})
+        </label>
         <span style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)' }}>
-          {filter ? `${visible.length} of ${programs.length}` : `${programs.length} total`}
+          {filter || reviewOnly ? `${visible.length} of ${programs.length}` : `${programs.length} total`}
         </span>
       </div>
 
@@ -177,6 +282,7 @@ export default function ProgramsTable({ programs }: { programs: Program[] }) {
                           </span>
                         )}
                         <MonitorBadge tier={program.monitor_tier} />
+                        <ReviewBadge program={program} />
                       </div>
                     </td>
 
