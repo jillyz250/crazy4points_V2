@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import type { TransferPartnerRow, TierBenefitRow, Alliance } from '@/utils/supabase/queries'
+import type { TransferPartnerRow, TierBenefitRow, MemberProgramRow, TierCrossoverRow, Alliance } from '@/utils/supabase/queries'
 import { ALLIANCE_OPTIONS } from '@/utils/supabase/queries'
 import { updateProgramPageContentAction } from './actions'
 
@@ -80,6 +80,83 @@ function textToTiers(text: string): { rows: TierBenefitRow[] | null; error: stri
   return { rows, error: null }
 }
 
+const MEMBER_PROGRAMS_PLACEHOLDER = `[
+  {
+    "program_slug": "atmos",
+    "carrier_slugs": ["alaska", "hawaiian"],
+    "joined": "2021-03-31",
+    "tier_crossover": [
+      { "alliance_tier": "Emerald",  "member_tier": "Atmos Titanium" },
+      { "alliance_tier": "Emerald",  "member_tier": "Atmos Platinum" },
+      { "alliance_tier": "Sapphire", "member_tier": "Atmos Gold" },
+      { "alliance_tier": "Ruby",     "member_tier": "Atmos Silver" }
+    ],
+    "notes": "Paid Lounge+ program is excluded from alliance ruleset"
+  }
+]`
+
+function membersToText(rows: MemberProgramRow[] | null): string {
+  if (!rows || rows.length === 0) return ''
+  return JSON.stringify(rows, null, 2)
+}
+
+function textToMembers(text: string): { rows: MemberProgramRow[] | null; error: string | null } {
+  const trimmed = text.trim()
+  if (!trimmed) return { rows: null, error: null }
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(trimmed)
+  } catch {
+    return { rows: null, error: 'Member programs: invalid JSON' }
+  }
+  if (!Array.isArray(parsed)) {
+    return { rows: null, error: 'Member programs: must be a JSON array' }
+  }
+  const rows: MemberProgramRow[] = []
+  for (const [i, raw] of parsed.entries()) {
+    if (typeof raw !== 'object' || raw === null) {
+      return { rows: null, error: `Member programs: row ${i} is not an object` }
+    }
+    const r = raw as Record<string, unknown>
+    if (typeof r.program_slug !== 'string' || !r.program_slug) {
+      return { rows: null, error: `Member programs: row ${i} missing string program_slug` }
+    }
+    let crossover: TierCrossoverRow[] | null = null
+    if (r.tier_crossover != null) {
+      if (!Array.isArray(r.tier_crossover)) {
+        return { rows: null, error: `Member programs: row ${i} tier_crossover must be an array` }
+      }
+      const tc: TierCrossoverRow[] = []
+      for (const [j, t] of r.tier_crossover.entries()) {
+        if (typeof t !== 'object' || t === null) {
+          return { rows: null, error: `Member programs: row ${i} tier_crossover[${j}] not an object` }
+        }
+        const tr = t as Record<string, unknown>
+        if (typeof tr.alliance_tier !== 'string' || typeof tr.member_tier !== 'string') {
+          return { rows: null, error: `Member programs: row ${i} tier_crossover[${j}] needs string alliance_tier + member_tier` }
+        }
+        tc.push({ alliance_tier: tr.alliance_tier, member_tier: tr.member_tier })
+      }
+      crossover = tc
+    }
+    let carriers: string[] | null = null
+    if (r.carrier_slugs != null) {
+      if (!Array.isArray(r.carrier_slugs) || !r.carrier_slugs.every((c) => typeof c === 'string')) {
+        return { rows: null, error: `Member programs: row ${i} carrier_slugs must be string[]` }
+      }
+      carriers = r.carrier_slugs as string[]
+    }
+    rows.push({
+      program_slug: r.program_slug,
+      carrier_slugs: carriers,
+      joined: typeof r.joined === 'string' ? r.joined : null,
+      tier_crossover: crossover,
+      notes: typeof r.notes === 'string' ? r.notes : null,
+    })
+  }
+  return { rows, error: null }
+}
+
 function textToPartners(text: string): { rows: TransferPartnerRow[] | null; error: string | null } {
   const trimmed = text.trim()
   if (!trimmed) return { rows: null, error: null }
@@ -127,6 +204,7 @@ export default function ProgramPageContentEditor({
   initialLoungeAccess,
   initialAlliance,
   initialHubs,
+  initialMemberPrograms = null,
   initialUpdatedAt,
   initialAwardChart = null,
   alwaysOpen = false,
@@ -143,6 +221,7 @@ export default function ProgramPageContentEditor({
   initialLoungeAccess: string | null
   initialAlliance: Alliance | null
   initialHubs: string[] | null
+  initialMemberPrograms?: MemberProgramRow[] | null
   initialUpdatedAt: string | null
   initialAwardChart?: string | null
   /** When true, render the form inline (no toggle button). Used by the
@@ -160,7 +239,9 @@ export default function ProgramPageContentEditor({
   const [loungeAccess, setLoungeAccess] = useState(initialLoungeAccess ?? '')
   const [alliance, setAlliance] = useState<Alliance | ''>(initialAlliance ?? '')
   const [hubsText, setHubsText] = useState((initialHubs ?? []).join(', '))
+  const [membersText, setMembersText] = useState(membersToText(initialMemberPrograms))
   const [updatedAt, setUpdatedAt] = useState(initialUpdatedAt)
+  const isAlliance = programType === 'alliance'
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -175,7 +256,8 @@ export default function ProgramPageContentEditor({
     (initialTierBenefits?.length ?? 0) > 0 ||
     !!(initialLoungeAccess ?? '').trim() ||
     !!initialAlliance ||
-    (initialHubs?.length ?? 0) > 0
+    (initialHubs?.length ?? 0) > 0 ||
+    (initialMemberPrograms?.length ?? 0) > 0
 
   function save() {
     setError(null)
@@ -189,21 +271,27 @@ export default function ProgramPageContentEditor({
       setError(tiers.error)
       return
     }
+    const members = textToMembers(membersText)
+    if (members.error) {
+      setError(members.error)
+      return
+    }
     const hubsArray = hubsText
       .split(',')
       .map((h) => h.trim().toUpperCase())
       .filter((h) => h.length > 0)
     const input = {
       intro: intro.trim() ? intro : null,
-      award_chart: awardChart.trim() ? awardChart : null,
-      transfer_partners: partners.rows,
+      award_chart: isAlliance ? null : (awardChart.trim() ? awardChart : null),
+      transfer_partners: isAlliance ? null : partners.rows,
       sweet_spots: sweetSpots.trim() ? sweetSpots : null,
       quirks: quirks.trim() ? quirks : null,
-      how_to_spend: howToSpend.trim() ? howToSpend : null,
+      how_to_spend: isAlliance ? null : (howToSpend.trim() ? howToSpend : null),
       tier_benefits: tiers.rows,
       lounge_access: loungeAccess.trim() ? loungeAccess : null,
-      alliance: alliance ? (alliance as Alliance) : null,
-      hubs: hubsArray.length > 0 ? hubsArray : null,
+      alliance: isAlliance ? null : (alliance ? (alliance as Alliance) : null),
+      hubs: isAlliance ? null : (hubsArray.length > 0 ? hubsArray : null),
+      member_programs: isAlliance ? members.rows : null,
     }
     const anyContent =
       !!input.intro ||
@@ -215,7 +303,8 @@ export default function ProgramPageContentEditor({
       (input.tier_benefits?.length ?? 0) > 0 ||
       !!input.lounge_access ||
       !!input.alliance ||
-      (input.hubs?.length ?? 0) > 0
+      (input.hubs?.length ?? 0) > 0 ||
+      (input.member_programs?.length ?? 0) > 0
     startTransition(async () => {
       const res = await updateProgramPageContentAction(programId, input)
       if (res?.error) {
@@ -237,6 +326,7 @@ export default function ProgramPageContentEditor({
     setLoungeAccess(initialLoungeAccess ?? '')
     setAlliance(initialAlliance ?? '')
     setHubsText((initialHubs ?? []).join(', '))
+    setMembersText(membersToText(initialMemberPrograms))
     setError(null)
     setOpen(false)
   }
@@ -282,35 +372,37 @@ export default function ProgramPageContentEditor({
         Public page content — {programName}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: programType === 'hotel' ? '1fr' : '1fr 1fr', gap: '0.75rem' }}>
-        <div>
-          <label style={labelStyle}>Alliance</label>
-          <select
-            value={alliance}
-            onChange={(e) => setAlliance(e.target.value as Alliance | '')}
-            className="admin-input"
-            style={{ fontSize: '0.8125rem' }}
-          >
-            <option value="">— not set —</option>
-            {ALLIANCE_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-        </div>
-        {programType !== 'hotel' && (
+      {!isAlliance && (
+        <div style={{ display: 'grid', gridTemplateColumns: programType === 'hotel' ? '1fr' : '1fr 1fr', gap: '0.75rem' }}>
           <div>
-            <label style={labelStyle}>Hubs (comma-separated airport codes)</label>
-            <input
-              type="text"
-              value={hubsText}
-              onChange={(e) => setHubsText(e.target.value)}
-              placeholder="CDG, AMS"
+            <label style={labelStyle}>Alliance</label>
+            <select
+              value={alliance}
+              onChange={(e) => setAlliance(e.target.value as Alliance | '')}
               className="admin-input"
               style={{ fontSize: '0.8125rem' }}
-            />
+            >
+              <option value="">— not set —</option>
+              {ALLIANCE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
           </div>
-        )}
-      </div>
+          {programType !== 'hotel' && (
+            <div>
+              <label style={labelStyle}>Hubs (comma-separated airport codes)</label>
+              <input
+                type="text"
+                value={hubsText}
+                onChange={(e) => setHubsText(e.target.value)}
+                placeholder="CDG, AMS"
+                className="admin-input"
+                style={{ fontSize: '0.8125rem' }}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       <div>
         <label style={labelStyle}>Intro (1–2 voicey paragraphs)</label>
@@ -324,6 +416,27 @@ export default function ProgramPageContentEditor({
         />
       </div>
 
+      {isAlliance && (
+        <div>
+          <label style={labelStyle}>
+            Member programs (JSON array — see placeholder for shape)
+          </label>
+          <textarea
+            value={membersText}
+            onChange={(e) => setMembersText(e.target.value)}
+            rows={14}
+            placeholder={MEMBER_PROGRAMS_PLACEHOLDER}
+            className="admin-input"
+            style={{ fontFamily: 'var(--font-mono, ui-monospace, monospace)', fontSize: '0.75rem' }}
+          />
+          <p style={{ fontSize: '0.6875rem', color: 'var(--admin-text-muted)', marginTop: '0.25rem' }}>
+            One entry per member program (e.g. atmos, aa, british_airways). Each row maps that
+            member's elite tiers to the alliance tiers (Emerald / Sapphire / Ruby).
+          </p>
+        </div>
+      )}
+
+      {!isAlliance && (
       <div>
         <label style={labelStyle}>
           Award chart (markdown — official redemption costs; treated as source of truth)
@@ -348,7 +461,9 @@ For dynamic-pricing programs, use this field for "How pricing works" with exampl
           Keep it factual and current; opinion goes in Sweet spots.
         </p>
       </div>
+      )}
 
+      {!isAlliance && (
       <div>
         <label style={labelStyle}>
           Transfer partners (JSON array — see placeholder for shape)
@@ -362,7 +477,9 @@ For dynamic-pricing programs, use this field for "How pricing works" with exampl
           style={{ fontFamily: 'var(--font-mono, ui-monospace, monospace)', fontSize: '0.75rem' }}
         />
       </div>
+      )}
 
+      {!isAlliance && (
       <div>
         <label style={labelStyle}>How to spend miles (markdown — redemption types)</label>
         <textarea
@@ -377,6 +494,7 @@ For dynamic-pricing programs, use this field for "How pricing works" with exampl
           style={{ fontSize: '0.8125rem' }}
         />
       </div>
+      )}
 
       <div>
         <label style={labelStyle}>Sweet spots (markdown — examples with mile cost)</label>

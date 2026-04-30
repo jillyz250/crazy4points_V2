@@ -145,7 +145,8 @@ export default async function ProgramPage({
           sections={[
             ...(program.intro ? [{ id: 'intro', label: 'Intro' }] : []),
             ...(program.award_chart ? [{ id: 'award-chart', label: 'Award chart' }] : []),
-            ...((program.transfer_partners?.length ?? 0) > 0 ? [{ id: 'transfer-partners', label: 'Transfer partners' }] : []),
+            ...((program.transfer_partners?.length ?? 0) > 0 && program.type !== 'alliance' ? [{ id: 'transfer-partners', label: 'Transfer partners' }] : []),
+            ...(program.type === 'alliance' && (program.member_programs?.length ?? 0) > 0 ? [{ id: 'member-airlines', label: 'Member airlines' }] : []),
             ...(program.how_to_spend ? [{ id: 'how-to-spend', label: 'How to spend' }] : []),
             ...(program.sweet_spots ? [{ id: 'sweet-spots', label: 'Sweet spots' }] : []),
             ...((program.tier_benefits?.length ?? 0) > 0 ? [{ id: 'tiers', label: 'Tiers' }] : []),

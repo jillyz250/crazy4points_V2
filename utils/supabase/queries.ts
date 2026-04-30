@@ -161,6 +161,19 @@ export interface TierBenefitRow {
   benefits: string[]
 }
 
+export interface TierCrossoverRow {
+  alliance_tier: 'Emerald' | 'Sapphire' | 'Ruby' | 'Elite Plus' | 'Elite' | 'Gold' | 'Silver' | string
+  member_tier: string
+}
+
+export interface MemberProgramRow {
+  program_slug: string
+  carrier_slugs?: string[] | null
+  joined?: string | null
+  tier_crossover?: TierCrossoverRow[] | null
+  notes?: string | null
+}
+
 export interface Program {
   id: string
   slug: string
@@ -182,6 +195,7 @@ export interface Program {
   lounge_access: string | null
   alliance: Alliance | null
   hubs: string[] | null
+  member_programs: MemberProgramRow[] | null
   content_updated_at: string | null
   notes: string | null
   last_verified: string | null
@@ -1188,6 +1202,7 @@ export interface ProgramPageContentInput {
   lounge_access: string | null
   alliance: Alliance | null
   hubs: string[] | null
+  member_programs: MemberProgramRow[] | null
 }
 
 export async function updateProgramPageContent(
@@ -1205,7 +1220,8 @@ export async function updateProgramPageContent(
     (input.tier_benefits?.length ?? 0) > 0 ||
     !!input.lounge_access ||
     !!input.alliance ||
-    (input.hubs?.length ?? 0) > 0
+    (input.hubs?.length ?? 0) > 0 ||
+    (input.member_programs?.length ?? 0) > 0
   const { error } = await supabase
     .from('programs')
     .update({
@@ -1219,6 +1235,7 @@ export async function updateProgramPageContent(
       lounge_access: input.lounge_access,
       alliance: input.alliance,
       hubs: input.hubs,
+      member_programs: input.member_programs,
       content_updated_at: anyContent ? new Date().toISOString() : null,
       // Auto-bump last_verified on every save: the act of editing IS verification.
       // Drops the row out of the admin_refresh_queue view until next cadence cycle.
