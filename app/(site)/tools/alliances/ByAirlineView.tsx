@@ -194,9 +194,30 @@ export default function ByAirlineView({
               )}
             </div>
             {p._crossover?.tier_crossover && p._crossover.tier_crossover.length > 0 && (
-              <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
-                Tiers:{' '}
-                {[...new Set(p._crossover.tier_crossover.map((t) => t.alliance_tier))].join(' / ')}
+              <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+                {(() => {
+                  // Group member tiers by alliance tier so the card shows
+                  // "Elite Plus = Gold, Platinum, Diamond" instead of just
+                  // "Elite Plus / Elite". Strips the program prefix from
+                  // member_tier strings like "SkyMiles Diamond Medallion"
+                  // -> "Diamond Medallion" so the card stays scannable.
+                  const grouped = new Map<string, string[]>()
+                  for (const tc of p._crossover.tier_crossover) {
+                    const list = grouped.get(tc.alliance_tier) ?? []
+                    // Strip leading program-name token if present (e.g.
+                    // "SkyMiles Diamond Medallion" -> "Diamond Medallion").
+                    const memberTier = tc.member_tier.replace(/^\S+\s+/, '')
+                    list.push(memberTier)
+                    grouped.set(tc.alliance_tier, list)
+                  }
+                  return [...grouped.entries()].map(([allianceTier, memberTiers], i) => (
+                    <div key={allianceTier} style={{ marginTop: i === 0 ? 0 : '0.125rem' }}>
+                      <strong style={{ color: 'var(--color-text-primary)' }}>{allianceTier}</strong>
+                      {' = '}
+                      {memberTiers.join(', ')}
+                    </div>
+                  ))
+                })()}
               </div>
             )}
             {!p._alliance && (
