@@ -2,13 +2,14 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { createAdminClient } from '@/utils/supabase/server'
-import { getAlertsByProgramSlug, getAllPrograms, getPropertiesForProgram, getCardsThatEarnIntoProgram } from '@/utils/supabase/queries'
-import type { AlertWithPrograms, HotelProperty, CardThatEarnsIn } from '@/utils/supabase/queries'
+import { getAlertsByProgramSlug, getAllPrograms, getPropertiesForProgram, getCardsThatEarnIntoProgram, getPartnerRedemptionsByCurrency, getPartnerRedemptionsByOperatingCarrier } from '@/utils/supabase/queries'
+import type { AlertWithPrograms, HotelProperty, CardThatEarnsIn, PartnerRedemptionWithPrograms } from '@/utils/supabase/queries'
 import AlertsGridSB from '@/components/alerts/AlertsGridSB'
 import ExpiredAlertsList from '@/components/alerts/ExpiredAlertsList'
 import ProgramPageContent from '@/components/programs/ProgramPageContent'
 import ProgramPageHero from '@/components/programs/ProgramPageHero'
 import PropertiesTable from '@/components/programs/PropertiesTable'
+import PartnerRedemptionsSection from '@/components/programs/PartnerRedemptionsSection'
 import CardsThatEarnIntoProgram from '@/components/cards/CardsThatEarnIntoProgram'
 
 export const revalidate = 60
@@ -90,6 +91,22 @@ export default async function ProgramPage({
     console.error('[programs/[slug]] getCardsThatEarnIntoProgram failed:', err)
   }
 
+  // Partner redemptions — both directions. Forward: rows where this program is
+  // the currency. Reverse: rows where this program is the operating carrier.
+  // Empty arrays render nothing; sections appear automatically as data is authored.
+  let redemptionsAsCurrency: PartnerRedemptionWithPrograms[] = []
+  let redemptionsAsOperating: PartnerRedemptionWithPrograms[] = []
+  if (program.type === 'airline' || program.type === 'loyalty_program') {
+    try {
+      ;[redemptionsAsCurrency, redemptionsAsOperating] = await Promise.all([
+        getPartnerRedemptionsByCurrency(supabase, program.id),
+        getPartnerRedemptionsByOperatingCarrier(supabase, program.id),
+      ])
+    } catch (err) {
+      console.error('[programs/[slug]] getPartnerRedemptions failed:', err)
+    }
+  }
+
   const now = new Date()
 
   // Split active vs expired
@@ -153,6 +170,8 @@ export default async function ProgramPage({
             ...(program.lounge_access ? [{ id: 'lounge-access', label: 'Lounges' }] : []),
             ...(program.quirks ? [{ id: 'quirks', label: 'Tips' }] : []),
             ...(properties.length > 0 ? [{ id: 'properties', label: 'Hotels' }] : []),
+            ...(redemptionsAsCurrency.length > 0 ? [{ id: 'redemptions-spend', label: 'Where to spend' }] : []),
+            ...(redemptionsAsOperating.length > 0 ? [{ id: 'redemptions-book', label: 'How to book' }] : []),
             ...(earnIntoCards.length > 0 ? [{ id: 'earn-into', label: 'Cards' }] : []),
             ...(allAlerts.length > 0 ? [{ id: 'alerts', label: 'Alerts' }] : []),
           ]}
@@ -194,6 +213,14 @@ export default async function ProgramPage({
             <PropertiesTable properties={properties} programName={program.name} />
           </section>
         )}
+
+        {/* Partner redemptions — auto-derived from partner_redemptions table.
+            Forward: this program as currency. Reverse: this program as operating carrier. */}
+        <PartnerRedemptionsSection
+          programName={program.name}
+          asCurrency={redemptionsAsCurrency}
+          asOperatingCarrier={redemptionsAsOperating}
+        />
 
         {/* Cards that earn into this program — auto-derived. */}
         {earnIntoCards.length > 0 && (

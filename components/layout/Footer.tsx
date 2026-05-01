@@ -6,6 +6,7 @@ const footerNav = [
     links: [
       { label: "Alerts", href: "/alerts" },
       { label: "Blog", href: "/blog" },
+      { label: "Alliance Explorer", href: "/tools/alliances" },
       { label: "Decision Engine", href: "/decision-engine" },
     ],
   },

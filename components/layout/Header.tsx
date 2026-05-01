@@ -6,10 +6,11 @@ import { useState } from "react";
 import { BLOG_CATEGORIES } from "@/lib/blog/categories";
 
 const toolsItems = [
-  { label: "Transfer Bonus Tracker", comingSoon: true, href: null },
-  { label: "Decision Engine", comingSoon: false, href: "/decision-engine" },
-  { label: "Transfer Partner Map", comingSoon: true, href: null },
+  { label: "Alliance Explorer", comingSoon: false, href: "/tools/alliances" },
   { label: "Card Benefits Search", comingSoon: true, href: null },
+  { label: "Decision Engine", comingSoon: false, href: "/decision-engine" },
+  { label: "Transfer Bonus Tracker", comingSoon: true, href: null },
+  { label: "Transfer Partner Map", comingSoon: true, href: null },
 ];
 
 // BLOG dropdown items — mirrors the editorial taxonomy in

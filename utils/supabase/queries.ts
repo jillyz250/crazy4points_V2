@@ -1898,3 +1898,124 @@ export async function getCardDetailBySlug(
   }
 }
 
+// ─── Partner Redemptions ─────────────────────────────────────────────────────
+export type RedemptionCabin = 'Economy' | 'Premium Economy' | 'Business' | 'First'
+export type PricingModel = 'fixed' | 'dynamic' | 'hybrid'
+export type RedemptionConfidence = 'HIGH' | 'MED' | 'LOW'
+
+export interface PartnerRedemption {
+  id: string
+  created_at: string
+  updated_at: string
+  currency_program_id: string
+  operating_carrier_id: string
+  cabin: RedemptionCabin
+  region_or_route: string
+  cost_miles_low: number | null
+  cost_miles_high: number | null
+  pricing_model: PricingModel
+  notes: string | null
+  confidence: RedemptionConfidence
+  last_verified: string | null
+  is_active: boolean
+}
+
+export type PartnerRedemptionInsert = Omit<
+  PartnerRedemption,
+  'id' | 'created_at' | 'updated_at'
+>
+
+/** Joined shape used by admin list and public surfaces. */
+export interface PartnerRedemptionWithPrograms extends PartnerRedemption {
+  currency_program: { slug: string; name: string } | null
+  operating_carrier: { slug: string; name: string } | null
+}
+
+export async function getAllPartnerRedemptions(
+  supabase: SupabaseClient
+): Promise<PartnerRedemptionWithPrograms[]> {
+  const { data, error } = await supabase
+    .from('partner_redemptions')
+    .select(`
+      *,
+      currency_program:programs!partner_redemptions_currency_program_id_fkey(slug, name),
+      operating_carrier:programs!partner_redemptions_operating_carrier_id_fkey(slug, name)
+    `)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return (data ?? []) as unknown as PartnerRedemptionWithPrograms[]
+}
+
+export async function getPartnerRedemptionsByCurrency(
+  supabase: SupabaseClient,
+  currency_program_id: string
+): Promise<PartnerRedemptionWithPrograms[]> {
+  const { data, error } = await supabase
+    .from('partner_redemptions')
+    .select(`
+      *,
+      currency_program:programs!partner_redemptions_currency_program_id_fkey(slug, name),
+      operating_carrier:programs!partner_redemptions_operating_carrier_id_fkey(slug, name)
+    `)
+    .eq('currency_program_id', currency_program_id)
+    .eq('is_active', true)
+    .order('cabin')
+    .order('cost_miles_low', { nullsFirst: false })
+  if (error) throw error
+  return (data ?? []) as unknown as PartnerRedemptionWithPrograms[]
+}
+
+export async function getPartnerRedemptionsByOperatingCarrier(
+  supabase: SupabaseClient,
+  operating_carrier_id: string
+): Promise<PartnerRedemptionWithPrograms[]> {
+  const { data, error } = await supabase
+    .from('partner_redemptions')
+    .select(`
+      *,
+      currency_program:programs!partner_redemptions_currency_program_id_fkey(slug, name),
+      operating_carrier:programs!partner_redemptions_operating_carrier_id_fkey(slug, name)
+    `)
+    .eq('operating_carrier_id', operating_carrier_id)
+    .eq('is_active', true)
+    .order('cabin')
+    .order('cost_miles_low', { nullsFirst: false })
+  if (error) throw error
+  return (data ?? []) as unknown as PartnerRedemptionWithPrograms[]
+}
+
+export async function createPartnerRedemption(
+  supabase: SupabaseClient,
+  input: PartnerRedemptionInsert
+): Promise<PartnerRedemption> {
+  const { data, error } = await supabase
+    .from('partner_redemptions')
+    .insert(input)
+    .select('*')
+    .single()
+  if (error) throw error
+  return data as PartnerRedemption
+}
+
+export async function updatePartnerRedemption(
+  supabase: SupabaseClient,
+  id: string,
+  patch: Partial<PartnerRedemptionInsert>
+): Promise<PartnerRedemption> {
+  const { data, error } = await supabase
+    .from('partner_redemptions')
+    .update(patch)
+    .eq('id', id)
+    .select('*')
+    .single()
+  if (error) throw error
+  return data as PartnerRedemption
+}
+
+export async function deletePartnerRedemption(
+  supabase: SupabaseClient,
+  id: string
+): Promise<void> {
+  const { error } = await supabase.from('partner_redemptions').delete().eq('id', id)
+  if (error) throw error
+}
