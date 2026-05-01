@@ -4,14 +4,16 @@ import Link from 'next/link'
 
 export type ExplorerView = 'alliance' | 'airline' | 'status' | 'search'
 
-const TABS: { key: ExplorerView; label: string; hint: string; comingSoon?: boolean }[] = [
-  { key: 'alliance', label: 'By Alliance', hint: 'Tier ladder + members' },
-  { key: 'airline', label: 'By Airline', hint: 'Search 59 carriers' },
-  { key: 'status', label: 'By Status', hint: 'Equivalency + perks' },
-  { key: 'search', label: 'Find Redemptions', hint: 'Filter partner awards', comingSoon: true },
+type Tab = { key: ExplorerView; label: string; hint: (carrierCount: number) => string; comingSoon?: boolean }
+
+const TABS: Tab[] = [
+  { key: 'alliance', label: 'By Alliance',      hint: () => 'Tier ladder + members' },
+  { key: 'airline',  label: 'By Airline',       hint: (n) => `Search ${n} carriers` },
+  { key: 'status',   label: 'By Status',        hint: () => 'In-alliance equivalency' },
+  { key: 'search',   label: 'Find Redemptions', hint: () => 'Filter partner awards', comingSoon: true },
 ]
 
-export default function ViewSwitcher({ current }: { current: ExplorerView }) {
+export default function ViewSwitcher({ current, carrierCount }: { current: ExplorerView; carrierCount: number }) {
   return (
     <div
       role="tablist"
@@ -81,7 +83,7 @@ export default function ViewSwitcher({ current }: { current: ExplorerView }) {
                 letterSpacing: 0,
               }}
             >
-              {tab.hint}
+              {tab.hint(carrierCount)}
             </span>
           </Link>
         )
