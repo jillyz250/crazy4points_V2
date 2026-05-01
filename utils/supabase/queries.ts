@@ -1124,6 +1124,83 @@ export async function getAlertsByProgramSlug(
 }
 
 /**
+ * Build an alliance-context block for the writer + fact-checker.
+ *
+ * Given a list of program IDs, find any whose `alliance` column is set,
+ * fetch each unique alliance program row, and return a markdown context
+ * string that includes the alliance's intro, sweet spots, lounge access,
+ * tier benefits, member airlines, and quirks. Returns null when none of
+ * the input programs are aligned (so the prompt can omit the section
+ * entirely).
+ *
+ * The writer uses this for sweet-spot ideas and on-brand tangents; the
+ * fact-checker uses it to validate alliance-wide claims (lounge rules,
+ * tier crossover, RTW products). Always defer to the carrier's own page
+ * when the carrier and alliance disagree — the alliance block is
+ * supplementary context, not authoritative for carrier-specific facts.
+ */
+export async function loadAllianceContextForPrograms(
+  supabase: SupabaseClient,
+  programIds: string[]
+): Promise<string | null> {
+  if (programIds.length === 0) return null
+
+  const { data: programs, error } = await supabase
+    .from('programs')
+    .select('alliance')
+    .in('id', programIds)
+    .not('alliance', 'is', null)
+    .neq('alliance', 'none')
+    .neq('alliance', 'other')
+  if (error) return null
+  if (!programs || programs.length === 0) return null
+
+  const allianceSlugs = Array.from(
+    new Set(programs.map((p: { alliance: string | null }) => p.alliance).filter(Boolean) as string[])
+  )
+  if (allianceSlugs.length === 0) return null
+
+  const { data: allianceRows, error: aErr } = await supabase
+    .from('programs')
+    .select('slug, name, intro, sweet_spots, lounge_access, quirks, member_programs, tier_benefits')
+    .eq('type', 'alliance')
+    .in('slug', allianceSlugs)
+  if (aErr || !allianceRows || allianceRows.length === 0) return null
+
+  const blocks = allianceRows.map((row: {
+    slug: string
+    name: string
+    intro: string | null
+    sweet_spots: string | null
+    lounge_access: string | null
+    quirks: string | null
+    member_programs: MemberProgramRow[] | null
+    tier_benefits: TierBenefitRow[] | null
+  }) => {
+    const parts: string[] = [`## ${row.name} (alliance: ${row.slug})`]
+    if (row.intro?.trim()) parts.push(`### Intro\n${row.intro.trim()}`)
+    if (row.sweet_spots?.trim()) parts.push(`### Sweet spots\n${row.sweet_spots.trim()}`)
+    if (row.lounge_access?.trim()) parts.push(`### Lounge access\n${row.lounge_access.trim()}`)
+    if ((row.tier_benefits?.length ?? 0) > 0) {
+      const tiers = row.tier_benefits!
+        .map((t) => `- **${t.name}** (${t.qualification}): ${t.benefits.slice(0, 4).join('; ')}${t.benefits.length > 4 ? '; ...' : ''}`)
+        .join('\n')
+      parts.push(`### Tier crossover\n${tiers}`)
+    }
+    if ((row.member_programs?.length ?? 0) > 0) {
+      const members = row.member_programs!
+        .map((m) => `- ${m.program_slug}${(m.carrier_slugs?.length ?? 0) > 0 ? ` (carriers: ${m.carrier_slugs!.join(', ')})` : ''}`)
+        .join('\n')
+      parts.push(`### Member airlines\n${members}`)
+    }
+    if (row.quirks?.trim()) parts.push(`### Quirks\n${row.quirks.trim()}`)
+    return parts.join('\n\n')
+  })
+
+  return blocks.join('\n\n---\n\n')
+}
+
+/**
  * Fetch intel_items created within the last N days, returning only the fields
  * needed for cross-day dedup and confidence-boost checks.
  */

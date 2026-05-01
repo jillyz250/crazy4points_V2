@@ -345,6 +345,29 @@ SOURCE_TEXT for property and category claims. Specifically:
 When PROGRAM_REFERENCE is absent or empty, ignore this section.
 
 ═══════════════════════════════════════════════════════════
+ALLIANCE_CONTEXT (alliance-wide claims, optional)
+═══════════════════════════════════════════════════════════
+
+The user payload may include "alliance_context" — pre-formatted content from
+the relevant oneworld / SkyTeam / Star Alliance program page (intro, sweet
+spots, lounge ruleset, tier crossover, member airlines, quirks). Use it to
+validate alliance-wide claims the draft makes:
+
+• Tier crossover (e.g., "Atmos Gold = oneworld Sapphire") — verify against
+  the alliance's member_programs / tier_crossover entries.
+• Lounge ruleset (e.g., "intra-North America AAdvantage members no oneworld
+  lounge access") — verify against the alliance lounge_access block.
+• RTW awards / Circle Pacific products — verify against alliance quirks.
+• Member airlines list — verify a claim that "Carrier X is in alliance Y."
+
+Defer to the carrier's own program data (PROGRAM_REFERENCE or SOURCE_TEXT)
+when the carrier and alliance disagree. Alliance context is supplementary
+for alliance-wide facts; carrier-specific facts (tier qualification, lounge
+pricing, fleet) live on the carrier's own page.
+
+When alliance_context is absent, ignore this section.
+
+═══════════════════════════════════════════════════════════
 SEVERITY
 ═══════════════════════════════════════════════════════════
 
@@ -768,6 +791,14 @@ export async function verifyAlertDraft(args: {
    * it as ground truth that overrides SOURCE_TEXT for property-level claims.
    */
   program_reference?: string | null
+  /**
+   * Pre-formatted alliance context for any tagged program that belongs to
+   * oneworld / SkyTeam / Star Alliance. Used to validate alliance-wide
+   * claims (lounge ruleset, tier crossover, RTW products, member airlines).
+   * Defer to the carrier's own page on conflicts. Built via
+   * `loadAllianceContextForPrograms(supabase, programIds)`.
+   */
+  alliance_context?: string | null
 }): Promise<VerifyResult | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
@@ -801,6 +832,7 @@ export async function verifyAlertDraft(args: {
       source_text: sourceText,
       alert_type: args.alert_type ?? null,
       program_reference: args.program_reference ?? null,
+      alliance_context: args.alliance_context ?? null,
       brand_voice_rubric: BRAND_VOICE,
     },
     null,

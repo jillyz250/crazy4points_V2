@@ -10,6 +10,7 @@ import {
   getAlertById,
   setAlertPrograms,
   logSystemError,
+  loadAllianceContextForPrograms,
 } from '@/utils/supabase/queries'
 import type { Alert, AlertStatus } from '@/utils/supabase/queries'
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -318,6 +319,16 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
     .filter((p) => buildProgramContext(p) !== null)
     .map((p) => p.slug)
 
+  // Fetch alliance context once for both writer + fact-checker passes.
+  // Reads programs.alliance for each tagged program; if any belong to
+  // oneworld / SkyTeam / Star Alliance, format that alliance's content
+  // (intro, sweet spots, lounge ruleset, tier crossover, member airlines,
+  // quirks) as a markdown block. Null when no aligned programs.
+  const alliance_context = await loadAllianceContextForPrograms(
+    supabase,
+    intelPrograms.map((p) => p.id)
+  )
+
   let draft
   try {
     draft = await writeAlertDraft({
@@ -333,6 +344,7 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
       programs: allPrograms,
       recent_samples: recentSamples,
       extra_context,
+      alliance_context,
     })
   } catch (err) {
     await logSystemError(supabase, 'alerts:regenerate:writeDraft', err, { alert_id: alertId })
@@ -404,6 +416,7 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
       source_url: (intel.source_url as string | null) ?? null,
       alert_type: intel.alert_type,
       program_reference: programReference,
+      alliance_context,
     })
     if (verify) {
       finalClaims = verify.claims
@@ -466,6 +479,7 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
             source_url: (intel.source_url as string | null) ?? null,
             alert_type: intel.alert_type,
             program_reference: reverifyProgramReference,
+            alliance_context,
           })
           if (!reverify) break
           let reverified = reverify.claims
