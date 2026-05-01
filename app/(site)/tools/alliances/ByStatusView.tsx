@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { Program, MemberProgramRow, TierBenefitRow } from '@/utils/supabase/queries'
+import ByStatusFormClient, { type ByStatusFormProgram } from './ByStatusFormClient'
 
 export default function ByStatusView({
   alliances,
@@ -44,6 +45,17 @@ export default function ByStatusView({
     (tb) => tb.name === matchedAllianceTier
   )
 
+  // Lightweight prop for the client form: every aligned program with its
+  // tier_crossover. The client component uses this to populate the program
+  // and tier dropdowns reactively without a URL round-trip.
+  const formPrograms: ByStatusFormProgram[] = allCarriers
+    .filter((p) => allianceForSlug.has(p.slug))
+    .map((p) => ({
+      slug: p.slug,
+      name: p.name,
+      tier_crossover: allianceForSlug.get(p.slug)?.member.tier_crossover ?? [],
+    }))
+
   // Other programs in same alliance with the same alliance tier mapping
   const equivalents: Array<{
     program: Program | undefined
@@ -65,90 +77,11 @@ export default function ByStatusView({
 
   return (
     <div>
-      <form
-        method="get"
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '0.5rem',
-          alignItems: 'end',
-          marginBottom: '1.5rem',
-        }}
-      >
-        <input type="hidden" name="view" value="status" />
-        <div style={{ minWidth: '14rem', flex: '1 1 18rem' }}>
-          <label
-            style={{
-              display: 'block',
-              fontSize: '0.75rem',
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              color: 'var(--color-text-secondary)',
-              marginBottom: '0.25rem',
-            }}
-          >
-            I have status with
-          </label>
-          <select
-            name="program"
-            defaultValue={selectedSlug}
-            style={{
-              width: '100%',
-              padding: '0.5rem 0.75rem',
-              fontSize: '0.9375rem',
-              border: '1px solid var(--color-border-soft)',
-              borderRadius: 'var(--radius-ui)',
-              background: '#fff',
-            }}
-          >
-            <option value="">Select program…</option>
-            {allCarriers
-              .filter((p) => allianceForSlug.has(p.slug))
-              .map((p) => (
-                <option key={p.slug} value={p.slug}>{p.name}</option>
-              ))}
-          </select>
-        </div>
-        <div style={{ minWidth: '14rem', flex: '1 1 18rem' }}>
-          <label
-            style={{
-              display: 'block',
-              fontSize: '0.75rem',
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              color: 'var(--color-text-secondary)',
-              marginBottom: '0.25rem',
-            }}
-          >
-            My tier
-          </label>
-          <select
-            name="tier"
-            defaultValue={selectedTier}
-            disabled={selectedTiers.length === 0}
-            style={{
-              width: '100%',
-              padding: '0.5rem 0.75rem',
-              fontSize: '0.9375rem',
-              border: '1px solid var(--color-border-soft)',
-              borderRadius: 'var(--radius-ui)',
-              background: '#fff',
-            }}
-          >
-            <option value="">{selectedTiers.length === 0 ? 'Select program first' : 'Select tier…'}</option>
-            {selectedTiers.map((t) => (
-              <option key={t.member_tier} value={t.member_tier}>
-                {t.member_tier} → {t.alliance_tier}
-              </option>
-            ))}
-          </select>
-        </div>
-        <button type="submit" className="rg-btn-primary" style={{ height: '2.375rem' }}>
-          Compare
-        </button>
-      </form>
+      <ByStatusFormClient
+        programs={formPrograms}
+        initialProgram={selectedSlug}
+        initialTier={selectedTier}
+      />
 
       {!selectedHit && (
         <p style={{ color: 'var(--color-text-secondary)' }}>
