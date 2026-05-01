@@ -14,8 +14,9 @@ const MAX_HOT_ALERTS = 5;
 const FRESH_WINDOW_MS = 48 * 60 * 60 * 1000;
 
 // Hot alerts = editorially featured (is_hot) OR freshly published (<48h).
-// Featured sort before fresh. Within each bucket, most-recent first.
-// Expiry urgency lives on individual alert cards, not here.
+// Featured sort before fresh. Within each bucket, sort by EXPIRY URGENCY:
+// soonest end_date first, undated last, recency as tie-break. The alert
+// expiring today should land at position #1.
 function selectHotAlerts(alerts: AlertWithPrograms[]): AlertWithPrograms[] {
   const now = Date.now();
   const featured: AlertWithPrograms[] = [];
@@ -30,13 +31,25 @@ function selectHotAlerts(alerts: AlertWithPrograms[]): AlertWithPrograms[] {
     if (pub !== null && now - pub <= FRESH_WINDOW_MS) fresh.push(a);
   }
 
-  const byPubDesc = (x: AlertWithPrograms, y: AlertWithPrograms) => {
-    const xt = x.published_at ? new Date(x.published_at).getTime() : 0;
-    const yt = y.published_at ? new Date(y.published_at).getTime() : 0;
-    return yt - xt;
+  const byExpirySoonest = (x: AlertWithPrograms, y: AlertWithPrograms) => {
+    const xt = x.end_date ? new Date(x.end_date).getTime() : null;
+    const yt = y.end_date ? new Date(y.end_date).getTime() : null;
+    if (xt === null && yt === null) {
+      // Both undated → newer-published first
+      const xp = x.published_at ? new Date(x.published_at).getTime() : 0;
+      const yp = y.published_at ? new Date(y.published_at).getTime() : 0;
+      return yp - xp;
+    }
+    if (xt === null) return 1; // undated → bottom of bucket
+    if (yt === null) return -1;
+    if (xt !== yt) return xt - yt; // soonest expiry first
+    // Same end_date → newer-published first
+    const xp = x.published_at ? new Date(x.published_at).getTime() : 0;
+    const yp = y.published_at ? new Date(y.published_at).getTime() : 0;
+    return yp - xp;
   };
-  featured.sort(byPubDesc);
-  fresh.sort(byPubDesc);
+  featured.sort(byExpirySoonest);
+  fresh.sort(byExpirySoonest);
 
   const seen = new Set<string>();
   const deduped: AlertWithPrograms[] = [];
