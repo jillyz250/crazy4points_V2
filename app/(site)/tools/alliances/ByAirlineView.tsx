@@ -225,6 +225,23 @@ export default function ByAirlineView({
                 Non-alliance
               </div>
             )}
+            <div
+              style={{
+                marginTop: '0.75rem',
+                paddingTop: '0.625rem',
+                borderTop: '1px solid var(--color-border-soft)',
+                fontSize: '0.8125rem',
+                fontFamily: 'var(--font-ui)',
+                fontWeight: 600,
+                color: 'var(--color-primary)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+              }}
+            >
+              View {p.name} details
+              <span aria-hidden="true">→</span>
+            </div>
           </Link>
         ))}
       </div>
