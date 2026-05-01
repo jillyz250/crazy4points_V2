@@ -138,16 +138,16 @@ export default function ByStatusView({
           {equivalents.length > 0 && (
             <section>
               <h3 style={{ fontFamily: 'var(--font-display)', color: 'var(--color-primary)' }}>
-                Equivalent status on other {selectedHit.alliance.name} carriers
+                Other {selectedHit.alliance.name} carriers — same alliance tier
               </h3>
               <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
-                These tiers also map to {selectedHit.alliance.name} {matchedAllianceTier} — useful for status match research.
+                These tiers on other {selectedHit.alliance.name} airlines also unlock {selectedHit.alliance.name} {matchedAllianceTier} benefits when you fly them.
               </p>
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(15rem, 1fr))',
-                  gap: '0.5rem',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(16rem, 1fr))',
+                  gap: '0.75rem',
                 }}
               >
                 {equivalents.map((e) => (
@@ -155,19 +155,50 @@ export default function ByStatusView({
                     key={e.member.program_slug}
                     href={`/programs/${e.member.program_slug}`}
                     style={{
-                      display: 'block',
-                      padding: '0.75rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      padding: '1rem',
                       background: '#fff',
-                      borderRadius: 'var(--radius-ui)',
+                      borderRadius: 'var(--radius-card)',
                       border: '1px solid var(--color-border-soft)',
                       textDecoration: 'none',
                       color: 'var(--color-text-primary)',
-                      fontSize: '0.875rem',
+                      transition: 'box-shadow 0.15s, border-color 0.15s, transform 0.15s',
                     }}
                   >
-                    <div style={{ fontWeight: 700 }}>{e.program?.name ?? e.member.program_slug}</div>
-                    <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
-                      {e.member_tiers.join(', ')}
+                    <div
+                      style={{
+                        fontFamily: 'var(--font-display)',
+                        fontSize: '1.0625rem',
+                        fontWeight: 700,
+                        color: 'var(--color-primary)',
+                        marginBottom: '0.375rem',
+                      }}
+                    >
+                      {e.program?.name ?? e.member.program_slug}
+                    </div>
+                    <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', lineHeight: 1.5, flex: 1 }}>
+                      <strong style={{ color: 'var(--color-text-primary)' }}>
+                        {selectedHit.alliance.name} {matchedAllianceTier}
+                      </strong>{' '}
+                      = {e.member_tiers.join(', ')}
+                    </div>
+                    <div
+                      style={{
+                        marginTop: '0.75rem',
+                        paddingTop: '0.625rem',
+                        borderTop: '1px solid var(--color-border-soft)',
+                        fontSize: '0.8125rem',
+                        fontFamily: 'var(--font-ui)',
+                        fontWeight: 600,
+                        color: 'var(--color-primary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.25rem',
+                      }}
+                    >
+                      View {e.program?.name ?? e.member.program_slug} details
+                      <span aria-hidden="true">→</span>
                     </div>
                   </Link>
                 ))}
