@@ -335,18 +335,28 @@ export type IntelItemInsert = Omit<IntelItem, 'id' | 'created_at' | 'processed' 
  * highest computed score.
  */
 export async function getActiveAlerts(supabase: SupabaseClient): Promise<AlertWithPrograms[]> {
-  const now = new Date().toISOString()
+  // Two-step expiry filter:
+  //   1. SQL: permissive cutoff = now - 36h. Pulls anything that COULD still
+  //      be active in ET (handles end_date stored as midnight UTC, which
+  //      reads as the previous day in ET).
+  //   2. JS: strict ET-based check via isAlertActiveET. An alert with
+  //      end_date "May 1" stays active through end of May 1 ET and
+  //      disappears at midnight ET May 2.
+  // See lib/alerts/expiry.ts for rationale.
+  const { permissiveActiveCutoffISO, isAlertActiveET } = await import('@/lib/alerts/expiry')
+  const cutoff = permissiveActiveCutoffISO()
 
   const { data, error } = await supabase
     .from('alerts')
     .select('*, alert_programs(*, programs(*))')
     .eq('status', 'published' satisfies AlertStatus)
-    .or(`end_date.is.null,end_date.gt.${now}`)
+    .or(`end_date.is.null,end_date.gte.${cutoff}`)
     .order('end_date', { ascending: true, nullsFirst: false })
     .order('computed_score', { ascending: false, nullsFirst: false })
 
   if (error) throw error
-  return data as AlertWithPrograms[]
+  const rows = data as AlertWithPrograms[]
+  return rows.filter((a) => isAlertActiveET(a.end_date))
 }
 
 /**
@@ -915,7 +925,9 @@ export async function getActiveAlertsByFilter(
   type?: string | null,
   programId?: string | null
 ): Promise<AlertWithPrograms[]> {
-  const now = new Date().toISOString()
+  // Same two-step expiry semantics as getActiveAlerts — see lib/alerts/expiry.ts.
+  const { permissiveActiveCutoffISO, isAlertActiveET } = await import('@/lib/alerts/expiry')
+  const cutoff = permissiveActiveCutoffISO()
 
   // When filtering by program, resolve all alert_ids linked via junction table
   let junctionIds: string[] = []
@@ -933,7 +945,7 @@ export async function getActiveAlertsByFilter(
     .from('alerts')
     .select('*, alert_programs(*, programs(*))')
     .eq('status', 'published' satisfies AlertStatus)
-    .or(`end_date.is.null,end_date.gt.${now}`)
+    .or(`end_date.is.null,end_date.gte.${cutoff}`)
 
   if (type) query = query.eq('type', type)
 
@@ -951,7 +963,8 @@ export async function getActiveAlertsByFilter(
 
   const { data, error } = await query
   if (error) throw error
-  return data as AlertWithPrograms[]
+  const rows = data as AlertWithPrograms[]
+  return rows.filter((a) => isAlertActiveET(a.end_date))
 }
 
 /**
