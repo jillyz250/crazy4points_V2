@@ -5,7 +5,7 @@ import { createAdminClient } from '@/utils/supabase/server'
 import { verifyAlertDraft, webVerifyClaims, type VerifyClaim } from '@/utils/ai/verifyAlertDraft'
 import { buildProgramReferenceForDraft } from '@/utils/ai/programReferenceData'
 import { reviseAlertDraft, type RevisionLogEntry } from '@/utils/ai/reviseAlertDraft'
-import { logSystemError, type AlertType } from '@/utils/supabase/queries'
+import { logSystemError, loadAllianceContextForPrograms, type AlertType } from '@/utils/supabase/queries'
 
 export interface ReverifyResult {
   ok: boolean
@@ -160,12 +160,18 @@ export async function reviseAlertAction(alertId: string): Promise<ReviseActionRe
       (alert.primary_program_id as string | null) ?? null,
       reverifyDraftText
     )
+    const primaryId = (alert.primary_program_id as string | null) ?? null
+    const alliance_context = await loadAllianceContextForPrograms(
+      supabase,
+      primaryId ? [primaryId] : []
+    )
     const reverify = await verifyAlertDraft({
       draft: revised.revised,
       raw_text: rawText,
       source_url: (alert.source_url as string | null) ?? null,
       alert_type: (alert.type as AlertType | null) ?? null,
       program_reference: programReference,
+      alliance_context,
     })
     const newClaims = reverify?.claims ?? []
     if (newClaims.some((c) => !c.supported)) {

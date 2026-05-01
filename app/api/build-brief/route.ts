@@ -13,7 +13,7 @@ import { verifyAlertDraft, webVerifyClaims, highSeverityUnsupported } from '@/ut
 import { buildProgramReferenceForDraft } from '@/utils/ai/programReferenceData'
 import { reviseAlertDraft, type RevisionLogEntry } from '@/utils/ai/reviseAlertDraft'
 import type { ApproveMeta } from '@/utils/ai/briefEmail'
-import { updateAlert, setAlertPrograms, logSystemError } from '@/utils/supabase/queries'
+import { updateAlert, setAlertPrograms, logSystemError, loadAllianceContextForPrograms } from '@/utils/supabase/queries'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -245,6 +245,18 @@ export async function GET(req: NextRequest) {
         }
       }
 
+      // Fetch alliance context once per intel — used by writer + every
+      // verify/reverify pass below. Looks up programs.alliance for each
+      // intel-tagged program; null if none of them belong to oneworld /
+      // SkyTeam / Star Alliance.
+      const intelProgramIds = ((intel.programs as string[] | null) ?? [])
+        .map((slug) => programBySlug.get(slug)?.id)
+        .filter((x): x is string => typeof x === 'string')
+      const alliance_context = await loadAllianceContextForPrograms(
+        supabase,
+        intelProgramIds
+      )
+
       const draft = await writeAlertDraft({
         intel: {
           intel_id: intel.id as string,
@@ -257,6 +269,7 @@ export async function GET(req: NextRequest) {
         },
         programs: allPrograms,
         recent_samples: recentSamples,
+        alliance_context,
       })
       if (!draft) {
         writer_null_drafts++
@@ -331,6 +344,7 @@ export async function GET(req: NextRequest) {
           source_url: (intel.source_url as string | null) ?? null,
           alert_type: intel.alert_type,
           program_reference: initialProgramReference,
+          alliance_context,
         })
         if (verify) {
           fact_checks_run++
@@ -417,6 +431,7 @@ export async function GET(req: NextRequest) {
                   source_url: (intel.source_url as string | null) ?? null,
                   alert_type: intel.alert_type,
                   program_reference: reverifyProgramReference,
+                  alliance_context,
                 })
                 if (!reverify) break
                 let reverified = reverify.claims

@@ -552,6 +552,31 @@ You still may not invent anything extra_context does NOT contain. NO FABRICATION
 is always the top rule.
 
 ═══════════════════════════════════════════════════════════
+ALLIANCE CONTEXT (when present)
+═══════════════════════════════════════════════════════════
+
+The user payload may include an "alliance_context" field. When present, it is
+the alliance's own page content (intro, sweet spots, lounge access, tier
+crossover, member airlines, quirks) for any tagged program that belongs to
+oneworld / SkyTeam / Star Alliance.
+
+USE alliance_context FOR:
+• Sweet-spot ideas that cross member airlines ("Cathay First bookable via
+  Alaska Atmos OR AAdvantage" — both are oneworld so cross-program plays).
+• Tier-crossover-aware phrasing when the alert touches status ("Atmos Gold
+  members get oneworld Sapphire benefits, including J-cabin lounge access").
+• On-brand tangents per the two-tangent rule (one upside, one caveat) when
+  the alliance has a relevant quirk (intra-NA lounge exclusion for
+  AA/Atmos members; SkyTeam Sky Club Jan 2024 restriction; Star Alliance
+  Gold Track availability; etc.).
+
+DEFER to the carrier's own page (program_list / extra_context) when the
+two conflict. The alliance block is supplementary, not authoritative for
+carrier-specific facts (lounge pricing, fleet, tier qualification thresholds).
+
+NO FABRICATION still applies — only use claims actually in alliance_context.
+
+═══════════════════════════════════════════════════════════
 TRANSFER-PARTNER CROSS-POLLINATION (IMPORTANT)
 ═══════════════════════════════════════════════════════════
 
@@ -670,6 +695,14 @@ export async function writeAlertDraft(args: {
   programs: WriteDraftProgram[]
   recent_samples?: WriteDraftRecentAlertSample[]
   extra_context?: string | null
+  /**
+   * Pre-formatted alliance context (intro / sweet spots / lounge / quirks /
+   * member crossover) for any tagged program whose `alliance` is set. Used
+   * for sweet-spot ideas, on-brand tangents, and tier-crossover-aware
+   * phrasing. Defer to the carrier's own page when they conflict.
+   * Build via `loadAllianceContextForPrograms(supabase, programIds)`.
+   */
+  alliance_context?: string | null
 }): Promise<AlertDraft | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
@@ -685,6 +718,7 @@ export async function writeAlertDraft(args: {
       program_list: programList,
       voice_samples: (args.recent_samples ?? []).slice(0, 3),
       extra_context: args.extra_context ?? null,
+      alliance_context: args.alliance_context ?? null,
     },
     null,
     2
