@@ -613,6 +613,69 @@ a.admin-btn-primary:hover:not(:disabled) {
   text-decoration: underline;
 }
 
+/* Markdown tables (lounge access, etc.) — give them readable borders,
+   row striping, sensible column widths, and horizontal scroll on narrow
+   viewports so long-content tables don't wrap awkwardly. */
+.rg-prose table {
+  width: 100%;
+  margin: 1rem 0 1.5rem;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  display: table;
+}
+.rg-prose thead {
+  background: var(--color-background-soft);
+}
+.rg-prose th {
+  text-align: left;
+  padding: 0.625rem 0.875rem;
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary);
+  border-bottom: 1px solid var(--color-border-soft);
+}
+.rg-prose td {
+  padding: 0.75rem 0.875rem;
+  vertical-align: top;
+  border-bottom: 1px solid var(--color-border-soft);
+  color: var(--color-text-primary);
+  line-height: 1.5;
+}
+.rg-prose tbody tr:nth-child(even) {
+  background: var(--color-background-soft);
+}
+.rg-prose tbody tr:last-child td {
+  border-bottom: none;
+}
+.rg-prose td:first-child,
+.rg-prose th:first-child {
+  font-weight: 600;
+  width: 30%;
+  min-width: 9rem;
+}
+@media (max-width: 640px) {
+  .rg-prose table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .rg-prose td,
+  .rg-prose th {
+    white-space: normal;
+  }
+  .rg-prose td:first-child,
+  .rg-prose th:first-child {
+    width: auto;
+    min-width: 8rem;
+  }
+}
+
 /* On-this-page TOC links — pill style; hover surfaces an underline only */
 .program-toc-link {
   display: inline-flex;
