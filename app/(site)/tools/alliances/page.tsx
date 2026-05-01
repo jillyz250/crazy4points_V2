@@ -18,7 +18,7 @@ import BySearchView from './BySearchView'
 export const metadata: Metadata = {
   title: 'Alliance Explorer | crazy4points',
   description:
-    'Compare oneworld, SkyTeam, and Star Alliance — tier ladders, lounge access, member airlines, status equivalency, and partner-award redemptions across 59 carriers.',
+    'A reference guide to oneworld, SkyTeam, and Star Alliance — tier ladders, lounge access rules, member airlines, in-alliance status equivalency, and partner-award redemptions.',
   alternates: { canonical: 'https://crazy4points.com/tools/alliances' },
 }
 
@@ -70,13 +70,15 @@ export default async function AllianceExplorerPage(props: {
               marginTop: '0.5rem',
             }}
           >
-            Compare oneworld, SkyTeam, and Star Alliance side by side. Explore
-            tier ladders, lounge access, member airlines, status equivalency,
-            and partner-award redemptions across {airlines.length} carriers.
+            Your reference guide to the three global airline alliances —
+            oneworld, SkyTeam, and Star Alliance. Browse tier ladders, lounge
+            access rules, member airlines, in-alliance status equivalency, and
+            (coming soon) partner-award redemptions across {airlines.length}{' '}
+            carriers.
           </p>
         </header>
 
-        <ViewSwitcher current={view} />
+        <ViewSwitcher current={view} carrierCount={airlines.length} />
 
         <section style={{ marginTop: '2rem' }}>
           {view === 'alliance' && (
