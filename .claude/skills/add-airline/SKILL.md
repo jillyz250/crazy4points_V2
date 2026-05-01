@@ -38,22 +38,19 @@ When triggered, FIRST do this:
 2. Read `plans/sources/_TEMPLATE.md` so the source doc structure is fresh
 3. Identify the airline from the user's trigger phrase
 
-THEN announce: "Starting <airline> — Step 0 first." Don't dump the full runbook. The user wants one step at a time.
+THEN announce: "Starting <airline> — Step 1 first." Don't dump the full runbook. The user wants one step at a time.
 
-### Step 0 — Confirm program row exists
-
-- Have the user open `/admin/programs?type=airline` and filter by carrier name
-- Confirm the program row exists with the right slug
-- If missing, instruct them to add via "Add program" form
-- Confirm any **co-brand credit cards** exist in the Credit Cards tab — note any that should be added but aren't (track for backlog, don't block)
-
-Wait for confirmation before continuing.
+**Note on program-row existence:** Don't gate the workflow on a "Step 0" admin check. Trust that the row exists (most US airlines + alliance members have been seeded). If the row turns out to be missing, you'll catch it in Step 4 (admin paste — the edit page 404s) or Step 5 (live page renders raw slugs); resolve at that point with a small seed migration. This saves 1-2 round-trips per program.
 
 ### Step 1 — Surface the COMPLETE paste-in list up front (BLOCKING)
 
 **Before drafting anything, surface the COMPLETE paste-in list to the user in a single message — every URL, all at once.** LLMs (Claude, Copilot, GPT) all draw from the same pool of secondary blog summaries. When two LLMs disagree on a fact, neither is authoritative — only the official source is. So we read the official source FIRST, draft directly from it, and use third-party blogs only for context/sweet-spot color.
 
 **The user prefers to gather every source in one batch.** Do NOT trickle URLs out one section at a time, do NOT ask "want me to list more?", do NOT wait for one paste before requesting the next. List ALL paste-in items for the program type in a single numbered list, then let the user knock them out at their own pace. Even if some items are optional, surface them — let the user decide what they have time to grab.
+
+**HARD CAP: 6 URLs maximum** in any paste-in list. Pick the highest-value ones for the program type. Don't pad with optional/nice-to-haves; trust the user + parallel WebSearch to fill remaining gaps.
+
+**VERIFY each URL works before surfacing.** Either WebFetch / curl HEAD it (fast), or source it from a paste the user already gave (verbatim from official site), or explicitly mark it "(URL guess — confirm or correct)" so the user knows to verify. Do NOT generate plausible-looking URL paths from training data — many platforms (delta.com, marriott.com, etc.) restructure URLs regularly, and dead links burn the user's time.
 
 **ALWAYS provide a clickable markdown URL for every paste-in item.** Don't just describe the source ("the alliance's lounges page") — give the actual link as a markdown hyperlink the user can cmd-click. If you don't know the exact URL, WebSearch first to find it, THEN list. Never make the user hunt for the URL themselves. Format every paste-in line as:
 
@@ -180,11 +177,11 @@ Draft each of these 9 fields:
 1. **alliance** — one of: skyteam, star_alliance, oneworld, none, other
 2. **hubs** — array of airport codes
 3. **intro** — 1-2 voicey paragraphs (sassy traveler-friend tone)
-4. **transfer_partners** — JSON array of `{from_slug, ratio, notes, bonus_active}` rows
+4. **transfer_partners** — JSON array of `{from_slug, ratio, notes, bonus_active}` rows. The `notes` field MUST mention transfer tax/fee status — even when there is no tax, say so. Watch for Amex MR -> US-domiciled airlines (Delta, JetBlue, Virgin Atlantic with US-issued cards) which trigger a federal excise tax pass-through (~$0.0006/point, capped $99 personal / $200 business per year). Foreign carrier transfers from Amex typically have no tax. Marriott + most other hotel-to-airline transfers also have no tax. See `feedback_capture_transfer_fees.md` in memory for the full rule.
 5. **how_to_spend** — markdown bullet list of redemption types
 6. **sweet_spots** — markdown bullets with mile cost examples
 7. **tier_benefits** — JSON array of `{name, qualification, benefits[]}` per tier
-8. **lounge_access** — markdown w/ own-brand lounges + alliance access + eligibility + paid options + flagship callout
+8. **lounge_access** — markdown w/ own-brand lounges + alliance access + eligibility + paid options + flagship callout. **Day passes / single-visit passes require four facts, not just price**: (1) same-day ticketed boarding pass required, (2) time window before departure (typically 3 hours), (3) Basic Economy / discounted partner cabins excluded, (4) carrier scope. See `feedback_lounge_day_pass_rules.md` in memory.
 9. **quirks** — markdown bullets (expiry, pooling, stopovers, oddities)
 
 **Banned absolute words** (rewrite if found):
@@ -356,5 +353,5 @@ Before invoking any tools, confirm:
 - [ ] Is the airline already in the programs DB? (Check via grep or have user confirm)
 - [ ] Do I have all five memory references loaded (workflow, voice, pushback, tangent, triggers)?
 
-If yes to all → start with "Step 0" prompt to user.
+If yes to all → start with "Step 1" prompt to user (the paste-in list).
 If user named an airline that isn't in DB → ask them to add it first via admin, OR offer to draft a migration row.
