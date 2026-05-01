@@ -19,14 +19,25 @@ const STATUS_TONE: Record<AlertStatus, { label: string; tone: 'success' | 'warni
   expired:        { label: 'Expired',        tone: 'accent' },
 }
 
-type SortField = 'title' | 'type' | 'status' | 'end_date'
+type SortField = 'title' | 'type' | 'status' | 'end_date' | 'published_first'
 type SortDir = 'asc' | 'desc'
 
-// Status sort order — most actionable first.
+// "Pending first" rank — surfaces actionable items at the top.
 const STATUS_RANK: Record<AlertStatus, number> = {
   pending_review: 0,
   draft: 1,
   published: 2,
+  expired: 3,
+  soft_rejected: 4,
+  rejected: 5,
+}
+
+// "Published first" rank — surfaces the live catalog at the top so you
+// can scan what's actually on the site.
+const PUBLISHED_FIRST_RANK: Record<AlertStatus, number> = {
+  published: 0,
+  pending_review: 1,
+  draft: 2,
   expired: 3,
   soft_rejected: 4,
   rejected: 5,
@@ -39,6 +50,7 @@ function compareAlerts(field: SortField, dir: SortDir) {
     if (field === 'title') cmp = a.title.localeCompare(b.title)
     else if (field === 'type') cmp = a.type.localeCompare(b.type)
     else if (field === 'status') cmp = STATUS_RANK[a.status] - STATUS_RANK[b.status]
+    else if (field === 'published_first') cmp = PUBLISHED_FIRST_RANK[a.status] - PUBLISHED_FIRST_RANK[b.status]
     else if (field === 'end_date') {
       // Nulls always last, regardless of asc/desc.
       const av = a.end_date ? new Date(a.end_date).getTime() : null
@@ -56,11 +68,12 @@ type SortOption = { value: string; label: string }
 
 // Short, scannable pill labels — fewer options, clearer wording. Order matters.
 const SORT_PILLS: SortOption[] = [
-  { value: '',              label: 'Newest' },
-  { value: 'status:asc',    label: 'Pending first' },
-  { value: 'end_date:asc',  label: 'Expires soon' },
-  { value: 'title:asc',     label: 'A → Z' },
-  { value: 'title:desc',    label: 'Z → A' },
+  { value: '',                      label: 'Newest' },
+  { value: 'status:asc',            label: 'Pending first' },
+  { value: 'published_first:asc',   label: 'Published first' },
+  { value: 'end_date:asc',          label: 'Expires soon' },
+  { value: 'title:asc',             label: 'A → Z' },
+  { value: 'title:desc',            label: 'Z → A' },
 ]
 
 export default async function AdminAlertsPage({
@@ -70,7 +83,7 @@ export default async function AdminAlertsPage({
 }) {
   const sp = await searchParams
   // sortBy is "<field>:<dir>" — single combined param keeps the form simple.
-  const validFields: SortField[] = ['title', 'type', 'status', 'end_date']
+  const validFields: SortField[] = ['title', 'type', 'status', 'end_date', 'published_first']
   let sort: SortField | null = null
   let dir: SortDir = 'asc'
   if (sp.sortBy) {
