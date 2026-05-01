@@ -4,11 +4,11 @@ import Link from 'next/link'
 
 export type ExplorerView = 'alliance' | 'airline' | 'status' | 'search'
 
-const TABS: { key: ExplorerView; label: string; hint: string }[] = [
+const TABS: { key: ExplorerView; label: string; hint: string; comingSoon?: boolean }[] = [
   { key: 'alliance', label: 'By Alliance', hint: 'Tier ladder + members' },
   { key: 'airline', label: 'By Airline', hint: 'Search 59 carriers' },
   { key: 'status', label: 'By Status', hint: 'Equivalency + perks' },
-  { key: 'search', label: 'Find Redemptions', hint: 'Filter partner awards' },
+  { key: 'search', label: 'Find Redemptions', hint: 'Filter partner awards', comingSoon: true },
 ]
 
 export default function ViewSwitcher({ current }: { current: ExplorerView }) {
@@ -46,7 +46,32 @@ export default function ViewSwitcher({ current }: { current: ExplorerView }) {
               transition: 'background-color 0.15s, color 0.15s',
             }}
           >
-            <span style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>{tab.label}</span>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+              }}
+            >
+              {tab.label}
+              {tab.comingSoon && (
+                <span
+                  style={{
+                    fontSize: '0.5625rem',
+                    fontWeight: 700,
+                    padding: '0.125rem 0.375rem',
+                    borderRadius: '9999px',
+                    background: active ? 'rgba(255,255,255,0.25)' : 'var(--color-accent)',
+                    color: active ? '#fff' : 'var(--color-text-primary)',
+                    letterSpacing: '0.05em',
+                  }}
+                >
+                  COMING SOON
+                </span>
+              )}
+            </span>
             <span
               style={{
                 fontSize: '0.6875rem',
