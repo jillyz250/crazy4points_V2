@@ -20,11 +20,17 @@ export default function TransferPartnersTable({
       <table
         style={{
           width: '100%',
+          tableLayout: 'fixed',
           borderCollapse: 'collapse',
           fontFamily: 'var(--font-body)',
           fontSize: '0.9375rem',
         }}
       >
+        <colgroup>
+          <col style={{ width: '18%' }} />
+          <col style={{ width: '22%' }} />
+          <col style={{ width: '60%' }} />
+        </colgroup>
         <thead>
           <tr style={{ borderBottom: '1px solid var(--color-border-soft)' }}>
             <th style={{ textAlign: 'left', padding: '0.625rem 0.75rem', fontFamily: 'var(--font-ui)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)' }}>
@@ -49,7 +55,7 @@ export default function TransferPartnersTable({
                   background: row.bonus_active ? 'rgba(212, 175, 55, 0.08)' : 'transparent',
                 }}
               >
-                <td style={{ padding: '0.75rem', fontWeight: 500 }}>
+                <td style={{ padding: '0.75rem', fontWeight: 500, verticalAlign: 'top', wordBreak: 'break-word' }}>
                   <Link
                     href={`/programs/${row.from_slug}`}
                     style={{ color: 'var(--color-text-primary)', textDecoration: 'none' }}
@@ -74,10 +80,10 @@ export default function TransferPartnersTable({
                     </span>
                   )}
                 </td>
-                <td style={{ padding: '0.75rem', fontFamily: 'var(--font-ui)', fontWeight: 600, maxWidth: '14rem' }}>
+                <td style={{ padding: '0.75rem', fontFamily: 'var(--font-ui)', fontWeight: 600, verticalAlign: 'top', wordBreak: 'break-word' }}>
                   {row.ratio}
                 </td>
-                <td style={{ padding: '0.75rem', color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
+                <td style={{ padding: '0.75rem', color: 'var(--color-text-secondary)', fontSize: '0.875rem', verticalAlign: 'top' }}>
                   {row.notes ?? '—'}
                 </td>
               </tr>
