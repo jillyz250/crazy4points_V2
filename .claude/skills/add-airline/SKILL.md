@@ -181,7 +181,7 @@ Draft each of these 9 fields:
 5. **how_to_spend** — markdown bullet list of redemption types
 6. **sweet_spots** — markdown bullets with mile cost examples
 7. **tier_benefits** — JSON array of `{name, qualification, benefits[]}` per tier
-8. **lounge_access** — markdown w/ own-brand lounges + alliance access + eligibility + paid options + flagship callout. **Day passes / single-visit passes require four facts, not just price**: (1) same-day ticketed boarding pass required, (2) time window before departure (typically 3 hours), (3) Basic Economy / discounted partner cabins excluded, (4) carrier scope. See `feedback_lounge_day_pass_rules.md` in memory.
+8. **lounge_access** — markdown w/ own-brand lounges + alliance access + eligibility + paid options + flagship callout. **Day passes / single-visit passes require four facts, not just price**: (1) same-day ticketed boarding pass required, (2) time window before departure (typically 3 hours), (3) discounted-cabin exclusion if any — RESEARCH per carrier, fare class names vary (Delta = "Main Basic", United = "Basic Economy", Alaska = "Saver", BA = "Basic"); some carriers have no exclusion at all, (4) carrier scope. See `feedback_lounge_day_pass_rules.md` in memory.
 9. **quirks** — markdown bullets (expiry, pooling, stopovers, oddities)
 
 **Banned absolute words** (rewrite if found):
@@ -198,13 +198,59 @@ Present all 9 drafts to the user in a single message structured as paste-ready b
 
 ### Step 3 — Cross-fact-check via Copilot
 
-- Tell user to paste your draft into Copilot with: "Fact-check this against current 2026 data. Flag anything outdated or unsourced."
-- When user pastes Copilot's response back, diff it against your drafts
-- For every disagreement, web-search a 2026-dated source to settle
-- Don't blindly accept Copilot — Copilot also pulls from old evergreen articles
-- Capture URLs Copilot cited (if available)
+After Step 2 drafts are signed off (combined preview approved), give the user **one consolidated block** they can paste into Copilot — never make them copy six separate fields one by one. The block has two parts: the prompt, then the content. ALL-CAPS section labels help Copilot anchor each fact-check to the right field.
 
-Iterate until both agree. Log every disagreement + resolution in the source doc later.
+**Format to deliver to the user:**
+
+````
+**Copilot / ChatGPT fact-check prompt:**
+
+> Fact-check the following content for the [Carrier Name] carrier page. Today's real-world date is [Month DD, YYYY].
+>
+> **REQUIRED METHOD:** Use web search / browsing tools to verify each claim against current sources. Do NOT rely on training data alone — for events from 2024 onward, training data may be stale or incomplete. If you cannot search, say so up front and stop.
+>
+> **For each claim:**
+> 1. Search the open web with a 2026-dated source filter when relevant.
+> 2. Cite the source URL + publication date for any disagreement, AND for confirmation of any recent (post-2024) event.
+> 3. If you can't find a 2026-dated source that confirms OR denies a claim, return "❓ UNVERIFIED — needs current source." Do NOT mark a claim incorrect based on training-data memory alone — that's how you fabricate denials of real events.
+>
+> **Output format per claim:**
+> > [claim] — [✅ CORRECT / ⚠️ NEEDS CLARIFICATION / ❌ INCORRECT / ❓ UNVERIFIED] — [URL + publication date if you found one]
+>
+> Flag only what is factually wrong by current evidence. Do NOT comment on style or voice.
+
+---
+
+**Content block to paste:**
+
+```
+INTRO
+[intro draft]
+
+LOUNGE ACCESS
+[lounge_access draft]
+
+QUIRKS
+[quirks draft]
+```
+````
+
+Adjust the field list based on what's populated. For a carrier row, it's typically INTRO + LOUNGE ACCESS + QUIRKS. For a program row, add TRANSFER PARTNERS + TIER BENEFITS + SWEET SPOTS. For a credit card, swap to the card-specific fields (good_to_know, welcome bonus, earn rates, benefits).
+
+**Why the prompt is shaped this way:**
+- "REQUIRED METHOD: web search" forces the LLM to actually browse — without this, ChatGPT in particular falls back to training data and confidently denies post-2024 events (e.g. denying that Atmos Rewards exists, that Hawaiian joined oneworld, etc.).
+- The "❓ UNVERIFIED" verdict prevents the model from marking real events as wrong just because they're not in its memory. Forces honest "I don't know" instead of fabricated denials.
+- Explicit citation per claim (URL + publication date) makes diffing fast and gives us audit material for the source doc.
+- "Today's real-world date" anchors the fact-check temporally — without it, models sometimes assume the current date is their training cutoff.
+
+When the user pastes Copilot's response back:
+- Diff it against your drafts claim by claim
+- For every disagreement, **web-search a 2026-dated source to settle** — don't blindly accept Copilot
+- Copilot also pulls from old evergreen articles; settle disputes with the official source
+- Capture URLs Copilot cites (ask for them if missing: "list every URL you used")
+- Log every disagreement + resolution in the source doc (Step 7) under the Fact-check disagreements table
+
+Iterate until both agree, then move to Step 4 (admin paste).
 
 ### Step 4 — Author in admin
 
