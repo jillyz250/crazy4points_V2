@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
 import { playfair, lato, montserrat } from "@/lib/fonts";
+import { SITE_URL } from "@/lib/constants";
 import "@/styles/globals.css";
 
 export const metadata: Metadata = {
@@ -11,7 +12,7 @@ export const metadata: Metadata = {
   },
   description:
     "The intelligent travel rewards platform. Track transfer bonuses, find sweet spots, and get a ranked action plan for your points and miles — right now.",
-  metadataBase: new URL("https://crazy4points.com"),
+  metadataBase: new URL(SITE_URL),
   icons: {
     icon: [
       { url: "/favicon-96x96.png", sizes: "96x96", type: "image/png" },

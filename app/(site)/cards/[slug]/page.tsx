@@ -130,7 +130,7 @@ export default async function CardPage({
     '@type': 'CreditCard',
     name: card.name,
     description: card.intro?.slice(0, 500) ?? `${card.name} — review and benefits`,
-    url: `https://crazy4points.com/cards/${card.slug}`,
+    url: `https://www.crazy4points.com/cards/${card.slug}`,
     annualPercentageRate: '19.24-27.74',
     feesAndCommissionsSpecification: card.annual_fee_usd
       ? `Annual fee: $${card.annual_fee_usd}. Foreign transaction fee: ${card.foreign_transaction_fee_pct ?? 0}%.`

@@ -42,7 +42,7 @@ export interface ApproveMeta {
 export interface BriefContext {
   plan?: EditorialPlan | null
   briefId?: string
-  siteOrigin?: string // e.g. https://crazy4points.com
+  siteOrigin?: string // e.g. https://www.crazy4points.com
   alertIdByIntelId?: Record<string, string>
   approveMetaByIntelId?: Record<string, ApproveMeta>
   reviseCounters?: {
@@ -306,7 +306,7 @@ export function buildBriefEmail(
   const {
     plan,
     briefId,
-    siteOrigin = 'https://crazy4points.com',
+    siteOrigin = 'https://www.crazy4points.com',
     alertIdByIntelId = {},
     approveMetaByIntelId = {},
     reviseCounters,

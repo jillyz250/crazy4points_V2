@@ -32,7 +32,7 @@ export async function generateMetadata({
     const description =
       cleanIntro ??
       `${program.name} — points, sweet spots, transfer partners, and current alerts. Curated by crazy4points.`
-    const url = `https://crazy4points.com/programs/${slug}`
+    const url = `https://www.crazy4points.com/programs/${slug}`
     return {
       title: `${program.name} — crazy4points`,
       description,
@@ -180,7 +180,7 @@ export default async function ProgramPage({
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 600)
-  const url = `https://crazy4points.com/programs/${slug}`
+  const url = `https://www.crazy4points.com/programs/${slug}`
   const aboutType =
     program.type === 'credit_card'
       ? 'CreditCard'
@@ -193,7 +193,7 @@ export default async function ProgramPage({
     name: `${program.name} — crazy4points`,
     url,
     inLanguage: 'en-US',
-    isPartOf: { '@type': 'WebSite', name: 'crazy4points', url: 'https://crazy4points.com' },
+    isPartOf: { '@type': 'WebSite', name: 'crazy4points', url: 'https://www.crazy4points.com' },
     about: {
       '@type': aboutType,
       name: program.name,
@@ -204,7 +204,7 @@ export default async function ProgramPage({
       name: 'crazy4points',
       logo: {
         '@type': 'ImageObject',
-        url: 'https://crazy4points.com/crazy4points-logo.png',
+        url: 'https://www.crazy4points.com/crazy4points-logo.png',
       },
     },
   }

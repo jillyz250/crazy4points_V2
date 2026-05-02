@@ -180,7 +180,7 @@ export async function rebuildBriefHtmlAction(briefId: string): Promise<RebuildRe
   const html = buildBriefEmail(findings, date, {
     plan,
     briefId: brief.id as string,
-    siteOrigin: 'https://crazy4points.com',
+    siteOrigin: 'https://www.crazy4points.com',
     alertIdByIntelId,
     approveMetaByIntelId,
     reviseCounters,

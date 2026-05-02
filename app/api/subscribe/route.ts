@@ -94,14 +94,14 @@ export async function POST(req: NextRequest) {
           You're officially part of Crazy4Points — the place where we treat travel rewards like a game and celebrate every clever move.
         </p>
         <p style="font-size: 16px; line-height: 1.6;">If you want to see what's happening right now, start here:</p>
-        <a href="https://crazy4points.com/alerts" style="display: inline-block; margin-top: 8px; padding: 12px 24px; background: #6B2D8F; color: white; text-decoration: none; border-radius: 6px; font-weight: 600;">
+        <a href="https://www.crazy4points.com/alerts" style="display: inline-block; margin-top: 8px; padding: 12px 24px; background: #6B2D8F; color: white; text-decoration: none; border-radius: 6px; font-weight: 600;">
           Browse Current Alerts
         </a>
         <hr style="margin-top: 32px; border: none; border-top: 1px solid #E6DEEE;" />
         <p style="margin-top: 16px; font-size: 12px; color: #4A4A4A; line-height: 1.6;">
           You're receiving this because you signed up at crazy4points.com.<br/>
           crazy4points · New York, NY, USA<br/>
-          <a href="https://crazy4points.com/api/unsubscribe?email=${encodeURIComponent(email)}" style="color: #6B2D8F;">Unsubscribe</a>
+          <a href="https://www.crazy4points.com/api/unsubscribe?email=${encodeURIComponent(email)}" style="color: #6B2D8F;">Unsubscribe</a>
         </p>
       </div>
     `,

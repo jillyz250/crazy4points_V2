@@ -160,7 +160,7 @@ export function renderNewsletterHtml({
   draft,
   subject,
   weekOf,
-  origin = 'https://crazy4points.com',
+  origin = 'https://www.crazy4points.com',
   comicUrl,
   isPreview = false,
 }: RenderNewsletterArgs): string {

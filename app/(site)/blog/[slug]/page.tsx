@@ -55,7 +55,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const description = (post.excerpt && post.excerpt.trim()) || post.pitch;
   const ogImageUrl =
-    post.hero_image_url || `https://crazy4points.com/og/blog/${post.slug}`;
+    post.hero_image_url || `https://www.crazy4points.com/og/blog/${post.slug}`;
 
   return {
     title: `${post.title} — crazy4points`,
@@ -64,7 +64,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title: post.title,
       description,
-      url: `https://crazy4points.com/blog/${post.slug}`,
+      url: `https://www.crazy4points.com/blog/${post.slug}`,
       type: 'article',
       images: [{ url: ogImageUrl, width: 1200, height: 630, alt: post.title }],
     },
@@ -121,7 +121,7 @@ export default async function BlogPostPage({ params }: Props) {
   const safeHtml = rawHtml ? sanitizeArticleHtml(rawHtml) : '';
 
   const ogImageUrl =
-    post.hero_image_url || `https://crazy4points.com/og/blog/${post.slug}`;
+    post.hero_image_url || `https://www.crazy4points.com/og/blog/${post.slug}`;
 
   // JSON-LD Article schema. Google reads this for rich-result eligibility.
   const jsonLd = {
@@ -135,10 +135,10 @@ export default async function BlogPostPage({ params }: Props) {
     publisher: {
       '@type': 'Organization',
       name: 'crazy4points',
-      logo: { '@type': 'ImageObject', url: 'https://crazy4points.com/logo.png' },
+      logo: { '@type': 'ImageObject', url: 'https://www.crazy4points.com/logo.png' },
     },
     image: ogImageUrl,
-    mainEntityOfPage: `https://crazy4points.com/blog/${post.slug}`,
+    mainEntityOfPage: `https://www.crazy4points.com/blog/${post.slug}`,
   };
 
   // Same approach as the index card (#250) — when there's no real hero

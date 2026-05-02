@@ -15,7 +15,7 @@ import { programSummaryLine } from '@/lib/programs/programToMarkdown'
 
 export const revalidate = 300
 
-const BASE_URL = 'https://crazy4points.com'
+const BASE_URL = 'https://www.crazy4points.com'
 
 export async function GET() {
   const supabase = await createClient()
@@ -67,7 +67,7 @@ export async function GET() {
   lines.push('')
   lines.push('> Travel rewards intelligence — daily alerts, sweet-spot redemptions, transfer partner maps, and per-program references for major airline, hotel, and credit card loyalty programs. Editorial voice, fact-checked content.')
   lines.push('')
-  lines.push('Each program reference page has a Markdown version at `/programs/<slug>/md` — e.g. https://crazy4points.com/programs/hyatt/md. Same data, plain text, no styling noise.')
+  lines.push('Each program reference page has a Markdown version at `/programs/<slug>/md` — e.g. https://www.crazy4points.com/programs/hyatt/md. Same data, plain text, no styling noise.')
   lines.push('')
 
   for (const sectionKey of sectionOrder) {

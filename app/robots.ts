@@ -18,6 +18,6 @@ export default function robots(): MetadataRoute.Robots {
       // Default
       { userAgent: '*', allow: '/' },
     ],
-    sitemap: 'https://crazy4points.com/sitemap.xml',
+    sitemap: 'https://www.crazy4points.com/sitemap.xml',
   }
 }

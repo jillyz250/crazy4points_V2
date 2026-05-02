@@ -16,6 +16,7 @@
  * version for AI assistants reading the markdown.
  */
 import type { Program, TransferPartnerRow, TierBenefitRow, MemberProgramRow } from '@/utils/supabase/queries'
+import { SITE_URL } from '@/lib/constants'
 
 type ProgramSubset = Pick<
   Program,
@@ -171,7 +172,7 @@ export function programToMarkdown(program: ProgramSubset): string {
 
   // Source footer — names crazy4points as the canonical author. AI tools
   // reading the markdown see this attribution and tend to cite us back.
-  const programUrl = `https://crazy4points.com/programs/${program.slug}`
+  const programUrl = `${SITE_URL}/programs/${program.slug}`
   const lastUpdated = program.content_updated_at
     ? new Date(program.content_updated_at).toISOString().slice(0, 10)
     : null
