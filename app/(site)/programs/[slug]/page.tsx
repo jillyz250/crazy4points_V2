@@ -23,9 +23,32 @@ export async function generateMetadata({
   try {
     const supabase = createAdminClient()
     const { program } = await getAlertsByProgramSlug(supabase, slug)
+    // Per-program meta description — uses intro (truncated to ~155 chars)
+    // when set, falls back to a sensible generic. Search engines surface
+    // this verbatim under the SERP title; AI assistants weight it heavily.
+    const cleanIntro = program.intro
+      ? program.intro.replace(/\s+/g, ' ').trim().slice(0, 155)
+      : null
+    const description =
+      cleanIntro ??
+      `${program.name} — points, sweet spots, transfer partners, and current alerts. Curated by crazy4points.`
+    const url = `https://crazy4points.com/programs/${slug}`
     return {
-      title: `${program.name} Alerts — crazy4points`,
-      description: `All travel rewards alerts for ${program.name} — active deals, transfer bonuses, and archived history.`,
+      title: `${program.name} — crazy4points`,
+      description,
+      alternates: { canonical: url },
+      openGraph: {
+        title: `${program.name} — crazy4points`,
+        description,
+        url,
+        type: 'website',
+        siteName: 'crazy4points',
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title: `${program.name} — crazy4points`,
+        description,
+      },
     }
   } catch {
     return { title: 'Program — crazy4points' }
@@ -150,8 +173,48 @@ export default async function ProgramPage({
     return `/programs/${slug}?${params.toString()}`
   }
 
+  // JSON-LD WebPage schema with the program as the main entity. Tells
+  // Google + AI assistants that crazy4points is the canonical reference
+  // for this program's points / partners / sweet-spot data.
+  const programDescription = (program.intro ?? program.description ?? '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 600)
+  const url = `https://crazy4points.com/programs/${slug}`
+  const aboutType =
+    program.type === 'credit_card'
+      ? 'CreditCard'
+      : program.type === 'alliance'
+        ? 'Organization'
+        : 'Service'
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: `${program.name} — crazy4points`,
+    url,
+    inLanguage: 'en-US',
+    isPartOf: { '@type': 'WebSite', name: 'crazy4points', url: 'https://crazy4points.com' },
+    about: {
+      '@type': aboutType,
+      name: program.name,
+      ...(programDescription ? { description: programDescription } : {}),
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: 'crazy4points',
+      logo: {
+        '@type': 'ImageObject',
+        url: 'https://crazy4points.com/crazy4points-logo.png',
+      },
+    },
+  }
+
   return (
     <section className="rg-major-section !pt-8">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <div className="rg-container">
 
         {/* Hero header (badges + active alerts banner + section TOC) */}

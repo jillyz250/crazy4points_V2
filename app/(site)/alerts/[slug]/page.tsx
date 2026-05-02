@@ -131,8 +131,39 @@ export default async function AlertDetailPage({ params }: Props) {
     ? await marked.parse(alert.description, { async: true })
     : null
 
+  // JSON-LD Article schema. Tells Google + AI assistants that crazy4points
+  // is the canonical source so copies of this content get demoted in SERPs
+  // and AI summaries cite us with attribution.
+  const articleType =
+    alert.type === 'devaluation' || alert.type === 'program_change' || alert.type === 'partner_change'
+      ? 'NewsArticle'
+      : 'Article'
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': articleType,
+    headline: alert.title,
+    description: alert.summary,
+    datePublished: alert.published_at,
+    dateModified: alert.updated_at,
+    author: { '@type': 'Organization', name: 'crazy4points' },
+    publisher: {
+      '@type': 'Organization',
+      name: 'crazy4points',
+      logo: {
+        '@type': 'ImageObject',
+        url: 'https://crazy4points.com/crazy4points-logo.png',
+      },
+    },
+    mainEntityOfPage: `https://crazy4points.com/alerts/${alert.slug}`,
+    articleSection: alert.type.replace(/_/g, ' '),
+  }
+
   return (
     <article className="rg-major-section">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <div className="rg-container max-w-3xl">
 
         {/* Back nav */}
