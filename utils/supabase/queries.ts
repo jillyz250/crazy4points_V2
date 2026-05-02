@@ -2067,8 +2067,12 @@ export interface ResourceCard {
   name: string
   type: ProgramType
   alliance: Alliance | null
+  hubs: string[] | null
+  contentUpdatedAt: string | null
   transferPartnerCount: number
   alertCount: number
+  /** Member airline count for alliance rows. Null for non-alliance categories. */
+  memberCount: number | null
   /**
    * For carrier rows in a joint loyalty program (e.g. Alaska/Hawaiian → Atmos,
    * Air France/KLM → Flying Blue): pointer to the loyalty program where
@@ -2081,21 +2085,32 @@ export interface ResourceCard {
 /**
  * List programs to display on /programs?type=<category>. Only returns
  * programs with curated content. Sorted alphabetically.
+ *
+ * @param allianceFilter Optional — when set (and category === 'airline'),
+ * narrows results to programs in that alliance. Used by the airlines tab
+ * filter chips.
  */
 export async function listProgramsForIndex(
   supabase: SupabaseClient,
-  category: ResourceCategory
+  category: ResourceCategory,
+  allianceFilter?: Alliance | null
 ): Promise<ResourceCard[]> {
-  const { data: programs, error } = await supabase
+  let query = supabase
     .from('programs')
-    .select('id, slug, name, type, alliance, transfer_partners, parent_program_slug')
+    .select('id, slug, name, type, alliance, hubs, content_updated_at, transfer_partners, parent_program_slug, member_programs')
     .in('type', RESOURCE_TYPE_FILTER[category])
     .not('content_updated_at', 'is', null)
     .order('name', { ascending: true })
 
+  if (allianceFilter && category === 'airline') {
+    query = query.eq('alliance', allianceFilter)
+  }
+
+  const { data: programs, error } = await query
+
   if (error) throw error
   const rows = (programs ?? []) as Array<
-    Pick<Program, 'id' | 'slug' | 'name' | 'type' | 'alliance' | 'transfer_partners' | 'parent_program_slug'>
+    Pick<Program, 'id' | 'slug' | 'name' | 'type' | 'alliance' | 'hubs' | 'content_updated_at' | 'transfer_partners' | 'parent_program_slug' | 'member_programs'>
   >
   if (rows.length === 0) return []
 
@@ -2125,8 +2140,14 @@ export async function listProgramsForIndex(
     name: r.name,
     type: r.type,
     alliance: r.alliance,
+    hubs: r.hubs,
+    contentUpdatedAt: r.content_updated_at,
     transferPartnerCount: Array.isArray(r.transfer_partners) ? r.transfer_partners.length : 0,
     alertCount: alertCounts.get(r.id) ?? 0,
+    memberCount:
+      category === 'alliance' && Array.isArray(r.member_programs)
+        ? r.member_programs.length
+        : null,
     joinedLoyaltyProgram:
       r.parent_program_slug && slugsByName.has(r.parent_program_slug)
         ? { slug: r.parent_program_slug, name: slugsByName.get(r.parent_program_slug)! }
