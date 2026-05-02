@@ -98,7 +98,8 @@ Before opening a PR for any new page or layout change, verify:
 2. **Tap targets ≥44×44px** for primary touch controls (buttons, icon-only links). Inline body links inside paragraphs are exempt per Apple HIG.
 3. **No fixed-column grids** like `repeat(N, 1fr)` where N is data-driven — always use `repeat(auto-fit, minmax(<min>, 1fr))` so columns stack on narrow viewports. (This was the Alliance Explorer bug.)
 4. **Wide tables** must either live inside `.rg-prose` (auto-overflow at <640px) or be wrapped in `.rg-table-scroll`.
-5. **Form inputs** ≥16px font-size to prevent iOS zoom-on-focus.
+5. **Form inputs** ≥16px font-size to prevent iOS zoom-on-focus. Use `fontSize: '1rem'` (inline) or `text-base` (Tailwind). If you want smaller text on desktop, write `text-base md:text-sm` — never the reverse.
+6. **Avoid `100vh`** — iOS Safari miscounts it by ~100px (address bar). Use `100dvh` for full-viewport sections, with `100vh` as a fallback only if you need to support old iOS.
 
 Reusable mobile primitives in `styles/globals.css`:
 - `.rg-tap-target` — guarantees 44×44 hit area (use on icon-only buttons)

@@ -165,7 +165,7 @@ export default function PropertiesTable({
 
   const inputStyle: React.CSSProperties = {
     fontFamily: 'var(--font-ui)',
-    fontSize: '0.875rem',
+    fontSize: '1rem',
     padding: '0.5rem 0.75rem',
     border: '1px solid var(--color-border-soft)',
     borderRadius: 'var(--radius-ui)',

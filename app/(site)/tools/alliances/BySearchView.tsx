@@ -88,7 +88,7 @@ export default function BySearchView({
             style={{
               width: '100%',
               padding: '0.5rem 0.75rem',
-              fontSize: '0.9375rem',
+              fontSize: '1rem',
               border: '1px solid var(--color-border-soft)',
               borderRadius: 'var(--radius-ui)',
               background: '#fff',
@@ -121,7 +121,7 @@ export default function BySearchView({
             style={{
               width: '100%',
               padding: '0.5rem 0.75rem',
-              fontSize: '0.9375rem',
+              fontSize: '1rem',
               border: '1px solid var(--color-border-soft)',
               borderRadius: 'var(--radius-ui)',
             }}
@@ -147,7 +147,7 @@ export default function BySearchView({
             style={{
               width: '100%',
               padding: '0.5rem 0.75rem',
-              fontSize: '0.9375rem',
+              fontSize: '1rem',
               border: '1px solid var(--color-border-soft)',
               borderRadius: 'var(--radius-ui)',
               background: '#fff',

@@ -65,7 +65,7 @@ export default function AlertsFiltersSB({ programs, selectedProgram, selectedTyp
   const hasFilters = !!(selectedProgram || selectedType)
 
   const selectCls =
-    'rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background)] px-3 py-2 font-ui text-sm text-[var(--color-text-primary)] focus:border-[var(--color-primary)] focus:outline-none'
+    'rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background)] px-3 py-2 font-ui text-base md:text-sm text-[var(--color-text-primary)] focus:border-[var(--color-primary)] focus:outline-none'
 
   return (
     <div className="mb-8 flex flex-wrap items-center gap-3">
