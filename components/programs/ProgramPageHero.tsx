@@ -1,21 +1,6 @@
 import Link from 'next/link'
 import type { Program, Alliance } from '@/utils/supabase/queries'
-
-const ALLIANCE_LABEL: Record<Alliance, string> = {
-  skyteam:        'SkyTeam',
-  star_alliance:  'Star Alliance',
-  oneworld:       'oneworld',
-  none:           'Independent',
-  other:          'Partnership',
-}
-
-const ALLIANCE_BADGE_COLOR: Record<Alliance, string> = {
-  skyteam:       '#0033A0',  // SkyTeam navy
-  star_alliance: '#1A1A1A',  // Star Alliance black
-  oneworld:      '#C8102E',  // oneworld red
-  none:          '#4A4A4A',
-  other:         '#4A4A4A',
-}
+import { ALLIANCE_LABEL, ALLIANCE_BADGE_COLOR } from '@/lib/alliance'
 
 /**
  * Hero block for the public program page. Replaces the previous formal
