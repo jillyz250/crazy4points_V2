@@ -1,6 +1,7 @@
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import CookieBanner from "@/components/layout/CookieBanner";
+import AnalyticsListener from "@/components/analytics/AnalyticsListener";
 import { createAdminClient } from "@/utils/supabase/server";
 import { getResourceNavCounts } from "@/utils/supabase/queries";
 
@@ -23,6 +24,7 @@ export default async function SiteLayout({
       <main className="flex-1">{children}</main>
       <Footer />
       <CookieBanner />
+      <AnalyticsListener />
     </>
   );
 }
