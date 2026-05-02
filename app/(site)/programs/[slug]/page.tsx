@@ -341,7 +341,7 @@ export default async function ProgramPage({
               padding: '0.5rem 0.875rem',
               border: '1px solid var(--color-border-soft)',
               borderRadius: 'var(--radius-ui)',
-              fontSize: '0.9375rem',
+              fontSize: '1rem',
               fontFamily: 'var(--font-body)',
               background: 'var(--color-background)',
               color: 'var(--color-text-primary)',

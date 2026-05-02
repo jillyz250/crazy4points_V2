@@ -345,7 +345,7 @@ export default async function BlogIndex({ searchParams }: Props) {
           defaultValue={qFilter ?? ''}
           placeholder="Search posts by title or excerpt…"
           maxLength={80}
-          className="w-full max-w-md rounded-full border border-[var(--color-border-soft)] bg-white px-4 py-2 font-ui text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20"
+          className="w-full max-w-md rounded-full border border-[var(--color-border-soft)] bg-white px-4 py-2 font-ui text-base md:text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20"
         />
         {categoryFilter && <input type="hidden" name="category" value={categoryFilter} />}
         {typeFilter && <input type="hidden" name="type" value={typeFilter} />}

@@ -67,7 +67,7 @@ export default function AlertsFilters({
       <select
         value={program ?? ''}
         onChange={(e) => updateFilter('program', e.target.value)}
-        className="rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background)] px-3 py-2 font-ui text-sm text-[var(--color-text-primary)] focus:border-[var(--color-primary)] focus:outline-none"
+        className="rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background)] px-3 py-2 font-ui text-base md:text-sm text-[var(--color-text-primary)] focus:border-[var(--color-primary)] focus:outline-none"
       >
         {PROGRAMS.map((p) => (
           <option key={p.value} value={p.value}>{p.label}</option>
@@ -77,7 +77,7 @@ export default function AlertsFilters({
       <select
         value={type ?? ''}
         onChange={(e) => updateFilter('type', e.target.value)}
-        className="rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background)] px-3 py-2 font-ui text-sm text-[var(--color-text-primary)] focus:border-[var(--color-primary)] focus:outline-none"
+        className="rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background)] px-3 py-2 font-ui text-base md:text-sm text-[var(--color-text-primary)] focus:border-[var(--color-primary)] focus:outline-none"
       >
         {TYPES.map((t) => (
           <option key={t.value} value={t.value}>{t.label}</option>
