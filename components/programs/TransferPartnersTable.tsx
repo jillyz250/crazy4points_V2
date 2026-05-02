@@ -74,7 +74,7 @@ export default function TransferPartnersTable({
                     </span>
                   )}
                 </td>
-                <td style={{ padding: '0.75rem', fontFamily: 'var(--font-ui)', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                <td style={{ padding: '0.75rem', fontFamily: 'var(--font-ui)', fontWeight: 600, maxWidth: '14rem' }}>
                   {row.ratio}
                 </td>
                 <td style={{ padding: '0.75rem', color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>

@@ -42,15 +42,31 @@ THEN announce: "Starting <airline> — Step 1 first." Don't dump the full runboo
 
 **Note on program-row existence:** Don't gate the workflow on a "Step 0" admin check. Trust that the row exists (most US airlines + alliance members have been seeded). If the row turns out to be missing, you'll catch it in Step 4 (admin paste — the edit page 404s) or Step 5 (live page renders raw slugs); resolve at that point with a small seed migration. This saves 1-2 round-trips per program.
 
-### Step 1 — Surface the COMPLETE paste-in list up front (BLOCKING)
+### Step 1 — Research the program (WebSearch first; user-paste is fallback)
 
-**Before drafting anything, surface the COMPLETE paste-in list to the user in a single message — every URL, all at once.** LLMs (Claude, Copilot, GPT) all draw from the same pool of secondary blog summaries. When two LLMs disagree on a fact, neither is authoritative — only the official source is. So we read the official source FIRST, draft directly from it, and use third-party blogs only for context/sweet-spot color.
+**Default workflow: Claude does WebSearch research; the user is NOT asked to paste a 6-URL list up front.** Major US carrier sites (delta.com, united.com, alaskaair.com) bot-block direct fetches and restructure URLs frequently, so guessing canonical URLs to ask the user to paste from = dead-link hunts. WebSearch across TPG / OMAAT / Frequent Miler / AwardWallet / NerdWallet / Upgraded Points / Milesopedia / the program's own news room handles 80-90% of the research need.
 
-**The user prefers to gather every source in one batch.** Do NOT trickle URLs out one section at a time, do NOT ask "want me to list more?", do NOT wait for one paste before requesting the next. List ALL paste-in items for the program type in a single numbered list, then let the user knock them out at their own pace. Even if some items are optional, surface them — let the user decide what they have time to grab.
+**Do this:**
+1. Announce: "Researching <program>; will surface combined preview shortly."
+2. Spawn a WebSearch research agent with 2026 date filters covering: hubs / fleet, tier qualification + benefits, lounge access (incl. day pass rules), transfer partners + tax/fee status, sweet spots, recent news / 2025-2026 program changes, joint ventures, co-brand cards.
+3. Aim for **2 corroborating 2026-dated sources** per important factual claim (qualification thresholds, tier mapping, lounge cost, etc.).
+4. Tag every claim's confidence: HIGH (2+ 2026 sources), MEDIUM (1 source), LOW (training data only). LOW claims either get omitted or surfaced to the user as a one-question Google ask.
 
-**HARD CAP: 6 URLs maximum** in any paste-in list. Pick the highest-value ones for the program type. Don't pad with optional/nice-to-haves; trust the user + parallel WebSearch to fill remaining gaps.
+**When to fall back to user paste-in:**
+- A high-importance fact has only LOW confidence and you can't pin it down with 2 web sources
+- ChatGPT and Copilot disagree at Step 3 fact-check and you need the official source as tie-breaker
+- The program's own canonical page would be high value AND you have a verified working URL (e.g. user already pasted from `news.alaskaair.com` once and it works)
 
-**VERIFY each URL works before surfacing.** Either WebFetch / curl HEAD it (fast), or source it from a paste the user already gave (verbatim from official site), or explicitly mark it "(URL guess — confirm or correct)" so the user knows to verify. Do NOT generate plausible-looking URL paths from training data — many platforms (delta.com, marriott.com, etc.) restructure URLs regularly, and dead links burn the user's time.
+When falling back, ask for ONE thing at a time, with the exact question. Examples:
+> "What's the current Diamond MQD threshold? My sources disagree."
+> "Has the Excursionist Perk officially returned in 2026?"
+> "Is GUM still a hub or focus city for United?"
+
+Never list 6 URLs and ask the user to paste from each — that pattern is retired.
+
+**Official-source-first rule still applies** for fact-check disagreements (Step 3): when ChatGPT and Copilot conflict, push to the program's news/policy page via WebFetch or one-shot user paste — but only for the disputed fact, not bulk paste.
+
+See `feedback_websearch_default_research.md` for the full rule.
 
 **ALWAYS provide a clickable markdown URL for every paste-in item.** Don't just describe the source ("the alliance's lounges page") — give the actual link as a markdown hyperlink the user can cmd-click. If you don't know the exact URL, WebSearch first to find it, THEN list. Never make the user hunt for the URL themselves. Format every paste-in line as:
 
@@ -164,6 +180,9 @@ Format:
 ## 9. Tips & quirks
 {markdown text}
 
+## 10. Award chart
+{markdown text — skip for alliance pages}
+
 ---
 
 Review the combined preview. Reply "looks good" / "ready to paste" and I'll re-output as paste-ready blocks per field.
@@ -172,7 +191,7 @@ Or call out anything to change first.
 
 After user approval, output each field as a separate fenced code block tagged with the field name in the heading above it.
 
-Draft each of these 9 fields:
+Draft each of these **10 fields** (non-alliance programs require all 10 for completeness; alliance pages skip `award_chart`):
 
 1. **alliance** — one of: skyteam, star_alliance, oneworld, none, other
 2. **hubs** — array of airport codes
@@ -183,6 +202,7 @@ Draft each of these 9 fields:
 7. **tier_benefits** — JSON array of `{name, qualification, benefits[]}` per tier
 8. **lounge_access** — markdown w/ own-brand lounges + alliance access + eligibility + paid options + flagship callout. **Day passes / single-visit passes require four facts, not just price**: (1) same-day ticketed boarding pass required, (2) time window before departure (typically 3 hours), (3) discounted-cabin exclusion if any — RESEARCH per carrier, fare class names vary (Delta = "Main Basic", United = "Basic Economy", Alaska = "Saver", BA = "Basic"); some carriers have no exclusion at all, (4) carrier scope. See `feedback_lounge_day_pass_rules.md` in memory.
 9. **quirks** — markdown bullets (expiry, pooling, stopovers, oddities)
+10. **award_chart** — markdown text. The official redemption chart (or a faithful summary of it) for partner awards and AA/program-operated baseline. **Required for all non-alliance programs.** This field also feeds `programSourceText.ts` as "OFFICIAL AWARD CHART (source of truth for redemption costs)" — the AI writer + fact-checker use it to verify redemption-cost claims in alerts. Format: markdown headings + tables. Hotels = full category chart with off-peak / standard / peak point bands per category. Airlines = MileSAAver baseline + partner zone chart. Loyalty programs (Atmos, Flying Blue, Avios) = same as airlines. Alliance pages = skip; award charts live on member program pages.
 
 **Banned absolute words** (rewrite if found):
 - never → "do not under current rules"
@@ -266,7 +286,8 @@ Walk the user through pasting one field at a time:
 8. **Tier benefits** JSON → paste array
 9. **Lounge access** field → paste markdown
 10. **Tips & quirks** field → paste markdown bullets
-11. Click **Save** → confirm pill flips to "Today" and completeness shows "9/9 all sections done"
+11. **Award chart** field → paste markdown (skip for alliance pages)
+12. Click **Save** → confirm pill flips to "Today" and completeness shows "10/10 all sections done" (or "9/9" for alliance pages)
 
 Wait for "saved" before continuing.
 
