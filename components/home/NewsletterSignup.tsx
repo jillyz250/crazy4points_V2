@@ -48,14 +48,23 @@ export default function NewsletterSignup() {
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="rounded-xl border border-[var(--color-border-soft)] bg-[var(--color-background)] px-8 py-10">
-          {/* Honeypot — hidden from humans, bots fill it. Do not remove. */}
+          {/* Honeypot — hidden from humans, bots fill it. Do not remove.
+              Field is named "subject" (not "website") and tagged with the
+              ignore attributes that 1Password / LastPass / Bitwarden / Dashlane
+              respect, so the user's password manager doesn't auto-fill it
+              with the site's URL and trip the bot detector. */}
           <div aria-hidden="true" style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, overflow: 'hidden' }}>
             <label>
-              Website
+              Subject
               <input
                 type="text"
+                name="subject_hp"
                 tabIndex={-1}
                 autoComplete="off"
+                aria-hidden="true"
+                data-1p-ignore
+                data-lpignore="true"
+                data-form-type="other"
                 value={website}
                 onChange={e => setWebsite(e.target.value)}
               />
