@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { styleForLevel } from '@/utils/destinations/advisoryLevels'
 import { flagUrlForCountry } from '@/utils/destinations/countryFlags'
+import { track } from '@/lib/analytics'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1296,6 +1297,14 @@ export default function DecisionEnginePage() {
   const handleSpin = useCallback(async () => {
     if (busyRef.current) return
     busyRef.current = true
+
+    track('decision_engine_spin', {
+      month: filters.month ?? 'any',
+      continent: filters.continent ?? 'any',
+      vibe: filters.vibe ?? 'any',
+      trip_length: filters.tripLength ?? 'any',
+      who_is_going: filters.whoIsGoing ?? 'any',
+    })
 
     setSpinning(true)
     setStopping(false)

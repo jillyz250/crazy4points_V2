@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { track } from '@/lib/analytics'
 
 export default function NewsletterSignup() {
   const [email, setEmail] = useState('')
@@ -26,6 +27,7 @@ export default function NewsletterSignup() {
     if (res.ok) {
       setStatus('success')
       setMessage('You\'re in! Check your inbox for a welcome email.')
+      track('newsletter_signup', { surface: 'home' })
       setEmail('')
       setFirstName('')
       setLastName('')

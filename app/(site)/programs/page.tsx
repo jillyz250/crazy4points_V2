@@ -248,6 +248,13 @@ function ProgramCard({
   return (
     <Link
       href={`/programs/${program.slug}`}
+      data-track-event="program_index_click"
+      data-track-params={JSON.stringify({
+        category,
+        slug: program.slug,
+        program_type: program.type,
+        alliance: program.alliance ?? 'none',
+      })}
       className="group flex h-full flex-col rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] p-5 shadow-[var(--shadow-soft)] transition-all hover:-translate-y-0.5 hover:border-[var(--color-primary)] hover:shadow-md"
     >
       <div className="flex items-start justify-between gap-3">
