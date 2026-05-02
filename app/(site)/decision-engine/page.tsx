@@ -1441,7 +1441,7 @@ export default function DecisionEnginePage() {
         }
       `}</style>
 
-      <main className="rg-major-section !pt-8" style={{ background: '#FAF9F6', minHeight: '100dvh' }}>
+      <main className="rg-major-section !pt-8" style={{ background: '#FAF9F6', minHeight: '100dvh', overflowX: 'hidden' }}>
         <div className="rg-container" style={{ maxWidth: '920px' }}>
 
           {/* Headline */}
