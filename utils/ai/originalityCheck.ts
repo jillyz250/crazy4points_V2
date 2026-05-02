@@ -58,10 +58,21 @@ Pick 3-5 distinctive passages — sentences with specific phrasing, unusual word
 or memorable structure. Skip:
 - Generic travel-rewards truisms
 - Direct factual claims (numbers, dates, program names) — every publication reports those identically
-- Direct quotes the body explicitly attributes to a source
+- Direct quotes the body explicitly attributes to a source ("per CNBC", "told CNN", "X said")
+- Sentences that overlap because every outlet is reporting the same press release on the
+  same day (breaking-news convergence ≠ plagiarism)
 
 Web_search short distinctive phrases. Budget is 4 searches — spend them on the passages
 most likely to overlap.
+
+CRITICAL: only include a flagged_passages entry when YOUR confidence the article copies
+external work is at least 50. Convergent reporting, proper attribution, and shared press-
+release facts are not plagiarism — do not list them as borderline flags. If you found
+nothing concerning at confidence ≥50, return an empty array. Silence is the correct signal.
+
+Before emitting any flag, verify the "text" field is a passage that actually appears in
+the article body verbatim. Never include a flag where "text" is paraphrased from the
+matched source — that's a hallucination, not a finding.
 
 ═══════════════════════════════════════════════════════════
 SCORING — overall confidence (0-100)
@@ -114,7 +125,16 @@ DO NOT flag:
   - Direct factual claims (numbers, dates, program names) — facts overlap by necessity
   - Generic travel-rewards truisms ("points are worth more when transferred")
   - Brand-voice flourishes any writer would phrase the same way
-  - Direct quotes the body explicitly attributes to a source
+  - Direct quotes the body explicitly attributes to a source ("per CNBC", "told CNN")
+  - Sentences that overlap because they're paraphrasing the same primary press release
+
+CRITICAL: only emit a flagged_passages entry when YOUR confidence is at least 50. Below
+50 is noise — silence is the correct signal. If you found nothing concerning at ≥50,
+return an empty array.
+
+Before emitting any flag, verify "text" is a passage that actually appears in the article
+body verbatim. Never include a flag where "text" is paraphrased from the matched source —
+that's a hallucination, not a finding.
 
 ═══════════════════════════════════════════════════════════
 SCORING — overall confidence (0-100)
@@ -278,8 +298,20 @@ export async function originalityCheck(
       flagged_passages?: unknown
     }
     const confidence_score = clampScore(parsed.confidence_score)
+    // Phase 6 — post-process filter:
+    //   (a) drop passages with confidence < 50 (noise floor — convergent
+    //       reporting and proper attributions live there).
+    //   (b) drop passages whose `text` doesn't actually appear in the article
+    //       (model hallucination — flagging the source excerpt as the article
+    //       passage). We compare loosely (whitespace-collapsed) to tolerate
+    //       minor punctuation/spacing diffs the model may introduce.
+    const normalized = args.article_body.replace(/\s+/g, ' ').toLowerCase()
     const flagged_passages = Array.isArray(parsed.flagged_passages)
-      ? parsed.flagged_passages.map(sanitizePassage).filter((p): p is FlaggedPassage => p !== null)
+      ? parsed.flagged_passages
+          .map(sanitizePassage)
+          .filter((p): p is FlaggedPassage => p !== null)
+          .filter((p) => p.confidence >= 50)
+          .filter((p) => normalized.includes(p.text.replace(/\s+/g, ' ').toLowerCase()))
       : []
     const notes = typeof parsed.notes === 'string' ? parsed.notes.slice(0, 600) : ''
     const worstPassage = flagged_passages.reduce(
