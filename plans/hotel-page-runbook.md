@@ -26,7 +26,9 @@ The schema is identical across program types. The fields just hold different con
 
 ---
 
-## 0. Prep — does the program row exist?
+## 0. (Skipped) Prep — program row check
+
+We no longer gate on a "Step 0" admin check. Trust that the row exists (most major hotel programs are pre-seeded). If the row turns out to be missing, you'll catch it at admin paste (Step 4 — edit page 404s) or live verification (Step 5 — raw slugs render); resolve with a small seed migration at that point.
 
 - [ ] Open `/admin/programs`, switch to **Hotels** tab, filter by program name
 - [ ] If missing, add it via "Add program" form (slug convention: see existing rows — usually FFP/program brand short name like `hyatt`, `marriott`, `hilton`, `ihg`)
@@ -114,7 +116,11 @@ Brand voice in **Intro** and **Sweet spots**: sassy + funny traveler-friend. **T
 - [ ] Tier benefits cards render with stay-based qualifications
 - [ ] Lounge access section reads as club-lounge framing, not airport-lounge framing
 - [ ] Footer disclaimer shows "Last reviewed [Month YYYY]"
-- [ ] Mobile width — table scrolls cleanly
+- [ ] **Mobile check at 375px** (iPhone SE) — see CLAUDE.md "Mobile contract":
+  - No horizontal page overflow (run the scrollWidth check in dev preview)
+  - Transfer-partner + award-chart tables scroll cleanly (auto-handled inside `.rg-prose`)
+  - TOC pills are tappable (≥40px tall on mobile, auto-handled by globals.css)
+  - Any custom grid you added uses `auto-fit, minmax(...)`, never `repeat(N, 1fr)`
 
 ### Test writer grounding
 - [ ] In admin, find an alert tagged to this hotel program → click **Regenerate**
