@@ -200,16 +200,17 @@ export async function POST(request: Request) {
   //      for vacation: North America, Central America, Caribbean, Europe.
   //      Asia / South America / Middle East / Africa / South Pacific
   //      surface only when the user explicitly picks that continent.
-  //   2. Hide Level 3 ("Reconsider Travel") and Level 4 ("Do Not Travel")
-  //      destinations within those continents — informed adults can still
-  //      opt in by picking the continent directly.
-  // Both rules drop when filters.continent is set, so picking "Asia"
-  // returns Asia destinations (with their own advisory badges intact).
+  //      This rule drops when filters.continent is set, so picking "Asia"
+  //      returns Asia destinations.
+  //   2. ALWAYS hide Level 3 ("Reconsider Travel") and Level 4 ("Do Not
+  //      Travel") destinations — applies even when a continent is picked.
+  //      Editorial decision: we don't surface DE picks where the State
+  //      Dept advises against travel, regardless of how the user filtered.
   const SAFER_DEFAULT_CONTINENTS = ['north_america', 'central_america', 'caribbean', 'europe']
   if (!filters.continent) {
     query = query.in('continent', SAFER_DEFAULT_CONTINENTS)
-    query = query.or('advisory_level.is.null,advisory_level.lt.3')
   }
+  query = query.or('advisory_level.is.null,advisory_level.lt.3')
 
   const { data, error } = await query
   if (error) {
