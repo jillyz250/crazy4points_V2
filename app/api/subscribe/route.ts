@@ -4,20 +4,6 @@ import { createAdminClient } from '@/utils/supabase/server'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
-// Reject names that look bot-generated: long unbroken alphanumeric runs with no
-// vowels or no lowercase variation (e.g. "VFliqEpmUtoRKpeTJbrNtB").
-function looksLikeBotName(name: string): boolean {
-  const trimmed = name.trim()
-  if (trimmed.length > 40) return true
-  // Must contain at least one vowel
-  if (!/[aeiouAEIOU]/.test(trimmed)) return true
-  // Pure alphanumeric with mixed case and >14 chars and no spaces = random string
-  if (trimmed.length > 14 && !/\s/.test(trimmed) && /[A-Z]/.test(trimmed) && /[a-z]/.test(trimmed) && !/[aeiou]{1}.*[aeiou]{1}/i.test(trimmed)) {
-    return true
-  }
-  return false
-}
-
 export async function POST(req: NextRequest) {
   const { email, firstName, lastName, website } = await req.json()
 
@@ -28,13 +14,6 @@ export async function POST(req: NextRequest) {
 
   if (!email || !email.includes('@')) {
     return NextResponse.json({ error: 'Valid email required.' }, { status: 400 })
-  }
-
-  if (firstName && looksLikeBotName(String(firstName))) {
-    return NextResponse.json({ success: true })
-  }
-  if (lastName && looksLikeBotName(String(lastName))) {
-    return NextResponse.json({ success: true })
   }
 
   const supabase = createAdminClient()
