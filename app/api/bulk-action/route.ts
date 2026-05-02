@@ -22,11 +22,11 @@ function htmlResponse(title: string, body: string, status = 200) {
 }
 
 function okPage(title: string, msg: string) {
-  return htmlResponse(title, `<h1>${title}</h1><p>${msg}</p><a href="https://crazy4points.com/admin/alerts">Go to admin →</a>`)
+  return htmlResponse(title, `<h1>${title}</h1><p>${msg}</p><a href="https://www.crazy4points.com/admin/alerts">Go to admin →</a>`)
 }
 
 function errorPage(msg: string, status = 400) {
-  return htmlResponse('Something went wrong', `<h1>Something went wrong</h1><p>${msg}</p><a href="https://crazy4points.com/admin/alerts">Go to admin →</a>`, status)
+  return htmlResponse('Something went wrong', `<h1>Something went wrong</h1><p>${msg}</p><a href="https://www.crazy4points.com/admin/alerts">Go to admin →</a>`, status)
 }
 
 async function findPendingAlertByIntelId(supabase: ReturnType<typeof createAdminClient>, intelId: string) {

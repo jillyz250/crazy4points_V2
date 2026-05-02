@@ -1,9 +1,8 @@
 import type { MetadataRoute } from 'next'
 import { createClient } from '@/utils/supabase/server'
+import { SITE_URL as BASE_URL } from '@/lib/constants'
 
 export const revalidate = 3600
-
-const BASE_URL = 'https://crazy4points.com'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let alertEntries: MetadataRoute.Sitemap = []

@@ -605,7 +605,7 @@ export async function GET(req: NextRequest) {
   const html = buildBriefEmail(findings, date, {
     plan: briefId ? plan : null,
     briefId,
-    siteOrigin: 'https://crazy4points.com',
+    siteOrigin: 'https://www.crazy4points.com',
     alertIdByIntelId,
     approveMetaByIntelId,
     reviseCounters: {

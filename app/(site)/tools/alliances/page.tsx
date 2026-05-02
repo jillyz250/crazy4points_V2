@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   title: 'Alliance Explorer | crazy4points',
   description:
     'A reference guide to oneworld, SkyTeam, and Star Alliance — tier ladders, lounge access rules, member airlines, in-alliance status equivalency, and partner-award redemptions.',
-  alternates: { canonical: 'https://crazy4points.com/tools/alliances' },
+  alternates: { canonical: 'https://www.crazy4points.com/tools/alliances' },
 }
 
 const VALID_VIEWS: ExplorerView[] = ['alliance', 'airline', 'status', 'search']

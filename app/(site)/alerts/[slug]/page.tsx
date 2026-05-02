@@ -79,11 +79,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return {
       title: `${alert.title} — crazy4points`,
       description: alert.summary,
-      alternates: { canonical: `https://crazy4points.com/alerts/${slug}` },
+      alternates: { canonical: `https://www.crazy4points.com/alerts/${slug}` },
       openGraph: {
         title: alert.title,
         description: alert.summary,
-        url: `https://crazy4points.com/alerts/${slug}`,
+        url: `https://www.crazy4points.com/alerts/${slug}`,
         type: 'article',
       },
     }
@@ -151,10 +151,10 @@ export default async function AlertDetailPage({ params }: Props) {
       name: 'crazy4points',
       logo: {
         '@type': 'ImageObject',
-        url: 'https://crazy4points.com/crazy4points-logo.png',
+        url: 'https://www.crazy4points.com/crazy4points-logo.png',
       },
     },
-    mainEntityOfPage: `https://crazy4points.com/alerts/${alert.slug}`,
+    mainEntityOfPage: `https://www.crazy4points.com/alerts/${alert.slug}`,
     articleSection: alert.type.replace(/_/g, ' '),
   }
 
