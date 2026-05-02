@@ -1,21 +1,17 @@
 /**
- * Originality v3 — source-comparison mode (no web_search).
+ * Originality v3.1 — source-comparison mode with web_search fallback.
  *
- * Previous v2 used Claude's web_search tool to scan the entire internet for
- * matches. That ballooned input tokens to 55-69K per call (~$0.20 each) and
- * mostly returned noise — most "matches" were generic travel-rewards facts
- * that any publication reports identically.
+ * Default path: compare the article against the source text(s) it was drafted
+ * from. That's where most plagiarism risk lives, and it costs ~90% less than
+ * scanning the open web (v2 ran 55-69K input tokens / ~$0.20 per call).
  *
- * v3 checks the article ONLY against the source text(s) it was drafted from.
- * That's where the real plagiarism risk lives: did the writer paraphrase too
- * closely from the article being summarized? Cuts cost ~90% per call AND
- * checks the actual risk surface.
+ * Fallback path: when NO sources are provided (hand-written articles with no
+ * intel rows), run a budgeted web_search pass instead of skipping. Manual
+ * articles still need an originality signal — silent-skip leaves the publish
+ * gate stuck on "originality not run" forever.
  *
  * Self-plagiarism (overlap with prior crazy4points content) is OUT of scope —
- * Jill's call. Only compares against the sources passed in.
- *
- * If no sources are provided, the check is skipped (returns null). Manual
- * articles with no source_intel_id are by definition not at plagiarism risk.
+ * Jill's call.
  */
 import Anthropic from '@anthropic-ai/sdk'
 import { logUsage } from './logUsage'
@@ -50,6 +46,56 @@ export interface OriginalityResult {
 
 export const DEFAULT_ORIGINALITY_THRESHOLD = 80
 export const MAX_PASSAGE_CONFIDENCE = 60
+
+const SYSTEM_PROMPT_WEB = `You are an originality checker for crazy4points. You receive an article body
+and must use web_search to detect passages that near-duplicate already-published external content.
+
+═══════════════════════════════════════════════════════════
+HOW TO JUDGE
+═══════════════════════════════════════════════════════════
+
+Pick 3-5 distinctive passages — sentences with specific phrasing, unusual word choices,
+or memorable structure. Skip:
+- Generic travel-rewards truisms
+- Direct factual claims (numbers, dates, program names) — every publication reports those identically
+- Direct quotes the body explicitly attributes to a source
+
+Web_search short distinctive phrases. Budget is 4 searches — spend them on the passages
+most likely to overlap.
+
+═══════════════════════════════════════════════════════════
+SCORING — overall confidence (0-100)
+═══════════════════════════════════════════════════════════
+
+  90-100  Clearly original. No matches, or only generic-fact overlap every site reports.
+  75-89   Mostly original. 1 borderline phrase that overlaps a common turn of phrase.
+  60-74   Concerning. One distinct passage closely echoes external published work.
+  40-59   Likely problematic. Two or more passages near-verbatim with external sources.
+  0-39    Plagiarism risk. Distinctive paragraph reads as copy-paste of prior published work.
+
+Be CALIBRATED. A 75 should mean "I'd publish comfortably"; a 60 means "give it another look."
+
+═══════════════════════════════════════════════════════════
+PER-PASSAGE FLAGS — same fields as source-comparison mode
+═══════════════════════════════════════════════════════════
+
+  text             — verbatim passage from article (≤300 chars)
+  matched_url      — URL of source you found, or null if memory-only
+  matched_excerpt  — closest matching span (≤300 chars), or null
+  confidence       — 0-100, this passage's duplicate confidence
+  why              — one sentence on the overlap
+
+═══════════════════════════════════════════════════════════
+OUTPUT
+═══════════════════════════════════════════════════════════
+
+Return a single JSON object. No prose, no markdown fences.
+
+{
+  "confidence_score": <0-100>,
+  "notes": "<1-2 sentences>",
+  "flagged_passages": [...]
+}`
 
 const SYSTEM_PROMPT = `You are an originality checker for crazy4points. You receive an article body
 and the SOURCE TEXT(S) the article was drafted from. Your job: detect passages where the
@@ -197,28 +243,30 @@ export async function originalityCheck(
     return null
   }
   const sources = (args.sources ?? []).filter((s) => s && s.text && s.text.trim().length > 0)
-  if (sources.length === 0) {
-    console.warn('[originalityCheck] no sources provided — skipping')
-    return null
-  }
   const threshold = args.threshold ?? DEFAULT_ORIGINALITY_THRESHOLD
+  const useWebFallback = sources.length === 0
 
-  const userContent = [
-    `# ARTICLE TO CHECK`,
-    `Title: ${args.title}`,
-    ``,
-    args.article_body,
-    ``,
-    `# SOURCE TEXT(S)`,
-    buildSourcesBlock(sources),
-  ].join('\n')
+  const userContent = useWebFallback
+    ? [`# ARTICLE TO CHECK`, `Title: ${args.title}`, ``, args.article_body].join('\n')
+    : [
+        `# ARTICLE TO CHECK`,
+        `Title: ${args.title}`,
+        ``,
+        args.article_body,
+        ``,
+        `# SOURCE TEXT(S)`,
+        buildSourcesBlock(sources),
+      ].join('\n')
 
   try {
     const client = new Anthropic({ apiKey })
     const response = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 2000,
-      system: SYSTEM_PROMPT,
+      max_tokens: useWebFallback ? 3000 : 2000,
+      system: useWebFallback ? SYSTEM_PROMPT_WEB : SYSTEM_PROMPT,
+      ...(useWebFallback
+        ? { tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 4 }] }
+        : {}),
       messages: [{ role: 'user', content: userContent }],
     })
     await logUsage(response, 'originalityCheck')

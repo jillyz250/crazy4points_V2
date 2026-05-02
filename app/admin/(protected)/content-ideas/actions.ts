@@ -698,9 +698,8 @@ export async function checkOriginalityAction(id: string): Promise<OriginalityAct
       }
     }
   }
-  if (sources.length === 0) {
-    return { ok: false, error: 'No source intel to check against — manual ideas skip this check.' }
-  }
+  // v3.1 — empty sources is no longer fatal. originalityCheck falls back to a
+  // budgeted web_search pass for hand-written articles with no intel.
 
   const threshold =
     typeof idea.originality_threshold === 'number' ? idea.originality_threshold : undefined
