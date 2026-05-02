@@ -169,7 +169,9 @@ export default function Header({
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
-              <div className="invisible absolute left-0 top-full z-50 w-60 pt-2 group-hover:visible">
+              {/* right-0 (not left-0) so the 240px panel doesn't overflow
+                  the viewport at md (Blog is the rightmost dropdown). */}
+              <div className="invisible absolute right-0 top-full z-50 w-60 pt-2 group-hover:visible">
                 <div className="rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] py-1 shadow-[var(--shadow-soft)]">
                   {blogItems.map((item) => (
                     <Link
@@ -194,8 +196,10 @@ export default function Header({
           </nav>
 
           <div className="flex items-center gap-4">
-            {/* Two-part CTA — desktop only */}
-            <div className="hidden md:inline-flex items-center gap-2">
+            {/* Two-part CTA — lg+ only. Hidden at md (768-1024px) where the
+                desktop nav already fills the row; the Decision Engine link
+                lives in the Tools dropdown there. */}
+            <div className="hidden lg:inline-flex items-center gap-2">
               <span className="font-display text-[13px] italic tracking-wide text-[var(--color-primary)]">
                 Spin the
               </span>
