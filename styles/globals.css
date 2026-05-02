@@ -120,6 +120,37 @@ button {
   padding-block: var(--spacing-subsection);
 }
 
+/* Mobile: tighten vertical rhythm so 5rem doesn't waste a whole viewport */
+@media (max-width: 640px) {
+  .rg-major-section {
+    padding-block: 3rem;
+  }
+  .rg-sub-section {
+    padding-block: 1.75rem;
+  }
+}
+
+/* Reusable: guarantees a 44x44 hit area for icon-only / small-label
+   touch controls. Apply to any <button> or <a> that would otherwise
+   render under 44px on mobile. Inline body links are exempt per
+   Apple HIG and should NOT use this. */
+.rg-tap-target {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Reusable: wraps a wide non-prose block (custom tables, ladder grids,
+   horizontal scrollers) so it never breaks the viewport. Pair with
+   `white-space: nowrap` on inner cells if needed. */
+.rg-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .rg-btn-primary {
   display: inline-flex;
   align-items: center;
@@ -736,4 +767,13 @@ a.admin-btn-primary:hover:not(:disabled) {
 .program-toc-link:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
+}
+
+/* Bump the TOC pill height on mobile so the touch target clears 40px.
+   Stays visually tight on desktop where mouse precision is fine. */
+@media (max-width: 640px) {
+  .program-toc-link {
+    padding: 0.5rem 0.85rem;
+    font-size: 0.875rem;
+  }
 }

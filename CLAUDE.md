@@ -85,6 +85,26 @@ Always use these classes for layout and buttons — do not invent new patterns.
 - New components go in `components/` organized by section
 - Do not add `output: 'export'` to `next.config.ts` — Vercel handles server rendering
 
+## Mobile contract (every new page must pass)
+The site must look right at **375px** (iPhone SE — the floor we design for).
+Before opening a PR for any new page or layout change, verify:
+
+1. **No horizontal overflow at 375px.** Hard fail. Run this in the dev preview against each new/changed route:
+   ```js
+   // Returns the number of overflow pixels. Must be 0.
+   document.documentElement.scrollWidth - document.documentElement.clientWidth
+   ```
+   For a sweep across many routes, use the iframe-based eval pattern from the 2026-05-02 mobile-optimization PR.
+2. **Tap targets ≥44×44px** for primary touch controls (buttons, icon-only links). Inline body links inside paragraphs are exempt per Apple HIG.
+3. **No fixed-column grids** like `repeat(N, 1fr)` where N is data-driven — always use `repeat(auto-fit, minmax(<min>, 1fr))` so columns stack on narrow viewports. (This was the Alliance Explorer bug.)
+4. **Wide tables** must either live inside `.rg-prose` (auto-overflow at <640px) or be wrapped in `.rg-table-scroll`.
+5. **Form inputs** ≥16px font-size to prevent iOS zoom-on-focus.
+
+Reusable mobile primitives in `styles/globals.css`:
+- `.rg-tap-target` — guarantees 44×44 hit area (use on icon-only buttons)
+- `.rg-table-scroll` — overflow-x wrapper for wide non-prose content
+- `.rg-major-section` / `.rg-sub-section` already auto-tighten at <640px (5rem → 3rem)
+
 ## Adding program reference pages (airlines, hotels, etc.)
 When the user wants to author or refresh a per-program reference page at `/programs/[slug]`:
 - Trigger phrase: **"let's do `<program>` next"** (also: "add airline X", "next airline", "start `<program>`", "let's tackle `<program>`")

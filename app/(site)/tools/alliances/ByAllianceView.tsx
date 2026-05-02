@@ -61,7 +61,7 @@ export default function ByAllianceView({
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: `repeat(${alliance.tier_benefits.length}, 1fr)`,
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(11rem, 1fr))',
                   gap: '1rem',
                 }}
               >

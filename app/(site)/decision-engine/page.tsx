@@ -1467,6 +1467,7 @@ export default function DecisionEnginePage() {
               type="button"
               onClick={() => setModalOpen(true)}
               style={{
+                minHeight: '44px',
                 padding: '10px 28px', borderRadius: '999px',
                 border: activeCount > 0 ? 'none' : '2px solid #D4AF37',
                 background: activeCount > 0

@@ -42,7 +42,9 @@ Most airlines have one row representing both the carrier AND its loyalty program
 
 ---
 
-## 0. Prep — does the program row exist?
+## 0. (Skipped) Prep — program row check
+
+We no longer gate on a "Step 0" admin check. Trust that the row exists (most US airlines + alliance members are pre-seeded). If the row turns out to be missing, you'll catch it at admin paste (Step 4 — edit page 404s) or live verification (Step 5 — raw slugs render); resolve with a small seed migration at that point.
 
 - [ ] Open `/admin/programs`, switch to **Airlines** tab, filter by carrier name
 - [ ] If missing, add it via "Add program" form (slug convention: see existing rows — typically carrier name lowercase with underscores, or iconic FFP-brand)
@@ -119,7 +121,11 @@ Brand voice still applies in **Intro** and **Sweet spots**: sassy traveler-frien
 - [ ] BONUS badge appears for any partner with `bonus_active: true`
 - [ ] Sweet spots / quirks render with proper bullet formatting
 - [ ] Footer disclaimer shows "Last reviewed [Month YYYY]"
-- [ ] Mobile width — does the table scroll horizontally cleanly?
+- [ ] **Mobile check at 375px** (iPhone SE) — see CLAUDE.md "Mobile contract":
+  - No horizontal page overflow (run the scrollWidth check in dev preview)
+  - Transfer-partner table scrolls cleanly (lives inside `.rg-prose`, auto-handled)
+  - TOC pills are tappable (≥40px tall on mobile, auto-handled by globals.css)
+  - Any custom grid you added uses `auto-fit, minmax(...)`, never `repeat(N, 1fr)`
 - [ ] Click a transfer-partner name — links to that program's page (or 404s if the partner program isn't seeded)
 
 ### Test writer grounding
