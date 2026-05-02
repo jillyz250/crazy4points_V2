@@ -75,11 +75,11 @@ Everything else is markdown so editorial voice survives.
 - Build for Flying Blue ONLY first; no nav, no index — direct URL only
 - Sanity check the layout, voice, alert integration before exposing
 
-### Phase 3 — Nav + index + scaling (later PR)
-- Header gets "Resources" dropdown → "Airlines"
-- Index page at `/programs?type=airline` lists all airlines
-- Soft public launch with top 4–5 airlines populated
-- Fill in remaining airlines opportunistically
+### Phase 3 — Nav + index + scaling — SHIPPED 2026-05-02
+- Header gets "Resources" dropdown → Airlines, Alliances, Hotels, Credit Cards
+- Auto-link rule: each item links when its category has ≥1 program with `content_updated_at IS NOT NULL`, greys out otherwise. First hotel/card flips its menu item on automatically — no code change needed.
+- Index page at `/programs?type=<category>` lists curated programs only (hides empty rows). Each card: name, alliance badge, transfer-partner count, alert count.
+- Airlines tab includes `type='loyalty_program'` (Atmos) with a "Loyalty Program" sub-label.
 
 ### Later (optional)
 - Reuse template for hotels and credit cards

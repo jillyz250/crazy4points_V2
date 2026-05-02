@@ -201,6 +201,10 @@ export interface Program {
   last_verified: string | null
   /** True for flexible currencies (UR, MR, TY, Cap1, Bilt). False for co-brand or terminal currencies. */
   is_transferable_currency: boolean
+  /** For joint-loyalty carriers (alaska→atmos, air_france→flying_blue):
+   *  slug of the program holding transfer partners and status content.
+   *  Null for standalone programs. */
+  parent_program_slug: string | null
   created_at: string
   updated_at: string
 }
@@ -2018,4 +2022,114 @@ export async function deletePartnerRedemption(
 ): Promise<void> {
   const { error } = await supabase.from('partner_redemptions').delete().eq('id', id)
   if (error) throw error
+}
+
+// ---------------------------------------------------------------------------
+// Resources nav (Phase 3) — counts + index listing
+// ---------------------------------------------------------------------------
+
+export type ResourceCategory = 'airline' | 'hotel' | 'alliance' | 'credit_card'
+
+export type ResourceNavCounts = Record<ResourceCategory, number>
+
+const RESOURCE_TYPE_FILTER: Record<ResourceCategory, ProgramType[]> = {
+  // Atmos sits in `loyalty_program` but reads as an airline FF program; group it.
+  airline: ['airline', 'loyalty_program'],
+  hotel: ['hotel'],
+  alliance: ['alliance'],
+  credit_card: ['credit_card'],
+}
+
+/**
+ * Counts of programs with curated content per Resources-nav category.
+ * Drives the dropdown auto-link: > 0 → linked, 0 → greyed out.
+ */
+export async function getResourceNavCounts(
+  supabase: SupabaseClient
+): Promise<ResourceNavCounts> {
+  const entries = await Promise.all(
+    (Object.keys(RESOURCE_TYPE_FILTER) as ResourceCategory[]).map(async (cat) => {
+      const { count, error } = await supabase
+        .from('programs')
+        .select('id', { count: 'exact', head: true })
+        .in('type', RESOURCE_TYPE_FILTER[cat])
+        .not('content_updated_at', 'is', null)
+      if (error) throw error
+      return [cat, count ?? 0] as const
+    })
+  )
+  return Object.fromEntries(entries) as ResourceNavCounts
+}
+
+export interface ResourceCard {
+  id: string
+  slug: string
+  name: string
+  type: ProgramType
+  alliance: Alliance | null
+  transferPartnerCount: number
+  alertCount: number
+  /**
+   * For carrier rows in a joint loyalty program (e.g. Alaska/Hawaiian → Atmos,
+   * Air France/KLM → Flying Blue): pointer to the loyalty program where
+   * transfer partners and status content live. Null when the program holds
+   * its own currency (Delta, United, AA).
+   */
+  joinedLoyaltyProgram: { slug: string; name: string } | null
+}
+
+/**
+ * List programs to display on /programs?type=<category>. Only returns
+ * programs with curated content. Sorted alphabetically.
+ */
+export async function listProgramsForIndex(
+  supabase: SupabaseClient,
+  category: ResourceCategory
+): Promise<ResourceCard[]> {
+  const { data: programs, error } = await supabase
+    .from('programs')
+    .select('id, slug, name, type, alliance, transfer_partners, parent_program_slug')
+    .in('type', RESOURCE_TYPE_FILTER[category])
+    .not('content_updated_at', 'is', null)
+    .order('name', { ascending: true })
+
+  if (error) throw error
+  const rows = (programs ?? []) as Array<
+    Pick<Program, 'id' | 'slug' | 'name' | 'type' | 'alliance' | 'transfer_partners' | 'parent_program_slug'>
+  >
+  if (rows.length === 0) return []
+
+  // For carrier rows pointing at a joint loyalty program, look up the
+  // loyalty program's display name to render "Loyalty program: Atmos →".
+  const slugsByName = new Map(rows.map((r) => [r.slug, r.name]))
+
+  // Active alert counts per program via alert_programs junction.
+  const { data: links, error: linkError } = await supabase
+    .from('alert_programs')
+    .select('program_id, alerts!inner(status)')
+    .in(
+      'program_id',
+      rows.map((r) => r.id)
+    )
+    .eq('alerts.status', 'published')
+
+  if (linkError) throw linkError
+  const alertCounts = new Map<string, number>()
+  for (const link of (links ?? []) as Array<{ program_id: string }>) {
+    alertCounts.set(link.program_id, (alertCounts.get(link.program_id) ?? 0) + 1)
+  }
+
+  return rows.map((r) => ({
+    id: r.id,
+    slug: r.slug,
+    name: r.name,
+    type: r.type,
+    alliance: r.alliance,
+    transferPartnerCount: Array.isArray(r.transfer_partners) ? r.transfer_partners.length : 0,
+    alertCount: alertCounts.get(r.id) ?? 0,
+    joinedLoyaltyProgram:
+      r.parent_program_slug && slugsByName.has(r.parent_program_slug)
+        ? { slug: r.parent_program_slug, name: slugsByName.get(r.parent_program_slug)! }
+        : null,
+  }))
 }
