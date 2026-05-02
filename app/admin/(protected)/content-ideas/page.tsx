@@ -40,6 +40,7 @@ interface ContentIdeaRow {
   notes: string | null
   created_at: string
   updated_at: string
+  published_at: string | null
   article_body: string | null
   written_by: string | null
   written_at: string | null
@@ -98,7 +99,7 @@ const NEXT_STATUS: Record<IdeaStatus, { label: string; to: IdeaStatus; variant?:
 export default async function ContentIdeasPage({
   searchParams,
 }: {
-  searchParams: Promise<{ type?: string; status?: string; q?: string; program?: string; sortBy?: string }>
+  searchParams: Promise<{ type?: string; status?: string; q?: string; program?: string; sortBy?: string; showExpired?: string }>
 }) {
   const sp = await searchParams
   const typeFilter = sp.type
@@ -109,6 +110,10 @@ export default async function ContentIdeasPage({
   const sortMode: SortMode =
     sp.sortBy === 'newest' ? 'newest' :
     sp.sortBy === 'oldest' ? 'oldest' : 'urgency'
+  // Hide expired by default on Published view (deals are over). Editor can
+  // surface them with showExpired=1. Only relevant on Published — other
+  // statuses don't have "expired" as a meaningful concept.
+  const showExpired = sp.showExpired === '1'
   const supabase = createAdminClient()
 
   // Program filter: get tagged alert_ids AND capture the program name so we
@@ -216,14 +221,28 @@ export default async function ContentIdeasPage({
     }
     return 3
   }
+  const isExpired = (i: ContentIdeaRow): boolean => {
+    const end = i.source_alert?.end_date
+    if (!end) return false
+    const t = new Date(end).getTime()
+    return !isNaN(t) && t < now
+  }
+  // On Published view, "Newest" should mean "most recently published," not
+  // "most recently created." The two diverge whenever an idea sat in the
+  // queue before going live.
+  const usePublishedTime = statusFilter === 'published'
+  const sortKey = (i: ContentIdeaRow): number => {
+    const ts = usePublishedTime
+      ? i.published_at ?? i.created_at
+      : i.created_at
+    return new Date(ts).getTime()
+  }
   const sortIdeas = (list: ContentIdeaRow[]) => {
-    const byCreatedDesc = (a: ContentIdeaRow, b: ContentIdeaRow) =>
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    const byCreatedAsc = (a: ContentIdeaRow, b: ContentIdeaRow) =>
-      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    const byKeyDesc = (a: ContentIdeaRow, b: ContentIdeaRow) => sortKey(b) - sortKey(a)
+    const byKeyAsc = (a: ContentIdeaRow, b: ContentIdeaRow) => sortKey(a) - sortKey(b)
 
-    if (sortMode === 'newest') return [...list].sort(byCreatedDesc)
-    if (sortMode === 'oldest') return [...list].sort(byCreatedAsc)
+    if (sortMode === 'newest') return [...list].sort(byKeyDesc)
+    if (sortMode === 'oldest') return [...list].sort(byKeyAsc)
 
     // Default: urgency-first (deadline tier → score → newest).
     return [...list].sort((a, b) => {
@@ -233,8 +252,15 @@ export default async function ContentIdeasPage({
       const sa = a.source_alert?.computed_score ?? -Infinity
       const sb = b.source_alert?.computed_score ?? -Infinity
       if (sa !== sb) return sb - sa
-      return byCreatedDesc(a, b)
+      return byKeyDesc(a, b)
     })
+  }
+
+  // Hide expired on Published view by default; demote (don't drop) elsewhere
+  // so urgency triage still surfaces them.
+  const expiredCount = ideas.filter(isExpired).length
+  if (statusFilter === 'published' && !showExpired) {
+    ideas = ideas.filter((i) => !isExpired(i))
   }
 
   const newsletter = sortIdeas(ideas.filter((i) => i.type === 'newsletter'))
@@ -314,10 +340,17 @@ export default async function ContentIdeasPage({
         <FilterLink href={buildHref({ q, program: programSlug, type: typeFilter, status: statusFilter })} active={sortMode === 'urgency'} label="Urgency" />
         <FilterLink href={buildHref({ q, program: programSlug, type: typeFilter, status: statusFilter, sortBy: 'newest' })} active={sortMode === 'newest'} label="Newest" />
         <FilterLink href={buildHref({ q, program: programSlug, type: typeFilter, status: statusFilter, sortBy: 'oldest' })} active={sortMode === 'oldest'} label="Oldest first" />
+        {statusFilter === 'published' && expiredCount > 0 && (
+          <FilterLink
+            href={buildHref({ q, program: programSlug, type: typeFilter, status: statusFilter, sortBy: sp.sortBy, showExpired: showExpired ? undefined : '1' })}
+            active={showExpired}
+            label={showExpired ? `Hide expired (${expiredCount})` : `Show expired (${expiredCount})`}
+          />
+        )}
       </div>
 
-      <IdeaSection title="Newsletter Candidates" ideas={newsletter} programs={programs} suggestedProgramByAlertId={suggestedProgramByAlertId} />
-      <IdeaSection title="Blog Ideas" ideas={blog} programs={programs} suggestedProgramByAlertId={suggestedProgramByAlertId} />
+      <IdeaSection title={sectionTitle('newsletter', statusFilter)} ideas={newsletter} programs={programs} suggestedProgramByAlertId={suggestedProgramByAlertId} />
+      <IdeaSection title={sectionTitle('blog', statusFilter)} ideas={blog} programs={programs} suggestedProgramByAlertId={suggestedProgramByAlertId} />
 
       {ideas.length === 0 && (
         <EmptyState title="Nothing here" description="The daily brief adds ideas automatically." />
@@ -326,13 +359,25 @@ export default async function ContentIdeasPage({
   )
 }
 
-function buildHref(parts: { q?: string; program?: string; type?: string; status?: string; sortBy?: string }): string {
+function sectionTitle(type: 'newsletter' | 'blog', statusFilter: string | undefined): string {
+  // The default "Open" view is for triage — call them Candidates / Ideas to
+  // signal "you have decisions to make." Once you filter to a specific
+  // status, the items aren't candidates anymore — they're a list of that
+  // status. Keep it boring and accurate.
+  const base = type === 'newsletter' ? 'Newsletter' : 'Blog'
+  if (!statusFilter) return type === 'newsletter' ? 'Newsletter Candidates' : 'Blog Ideas'
+  const status = statusFilter[0].toUpperCase() + statusFilter.slice(1)
+  return `${status} ${base}`
+}
+
+function buildHref(parts: { q?: string; program?: string; type?: string; status?: string; sortBy?: string; showExpired?: string }): string {
   const search = new URLSearchParams()
   if (parts.q) search.set('q', parts.q)
   if (parts.program) search.set('program', parts.program)
   if (parts.type) search.set('type', parts.type)
   if (parts.status) search.set('status', parts.status)
   if (parts.sortBy) search.set('sortBy', parts.sortBy)
+  if (parts.showExpired) search.set('showExpired', parts.showExpired)
   const qs = search.toString()
   return qs ? `/admin/content-ideas?${qs}` : '/admin/content-ideas'
 }
