@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { BLOG_CATEGORIES } from "@/lib/blog/categories";
+import type { ResourceNavCounts } from "@/utils/supabase/queries";
 
 const toolsItems = [
   { label: "Alliance Explorer", comingSoon: false, href: "/tools/alliances" },
@@ -11,6 +12,13 @@ const toolsItems = [
   { label: "Decision Engine", comingSoon: false, href: "/decision-engine" },
   { label: "Transfer Bonus Tracker", comingSoon: true, href: null },
   { label: "Transfer Partner Map", comingSoon: true, href: null },
+];
+
+const RESOURCE_ITEMS: { label: string; key: keyof ResourceNavCounts; href: string }[] = [
+  { label: "Airlines", key: "airline", href: "/programs?type=airline" },
+  { label: "Alliances", key: "alliance", href: "/programs?type=alliance" },
+  { label: "Hotels", key: "hotel", href: "/programs?type=hotel" },
+  { label: "Credit Cards", key: "credit_card", href: "/programs?type=credit_card" },
 ];
 
 // BLOG dropdown items — mirrors the editorial taxonomy in
@@ -26,12 +34,17 @@ const blogItems: { label: string; href: string }[] = [
 ];
 
 
-export default function Header() {
+export default function Header({
+  resourceCounts,
+}: {
+  resourceCounts: ResourceNavCounts;
+}) {
   const [logoError, setLogoError] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   // Mobile-only — desktop dropdown uses CSS hover via group-hover.
   const [blogOpen, setBlogOpen] = useState(false);
+  const [resourcesOpen, setResourcesOpen] = useState(false);
 
   return (
     <header className="sticky top-0 z-50 border-b border-[var(--color-border-soft)] bg-[var(--color-background)]">
@@ -100,6 +113,46 @@ export default function Header() {
                       </Link>
                     )
                   )}
+                </div>
+              </div>
+            </div>
+
+            {/* Resources dropdown — auto-links per category when count > 0,
+                greys out otherwise. Counts come from the (site) layout. */}
+            <div className="group relative">
+              <button
+                type="button"
+                className="flex items-center gap-1 font-ui !text-xs font-medium uppercase tracking-[0.14em] text-[var(--color-text-secondary)] hover:text-[var(--color-primary)]"
+              >
+                Resources
+                <svg className="h-3 w-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              <div className="invisible absolute left-0 top-full z-50 w-60 pt-2 group-hover:visible">
+                <div className="rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] py-1 shadow-[var(--shadow-soft)]">
+                  {RESOURCE_ITEMS.map((item) => {
+                    const count = resourceCounts[item.key] ?? 0;
+                    return count > 0 ? (
+                      <Link
+                        key={item.label}
+                        href={item.href}
+                        className="flex items-center px-4 py-2.5 font-ui text-xs font-medium text-[var(--color-text-primary)] hover:text-[var(--color-primary)]"
+                      >
+                        {item.label}
+                      </Link>
+                    ) : (
+                      <span
+                        key={item.label}
+                        className="flex items-center justify-between px-4 py-2.5 font-ui text-xs text-[var(--color-text-secondary)] opacity-50"
+                      >
+                        {item.label}
+                        <span className="ml-3 shrink-0 rounded bg-[var(--color-background-soft)] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-secondary)]">
+                          Coming Soon
+                        </span>
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -216,6 +269,42 @@ export default function Header() {
                 </Link>
               )
             )}
+
+          {/* Mobile Resources — same auto-link rule as desktop */}
+          <button
+            type="button"
+            className="flex min-h-[44px] w-full items-center justify-between border-b border-[var(--color-border-soft)] px-6 font-ui text-sm font-medium uppercase tracking-[0.14em] text-[var(--color-text-secondary)]"
+            onClick={() => setResourcesOpen((o) => !o)}
+          >
+            Resources
+            <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d={resourcesOpen ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"} />
+            </svg>
+          </button>
+          {resourcesOpen &&
+            RESOURCE_ITEMS.map((item) => {
+              const count = resourceCounts[item.key] ?? 0;
+              return count > 0 ? (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  onClick={() => setMenuOpen(false)}
+                  className="flex min-h-[44px] items-center border-b border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-8 font-ui text-sm font-medium text-[var(--color-text-primary)] hover:text-[var(--color-primary)]"
+                >
+                  {item.label}
+                </Link>
+              ) : (
+                <span
+                  key={item.label}
+                  className="flex min-h-[44px] items-center justify-between border-b border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-8 font-ui text-sm text-[var(--color-text-secondary)] opacity-50"
+                >
+                  {item.label}
+                  <span className="ml-3 shrink-0 rounded bg-[var(--color-border-soft)] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-secondary)]">
+                    Coming Soon
+                  </span>
+                </span>
+              );
+            })}
 
           {/* Mobile Blog — expandable list like Tools */}
           <button
