@@ -6,6 +6,7 @@ import { getAlertsByProgramSlug, getAllPrograms, getPropertiesForProgram, getCar
 import type { AlertWithPrograms, HotelProperty, CardThatEarnsIn, PartnerRedemptionWithPrograms } from '@/utils/supabase/queries'
 import AlertsGridSB from '@/components/alerts/AlertsGridSB'
 import ExpiredAlertsList from '@/components/alerts/ExpiredAlertsList'
+import { isAlertActive } from '@/lib/alertExpiry'
 import ProgramPageContent from '@/components/programs/ProgramPageContent'
 import ProgramPageHero from '@/components/programs/ProgramPageHero'
 import PropertiesTable from '@/components/programs/PropertiesTable'
@@ -130,15 +131,13 @@ export default async function ProgramPage({
     }
   }
 
-  const now = new Date()
+  const nowMs = Date.now()
 
-  // Split active vs expired
-  const active = allAlerts.filter(
-    (a) => !a.end_date || new Date(a.end_date) > now
-  )
-  const expired = allAlerts.filter(
-    (a) => a.end_date && new Date(a.end_date) <= now
-  )
+  // Split active vs expired. Treats end_date as inclusive end-of-day
+  // (see lib/alertExpiry.ts) — an alert with end_date 2026-05-03 stays
+  // active through the entire May 3 in any timezone.
+  const active = allAlerts.filter((a) => isAlertActive(a.end_date, nowMs))
+  const expired = allAlerts.filter((a) => a.end_date && !isAlertActive(a.end_date, nowMs))
 
   const activeFiltered = q ? active.filter((a) => matchesSearch(a, q)) : active
   const expiredFiltered = q ? expired.filter((a) => matchesSearch(a, q)) : expired

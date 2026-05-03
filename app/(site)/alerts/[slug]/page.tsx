@@ -4,6 +4,7 @@ import type { Metadata } from 'next'
 import { marked } from 'marked'
 import { createClient } from '@/utils/supabase/server'
 import { getAlertBySlug } from '@/utils/supabase/queries'
+import { daysUntilEndOfDay } from '@/lib/alertExpiry'
 
 export const revalidate = 60
 
@@ -63,10 +64,8 @@ function formatDate(iso: string | null): string {
 }
 
 function daysRemaining(endDate: string | null): string | null {
-  if (!endDate) return null
-  const end = new Date(endDate)
-  const now = new Date()
-  const days = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+  const days = daysUntilEndOfDay(endDate)
+  if (days === null) return null
   if (days < 0) return 'Expired'
   if (days === 0) return 'Expires today'
   if (days === 1) return '1 day left'

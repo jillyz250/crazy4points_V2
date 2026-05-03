@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import type { AlertWithPrograms } from '@/utils/supabase/queries'
+import { formatExpiryLabel } from '@/lib/alertExpiry'
 
 const TYPE_LABELS: Record<string, string> = {
   signup_bonus: 'Sign-Up Bonus',
@@ -33,14 +34,7 @@ const TYPE_LABELS: Record<string, string> = {
 }
 
 function formatEndDate(endDate: string | null): string | null {
-  if (!endDate) return null
-  const end = new Date(endDate)
-  const diffDays = Math.ceil((end.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-  if (diffDays < 0) return 'Expired'
-  if (diffDays === 0) return 'Expires today'
-  if (diffDays === 1) return 'Expires tomorrow'
-  if (diffDays <= 7) return `Expires in ${diffDays} days`
-  return `Expires ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+  return formatExpiryLabel(endDate)
 }
 
 export default function AlertHeroCardSB({ alert }: { alert: AlertWithPrograms }) {
