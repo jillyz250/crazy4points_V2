@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import type { SanityAlert } from '@/lib/types'
 import { getProgramName } from '@/lib/programs'
+import { formatExpiryLabel } from '@/lib/alertExpiry'
 
 // Full literal class names — Tailwind v4 JIT does not support string interpolation
 const TYPE_BADGE: Record<string, { label: string; cls: string }> = {
@@ -25,16 +26,7 @@ const TYPE_BADGE: Record<string, { label: string; cls: string }> = {
 
 
 function formatEndDate(endDate: string | null): string | null {
-  if (!endDate) return null
-  const end = new Date(endDate)
-  const now = new Date()
-  const diffDays = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-
-  if (diffDays < 0) return 'Expired'
-  if (diffDays === 0) return 'Expires today'
-  if (diffDays === 1) return 'Expires tomorrow'
-  if (diffDays <= 7) return `Expires in ${diffDays} days`
-  return `Expires ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+  return formatExpiryLabel(endDate)
 }
 
 export default function AlertCard({ alert }: { alert: SanityAlert }) {
