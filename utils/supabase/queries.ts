@@ -49,6 +49,11 @@ export type AlertActionType =
 
 export type ConfidenceLevel = 'low' | 'medium' | 'high'
 
+export interface AlertGap {
+  field: string         // e.g. "booking_window", "travel_window", "exclusions"
+  filled: string | null // null = writer flagged unknown, admin hasn't filled
+}
+
 export type ProgramType =
   | 'credit_card'
   | 'airline'
@@ -108,6 +113,14 @@ export interface Alert {
   computed_score: number | null
   score_last_computed_at: string | null
   history_note: string | null
+  /**
+   * Gap fields flagged by the writer as unknown at draft time, plus any
+   * admin-supplied fills. Shape: { field: string, filled: string | null }[].
+   * Filled entries get fed back into the writer as verified context on
+   * regenerate; unfilled entries stay out of the published description
+   * ("only verified ships").
+   */
+  gaps: AlertGap[] | null
   registration_required: boolean
   created_by: string | null
   approved_by: string | null

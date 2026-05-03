@@ -3,6 +3,7 @@
 import { updateAlertAction } from './actions'
 import type { Alert, Program } from '@/utils/supabase/queries'
 import FactCheckWarnings from '@/components/admin/FactCheckWarnings'
+import AlertGapsBanner from '@/components/admin/AlertGapsBanner'
 import RunAllChecksAlertButton from '@/components/admin/RunAllChecksAlertButton'
 import { Badge } from '@/components/admin/ui/Badge'
 import { ALERT_TYPES, ACTION_TYPES } from '@/lib/admin/alertTypes'
@@ -138,6 +139,7 @@ export default function EditAlertForm({ alert, programs, taggedProgramIds }: Pro
         includeEmpty="— None —"
       />
       <SelectField name="action_type" label="Action Type" required defaultValue={alert.action_type} options={ACTION_TYPES} />
+      <AlertGapsBanner gaps={alert.gaps} />
       <TextAreaField name="description" label="Description" rows={4} defaultValue={alert.description ?? ''} />
       <TextAreaField
         name="why_this_matters"

@@ -58,6 +58,7 @@ export async function createAlertAction(formData: FormData): Promise<ActionResul
       approved_by: null,
       last_verified: null,
       is_hot: false,
+      gaps: [],
     }
 
     const supabase = createAdminClient()

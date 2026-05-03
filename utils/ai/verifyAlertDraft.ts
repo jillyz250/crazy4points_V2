@@ -422,11 +422,15 @@ Classify each of these 11 keys instead:
 For each key in the active group, return one of three values:
 • "present" — the term is meaningfully surfaced in the draft body. Generic
   word matches don't count — must be a real, specific term mention.
-• "acknowledged_missing" — the writer explicitly notes the term is unspecified
-  or doesn't apply ("Annual cap not specified in source", "All accounts targeted").
-  Honest gaps, not silent omissions.
+• "acknowledged_missing" — EITHER the writer explicitly notes the term is
+  unspecified or doesn't apply ("Annual cap not specified in source",
+  "All accounts targeted") OR the field name is in the user payload's
+  "gaps_acknowledged" array (the writer flagged it as unknown for admin
+  to fill — under the only-verified-ships rule the bullet is intentionally
+  omitted from the body, NOT a silent omission).
 • "absent" — the term applies to this kind of offer but the draft is silent on
-  it. THIS is the failure case we want to surface.
+  it AND the field is NOT in gaps_acknowledged. THIS is the silent-omission
+  failure case we want to surface.
 
 When a term genuinely doesn't apply to the alert (e.g. min_nights for a
 transfer bonus that has no stay component), classify as "acknowledged_missing"
@@ -799,6 +803,13 @@ export async function verifyAlertDraft(args: {
    * `loadAllianceContextForPrograms(supabase, programIds)`.
    */
   alliance_context?: string | null
+  /**
+   * Promo-term fields the writer flagged as unknown ("gaps_acknowledged").
+   * Treated as honest gaps by the completeness check — fields in this list
+   * that are absent from the description are NOT chipped as missing.
+   * Silent omissions (absent from description AND from this list) still chip.
+   */
+  gaps_acknowledged?: string[] | null
 }): Promise<VerifyResult | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
@@ -833,6 +844,7 @@ export async function verifyAlertDraft(args: {
       alert_type: args.alert_type ?? null,
       program_reference: args.program_reference ?? null,
       alliance_context: args.alliance_context ?? null,
+      gaps_acknowledged: args.gaps_acknowledged ?? [],
       brand_voice_rubric: BRAND_VOICE,
     },
     null,
