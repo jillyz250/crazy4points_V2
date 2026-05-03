@@ -157,10 +157,31 @@ function formatCost(low: number | null, high: number | null, model: string): str
   if (low === null && high === null) return 'No published rate'
   const fmt = (n: number) =>
     n >= 1000 ? `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}k` : String(n)
-  if (low !== null && high !== null && low !== high) return `${fmt(low)}–${fmt(high)}`
+  if (low !== null && high !== null && low !== high) return `${fmt(low)}-${fmt(high)}`
   const single = low ?? high!
   return model === 'dynamic' ? `~${fmt(single)}` : fmt(single)
 }
+
+function formatCashFee(low: number | null | undefined, high: number | null | undefined): string | null {
+  if (low == null && high == null) return null
+  if (low != null && high != null && low !== high) return `+ $${low}-${high}`
+  const single = low ?? high
+  if (single == null) return null
+  return `+ $${single}`
+}
+
+function feeSeverity(high: number | null | undefined): 'good' | 'fair' | 'bad' | null {
+  if (high == null) return null
+  if (high <= 50) return 'good'
+  if (high <= 200) return 'fair'
+  return 'bad'
+}
+
+const FEE_TONE = {
+  good: { bg: '#D1FAE5', fg: '#065F46' },
+  fair: { bg: '#FEF3C7', fg: '#78350F' },
+  bad:  { bg: '#FECACA', fg: '#7F1D1D' },
+} as const
 
 function allianceTone(a: Alliance | null | undefined): { color: string; label: string } {
   const key = a ?? 'none'
@@ -258,6 +279,20 @@ function CardRow({
           </p>
         )}
 
+        {r.fees_note && (
+          <p
+            style={{
+              margin: '0.375rem 0 0',
+              fontSize: '0.75rem',
+              color: 'var(--color-text-secondary)',
+              lineHeight: 1.45,
+            }}
+          >
+            <strong style={{ color: 'var(--color-text-primary)' }}>Fees:</strong>{' '}
+            {r.fees_note}
+          </p>
+        )}
+
         <div
           style={{
             display: 'flex',
@@ -302,7 +337,7 @@ function CardRow({
         </div>
       </div>
 
-      <div style={{ textAlign: 'right' }}>
+      <div style={{ textAlign: 'right', minWidth: '5rem' }}>
         <div
           style={{
             fontFamily: 'var(--font-display)',
@@ -328,6 +363,29 @@ function CardRow({
             miles
           </div>
         )}
+        {(() => {
+          const cashStr = formatCashFee(r.cash_fee_low, r.cash_fee_high)
+          const sev = feeSeverity(r.cash_fee_high ?? r.cash_fee_low)
+          if (!cashStr) return null
+          const tone = sev ? FEE_TONE[sev] : null
+          return (
+            <div
+              style={{
+                marginTop: '0.375rem',
+                display: 'inline-block',
+                fontFamily: 'var(--font-ui)',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                padding: '0.1875rem 0.5rem',
+                borderRadius: '999px',
+                background: tone?.bg ?? '#F3F4F6',
+                color: tone?.fg ?? 'var(--color-text-primary)',
+              }}
+            >
+              {cashStr}
+            </div>
+          )
+        })()}
       </div>
     </article>
   )

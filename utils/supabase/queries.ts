@@ -1965,6 +1965,10 @@ export interface PartnerRedemption {
   routing_rules: string | null
   teach_caption: string | null
   verified_by: string | null
+  // Cash-fee additions (migration 080).
+  cash_fee_low: number | null
+  cash_fee_high: number | null
+  fees_note: string | null
 }
 
 export type PartnerRedemptionInsert = Omit<
