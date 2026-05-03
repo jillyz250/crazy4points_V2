@@ -349,9 +349,10 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
     }
     if (otherLines.length > 0) {
       blocks.push(
-        `### Other active offers for these programs (stack opportunities)\n\n` +
+        `### Other active offers for these programs (stack or alternative-path candidates)\n\n` +
           otherLines.join('\n') +
-          `\n\n_If one of these naturally complements this alert (e.g. an active transfer bonus into the same program, an award sale on the same airline), weave the stack play into paragraph 2 or 3 — name it, link the slug, and quantify the combined value when you can. Don't force it if the connection is weak._`
+          `\n\n_REDEEM-SIDE alerts (transfer_bonus, award_availability, award_sale, sweet_spot, companion_pass): if one of these naturally complements this alert, weave the stack play into paragraph 2 or 3 — name it, link the slug, and quantify the combined value when you can. Don't force it if the connection is weak._` +
+          `\n\n_EARN-SIDE alerts (paid-fare bonus, dining, portal, status promo, signup, point_purchase): do NOT frame these as stacks — earn and redeem paths are mutually exclusive for one trip. Instead follow the ALTERNATIVE PATH CLOSE rule in the system prompt (one italicized line at the end of the description)._`
       )
     }
     if (blocks.length > 0) activeBonusBlock = blocks.join('\n\n')
