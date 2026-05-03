@@ -81,6 +81,9 @@ export async function createPartnerRedemptionAction(
       routing_rules: null,
       teach_caption: null,
       verified_by: null,
+      cash_fee_low: null,
+      cash_fee_high: null,
+      fees_note: null,
     })
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Failed to create redemption.' }

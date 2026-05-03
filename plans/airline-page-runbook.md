@@ -230,6 +230,68 @@ Programs to cover (already seeded in DB; pages still to author):
 
 ---
 
+---
+
+## Step 6.5 — Ways To Book partner-redemption rows
+
+Trigger: any time you author or refresh an airline page. The Ways To Book tool (`/tools/ways-to-book` + per-airline section on `/programs/[slug]`) is fed by the `partner_redemptions` table. Every airline needs both directions captured.
+
+### Sub-step 6.5a — Verify operator-level partner_access
+
+Pull one current source (TPG / OMAAT / Frequent Miler / AwardWallet dated within 90 days, or program's own site).
+
+Update `programs.partner_access` to one of: `YES_STRONG`, `YES_LIMITED`, `YES_RESTRICTED`, `HYBRID`, `NO`.
+
+Update `programs.partner_access_notes` and `programs.saver_search_url_template` if the operator changed.
+
+### Sub-step 6.5b — Author rows for both directions
+
+For each Tier 1 booking program (and Tier 2 if relevant), determine whether it can book this operator's flights. For each YES, fill the 9-field checklist:
+
+1. Can this program book this operator at all?
+2. Chart type - distance / region / dynamic / partner-fixed
+3. Sample rates - current published chart, captured per (cabin, region/distance) cell
+4. Fuel surcharges - none / low / high. **CRITICAL:** the flag describes the **operator's metal** (not the booker's). BA Avios on AA-operated flights = no surcharges; BA Avios on BA-operated = high surcharges. Don't confuse these.
+5. Bookable online - yes / phone-only / hybrid
+6. Requires saver space - almost always yes for partners; no for own-program dynamic
+7. Non-saver fallback - does the program offer dynamic when saver is gone?
+8. Routing quirks - per-segment pricing, max stopovers, region restrictions
+9. Teach caption - 1-line user-facing tip, brand voice (not AI-shorthand)
+
+Same exercise reverse direction (this airline's miles booking other operators).
+
+### Sub-step 6.5c - Cash fees (mandatory)
+
+For each row, populate `cash_fee_low`, `cash_fee_high`, `fees_note`. Three buckets to research:
+
+1. **Government taxes** - US 9/11 fee (~$5.60/segment), foreign departure taxes, transit fees. Depend on route, not program.
+2. **Fuel surcharges (cash co-pay)** - depend on the OPERATOR's metal:
+   - US carriers (AA, UA, DL, AS, B6, WN): no fuel surcharges
+   - BA on its own metal: $300-700 long-haul Y, $700-1,000 J/F
+   - LH F: $400-1,000
+   - EK premium: $200-400
+   - Most non-US carriers: low to moderate
+3. **Program processing fees** - varies:
+   - Atmos: $12.50 partner-award fee per person/direction
+   - AAdvantage: no booking fees in 2026
+   - Most programs: no extra fee
+
+Use plain-language `fees_note` (e.g., `"$12.50 Atmos partner fee + ~$5.60 US tax. Atmos Summit Card waives the partner fee."`). NOT analyst language ("verify before transferring", "primary-source confidence").
+
+### Sub-step 6.5d - Stamp freshness
+
+Set `last_verified = today` and `verified_by = '<author>-<YYYY-MM-DD>'` on every row touched. Rows older than 180 days flag for re-verification.
+
+### Sub-step 6.5e - ASCII-only in SQL data
+
+Per project convention: no em-dashes, smart quotes, ellipsis, or other non-ASCII characters in `teach_caption`, `notes`, `routing_rules`, `region_or_route`, or `fees_note`. The Supabase paste pipeline mangles them. Use `-` (hyphen) and straight quotes.
+
+### Sub-step 6.5f - Cross-link with affected operators
+
+If this airline is also a Tier 1 booking program (e.g., authoring AA also means AAdvantage as a booker), add its rows pricing OTHER operators in the forward direction.
+
+---
+
 ## Anti-patterns to avoid
 
 - Authoring from memory without a source URL
