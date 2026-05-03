@@ -43,6 +43,7 @@ export type AlertActionType =
   | 'apply'
   | 'status_match'
   | 'buy_miles'
+  | 'activate'
   | 'monitor'
   | 'learn'
 
