@@ -183,13 +183,19 @@ export async function GET(req: NextRequest) {
 
     const finding = findings.find((f) => f.headline === item.headline)
 
+    // Snapshot of recent ACTIVE alerts for this program. Renders as the
+    // "Historical Context" box on the public alert page. Filtered to alerts
+    // whose end_date is in the future (or null = evergreen) so we don't show
+    // expired deals as "context" and mislead the reader. Sorted newest-first.
     let historyNote: string | null = null
     if (primaryProgramId) {
+      const today = new Date().toISOString()
       const { data: recent } = await supabase
         .from('alerts')
-        .select('title, published_at, type')
+        .select('title, published_at, type, end_date')
         .eq('status', 'published')
         .eq('primary_program_id', primaryProgramId)
+        .or(`end_date.gte.${today},end_date.is.null`)
         .order('published_at', { ascending: false })
         .limit(3)
 
