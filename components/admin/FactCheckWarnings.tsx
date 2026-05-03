@@ -111,8 +111,9 @@ function MissingPromoTermsChip({
         ))}
       </ul>
       <p style={{ margin: '0.4rem 0 0 0', fontSize: '0.75rem', fontStyle: 'italic' }}>
-        Either revise the draft to surface these from the source, or acknowledge with
-        &ldquo;not specified in source&rdquo; in the prose, then mark this verified.
+        These fields look silently omitted (not in the description, not flagged
+        by the writer in gaps_acknowledged). Either fill them via the gap-fill
+        banner above the description and regenerate, or mark verified to dismiss.
       </p>
     </li>
   )
