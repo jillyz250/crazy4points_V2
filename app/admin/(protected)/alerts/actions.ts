@@ -275,41 +275,86 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
     })
     .filter((s): s is string => !!s)
 
-  // Phase 6a — surface currently-active transfer-bonus alerts that involve any
-  // of the tagged programs. Sonnet uses these to lead the call-to-action with
-  // a "use the live bonus" angle when one exists, and to mention all 1:1
-  // partners (so Bilt/Capital One holders also see the alert is for them).
+  // Phase 6a — surface currently-active alerts that involve any of the tagged
+  // programs, split into two blocks:
+  //   1. Active transfer bonuses (highest stack value — readers can use the
+  //      bonus to amplify any other play)
+  //   2. Other active offers — LTO / award_availability / status_promo /
+  //      point_purchase / award_sale (the "kick-ass alert combine" path —
+  //      e.g. Flying Blue 10K bonus + Chase→FB 20% transfer bonus stacks)
+  //
+  // The split lets the writer prompt give clear guidance: lead with the
+  // transfer bonus when present, weave the other active offer as a stack
+  // opportunity. Excludes the current alert under regeneration so the writer
+  // doesn't try to reference itself.
   let activeBonusBlock = ''
   if (intelPrograms.length > 0) {
     const programIds = intelPrograms.map((p) => p.id)
     const today = new Date().toISOString()
+
+    // Common selector — same shape used by both queries.
+    const SELECT_COLS = 'id, slug, title, end_date, type, primary_program_id, alert_programs!inner(program_id)'
+    const byId = new Map(intelPrograms.map((p) => [p.id, p.name]))
+    const formatRow = (row: Record<string, unknown>): string => {
+      const programName = (row.primary_program_id && byId.get(row.primary_program_id as string)) ?? '?'
+      const ends = row.end_date
+        ? ` (ends ${new Date(row.end_date as string).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})`
+        : ''
+      const slug = (row.slug as string | null) ?? null
+      const slugRef = slug ? ` [/alerts/${slug}]` : ''
+      const typeTag = row.type ? ` — ${row.type}` : ''
+      return `- ${row.title}${ends} — primary program: ${programName}${typeTag}${slugRef}`
+    }
+
+    // Block 1 — active transfer bonuses
     const { data: bonusAlertRows } = await supabase
       .from('alerts')
-      .select('id, slug, title, end_date, primary_program_id, alert_programs!inner(program_id)')
+      .select(SELECT_COLS)
       .eq('type', 'transfer_bonus')
       .eq('status', 'published')
+      .neq('id', alertId)
       .or(`end_date.gte.${today},end_date.is.null`)
       .in('alert_programs.program_id', programIds)
       .order('end_date', { ascending: true, nullsFirst: false })
       .limit(8)
-    const byId = new Map(intelPrograms.map((p) => [p.id, p.name]))
-    const lines = (bonusAlertRows ?? [])
-      .map((row) => {
-        const programName = (row.primary_program_id && byId.get(row.primary_program_id as string)) ?? '?'
-        const ends = row.end_date
-          ? ` (ends ${new Date(row.end_date as string).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})`
-          : ''
-        const slug = (row.slug as string | null) ?? null
-        const slugRef = slug ? ` [/alerts/${slug}]` : ''
-        return `- ${row.title}${ends} — primary program: ${programName}${slugRef}`
-      })
-      .filter(Boolean)
-    if (lines.length > 0) {
-      activeBonusBlock =
+    const bonusLines = (bonusAlertRows ?? []).map((r) => formatRow(r as Record<string, unknown>))
+
+    // Block 2 — other active stack-eligible offers
+    const STACKABLE_TYPES = [
+      'limited_time_offer',
+      'award_availability',
+      'status_promo',
+      'point_purchase',
+      'award_sale',
+    ]
+    const { data: otherAlertRows } = await supabase
+      .from('alerts')
+      .select(SELECT_COLS)
+      .in('type', STACKABLE_TYPES)
+      .eq('status', 'published')
+      .neq('id', alertId)
+      .or(`end_date.gte.${today},end_date.is.null`)
+      .in('alert_programs.program_id', programIds)
+      .order('end_date', { ascending: true, nullsFirst: false })
+      .limit(6)
+    const otherLines = (otherAlertRows ?? []).map((r) => formatRow(r as Record<string, unknown>))
+
+    const blocks: string[] = []
+    if (bonusLines.length > 0) {
+      blocks.push(
         `### Active transfer bonuses involving these programs\n\n` +
-        lines.join('\n') +
-        `\n\n_When relevant, lead the call-to-action with one of these (link the slug)._`
+          bonusLines.join('\n') +
+          `\n\n_When relevant, lead the call-to-action with one of these (link the slug)._`
+      )
     }
+    if (otherLines.length > 0) {
+      blocks.push(
+        `### Other active offers for these programs (stack opportunities)\n\n` +
+          otherLines.join('\n') +
+          `\n\n_If one of these naturally complements this alert (e.g. an active transfer bonus into the same program, an award sale on the same airline), weave the stack play into paragraph 2 or 3 — name it, link the slug, and quantify the combined value when you can. Don't force it if the connection is weak._`
+      )
+    }
+    if (blocks.length > 0) activeBonusBlock = blocks.join('\n\n')
   }
 
   const ctxParts = programSections.length ? [programSections.join('\n\n---\n\n')] : []
