@@ -226,6 +226,17 @@ export interface Program {
    *  slug of the program holding transfer partners and status content.
    *  Null for standalone programs. */
   parent_program_slug: string | null
+  /** Operator-level partner saver-access tier. Drives the Ways To Book section. */
+  partner_access:
+    | 'YES_STRONG'
+    | 'YES_LIMITED'
+    | 'YES_RESTRICTED'
+    | 'HYBRID'
+    | 'NO'
+    | null
+  partner_access_notes: string | null
+  /** Deep-link template for the operator's award search ({origin}/{destination}/{date}). */
+  saver_search_url_template: string | null
   created_at: string
   updated_at: string
 }
@@ -1928,6 +1939,8 @@ export type RedemptionCabin = 'Economy' | 'Premium Economy' | 'Business' | 'Firs
 export type PricingModel = 'fixed' | 'dynamic' | 'hybrid'
 export type RedemptionConfidence = 'HIGH' | 'MED' | 'LOW'
 
+export type FuelSurchargeLevel = 'none' | 'low' | 'high'
+
 export interface PartnerRedemption {
   id: string
   created_at: string
@@ -1943,6 +1956,15 @@ export interface PartnerRedemption {
   confidence: RedemptionConfidence
   last_verified: string | null
   is_active: boolean
+  // Ways To Book additions (migration 070).
+  fuel_surcharges: FuelSurchargeLevel | null
+  bookable_online: boolean | null
+  booking_channel: string | null
+  requires_saver_space: boolean | null
+  non_saver_fallback: string | null
+  routing_rules: string | null
+  teach_caption: string | null
+  verified_by: string | null
 }
 
 export type PartnerRedemptionInsert = Omit<
