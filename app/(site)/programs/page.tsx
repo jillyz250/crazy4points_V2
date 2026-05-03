@@ -5,6 +5,7 @@ import { createAdminClient } from '@/utils/supabase/server'
 import { listProgramsForIndex, getResourceNavCounts } from '@/utils/supabase/queries'
 import type { ResourceCategory, ResourceCard, Alliance } from '@/utils/supabase/queries'
 import { ALLIANCE_LABEL, ALLIANCE_BADGE_COLOR } from '@/lib/alliance'
+import ProgramsListWithSearch from '@/components/programs/ProgramsListWithSearch'
 
 export const revalidate = 60
 
@@ -137,13 +138,7 @@ export default async function ProgramsIndexPage({
           </p>
         </div>
       ) : (
-        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {programs.map((p) => (
-            <li key={p.id}>
-              <ProgramCard program={p} category={category} cta={meta.cta} />
-            </li>
-          ))}
-        </ul>
+        <ProgramsListWithSearch programs={programs} category={category} cta={meta.cta} />
       )}
     </div>
   )

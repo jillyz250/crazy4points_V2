@@ -1,6 +1,8 @@
 'use server'
 
 import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { createAdminClient } from '@/utils/supabase/server'
 import {
   updateAlert,
@@ -11,6 +13,34 @@ import {
 import type { AlertUpdate, AlertType, AlertStatus, AlertActionType, AlertGap, ConfidenceLevel } from '@/utils/supabase/queries'
 import { logPublishEvent } from '@/utils/ai/logPublishEvent'
 import { actionError, isRedirectError, type ActionResult } from '@/lib/admin/actionResult'
+
+// Mirror of revalidateAlertPaths in ../actions.ts. Inline here to avoid a
+// circular import (this file is imported by ../actions.ts indirectly).
+async function revalidatePublicAlertPaths(
+  supabase: SupabaseClient,
+  alertId: string,
+  alertSlug: string | null,
+) {
+  revalidatePath('/alerts')
+  if (alertSlug) revalidatePath(`/alerts/${alertSlug}`)
+  const { data: row } = await supabase
+    .from('alerts')
+    .select('primary_program_id, alert_programs(program_id)')
+    .eq('id', alertId)
+    .maybeSingle()
+  const programIds = new Set<string>()
+  if (row?.primary_program_id) programIds.add(row.primary_program_id as string)
+  const junction = (row?.alert_programs ?? []) as { program_id: string }[]
+  for (const j of junction) if (j.program_id) programIds.add(j.program_id)
+  if (programIds.size === 0) return
+  const { data: programs } = await supabase
+    .from('programs')
+    .select('slug')
+    .in('id', Array.from(programIds))
+  for (const p of programs ?? []) {
+    if (p.slug) revalidatePath(`/programs/${p.slug}`)
+  }
+}
 
 export async function updateAlertAction(
   id: string,
@@ -104,6 +134,11 @@ export async function updateAlertAction(
     if (status === 'published') {
       await logPublishEvent(alert).catch(() => {})
     }
+
+    // Revalidate the public-facing pages this alert lives on so the /alerts
+    // index and per-program /programs/[slug] pages reflect the change
+    // immediately. Otherwise ISR holds the cached snapshot for up to 60s.
+    await revalidatePublicAlertPaths(supabase, id, alert.slug)
   } catch (err) {
     if (isRedirectError(err)) throw err
     return actionError(err)
