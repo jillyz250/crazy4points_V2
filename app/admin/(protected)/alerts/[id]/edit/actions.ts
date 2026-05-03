@@ -27,6 +27,8 @@ export async function updateAlertAction(
     const end_date = (formData.get('end_date') as string) || null
     const action_type = formData.get('action_type') as AlertActionType
     const history_note = (formData.get('history_note') as string) || null
+    const verified_terms_raw = (formData.get('verified_terms') as string)?.trim() || ''
+    const verified_terms = verified_terms_raw.length > 0 ? verified_terms_raw : null
     const why_this_matters = (formData.get('why_this_matters') as string)?.trim() || null
     const override_reason = (formData.get('override_reason') as string)?.trim() || null
     const confidence_level = formData.get('confidence_level') as ConfidenceLevel
@@ -82,6 +84,7 @@ export async function updateAlertAction(
       confidence_level,
       is_hot,
       gaps: mergedGaps,
+      verified_terms,
     }
     const alert = await updateAlert(supabase, id, alertData)
 
