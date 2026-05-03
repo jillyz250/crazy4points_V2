@@ -8,7 +8,7 @@ import {
   getAlertById,
   incrementSourceApproved,
 } from '@/utils/supabase/queries'
-import type { AlertUpdate, AlertType, AlertStatus, AlertActionType, ConfidenceLevel } from '@/utils/supabase/queries'
+import type { AlertUpdate, AlertType, AlertStatus, AlertActionType, AlertGap, ConfidenceLevel } from '@/utils/supabase/queries'
 import { logPublishEvent } from '@/utils/ai/logPublishEvent'
 import { actionError, isRedirectError, type ActionResult } from '@/lib/admin/actionResult'
 
@@ -34,6 +34,33 @@ export async function updateAlertAction(
     const is_hot = formData.get('is_hot') === 'on'
     const existing_published_at = (formData.get('existing_published_at') as string) || null
 
+    // Gap fills come in as gap__<field> textarea entries from AlertGapsBanner.
+    // Merge with existing alert.gaps so we keep the writer's flagged set;
+    // admin's blank values mean "still unfilled" (filled stays null).
+    const gapEntries: { field: string; filled: string | null }[] = []
+    for (const [key, value] of formData.entries()) {
+      if (!key.startsWith('gap__')) continue
+      const field = key.slice('gap__'.length)
+      if (!field) continue
+      const v = typeof value === 'string' ? value.trim() : ''
+      gapEntries.push({ field, filled: v.length > 0 ? v : null })
+    }
+
+    const supabase = createAdminClient()
+    const prev = await getAlertById(supabase, id)
+
+    // Preserve any gaps the writer flagged that aren't in the form (defensive
+    // — under normal flow every flagged gap renders an input, but if the
+    // banner ever short-circuits we don't want to silently drop the flag).
+    const existingGaps: AlertGap[] = Array.isArray(prev.gaps)
+      ? (prev.gaps as AlertGap[]).filter((g) => g && typeof g.field === 'string')
+      : []
+    const submittedFields = new Set(gapEntries.map((g) => g.field))
+    const mergedGaps: AlertGap[] = [
+      ...gapEntries,
+      ...existingGaps.filter((g) => !submittedFields.has(g.field)),
+    ]
+
     const alertData: AlertUpdate = {
       title,
       summary,
@@ -54,10 +81,8 @@ export async function updateAlertAction(
       source_url,
       confidence_level,
       is_hot,
+      gaps: mergedGaps,
     }
-
-    const supabase = createAdminClient()
-    const prev = await getAlertById(supabase, id)
     const alert = await updateAlert(supabase, id, alertData)
 
     const taggedIds = (formData.getAll('tagged_program_ids') as string[]).filter(Boolean)

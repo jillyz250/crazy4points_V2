@@ -12,7 +12,7 @@ import {
   logSystemError,
   loadAllianceContextForPrograms,
 } from '@/utils/supabase/queries'
-import type { Alert, AlertStatus } from '@/utils/supabase/queries'
+import type { Alert, AlertStatus, AlertGap } from '@/utils/supabase/queries'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { writeAlertDraft } from '@/utils/ai/writeAlertDraft'
 import { editAlertDraft } from '@/utils/ai/editAlertDraft'
@@ -171,7 +171,7 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
 
   const { data: alert, error: alertErr } = await supabase
     .from('alerts')
-    .select('id, title, summary, description, source_url, source_intel_id, revision_log')
+    .select('id, title, summary, description, source_url, source_intel_id, revision_log, gaps')
     .eq('id', alertId)
     .maybeSingle()
   if (alertErr || !alert) return { ok: false, error: alertErr?.message ?? 'alert not found' }
@@ -358,8 +358,30 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
     if (blocks.length > 0) activeBonusBlock = blocks.join('\n\n')
   }
 
+  // Verified gap fields — admin-supplied values for fields the writer
+  // previously flagged as unknown. Feeds back to the writer so it can
+  // surface them as real bullets in the new draft. Unfilled gaps stay
+  // out of the body entirely (only-verified-ships rule).
+  const existingGaps: AlertGap[] = Array.isArray(alert.gaps)
+    ? (alert.gaps as AlertGap[]).filter(
+        (g) => g && typeof g === 'object' && typeof g.field === 'string'
+      )
+    : []
+  const filledGaps = existingGaps.filter(
+    (g) => typeof g.filled === 'string' && g.filled.trim().length > 0
+  )
+  let verifiedGapBlock = ''
+  if (filledGaps.length > 0) {
+    const lines = filledGaps.map((g) => `- **${g.field}:** ${g.filled!.trim()}`)
+    verifiedGapBlock =
+      `### Verified gap fields (admin-supplied — include as bullets)\n\n` +
+      lines.join('\n') +
+      `\n\n_These were flagged as unknown on a prior draft; admin filled them in. Surface each as a real bullet in the "What qualifies" block. Remove from gaps_acknowledged in your output._`
+  }
+
   const ctxParts = programSections.length ? [programSections.join('\n\n---\n\n')] : []
   if (activeBonusBlock) ctxParts.push(activeBonusBlock)
+  if (verifiedGapBlock) ctxParts.push(verifiedGapBlock)
   const extra_context = ctxParts.length > 0 ? ctxParts.join('\n\n---\n\n') : null
   const faq_program_slugs = intelPrograms
     .filter((p) => buildProgramContext(p) !== null)
@@ -433,6 +455,20 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
     faq_program_slugs,
   }
 
+  // Merge writer-flagged gaps with any existing admin fills.
+  // - Field newly flagged → add as { field, filled: null }
+  // - Field still flagged AND previously filled → preserve fill (rare; writer
+  //   should have absorbed it via the verified-gap-fields block, but if the
+  //   writer re-flags despite the fill we keep admin's input around)
+  // - Field no longer flagged → drop entirely (writer either filled it from
+  //   source or admin's fill was absorbed)
+  const flaggedNow = new Set(draft.gaps_acknowledged)
+  const filledLookup = new Map(existingGaps.map((g) => [g.field, g.filled]))
+  const mergedGaps: AlertGap[] = Array.from(flaggedNow).map((field) => ({
+    field,
+    filled: filledLookup.get(field) ?? null,
+  }))
+
   try {
     await updateAlert(supabase, alertId, {
       title: draft.title,
@@ -443,6 +479,7 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
       start_date: draft.start_date,
       end_date: draft.end_date,
       revision_log: [...existingLog, regenEntry],
+      gaps: mergedGaps,
     })
     await setAlertPrograms(supabase, alertId, secondaryIds)
   } catch (err) {
@@ -463,6 +500,7 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
       alert_type: intel.alert_type,
       program_reference: programReference,
       alliance_context,
+      gaps_acknowledged: draft.gaps_acknowledged,
     })
     if (verify) {
       finalClaims = verify.claims
@@ -526,6 +564,7 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
             alert_type: intel.alert_type,
             program_reference: reverifyProgramReference,
             alliance_context,
+            gaps_acknowledged: draft.gaps_acknowledged,
           })
           if (!reverify) break
           let reverified = reverify.claims

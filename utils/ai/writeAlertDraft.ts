@@ -40,6 +40,19 @@ export interface AlertDraft {
   secondary_program_slugs: string[]
   start_date: string | null // ISO or null
   end_date: string | null   // ISO or null
+  /**
+   * Promo-term fields the writer chose NOT to surface in the description
+   * because the source doesn't disclose them. Machine-readable, never shown
+   * to readers. Admin sees these in a banner and can fill them; filled
+   * values get fed back to the writer on the next regenerate.
+   *
+   * Field names should match PROMO_TERM_LABELS keys when applicable
+   * (e.g. "booking_window", "travel_window", "min_spend",
+   * "min_nights_or_transactions", "status_tier", "registration",
+   * "exclusions", or buy-miles keys like "annual_cap", "posting_timeline",
+   * etc.). Free-form names allowed if a field doesn't fit the catalog.
+   */
+  gaps_acknowledged: string[]
 }
 
 const SYSTEM_PROMPT = `You are the staff writer for crazy4points, a premium award travel intelligence site.
@@ -375,14 +388,30 @@ Promo readers lose money when qualifying terms are vague. For these
 alert types, your description MUST surface every applicable term
 below AND use a hybrid format that's both scannable AND voiced.
 
-GAP DISCIPLINE (overrides silent-omit):
-If a field in the type's checklist applies to this kind of offer
-but the source doesn't state it, you MUST still surface the field
-explicitly. Use a bullet that says "Not specified in source — verify
-on the offer page" rather than silently dropping the bullet. The
-fact-checker treats silently-omitted fields as a completeness failure.
-Fields that genuinely don't apply to this offer shape can be
-omitted (e.g. min_nights for a transfer bonus).
+GAP DISCIPLINE (only-verified-ships rule):
+If a field in the type's checklist applies to this kind of offer but
+the source doesn't state it, OMIT the bullet from the description AND
+list the field name in gaps_acknowledged. The admin will see a banner
+listing your gaps and either fill them (which feeds back into the next
+regenerate) or leave them empty (in which case they stay out of the
+published article — only verified data ships).
+
+DO NOT write "Not specified — verify on the offer page" or any similar
+placeholder bullet. Readers should never see a bullet whose value is
+"unconfirmed" / "verify on…" / "TBD" / "see source" — those are noise.
+Either surface a verified value, or omit the bullet entirely.
+
+Fields that genuinely don't apply to this offer shape are NOT gaps —
+just omit them and don't list in gaps_acknowledged. Example: min_nights
+for a transfer_bonus that has no stay component is a non-applicable
+field, not a gap.
+
+VERIFIED GAP FIELDS (regenerate context):
+If extra_context contains a "Verified gap fields" block, those are
+admin-supplied values for fields you previously flagged. INCLUDE them
+as real bullets in the "What qualifies" block — they're verified data
+now. Remove them from gaps_acknowledged in your output (no longer
+unknown). Order them per the standard "reader-impact" sort.
 
 ────────────────────────────────────────
 HYBRID FORMAT — required structure for promo descriptions
@@ -423,9 +452,10 @@ THREE PARTS in this exact order:
      • Order bullets by reader-impact: status tier first if required,
        then booking window, then spend, then stay length, then travel
        window, then registration, then exclusions.
-     • If a field is NOT in raw_text or extra_context, write its
-       value as "Not specified — verify on the offer page" or omit
-       the bullet. Don't pad. Don't invent.
+     • If a field is NOT in raw_text or extra_context, OMIT the bullet
+       AND list the field name in gaps_acknowledged. Don't pad with
+       placeholder values like "Not specified" or "TBD" — only verified
+       data ships in the description. See GAP DISCIPLINE above.
 
   3. CLOSE paragraph (prose, voicey)
      • Strategic angle, urgency, or gotcha that didn't fit in bullets.
@@ -741,8 +771,12 @@ SCHEMA
   "primary_program_slug": "<slug from PROGRAM LIST, or null>",
   "secondary_program_slugs": ["<slug>", ...],
   "start_date": "<ISO 8601 or null>",
-  "end_date": "<ISO 8601 or null>"
-}`
+  "end_date": "<ISO 8601 or null>",
+  "gaps_acknowledged": ["<field_name>", ...]
+}
+
+gaps_acknowledged is required (use [] if no gaps). See GAP DISCIPLINE
+for what to list.`
 
 function extractJson(text: string): string {
   const trimmed = text.trim()
@@ -778,6 +812,21 @@ function validate(draft: unknown, programs: WriteDraftProgram[]): AlertDraft {
   if (d.description === undefined) d.description = null
   if (d.start_date === undefined) d.start_date = null
   if (d.end_date === undefined) d.end_date = null
+
+  // Normalize gaps_acknowledged — array of non-empty strings, deduped.
+  if (!Array.isArray(d.gaps_acknowledged)) {
+    d.gaps_acknowledged = []
+  } else {
+    const seen = new Set<string>()
+    d.gaps_acknowledged = d.gaps_acknowledged
+      .filter((g): g is string => typeof g === 'string' && g.trim().length > 0)
+      .map((g) => g.trim())
+      .filter((g) => {
+        if (seen.has(g)) return false
+        seen.add(g)
+        return true
+      })
+  }
 
   return d
 }
