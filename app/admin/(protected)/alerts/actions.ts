@@ -35,6 +35,44 @@ function errMessage(err: unknown): string {
   }
 }
 
+// Revalidate the public-facing pages an alert lives on. Used by every flow
+// that flips an alert's status (publish, approve, bulk approve, bulk reject,
+// edit). Without this, the /alerts index and the per-program /programs/[slug]
+// pages keep serving their cached snapshot for up to `revalidate = 60`
+// seconds and a fresh publish doesn't show up.
+//
+// We revalidate:
+//   • /alerts index
+//   • /alerts/[slug] for the alert itself
+//   • /programs/[slug] for the primary program
+//   • /programs/[slug] for every program tagged via alert_programs junction
+async function revalidateAlertPaths(
+  supabase: SupabaseClient,
+  alertId: string,
+  alertSlug: string | null,
+) {
+  revalidatePath('/alerts')
+  if (alertSlug) revalidatePath(`/alerts/${alertSlug}`)
+  // Pull the primary program + every junction-tagged program in one shot.
+  const { data: row } = await supabase
+    .from('alerts')
+    .select('primary_program_id, alert_programs(program_id)')
+    .eq('id', alertId)
+    .maybeSingle()
+  const programIds = new Set<string>()
+  if (row?.primary_program_id) programIds.add(row.primary_program_id as string)
+  const junction = (row?.alert_programs ?? []) as { program_id: string }[]
+  for (const j of junction) if (j.program_id) programIds.add(j.program_id)
+  if (programIds.size === 0) return
+  const { data: programs } = await supabase
+    .from('programs')
+    .select('slug')
+    .in('id', Array.from(programIds))
+  for (const p of programs ?? []) {
+    if (p.slug) revalidatePath(`/programs/${p.slug}`)
+  }
+}
+
 // Increment the source-approved counter whenever an alert from intel
 // transitions into a published/approved state — regardless of which button
 // triggered the transition. Keeps source approval metrics honest.
@@ -79,6 +117,7 @@ export async function publishAlertAction(id: string) {
     decided_at: now,
   })
   await trackSourceApprovalIfNeeded(supabase, prev, 'published')
+  await revalidateAlertPaths(supabase, id, prev.slug)
   redirect('/admin/alerts')
 }
 
@@ -93,6 +132,7 @@ export async function approveIntelAlertAction(id: string) {
     decided_at: now,
   })
   await trackSourceApprovalIfNeeded(supabase, prev, 'published')
+  await revalidateAlertPaths(supabase, id, prev.slug)
   redirect('/admin/alerts')
 }
 
@@ -111,6 +151,7 @@ export async function bulkApproveIntelAlertsAction(ids: string[]) {
       decided_at: now,
     })
     await trackSourceApprovalIfNeeded(supabase, prev, 'published')
+    await revalidateAlertPaths(supabase, id, prev.slug)
   }
   revalidatePath('/admin/alerts')
   redirect('/admin/alerts')
