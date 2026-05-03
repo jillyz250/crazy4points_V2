@@ -120,9 +120,9 @@ function mapRouteToBuckets(text: string): RouteBucket[] {
 }
 
 const SURCHARGE_TONE = {
-  none: { label: 'No surcharges', bg: '#D1FAE5', fg: '#065F46' },
-  low: { label: 'Low surcharges', bg: '#FEF3C7', fg: '#78350F' },
-  high: { label: 'High surcharges', bg: '#FECACA', fg: '#7F1D1D' },
+  none: { label: 'No fuel surcharges', bg: '#D1FAE5', fg: '#065F46' },
+  low: { label: 'Low fuel surcharges', bg: '#FEF3C7', fg: '#78350F' },
+  high: { label: 'High fuel surcharges', bg: '#FECACA', fg: '#7F1D1D' },
 } as const
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
