@@ -280,6 +280,7 @@ export default async function ProgramPage({
             Forward: this program as currency. Reverse: this program as operating carrier. */}
         <PartnerRedemptionsSection
           programName={program.name}
+          program={program}
           asCurrency={redemptionsAsCurrency}
           asOperatingCarrier={redemptionsAsOperating}
         />

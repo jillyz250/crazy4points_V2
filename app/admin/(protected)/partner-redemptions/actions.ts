@@ -71,6 +71,16 @@ export async function createPartnerRedemptionAction(
       confidence,
       last_verified,
       is_active: true,
+      // Ways To Book metadata fields — left null at admin-form create time;
+      // populated via migrations or future admin UI extension.
+      fuel_surcharges: null,
+      bookable_online: null,
+      booking_channel: null,
+      requires_saver_space: null,
+      non_saver_fallback: null,
+      routing_rules: null,
+      teach_caption: null,
+      verified_by: null,
     })
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Failed to create redemption.' }
