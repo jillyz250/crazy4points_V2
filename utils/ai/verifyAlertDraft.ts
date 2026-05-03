@@ -321,6 +321,30 @@ the same → supported = false). If you can't verify the math from source,
 mark supported = "unsupported".
 
 ═══════════════════════════════════════════════════════════
+VERIFIED_TERMS (admin-pasted authoritative T&Cs, optional)
+═══════════════════════════════════════════════════════════
+
+The user payload may include "verified_terms" — full text of the
+program's OWN published terms (T&Cs, press release, official FAQ),
+pasted by the admin on the alert edit page. This is the highest-
+authority source in the payload — TRUSTED MORE THAN SOURCE_TEXT.
+
+When verified_terms is provided, treat it as ground truth:
+
+• A draft claim that is supported by verified_terms is "supported = true",
+  even if SOURCE_TEXT doesn't mention it. Use a quoted excerpt from
+  verified_terms (under 200 chars) as source_excerpt, prefixed with "VT: ".
+• A draft claim that contradicts verified_terms is "supported = false",
+  severity = "high", source_excerpt = null. Verified terms win on conflict.
+• A draft claim that's neither in verified_terms nor SOURCE_TEXT is
+  "supported = false" as usual.
+• promo_terms_status: any field whose value comes from verified_terms is
+  "present" (not "acknowledged_missing").
+
+When verified_terms is absent, empty, or whitespace-only, ignore this
+section and fall back to SOURCE_TEXT grounding.
+
+═══════════════════════════════════════════════════════════
 PROGRAM_REFERENCE (authoritative property/category data, optional)
 ═══════════════════════════════════════════════════════════
 
@@ -810,6 +834,13 @@ export async function verifyAlertDraft(args: {
    * Silent omissions (absent from description AND from this list) still chip.
    */
   gaps_acknowledged?: string[] | null
+  /**
+   * Admin-pasted authoritative source text (full T&Cs, press release, etc.)
+   * from alerts.verified_terms. Treated as ground truth alongside raw_text —
+   * higher authority than raw_text on conflict. Claims grounded in this
+   * block are marked supported with a "VT:" excerpt prefix.
+   */
+  verified_terms?: string | null
 }): Promise<VerifyResult | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
@@ -845,6 +876,7 @@ export async function verifyAlertDraft(args: {
       program_reference: args.program_reference ?? null,
       alliance_context: args.alliance_context ?? null,
       gaps_acknowledged: args.gaps_acknowledged ?? [],
+      verified_terms: args.verified_terms ?? null,
       brand_voice_rubric: BRAND_VOICE,
     },
     null,

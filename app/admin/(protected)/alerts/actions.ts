@@ -516,6 +516,7 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
       program_reference: programReference,
       alliance_context,
       gaps_acknowledged: draft.gaps_acknowledged,
+      verified_terms: verifiedTermsRaw,
     })
     if (verify) {
       finalClaims = verify.claims
