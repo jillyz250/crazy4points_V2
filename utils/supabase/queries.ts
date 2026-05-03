@@ -1974,8 +1974,8 @@ export type PartnerRedemptionInsert = Omit<
 
 /** Joined shape used by admin list and public surfaces. */
 export interface PartnerRedemptionWithPrograms extends PartnerRedemption {
-  currency_program: { slug: string; name: string } | null
-  operating_carrier: { slug: string; name: string } | null
+  currency_program: { slug: string; name: string; alliance: Alliance | null } | null
+  operating_carrier: { slug: string; name: string; alliance: Alliance | null } | null
 }
 
 export async function getAllPartnerRedemptions(
@@ -1985,8 +1985,8 @@ export async function getAllPartnerRedemptions(
     .from('partner_redemptions')
     .select(`
       *,
-      currency_program:programs!partner_redemptions_currency_program_id_fkey(slug, name),
-      operating_carrier:programs!partner_redemptions_operating_carrier_id_fkey(slug, name)
+      currency_program:programs!partner_redemptions_currency_program_id_fkey(slug, name, alliance),
+      operating_carrier:programs!partner_redemptions_operating_carrier_id_fkey(slug, name, alliance)
     `)
     .order('created_at', { ascending: false })
   if (error) throw error
@@ -2001,8 +2001,8 @@ export async function getPartnerRedemptionsByCurrency(
     .from('partner_redemptions')
     .select(`
       *,
-      currency_program:programs!partner_redemptions_currency_program_id_fkey(slug, name),
-      operating_carrier:programs!partner_redemptions_operating_carrier_id_fkey(slug, name)
+      currency_program:programs!partner_redemptions_currency_program_id_fkey(slug, name, alliance),
+      operating_carrier:programs!partner_redemptions_operating_carrier_id_fkey(slug, name, alliance)
     `)
     .eq('currency_program_id', currency_program_id)
     .eq('is_active', true)
@@ -2020,8 +2020,8 @@ export async function getPartnerRedemptionsByOperatingCarrier(
     .from('partner_redemptions')
     .select(`
       *,
-      currency_program:programs!partner_redemptions_currency_program_id_fkey(slug, name),
-      operating_carrier:programs!partner_redemptions_operating_carrier_id_fkey(slug, name)
+      currency_program:programs!partner_redemptions_currency_program_id_fkey(slug, name, alliance),
+      operating_carrier:programs!partner_redemptions_operating_carrier_id_fkey(slug, name, alliance)
     `)
     .eq('operating_carrier_id', operating_carrier_id)
     .eq('is_active', true)
