@@ -121,6 +121,13 @@ export interface Alert {
    * ("only verified ships").
    */
   gaps: AlertGap[] | null
+  /**
+   * Admin-pasted authoritative source text (full T&Cs, press release,
+   * official FAQ excerpt). Treated as ground truth on regenerate —
+   * injected into the writer's extra_context as a VERIFIED OFFICIAL TERMS
+   * block. Reader-invisible; lives only on the alert row.
+   */
+  verified_terms: string | null
   registration_required: boolean
   created_by: string | null
   approved_by: string | null

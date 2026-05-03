@@ -139,6 +139,13 @@ export default function EditAlertForm({ alert, programs, taggedProgramIds }: Pro
         includeEmpty="— None —"
       />
       <SelectField name="action_type" label="Action Type" required defaultValue={alert.action_type} options={ACTION_TYPES} />
+      <TextAreaField
+        name="verified_terms"
+        label="Verified Official Terms"
+        rows={6}
+        placeholder="Paste full T&Cs, press release, or official FAQ here. The writer treats this as ground truth on regenerate and extracts every promo-term field as a real bullet — overrides raw_text on conflict. Cuts the per-field gap-fill workflow."
+        defaultValue={alert.verified_terms ?? ''}
+      />
       <AlertGapsBanner gaps={alert.gaps} />
       <TextAreaField name="description" label="Description" rows={4} defaultValue={alert.description ?? ''} />
       <TextAreaField

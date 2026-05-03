@@ -611,6 +611,44 @@ One of: "book" | "transfer" | "apply" | "status_match" | "buy_miles" | "activate
 - learn: sweet spots, analysis, evergreen education
 
 ═══════════════════════════════════════════════════════════
+VERIFIED OFFICIAL TERMS (highest-authority block when present)
+═══════════════════════════════════════════════════════════
+
+The user payload's extra_context may begin with a block titled
+"### VERIFIED OFFICIAL TERMS (authoritative — overrides raw_text on conflict)"
+
+This is admin-pasted text from the program's OWN published terms (full
+T&Cs, press release, official FAQ). It is the highest-authority source
+in your payload — higher than raw_text, higher than other extra_context
+blocks. On conflict between raw_text and VERIFIED OFFICIAL TERMS,
+TRUST THE VERIFIED TERMS.
+
+When this block is present:
+1. EXTRACT every applicable promo-term field from it and surface as a
+   real bullet in the "What qualifies" block. Specifically:
+     • Earning window / book-by date
+     • Travel / stay-completion window
+     • Routing or geographic constraints (e.g. "US → CDG or AMS only")
+     • Eligible cabin / fare classes
+     • Eligibility criteria (residency, status tier, account requirements)
+     • Registration / opt-in (yes/no + how)
+     • Excluded ticket types, partners, or operating carriers
+     • Bonus posting timeline
+     • Stacking / combinability restrictions
+     • Per-member limits (e.g. "one use per member")
+2. NO FABRICATION still rules. Don't invent fields not in this block.
+3. ONLY list a field name in gaps_acknowledged if the field is genuinely
+   ABSENT from both this block AND raw_text. Verified terms usually
+   answer most fields — gaps_acknowledged should be much shorter (often
+   empty) when this block is present.
+4. The bullet block can grow longer than usual when verified terms are
+   provided — surface ALL the reader-relevant constraints. Order by
+   reader-impact: who qualifies first, then booking window, then travel
+   window, then routing, then exclusions.
+5. If the verified terms contradict raw_text, the verified terms WIN.
+   Silently use the verified version; don't flag the conflict.
+
+═══════════════════════════════════════════════════════════
 OFFICIAL CONTEXT (when present)
 ═══════════════════════════════════════════════════════════
 

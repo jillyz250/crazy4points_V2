@@ -171,7 +171,7 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
 
   const { data: alert, error: alertErr } = await supabase
     .from('alerts')
-    .select('id, title, summary, description, source_url, source_intel_id, revision_log, gaps')
+    .select('id, title, summary, description, source_url, source_intel_id, revision_log, gaps, verified_terms')
     .eq('id', alertId)
     .maybeSingle()
   if (alertErr || !alert) return { ok: false, error: alertErr?.message ?? 'alert not found' }
@@ -379,7 +379,22 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
       `\n\n_These were flagged as unknown on a prior draft; admin filled them in. Surface each as a real bullet in the "What qualifies" block. Remove from gaps_acknowledged in your output._`
   }
 
-  const ctxParts = programSections.length ? [programSections.join('\n\n---\n\n')] : []
+  // Verified official terms — admin-pasted authoritative source text.
+  // Highest authority in extra_context: writer treats as ground truth and
+  // extracts every applicable promo term as a real bullet, overriding
+  // raw_text on conflict. Goes FIRST so the writer reads it before any
+  // other context.
+  const verifiedTermsRaw = (alert.verified_terms as string | null) ?? null
+  const verifiedTermsBlock =
+    verifiedTermsRaw && verifiedTermsRaw.trim().length > 0
+      ? `### VERIFIED OFFICIAL TERMS (authoritative — overrides raw_text on conflict)\n\n` +
+        verifiedTermsRaw.trim() +
+        `\n\n_The text above is the program's own published terms. Treat as ground truth. Extract every applicable promo-term field (booking window, travel window, eligibility, exclusions, routing, registration, etc.) as a real bullet in the description. Only list a field in gaps_acknowledged if it is genuinely absent from BOTH this block AND the source article._`
+      : ''
+
+  const ctxParts: string[] = []
+  if (verifiedTermsBlock) ctxParts.push(verifiedTermsBlock)
+  if (programSections.length) ctxParts.push(programSections.join('\n\n---\n\n'))
   if (activeBonusBlock) ctxParts.push(activeBonusBlock)
   if (verifiedGapBlock) ctxParts.push(verifiedGapBlock)
   const extra_context = ctxParts.length > 0 ? ctxParts.join('\n\n---\n\n') : null
