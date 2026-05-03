@@ -43,6 +43,8 @@ const ACTION_LABELS: Record<string, string> = {
   transfer: 'Transfer Points',
   apply: 'Apply for Card',
   status_match: 'Request Status Match',
+  buy_miles: 'Buy Miles / Points',
+  activate: 'Activate & Earn',
   monitor: 'Monitor This Deal',
   learn: 'Learn More',
 }

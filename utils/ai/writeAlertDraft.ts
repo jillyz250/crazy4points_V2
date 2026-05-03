@@ -524,12 +524,13 @@ distinction between value and gotcha):
 ACTION TYPE
 ═══════════════════════════════════════════════════════════
 
-One of: "book" | "transfer" | "apply" | "status_match" | "buy_miles" | "monitor" | "learn"
+One of: "book" | "transfer" | "apply" | "status_match" | "buy_miles" | "activate" | "monitor" | "learn"
 - book: award availability, hotel/flight deals
 - transfer: transfer bonuses, point conversions
 - apply: credit card signup bonuses
 - status_match: airline/hotel elite status match or status challenge (submit existing status for a match)
 - buy_miles: buy-points/miles bonus sales (point_purchase alerts) — purchasing a program's currency directly from the program
+- activate: shopping portal click-throughs, dining bonus registrations, retention/targeted offer activations — anything where the reader opts in (one click or one registration) then earns from normal activity
 - monitor: devaluations, rumors, watchlist items
 - learn: sweet spots, analysis, evergreen education
 
@@ -645,7 +646,7 @@ SCHEMA
   "title": "<string>",
   "summary": "<string, 2-3 sentences>",
   "description": "<string or null>",
-  "action_type": "book" | "transfer" | "apply" | "status_match" | "buy_miles" | "monitor" | "learn",
+  "action_type": "book" | "transfer" | "apply" | "status_match" | "buy_miles" | "activate" | "monitor" | "learn",
   "primary_program_slug": "<slug from PROGRAM LIST, or null>",
   "secondary_program_slugs": ["<slug>", ...],
   "start_date": "<ISO 8601 or null>",
@@ -670,7 +671,7 @@ function validate(draft: unknown, programs: WriteDraftProgram[]): AlertDraft {
   if (!d || typeof d !== 'object') throw new Error('Draft not an object')
   if (typeof d.title !== 'string' || !d.title.trim()) throw new Error('Missing title')
   if (typeof d.summary !== 'string' || !d.summary.trim()) throw new Error('Missing summary')
-  if (!['book', 'transfer', 'apply', 'status_match', 'buy_miles', 'monitor', 'learn'].includes(d.action_type)) {
+  if (!['book', 'transfer', 'apply', 'status_match', 'buy_miles', 'activate', 'monitor', 'learn'].includes(d.action_type)) {
     throw new Error(`Invalid action_type: ${d.action_type}`)
   }
 
