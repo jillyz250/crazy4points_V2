@@ -51,14 +51,14 @@ async function getPost(slug: string): Promise<BlogPost | null> {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const post = await getPost(slug);
-  if (!post) return { title: 'Not found — crazy4points' };
+  if (!post) return { title: 'Not found' };
 
   const description = (post.excerpt && post.excerpt.trim()) || post.pitch;
   const ogImageUrl =
     post.hero_image_url || `https://www.crazy4points.com/og/blog/${post.slug}`;
 
   return {
-    title: `${post.title} — crazy4points`,
+    title: `${post.title}`,
     description,
     alternates: { canonical: `/blog/${post.slug}` },
     openGraph: {

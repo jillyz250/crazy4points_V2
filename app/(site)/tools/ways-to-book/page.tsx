@@ -4,7 +4,7 @@ import { createAdminClient } from '@/utils/supabase/server'
 import { getAllPrograms } from '@/utils/supabase/queries'
 
 export const metadata: Metadata = {
-  title: 'Ways To Book — crazy4points',
+  title: 'Ways To Book',
   description:
     'Every way to book award flights — by airline, cabin, and program. Compare partner redemptions side-by-side and find the cheapest path to the seat you want.',
   alternates: { canonical: 'https://www.crazy4points.com/tools/ways-to-book' },

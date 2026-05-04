@@ -59,15 +59,15 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { type } = await searchParams
   const cat = parseCategory(type)
-  if (!cat) return { title: 'Programs — crazy4points' }
+  if (!cat) return { title: 'Programs' }
   const meta = CATEGORY_LABEL[cat]
   const url = `https://www.crazy4points.com/programs?type=${cat}`
   return {
-    title: `${meta.title} — crazy4points`,
+    title: `${meta.title}`,
     description: meta.lede,
     alternates: { canonical: url },
     openGraph: {
-      title: `${meta.title} — crazy4points`,
+      title: `${meta.title}`,
       description: meta.lede,
       url,
       type: 'website',
@@ -98,7 +98,7 @@ export default async function ProgramsIndexPage({
   const itemListJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'ItemList',
-    name: `${meta.title} — crazy4points`,
+    name: `${meta.title}`,
     description: meta.lede,
     numberOfItems: programs.length,
     itemListElement: programs.map((p, i) => ({

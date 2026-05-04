@@ -64,7 +64,7 @@ export async function generateMetadata(
   const dest = await getDestination(slug)
   if (!dest) return { title: 'Destination not found' }
   return {
-    title: `${dest.title} — crazy4points`,
+    title: `${dest.title}`,
     description: dest.summary_short ?? 'Award travel destination guide.',
   }
 }

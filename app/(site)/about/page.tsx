@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 
 export const metadata: Metadata = {
-  title: "About — crazy4points",
+  title: "About",
   description: "Meet the person behind crazy4points — a travel rewards enthusiast helping you earn more and travel smarter.",
 };
 

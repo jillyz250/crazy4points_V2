@@ -78,7 +78,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const supabase = await createClient()
     const alert = await getAlertBySlug(supabase, slug)
     return {
-      title: `${alert.title} — crazy4points`,
+      title: `${alert.title}`,
       description: alert.summary,
       alternates: { canonical: `https://www.crazy4points.com/alerts/${slug}` },
       openGraph: {
@@ -89,7 +89,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       },
     }
   } catch {
-    return { title: 'Alert Not Found — crazy4points' }
+    return { title: 'Alert Not Found' }
   }
 }
 

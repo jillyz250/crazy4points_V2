@@ -8,7 +8,7 @@ import AlertsGridSB from '@/components/alerts/AlertsGridSB'
 export const revalidate = 60
 
 export const metadata: Metadata = {
-  title: 'Daily Brief — crazy4points',
+  title: 'Daily Brief',
   description: "Today's top travel rewards alerts, scored and ranked.",
 }
 
