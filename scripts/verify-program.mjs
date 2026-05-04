@@ -95,18 +95,27 @@ async function main() {
     if (!check('Intro renders', found, found ? '' : `missing first sentence`)) allOk = false
   }
 
-  // 3. No raw slug rendering for transfer partners (e.g. "marriott_bonvoy" instead of "Marriott Bonvoy")
+  // 3. No raw slug rendering for transfer partners. Real failure mode is
+  //    when the slug doesn't match any programs row, so the page falls
+  //    back to rendering the raw key. Verify by:
+  //      a) collecting all transfer-partner slugs
+  //      b) checking each against the programs table
+  //      c) flagging slugs that have NO matching row (the actual bug)
+  //    A regex on rendered HTML alone produces false positives because
+  //    "Chase" or "Marriott" can appear in unrelated contexts (card names).
   if (Array.isArray(p.transfer_partners) && p.transfer_partners.length) {
-    const rawSlugMatches = p.transfer_partners.filter((tp) => {
-      const slug = tp.from_slug ?? tp.to_slug
-      if (!slug) return false
-      // Look for the underscore form rendered as visible text in a card/pill
-      const re = new RegExp(`>\\s*${slug}\\s*<`, 'i')
-      return re.test(html)
-    })
-    if (!check('No raw partner slugs in HTML', rawSlugMatches.length === 0,
-               rawSlugMatches.length ? `raw: ${rawSlugMatches.map((tp) => tp.from_slug ?? tp.to_slug).join(', ')}` : '')) {
-      allOk = false
+    const slugs = p.transfer_partners
+      .map((tp) => tp.from_slug ?? tp.to_slug)
+      .filter(Boolean)
+    if (slugs.length) {
+      const inFilter = slugs.map(encodeURIComponent).join(',')
+      const found = await sb(`programs?slug=in.(${inFilter})&select=slug`)
+      const foundSet = new Set(found.map((r) => r.slug))
+      const missing = slugs.filter((s) => !foundSet.has(s))
+      if (!check('All transfer_partner slugs resolve to programs rows', missing.length === 0,
+                 missing.length ? `missing: ${missing.join(', ')}` : '')) {
+        allOk = false
+      }
     }
   }
 
