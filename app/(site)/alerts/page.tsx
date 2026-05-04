@@ -9,7 +9,7 @@ import AlertsFiltersSB from '@/components/alerts/AlertsFiltersSB'
 export const revalidate = 60
 
 export const metadata: Metadata = {
-  title: 'Alerts — crazy4points',
+  title: 'Alerts',
   description: 'Live travel rewards alerts — transfer bonuses, limited-time offers, devaluations, and more.',
 }
 

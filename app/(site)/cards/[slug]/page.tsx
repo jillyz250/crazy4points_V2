@@ -16,13 +16,13 @@ export async function generateMetadata({
   try {
     const supabase = createAdminClient()
     const bundle = await getCardDetailBySlug(supabase, slug)
-    if (!bundle) return { title: 'Card — crazy4points' }
+    if (!bundle) return { title: 'Card' }
     return {
-      title: `${bundle.card.name} — crazy4points`,
+      title: `${bundle.card.name}`,
       description: bundle.card.intro?.slice(0, 200) ?? `${bundle.card.name} review and benefits`,
     }
   } catch {
-    return { title: 'Card — crazy4points' }
+    return { title: 'Card' }
   }
 }
 
@@ -232,7 +232,7 @@ export default async function CardPage({
         )}
         {!card.affiliate_url && (
           <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginBottom: '0.5rem' }}>
-            (Direct link to issuer — crazy4points does not currently earn a commission on this card.)
+            (Direct link to issuer does not currently earn a commission on this card.)
           </div>
         )}
       </section>

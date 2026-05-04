@@ -70,7 +70,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   if (category && isBlogCategorySlug(category)) {
     const label = getBlogCategoryLabel(category);
     return {
-      title: `${label} — Blog — crazy4points`,
+      title: `${label} — Blog`,
       description: `Articles in ${label}. Award travel tactics, transfer plays, and the occasional sweet spot.`,
       alternates: { canonical: '/blog' },
       robots: { index: false, follow: true },
@@ -78,7 +78,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   }
 
   return {
-    title: 'Blog — crazy4points',
+    title: 'Blog',
     description:
       'Award travel tactics, transfer plays, and the occasional sweet spot — written in plain English.',
     alternates: { canonical: '/blog' },

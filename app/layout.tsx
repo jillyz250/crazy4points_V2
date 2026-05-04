@@ -26,6 +26,12 @@ export const metadata: Metadata = {
     "theme-color": "#6B2D8F",
     // Bing Webmaster Tools site verification
     "msvalidate.01": "59CBA5C640A0D6B3494E229BD761633E",
+    // Legacy language meta tags for older SEO/GEO audit tools that don't read
+    // the html lang attribute. Modern crawlers (Google/Bing/Anthropic/etc.)
+    // already use <html lang="en">; these are belt-and-suspenders for tools
+    // that pre-date HTML5.
+    "language": "en-US",
+    "content-language": "en-US",
   },
 };
 

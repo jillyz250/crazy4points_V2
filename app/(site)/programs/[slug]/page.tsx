@@ -35,11 +35,11 @@ export async function generateMetadata({
       `${program.name} — points, sweet spots, transfer partners, and current alerts. Curated by crazy4points.`
     const url = `https://www.crazy4points.com/programs/${slug}`
     return {
-      title: `${program.name} — crazy4points`,
+      title: `${program.name}`,
       description,
       alternates: { canonical: url },
       openGraph: {
-        title: `${program.name} — crazy4points`,
+        title: `${program.name}`,
         description,
         url,
         type: 'website',
@@ -47,12 +47,12 @@ export async function generateMetadata({
       },
       twitter: {
         card: 'summary_large_image',
-        title: `${program.name} — crazy4points`,
+        title: `${program.name}`,
         description,
       },
     }
   } catch {
-    return { title: 'Program — crazy4points' }
+    return { title: 'Program' }
   }
 }
 
@@ -189,7 +189,7 @@ export default async function ProgramPage({
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'WebPage',
-    name: `${program.name} — crazy4points`,
+    name: `${program.name}`,
     url,
     inLanguage: 'en-US',
     isPartOf: { '@type': 'WebSite', name: 'crazy4points', url: 'https://www.crazy4points.com' },

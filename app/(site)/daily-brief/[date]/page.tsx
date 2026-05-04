@@ -21,10 +21,10 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { date } = await params
   if (!DATE_REGEX.test(date) || new Date(date).toString() === 'Invalid Date') {
-    return { title: 'Not Found — crazy4points' }
+    return { title: 'Not Found' }
   }
   return {
-    title: `Daily Brief — ${formatDate(date)} — crazy4points`,
+    title: `Daily Brief — ${formatDate(date)}`,
     description: `Travel rewards alerts published on ${formatDate(date)}.`,
   }
 }

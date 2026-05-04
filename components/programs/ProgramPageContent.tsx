@@ -80,47 +80,6 @@ export default async function ProgramPageContent({
         </section>
       )}
 
-      {hasPartners && (
-        <section id="transfer-partners" style={sectionStyle}>
-          <h2 style={headingStyle}>Transfer partners</h2>
-          <p
-            style={{
-              fontFamily: 'var(--font-body)',
-              fontSize: '0.875rem',
-              color: 'var(--color-text-secondary)',
-              marginBottom: '0.75rem',
-            }}
-          >
-            Programs that transfer points or miles into {program.name}.
-          </p>
-          <TransferPartnersTable
-            rows={program.transfer_partners!}
-            programNameBySlug={programNameBySlug}
-          />
-        </section>
-      )}
-
-      {hasMembers && (
-        <section id="member-airlines" style={sectionStyle}>
-          <h2 style={headingStyle}>Member airlines</h2>
-          <p
-            style={{
-              fontFamily: 'var(--font-body)',
-              fontSize: '0.875rem',
-              color: 'var(--color-text-secondary)',
-              marginBottom: '0.75rem',
-            }}
-          >
-            Carriers and loyalty programs that make up {program.name}, with each member&apos;s
-            elite tiers mapped to the alliance status levels.
-          </p>
-          <MemberProgramsTable
-            rows={program.member_programs!}
-            programNameBySlug={programNameBySlug}
-          />
-        </section>
-      )}
-
       {awardChartHtml && (
         <section id="award-chart" style={sectionStyle}>
           <details>
@@ -164,6 +123,47 @@ export default async function ProgramPageContent({
               dangerouslySetInnerHTML={{ __html: awardChartHtml }}
             />
           </details>
+        </section>
+      )}
+
+      {hasPartners && (
+        <section id="transfer-partners" style={sectionStyle}>
+          <h2 style={headingStyle}>Transfer partners</h2>
+          <p
+            style={{
+              fontFamily: 'var(--font-body)',
+              fontSize: '0.875rem',
+              color: 'var(--color-text-secondary)',
+              marginBottom: '0.75rem',
+            }}
+          >
+            Programs that transfer points or miles into {program.name}.
+          </p>
+          <TransferPartnersTable
+            rows={program.transfer_partners!}
+            programNameBySlug={programNameBySlug}
+          />
+        </section>
+      )}
+
+      {hasMembers && (
+        <section id="member-airlines" style={sectionStyle}>
+          <h2 style={headingStyle}>Member airlines</h2>
+          <p
+            style={{
+              fontFamily: 'var(--font-body)',
+              fontSize: '0.875rem',
+              color: 'var(--color-text-secondary)',
+              marginBottom: '0.75rem',
+            }}
+          >
+            Carriers and loyalty programs that make up {program.name}, with each member&apos;s
+            elite tiers mapped to the alliance status levels.
+          </p>
+          <MemberProgramsTable
+            rows={program.member_programs!}
+            programNameBySlug={programNameBySlug}
+          />
         </section>
       )}
 
