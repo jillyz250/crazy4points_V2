@@ -3,6 +3,7 @@ import { createAdminClient } from '@/utils/supabase/server'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Badge } from '@/components/admin/ui/Badge'
 import { EmptyState } from '@/components/admin/ui/EmptyState'
+import { acknowledgeScrapeAction } from './actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -162,7 +163,28 @@ export default async function AdminScrapesPage({
                     <Badge tone={statusTone(r.fetch_status)}>{r.fetch_status}</Badge>
                   </td>
                   <td style={{ padding: '0.5rem' }}>
-                    {r.changed ? <Badge tone="warning">CHANGED</Badge> : r.prev_hash ? '—' : <Badge tone="neutral">new</Badge>}
+                    {r.changed ? (
+                      <span style={{ display: 'inline-flex', gap: '0.375rem', alignItems: 'center' }}>
+                        <Badge tone="warning">CHANGED</Badge>
+                        <form action={acknowledgeScrapeAction} style={{ display: 'inline' }}>
+                          <input type="hidden" name="program_slug" value={r.program_slug} />
+                          <button
+                            type="submit"
+                            style={{
+                              fontSize: '0.6875rem',
+                              padding: '0.125rem 0.375rem',
+                              borderRadius: '0.25rem',
+                              border: '1px solid var(--color-border-soft)',
+                              background: 'var(--color-background-soft)',
+                              cursor: 'pointer',
+                            }}
+                            title="Mark this program as verified-today and drop from refresh queue"
+                          >
+                            Ack
+                          </button>
+                        </form>
+                      </span>
+                    ) : r.prev_hash ? '—' : <Badge tone="neutral">new</Badge>}
                   </td>
                   <td style={{ padding: '0.5rem', whiteSpace: 'nowrap' }}>{(r.content_md?.length ?? 0).toLocaleString()} chars</td>
                   <td style={{ padding: '0.5rem', fontFamily: 'monospace', fontSize: '0.75rem' }} title={r.content_hash}>

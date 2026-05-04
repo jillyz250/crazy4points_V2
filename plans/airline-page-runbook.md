@@ -101,14 +101,69 @@ Brand voice still applies in **Intro** and **Sweet spots**: sassy traveler-frien
 
 ## 4. Author in admin
 
-- [ ] `/admin/programs?type=airline` → filter to the carrier
-- [ ] Click **Add** in the **Page** column (NOT FAQ — that's deprecated)
-- [ ] Paste **only the Intro** into Intro field
-- [ ] Paste **only the JSON array** (`[...]`) into Transfer partners field
-- [ ] Paste **only the bullets** for Sweet spots into Sweet spots field
-- [ ] Paste **only the bullets** for Tips & quirks into Tips & quirks field
-- [ ] Save → confirm pill flips to "Today"
-- [ ] Re-open Edit to verify all four fields persisted
+Prefer SQL via Supabase CLI over the admin form (faster + preserves history). Generate one migration per program and apply with:
+
+```bash
+supabase db query --linked --file supabase/migrations/NNN_seed_<slug>.sql
+```
+
+Fields to populate on the `programs` row: `intro`, `transfer_partners` (JSON), `tier_benefits` (JSON), `lounge_access`, `how_to_spend`, `sweet_spots`, `quirks`, `hubs`, `alliance`. Per `feedback_prefer_sql_over_admin_forms.md` and `feedback_ascii_only_in_sql_data.md`.
+
+---
+
+## 4.5 Capture scrape URLs + set refresh tier
+
+Mandatory — without this the program never enters the auto-refresh system and silently drifts.
+
+```sql
+update programs set refresh_tier = 1, scrape_urls = jsonb_build_object(
+  'partners', 'https://...',
+  'chart',    'https://...',
+  'tiers',    'https://...',
+  'tc',       'https://...',
+  'lounge',   'https://...'
+) where slug = '<slug>';
+```
+
+- **Tier 1** = monthly refresh (top US airlines, top hotels, top transferable currencies)
+- **Tier 2** = quarterly (mid-tier and international)
+- **Tier 3** = annual (long tail)
+
+Drop any URL the program doesn't have a public page for (e.g. Southwest has no airline partners; alliances use `members/award_rules/lounge_access/tier_mapping/news` instead). Hotels use `brands/chart/tiers/tc/earning_partners`.
+
+If the official page is bot-blocked (world.hyatt.com, aa.com, southwest.com), use a third-party fallback URL (Frequent Miler, Upgraded Points, Wikipedia). The /admin/scrapes view will tag it with a "third-party" badge — don't propagate that data into programs.* without surfacing the source.
+
+---
+
+## 4.6 Seed structured chart data (chart-based programs only)
+
+Skip for revenue-based programs (Delta, United, JetBlue, Southwest, Air France/KLM dynamic). For programs with a published distance-banded or zone-banded chart:
+
+```bash
+# Extract chart from the official URL into structured JSON
+node scripts/extract-chart.mjs \
+  --url=<chart-url> \
+  --schema=scripts/schemas/airline-distance-banded-chart.json \
+  --out=/tmp/<slug>-chart.json
+
+# Generate a migration that populates programs.award_chart with a clean markdown table
+node scripts/seed-chart.mjs --program=<slug> --input=/tmp/<slug>-chart.json
+
+# Apply
+supabase db query --linked --file supabase/migrations/NNN_seed_<slug>_chart.sql
+```
+
+5 Firecrawl credits per chart. Replaces the manual "read scraped markdown -> hand-write SQL" step. Add a new schema in `scripts/schemas/` if the program shape doesn't match an existing one.
+
+---
+
+## 4.7 Run initial scrape to baseline
+
+```bash
+node scripts/scrape-all.mjs --program=<slug>
+```
+
+Captures all 5 URLs, hashes content, stores in the `scrapes` table. First run = `[new]` per URL (no prior to compare). Future runs detect drift via hash diff. Verify in `/admin/scrapes`.
 
 ---
 

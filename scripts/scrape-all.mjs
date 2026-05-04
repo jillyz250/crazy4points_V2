@@ -120,6 +120,9 @@ async function main() {
       continue
     }
     console.log(`\n[${p.slug}] tier=${p.refresh_tier}, ${Object.keys(urls).length} URLs`)
+    const programTotal = Object.keys(urls).filter((k) => typeof urls[k] === 'string' && urls[k]).length
+    let programOk = 0
+    let programChanged = 0
 
     for (const [urlType, url] of Object.entries(urls)) {
       if (!url || typeof url !== 'string') continue
@@ -145,12 +148,16 @@ async function main() {
 
       const newHash = hashContent(result.md)
       fetchedOk++
+      programOk++
       const priors = await sb(
         `scrapes?select=content_hash&program_slug=eq.${p.slug}&url_type=eq.${urlType}&fetch_status=eq.success&order=scraped_at.desc&limit=1`
       )
       const prevHash = priors?.[0]?.content_hash ?? null
       const didChange = !!prevHash && prevHash !== newHash
-      if (didChange) changed++
+      if (didChange) {
+        changed++
+        programChanged++
+      }
 
       console.log(
         `success (${result.md.length} chars, hash ${newHash.slice(0, 8)})${
@@ -170,6 +177,22 @@ async function main() {
         })
       }
       await new Promise((r) => setTimeout(r, 500))
+    }
+
+    // Passive verification: if every URL fetched successfully AND nothing
+    // changed, bump programs.last_verified. The act of confirming all
+    // sources still hash-match prior counts as a refresh — same as a
+    // human edit. Changed scrapes do NOT bump (those need human review
+    // via /admin/scrapes Acknowledge action).
+    if (programTotal > 0 && programOk === programTotal && programChanged === 0 && !args.dryRun) {
+      const today = new Date().toISOString().slice(0, 10)
+      await sb(`programs?slug=eq.${p.slug}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ last_verified: today }),
+      })
+      console.log(`  [${p.slug}] all ${programTotal} URLs unchanged - bumped last_verified=${today}`)
+    } else if (programChanged > 0) {
+      console.log(`  [${p.slug}] ${programChanged} URLs CHANGED - last_verified NOT bumped (review at /admin/scrapes)`)
     }
   }
 
