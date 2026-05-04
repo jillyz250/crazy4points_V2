@@ -28,6 +28,30 @@ function statusTone(status: string): 'success' | 'warning' | 'danger' | 'neutral
   return 'neutral'
 }
 
+// Hostnames that we treat as the program's *official* source. Anything else
+// (Wikipedia, Frequent Miler, Upgraded Points, AwardWallet, TPG, points.com
+// merchant pages, etc.) is third-party — flagged so we don't silently
+// propagate non-canonical data into programs.* rows.
+const OFFICIAL_HOSTS = new Set([
+  'alaskaair.com', 'hawaiianair.com',
+  'delta.com', 'united.com', 'aa.com', 'southwest.com', 'jetblue.com',
+  'flyingblue.com', 'flyingblue.us', 'airfrance.us', 'airfrance.fr',
+  'airfrance.com', 'klm.com', 'world.hyatt.com', 'hyatt.com',
+  'oneworld.com', 'skyteam.com', 'staralliance.com',
+])
+
+function sourceClass(url: string): 'official' | 'third_party' {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, '').replace(/^wwws\./, '')
+    // Strip subdomains down to last 2 labels (e.g. wwws.airfrance.us -> airfrance.us)
+    const parts = host.split('.')
+    const root = parts.slice(-2).join('.')
+    return OFFICIAL_HOSTS.has(host) || OFFICIAL_HOSTS.has(root) ? 'official' : 'third_party'
+  } catch {
+    return 'third_party'
+  }
+}
+
 function relTime(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime()
   const m = ms / (1000 * 60)
@@ -103,6 +127,7 @@ export default async function AdminScrapesPage({
                 <th style={{ padding: '0.5rem' }}>Program</th>
                 <th style={{ padding: '0.5rem' }}>URL type</th>
                 <th style={{ padding: '0.5rem' }}>URL</th>
+                <th style={{ padding: '0.5rem' }}>Source</th>
                 <th style={{ padding: '0.5rem' }}>Status</th>
                 <th style={{ padding: '0.5rem' }}>Changed</th>
                 <th style={{ padding: '0.5rem' }}>Size</th>
@@ -125,6 +150,13 @@ export default async function AdminScrapesPage({
                     <a href={r.url} target="_blank" rel="noreferrer" style={{ textDecoration: 'underline' }} title={r.url}>
                       {r.url}
                     </a>
+                  </td>
+                  <td style={{ padding: '0.5rem' }}>
+                    {sourceClass(r.url) === 'official' ? (
+                      <Badge tone="success">official</Badge>
+                    ) : (
+                      <Badge tone="warning">third-party</Badge>
+                    )}
                   </td>
                   <td style={{ padding: '0.5rem' }}>
                     <Badge tone={statusTone(r.fetch_status)}>{r.fetch_status}</Badge>
