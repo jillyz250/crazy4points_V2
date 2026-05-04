@@ -6,11 +6,17 @@
  * (markdown output, main content only) and prints clean markdown to stdout.
  *
  * Usage:
- *   node scripts/scrape.mjs <url>
+ *   node scripts/scrape.mjs <url> [--wait=<ms>] [--click=<selector>]
  *
  * Examples:
  *   node scripts/scrape.mjs https://www.alaskaair.com/atmosrewards/content/partners/airlines/malaysia-airlines
  *   node scripts/scrape.mjs https://www.aa.com/i18n/aadvantage-program/miles/partners/partner-airlines.jsp > /tmp/aa-partners.md
+ *   node scripts/scrape.mjs https://www.marriott.com/loyalty/redeem/travel.mi --wait=8000
+ *   node scripts/scrape.mjs https://www.hilton.com/honors/points-explorer --wait=5000 --click="button[aria-label='View chart']"
+ *
+ * --wait=<ms>     ms to wait for JS render before scraping (max 30000). Use on SPA sites.
+ * --click=<sel>   CSS selector to click before scraping. Combined with --wait it triggers
+ *                 JS-rendered chart toggles, "Show more" buttons, etc.
  *
  * Prereqs:
  *   - .env.local has FIRECRAWL_API_KEY (already true on this project)
@@ -34,11 +40,26 @@ function loadEnv() {
   }
 }
 
-async function scrape(url) {
+async function scrape(url, { waitMs, clickSelector } = {}) {
   const apiKey = process.env.FIRECRAWL_API_KEY
   if (!apiKey) {
     console.error('ERROR: FIRECRAWL_API_KEY not set. Run from project root with .env.local present.')
     process.exit(1)
+  }
+
+  const body = {
+    url,
+    formats: ['markdown'],
+    onlyMainContent: true,
+    timeout: Math.max(25000, (waitMs ?? 0) + 15000),
+  }
+  if (waitMs) body.waitFor = waitMs
+  if (clickSelector) {
+    body.actions = [
+      { type: 'wait', milliseconds: Math.min(waitMs ?? 3000, 8000) },
+      { type: 'click', selector: clickSelector },
+      { type: 'wait', milliseconds: 3000 },
+    ]
   }
 
   const res = await fetch('https://api.firecrawl.dev/v1/scrape', {
@@ -47,13 +68,8 @@ async function scrape(url) {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      url,
-      formats: ['markdown'],
-      onlyMainContent: true,
-      timeout: 25000,
-    }),
-    signal: AbortSignal.timeout(30000),
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(body.timeout + 10000),
   })
 
   if (!res.ok) {
@@ -78,13 +94,19 @@ async function scrape(url) {
 }
 
 loadEnv()
-const url = process.argv[2]
+const args = process.argv.slice(2)
+const url = args.find((a) => !a.startsWith('--'))
+const waitArg = args.find((a) => a.startsWith('--wait='))
+const clickArg = args.find((a) => a.startsWith('--click='))
+const waitMs = waitArg ? parseInt(waitArg.slice('--wait='.length), 10) : undefined
+const clickSelector = clickArg ? clickArg.slice('--click='.length) : undefined
+
 if (!url) {
-  console.error('Usage: node scripts/scrape.mjs <url>')
+  console.error('Usage: node scripts/scrape.mjs <url> [--wait=<ms>] [--click=<selector>]')
   process.exit(1)
 }
 
-scrape(url).catch((err) => {
+scrape(url, { waitMs, clickSelector }).catch((err) => {
   console.error(`ERROR: ${err.message}`)
   process.exit(1)
 })
