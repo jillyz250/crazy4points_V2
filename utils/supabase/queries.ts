@@ -2159,19 +2159,27 @@ export async function getPartnersByProgramIds(
     .eq('is_active', true)
   if (error) throw error
   const seen = new Map<string, Set<string>>()
-  for (const row of (data ?? []) as Array<{
+  // Supabase types FK-aliased relations as arrays even for single-FK joins,
+  // so we cast to unknown first then narrow. Same pattern used by
+  // getAllPartnerRedemptions / getPartnerRedemptionsByCurrency above.
+  const rows = (data ?? []) as unknown as Array<{
     currency_program_id: string
-    operating_carrier: { slug: string; name: string } | null
-  }>) {
-    if (!row.operating_carrier) continue
+    operating_carrier: { slug: string; name: string } | { slug: string; name: string }[] | null
+  }>
+  for (const row of rows) {
+    // Normalize: take first element if Supabase returned an array, else use as-is.
+    const carrier = Array.isArray(row.operating_carrier)
+      ? row.operating_carrier[0] ?? null
+      : row.operating_carrier
+    if (!carrier) continue
     if (!seen.has(row.currency_program_id)) {
       seen.set(row.currency_program_id, new Set())
       out.set(row.currency_program_id, [])
     }
     const slugSet = seen.get(row.currency_program_id)!
-    if (slugSet.has(row.operating_carrier.slug)) continue
-    slugSet.add(row.operating_carrier.slug)
-    out.get(row.currency_program_id)!.push(row.operating_carrier)
+    if (slugSet.has(carrier.slug)) continue
+    slugSet.add(carrier.slug)
+    out.get(row.currency_program_id)!.push(carrier)
   }
   // Sort each list alphabetically by name
   for (const list of out.values()) {
