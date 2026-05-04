@@ -315,6 +315,37 @@ If the entity is a **credit card** (URL is `/cards/[slug]`), the verify checklis
 
 If any partner shows as a raw slug, capture it as a backlog item: "Add <slug> program row to DB."
 
+### Step 5.5 — MANDATORY: Structured `partner_redemptions` seeding (Partner Booking Tool data)
+
+**Required for every airline / loyalty_program page.** The Partner Booking Tool's MVP returns a list of programs that can book a user-entered route. Every authored program must contribute its piece of that list — otherwise the tool has missing data and reader trust collapses.
+
+For each authored currency program (the airline's own loyalty program OR the joint loyalty program if it's a carrier feeding into one), seed:
+
+**1. `programs.partner_chart_url`** — the official URL where this program publishes its partner award pricing (or the search engine URL for dynamic-pricing programs). One UPDATE per program.
+
+**2. `partner_redemptions` rows** — one row per (currency_program_id, operating_carrier_id) pair this program can book. Pricing fields can be NULL initially; what's mandatory:
+- `currency_program_id` (the program being authored)
+- `operating_carrier_id` (every airline this currency can book)
+- `cabin` (Economy default; add Business / First / Premium Economy rows separately if pricing differs)
+- `pricing_model` — one of `'fixed'` (chart-priced), `'dynamic'` (revenue-based), `'hybrid'` (chart for partners, dynamic for own metal)
+- `notes` — single line summarizing the pricing structure (e.g. "0-700 mi = 4,500 points / 701-1400 = 7,500 / 1401-2125 = 12,500" for distance-banded programs)
+- `confidence` — HIGH / MED / LOW based on source quality
+
+**Pricing-model checklist (use the right pattern for each program):**
+
+| Pattern | Examples | What to populate |
+|---|---|---|
+| **Distance-banded** | Atmos partner chart, BA Avios, Aer Lingus, Cathay Asia Miles, JAL Mileage Bank | `distance_band_low/high` per band; `notes` summarizes the chart |
+| **Region-paired** | AA partner chart, Flying Blue zones | `origin_region/dest_region` per zone pair; `notes` summarizes the chart |
+| **Hybrid** | Atmos (distance for partners + dynamic for own metal), AA short-haul | Populate whichever applies per row; mark `pricing_model='hybrid'` |
+| **Fully dynamic** | Delta own metal, Southwest, JetBlue | Both region and distance columns NULL; `pricing_model='dynamic'`; `notes` says "revenue-based, ~X cpp average; check official site for current pricing" |
+
+**Coverage minimum (MVP, to unblock the tool):** every operating carrier this currency can book gets at least one row. That row tells the tool the bookability EXISTS even if exact pricing is NULL — the user can click through to `partner_chart_url` for authoritative cost.
+
+**Coverage ideal (later, full tool fidelity):** every (operating carrier × cabin × distance band OR region pair) the program prices.
+
+**Seed via SQL migration**, alongside the editorial PR. Include a header comment explaining the program's pricing model + source (link to the official chart used).
+
 ### Step 6 — SEO + indexing
 
 Walk through one at a time:
