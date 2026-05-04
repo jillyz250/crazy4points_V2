@@ -57,20 +57,37 @@ async function sb(path) {
 
 // Each rule: a regex (case-insensitive, word-bounded where appropriate)
 // and a one-line explanation of why it's flagged.
-const BANNED = [
-  { name: 'absolute_never', re: /\bnever\b/gi, why: '"Never" is too absolute — programs change. Hedge with "do not under current rules".' },
+//
+// Tuning history (2026-05-04 follow-up): "absolute_only" and "absolute_first"
+// were producing mostly-false-positive matches on legit descriptive context
+// ("only two tiers", "First class lounge"). Tightened to flag only the
+// specifically-comparative usage. Run with --strict to re-enable broad sweeps.
+const BANNED_DEFAULT = [
+  { name: 'absolute_never', re: /\bnever\b/gi, why: '"Never" is too absolute - programs change. Hedge with "do not under current rules".' },
   { name: 'absolute_always', re: /\balways\b/gi, why: '"Always" is too absolute. Use "typically" or "as of [Month YYYY]".' },
   { name: 'absolute_guaranteed', re: /\bguaranteed\b/gi, why: '"Guaranteed" implies certainty rare in points/miles.' },
-  { name: 'absolute_only', re: /\bonly\b/gi, why: '"Only" is a comparative claim; usually wrong or hedgeable.' },
-  { name: 'absolute_first', re: /\bfirst\b(?!\s+(class|cabin|name|segment|leg|of|priority|inventory|opens))/gi, why: '"First [program/airline/etc.]" is comparative + drift-prone.' },
-  { name: 'absolute_best', re: /\bbest\b/gi, why: '"Best" is comparative + opinion. Use "strong" or "among the strongest".' },
+  // Only flag "first" when it's a comparative claim about programs/currencies/airlines
+  { name: 'comparative_first', re: /\bfirst\s+(program|currency|airline|loyalty|transferable|major|US|to\s+(launch|offer|introduce))/gi, why: 'Comparative-first claim - drift-prone. Hedge with "among the first" or remove.' },
+  // Only flag "only" when it's a comparative claim
+  { name: 'comparative_only', re: /\b(the\s+only|only\s+(program|currency|airline|loyalty|major|US))\b/gi, why: 'Comparative-only claim - usually wrong or drift-prone.' },
+  { name: 'absolute_best', re: /\b(the\s+best|world's?\s+best)\b/gi, why: '"The best" is comparative + opinion. Use "strong" or "among the strongest".' },
   { name: 'instant_word', re: /\binstant\b/gi, why: '"Instant" is rarely literally true. Use "usually near-instant".' },
-  { name: 'free_word', re: /\bfree\b(?!\s+night|\s+companion|\s+stopover)/gi, why: '"Free" is misleading for points/miles. Use "no fee".' },
+  { name: 'free_word', re: /\bfree\b(?!\s+(night|companion|stopover|cancellation|of\s+charge|change|tier|economy|breakfast|wi-?fi|seat|checked|bag|baggage|parking|membership|on\s+change|Starlink|access|preferred|standard|trial|hotel|drinks|drink|with|for))/gi, why: '"Free" is misleading for points/miles. Use "no fee".' },
   { name: 'no_fuel_surcharges', re: /no fuel surcharges?/gi, why: 'Fuel surcharges are program-conditional. State the actual range.' },
-  { name: 'card_annual_fee', re: /\$\d{2,4}\s*(?:annual\s*fee|AF\b)/gi, why: 'Card annual fees do not belong on program pages — see feedback_no_card_af_on_program_pages.md.' },
-  { name: 'recent_year_2024', re: /\b2024\b/g, why: '2024 references are stale; check the date is still relevant or update to current.' },
+  { name: 'card_annual_fee', re: /\$\d{2,4}\s*(?:annual\s*fee|AF\b)/gi, why: 'Card annual fees do not belong on program pages - see feedback_no_card_af_on_program_pages.md.' },
+  { name: 'recent_year_2024', re: /\b2024\b/g, why: '2024 references may be stale; check the date is still relevant.' },
   { name: 'recent_month_with_year', re: /\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+202[345]\b/gi, why: 'Time-stamped event references decay; verify still accurate.' },
 ]
+
+const BANNED_STRICT_EXTRA = [
+  { name: 'absolute_only', re: /\bonly\b/gi, why: 'STRICT: any "only" - review for absolute claims.' },
+  { name: 'absolute_first', re: /\bfirst\b(?!\s+(class|cabin|name|segment|leg|of|priority|inventory|opens|and))/gi, why: 'STRICT: any "first" except known cabin/lounge contexts.' },
+  { name: 'absolute_best_loose', re: /\bbest\b/gi, why: 'STRICT: any "best" - review for comparative claims.' },
+]
+
+const BANNED = process.argv.includes('--strict')
+  ? [...BANNED_DEFAULT, ...BANNED_STRICT_EXTRA]
+  : BANNED_DEFAULT
 
 const FIELDS = ['intro', 'how_to_spend', 'sweet_spots', 'quirks', 'lounge_access', 'award_chart']
 
