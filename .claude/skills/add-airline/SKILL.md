@@ -388,15 +388,46 @@ For each authored currency program (the airline's own loyalty program OR the joi
 
 **Seed via SQL migration**, alongside the editorial PR. Include a header comment explaining the program's pricing model + source (link to the official chart used).
 
-### Step 6 — SEO + indexing
+### Step 6 — SEO + indexing (one of the user's two manual steps)
 
-Walk through one at a time:
+This is one of only two things the user does manually per program (spot-check live page + submit to GSC/Bing). To make it as fast as possible, **always present each URL on its own line in a fenced code block** so the user gets a copy-to-clipboard button in their UI. Don't bury URLs inline in prose; don't combine multiple URLs in one code block.
 
-- **Google Search Console:** URL Inspection → paste full URL → Request Indexing
-- **Bing Webmaster Tools:** URL Submission → Submit URLs → paste
-- (Bing often flags new URLs as "cannot index" on first inspect — that's normal, click Request Indexing)
+When announcing this step, present exactly this format:
 
-For section milestones (when 12 US done, then international done, etc.), also resubmit sitemap to both, request indexing for each section URL one at a time, and sanity-check one earlier page via `site:crazy4points.com <airline>` search.
+> Live URL to spot-check + submit:
+> ```
+> https://crazy4points.com/programs/<slug>
+> ```
+>
+> Google Search Console — paste the URL above into the URL Inspection bar:
+> ```
+> https://search.google.com/search-console
+> ```
+> → paste the program URL into the inspection field → click "Request Indexing"
+>
+> Bing Webmaster Tools — URL Submission:
+> ```
+> https://www.bing.com/webmasters/url-submission
+> ```
+> → paste the program URL → click Submit
+
+Bing often flags new URLs as "cannot index" on first inspect — that's normal, click Request Indexing anyway.
+
+For section milestones (when 12 US done, then international done, etc.), also resubmit the sitemap to both:
+
+> Google sitemap resubmit:
+> ```
+> https://search.google.com/search-console/sitemaps
+> ```
+>
+> Bing sitemap resubmit:
+> ```
+> https://www.bing.com/webmasters/sitemaps
+> ```
+
+Then request indexing for each new section URL one at a time, and sanity-check one earlier page via `site:crazy4points.com <airline>` search.
+
+**Universal copy-button rule:** any URL Claude hands the user — official source URLs, RSS feed URLs, admin paths, Stripe / Resend / Vercel dashboards — goes on its own line in a fenced code block. Never describe a URL in prose without surfacing the actual link in a copy-able form right after.
 
 ### Step 7 — Save source list
 
@@ -426,6 +457,14 @@ Open as a small docs PR.
 ### Step 7.5 — Add press-room RSS to Scout (AUTOMATED via SQL)
 
 The Supabase CLI is linked (one-time setup); no admin browser flow needed. I generate the SQL, run it via `supabase db query --linked --file <path>`, and confirm.
+
+When announcing the discovered RSS feed to the user (so they can sanity-check it in a browser), present it on its own line in a fenced code block for copy-to-clipboard:
+
+> Press-room RSS feed I'm seeding for `<slug>`:
+> ```
+> https://news.<carrier>.com/feed/
+> ```
+> Open in a browser to confirm it returns recent items before I run the SQL insert.
 
 **Process:**
 
