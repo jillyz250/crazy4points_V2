@@ -216,13 +216,10 @@ export default async function ProgramPage({
       />
       <div className="rg-container">
 
-        {/* Distinct redemption partners (from partner_redemptions) for hero pills */}
-        {/* Surfaces bilateral partnerships (e.g. JetBlue → United via Blue Sky) */}
-        {/* Empty array if no partner_redemptions rows are seeded for this program. */}
-        {/* @ts-ignore — local computed value */}
-        {(() => null)()}
-
         {/* Hero header (badges + active alerts banner + section TOC) */}
+        {/* `partners` prop derives distinct operating-carrier programs from */}
+        {/* redemptionsAsCurrency (no extra query) so the hero can render */}
+        {/* bilateral-partnership pills (e.g. JetBlue → United Blue Sky). */}
         <ProgramPageHero
           program={program}
           activeAlertCount={active.length}
