@@ -2129,6 +2129,63 @@ export interface ResourceCard {
    * its own currency (Delta, United, AA).
    */
   joinedLoyaltyProgram: { slug: string; name: string } | null
+  /**
+   * Distinct operating-carrier programs that this currency can be redeemed
+   * on (derived from partner_redemptions table). Surfaces bilateral
+   * partnerships (e.g. JetBlue → United via Blue Sky) on the card / hero
+   * even when the program isn't in a traditional alliance. Empty array if
+   * no partner_redemptions rows are seeded for this program.
+   */
+  partners: { slug: string; name: string }[]
+}
+
+/**
+ * Bulk-fetch distinct operating-carrier partners for a list of currency program IDs.
+ * Used to surface partner pills on program cards / hero without N+1 queries.
+ */
+export async function getPartnersByProgramIds(
+  supabase: SupabaseClient,
+  programIds: string[]
+): Promise<Map<string, { slug: string; name: string }[]>> {
+  const out = new Map<string, { slug: string; name: string }[]>()
+  if (programIds.length === 0) return out
+  const { data, error } = await supabase
+    .from('partner_redemptions')
+    .select(`
+      currency_program_id,
+      operating_carrier:programs!partner_redemptions_operating_carrier_id_fkey(slug, name)
+    `)
+    .in('currency_program_id', programIds)
+    .eq('is_active', true)
+  if (error) throw error
+  const seen = new Map<string, Set<string>>()
+  // Supabase types FK-aliased relations as arrays even for single-FK joins,
+  // so we cast to unknown first then narrow. Same pattern used by
+  // getAllPartnerRedemptions / getPartnerRedemptionsByCurrency above.
+  const rows = (data ?? []) as unknown as Array<{
+    currency_program_id: string
+    operating_carrier: { slug: string; name: string } | { slug: string; name: string }[] | null
+  }>
+  for (const row of rows) {
+    // Normalize: take first element if Supabase returned an array, else use as-is.
+    const carrier = Array.isArray(row.operating_carrier)
+      ? row.operating_carrier[0] ?? null
+      : row.operating_carrier
+    if (!carrier) continue
+    if (!seen.has(row.currency_program_id)) {
+      seen.set(row.currency_program_id, new Set())
+      out.set(row.currency_program_id, [])
+    }
+    const slugSet = seen.get(row.currency_program_id)!
+    if (slugSet.has(carrier.slug)) continue
+    slugSet.add(carrier.slug)
+    out.get(row.currency_program_id)!.push(carrier)
+  }
+  // Sort each list alphabetically by name
+  for (const list of out.values()) {
+    list.sort((a, b) => a.name.localeCompare(b.name))
+  }
+  return out
 }
 
 /**
@@ -2183,6 +2240,11 @@ export async function listProgramsForIndex(
     alertCounts.set(link.program_id, (alertCounts.get(link.program_id) ?? 0) + 1)
   }
 
+  // Bulk-fetch partner_redemptions partners for every row so we can show
+  // bilateral-partnership pills on cards (esp. for alliance:'other' programs
+  // like JetBlue where the alliance pill is suppressed).
+  const partnersByProgramId = await getPartnersByProgramIds(supabase, rows.map((r) => r.id))
+
   return rows.map((r) => ({
     id: r.id,
     slug: r.slug,
@@ -2201,5 +2263,6 @@ export async function listProgramsForIndex(
       r.parent_program_slug && slugsByName.has(r.parent_program_slug)
         ? { slug: r.parent_program_slug, name: slugsByName.get(r.parent_program_slug)! }
         : null,
+    partners: partnersByProgramId.get(r.id) ?? [],
   }))
 }

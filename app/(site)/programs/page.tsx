@@ -274,6 +274,15 @@ function ProgramCard({
       </div>
 
       <div className="mt-3 space-y-1.5 font-ui text-xs text-[var(--color-text-secondary)]">
+        {program.partners && program.partners.length > 0 && (
+          <p>
+            <span className="font-medium text-[var(--color-text-primary)]">
+              Redeems on:
+            </span>{' '}
+            {program.partners.slice(0, 4).map((p) => p.name).join(' · ')}
+            {program.partners.length > 4 ? ` +${program.partners.length - 4}` : ''}
+          </p>
+        )}
         {category === 'airline' && hubChips.length > 0 && (
           <p>
             <span className="font-medium text-[var(--color-text-primary)]">Hubs:</span>{' '}
