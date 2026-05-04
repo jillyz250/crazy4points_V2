@@ -220,6 +220,8 @@ export interface Program {
   content_updated_at: string | null
   notes: string | null
   last_verified: string | null
+  /** Noun used for the program's currency in headings: "miles" (default) or "points" for revenue-based programs (Southwest, JetBlue). */
+  currency_term: 'miles' | 'points'
   /** True for flexible currencies (UR, MR, TY, Cap1, Bilt). False for co-brand or terminal currencies. */
   is_transferable_currency: boolean
   /** For joint-loyalty carriers (alaska→atmos, air_france→flying_blue):
