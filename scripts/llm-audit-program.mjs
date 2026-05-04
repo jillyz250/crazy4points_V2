@@ -17,7 +17,7 @@
  *   0 = no findings, 1 = findings present
  */
 
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import Anthropic from '@anthropic-ai/sdk'
 
@@ -32,13 +32,14 @@ function loadEnv() {
 }
 
 function parseArgs() {
-  const args = { program: null, all: false }
+  const args = { program: null, all: false, jsonOut: null }
   for (const a of process.argv.slice(2)) {
     if (a === '--all') args.all = true
     else if (a.startsWith('--program=')) args.program = a.slice('--program='.length)
+    else if (a.startsWith('--json=')) args.jsonOut = a.slice('--json='.length)
   }
   if (!args.program && !args.all) {
-    console.error('Usage: llm-audit-program.mjs --program=<slug> | --all')
+    console.error('Usage: llm-audit-program.mjs --program=<slug> | --all  [--json=<file>]')
     process.exit(1)
   }
   return args
@@ -97,12 +98,14 @@ Return EXACTLY this JSON shape (no markdown, no commentary, just JSON):
     {
       "field": "intro|how_to_spend|sweet_spots|quirks|lounge_access|award_chart|tier_benefits|transfer_partners|member_programs",
       "severity": "high|medium|low",
-      "claim": "exact phrase from the content",
+      "claim": "EXACT verbatim phrase from the content (will be used in a SQL replace() call — must match the source byte-for-byte)",
       "issue": "one-sentence explanation of why this is a problem",
-      "suggested_fix": "specific replacement text"
+      "suggested_fix": "LITERAL REPLACEMENT TEXT ONLY. Must be the actual prose that should appear in the field — not a directive, not 'Revise to:', not 'Remove this'. If the only good fix is removal, suggested_fix must be the empty string. If the fix needs human judgment beyond a direct text swap, omit the finding entirely."
     }
   ]
 }
+
+CRITICAL: suggested_fix is fed directly into SQL as a text replacement for claim. If you write 'Revise to: ...' it will literally appear in the program content. Always write the raw replacement prose only.
 
 If the program is editorially clean, return: {"findings": []}
 
@@ -152,10 +155,12 @@ async function main() {
 
   let totalFindings = 0
   let totalCost = 0
+  const allResults = []
   for (const p of programs) {
     process.stdout.write(`[${p.slug}] ... `)
     try {
       const { findings, usage, parseError } = await auditOne(client, p)
+      allResults.push({ slug: p.slug, type: p.type, findings, parseError })
       const inputCost = (usage?.input_tokens ?? 0) / 1_000_000 * 0.80
       const outputCost = (usage?.output_tokens ?? 0) / 1_000_000 * 4.00
       const cost = inputCost + outputCost
@@ -183,6 +188,10 @@ async function main() {
   }
 
   console.log(`\n[llm-audit] Done. ${programs.length} program(s) scanned, ${totalFindings} total finding(s). Cost: $${totalCost.toFixed(3)}`)
+  if (args.jsonOut) {
+    writeFileSync(args.jsonOut, JSON.stringify(allResults, null, 2))
+    console.log(`[llm-audit] JSON written to ${args.jsonOut}`)
+  }
   process.exit(totalFindings > 0 ? 1 : 0)
 }
 
