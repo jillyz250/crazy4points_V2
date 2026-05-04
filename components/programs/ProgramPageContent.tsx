@@ -169,7 +169,7 @@ export default async function ProgramPageContent({
 
       {howToSpendHtml && (
         <section id="how-to-spend" style={sectionStyle}>
-          <h2 style={headingStyle}>How to spend miles</h2>
+          <h2 style={headingStyle}>How to spend {program.currency_term ?? 'miles'}</h2>
           <div
             style={proseStyle}
             className="rg-prose"
