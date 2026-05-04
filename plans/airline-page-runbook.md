@@ -190,6 +190,34 @@ Captures all 5 URLs, hashes content, stores in the `scrapes` table. First run = 
 
 ---
 
+## 5.5 Editorial audit + apply fixes (mandatory before public launch)
+
+LLM-based pass that catches unhedged absolute claims, stale comparative claims, internal inconsistencies, and duplicate fragments. Default model is Sonnet — Haiku is faster + cheaper but misses nuance and duplicates. Sonnet costs ~$0.03 per program; not worth quibbling about for a final-gate pass.
+
+```bash
+# 1. Audit and capture findings as JSON
+node scripts/llm-audit-program.mjs --program=<slug> --sonnet --json=/tmp/findings.json
+
+# 2. Generate a migration that applies HIGH/MEDIUM-severity fixes via text replacement
+node scripts/apply-llm-audit.mjs --input=/tmp/findings.json
+
+# 3. Review the migration before applying — Sonnet's suggested replacements are usually
+#    good but occasionally too aggressive on hedging. Sanity-check before committing.
+$EDITOR supabase/migrations/<latest>.sql
+
+# 4. Apply
+supabase db query --linked --file supabase/migrations/<latest>.sql
+
+# 5. Re-verify the live page renders cleanly after fixes
+node scripts/verify-program.mjs --program=<slug> --base=https://crazy4points.com
+```
+
+For the full catalog (e.g. quarterly editorial sweep), use `--all` instead of `--program=<slug>`. ~$0.40 across all 15 authored programs as of mid-2026.
+
+Haiku (`--haiku` or omit `--sonnet`) is fine for cheap weekly drift checks once the page is published — it catches obvious unhedged claims at $0.005 per program. Sonnet is the right tool for the publish gate; Haiku is the right tool for the maintenance gate.
+
+---
+
 ## 6. SEO + indexing
 
 - [ ] **Google Search Console** — submit the new URL: Search Console → URL Inspection → paste `https://crazy4points.com/programs/[slug]` → "Request Indexing"

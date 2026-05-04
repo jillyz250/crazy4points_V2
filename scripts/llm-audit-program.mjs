@@ -32,17 +32,26 @@ function loadEnv() {
 }
 
 function parseArgs() {
-  const args = { program: null, all: false, jsonOut: null }
+  const args = { program: null, all: false, jsonOut: null, model: 'claude-haiku-4-5-20251001' }
   for (const a of process.argv.slice(2)) {
     if (a === '--all') args.all = true
     else if (a.startsWith('--program=')) args.program = a.slice('--program='.length)
     else if (a.startsWith('--json=')) args.jsonOut = a.slice('--json='.length)
+    else if (a.startsWith('--model=')) args.model = a.slice('--model='.length)
+    else if (a === '--sonnet') args.model = 'claude-sonnet-4-6'
+    else if (a === '--opus') args.model = 'claude-opus-4-7'
   }
   if (!args.program && !args.all) {
-    console.error('Usage: llm-audit-program.mjs --program=<slug> | --all  [--json=<file>]')
+    console.error('Usage: llm-audit-program.mjs --program=<slug> | --all  [--json=<file>] [--sonnet|--opus|--model=<id>]')
     process.exit(1)
   }
   return args
+}
+
+const MODEL_PRICING = {
+  'claude-haiku-4-5-20251001': { input: 0.80, output: 4.00 },
+  'claude-sonnet-4-6':         { input: 3.00, output: 15.00 },
+  'claude-opus-4-7':           { input: 15.00, output: 75.00 },
 }
 
 async function sb(path) {
@@ -114,11 +123,11 @@ PROGRAM CONTENT:
 ${fieldText}${tierBenefits}${transferPartners}${memberPrograms}`
 }
 
-async function auditOne(client, program) {
+async function auditOne(client, program, model) {
   const prompt = buildPrompt(program)
   const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 2000,
+    model,
+    max_tokens: 4000,
     messages: [{ role: 'user', content: prompt }],
   })
 
@@ -159,10 +168,11 @@ async function main() {
   for (const p of programs) {
     process.stdout.write(`[${p.slug}] ... `)
     try {
-      const { findings, usage, parseError } = await auditOne(client, p)
+      const { findings, usage, parseError } = await auditOne(client, p, args.model)
       allResults.push({ slug: p.slug, type: p.type, findings, parseError })
-      const inputCost = (usage?.input_tokens ?? 0) / 1_000_000 * 0.80
-      const outputCost = (usage?.output_tokens ?? 0) / 1_000_000 * 4.00
+      const pricing = MODEL_PRICING[args.model] ?? MODEL_PRICING['claude-haiku-4-5-20251001']
+      const inputCost = (usage?.input_tokens ?? 0) / 1_000_000 * pricing.input
+      const outputCost = (usage?.output_tokens ?? 0) / 1_000_000 * pricing.output
       const cost = inputCost + outputCost
       totalCost += cost
 
