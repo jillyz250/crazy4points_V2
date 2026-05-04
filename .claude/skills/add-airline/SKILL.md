@@ -213,7 +213,15 @@ Review the combined preview. Reply "looks good" / "ready to paste" and I'll re-o
 Or call out anything to change first.
 ```
 
-After user approval, output each field as a separate fenced code block tagged with the field name in the heading above it.
+**After user approval, write a single SQL UPDATE migration directly.** Do NOT re-output the content as paste-ready blocks per field. Per `feedback_prefer_sql_over_admin_forms.md`, SQL migrations are the default path: faster to apply, ASCII-scrubbed automatically, no admin form click-through required. Output structure:
+
+- One migration file per program at `supabase/migrations/<NNN>_seed_<slug>_page.sql`.
+- Header comment summarizing what's seeded and any non-obvious decisions (e.g. "Marriott eliminated chart in 2022; award_chart field uses dynamic-pricing framing with FNA caps as de-facto bands").
+- One `UPDATE programs SET ... WHERE slug = '<slug>';` covering all 9–10 populated fields.
+- ASCII-only inside JSON / text strings — replace em-dashes with " - ", smart quotes with straight quotes, ellipsis with "..." (per `feedback_ascii_only_in_sql_data.md`).
+- If the page references transfer-source slugs that aren't yet seeded, include `INSERT ... ON CONFLICT DO NOTHING` for skeleton rows in the same migration so the public render shows real names instead of raw slugs.
+
+Apply via `supabase db query --linked --file supabase/migrations/<NNN>_*.sql`. Confirm by SELECT of the same row + immediate run of `verify-program.mjs --slug=<slug>` once Vercel redeploy lands.
 
 Draft each of these **10 fields** (non-alliance programs require all 10 for completeness; alliance pages skip `award_chart`):
 
