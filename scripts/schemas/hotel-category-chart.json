@@ -1,0 +1,44 @@
+{
+  "type": "object",
+  "description": "Schema for hotel loyalty programs that publish a category-banded award chart with off-peak / standard / peak point bands per category (e.g. Marriott Bonvoy Cat 1-8, Hilton Honors, IHG One Rewards, Hyatt Cat 1-8, Wyndham). Some programs use a single point cost per category instead of three bands; in that case standard_points is set and off_peak_points/peak_points are 0.",
+  "properties": {
+    "categories": {
+      "type": "array",
+      "description": "One entry per award category. Order by category number ascending.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "category": { "type": "string", "description": "Raw category label (e.g. 'Category 1', '1', '8')." },
+          "off_peak_points": { "type": "integer", "description": "Off-peak / saver point cost per night. Set to 0 if the program does not have an off-peak band." },
+          "standard_points": { "type": "integer", "description": "Standard / regular point cost per night. Required." },
+          "peak_points": { "type": "integer", "description": "Peak point cost per night. Set to 0 if the program does not have a peak band." }
+        }
+      }
+    },
+    "all_inclusive_categories": {
+      "type": "array",
+      "description": "Optional second chart for all-inclusive resort categories if the program publishes them separately (Marriott + Hilton both do).",
+      "items": {
+        "type": "object",
+        "properties": {
+          "category": { "type": "string" },
+          "off_peak_points": { "type": "integer" },
+          "standard_points": { "type": "integer" },
+          "peak_points": { "type": "integer" }
+        }
+      }
+    },
+    "pricing_methodology": {
+      "type": "string",
+      "description": "Plain-English summary of how the program determines off-peak / standard / peak (typically demand-based, set ~12 months in advance, with a calendar surfaced on each property page)."
+    },
+    "fifth_night_free": {
+      "type": "string",
+      "description": "Whether and how a 5th-night-free benefit applies to award stays under this chart. Set to 'none' if not offered."
+    },
+    "booking_fees_summary": {
+      "type": "string",
+      "description": "Plain-English summary of any taxes, resort fees, change/cancel rules, and notable constraints on award redemptions per the chart page T&C section."
+    }
+  }
+}

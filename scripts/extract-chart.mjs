@@ -30,33 +30,44 @@ function loadEnv() {
 }
 
 function parseArgs() {
-  const args = { url: null, schema: null, out: null }
+  const args = { url: null, schema: null, out: null, waitMs: null, clickSelector: null }
   for (const a of process.argv.slice(2)) {
     if (a.startsWith('--url=')) args.url = a.slice('--url='.length)
     else if (a.startsWith('--schema=')) args.schema = a.slice('--schema='.length)
     else if (a.startsWith('--out=')) args.out = a.slice('--out='.length)
+    else if (a.startsWith('--wait=')) args.waitMs = parseInt(a.slice('--wait='.length), 10)
+    else if (a.startsWith('--click=')) args.clickSelector = a.slice('--click='.length)
   }
   if (!args.url || !args.schema) {
-    console.error('Usage: extract-chart.mjs --url=<url> --schema=<path> [--out=<file>]')
+    console.error('Usage: extract-chart.mjs --url=<url> --schema=<path> [--out=<file>] [--wait=<ms>] [--click=<selector>]')
     process.exit(1)
   }
   return args
 }
 
-async function extract({ url, schema }) {
+async function extract({ url, schema, waitMs, clickSelector }) {
+  const body = {
+    url,
+    formats: ['json'],
+    jsonOptions: { schema },
+    timeout: Math.max(45000, (waitMs ?? 0) + 30000),
+  }
+  if (waitMs) body.waitFor = waitMs
+  if (clickSelector) {
+    body.actions = [
+      { type: 'wait', milliseconds: Math.min(waitMs ?? 3000, 8000) },
+      { type: 'click', selector: clickSelector },
+      { type: 'wait', milliseconds: 3000 },
+    ]
+  }
   const res = await fetch('https://api.firecrawl.dev/v1/scrape', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${process.env.FIRECRAWL_API_KEY}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      url,
-      formats: ['json'],
-      jsonOptions: { schema },
-      timeout: 45000,
-    }),
-    signal: AbortSignal.timeout(75000),
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(body.timeout + 15000),
   })
   if (!res.ok) {
     const body = await res.text().catch(() => '')
@@ -83,7 +94,9 @@ async function main() {
 
   console.error(`[extract] ${args.url}`)
   console.error(`[extract] schema: ${args.schema}`)
-  const result = await extract({ url: args.url, schema })
+  if (args.waitMs) console.error(`[extract] waitFor: ${args.waitMs}ms`)
+  if (args.clickSelector) console.error(`[extract] click: ${args.clickSelector}`)
+  const result = await extract({ url: args.url, schema, waitMs: args.waitMs, clickSelector: args.clickSelector })
   console.error(`[extract] credits=${result.credits} statusCode=${result.statusCode}`)
 
   const out = JSON.stringify(result.json, null, 2)

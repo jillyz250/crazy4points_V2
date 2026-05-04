@@ -74,6 +74,8 @@ export default function TransferPartnersTable({
                         letterSpacing: '0.05em',
                         background: 'var(--color-accent)',
                         color: '#fff',
+                        display: 'inline-block',
+                        whiteSpace: 'nowrap',
                       }}
                     >
                       BONUS

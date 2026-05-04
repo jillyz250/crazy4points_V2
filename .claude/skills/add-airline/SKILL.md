@@ -9,7 +9,14 @@ description: Orchestrate the full add-a-program workflow on the crazy4points pro
 
 ## Purpose
 
-Every program page on crazy4points (airline, hotel, etc.) goes through the same end-to-end pipeline: research, draft, hedge, cross-fact-check, author in admin, verify live, submit to search engines, capture sources, wire press-room RSS into Scout. This skill enforces that pipeline so it happens consistently — and so the user only has to remember the trigger phrase.
+Every program page on crazy4points (airline, hotel, etc.) goes through the same end-to-end pipeline: research, draft, hedge, cross-fact-check, author in admin, verify live, submit to search engines, capture sources, wire press-room RSS into Scout, and (for hotels) seed the per-property Decision Engine dataset. This skill enforces that pipeline so it happens consistently.
+
+**Target automation level — Claude drives end to end. The user does TWO things:**
+
+1. **Spot-check the live page** after Claude reports completion (Step 8.5 full-page audit must pass first).
+2. **Submit the URL to Google Search Console + Bing Webmaster Tools** (Step 6).
+
+Everything else — research, drafting, SQL writes, migrations, source-doc generation, press-room source seeding, per-property scraping, Sonnet audit, full-page audit — Claude does. If a step still requires the user to click through admin or paste a CSV, that's a gap and Claude should flag it as an automation candidate against `plans/handoff-*.md` rather than letting it linger.
 
 **Source of truth for the workflow** — pick the type-matched runbook based on what's being authored:
 
@@ -42,31 +49,48 @@ THEN announce: "Starting <airline> — Step 1 first." Don't dump the full runboo
 
 **Note on program-row existence:** Don't gate the workflow on a "Step 0" admin check. Trust that the row exists (most US airlines + alliance members have been seeded). If the row turns out to be missing, you'll catch it in Step 4 (admin paste — the edit page 404s) or Step 5 (live page renders raw slugs); resolve at that point with a small seed migration. This saves 1-2 round-trips per program.
 
-### Step 1 — Research the program (WebSearch first; user-paste is fallback)
+### Step 1 — Research the program (automated via `research-program.mjs`)
 
-**Default workflow: Claude does WebSearch research; the user is NOT asked to paste a 6-URL list up front.** Major US carrier sites (delta.com, united.com, alaskaair.com) bot-block direct fetches and restructure URLs frequently, so guessing canonical URLs to ask the user to paste from = dead-link hunts. WebSearch across TPG / OMAAT / Frequent Miler / AwardWallet / NerdWallet / Upgraded Points / Milesopedia / the program's own news room handles 80-90% of the research need.
+**Primary workflow:** scrape the program's own pages directly via the research orchestrator, then WebSearch for gaps the orchestrator flags. User paste-in is only a last resort.
 
 **Do this:**
-1. Announce: "Researching <program>; will surface combined preview shortly."
-2. Spawn a WebSearch research agent with 2026 date filters covering: hubs / fleet, tier qualification + benefits, lounge access (incl. day pass rules), transfer partners + tax/fee status, sweet spots, recent news / 2025-2026 program changes, joint ventures, co-brand cards.
-3. Aim for **2 corroborating 2026-dated sources** per important factual claim (qualification thresholds, tier mapping, lounge cost, etc.).
-4. Tag every claim's confidence: HIGH (2+ 2026 sources), MEDIUM (1 source), LOW (training data only). LOW claims either get omitted or surfaced to the user as a one-question Google ask.
+
+1. Announce: "Step 1 — running research-program.mjs for `<slug>`."
+2. Confirm the program has `scrape_urls` seeded:
+   ```sh
+   supabase db query --linked --execute "select slug, type, scrape_urls, refresh_tier from programs where slug = '<slug>';"
+   ```
+   If `scrape_urls` is `{}`, write a small migration seeding the canonical URLs (see existing migrations 099, 107 for shape). Standard keys per type:
+   - **Airlines**: `partners`, `chart`, `tiers`, `tc`, `lounge`
+   - **Hotels**: `tiers`, `outbound_transfers`, `chart` (or `free_night_caps` for dynamic-pricing programs like Marriott/Hilton), `tc`, `news`
+   - **Alliances**: `members`, `award_rules`, `lounge_access`, `tier_mapping`, `news`
+   - **Credit cards**: `offer_page`, `tc`, `benefits_guide`
+3. Run the orchestrator:
+   ```sh
+   node scripts/research-program.mjs --slug=<slug>
+   # add --skip-chart for dynamic-pricing programs with no published chart
+   # add --wait=12000 if scrapes return chrome-only (some sites need longer)
+   ```
+4. **Immediately after the scrape finishes, fire ALL WebSearch topics from the printed queue in parallel — do NOT pause to ask the user first.** The queue is type-tailored (inbound transfers, sweet spots, SNA rules, recent news, etc.) and covers the things that aren't on the program's own site. Send all topics in a single message with multiple WebSearch tool calls so they run concurrently. Aim for 2026-dated results.
+5. Read the scraped markdown in `/tmp/research/<slug>/` together with the WebSearch results to extract draft content for Step 2. Tag every claim's confidence: HIGH (2+ 2026 sources or scraped from official site), MEDIUM (1 source), LOW (training data only).
+
+**When the orchestrator's scrape comes back chrome-only:**
+- Try `--wait=12000` first (some SPAs need longer JS-render time)
+- If still empty: the URL has likely moved. WebSearch `site:<domain> <topic>` to find the canonical path, update the migration, retry.
+- If the program's site is fully Firecrawl-blocked (AA, Southwest, sometimes Hyatt's own site): the scrape will record `firecrawl_blocked` and the daily refresh will surface the gap. Fall back to WebSearch + ⚠️ third-party sources for those fields, flagged per `feedback_flag_non_official_sources.md`.
 
 **When to fall back to user paste-in:**
-- A high-importance fact has only LOW confidence and you can't pin it down with 2 web sources
-- ChatGPT and Copilot disagree at Step 3 fact-check and you need the official source as tie-breaker
-- The program's own canonical page would be high value AND you have a verified working URL (e.g. user already pasted from `news.alaskaair.com` once and it works)
+- A high-importance fact has LOW confidence after both scrape + WebSearch
+- The program's site is Firecrawl-blocked AND third-party sources disagree
+- One specific data point (e.g. "current Diamond MQD threshold") needs a tiebreaker
 
-When falling back, ask for ONE thing at a time, with the exact question. Examples:
+When asking for paste-in, ask for ONE thing at a time, with the exact question. Examples:
 > "What's the current Diamond MQD threshold? My sources disagree."
 > "Has the Excursionist Perk officially returned in 2026?"
-> "Is GUM still a hub or focus city for United?"
 
-Never list 6 URLs and ask the user to paste from each — that pattern is retired.
+Never ask for a 6-URL paste list — that pattern is retired in favor of the orchestrator.
 
-**Official-source-first rule still applies** for fact-check disagreements (Step 3): when ChatGPT and Copilot conflict, push to the program's news/policy page via WebFetch or one-shot user paste — but only for the disputed fact, not bulk paste.
-
-See `feedback_websearch_default_research.md` for the full rule.
+See `feedback_websearch_default_research.md` and `feedback_scrape_official_skip_copilot.md` for the underlying rules.
 
 **ALWAYS provide a clickable markdown URL for every paste-in item.** Don't just describe the source ("the alliance's lounges page") — give the actual link as a markdown hyperlink the user can cmd-click. If you don't know the exact URL, WebSearch first to find it, THEN list. Never make the user hunt for the URL themselves. Format every paste-in line as:
 
@@ -189,7 +213,15 @@ Review the combined preview. Reply "looks good" / "ready to paste" and I'll re-o
 Or call out anything to change first.
 ```
 
-After user approval, output each field as a separate fenced code block tagged with the field name in the heading above it.
+**After user approval, write a single SQL UPDATE migration directly.** Do NOT re-output the content as paste-ready blocks per field. Per `feedback_prefer_sql_over_admin_forms.md`, SQL migrations are the default path: faster to apply, ASCII-scrubbed automatically, no admin form click-through required. Output structure:
+
+- One migration file per program at `supabase/migrations/<NNN>_seed_<slug>_page.sql`.
+- Header comment summarizing what's seeded and any non-obvious decisions (e.g. "Marriott eliminated chart in 2022; award_chart field uses dynamic-pricing framing with FNA caps as de-facto bands").
+- One `UPDATE programs SET ... WHERE slug = '<slug>';` covering all 9–10 populated fields.
+- ASCII-only inside JSON / text strings — replace em-dashes with " - ", smart quotes with straight quotes, ellipsis with "..." (per `feedback_ascii_only_in_sql_data.md`).
+- If the page references transfer-source slugs that aren't yet seeded, include `INSERT ... ON CONFLICT DO NOTHING` for skeleton rows in the same migration so the public render shows real names instead of raw slugs.
+
+Apply via `supabase db query --linked --file supabase/migrations/<NNN>_*.sql`. Confirm by SELECT of the same row + immediate run of `verify-program.mjs --slug=<slug>` once Vercel redeploy lands.
 
 Draft each of these **10 fields** (non-alliance programs require all 10 for completeness; alliance pages skip `award_chart`):
 
@@ -356,15 +388,46 @@ For each authored currency program (the airline's own loyalty program OR the joi
 
 **Seed via SQL migration**, alongside the editorial PR. Include a header comment explaining the program's pricing model + source (link to the official chart used).
 
-### Step 6 — SEO + indexing
+### Step 6 — SEO + indexing (one of the user's two manual steps)
 
-Walk through one at a time:
+This is one of only two things the user does manually per program (spot-check live page + submit to GSC/Bing). To make it as fast as possible, **always present each URL on its own line in a fenced code block** so the user gets a copy-to-clipboard button in their UI. Don't bury URLs inline in prose; don't combine multiple URLs in one code block.
 
-- **Google Search Console:** URL Inspection → paste full URL → Request Indexing
-- **Bing Webmaster Tools:** URL Submission → Submit URLs → paste
-- (Bing often flags new URLs as "cannot index" on first inspect — that's normal, click Request Indexing)
+When announcing this step, present exactly this format:
 
-For section milestones (when 12 US done, then international done, etc.), also resubmit sitemap to both, request indexing for each section URL one at a time, and sanity-check one earlier page via `site:crazy4points.com <airline>` search.
+> Live URL to spot-check + submit:
+> ```
+> https://crazy4points.com/programs/<slug>
+> ```
+>
+> Google Search Console — paste the URL above into the URL Inspection bar:
+> ```
+> https://search.google.com/search-console
+> ```
+> → paste the program URL into the inspection field → click "Request Indexing"
+>
+> Bing Webmaster Tools — URL Submission:
+> ```
+> https://www.bing.com/webmasters/url-submission
+> ```
+> → paste the program URL → click Submit
+
+Bing often flags new URLs as "cannot index" on first inspect — that's normal, click Request Indexing anyway.
+
+For section milestones (when 12 US done, then international done, etc.), also resubmit the sitemap to both:
+
+> Google sitemap resubmit:
+> ```
+> https://search.google.com/search-console/sitemaps
+> ```
+>
+> Bing sitemap resubmit:
+> ```
+> https://www.bing.com/webmasters/sitemaps
+> ```
+
+Then request indexing for each new section URL one at a time, and sanity-check one earlier page via `site:crazy4points.com <airline>` search.
+
+**Universal copy-button rule:** any URL Claude hands the user — official source URLs, RSS feed URLs, admin paths, Stripe / Resend / Vercel dashboards — goes on its own line in a fenced code block. Never describe a URL in prose without surfacing the actual link in a copy-able form right after.
 
 ### Step 7 — Save source list
 
@@ -394,6 +457,14 @@ Open as a small docs PR.
 ### Step 7.5 — Add press-room RSS to Scout (AUTOMATED via SQL)
 
 The Supabase CLI is linked (one-time setup); no admin browser flow needed. I generate the SQL, run it via `supabase db query --linked --file <path>`, and confirm.
+
+When announcing the discovered RSS feed to the user (so they can sanity-check it in a browser), present it on its own line in a fenced code block for copy-to-clipboard:
+
+> Press-room RSS feed I'm seeding for `<slug>`:
+> ```
+> https://news.<carrier>.com/feed/
+> ```
+> Open in a browser to confirm it returns recent items before I run the SQL insert.
 
 **Process:**
 
@@ -445,16 +516,19 @@ where url = '<existing-feed-url>';
 
 **No-RSS fallback:** if the carrier's newsroom is bot-blocked (403) on every URL pattern (Q4-platform sites — AA, JetBlue, Southwest), set `use_firecrawl = true` and use the HTML newsroom URL. Schedule a 1-week verifier routine if useful (`/schedule` skill).
 
-### Step 7.6 — Seed per-property data (HOTELS ONLY — skip for airlines)
+### Step 7.6 — Scrape + seed per-property data (HOTELS ONLY — skip for airlines)
 
-Hotels have a per-property table at `/admin/programs/[slug]/properties` that the public page, the writer, the fact-checker, and (eventually) the Decision Engine all read from.
+Hotels have a per-property table at `/admin/programs/[slug]/properties` that the public page, the writer, the fact-checker, and the **Decision Engine** all read from. Without this data the Decision Engine has nothing to surface in destination searches — so this step is mandatory for every hotel program, not optional.
 
-- Page through the program's official property finder, filtered by award category
-- Build CSV at `data/[slug]-properties-current.csv` with columns: `name,brand,city,country,region,category,off_peak_points,standard_points,peak_points,hotel_url,all_inclusive,notes`. Leave points columns blank — the SQL backfill below fills them in.
-- Have user paste the CSV at `/admin/programs/[slug]/properties` → Bulk import → Import. Confirm inserted/updated counts.
-- Write a one-shot SQL backfill at `data/[slug]-points-backfill.sql` joining to a `VALUES` table mapping category → points (use the program's published chart from `programs.[slug].award_chart`).
-- Have user paste the SQL into Supabase Studio → SQL Editor → Run.
-- Spot-check the admin properties page — Off-peak / Standard / Peak columns should be populated.
+**Goal: Claude scrapes the program's property finder + chart, builds the CSV, runs the SQL backfill, all without user paste-in.**
+
+- Use Firecrawl crawl mode (or extract-chart-style structured pulls) against the program's property finder URL (e.g. `marriott.com/hotel-search/`, `hilton.com/en/hotels/`). Page through the listings filtered by award category.
+- Emit `data/[slug]-properties-current.csv` with columns: `name,brand,city,country,region,category,off_peak_points,standard_points,peak_points,hotel_url,all_inclusive,notes`. Leave points columns blank — the SQL backfill fills them in.
+- Bulk-insert into `hotel_properties` via `supabase db query --linked --file <path>`. Don't ask the user to paste into the admin Bulk Import box — that's a CSV-paste workaround we used before SQL was the default.
+- Write `data/[slug]-points-backfill.sql` joining to a `VALUES` table mapping category → points (use the program's published chart from `programs.[slug].award_chart`). Run via `supabase db query --linked --file <path>`.
+- Spot-check via `select count(*), category from hotel_properties where program_id = (...) group by category` — counts should look right per category.
+
+⚠️ **Current state (2026-05-05):** the property-finder scraper isn't built yet — Marriott authoring exposed this gap. Until it lands, this step still requires per-program manual scraping, which violates the "Claude drives end-to-end" goal. Capture as a top-priority backlog item: `scripts/scrape-properties.mjs --slug=<x>` using Firecrawl crawl mode + LLM-driven categorization. ~3-4 hrs to build. Pays off across Marriott / Hilton / IHG / Wyndham (4 hotels × ~200-1000 properties each).
 
 Watch out: Supabase REST default caps SELECT at 1,000 rows. Any new query helper that reads `hotel_properties` must paginate (see `getPropertiesForProgram` for the pattern).
 
@@ -463,6 +537,35 @@ Watch out: Supabase REST default caps SELECT at 1,000 rows. Any new query helper
 Note in the source doc which co-brand credit cards earn into this program. When Credit Cards section starts authoring, those cards will link back automatically.
 
 For hotels, also note: once Step 7.6 is done, `hotel_properties` is automatically wired into the fact-checker (verifies property/category claims) and the Decision Engine (surfaces hotels in destination searches). No per-program work beyond seeding the table.
+
+### Step 8.5 — Full-page audit (final wrap before user spot-check)
+
+This is the gate before the user is asked to spot-check the live page. Everything Claude has written — admin paste, source doc, press-room source, properties (hotels) — gets verified here. If anything fails, Claude fixes it without asking, then re-runs the audit. Only when 100% passes does Claude hand to the user.
+
+**Run the existing audit scripts in sequence:**
+
+```bash
+node scripts/verify-program.mjs --slug=<slug>           # live page renders, no raw slugs, all sections
+node scripts/llm-audit-program.mjs --slug=<slug>        # Sonnet pass: hedging, banned absolutes, comparative claims
+node scripts/audit-program.mjs --slug=<slug>            # regex-based banned-words sweep (cheap, noisy)
+```
+
+**Then run the wider checklist (Claude does each by hand or via curl/HTTP fetch — eventually rolled into one `scripts/audit-program-full.mjs`):**
+
+- [ ] `programs.last_verified` is today; completeness is N/N (10/10 for non-alliance, 9/9 for alliance)
+- [ ] Every transfer-partner row in JSON renders a real name on the live page (no raw slugs)
+- [ ] **Mobile contract** — fetch live page in headless mode at 375px width, run `document.documentElement.scrollWidth - clientWidth` — must be 0
+- [ ] **TOC strip** lists every populated section
+- [ ] **JSON-LD schema** present in page source if applicable (`view-source:` → search for `application/ld+json`)
+- [ ] **Sources doc** at `plans/sources/<slug>.md` exists and lists every URL consulted during research
+- [ ] **Press-room source** seeded in `sources` table with `Programs: <slug>` in notes (Step 7.5)
+- [ ] **Hotel-only**: `hotel_properties` count > 0, all categories populated, off-peak/standard/peak columns filled (Step 7.6)
+- [ ] **Airline/loyalty_program-only**: `partner_redemptions` rows exist for every operating carrier this currency books (Step 5.5)
+- [ ] **Writer regen test**: pick an alert tagged to this program, hit Regenerate in admin, confirm new draft reflects facts from the new Page content (no contradictions with what was just authored)
+
+**If any check fails, Claude fixes it without asking, then re-runs the audit.** Only when everything passes does Claude announce: "Full-page audit clean. Live URL: `https://crazy4points.com/programs/<slug>` — please spot-check, then submit to Google Search Console + Bing Webmaster Tools." That's the user's one-and-only manual cue.
+
+⚠️ **Current state:** these checks are partly automated (verify-program.mjs + llm-audit-program.mjs + audit-program.mjs all exist), partly manual. Backlog: roll the entire battery into `scripts/audit-program-full.mjs` so it's one command + a pass/fail report. ~1.5 hrs to build.
 
 ### Step 9 — Maintenance — handled by admin, no per-program reminder needed
 

@@ -82,47 +82,22 @@ export default async function ProgramPageContent({
 
       {awardChartHtml && (
         <section id="award-chart" style={sectionStyle}>
-          <details>
-            <summary
-              style={{
-                cursor: 'pointer',
-                listStyle: 'none',
-                display: 'flex',
-                alignItems: 'baseline',
-                gap: '0.625rem',
-                marginBottom: '0.5rem',
-              }}
-            >
-              <h2 style={{ ...headingStyle, marginBottom: 0 }}>Award chart</h2>
-              <span
-                style={{
-                  fontFamily: 'var(--font-ui)',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.06em',
-                  color: 'var(--color-primary)',
-                }}
-              >
-                Show / hide
-              </span>
-            </summary>
-            <p
-              style={{
-                fontFamily: 'var(--font-body)',
-                fontSize: '0.875rem',
-                color: 'var(--color-text-secondary)',
-                marginBottom: '0.75rem',
-              }}
-            >
-              Official redemption costs from {program.name}.
-            </p>
-            <div
-              style={proseStyle}
-              className="rg-prose"
-              dangerouslySetInnerHTML={{ __html: awardChartHtml }}
-            />
-          </details>
+          <h2 style={headingStyle}>Award chart</h2>
+          <p
+            style={{
+              fontFamily: 'var(--font-body)',
+              fontSize: '0.875rem',
+              color: 'var(--color-text-secondary)',
+              marginBottom: '0.75rem',
+            }}
+          >
+            Official redemption costs from {program.name}.
+          </p>
+          <div
+            style={proseStyle}
+            className="rg-prose"
+            dangerouslySetInnerHTML={{ __html: awardChartHtml }}
+          />
         </section>
       )}
 
