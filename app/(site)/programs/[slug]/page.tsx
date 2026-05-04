@@ -216,11 +216,24 @@ export default async function ProgramPage({
       />
       <div className="rg-container">
 
+        {/* Distinct redemption partners (from partner_redemptions) for hero pills */}
+        {/* Surfaces bilateral partnerships (e.g. JetBlue → United via Blue Sky) */}
+        {/* Empty array if no partner_redemptions rows are seeded for this program. */}
+        {/* @ts-ignore — local computed value */}
+        {(() => null)()}
+
         {/* Hero header (badges + active alerts banner + section TOC) */}
         <ProgramPageHero
           program={program}
           activeAlertCount={active.length}
           totalAlertCount={allAlerts.length}
+          partners={Array.from(
+            new Map(
+              redemptionsAsCurrency
+                .filter((r) => r.operating_carrier?.slug && r.operating_carrier?.name)
+                .map((r) => [r.operating_carrier!.slug, { slug: r.operating_carrier!.slug, name: r.operating_carrier!.name }])
+            ).values()
+          ).sort((a, b) => a.name.localeCompare(b.name))}
           sections={[
             ...(program.intro ? [{ id: 'intro', label: 'Intro' }] : []),
             ...(program.award_chart ? [{ id: 'award-chart', label: 'Award chart' }] : []),

@@ -13,11 +13,16 @@ export default function ProgramPageHero({
   program,
   activeAlertCount,
   totalAlertCount,
+  partners = [],
   sections,
 }: {
   program: Program
   activeAlertCount: number
   totalAlertCount: number
+  /** Distinct operating-carrier programs derived from partner_redemptions.
+   *  Renders as clickable partner pills next to the alliance/hubs row.
+   *  Empty array hides the partners row entirely. */
+  partners?: Array<{ slug: string; name: string }>
   sections: Array<{ id: string; label: string }>
 }) {
   const alliance = program.alliance as Alliance | null
@@ -157,6 +162,59 @@ export default function ProgramPageHero({
           </span>
         )}
       </div>
+
+      {/* Partner pills row — only renders when partner_redemptions rows
+          exist for this program. Surfaces bilateral partnerships (e.g.
+          JetBlue's Blue Sky with United) and the partner-redemption
+          roster generally. Each pill links to the partner program page. */}
+      {partners.length > 0 && (
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '0.4rem',
+            alignItems: 'center',
+            marginBottom: '1rem',
+            paddingBottom: '0.875rem',
+            borderBottom: '1px dashed var(--color-border-soft)',
+          }}
+        >
+          <span
+            style={{
+              fontFamily: 'var(--font-ui)',
+              fontSize: '0.6875rem',
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: 'var(--color-text-secondary)',
+              marginRight: '0.25rem',
+            }}
+          >
+            Redeems on:
+          </span>
+          {partners.map((p) => (
+            <Link
+              key={p.slug}
+              href={`/programs/${p.slug}`}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                padding: '0.25rem 0.6rem',
+                fontFamily: 'var(--font-ui)',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                color: 'var(--color-text-primary)',
+                background: 'var(--color-background-soft)',
+                border: '1px solid var(--color-border-soft)',
+                borderRadius: '9999px',
+                textDecoration: 'none',
+              }}
+            >
+              {p.name}
+            </Link>
+          ))}
+        </div>
+      )}
 
       {/* Active offer callout banner */}
       {activeAlertCount > 0 && (
