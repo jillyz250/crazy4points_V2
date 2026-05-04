@@ -381,14 +381,59 @@ Claude creates `plans/sources/[slug].md` from `plans/sources/_TEMPLATE.md`. Popu
 
 Open as a small docs PR.
 
-### Step 7.5 — Add press-room RSS to Scout
+### Step 7.5 — Add press-room RSS to Scout (AUTOMATED via SQL)
 
-If the carrier has a working RSS press room:
+The Supabase CLI is linked (one-time setup); no admin browser flow needed. I generate the SQL, run it via `supabase db query --linked --file <path>`, and confirm.
 
-- Test the URL with `curl -sLI <url>` — confirm 200 OK
-- If 200: have user add via `/admin/sources/new` — Type: Official Partner, Tier: 1, Frequency: daily, Firecrawl: off
-- If 403/blocked: have user add anyway with Firecrawl: on, check back in a week
-- Notes field should reference program slugs the source covers
+**Process:**
+
+1. **Test the press-room URL with `curl -sLI <url>`** to determine Firecrawl on/off:
+   - 200 OK → `use_firecrawl = false`
+   - 403/blocked → `use_firecrawl = true` (Firecrawl bypasses CDN bot-blocks)
+
+2. **Write the source-insert SQL** as a one-off file in `/tmp/`. Schema reminder for the `sources` table:
+   - `name` text — human-readable source name (e.g. `"Delta News Hub"`)
+   - `url` text — RSS or HTML newsroom URL
+   - `type` text — `'official_partner'` for airline newsrooms, `'blog'` for TPG/OMAAT etc.
+   - `tier` int — `1` (highest priority) for official; `2` for established blogs; `3` for everything else
+   - `is_active` boolean — `true`
+   - `scrape_frequency` text — `'daily'` for newsrooms, `'weekly'` for slower-moving sources
+   - `use_firecrawl` boolean — based on curl test above
+   - `notes` text — `Programs: <slug>. <one-line context>.` Cross-references which program slugs this source covers + any quirks (e.g. "Q4-platform CDN bot-blocks plain HTTP; Firecrawl required").
+
+3. **Template SQL:**
+
+```sql
+insert into sources (name, url, type, tier, is_active, scrape_frequency, use_firecrawl, notes)
+values (
+  '<Program> News Hub',
+  'https://news.<carrier>.com/feed/',
+  'official_partner',
+  1,
+  true,
+  'daily',
+  false, -- or true if 403-blocked
+  'Programs: <slug>. <quirk note if any>.'
+)
+on conflict do nothing;
+```
+
+4. **Run via Supabase CLI:**
+
+```bash
+supabase db query --linked --file /tmp/<slug>-source.sql
+```
+
+5. **For joint loyalty programs** (Atmos covers Alaska + Hawaiian; Flying Blue covers Air France + KLM): if the source feed already exists for the parent program, just append to the `notes` field instead of creating a duplicate row:
+
+```sql
+update sources set notes = notes || ', <slug>'
+where url = '<existing-feed-url>';
+```
+
+6. **No browser/admin click-through required.** The CLI runs SQL directly against prod.
+
+**No-RSS fallback:** if the carrier's newsroom is bot-blocked (403) on every URL pattern (Q4-platform sites — AA, JetBlue, Southwest), set `use_firecrawl = true` and use the HTML newsroom URL. Schedule a 1-week verifier routine if useful (`/schedule` skill).
 
 ### Step 7.6 — Seed per-property data (HOTELS ONLY — skip for airlines)
 
