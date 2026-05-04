@@ -14,7 +14,7 @@ export const revalidate = 60;
 export const metadata: Metadata = {
   title: "crazy4points — Travel Smarter. Earn More. Go Farther.",
   description:
-    "Alerts on the points moves actually worth caring about. We track the chaos so you don't have to.",
+    "Daily alerts on transfer bonuses, sweet-spot redemptions, devaluations, and limited-time offers across airline, hotel, and credit card loyalty programs.",
 };
 
 const MAX_HOT_ALERTS = 5;
