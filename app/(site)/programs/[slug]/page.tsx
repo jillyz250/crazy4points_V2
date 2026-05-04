@@ -90,6 +90,12 @@ export default async function ProgramPage({
     program = result.program
     allAlerts = result.alerts
     programNameBySlug = new Map(allPrograms.map((p) => [p.slug, p.name]))
+    // Hide skeleton-only rows (seeded for slug-resolution but no editorial
+    // authored). The moment any field is saved in admin, content_updated_at
+    // is set and the page becomes publicly accessible automatically.
+    if (!program.content_updated_at) {
+      notFound()
+    }
   } catch {
     notFound()
   }
