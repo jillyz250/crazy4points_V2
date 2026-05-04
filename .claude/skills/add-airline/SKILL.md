@@ -42,31 +42,48 @@ THEN announce: "Starting <airline> — Step 1 first." Don't dump the full runboo
 
 **Note on program-row existence:** Don't gate the workflow on a "Step 0" admin check. Trust that the row exists (most US airlines + alliance members have been seeded). If the row turns out to be missing, you'll catch it in Step 4 (admin paste — the edit page 404s) or Step 5 (live page renders raw slugs); resolve at that point with a small seed migration. This saves 1-2 round-trips per program.
 
-### Step 1 — Research the program (WebSearch first; user-paste is fallback)
+### Step 1 — Research the program (automated via `research-program.mjs`)
 
-**Default workflow: Claude does WebSearch research; the user is NOT asked to paste a 6-URL list up front.** Major US carrier sites (delta.com, united.com, alaskaair.com) bot-block direct fetches and restructure URLs frequently, so guessing canonical URLs to ask the user to paste from = dead-link hunts. WebSearch across TPG / OMAAT / Frequent Miler / AwardWallet / NerdWallet / Upgraded Points / Milesopedia / the program's own news room handles 80-90% of the research need.
+**Primary workflow:** scrape the program's own pages directly via the research orchestrator, then WebSearch for gaps the orchestrator flags. User paste-in is only a last resort.
 
 **Do this:**
-1. Announce: "Researching <program>; will surface combined preview shortly."
-2. Spawn a WebSearch research agent with 2026 date filters covering: hubs / fleet, tier qualification + benefits, lounge access (incl. day pass rules), transfer partners + tax/fee status, sweet spots, recent news / 2025-2026 program changes, joint ventures, co-brand cards.
-3. Aim for **2 corroborating 2026-dated sources** per important factual claim (qualification thresholds, tier mapping, lounge cost, etc.).
-4. Tag every claim's confidence: HIGH (2+ 2026 sources), MEDIUM (1 source), LOW (training data only). LOW claims either get omitted or surfaced to the user as a one-question Google ask.
+
+1. Announce: "Step 1 — running research-program.mjs for `<slug>`."
+2. Confirm the program has `scrape_urls` seeded:
+   ```sh
+   supabase db query --linked --execute "select slug, type, scrape_urls, refresh_tier from programs where slug = '<slug>';"
+   ```
+   If `scrape_urls` is `{}`, write a small migration seeding the canonical URLs (see existing migrations 099, 107 for shape). Standard keys per type:
+   - **Airlines**: `partners`, `chart`, `tiers`, `tc`, `lounge`
+   - **Hotels**: `tiers`, `outbound_transfers`, `chart` (or `free_night_caps` for dynamic-pricing programs like Marriott/Hilton), `tc`, `news`
+   - **Alliances**: `members`, `award_rules`, `lounge_access`, `tier_mapping`, `news`
+   - **Credit cards**: `offer_page`, `tc`, `benefits_guide`
+3. Run the orchestrator:
+   ```sh
+   node scripts/research-program.mjs --slug=<slug>
+   # add --skip-chart for dynamic-pricing programs with no published chart
+   # add --wait=12000 if scrapes return chrome-only (some sites need longer)
+   ```
+4. **Immediately after the scrape finishes, fire ALL WebSearch topics from the printed queue in parallel — do NOT pause to ask the user first.** The queue is type-tailored (inbound transfers, sweet spots, SNA rules, recent news, etc.) and covers the things that aren't on the program's own site. Send all topics in a single message with multiple WebSearch tool calls so they run concurrently. Aim for 2026-dated results.
+5. Read the scraped markdown in `/tmp/research/<slug>/` together with the WebSearch results to extract draft content for Step 2. Tag every claim's confidence: HIGH (2+ 2026 sources or scraped from official site), MEDIUM (1 source), LOW (training data only).
+
+**When the orchestrator's scrape comes back chrome-only:**
+- Try `--wait=12000` first (some SPAs need longer JS-render time)
+- If still empty: the URL has likely moved. WebSearch `site:<domain> <topic>` to find the canonical path, update the migration, retry.
+- If the program's site is fully Firecrawl-blocked (AA, Southwest, sometimes Hyatt's own site): the scrape will record `firecrawl_blocked` and the daily refresh will surface the gap. Fall back to WebSearch + ⚠️ third-party sources for those fields, flagged per `feedback_flag_non_official_sources.md`.
 
 **When to fall back to user paste-in:**
-- A high-importance fact has only LOW confidence and you can't pin it down with 2 web sources
-- ChatGPT and Copilot disagree at Step 3 fact-check and you need the official source as tie-breaker
-- The program's own canonical page would be high value AND you have a verified working URL (e.g. user already pasted from `news.alaskaair.com` once and it works)
+- A high-importance fact has LOW confidence after both scrape + WebSearch
+- The program's site is Firecrawl-blocked AND third-party sources disagree
+- One specific data point (e.g. "current Diamond MQD threshold") needs a tiebreaker
 
-When falling back, ask for ONE thing at a time, with the exact question. Examples:
+When asking for paste-in, ask for ONE thing at a time, with the exact question. Examples:
 > "What's the current Diamond MQD threshold? My sources disagree."
 > "Has the Excursionist Perk officially returned in 2026?"
-> "Is GUM still a hub or focus city for United?"
 
-Never list 6 URLs and ask the user to paste from each — that pattern is retired.
+Never ask for a 6-URL paste list — that pattern is retired in favor of the orchestrator.
 
-**Official-source-first rule still applies** for fact-check disagreements (Step 3): when ChatGPT and Copilot conflict, push to the program's news/policy page via WebFetch or one-shot user paste — but only for the disputed fact, not bulk paste.
-
-See `feedback_websearch_default_research.md` for the full rule.
+See `feedback_websearch_default_research.md` and `feedback_scrape_official_skip_copilot.md` for the underlying rules.
 
 **ALWAYS provide a clickable markdown URL for every paste-in item.** Don't just describe the source ("the alliance's lounges page") — give the actual link as a markdown hyperlink the user can cmd-click. If you don't know the exact URL, WebSearch first to find it, THEN list. Never make the user hunt for the URL themselves. Format every paste-in line as:
 
