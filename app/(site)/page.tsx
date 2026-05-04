@@ -4,6 +4,13 @@ import { createAdminClient } from "@/utils/supabase/server";
 import { getActiveAlerts, type AlertWithPrograms } from "@/utils/supabase/queries";
 import type { Metadata } from "next";
 
+// Revalidate every 60s so the hot alerts bar can't go stale past a minute
+// when an alert expires or is unpublished. Without this, the homepage was
+// being statically rendered at build time and served from CDN until the
+// next deploy — meaning expired alerts kept showing in the hot bar with
+// 404'ing links.
+export const revalidate = 60;
+
 export const metadata: Metadata = {
   title: "crazy4points — Travel Smarter. Earn More. Go Farther.",
   description:
