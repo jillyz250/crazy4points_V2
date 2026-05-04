@@ -9,7 +9,14 @@ description: Orchestrate the full add-a-program workflow on the crazy4points pro
 
 ## Purpose
 
-Every program page on crazy4points (airline, hotel, etc.) goes through the same end-to-end pipeline: research, draft, hedge, cross-fact-check, author in admin, verify live, submit to search engines, capture sources, wire press-room RSS into Scout. This skill enforces that pipeline so it happens consistently — and so the user only has to remember the trigger phrase.
+Every program page on crazy4points (airline, hotel, etc.) goes through the same end-to-end pipeline: research, draft, hedge, cross-fact-check, author in admin, verify live, submit to search engines, capture sources, wire press-room RSS into Scout, and (for hotels) seed the per-property Decision Engine dataset. This skill enforces that pipeline so it happens consistently.
+
+**Target automation level — Claude drives end to end. The user does TWO things:**
+
+1. **Spot-check the live page** after Claude reports completion (Step 8.5 full-page audit must pass first).
+2. **Submit the URL to Google Search Console + Bing Webmaster Tools** (Step 6).
+
+Everything else — research, drafting, SQL writes, migrations, source-doc generation, press-room source seeding, per-property scraping, Sonnet audit, full-page audit — Claude does. If a step still requires the user to click through admin or paste a CSV, that's a gap and Claude should flag it as an automation candidate against `plans/handoff-*.md` rather than letting it linger.
 
 **Source of truth for the workflow** — pick the type-matched runbook based on what's being authored:
 
@@ -462,16 +469,19 @@ where url = '<existing-feed-url>';
 
 **No-RSS fallback:** if the carrier's newsroom is bot-blocked (403) on every URL pattern (Q4-platform sites — AA, JetBlue, Southwest), set `use_firecrawl = true` and use the HTML newsroom URL. Schedule a 1-week verifier routine if useful (`/schedule` skill).
 
-### Step 7.6 — Seed per-property data (HOTELS ONLY — skip for airlines)
+### Step 7.6 — Scrape + seed per-property data (HOTELS ONLY — skip for airlines)
 
-Hotels have a per-property table at `/admin/programs/[slug]/properties` that the public page, the writer, the fact-checker, and (eventually) the Decision Engine all read from.
+Hotels have a per-property table at `/admin/programs/[slug]/properties` that the public page, the writer, the fact-checker, and the **Decision Engine** all read from. Without this data the Decision Engine has nothing to surface in destination searches — so this step is mandatory for every hotel program, not optional.
 
-- Page through the program's official property finder, filtered by award category
-- Build CSV at `data/[slug]-properties-current.csv` with columns: `name,brand,city,country,region,category,off_peak_points,standard_points,peak_points,hotel_url,all_inclusive,notes`. Leave points columns blank — the SQL backfill below fills them in.
-- Have user paste the CSV at `/admin/programs/[slug]/properties` → Bulk import → Import. Confirm inserted/updated counts.
-- Write a one-shot SQL backfill at `data/[slug]-points-backfill.sql` joining to a `VALUES` table mapping category → points (use the program's published chart from `programs.[slug].award_chart`).
-- Have user paste the SQL into Supabase Studio → SQL Editor → Run.
-- Spot-check the admin properties page — Off-peak / Standard / Peak columns should be populated.
+**Goal: Claude scrapes the program's property finder + chart, builds the CSV, runs the SQL backfill, all without user paste-in.**
+
+- Use Firecrawl crawl mode (or extract-chart-style structured pulls) against the program's property finder URL (e.g. `marriott.com/hotel-search/`, `hilton.com/en/hotels/`). Page through the listings filtered by award category.
+- Emit `data/[slug]-properties-current.csv` with columns: `name,brand,city,country,region,category,off_peak_points,standard_points,peak_points,hotel_url,all_inclusive,notes`. Leave points columns blank — the SQL backfill fills them in.
+- Bulk-insert into `hotel_properties` via `supabase db query --linked --file <path>`. Don't ask the user to paste into the admin Bulk Import box — that's a CSV-paste workaround we used before SQL was the default.
+- Write `data/[slug]-points-backfill.sql` joining to a `VALUES` table mapping category → points (use the program's published chart from `programs.[slug].award_chart`). Run via `supabase db query --linked --file <path>`.
+- Spot-check via `select count(*), category from hotel_properties where program_id = (...) group by category` — counts should look right per category.
+
+⚠️ **Current state (2026-05-05):** the property-finder scraper isn't built yet — Marriott authoring exposed this gap. Until it lands, this step still requires per-program manual scraping, which violates the "Claude drives end-to-end" goal. Capture as a top-priority backlog item: `scripts/scrape-properties.mjs --slug=<x>` using Firecrawl crawl mode + LLM-driven categorization. ~3-4 hrs to build. Pays off across Marriott / Hilton / IHG / Wyndham (4 hotels × ~200-1000 properties each).
 
 Watch out: Supabase REST default caps SELECT at 1,000 rows. Any new query helper that reads `hotel_properties` must paginate (see `getPropertiesForProgram` for the pattern).
 
@@ -480,6 +490,35 @@ Watch out: Supabase REST default caps SELECT at 1,000 rows. Any new query helper
 Note in the source doc which co-brand credit cards earn into this program. When Credit Cards section starts authoring, those cards will link back automatically.
 
 For hotels, also note: once Step 7.6 is done, `hotel_properties` is automatically wired into the fact-checker (verifies property/category claims) and the Decision Engine (surfaces hotels in destination searches). No per-program work beyond seeding the table.
+
+### Step 8.5 — Full-page audit (final wrap before user spot-check)
+
+This is the gate before the user is asked to spot-check the live page. Everything Claude has written — admin paste, source doc, press-room source, properties (hotels) — gets verified here. If anything fails, Claude fixes it without asking, then re-runs the audit. Only when 100% passes does Claude hand to the user.
+
+**Run the existing audit scripts in sequence:**
+
+```bash
+node scripts/verify-program.mjs --slug=<slug>           # live page renders, no raw slugs, all sections
+node scripts/llm-audit-program.mjs --slug=<slug>        # Sonnet pass: hedging, banned absolutes, comparative claims
+node scripts/audit-program.mjs --slug=<slug>            # regex-based banned-words sweep (cheap, noisy)
+```
+
+**Then run the wider checklist (Claude does each by hand or via curl/HTTP fetch — eventually rolled into one `scripts/audit-program-full.mjs`):**
+
+- [ ] `programs.last_verified` is today; completeness is N/N (10/10 for non-alliance, 9/9 for alliance)
+- [ ] Every transfer-partner row in JSON renders a real name on the live page (no raw slugs)
+- [ ] **Mobile contract** — fetch live page in headless mode at 375px width, run `document.documentElement.scrollWidth - clientWidth` — must be 0
+- [ ] **TOC strip** lists every populated section
+- [ ] **JSON-LD schema** present in page source if applicable (`view-source:` → search for `application/ld+json`)
+- [ ] **Sources doc** at `plans/sources/<slug>.md` exists and lists every URL consulted during research
+- [ ] **Press-room source** seeded in `sources` table with `Programs: <slug>` in notes (Step 7.5)
+- [ ] **Hotel-only**: `hotel_properties` count > 0, all categories populated, off-peak/standard/peak columns filled (Step 7.6)
+- [ ] **Airline/loyalty_program-only**: `partner_redemptions` rows exist for every operating carrier this currency books (Step 5.5)
+- [ ] **Writer regen test**: pick an alert tagged to this program, hit Regenerate in admin, confirm new draft reflects facts from the new Page content (no contradictions with what was just authored)
+
+**If any check fails, Claude fixes it without asking, then re-runs the audit.** Only when everything passes does Claude announce: "Full-page audit clean. Live URL: `https://crazy4points.com/programs/<slug>` — please spot-check, then submit to Google Search Console + Bing Webmaster Tools." That's the user's one-and-only manual cue.
+
+⚠️ **Current state:** these checks are partly automated (verify-program.mjs + llm-audit-program.mjs + audit-program.mjs all exist), partly manual. Backlog: roll the entire battery into `scripts/audit-program-full.mjs` so it's one command + a pass/fail report. ~1.5 hrs to build.
 
 ### Step 9 — Maintenance — handled by admin, no per-program reminder needed
 
