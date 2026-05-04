@@ -1,0 +1,48 @@
+{
+  "type": "object",
+  "description": "Schema for airline programs that publish a distance-banded partner award chart broken into regions (e.g. Atmos, Cathay AsiaMiles, Aer Lingus, Iberia, Avianca LifeMiles). Each region has a list of distance bands; each band has cabin-class point costs.",
+  "properties": {
+    "partner_charts": {
+      "type": "array",
+      "description": "One entry per region the chart covers (e.g. Americas, EMEA, Asia Pacific).",
+      "items": {
+        "type": "object",
+        "properties": {
+          "region_name": { "type": "string" },
+          "scope_description": { "type": "string", "description": "Optional clarifier like 'US to Asia Pacific, within Asia Pacific'." },
+          "bands": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "distance_band": { "type": "string", "description": "Raw label as written on the chart (e.g. '701-1,400', '6,001 and above')." },
+                "economy_points": { "type": "integer" },
+                "premium_economy_points": { "type": "integer", "description": "0 if not offered." },
+                "business_points": { "type": "integer" },
+                "first_points": { "type": "integer", "description": "0 if not offered." }
+              }
+            }
+          }
+        }
+      }
+    },
+    "own_metal_chart": {
+      "type": "array",
+      "description": "Optional second chart for awards wholly on the program's own carriers (e.g. Alaska + Hawaiian own-metal). Same shape as a partner chart band.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "distance_band": { "type": "string" },
+          "economy_points": { "type": "integer" },
+          "premium_economy_points": { "type": "integer", "description": "0 if not offered." },
+          "business_points": { "type": "integer", "description": "0 if not offered." },
+          "first_points": { "type": "integer" }
+        }
+      }
+    },
+    "booking_fees_summary": {
+      "type": "string",
+      "description": "Plain-English summary of taxes, partner fees, stopover rules, and other booking-level constraints from the chart page T&C section."
+    }
+  }
+}
