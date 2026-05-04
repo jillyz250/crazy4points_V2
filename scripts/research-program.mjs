@@ -73,6 +73,7 @@ const WEBSEARCH_TOPICS_BY_TYPE = {
     '{name} Suite Night Award or upgrade rules Platinum-tier 2026',
     '{name} all-inclusive resort award stays sweet spots 2026',
     '{name} recent program changes devaluations 2025 2026',
+    '{name} co-brand credit cards currently issued vs legacy discontinued 2026 active applications',
   ],
   airline: [
     'inbound transfer ratios Amex MR Chase UR Bilt Citi Cap One to {name} 2026',
@@ -81,6 +82,7 @@ const WEBSEARCH_TOPICS_BY_TYPE = {
     '{name} fuel surcharge carrier-imposed surcharges policy 2026',
     '{name} family pooling household rules 2026',
     '{name} recent devaluations program changes 2025 2026',
+    '{name} co-brand credit cards currently issued vs legacy discontinued 2026 active applications',
   ],
   loyalty_program: [
     'inbound transfer ratios Amex MR Chase UR Bilt Citi Cap One to {name} 2026',
@@ -88,6 +90,7 @@ const WEBSEARCH_TOPICS_BY_TYPE = {
     '{name} stopover open-jaw rules 2026',
     '{name} fuel surcharge policy 2026',
     '{name} recent devaluations 2025 2026',
+    '{name} co-brand credit cards currently issued vs legacy discontinued 2026 active applications',
   ],
   alliance: [
     '{name} round-the-world award rules 2026',
