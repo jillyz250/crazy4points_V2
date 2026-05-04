@@ -216,7 +216,17 @@ Brand voice in **intro** and **sweet spots**: voicey. Brand voice in **transfer 
 
 Present all 9 drafts to the user in a single message structured as paste-ready blocks. Each block clearly labeled.
 
-### Step 3 — Cross-fact-check via Copilot
+### Step 3 — REMOVED (superseded by scrape-first)
+
+The Copilot/ChatGPT fact-check round is no longer part of the workflow. Per `feedback_scrape_official_skip_copilot.md`: when structured data comes from `node scripts/scrape.mjs <url>` against the official program site, that's the canonical source. WebSearch + the user's review covers editorial color.
+
+Skip this step entirely and proceed to Step 4 (admin paste / SQL via supabase db query).
+
+If a specific field is suspect or unclear, do a one-off targeted re-scrape or one-question WebSearch — not a full Copilot prompt block.
+
+---
+
+### Step 3 (legacy / archive only — kept for historical reference) — Cross-fact-check via Copilot
 
 After Step 2 drafts are signed off (combined preview approved), give the user **one consolidated block** they can paste into Copilot — never make them copy six separate fields one by one. The block has two parts: the prompt, then the content. ALL-CAPS section labels help Copilot anchor each fact-check to the right field.
 
