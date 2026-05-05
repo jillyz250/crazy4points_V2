@@ -197,6 +197,30 @@ function parseHotels(markdown, urlContext) {
 }
 
 /**
+ * Map ISO 2-letter country code to full English name. Matches the format
+ * used by destinations.country so the Decision Engine API can join.
+ */
+const COUNTRY_NAME = {
+  US: 'United States', CA: 'Canada', MX: 'Mexico', GB: 'United Kingdom',
+  JP: 'Japan', CN: 'China', KR: 'South Korea', IN: 'India',
+  AU: 'Australia', NZ: 'New Zealand',
+  BR: 'Brazil', AR: 'Argentina', CL: 'Chile', CO: 'Colombia', PE: 'Peru',
+  DE: 'Germany', FR: 'France', IT: 'Italy', ES: 'Spain', PT: 'Portugal',
+  NL: 'Netherlands', BE: 'Belgium', CH: 'Switzerland', AT: 'Austria', IE: 'Ireland',
+  PL: 'Poland', CZ: 'Czech Republic', GR: 'Greece', TR: 'Turkey',
+  NO: 'Norway', SE: 'Sweden', DK: 'Denmark', FI: 'Finland', IS: 'Iceland',
+  AE: 'United Arab Emirates', SA: 'Saudi Arabia', QA: 'Qatar', IL: 'Israel',
+  JO: 'Jordan', EG: 'Egypt', MA: 'Morocco', ZA: 'South Africa', KE: 'Kenya',
+  TH: 'Thailand', VN: 'Vietnam', MY: 'Malaysia', SG: 'Singapore',
+  PH: 'Philippines', ID: 'Indonesia', HK: 'Hong Kong', TW: 'Taiwan',
+}
+
+function countryNameForCode(code) {
+  if (!code) return null
+  return COUNTRY_NAME[code.toUpperCase()] || code
+}
+
+/**
  * Map ISO country code to the 4-bucket region the hotel_properties.region
  * CHECK constraint accepts: americas / europe / asia_pacific / middle_east_africa.
  */
@@ -376,7 +400,7 @@ async function main() {
     // dest.region is the state/province from config; map country to the
     // 4-bucket continent that hotel_properties.region CHECK accepts
     const urlContext = {
-      country: dest.country,
+      country: countryNameForCode(dest.country),
       region: regionForCountry(dest.country),
       state_or_province: dest.region || null,
       city: dest.city || null,
