@@ -1,0 +1,11 @@
+{
+  "_comment": "Texas-only retry config. Block 1 first run only captured 12 of ~300+ Texas hotels because pg 1 returned 0 new and the early-terminator triggered. Re-run with the smarter terminator.",
+  "blocks": [
+    {
+      "label": "Texas re-run",
+      "destinations": [
+        { "url_path": "united-states/texas", "country": "US", "region": "Texas" }
+      ]
+    }
+  ]
+}

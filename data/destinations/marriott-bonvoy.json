@@ -1,0 +1,93 @@
+{
+  "_comment": "Marriott Bonvoy destination tree for scrape-properties.mjs. URL slugs match Marriott's destination-page paths: marriott.com/en-us/destinations/<url_path>.mi",
+  "blocks": [
+    {
+      "label": "Block 1 — Top 6 US states (densest portfolios)",
+      "destinations": [
+        { "url_path": "united-states/california",     "country": "US", "region": "California" },
+        { "url_path": "united-states/florida",        "country": "US", "region": "Florida" },
+        { "url_path": "united-states/texas",          "country": "US", "region": "Texas" },
+        { "url_path": "united-states/new-york", "country": "US", "region": "New York" },
+        { "url_path": "united-states/georgia",        "country": "US", "region": "Georgia" },
+        { "url_path": "united-states/nevada",         "country": "US", "region": "Nevada" }
+      ]
+    },
+    {
+      "label": "Block 2 — Remaining 44 US states + DC",
+      "destinations": [
+        { "url_path": "united-states/alabama",        "country": "US", "region": "Alabama" },
+        { "url_path": "united-states/alaska",         "country": "US", "region": "Alaska" },
+        { "url_path": "united-states/arizona",        "country": "US", "region": "Arizona" },
+        { "url_path": "united-states/arkansas",       "country": "US", "region": "Arkansas" },
+        { "url_path": "united-states/colorado",       "country": "US", "region": "Colorado" },
+        { "url_path": "united-states/connecticut",    "country": "US", "region": "Connecticut" },
+        { "url_path": "united-states/delaware",       "country": "US", "region": "Delaware" },
+        { "url_path": "united-states/district-of-columbia", "country": "US", "region": "District of Columbia" },
+        { "url_path": "united-states/hawaii",         "country": "US", "region": "Hawaii" },
+        { "url_path": "united-states/idaho",          "country": "US", "region": "Idaho" },
+        { "url_path": "united-states/illinois",       "country": "US", "region": "Illinois" },
+        { "url_path": "united-states/indiana",        "country": "US", "region": "Indiana" },
+        { "url_path": "united-states/iowa",           "country": "US", "region": "Iowa" },
+        { "url_path": "united-states/kansas",         "country": "US", "region": "Kansas" },
+        { "url_path": "united-states/kentucky",       "country": "US", "region": "Kentucky" },
+        { "url_path": "united-states/louisiana",      "country": "US", "region": "Louisiana" },
+        { "url_path": "united-states/maine",          "country": "US", "region": "Maine" },
+        { "url_path": "united-states/maryland",       "country": "US", "region": "Maryland" },
+        { "url_path": "united-states/massachusetts",  "country": "US", "region": "Massachusetts" },
+        { "url_path": "united-states/michigan",       "country": "US", "region": "Michigan" },
+        { "url_path": "united-states/minnesota",      "country": "US", "region": "Minnesota" },
+        { "url_path": "united-states/mississippi",    "country": "US", "region": "Mississippi" },
+        { "url_path": "united-states/missouri",       "country": "US", "region": "Missouri" },
+        { "url_path": "united-states/montana",        "country": "US", "region": "Montana" },
+        { "url_path": "united-states/nebraska",       "country": "US", "region": "Nebraska" },
+        { "url_path": "united-states/new-hampshire",  "country": "US", "region": "New Hampshire" },
+        { "url_path": "united-states/new-jersey",     "country": "US", "region": "New Jersey" },
+        { "url_path": "united-states/new-mexico",     "country": "US", "region": "New Mexico" },
+        { "url_path": "united-states/north-carolina", "country": "US", "region": "North Carolina" },
+        { "url_path": "united-states/north-dakota",   "country": "US", "region": "North Dakota" },
+        { "url_path": "united-states/ohio",           "country": "US", "region": "Ohio" },
+        { "url_path": "united-states/oklahoma",       "country": "US", "region": "Oklahoma" },
+        { "url_path": "united-states/oregon",         "country": "US", "region": "Oregon" },
+        { "url_path": "united-states/pennsylvania",   "country": "US", "region": "Pennsylvania" },
+        { "url_path": "united-states/rhode-island",   "country": "US", "region": "Rhode Island" },
+        { "url_path": "united-states/south-carolina", "country": "US", "region": "South Carolina" },
+        { "url_path": "united-states/south-dakota",   "country": "US", "region": "South Dakota" },
+        { "url_path": "united-states/tennessee",      "country": "US", "region": "Tennessee" },
+        { "url_path": "united-states/utah",           "country": "US", "region": "Utah" },
+        { "url_path": "united-states/vermont",        "country": "US", "region": "Vermont" },
+        { "url_path": "united-states/virginia",       "country": "US", "region": "Virginia" },
+        { "url_path": "united-states/washington",     "country": "US", "region": "Washington" },
+        { "url_path": "united-states/west-virginia",  "country": "US", "region": "West Virginia" },
+        { "url_path": "united-states/wisconsin",      "country": "US", "region": "Wisconsin" },
+        { "url_path": "united-states/wyoming",        "country": "US", "region": "Wyoming" }
+      ]
+    },
+    {
+      "label": "Block 3 — Top 8 international markets",
+      "destinations": [
+        { "url_path": "united-kingdom",  "country": "GB" },
+        { "url_path": "mexico",          "country": "MX" },
+        { "url_path": "canada",          "country": "CA" },
+        { "url_path": "japan",           "country": "JP" },
+        { "url_path": "china",           "country": "CN" },
+        { "url_path": "spain",           "country": "ES" },
+        { "url_path": "italy",           "country": "IT" },
+        { "url_path": "france",          "country": "FR" }
+      ]
+    },
+    {
+      "label": "Block 4 — Long-tail international (TBD before run; placeholder list)",
+      "destinations": [
+        { "url_path": "germany",         "country": "DE" },
+        { "url_path": "india",           "country": "IN" },
+        { "url_path": "thailand",        "country": "TH" },
+        { "url_path": "australia",       "country": "AU" },
+        { "url_path": "brazil",          "country": "BR" },
+        { "url_path": "south-korea",     "country": "KR" },
+        { "url_path": "singapore",       "country": "SG" },
+        { "url_path": "indonesia",       "country": "ID" }
+      ],
+      "_note": "Block 4 is a placeholder. Expand to ~130 country slugs once blocks 1-3 land cleanly."
+    }
+  ]
+}
