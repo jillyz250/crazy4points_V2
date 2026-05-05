@@ -211,6 +211,8 @@ Draft each of these **10 fields** (non-alliance programs require all 10 for comp
 - all → "most", "the major flexible currencies"
 - no fuel surcharges → "typically $X-Y in surcharges"
 
+**Carrier-nationality lint (added 2026-05-05 after Sonnet caught a real error on the KrisFlyer page).** Never describe a non-US carrier as "the only US carrier" or "a US carrier" by accident. The slip happens when you mean "the only carrier accessible to US-based travelers via flexible-currency transfer" — those are different sentences. Before writing any sentence that combines "US" with a program name, double-check whether you're talking about (a) where the airline is incorporated (Singapore Airlines = Singapore; Aeroplan = Canada; Lufthansa = Germany) or (b) which travelers can access the program from US co-brand or transfer relationships. Always state both clearly when both matter.
+
 Brand voice in **intro** and **sweet spots**: voicey. Brand voice in **transfer partners**, **tier benefits**, **lounge access**, **quirks**: neutral and factual.
 
 Present all 9 drafts to the user in a single message structured as paste-ready blocks. Each block clearly labeled.
