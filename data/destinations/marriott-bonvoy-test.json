@@ -1,0 +1,11 @@
+{
+  "_comment": "Test config: California only, for end-to-end pagination validation before running full Block 1.",
+  "blocks": [
+    {
+      "label": "Test - California only",
+      "destinations": [
+        { "url_path": "united-states/california", "country": "US", "region": "California" }
+      ]
+    }
+  ]
+}

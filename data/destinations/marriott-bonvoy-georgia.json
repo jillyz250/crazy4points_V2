@@ -1,0 +1,11 @@
+{
+  "_comment": "Georgia-only retry. Block 1 first run hit a pg 4 timeout that exhausted retries before completion.",
+  "blocks": [
+    {
+      "label": "Georgia re-run",
+      "destinations": [
+        { "url_path": "united-states/georgia", "country": "US", "region": "Georgia" }
+      ]
+    }
+  ]
+}
