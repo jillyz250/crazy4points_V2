@@ -499,26 +499,24 @@ For hotels, also note: once Step 7.6 is done, `hotel_properties` is automaticall
 
 This is the gate before the user is asked to spot-check the live page. Everything Claude has written — admin paste, source doc, press-room source, properties (hotels) — gets verified here. If anything fails, Claude fixes it without asking, then re-runs the audit. Only when 100% passes does Claude hand to the user.
 
-**Run the existing audit scripts in sequence:**
+**Run the single full-audit script:**
 
 ```bash
-node scripts/verify-program.mjs --slug=<slug>           # live page renders, no raw slugs, all sections
-node scripts/llm-audit-program.mjs --slug=<slug>        # Sonnet pass: hedging, banned absolutes, comparative claims
-node scripts/audit-program.mjs --slug=<slug>            # regex-based banned-words sweep (cheap, noisy)
+node scripts/audit-program-full.mjs --slug=<slug>
 ```
 
-**Then run the wider checklist (Claude does each by hand or via curl/HTTP fetch — eventually rolled into one `scripts/audit-program-full.mjs`):**
+This wraps every Step 8.5 check in one command:
+- `verify-program.mjs` — HTTP 200, intro renders, tier_benefits render, no raw slugs in transfer table
+- `llm-audit-program.mjs` (Sonnet) — banned absolutes, comparative claims, temporal drift, legacy-vs-active cards. Audit fails if HIGH-severity findings remain.
+- Source doc at `plans/sources/<slug>.md` exists with non-trivial size
+- Press-room source row in `sources` table with `Programs: <slug>` in notes
+- `partner_redemptions` rows + `programs.partner_chart_url` (airlines / loyalty_program only)
+- `hotel_properties` count > 0 (hotels only — uses Supabase `count=exact` header for accurate count past the 1,000-row REST cap)
+- Live page tag checks: `<title>`, `<meta name="description">`, `<html lang>`, `<h1>`, `<script type="application/ld+json">`
 
-- [ ] `programs.last_verified` is today; completeness is N/N (10/10 for non-alliance, 9/9 for alliance)
-- [ ] Every transfer-partner row in JSON renders a real name on the live page (no raw slugs)
-- [ ] **Mobile contract** — fetch live page in headless mode at 375px width, run `document.documentElement.scrollWidth - clientWidth` — must be 0
-- [ ] **TOC strip** lists every populated section
-- [ ] **JSON-LD schema** present in page source if applicable (`view-source:` → search for `application/ld+json`)
-- [ ] **Sources doc** at `plans/sources/<slug>.md` exists and lists every URL consulted during research
-- [ ] **Press-room source** seeded in `sources` table with `Programs: <slug>` in notes (Step 7.5)
-- [ ] **Hotel-only**: `hotel_properties` count > 0, all categories populated, off-peak/standard/peak columns filled (Step 7.6)
-- [ ] **Airline/loyalty_program-only**: `partner_redemptions` rows exist for every operating carrier this currency books (Step 5.5)
-- [ ] **Writer regen test**: pick an alert tagged to this program, hit Regenerate in admin, confirm new draft reflects facts from the new Page content (no contradictions with what was just authored)
+The script emits the mandatory completion-checklist markdown table directly + the 3 URLs in fenced code blocks. Exits 0 if all checks pass, 1 if any fail. The "any fail" exit means do not declare shipped — fix the gap and re-run.
+
+To skip the slow Sonnet round (e.g. when you already ran it and applied fixes): `--skip-llm-audit`.
 
 **If any check fails, Claude fixes it without asking, then re-runs the audit.**
 
