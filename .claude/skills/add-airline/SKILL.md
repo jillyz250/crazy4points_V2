@@ -165,53 +165,20 @@ If the user can't easily get certain official text (e.g. behind login, regionall
 
 Save **every URL** consulted; they go in the per-airline source doc later.
 
-### Step 2 — Draft hedged content (Claude does this)
+### Step 2 — Draft hedged content + emit Copilot fact-check block (Claude does this)
 
-**Two-pass output: combined preview first, then paste-ready blocks.**
+**LEAN WORKFLOW** — do NOT dump a full 10-field combined preview to the user. The user does NOT want to read scattered drafts inline. Instead, after drafting internally:
 
-When drafts are ready, surface the entire content set as a single combined preview message FIRST so the user can verify the whole thing at once before any field-by-field paste. Format the preview as a labeled section per field with the actual draft text inline. The user reviews the preview, requests edits, and only when they say "looks good" / "ready to paste" / similar do you re-output as paste-ready code blocks per field.
+**Output ONE thing only: the Copilot fact-check block** (see Step 3 below for the exact format). The user pastes that into Copilot or ChatGPT, gets back per-claim validations, and shares the response.
 
-**Why this exists:** Going straight to per-field paste blocks means the user has to read scattered code blocks and mentally stitch them together to verify coherence. The combined preview is a single readable artifact they can scan in one pass — catching tone inconsistencies, factual issues, or missing pieces before any pasting begins.
+Internal: keep the full 10-field draft in your head / scratch context, but DO NOT show the user. The Copilot block is the only artifact the user sees in Step 2.
 
-Format:
-```
-# Combined preview — {program name}
+After the user shares Copilot's response:
+- Resolve disagreements (web-search 2026-dated source for any flagged claim)
+- Apply confirmed corrections to the internal draft
+- Then proceed directly to Step 4 (SQL migration write) — no separate "ready-to-paste blocks" stage
 
-## 1. Alliance / type
-{value}
-
-## 2. Hubs
-{value}
-
-## 3. Intro
-{markdown text}
-
-## 4. Transfer partners (or Member programs for alliances)
-{JSON, formatted readable}
-
-## 5. How to spend
-{markdown text}
-
-## 6. Sweet spots
-{markdown text}
-
-## 7. Tier benefits
-{JSON, formatted readable}
-
-## 8. Lounge access
-{markdown text}
-
-## 9. Tips & quirks
-{markdown text}
-
-## 10. Award chart
-{markdown text — skip for alliance pages}
-
----
-
-Review the combined preview. Reply "looks good" / "ready to paste" and I'll re-output as paste-ready blocks per field.
-Or call out anything to change first.
-```
+**Why this format:** the user has explicitly asked for less Claude output. They prefer to drive the editorial pass via Copilot rather than read combined-preview text. Save the user's reading time; rely on Copilot for the cross-check.
 
 **After user approval, write a single SQL UPDATE migration directly.** Do NOT re-output the content as paste-ready blocks per field. Per `feedback_prefer_sql_over_admin_forms.md`, SQL migrations are the default path: faster to apply, ASCII-scrubbed automatically, no admin form click-through required. Output structure:
 
@@ -248,17 +215,7 @@ Brand voice in **intro** and **sweet spots**: voicey. Brand voice in **transfer 
 
 Present all 9 drafts to the user in a single message structured as paste-ready blocks. Each block clearly labeled.
 
-### Step 3 — REMOVED (superseded by scrape-first)
-
-The Copilot/ChatGPT fact-check round is no longer part of the workflow. Per `feedback_scrape_official_skip_copilot.md`: when structured data comes from `node scripts/scrape.mjs <url>` against the official program site, that's the canonical source. WebSearch + the user's review covers editorial color.
-
-Skip this step entirely and proceed to Step 4 (admin paste / SQL via supabase db query).
-
-If a specific field is suspect or unclear, do a one-off targeted re-scrape or one-question WebSearch — not a full Copilot prompt block.
-
----
-
-### Step 3 (legacy / archive only — kept for historical reference) — Cross-fact-check via Copilot
+### Step 3 — Cross-fact-check via Copilot (THE Step 2 output)
 
 After Step 2 drafts are signed off (combined preview approved), give the user **one consolidated block** they can paste into Copilot — never make them copy six separate fields one by one. The block has two parts: the prompt, then the content. ALL-CAPS section labels help Copilot anchor each fact-check to the right field.
 
