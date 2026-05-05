@@ -5,6 +5,7 @@ import { Resend } from 'resend'
 import { createAdminClient } from '@/utils/supabase/server'
 import { renderNewsletterHtml } from '@/utils/ai/newsletterEmail'
 import type { NewsletterDraft } from '@/utils/ai/buildNewsletter'
+import { runBuildNewsletter } from '@/utils/ai/runBuildNewsletter'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 const FROM = process.env.RESEND_FROM ?? 'Crazy4Points <hello@crazy4points.com>'
@@ -43,17 +44,15 @@ export async function saveNewsletterAction(
 }
 
 export async function runNowAction() {
-  const secret = process.env.INTEL_API_SECRET
-  if (!secret) throw new Error('INTEL_API_SECRET not configured')
-  const origin = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
-  const res = await fetch(`${origin}/api/build-newsletter?force=1`, {
-    headers: { 'x-intel-secret': secret },
-    cache: 'no-store',
-  })
-  const body = await res.json()
-  if (!res.ok) throw new Error(body?.error ?? 'build-newsletter failed')
+  // Calls the build pipeline DIRECTLY — no fetch self-loop. The previous
+  // implementation hit /api/build-newsletter via fetch, which broke in prod
+  // when NEXT_PUBLIC_SITE_URL was missing/wrong.
+  const result = await runBuildNewsletter({ force: true })
+  if (!result.ok) {
+    throw new Error(result.error)
+  }
   revalidatePath('/admin/newsletter')
-  return { ok: true, ...body }
+  return result
 }
 
 export async function sendTestAction(id: string) {

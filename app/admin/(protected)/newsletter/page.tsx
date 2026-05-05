@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { createAdminClient } from '@/utils/supabase/server'
 import NewsletterEditor from './NewsletterEditor'
+import InputsPreview from './InputsPreview'
 import type { NewsletterDraft } from '@/utils/ai/buildNewsletter'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Card } from '@/components/admin/ui/Card'
@@ -68,6 +69,10 @@ export default async function NewsletterAdminPage({
             factCheckedAt={current.fact_checked_at}
             factCheckClaims={current.fact_check_claims}
           />
+          {/* Don't show the inputs preview for already-sent newsletters; it
+              describes what the NEXT regenerate would see, which is irrelevant
+              once a week has shipped. */}
+          {current.status !== 'sent' && <InputsPreview />}
           <History rows={rows} activeId={current.id} />
         </>
       ) : (
