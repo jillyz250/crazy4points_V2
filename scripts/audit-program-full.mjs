@@ -136,7 +136,10 @@ async function main() {
     const totalMatch = la.stdout.match(/(\d+) total finding/)
     const totalFindings = totalMatch ? parseInt(totalMatch[1], 10) : -1
     const highCount = (la.stdout.match(/\[HIGH\]/g) || []).length
-    const passing = la.ok && highCount === 0
+    // llm-audit exits 1 on any finding (HIGH/MEDIUM/LOW); we only fail on HIGH.
+    // Treat exit 1 with parsed totalFindings as a successful run.
+    const ranOk = la.ok || totalFindings >= 0
+    const passing = ranOk && highCount === 0
     results.push({
       check: 'Sonnet audit (HIGH must be 0)',
       status: passing ? `✅ Clean (${totalFindings} non-HIGH findings)` : `❌ ${highCount} HIGH findings`,
