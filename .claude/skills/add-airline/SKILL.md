@@ -520,7 +520,40 @@ node scripts/audit-program.mjs --slug=<slug>            # regex-based banned-wor
 - [ ] **Airline/loyalty_program-only**: `partner_redemptions` rows exist for every operating carrier this currency books (Step 5.5)
 - [ ] **Writer regen test**: pick an alert tagged to this program, hit Regenerate in admin, confirm new draft reflects facts from the new Page content (no contradictions with what was just authored)
 
-**If any check fails, Claude fixes it without asking, then re-runs the audit.** Only when everything passes does Claude announce: "Full-page audit clean. Live URL: `https://crazy4points.com/programs/<slug>` — please spot-check, then submit to Google Search Console + Bing Webmaster Tools." That's the user's one-and-only manual cue.
+**If any check fails, Claude fixes it without asking, then re-runs the audit.**
+
+**MANDATORY COMPLETION ANNOUNCEMENT FORMAT** — when (and only when) all checks pass, Claude MUST output exactly this structured checklist as the final message. Do not skip items, do not paraphrase, do not consolidate. The user has flagged repeated frustration when steps get omitted from the closing handoff:
+
+```
+## Program shipped — final audit checklist
+
+| Check | Status |
+|---|---|
+| verify-program.mjs | ✅ PASS |
+| Sonnet audit (final round) | ✅ Clean (or HIGH/MED applied) |
+| Source doc at plans/sources/<slug>.md | ✅ Created (X bytes) |
+| Press-room source seeded in `sources` table | ✅ Row exists, `Programs: <slug>` in notes |
+| partner_redemptions (airline / loyalty_program only) | ✅ N rows + programs.partner_chart_url set |
+| hotel_properties (hotel only) | ✅ N rows seeded |
+| JSON-LD on live page | ✅ Present |
+
+Live URL to spot-check + submit:
+\`\`\`
+https://crazy4points.com/programs/<slug>
+\`\`\`
+
+Google Search Console — paste the URL above into the URL Inspection bar:
+\`\`\`
+https://search.google.com/search-console
+\`\`\`
+
+Bing Webmaster Tools — URL Submission:
+\`\`\`
+https://www.bing.com/webmasters/url-submission
+\`\`\`
+```
+
+Every checklist row must report actual state from the verify run, not a placeholder. If a row would be ❌ or ⚠️, fix the gap before announcing — don't ship a checklist with red rows. The user's one-and-only manual cue is the live URL + GSC + Bing.
 
 ⚠️ **Current state:** these checks are partly automated (verify-program.mjs + llm-audit-program.mjs + audit-program.mjs all exist), partly manual. Backlog: roll the entire battery into `scripts/audit-program-full.mjs` so it's one command + a pass/fail report. ~1.5 hrs to build.
 
