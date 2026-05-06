@@ -249,7 +249,15 @@ async function main() {
   // Domains with aggressive bot defenses that block automated checks but
   // serve normal content to browsers. These get a pass-with-warning rather
   // than a fail when they return a placeholder.
-  const botThrottledDomains = [/(^|\.)britishairways\.com$/i, /(^|\.)aa\.com$/i, /(^|\.)hyatt\.com$/i, /(^|\.)marriott\.com$/i]
+  const botThrottledDomains = [
+    /(^|\.)britishairways\.com$/i, /(^|\.)aa\.com$/i, /(^|\.)hyatt\.com$/i, /(^|\.)marriott\.com$/i,
+    /(^|\.)iberia\.com$/i, /(^|\.)qatarairways\.com$/i, /(^|\.)jal\.co\.jp$/i, /(^|\.)miles-and-more\.com$/i,
+    /(^|\.)qantas\.com$/i, /(^|\.)turkishairlines\.com$/i, /(^|\.)virginatlantic\.com$/i,
+    /(^|\.)cathaypacific\.com$/i, /(^|\.)singaporeair\.com$/i, /(^|\.)flyfrontier\.com$/i,
+    /(^|\.)allegiantair\.com$/i, /(^|\.)flybreeze\.com$/i, /(^|\.)aveloair\.com$/i, /(^|\.)suncountry\.com$/i,
+    /(^|\.)aircanada\.com$/i, /(^|\.)united\.com$/i, /(^|\.)delta\.com$/i, /(^|\.)southwest\.com$/i,
+    /(^|\.)alaskaair\.com$/i, /(^|\.)hawaiianairlines\.com$/i, /(^|\.)jetblue\.com$/i, /(^|\.)flyfrontier\.com$/i,
+  ]
   const placeholderPatterns = [/we are experiencing high demand/i, /this page has moved/i, /page not found/i, /cannot be found/i]
   const linkResults = await Promise.all(urls.map(async (url) => {
     let host = ''
