@@ -196,6 +196,18 @@ Draft each of these **10 fields** (non-alliance programs require all 10 for comp
 2. **hubs** — array of airport codes
 3. **intro** — 1-2 voicey paragraphs (sassy traveler-friend tone)
 4. **transfer_partners** — JSON array of `{from_slug, ratio, notes, bonus_active}` rows. The `notes` field MUST mention transfer tax/fee status — even when there is no tax, say so. Watch for Amex MR -> US-domiciled airlines (Delta, JetBlue, Virgin Atlantic with US-issued cards) which trigger a federal excise tax pass-through (~$0.0006/point, capped $99 personal / $200 business per year). Foreign carrier transfers from Amex typically have no tax. Marriott + most other hotel-to-airline transfers also have no tax. See `feedback_capture_transfer_fees.md` in memory for the full rule.
+
+   **Issuer-page-only rule for transfer ratios (HARD RULE — burned by this on 2026-05-07 with Aer Lingus + Capital One):** When verifying whether an issuer transfers to a target program, check the **issuer's own published partner page**, not blogs. Blog posts conflate Avios programs and miss recent additions/removals. Authoritative sources:
+   - Capital One: `capitalone.com/learn-grow/money-management/venture-miles-transfer-partnerships`
+   - Amex MR: `americanexpress.com/transfer-partners`
+   - Chase UR: the Ultimate Rewards portal
+   - Citi: `thankyou.com`
+   - Bilt: `bilt.com`
+   - Wells Fargo: `wellsfargo.com/credit-cards/rewards`
+
+   **Avios-family disambiguation rule:** When WebSearch returns "X transfers to Avios," resist the urge to apply the claim to *all* Avios programs. Avios is shared across BA / Iberia / Aer Lingus AerClub / Vueling / Finnair / Qatar / Loganair, but **each has its own direct-transfer-partner roster.** Default assumption "Cap One -> Avios = Cap One -> AerClub" is the trap that bit us. The right move: for each Avios program, look up its specific direct partners on the issuer's own page. Combine My Avios (free, instant, second hop after BA) covers the rest — but document it as second-hop in `notes`, not as a direct ratio. The `error-pattern-check.mjs` script has guards for this conflation since 2026-05-07.
+
+   **Conflict-escalation rule:** When WebSearch and Copilot disagree on a transfer ratio (or alliance status, or chart, or any verifiable fact), **surface the conflict to the user before resolving** — same protocol as the Sonnet contradiction rule. Do not auto-pick a winner. Quote both sources verbatim and let the user adjudicate. The 2026-05-07 Aer Lingus + Capital One incident happened because Claude resolved a Copilot-vs-WebSearch disagreement in the wrong direction.
 5. **how_to_spend** — markdown bullet list of redemption types
 6. **sweet_spots** — markdown bullets with mile cost examples
 7. **tier_benefits** — JSON array of `{name, qualification, benefits[]}` per tier

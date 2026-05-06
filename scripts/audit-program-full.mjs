@@ -297,6 +297,30 @@ async function main() {
   })
   process.stderr.write(`${linksOk ? 'pass' : 'FAIL'}\n`)
 
+  // 8. Known-error pattern check (greps for wrong claims we've seen before)
+  process.stderr.write('[8/9] known-error patterns ... ')
+  const epc = runChild(['scripts/error-pattern-check.mjs', `--slug=${args.slug}`], 'error-pattern')
+  const epPassing = epc.stdout.includes('✅ 0 error-pattern finding')
+  results.push({
+    check: 'Known-error patterns',
+    status: epPassing ? '✅ Clean' : `❌ Pattern matches found`,
+    detail: epPassing ? '' : (epc.stdout.match(/\[[\w-]+\][^\n]*/g) || []).slice(0, 3).join(' | ').slice(0, 200),
+  })
+  process.stderr.write(`${epPassing ? 'pass' : 'FAIL'}\n`)
+
+  // 9. Cross-program consistency (transfer_partners slugs all resolve)
+  process.stderr.write('[9/9] cross-program consistency ... ')
+  const cpc = runChild(['scripts/cross-program-consistency.mjs'], 'consistency')
+  // The script runs across ALL programs - we report it as a global check
+  const cpcPassing = cpc.stdout.includes('No inconsistencies')
+  const myProgramFlagged = cpc.stdout.includes(`## ${args.slug}`)
+  results.push({
+    check: 'Cross-program consistency (this program)',
+    status: !myProgramFlagged ? '✅ Clean' : `❌ This program has inconsistencies`,
+    detail: !myProgramFlagged ? '' : 'Run `node scripts/cross-program-consistency.mjs` for details',
+  })
+  process.stderr.write(`${!myProgramFlagged ? 'pass' : 'FAIL'}\n`)
+
   // ============================================================
   // Output: mandatory completion-checklist format per SKILL.md
   // ============================================================
