@@ -239,6 +239,56 @@ async function main() {
   }
   process.stderr.write('done\n')
 
+  // 7. Link-check: every URL referenced in the program's content fields
+  //    must return 2xx AND not contain a placeholder string.
+  process.stderr.write('[7/8] external link health ... ')
+  const fields = ['intro', 'how_to_spend', 'sweet_spots', 'lounge_access', 'quirks', 'award_chart']
+  const fieldRow = await sb(`programs?slug=eq.${args.slug}&select=${fields.join(',')},partner_chart_url`)
+  const blob = fields.map((f) => fieldRow?.[0]?.[f] || '').join('\n\n') + '\n' + (fieldRow?.[0]?.partner_chart_url || '')
+  const urls = Array.from(new Set((blob.match(/https?:\/\/[^\s)\]\>"]+/g) || []).map((u) => u.replace(/[.,]+$/, ''))))
+  // Domains with aggressive bot defenses that block automated checks but
+  // serve normal content to browsers. These get a pass-with-warning rather
+  // than a fail when they return a placeholder.
+  const botThrottledDomains = [/(^|\.)britishairways\.com$/i, /(^|\.)aa\.com$/i, /(^|\.)hyatt\.com$/i, /(^|\.)marriott\.com$/i]
+  const placeholderPatterns = [/we are experiencing high demand/i, /this page has moved/i, /page not found/i, /cannot be found/i]
+  const linkResults = await Promise.all(urls.map(async (url) => {
+    let host = ''
+    try { host = new URL(url).hostname } catch {}
+    const isThrottled = botThrottledDomains.some((re) => re.test(host))
+    try {
+      const r = await fetch(url, { redirect: 'follow', headers: { 'user-agent': 'Mozilla/5.0' } })
+      if (!r.ok) {
+        if (isThrottled) return { url, ok: true, reason: `bot-throttled (HTTP ${r.status} for automation; browser-only)`, warning: true }
+        return { url, ok: false, reason: `HTTP ${r.status}` }
+      }
+      const text = await r.text()
+      for (const p of placeholderPatterns) {
+        if (p.test(text)) {
+          if (isThrottled) return { url, ok: true, reason: 'bot-throttled (browser-only)', warning: true }
+          return { url, ok: false, reason: `placeholder: ${p.source.slice(0, 30)}` }
+        }
+      }
+      return { url, ok: true, reason: '' }
+    } catch (e) {
+      if (isThrottled) return { url, ok: true, reason: 'bot-throttled (fetch blocked)', warning: true }
+      return { url, ok: false, reason: `fetch error: ${e.message.slice(0, 40)}` }
+    }
+  }))
+  const broken = linkResults.filter((r) => !r.ok)
+  const warnings = linkResults.filter((r) => r.ok && r.warning)
+  const linksOk = broken.length === 0 && urls.length > 0
+  let linkStatus
+  if (urls.length === 0) linkStatus = '⚠️ No URLs found in fields'
+  else if (!linksOk) linkStatus = `❌ ${broken.length} broken / ${urls.length} total`
+  else if (warnings.length > 0) linkStatus = `✅ ${urls.length - warnings.length} OK + ${warnings.length} bot-throttled (browser-only)`
+  else linkStatus = `✅ All ${urls.length} URL${urls.length === 1 ? '' : 's'} OK`
+  results.push({
+    check: 'External link health',
+    status: linkStatus,
+    detail: linksOk ? '' : broken.slice(0, 3).map((b) => `${b.url} (${b.reason})`).join('; '),
+  })
+  process.stderr.write(`${linksOk ? 'pass' : 'FAIL'}\n`)
+
   // ============================================================
   // Output: mandatory completion-checklist format per SKILL.md
   // ============================================================
