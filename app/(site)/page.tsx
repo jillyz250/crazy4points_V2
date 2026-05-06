@@ -18,55 +18,58 @@ export const metadata: Metadata = {
 };
 
 const MAX_HOT_ALERTS = 5;
-const FRESH_WINDOW_MS = 48 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
-// Hot alerts = editorially featured (is_hot) OR freshly published (<48h).
-// Featured sort before fresh. Within each bucket, sort by EXPIRY URGENCY:
-// soonest end_date first, undated last, recency as tie-break. The alert
-// expiring today should land at position #1.
-function selectHotAlerts(alerts: AlertWithPrograms[]): AlertWithPrograms[] {
+// Combined-score hotness rank. Higher = surfaces first.
+//   +100  is_hot (manual editorial pin)
+//   +50   published in last 7 days ("just dropped")
+//   +40   end_date ≤ 3 days ("expiring fast")
+//   +25   end_date ≤ 7 days ("expiring soon")
+//   +30   no end_date — evergreen floor so a fresh evergreen never buries
+// Tie-break: published_at desc.
+//
+// Why a floor on evergreens: the previous sort treated undated alerts as
+// "lowest urgency" and shoved them to the bottom. A just-published evergreen
+// sweet-spot or partner addition (e.g. "Delta + Airbnb earn") had no way to
+// surface against time-sensitive bonuses. With +30 floor, a fresh evergreen
+// scores 50 + 30 = 80 — top of the bar, exactly where it belongs.
+function hotnessScore(a: AlertWithPrograms, now: number): number {
+  let s = 0;
+  if (a.is_hot) s += 100;
+  if (a.published_at) {
+    const ageMs = now - new Date(a.published_at).getTime();
+    if (ageMs <= 7 * DAY_MS) s += 50;
+  }
+  if (a.end_date) {
+    const remainingMs = new Date(a.end_date).getTime() - now;
+    if (remainingMs <= 3 * DAY_MS) s += 40;
+    else if (remainingMs <= 7 * DAY_MS) s += 25;
+  } else {
+    s += 30;
+  }
+  return s;
+}
+
+interface HotAlertSelection {
+  visible: AlertWithPrograms[];
+  overflowCount: number;
+}
+
+function selectHotAlerts(alerts: AlertWithPrograms[]): HotAlertSelection {
   const now = Date.now();
-  const featured: AlertWithPrograms[] = [];
-  const fresh: AlertWithPrograms[] = [];
-
-  for (const a of alerts) {
-    if (a.is_hot) {
-      featured.push(a);
-      continue;
-    }
-    const pub = a.published_at ? new Date(a.published_at).getTime() : null;
-    if (pub !== null && now - pub <= FRESH_WINDOW_MS) fresh.push(a);
-  }
-
-  const byExpirySoonest = (x: AlertWithPrograms, y: AlertWithPrograms) => {
-    const xt = x.end_date ? new Date(x.end_date).getTime() : null;
-    const yt = y.end_date ? new Date(y.end_date).getTime() : null;
-    if (xt === null && yt === null) {
-      // Both undated → newer-published first
-      const xp = x.published_at ? new Date(x.published_at).getTime() : 0;
-      const yp = y.published_at ? new Date(y.published_at).getTime() : 0;
+  const scored = alerts
+    .map((a) => ({ a, s: hotnessScore(a, now) }))
+    .filter((row) => row.s > 0)
+    .sort((x, y) => {
+      if (y.s !== x.s) return y.s - x.s;
+      const xp = x.a.published_at ? new Date(x.a.published_at).getTime() : 0;
+      const yp = y.a.published_at ? new Date(y.a.published_at).getTime() : 0;
       return yp - xp;
-    }
-    if (xt === null) return 1; // undated → bottom of bucket
-    if (yt === null) return -1;
-    if (xt !== yt) return xt - yt; // soonest expiry first
-    // Same end_date → newer-published first
-    const xp = x.published_at ? new Date(x.published_at).getTime() : 0;
-    const yp = y.published_at ? new Date(y.published_at).getTime() : 0;
-    return yp - xp;
-  };
-  featured.sort(byExpirySoonest);
-  fresh.sort(byExpirySoonest);
+    });
 
-  const seen = new Set<string>();
-  const deduped: AlertWithPrograms[] = [];
-  for (const a of [...featured, ...fresh]) {
-    if (seen.has(a.id)) continue;
-    seen.add(a.id);
-    deduped.push(a);
-    if (deduped.length >= MAX_HOT_ALERTS) break;
-  }
-  return deduped;
+  const visible = scored.slice(0, MAX_HOT_ALERTS).map((r) => r.a);
+  const overflowCount = Math.max(0, alerts.length - visible.length);
+  return { visible, overflowCount };
 }
 
 export default async function HomePage() {
@@ -78,11 +81,11 @@ export default async function HomePage() {
         a.updated_at > latest ? a.updated_at : latest, active[0].updated_at)
     : null;
 
-  const hotAlerts = selectHotAlerts(active);
+  const { visible: hotAlerts, overflowCount } = selectHotAlerts(active);
 
   return (
     <>
-      <RedAlertBar alerts={hotAlerts} />
+      <RedAlertBar alerts={hotAlerts} overflowCount={overflowCount} />
       <HomeHeroV2 lastUpdated={lastUpdated} />
     </>
   );
