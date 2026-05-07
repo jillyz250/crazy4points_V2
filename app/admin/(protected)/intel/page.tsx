@@ -8,7 +8,7 @@ import {
   type IntelStatusFilter,
   type IntelWindow,
 } from '@/utils/supabase/queries'
-import { rejectIntelAction, unrejectIntelAction, promoteIntelAction } from './actions'
+import { rejectIntelAction, unrejectIntelAction, promoteIntelAction, rejectPromotedIntelAction } from './actions'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Card } from '@/components/admin/ui/Card'
 import { Badge } from '@/components/admin/ui/Badge'
@@ -253,12 +253,23 @@ function IntelCard({ item }: { item: IntelItem }) {
         </div>
         <div style={{ display: 'flex', gap: '0.375rem' }}>
           {staged && item.alert_id && (
-            <Link
-              href={`/admin/alerts/${item.alert_id}/edit`}
-              className="admin-btn admin-btn-ghost admin-btn-sm"
-            >
-              → promoted alert
-            </Link>
+            <>
+              <Link
+                href={`/admin/alerts/${item.alert_id}/edit`}
+                className="admin-btn admin-btn-ghost admin-btn-sm"
+              >
+                → promoted alert
+              </Link>
+              <form action={rejectPromotedIntelAction.bind(null, item.id)}>
+                <button
+                  type="submit"
+                  className="admin-btn admin-btn-ghost admin-btn-sm"
+                  title="Reject this intel and archive its auto-staged alert"
+                >
+                  Reject (dupe)
+                </button>
+              </form>
+            </>
           )}
           {!staged && !rejected && (
             <>

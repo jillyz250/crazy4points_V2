@@ -17,6 +17,28 @@ export async function unrejectIntelAction(id: string) {
   revalidatePath('/admin/intel')
 }
 
+export async function rejectPromotedIntelAction(id: string) {
+  const supabase = createAdminClient()
+
+  const { data: item } = await supabase
+    .from('intel_items')
+    .select('alert_id')
+    .eq('id', id)
+    .single()
+
+  if (item?.alert_id) {
+    await supabase
+      .from('alerts')
+      .update({ status: 'rejected', rejected_reason: 'duplicate of existing coverage' })
+      .eq('id', item.alert_id)
+      .eq('status', 'pending_review')
+  }
+
+  await rejectIntelItem(supabase, id)
+  revalidatePath('/admin/intel')
+  revalidatePath('/admin/alerts')
+}
+
 export async function promoteIntelAction(id: string) {
   const supabase = createAdminClient()
 
