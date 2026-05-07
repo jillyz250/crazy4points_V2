@@ -426,36 +426,45 @@ export default function NewsletterEditor({
         />
       </div>
 
-      {/* Action bar */}
-      {!isSent && (
-        <div style={{ ...sectionStyle, background: 'var(--admin-surface-alt)' }}>
+      {/* Action bar — always visible. The "Send preview to specific email"
+          block stays available even after status='sent' so admin can forward
+          the published newsletter to people who weren't on the list yet. */}
+      <div style={{ ...sectionStyle, background: 'var(--admin-surface-alt)' }}>
+        {!isSent && (
           <div style={{ display: 'flex', gap: '0.625rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
             <button type="button" onClick={handleSave} disabled={isPending} style={btnSecondary}>{isPending ? 'Working…' : 'Save'}</button>
             <button type="button" onClick={handleRunNow} disabled={isPending} style={btnSecondary}>Run Now (regenerate)</button>
             <button type="button" onClick={handleSendTest} disabled={isPending} style={btnPrimary}>Send test to me</button>
           </div>
+        )}
 
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={labelStyle}>Send a preview to a specific email</label>
-            <p style={{ margin: '0 0 0.5rem', fontSize: '0.8125rem', color: 'var(--admin-text-muted)' }}>
-              Sends the same email as &quot;Send test to me,&quot; but to whoever you type. Always marked as preview (gold banner).
-            </p>
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-              <input
-                type="email"
-                value={testToEmail}
-                onChange={(e) => setTestToEmail(e.target.value)}
-                placeholder="email@example.com"
-                className="admin-input"
-                style={{ maxWidth: '320px' }}
-                disabled={isPending}
-              />
-              <button type="button" onClick={handleSendTestToEmail} disabled={isPending || !testToEmail.trim()} style={btnSecondary}>
-                Send preview to this address
-              </button>
-            </div>
+        <div style={{ marginBottom: !isSent ? '1rem' : 0 }}>
+          <label style={labelStyle}>
+            {isSent ? 'Forward this newsletter to a specific email' : 'Send a preview to a specific email'}
+          </label>
+          <p style={{ margin: '0 0 0.5rem', fontSize: '0.8125rem', color: 'var(--admin-text-muted)' }}>
+            {isSent
+              ? 'This newsletter has already been sent to subscribers. Use this to forward it to a single new address.'
+              : 'Sends the same email as "Send test to me," but to whoever you type.'}
+            {' '}Always marked as preview (gold banner).
+          </p>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <input
+              type="email"
+              value={testToEmail}
+              onChange={(e) => setTestToEmail(e.target.value)}
+              placeholder="email@example.com"
+              className="admin-input"
+              style={{ maxWidth: '320px' }}
+              disabled={isPending}
+            />
+            <button type="button" onClick={handleSendTestToEmail} disabled={isPending || !testToEmail.trim()} style={btnSecondary}>
+              {isSent ? 'Forward to this address' : 'Send preview to this address'}
+            </button>
           </div>
+        </div>
 
+        {!isSent && (
           <div style={{ borderTop: '1px solid var(--admin-border)', paddingTop: '0.875rem' }}>
             <label style={labelStyle}>Danger zone — send to real subscribers</label>
             <p style={{ margin: '0 0 0.5rem', fontSize: '0.8125rem', color: 'var(--admin-text-muted)' }}>
@@ -475,8 +484,8 @@ export default function NewsletterEditor({
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
