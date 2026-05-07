@@ -126,12 +126,9 @@ Does the intel contradict any specific claim in the program page? Output the str
     messages: [{ role: 'user', content: userMessage }],
   })
 
-  await logUsage({
-    feature: 'detect_conflict',
-    model: 'claude-haiku-4-5-20251001',
-    input_tokens: response.usage.input_tokens,
-    output_tokens: response.usage.output_tokens,
-    metadata: { intel_id: intel.id, program_slug: program.slug },
+  await logUsage(response, 'detect_conflict', {
+    intel_id: intel.id,
+    program_slug: program.slug,
   })
 
   const content = response.content[0]
