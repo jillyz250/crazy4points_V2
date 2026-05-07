@@ -425,6 +425,40 @@ function FilterLink({ href, active, label }: { href: string; active: boolean; la
   )
 }
 
+/**
+ * Group ideas that share the same source. Phase C dedup:
+ * - Same source_intel_id → same group (Sonnet often generates a newsletter
+ *   AND blog angle from one intel item)
+ * - Same source_alert_id (when no intel link) → same group
+ * - No source link → standalone group (lead only)
+ *
+ * Preserves the input sort order: lead is the FIRST occurrence of each
+ * key in the sorted list. Duplicates render collapsed beneath the lead.
+ */
+type IdeaGroup = { lead: ContentIdeaRow; duplicates: ContentIdeaRow[] }
+
+function groupIdeas(sortedIdeas: ContentIdeaRow[]): IdeaGroup[] {
+  const groupsByKey = new Map<string, IdeaGroup>()
+  const order: IdeaGroup[] = []
+  for (const idea of sortedIdeas) {
+    const key = idea.source_intel_id ?? idea.source_alert_id ?? null
+    if (!key) {
+      const grp: IdeaGroup = { lead: idea, duplicates: [] }
+      order.push(grp)
+      continue
+    }
+    const existing = groupsByKey.get(key)
+    if (existing) {
+      existing.duplicates.push(idea)
+    } else {
+      const grp: IdeaGroup = { lead: idea, duplicates: [] }
+      groupsByKey.set(key, grp)
+      order.push(grp)
+    }
+  }
+  return order
+}
+
 function IdeaSection({
   title,
   ideas,
@@ -437,27 +471,78 @@ function IdeaSection({
   suggestedProgramByAlertId: Record<string, string>
 }) {
   if (ideas.length === 0) return null
+  const groups = groupIdeas(ideas)
+  const dedupedCount = ideas.length - groups.length
   return (
     <section style={{ marginBottom: '1.75rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
         <h2 style={{ margin: 0, fontSize: '0.9375rem' }}>{title}</h2>
-        <Badge tone="neutral">{ideas.length}</Badge>
+        <Badge tone="neutral">{groups.length}</Badge>
+        {dedupedCount > 0 && (
+          <span
+            style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)' }}
+            title={`${dedupedCount} duplicate item${dedupedCount === 1 ? '' : 's'} grouped under their lead`}
+          >
+            ({dedupedCount} grouped)
+          </span>
+        )}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-        {ideas.map((idea) => (
-          <IdeaCard
-            key={idea.id}
-            idea={idea}
-            programs={programs}
-            suggestedProgramSlug={
-              idea.source_alert_id
-                ? suggestedProgramByAlertId[idea.source_alert_id] ?? null
-                : null
-            }
-          />
+        {groups.map((g) => (
+          <div key={g.lead.id}>
+            <IdeaCard
+              idea={g.lead}
+              programs={programs}
+              suggestedProgramSlug={
+                g.lead.source_alert_id
+                  ? suggestedProgramByAlertId[g.lead.source_alert_id] ?? null
+                  : null
+              }
+            />
+            {g.duplicates.length > 0 && (
+              <DuplicatesPanel duplicates={g.duplicates} />
+            )}
+          </div>
         ))}
       </div>
     </section>
+  )
+}
+
+function DuplicatesPanel({ duplicates }: { duplicates: ContentIdeaRow[] }) {
+  return (
+    <details
+      style={{
+        marginTop: '0.375rem',
+        marginLeft: '1rem',
+        padding: '0.5rem 0.75rem',
+        background: '#F9FAFB',
+        border: '1px solid #E5E7EB',
+        borderRadius: 'var(--radius-ui)',
+        fontSize: '0.8125rem',
+      }}
+    >
+      <summary
+        style={{
+          cursor: 'pointer',
+          fontFamily: 'var(--font-ui)',
+          fontWeight: 600,
+          color: 'var(--admin-text-muted)',
+        }}
+      >
+        🔗 {duplicates.length} similar item{duplicates.length === 1 ? '' : 's'} from same source
+      </summary>
+      <ul style={{ margin: '0.5rem 0 0 0', padding: '0 0 0 1.25rem' }}>
+        {duplicates.map((d) => (
+          <li key={d.id} style={{ marginBottom: '0.25rem' }}>
+            <span style={{ fontSize: '0.6875rem', color: 'var(--admin-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginRight: '0.5rem' }}>
+              {d.type}
+            </span>
+            <span style={{ color: 'var(--admin-text)' }}>{d.title}</span>
+          </li>
+        ))}
+      </ul>
+    </details>
   )
 }
 
