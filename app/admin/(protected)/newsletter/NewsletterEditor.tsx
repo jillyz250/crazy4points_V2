@@ -14,7 +14,7 @@ import {
   sendToSubscribersAction,
   runNowAction,
 } from './actions'
-import type { NewsletterSlots, AlsoHappeningItem } from '@/utils/ai/newsletterSlots'
+import type { NewsletterSlots, AlsoHappeningItem, NewsletterSweetSpot, SweetSpotBestUse } from '@/utils/ai/newsletterSlots'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Badge } from '@/components/admin/ui/Badge'
 
@@ -101,6 +101,36 @@ export default function NewsletterEditor({
 
   function setAlso(items: AlsoHappeningItem[]) {
     setSlots((prev) => ({ ...prev, also_happening: items }))
+  }
+
+  function patchSweetSpot(p: Partial<NewsletterSweetSpot>) {
+    setSlots((prev) => {
+      const current: NewsletterSweetSpot = prev.sweet_spot ?? { topic: '', mechanic_explainer: '', best_uses: [] }
+      return { ...prev, sweet_spot: { ...current, ...p } }
+    })
+  }
+
+  function setSweetSpotUses(uses: SweetSpotBestUse[]) {
+    patchSweetSpot({ best_uses: uses })
+  }
+
+  function updateSweetSpotUse(i: number, p: Partial<SweetSpotBestUse>) {
+    const uses = slots.sweet_spot?.best_uses ?? []
+    setSweetSpotUses(uses.map((u, idx) => (idx === i ? { ...u, ...p } : u)))
+  }
+
+  function addSweetSpotUse() {
+    const uses = slots.sweet_spot?.best_uses ?? []
+    setSweetSpotUses([...uses, { name: '', why: '' }])
+  }
+
+  function removeSweetSpotUse(i: number) {
+    const uses = slots.sweet_spot?.best_uses ?? []
+    setSweetSpotUses(uses.filter((_, idx) => idx !== i))
+  }
+
+  function clearSweetSpot() {
+    setSlots((prev) => ({ ...prev, sweet_spot: null }))
   }
 
   function updateAlso(i: number, p: Partial<AlsoHappeningItem>) {
@@ -264,6 +294,64 @@ export default function NewsletterEditor({
           style={{ minHeight: '12rem', resize: 'vertical', lineHeight: 1.5, fontFamily: 'monospace', fontSize: '0.8125rem' }}
           disabled={isSent}
         />
+      </div>
+
+      {/* Sweet Spot */}
+      <div style={sectionStyle}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.5rem' }}>
+          <label style={{ ...labelStyle, marginBottom: 0 }}>⭐ Sweet Spot of the Week</label>
+          {slots.sweet_spot && !isSent && (
+            <button type="button" onClick={clearSweetSpot} style={btnGhost}>Hide section</button>
+          )}
+        </div>
+        <p style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)', margin: '0 0 0.625rem' }}>
+          Deep-dive value-add card. Topic + mechanic explainer + 3-4 specific best uses. Empty topic = section hidden.
+        </p>
+        <input
+          type="text"
+          value={slots.sweet_spot?.topic ?? ''}
+          onChange={(e) => patchSweetSpot({ topic: e.target.value })}
+          placeholder='Topic (e.g. "Capital One -> Qantas 20% transfer bonus")'
+          className="admin-input"
+          style={{ marginBottom: '0.5rem' }}
+          disabled={isSent}
+        />
+        <textarea
+          value={slots.sweet_spot?.mechanic_explainer ?? ''}
+          onChange={(e) => patchSweetSpot({ mechanic_explainer: e.target.value })}
+          placeholder="Mechanic explainer — 3-5 sentences explaining how the play works, with real numbers"
+          className="admin-input"
+          style={{ minHeight: '7rem', resize: 'vertical', lineHeight: 1.5, marginBottom: '0.75rem' }}
+          disabled={isSent}
+        />
+        <label style={{ ...labelStyle, marginTop: '0.25rem' }}>Best uses ({slots.sweet_spot?.best_uses?.length ?? 0})</label>
+        {(slots.sweet_spot?.best_uses ?? []).map((u, i) => (
+          <div key={i} style={{ ...cardStyle, marginBottom: '0.5rem' }}>
+            <input
+              type="text"
+              value={u.name}
+              onChange={(e) => updateSweetSpotUse(i, { name: e.target.value })}
+              placeholder="Property / route / award (be specific, with numbers)"
+              className="admin-input"
+              style={{ marginBottom: '0.375rem' }}
+              disabled={isSent}
+            />
+            <input
+              type="text"
+              value={u.why}
+              onChange={(e) => updateSweetSpotUse(i, { why: e.target.value })}
+              placeholder="Why this is a great use (1 sentence, with the math)"
+              className="admin-input"
+              disabled={isSent}
+            />
+            {!isSent && (
+              <button type="button" onClick={() => removeSweetSpotUse(i)} style={{ ...btnGhost, marginTop: '0.375rem' }}>Remove</button>
+            )}
+          </div>
+        ))}
+        {!isSent && (
+          <button type="button" onClick={addSweetSpotUse} style={btnSecondary}>+ Add best use</button>
+        )}
       </div>
 
       {/* Also Happening */}

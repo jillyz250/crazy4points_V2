@@ -9,7 +9,7 @@
  * V2 reads from new column shape (migration 222). V1 renderer
  * (newsletterEmail.ts) stays in place for legacy/already-sent newsletters.
  */
-import type { NewsletterSlots, AlsoHappeningItem } from './newsletterSlots'
+import type { NewsletterSlots, AlsoHappeningItem, NewsletterSweetSpot } from './newsletterSlots'
 
 const PURPLE = '#6B2D8F'
 const GOLD = '#D4AF37'
@@ -112,6 +112,33 @@ function renderAlsoHappening(items: AlsoHappeningItem[], origin: string): string
     </td></tr>`
 }
 
+function renderSweetSpot(sp: NewsletterSweetSpot | null): string {
+  if (!sp || !sp.topic) return ''
+  const uses = (sp.best_uses ?? [])
+    .filter((u) => u && (u.name || u.why))
+    .map(
+      (u) => `
+        <li style="margin:0 0 10px;font-family:${FONT_BODY};font-size:15px;line-height:1.55;color:${BODY};">
+          <strong style="color:${PURPLE};">${esc(u.name)}</strong>${u.why ? ` — ${esc(u.why)}` : ''}
+        </li>`,
+    )
+    .join('')
+  const explainer = sp.mechanic_explainer
+    ? `<p style="margin:0 0 14px;font-family:${FONT_BODY};font-size:15px;line-height:1.65;color:${BODY};">${esc(sp.mechanic_explainer)}</p>`
+    : ''
+  return `
+    <tr><td style="padding:32px 28px 0;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:2px solid ${GOLD};border-radius:12px;background:${SOFT_BG};">
+        <tr><td style="padding:22px 24px;">
+          <p style="margin:0 0 6px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${GOLD};font-weight:700;">⭐ Sweet Spot of the Week</p>
+          <h2 style="margin:0 0 12px;font-family:${FONT_DISPLAY};font-size:22px;line-height:1.3;color:${PURPLE};">${esc(sp.topic)}</h2>
+          ${explainer}
+          ${uses ? `<ul style="margin:0;padding:0 0 0 18px;">${uses}</ul>` : ''}
+        </td></tr>
+      </table>
+    </td></tr>`
+}
+
 function renderJillsTake(html: string | null | undefined): string {
   if (!html) return ''
   // Render inside an italic block; respect authored HTML if present, else wrap as-is.
@@ -178,6 +205,7 @@ export function renderNewsletterV2Html({
 
         ${renderGame(slots.game, origin)}
         ${renderBigStory(slots, origin)}
+        ${renderSweetSpot(slots.sweet_spot)}
         ${renderAlsoHappening(slots.also_happening, origin)}
         ${renderJillsTake(slots.jills_take_html)}
 

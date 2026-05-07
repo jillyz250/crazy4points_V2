@@ -25,6 +25,7 @@ type NewsletterRow = {
   big_story_ref_type: 'alert' | 'intel' | null
   big_story_ref_id: string | null
   big_story_html: string | null
+  sweet_spot: NewsletterSlots['sweet_spot'] | null
   also_happening: AlsoHappeningItem[] | null
   jills_take_html: string | null
   game_slug: string | null
@@ -39,6 +40,7 @@ function rowToSlots(r: NewsletterRow): NewsletterSlots {
     big_story_ref_type: r.big_story_ref_type,
     big_story_ref_id: r.big_story_ref_id,
     big_story_html: r.big_story_html,
+    sweet_spot: r.sweet_spot ?? null,
     also_happening: Array.isArray(r.also_happening) ? r.also_happening : [],
     jills_take_html: r.jills_take_html,
     jill_prompt: r.jill_prompt,
@@ -50,6 +52,7 @@ function rowToSlots(r: NewsletterRow): NewsletterSlots {
 function isPopulated(r: NewsletterRow): boolean {
   return !!(
     r.big_story_html ||
+    r.sweet_spot ||
     (r.also_happening && r.also_happening.length > 0) ||
     r.jills_take_html ||
     r.subject ||
@@ -68,7 +71,7 @@ export default async function NewsletterAdminPage({
   const { data: rowsData } = await supabase
     .from('newsletters')
     .select(
-      'id, week_of, subject, subject_options, status, sent_at, recipient_count, created_at, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_html, also_happening, jills_take_html, game_slug, game_title, game_clue_text',
+      'id, week_of, subject, subject_options, status, sent_at, recipient_count, created_at, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_html, sweet_spot, also_happening, jills_take_html, game_slug, game_title, game_clue_text',
     )
     .order('week_of', { ascending: false })
     .limit(12)

@@ -13,7 +13,7 @@ import type {
   NewsletterIdeaInput,
   NewsletterRadarSignalInput,
 } from './buildNewsletter'
-import type { NewsletterSlots, AlsoHappeningItem } from './newsletterSlots'
+import type { NewsletterSlots, AlsoHappeningItem, NewsletterSweetSpot } from './newsletterSlots'
 
 export interface BuildSlotsInput {
   week_of: string
@@ -30,6 +30,7 @@ interface SonnetSlotOutput {
   big_story_ref_id?: string | null
   big_story_ref_type?: 'alert' | 'intel' | null
   big_story_html?: string | null
+  sweet_spot?: NewsletterSweetSpot | null
   also_happening?: AlsoHappeningItem[]
   jills_take_html?: string | null
   subject_options?: string[]
@@ -50,6 +51,13 @@ OUTPUT FORMAT (return ONLY this JSON, no prose, no fences)
   "big_story_ref_id": "<uuid of the alert (or intel) you chose, OR null if quiet week>",
   "big_story_ref_type": "alert" | "intel" | null,
   "big_story_html": "<HTML for The Big Story body. ~150 words. Plain <p> paragraphs and one <ul> bulleted list of 'What this means for you'. NO links, NO headings (h2 is added by the renderer). NO emojis. End with the punchiest sentence first.>",
+  "sweet_spot": {
+    "topic": "<short phrase, e.g. 'Capital One -> Qantas 20% transfer bonus' or 'Hyatt off-peak award nights'>",
+    "mechanic_explainer": "<3-5 plain sentences explaining HOW the play works. Real numbers, real ratios, real dates. The reader should finish this paragraph understanding why the play is good.>",
+    "best_uses": [
+      { "name": "<specific property/route/award with numbers>", "why": "<1 sentence — why this is a great use of the play>" }
+    ]
+  },
   "also_happening": [
     {
       "category": "<short free-text label, e.g. 'Status Match', 'Bonus Transfer', 'Devaluation'>",
@@ -89,6 +97,13 @@ big_story:
       <li><strong>Bullet 3.</strong> Concrete consequence.</li>
     </ul>
 - DO NOT include links inside big_story_html. The reader stays in the email.
+
+sweet_spot (THE STAR — value-add deep dive):
+- Pick ONE play with real depth. Best candidates: an active transfer bonus, a sweet-spot redemption mechanic, a peak/off-peak quirk, a quietly-good award chart line. Choose from input alerts (transfer_bonus / earn_rate_change / category_change types are likely), input ideas, or your general points/miles knowledge tied to a real input alert.
+- The topic must connect to something concrete from the input — don't pick a play that has no reference in the data.
+- mechanic_explainer: 3-5 sentences. Explain it like a friend who already knows the basics. Lead with the number that matters.
+- best_uses: 3-4 items. Each name MUST be specific (a property, a route, a chart cell). Each why MUST cite a real number (points cost, value ratio, cabin class). Don't list "cool destinations" — list the math that wins.
+- If no input alert / idea supports a real Sweet Spot for the week, set sweet_spot to null. Better empty than fabricated.
 
 also_happening (3 items, no exceptions):
 - Pick 3 alerts (NOT the big_story) from input alerts. Highest-actionability first.
@@ -144,6 +159,21 @@ function extractJson(text: string): string {
   return trimmed
 }
 
+function validateSweetSpot(s: unknown): NewsletterSweetSpot | null {
+  if (!s || typeof s !== 'object') return null
+  const ss = s as Partial<NewsletterSweetSpot>
+  if (!ss.topic || typeof ss.topic !== 'string') return null
+  const best = Array.isArray(ss.best_uses) ? ss.best_uses : []
+  return {
+    topic: ss.topic.slice(0, 200),
+    mechanic_explainer: typeof ss.mechanic_explainer === 'string' ? ss.mechanic_explainer.slice(0, 1200) : '',
+    best_uses: best
+      .filter((u): u is { name: string; why: string } => !!u && typeof u === 'object' && typeof (u as { name?: unknown }).name === 'string')
+      .map((u) => ({ name: String(u.name).slice(0, 200), why: String(u.why ?? '').slice(0, 400) }))
+      .slice(0, 6),
+  }
+}
+
 function validateSlots(raw: unknown): Omit<NewsletterSlots, 'subject' | 'game' | 'jill_prompt' | 'big_story_ref_id' | 'big_story_ref_type'> & {
   big_story_ref_id: string | null
   big_story_ref_type: 'alert' | 'intel' | null
@@ -174,6 +204,7 @@ function validateSlots(raw: unknown): Omit<NewsletterSlots, 'subject' | 'game' |
     big_story_ref_id: r.big_story_ref_id ?? null,
     big_story_ref_type: r.big_story_ref_type ?? null,
     big_story_html: r.big_story_html ?? null,
+    sweet_spot: validateSweetSpot(r.sweet_spot),
     also_happening,
     jills_take_html: r.jills_take_html ?? null,
     subject_options,
