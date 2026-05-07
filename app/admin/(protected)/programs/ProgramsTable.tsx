@@ -128,20 +128,48 @@ function MonitorBadge({ tier }: { tier: string | null }) {
 }
 
 type SortMode = 'default' | 'staleness'
+type StatusFilter = 'all' | 'authored' | 'reference_stub' | 'partial' | 'inactive'
 
 export default function ProgramsTable({ programs }: { programs: Program[] }) {
   const [filter, setFilter] = useState('')
   const [reviewOnly, setReviewOnly] = useState(false)
   const [sort, setSort] = useState<SortMode>('default')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
 
   const reviewDueCount = useMemo(
     () => programs.filter((p) => reviewStatus(p) === 'review-due').length,
     [programs]
   )
 
+  const statusCounts = useMemo(() => {
+    const counts = { all: programs.length, authored: 0, reference_stub: 0, partial: 0, inactive: 0 }
+    for (const p of programs) {
+      if (!p.is_active) counts.inactive++
+      else if (p.is_reference_stub) counts.reference_stub++
+      else {
+        const c = pageCompleteness(p)
+        if (c.filled === c.total) counts.authored++
+        else counts.partial++
+      }
+    }
+    return counts
+  }, [programs])
+
   const visible = useMemo(() => {
     const q = filter.trim().toLowerCase()
     let rows = programs
+    if (statusFilter !== 'all') {
+      rows = rows.filter((p) => {
+        if (statusFilter === 'inactive') return !p.is_active
+        if (!p.is_active) return false
+        if (statusFilter === 'reference_stub') return p.is_reference_stub
+        if (p.is_reference_stub) return false
+        const c = pageCompleteness(p)
+        if (statusFilter === 'authored') return c.filled === c.total
+        if (statusFilter === 'partial') return c.filled !== c.total
+        return true
+      })
+    }
     if (q) {
       rows = rows.filter(
         (p) =>
@@ -164,7 +192,7 @@ export default function ProgramsTable({ programs }: { programs: Program[] }) {
       })
     }
     return rows
-  }, [programs, filter, reviewOnly, sort])
+  }, [programs, filter, reviewOnly, sort, statusFilter])
 
   if (programs.length === 0) {
     return (
@@ -194,6 +222,19 @@ export default function ProgramsTable({ programs }: { programs: Program[] }) {
           className="admin-input"
           style={{ maxWidth: '20rem', flex: '1 1 16rem' }}
         />
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+          className="admin-input"
+          style={{ width: 'auto', fontSize: '0.8125rem' }}
+          title="Filter by content status"
+        >
+          <option value="all">Status: all ({statusCounts.all})</option>
+          <option value="authored">Authored ({statusCounts.authored})</option>
+          <option value="partial">Partial ({statusCounts.partial})</option>
+          <option value="reference_stub">Reference stubs ({statusCounts.reference_stub})</option>
+          <option value="inactive">Inactive ({statusCounts.inactive})</option>
+        </select>
         <select
           value={sort}
           onChange={(e) => setSort(e.target.value as SortMode)}
@@ -276,6 +317,22 @@ export default function ProgramsTable({ programs }: { programs: Program[] }) {
                             {ALLIANCE_LABEL[program.alliance] ?? program.alliance}
                           </span>
                         )}
+                        {program.is_reference_stub && (
+                          <span
+                            title="Exists only as an FK reference for partner_redemptions. Not authored as a full program page; excluded from refresh queue."
+                            style={{
+                              padding: '0.0625rem 0.375rem',
+                              fontSize: '0.625rem',
+                              fontWeight: 700,
+                              letterSpacing: '0.04em',
+                              color: '#fff',
+                              background: '#6B7280',
+                              borderRadius: '9999px',
+                            }}
+                          >
+                            REFERENCE STUB
+                          </span>
+                        )}
                         {(program.hubs?.length ?? 0) > 0 && (
                           <span style={{ color: 'var(--admin-text-muted)' }}>
                             {program.hubs!.join(' · ')}
@@ -297,14 +354,16 @@ export default function ProgramsTable({ programs }: { programs: Program[] }) {
                             fontFamily: 'var(--font-mono, ui-monospace, monospace)',
                           }}
                         >
-                          {c.filled}/{c.total}
+                          {program.is_reference_stub ? '—' : `${c.filled}/${c.total}`}
                         </span>
                         <span style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)' }}>
-                          {completeness === 'complete'
-                            ? 'all sections done'
-                            : completeness === 'empty'
-                              ? 'no content yet'
-                              : `missing: ${c.missing.slice(0, 2).join(', ')}${c.missing.length > 2 ? `, +${c.missing.length - 2}` : ''}`}
+                          {program.is_reference_stub
+                            ? 'reference only — no page'
+                            : completeness === 'complete'
+                              ? 'all sections done'
+                              : completeness === 'empty'
+                                ? 'no content yet'
+                                : `missing: ${c.missing.slice(0, 2).join(', ')}${c.missing.length > 2 ? `, +${c.missing.length - 2}` : ''}`}
                         </span>
                       </div>
                     </td>
