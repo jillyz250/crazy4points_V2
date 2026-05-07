@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/utils/supabase/server'
 import { listSubscribers } from '@/utils/supabase/queries'
 import { toggleSubscriberActiveAction } from './actions'
+import AddSubscriberForm from './AddSubscriberForm'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Card } from '@/components/admin/ui/Card'
 import { Badge } from '@/components/admin/ui/Badge'
@@ -28,8 +29,10 @@ export default async function SubscribersPage() {
         }
       />
 
+      <AddSubscriberForm />
+
       {subscribers.length === 0 ? (
-        <EmptyState title="No subscribers yet" description="Nothing to manage until people sign up." />
+        <EmptyState title="No subscribers yet" description="Use the form above to add one manually, or wait for someone to sign up." />
       ) : (
         <Card>
           <div style={{ overflowX: 'auto' }}>

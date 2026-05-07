@@ -80,6 +80,7 @@ export default function NewsletterEditor({
 }: Props) {
   const [slots, setSlots] = useState<NewsletterSlots>(initialSlots)
   const [confirmWord, setConfirmWord] = useState('')
+  const [testToEmail, setTestToEmail] = useState('')
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isPending, start] = useTransition()
@@ -182,6 +183,26 @@ export default function NewsletterEditor({
         await saveSlotsAction(id, slots)
         const res = await sendTestAction(id)
         notify(`Test sent to ${res.to}.`)
+      } catch (e) { notify(e instanceof Error ? e.message : 'Test send failed', true) }
+    })
+  }
+
+  function handleSendTestToEmail() {
+    const target = testToEmail.trim()
+    if (!target) {
+      notify('Enter an email to send to.', true)
+      return
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(target)) {
+      notify("That email doesn't look right.", true)
+      return
+    }
+    start(async () => {
+      try {
+        await saveSlotsAction(id, slots)
+        const res = await sendTestAction(id, target)
+        notify(`Preview sent to ${res.to}.`)
+        setTestToEmail('')
       } catch (e) { notify(e instanceof Error ? e.message : 'Test send failed', true) }
     })
   }
@@ -413,6 +434,28 @@ export default function NewsletterEditor({
             <button type="button" onClick={handleRunNow} disabled={isPending} style={btnSecondary}>Run Now (regenerate)</button>
             <button type="button" onClick={handleSendTest} disabled={isPending} style={btnPrimary}>Send test to me</button>
           </div>
+
+          <div style={{ marginBottom: '1rem' }}>
+            <label style={labelStyle}>Send a preview to a specific email</label>
+            <p style={{ margin: '0 0 0.5rem', fontSize: '0.8125rem', color: 'var(--admin-text-muted)' }}>
+              Sends the same email as &quot;Send test to me,&quot; but to whoever you type. Always marked as preview (gold banner).
+            </p>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <input
+                type="email"
+                value={testToEmail}
+                onChange={(e) => setTestToEmail(e.target.value)}
+                placeholder="email@example.com"
+                className="admin-input"
+                style={{ maxWidth: '320px' }}
+                disabled={isPending}
+              />
+              <button type="button" onClick={handleSendTestToEmail} disabled={isPending || !testToEmail.trim()} style={btnSecondary}>
+                Send preview to this address
+              </button>
+            </div>
+          </div>
+
           <div style={{ borderTop: '1px solid var(--admin-border)', paddingTop: '0.875rem' }}>
             <label style={labelStyle}>Danger zone — send to real subscribers</label>
             <p style={{ margin: '0 0 0.5rem', fontSize: '0.8125rem', color: 'var(--admin-text-muted)' }}>

@@ -675,6 +675,29 @@ export async function setSubscriberActive(
   if (error) throw error
 }
 
+/**
+ * Insert a new subscriber. Returns the new row, or throws if the email is
+ * already in the table (unique constraint). Active defaults to true so the
+ * subscriber is ready to receive the next newsletter immediately.
+ */
+export async function addSubscriber(
+  supabase: SupabaseClient,
+  payload: { email: string; first_name?: string | null; last_name?: string | null; active?: boolean },
+): Promise<Subscriber> {
+  const { data, error } = await supabase
+    .from('subscribers')
+    .insert({
+      email: payload.email.trim().toLowerCase(),
+      first_name: payload.first_name?.trim() || null,
+      last_name: payload.last_name?.trim() || null,
+      active: payload.active ?? true,
+    })
+    .select('id, email, first_name, last_name, active')
+    .single()
+  if (error) throw error
+  return data as Subscriber
+}
+
 // ── System Errors ────────────────────────────────────────────────────────
 
 export type SystemError = {

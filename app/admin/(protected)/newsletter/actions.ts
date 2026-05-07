@@ -100,9 +100,20 @@ export async function runNowAction() {
   return result
 }
 
-export async function sendTestAction(id: string) {
+/**
+ * Send a preview to a specific email. When `toOverride` is omitted or empty,
+ * defaults to the admin's address (BRIEF_RECIPIENT). Always rendered as a
+ * preview (gold banner + [PREVIEW] subject prefix) so it's never confused
+ * with a public broadcast.
+ */
+export async function sendTestAction(id: string, toOverride?: string) {
   const { row } = await loadSlotRow(id)
   const slots = rowToSlots(row)
+
+  const target = toOverride?.trim() || ADMIN_EMAIL
+  if (toOverride && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(target)) {
+    throw new Error("That email doesn't look right.")
+  }
 
   const subject = slots.subject || 'Crazy4Points — Weekly'
   const html = renderNewsletterV2Html({
@@ -113,12 +124,12 @@ export async function sendTestAction(id: string) {
 
   const { error } = await resend.emails.send({
     from: FROM,
-    to: ADMIN_EMAIL,
+    to: target,
     subject: `[PREVIEW] ${subject}`,
     html,
   })
   if (error) throw new Error(`Resend: ${error.message}`)
-  return { ok: true, to: ADMIN_EMAIL }
+  return { ok: true, to: target }
 }
 
 export async function sendToSubscribersAction(id: string, confirmWord: string) {
