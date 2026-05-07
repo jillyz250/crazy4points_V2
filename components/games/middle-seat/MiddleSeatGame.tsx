@@ -490,13 +490,39 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
         )}
       </header>
 
-      <button
-        type="button"
-        onClick={() => setRulesOpen((v) => !v)}
-        className="text-xs text-[color:var(--color-primary)] underline font-ui mb-3"
-      >
-        {rulesOpen ? 'Hide rules' : 'How do exit rows / front rows work?'}
-      </button>
+      <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
+        <button
+          type="button"
+          onClick={() => setRulesOpen((v) => !v)}
+          className="text-xs text-[color:var(--color-primary)] underline font-ui"
+        >
+          {rulesOpen ? 'Hide rules' : 'How do exit rows / front rows work?'}
+        </button>
+        <button
+          type="button"
+          onClick={() => setLogicMode((v) => !v)}
+          role="switch"
+          aria-checked={!logicMode}
+          className="flex items-center gap-2 text-xs font-ui select-none"
+        >
+          <span className="text-[color:var(--color-text-secondary)]">Hint</span>
+          <span
+            className={[
+              'relative inline-block w-10 h-5 rounded-full transition border',
+              !logicMode
+                ? 'bg-[color:var(--color-primary)] border-[color:var(--color-primary)]'
+                : 'bg-zinc-200 border-zinc-300',
+            ].join(' ')}
+          >
+            <span
+              className={[
+                'absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform',
+                !logicMode ? 'translate-x-[22px]' : 'translate-x-0.5',
+              ].join(' ')}
+            />
+          </span>
+        </button>
+      </div>
 
       {rulesOpen ? (
         <div className="mb-4 p-3 rounded-[var(--radius-ui)] bg-[color:var(--color-background-soft)] border border-[color:var(--color-border-soft)] text-sm space-y-1.5">
@@ -542,20 +568,8 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
 
       {/* THREE-COLUMN: case (left) + passengers (middle) + airplane (right) */}
       <div className="grid gap-4 md:grid-cols-[240px_180px_1fr]">
-        {/* LEFT COLUMN: hint + case */}
+        {/* LEFT COLUMN: case */}
         <div className="flex flex-col gap-3">
-          <button
-            type="button"
-            onClick={() => setLogicMode((v) => !v)}
-            className={[
-              'self-start text-xs font-ui px-3 py-1.5 rounded-full border transition',
-              logicMode
-                ? 'bg-white border-[color:var(--color-primary)] text-[color:var(--color-primary)] hover:bg-[color:var(--color-background-soft)]'
-                : 'bg-[color:var(--color-primary)] border-[color:var(--color-primary)] text-white',
-            ].join(' ')}
-          >
-            {logicMode ? '💡 Hint' : '✕ Hide hint'}
-          </button>
           {puzzle.clues && puzzle.clues.length > 0 ? (
             <div className="p-3 rounded-[var(--radius-card)] bg-white border border-[color:var(--color-border-soft)] shadow-sm">
               <div className="text-xs font-ui uppercase tracking-wide text-[color:var(--color-text-secondary)] mb-2">
