@@ -8,7 +8,7 @@ import {
   type IntelStatusFilter,
   type IntelWindow,
 } from '@/utils/supabase/queries'
-import { rejectIntelAction, unrejectIntelAction } from './actions'
+import { rejectIntelAction, unrejectIntelAction, promoteIntelAction } from './actions'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Card } from '@/components/admin/ui/Card'
 import { Badge } from '@/components/admin/ui/Badge'
@@ -29,20 +29,33 @@ const CONFIDENCE_OPTIONS: { value: 'all' | IntelConfidence; label: string }[] = 
   { value: 'all', label: 'All' },
   { value: 'high', label: 'High' },
   { value: 'medium', label: 'Medium' },
-  { value: 'low', label: 'Low' },
+  { value: 'low', label: 'Rumor' },
 ]
 
 const STATUS_OPTIONS: { value: IntelStatusFilter; label: string }[] = [
-  { value: 'all', label: 'All' },
-  { value: 'unprocessed', label: 'Unprocessed' },
-  { value: 'staged', label: 'Staged' },
+  { value: 'unprocessed', label: 'Inbox' },
+  { value: 'staged', label: 'Promoted' },
   { value: 'rejected', label: 'Rejected' },
+  { value: 'all', label: 'All' },
 ]
 
 const CONFIDENCE_TONE: Record<IntelConfidence, Tone> = {
   high: 'success',
   medium: 'warning',
   low: 'neutral',
+}
+
+const CONFIDENCE_LABEL: Record<IntelConfidence, string> = {
+  high: 'high',
+  medium: 'medium',
+  low: 'rumor',
+}
+
+const SOURCE_TYPE_STYLE: Record<string, { bg: string; emoji: string }> = {
+  official: { bg: '#DCFCE7', emoji: '🏛️' },
+  blog: { bg: '#DBEAFE', emoji: '📝' },
+  reddit: { bg: '#FED7AA', emoji: '💬' },
+  social: { bg: '#FCE7F3', emoji: '📣' },
 }
 
 function relativeTime(iso: string): string {
@@ -62,37 +75,71 @@ function parseFilter<T extends string>(value: string | string[] | undefined, all
 
 type SearchParams = { [key: string]: string | string[] | undefined }
 
+function buildHref(current: SearchParams, overrides: Record<string, string | undefined>): string {
+  const params = new URLSearchParams()
+  const merged: Record<string, string | undefined> = {
+    window: Array.isArray(current.window) ? current.window[0] : current.window,
+    confidence: Array.isArray(current.confidence) ? current.confidence[0] : current.confidence,
+    status: Array.isArray(current.status) ? current.status[0] : current.status,
+    source: Array.isArray(current.source) ? current.source[0] : current.source,
+    ...overrides,
+  }
+  for (const [k, v] of Object.entries(merged)) {
+    if (v) params.set(k, v)
+  }
+  const qs = params.toString()
+  return qs ? `/admin/intel?${qs}` : '/admin/intel'
+}
+
 export default async function IntelPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const sp = await searchParams
   const windowFilter = parseFilter<IntelWindow>(sp.window, ['24h', '7d', '30d', 'all'], '7d')
   const confidence = parseFilter<'all' | IntelConfidence>(sp.confidence, ['all', 'high', 'medium', 'low'], 'all')
-  const status = parseFilter<IntelStatusFilter>(sp.status, ['all', 'unprocessed', 'staged', 'rejected'], 'all')
+  const status = parseFilter<IntelStatusFilter>(sp.status, ['all', 'unprocessed', 'staged', 'rejected'], 'unprocessed')
   const source = (Array.isArray(sp.source) ? sp.source[0] : sp.source) ?? 'all'
 
   const supabase = createAdminClient()
-  const [items, sourceNames] = await Promise.all([
+  const [items, sourceNames, allItems] = await Promise.all([
     listIntelItems(supabase, { window: windowFilter, confidence, status, source }),
     listIntelSourceNames(supabase),
+    listIntelItems(supabase, { window: windowFilter, confidence: 'all', status: 'all', source: 'all' }),
   ])
 
   const counts = {
-    total: items.length,
-    unprocessed: items.filter((i) => !i.processed && !i.rejected_at).length,
-    staged: items.filter((i) => i.processed).length,
-    rejected: items.filter((i) => !!i.rejected_at).length,
+    total: allItems.length,
+    unprocessed: allItems.filter((i) => !i.processed && !i.rejected_at).length,
+    staged: allItems.filter((i) => i.processed).length,
+    rejected: allItems.filter((i) => !!i.rejected_at).length,
   }
+
+  const countPills: { label: string; count: number; status: IntelStatusFilter; tone: Tone }[] = [
+    { label: 'Inbox', count: counts.unprocessed, status: 'unprocessed', tone: 'warning' },
+    { label: 'Promoted', count: counts.staged, status: 'staged', tone: 'accent' },
+    { label: 'Rejected', count: counts.rejected, status: 'rejected', tone: 'neutral' },
+    { label: 'All', count: counts.total, status: 'all', tone: 'neutral' },
+  ]
 
   return (
     <div>
       <PageHeader
         title="Intel Items"
-        description="Raw findings from Claude Scout. High-confidence items auto-stage as pending_review alerts."
+        description="Raw findings from Claude Scout. High-confidence items auto-promote to pending_review alerts."
         actions={
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <Badge tone="neutral">{counts.total} total</Badge>
-            <Badge tone="neutral">{counts.unprocessed} unprocessed</Badge>
-            <Badge tone="accent">{counts.staged} staged</Badge>
-            <Badge tone="neutral">{counts.rejected} rejected</Badge>
+            {countPills.map((p) => {
+              const active = status === p.status
+              return (
+                <Link
+                  key={p.status}
+                  href={buildHref(sp, { status: p.status })}
+                  style={{ textDecoration: 'none' }}
+                >
+                  <Badge tone={active ? p.tone : 'neutral'}>
+                    {active ? '● ' : ''}{p.count} {p.label.toLowerCase()}
+                  </Badge>
+                </Link>
+              )
+            })}
           </div>
         }
       />
@@ -166,6 +213,8 @@ function IntelCard({ item }: { item: IntelItem }) {
       ? 'var(--admin-accent)'
       : 'var(--admin-warning)'
 
+  const sourceStyle = SOURCE_TYPE_STYLE[item.source_type] ?? { bg: '#E5E7EB', emoji: '📄' }
+
   return (
     <div
       className="admin-card"
@@ -178,11 +227,28 @@ function IntelCard({ item }: { item: IntelItem }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'baseline', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <Badge tone="neutral">{item.source_name}</Badge>
-          <Badge tone="neutral">{item.source_type}</Badge>
-          <Badge tone={CONFIDENCE_TONE[item.confidence]}>{item.confidence}</Badge>
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.25rem',
+              padding: '0.125rem 0.5rem',
+              borderRadius: '999px',
+              background: sourceStyle.bg,
+              fontSize: '0.6875rem',
+              fontWeight: 600,
+              color: '#1A1A1A',
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+            }}
+          >
+            <span>{sourceStyle.emoji}</span>
+            {item.source_type}
+          </span>
+          <Badge tone={CONFIDENCE_TONE[item.confidence]}>{CONFIDENCE_LABEL[item.confidence]}</Badge>
           {item.alert_type && <Badge tone="neutral">{item.alert_type}</Badge>}
           <span style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)' }}>
-            {relativeTime(item.created_at)}
+            Pulled {relativeTime(item.created_at)}
           </span>
         </div>
         <div style={{ display: 'flex', gap: '0.375rem' }}>
@@ -191,13 +257,20 @@ function IntelCard({ item }: { item: IntelItem }) {
               href={`/admin/alerts/${item.alert_id}/edit`}
               className="admin-btn admin-btn-ghost admin-btn-sm"
             >
-              → staged alert
+              → promoted alert
             </Link>
           )}
           {!staged && !rejected && (
-            <form action={rejectIntelAction.bind(null, item.id)}>
-              <button type="submit" className="admin-btn admin-btn-ghost admin-btn-sm">Reject</button>
-            </form>
+            <>
+              <form action={promoteIntelAction.bind(null, item.id)}>
+                <button type="submit" className="admin-btn admin-btn-primary admin-btn-sm">
+                  Promote to alert
+                </button>
+              </form>
+              <form action={rejectIntelAction.bind(null, item.id)}>
+                <button type="submit" className="admin-btn admin-btn-ghost admin-btn-sm">Reject</button>
+              </form>
+            </>
           )}
           {rejected && (
             <form action={unrejectIntelAction.bind(null, item.id)}>
