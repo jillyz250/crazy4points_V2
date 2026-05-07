@@ -486,7 +486,12 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
     if (cabinForRow(i, layout) !== cabinForRow(i + 1, layout)) cabinSeparators.add(i);
   }
 
-  const unseatedCount = passengers.length - placements.length;
+  // Lap infants ride with their parent and don't take their own seat.
+  const lapInfants = passengers.filter((p) =>
+    p.chips.some((c) => c.type === 'infant_lap'),
+  );
+  const seatablePassengers = passengers.filter((p) => !lapInfants.includes(p));
+  const unseatedCount = seatablePassengers.length - placements.length;
 
   return (
     <div className="rg-container py-8">
@@ -587,6 +592,14 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
             <strong>Middle seat</strong> (amber) — the dreaded one. Some passengers have constraints
             saying they can&apos;t end up here.
           </p>
+          <p>
+            <strong>First class</strong> (gold tint) — reserved. Only passengers with a first-class
+            ticket can sit here.
+          </p>
+          <p>
+            <strong>Lap infants</strong> ride with their parent and don&apos;t take their own seat —
+            you&apos;ll see them in &ldquo;Riding along&rdquo; below the passenger list.
+          </p>
         </div>
       ) : null}
 
@@ -650,7 +663,7 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
             Passengers
           </h2>
           <div className="flex flex-col gap-1.5">
-            {passengers.map((pax) => {
+            {seatablePassengers.map((pax) => {
               const seated = seatedPids.has(pax.id);
               const seat = pidToSeat.get(pax.id);
               const selected = selectedPid === pax.id;
@@ -717,6 +730,29 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
               );
             })}
           </div>
+          {lapInfants.length > 0 ? (
+            <div className="mt-3 p-2 rounded-[var(--radius-ui)] bg-[color:var(--color-background-soft)] border border-[color:var(--color-border-soft)]">
+              <div className="text-[10px] font-ui uppercase tracking-wider text-[color:var(--color-text-secondary)] mb-1">
+                🍼 Riding along
+              </div>
+              {lapInfants.map((baby) => {
+                const lapChip = baby.chips.find((c) => c.type === 'infant_lap');
+                const parentName =
+                  lapChip && lapChip.type === 'infant_lap'
+                    ? passengers.find((p) => p.id === lapChip.parent)?.name
+                    : null;
+                return (
+                  <div key={baby.id} className="flex items-center gap-2 text-xs">
+                    <Avatar pax={baby} size={24} />
+                    <span className="font-medium">{baby.name}</span>
+                    <span className="text-[color:var(--color-text-secondary)]">
+                      on {parentName ?? '?'}'s lap
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
         </div>
 
         {/* AIRPLANE — wrapper clips wing overflow on narrow viewports */}
@@ -892,7 +928,21 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
                               ].join(' ')}
                             >
                               {pax ? (
-                                <Avatar pax={pax} size={44} />
+                                <>
+                                  <Avatar pax={pax} size={44} />
+                                  {lapInfants.some((b) =>
+                                    b.chips.some(
+                                      (c) => c.type === 'infant_lap' && c.parent === pax.id,
+                                    ),
+                                  ) ? (
+                                    <span
+                                      className="absolute -bottom-1 -right-1 text-base bg-white rounded-full ring-2 ring-[color:var(--color-primary)] w-5 h-5 flex items-center justify-center shadow"
+                                      aria-label="lap infant"
+                                    >
+                                      🍼
+                                    </span>
+                                  ) : null}
+                                </>
                               ) : (
                                 <span className="text-[11px] font-medium text-zinc-500">{letter}</span>
                               )}

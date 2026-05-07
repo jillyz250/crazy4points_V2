@@ -59,7 +59,19 @@ export function validate(
   const seatByPid = new Map<string, SeatId>();
   for (const p of placements) seatByPid.set(p.passengerId, p.seat);
 
-  const allSeated = passengers.every((pax) => seatByPid.has(pax.id));
+  // Lap infants don't get their own seat — they ride along with their parent.
+  // They count as "seated" once the parent is seated.
+  const isLapInfant = (pax: Passenger) =>
+    pax.chips.some((c) => c.type === 'infant_lap');
+  const allSeated = passengers.every((pax) => {
+    if (isLapInfant(pax)) {
+      const lapChip = pax.chips.find((c) => c.type === 'infant_lap');
+      if (lapChip && lapChip.type === 'infant_lap') {
+        return seatByPid.has(lapChip.parent);
+      }
+    }
+    return seatByPid.has(pax.id);
+  });
 
   // Tag pets by tag for allergy checks.
   const petsByTag = new Map<string, string[]>(); // tag -> passenger ids
@@ -74,18 +86,24 @@ export function validate(
   }
 
   for (const pax of passengers) {
+    // Lap infants don't get a seat — skip seat-based checks for them; their
+    // location is implied by their parent's seat (validated below).
+    if (isLapInfant(pax)) continue;
     const seat = seatByPid.get(pax.id);
     if (!seat) continue;
     const { row } = parseSeat(seat);
+    const cabin = cabinForRow(row, layout);
 
-    // FAA-style exit row rule: minors, infants on lap, and service animals
-    // can't sit in exit rows.
+    // First-class is reserved: only passengers with class_required:first
+    // are allowed in first class rows.
+    if (cabin === 'first' && !pax.chips.some((c) => c.type === 'class_required' && c.cabin === 'first')) {
+      violations.push(`${pax.name} doesn't have a first-class ticket — can't sit in first class.`);
+    }
+
+    // FAA-style exit row rule: minors and service animals can't sit in exit rows.
     if (layout.exitRows.includes(row)) {
       if (pax.minor) {
         violations.push(`${pax.name} is a minor — can't sit in the exit row.`);
-      }
-      if (pax.chips.some((c) => c.type === 'infant_lap')) {
-        violations.push(`${pax.name} (lap infant) can't sit in the exit row.`);
       }
       if (pax.chips.some((c) => c.type === 'service_animal')) {
         violations.push(`${pax.name}'s service animal can't sit in the exit row.`);
@@ -149,12 +167,8 @@ export function validate(
       if (chip.type === 'exit_row_pref' && !layout.exitRows.includes(row)) {
         violations.push(`${pax.name} needs the exit row.`);
       }
-      if (chip.type === 'infant_lap') {
-        const parentSeat = seatByPid.get(chip.parent);
-        if (parentSeat && !seatsInSameRow(seat, parentSeat)) {
-          violations.push(`${pax.name} must be in the same row as their parent.`);
-        }
-      }
+      // (infant_lap chip is handled below via parent's seat — the infant
+      //  doesn't have their own seat to check.)
       if (chip.type === 'allergic_to') {
         const petIds = petsByTag.get(chip.tag) ?? [];
         for (const petId of petIds) {
@@ -187,6 +201,23 @@ export function validate(
           }
         }
       }
+    }
+  }
+
+  // Lap infants ride with their parent. If the parent is in an exit row,
+  // FAA forbids it (so it's the parent that's violating, not the infant).
+  for (const pax of passengers) {
+    if (!isLapInfant(pax)) continue;
+    const lapChip = pax.chips.find((c) => c.type === 'infant_lap');
+    if (!lapChip || lapChip.type !== 'infant_lap') continue;
+    const parentSeat = seatByPid.get(lapChip.parent);
+    if (!parentSeat) continue;
+    const parentRow = parseSeat(parentSeat).row;
+    if (layout.exitRows.includes(parentRow)) {
+      const parent = passengers.find((q) => q.id === lapChip.parent);
+      violations.push(
+        `${parent?.name ?? 'Parent'} can't sit in the exit row with a lap infant (${pax.name}).`,
+      );
     }
   }
 
