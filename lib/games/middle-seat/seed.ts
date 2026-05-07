@@ -5,8 +5,8 @@ const REGIONAL_LAYOUT: Layout = {
   rows: 4,
   exitRows: [2],
   bulkheadRows: [2],
-  // First class is 1-1: only 1A and 1D.
-  blocked: ['1B', '1C'],
+  // 2-2 layout (regional jet) — first class already 2-2 by default.
+  blocked: [],
   letters: ['A', 'B', 'C', 'D'],
   aisleAfter: 'B',
   cabins: [
@@ -19,8 +19,8 @@ const NARROWBODY_LAYOUT: Layout = {
   rows: 5,
   exitRows: [3],
   bulkheadRows: [2],
-  // First class is 1-1: only 1A and 1F (just two seats, separated by aisle).
-  blocked: ['1B', '1C', '1D', '1E'],
+  // First class is 2-2: 1A,1B and 1E,1F (1C and 1D are aisle width).
+  blocked: ['1C', '1D'],
   letters: ['A', 'B', 'C', 'D', 'E', 'F'],
   aisleAfter: 'C',
   cabins: [
@@ -33,8 +33,8 @@ const BIG_NARROWBODY_LAYOUT: Layout = {
   rows: 5,
   exitRows: [3],
   bulkheadRows: [2],
-  // First class is 1-1: only 1A and 1F.
-  blocked: ['1B', '1C', '1D', '1E'],
+  // First class is 2-2: 1A,1B and 1E,1F.
+  blocked: ['1C', '1D'],
   letters: ['A', 'B', 'C', 'D', 'E', 'F'],
   aisleAfter: 'C',
   cabins: [
@@ -140,8 +140,7 @@ export const PUZZLE_ROTATION: Omit<Puzzle, 'date'>[] = [
     story:
       "Sunday redeye. Eight strangers, a service dog, a cat in a carrier, and a baby. Good luck.",
     clues: [
-      "Diana is Platinum — she's in first class.",
-      "Marcus is Diamond — also in first class. (No couple constraint — there's no \"adjacent\" in first class on this jet.)",
+      "Diana and her husband Marcus are both Platinum — booked first class. They want to sit together (same side of the aisle).",
       "Mia is bringing her cat (carrier under the seat). She wants an aisle — no middle.",
       "Owen is severely allergic to cats. He needs at least 2 rows between him and the cat. He also wants a window — naps.",
       "Brad is flying with a service dog. The dog needs floor space — no middle seat, and FAA forbids exit row.",
@@ -155,7 +154,7 @@ export const PUZZLE_ROTATION: Omit<Puzzle, 'date'>[] = [
     ],
     layout: BIG_NARROWBODY_LAYOUT,
     passengers: [
-      { id: 'p1', name: 'Diana', avatar: '💼', avatarSeed: 'diana-platinum', chips: [{ type: 'class_required', cabin: 'first' }] },
+      { id: 'p1', name: 'Diana', avatar: '💼', avatarSeed: 'diana-platinum', chips: [{ type: 'class_required', cabin: 'first' }, { type: 'couple', with: 'p9' }] },
       {
         id: 'p2',
         name: 'Mia',
@@ -175,7 +174,7 @@ export const PUZZLE_ROTATION: Omit<Puzzle, 'date'>[] = [
       { id: 'p6', name: 'Jordan', avatar: '😤', avatarSeed: 'jordan-ex', chips: [{ type: 'feuding_with', with: 'p5' }, { type: 'status_row', maxRow: 4 }] },
       { id: 'p7', name: 'Hannah', avatar: '🤱', avatarSeed: 'hannah-parent', chips: [{ type: 'bulkhead_required' }] },
       { id: 'p8', name: 'Eli', avatar: '👶', minor: true, chips: [{ type: 'infant_lap', parent: 'p7' }] },
-      { id: 'p9', name: 'Marcus', avatar: '🤵', avatarSeed: 'marcus-husband-platinum', chips: [{ type: 'class_required', cabin: 'first' }] },
+      { id: 'p9', name: 'Marcus', avatar: '🤵', avatarSeed: 'marcus-husband-platinum', chips: [{ type: 'class_required', cabin: 'first' }, { type: 'couple', with: 'p1' }] },
       { id: 'p10', name: 'Tom', avatar: '🧑‍🦱', avatarSeed: 'tom-tall', chips: [{ type: 'exit_row_pref' }, { type: 'aisle_required' }] },
       {
         id: 'p11',
