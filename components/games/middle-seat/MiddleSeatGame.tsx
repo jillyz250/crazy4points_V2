@@ -223,6 +223,10 @@ function chipLabel(chip: Chip, all: Passenger[]): string {
     }
     case 'no_minor_behind':
       return '😴 No kid behind';
+    case 'keep_distance':
+      return chip.from === 'minor'
+        ? `🚸 ≥${chip.minRows} rows from kids`
+        : `🐾 ≥${chip.minRows} rows from pets`;
   }
 }
 
@@ -914,7 +918,7 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
                               className={[
                                 'rg-tap-target relative flex items-center justify-center font-ui rounded-md border-2 transition w-12 h-12',
                                 blocked
-                                  ? 'bg-zinc-200 border-zinc-300 cursor-not-allowed'
+                                  ? 'bg-zinc-100 border-zinc-200 cursor-not-allowed opacity-50 [background-image:repeating-linear-gradient(45deg,_transparent,_transparent_4px,_rgba(0,0,0,0.06)_4px,_rgba(0,0,0,0.06)_5px)]'
                                   : pax
                                   ? 'bg-[color:var(--color-primary)] border-[color:var(--color-primary)] shadow-md cursor-grab active:cursor-grabbing'
                                   : middle
@@ -927,7 +931,7 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
                                 isBulkhead ? 'ring-2 ring-sky-400 ring-offset-1' : '',
                               ].join(' ')}
                             >
-                              {pax ? (
+                              {blocked ? null : pax ? (
                                 <>
                                   <Avatar pax={pax} size={44} />
                                   {lapInfants.some((b) =>

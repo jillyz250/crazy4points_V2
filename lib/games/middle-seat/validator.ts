@@ -167,6 +167,34 @@ export function validate(
       if (chip.type === 'exit_row_pref' && !layout.exitRows.includes(row)) {
         violations.push(`${pax.name} needs the exit row.`);
       }
+      if (chip.type === 'keep_distance') {
+        // Find anyone matching `from` who's been seated, and check row distance.
+        // For lap infants: their effective row is their parent's row.
+        for (const other of passengers) {
+          if (other.id === pax.id) continue;
+          let matches = false;
+          if (chip.from === 'minor' && (other.minor || isLapInfant(other))) matches = true;
+          if (chip.from === 'pet' && other.chips.some((c) => c.type === 'pet_in_cabin')) matches = true;
+          if (!matches) continue;
+          let otherRow: number | null = null;
+          if (isLapInfant(other)) {
+            const lap = other.chips.find((c) => c.type === 'infant_lap');
+            if (lap && lap.type === 'infant_lap') {
+              const ps = seatByPid.get(lap.parent);
+              if (ps) otherRow = parseSeat(ps).row;
+            }
+          } else {
+            const os = seatByPid.get(other.id);
+            if (os) otherRow = parseSeat(os).row;
+          }
+          if (otherRow !== null && Math.abs(otherRow - row) < chip.minRows) {
+            const what = chip.from === 'minor' ? 'kids' : 'pets';
+            violations.push(
+              `${pax.name} needs at least ${chip.minRows} rows between them and ${what} (${other.name}).`,
+            );
+          }
+        }
+      }
       // (infant_lap chip is handled below via parent's seat — the infant
       //  doesn't have their own seat to check.)
       if (chip.type === 'allergic_to') {
