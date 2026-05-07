@@ -196,8 +196,8 @@ async function getCardsForIdea(
   return (data ?? []) as CardSource[]
 }
 
-type IdeaStatus = 'new' | 'queued' | 'drafted' | 'published' | 'dismissed'
-const VALID: IdeaStatus[] = ['new', 'queued', 'drafted', 'published', 'dismissed']
+type IdeaStatus = 'new' | 'idea_bank' | 'published' | 'dismissed'
+const VALID: IdeaStatus[] = ['new', 'idea_bank', 'published', 'dismissed']
 
 function slugify(title: string): string {
   return title

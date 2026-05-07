@@ -23,7 +23,7 @@ import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Badge } from '@/components/admin/ui/Badge'
 import { EmptyState } from '@/components/admin/ui/EmptyState'
 
-type IdeaStatus = 'new' | 'queued' | 'drafted' | 'published' | 'dismissed'
+type IdeaStatus = 'new' | 'idea_bank' | 'published' | 'dismissed'
 type IdeaType = 'newsletter' | 'blog'
 type Tone = 'accent' | 'success' | 'warning' | 'danger' | 'neutral' | 'info'
 
@@ -81,18 +81,16 @@ interface ContentIdeaRow {
 }
 
 const STATUS_TONE: Record<IdeaStatus, { tone: Tone; label: string }> = {
-  new:       { tone: 'accent', label: 'New' },
-  queued:    { tone: 'warning', label: 'Queued' },
-  drafted:   { tone: 'info', label: 'Drafted' },
-  published: { tone: 'success', label: 'Published' },
-  dismissed: { tone: 'neutral', label: 'Dismissed' },
+  new:        { tone: 'accent', label: 'New' },
+  idea_bank:  { tone: 'warning', label: 'Idea Bank' },
+  published:  { tone: 'success', label: 'Published' },
+  dismissed:  { tone: 'neutral', label: 'Dismissed' },
 }
 
 const NEXT_STATUS: Record<IdeaStatus, { label: string; to: IdeaStatus; variant?: 'primary' | 'secondary' }[]> = {
-  new:       [{ label: 'Queue', to: 'queued', variant: 'primary' }, { label: 'Dismiss', to: 'dismissed', variant: 'secondary' }],
-  queued:    [{ label: 'Mark Drafted', to: 'drafted', variant: 'primary' }, { label: 'Back to New', to: 'new', variant: 'secondary' }, { label: 'Dismiss', to: 'dismissed', variant: 'secondary' }],
-  drafted:   [{ label: 'Mark Published', to: 'published', variant: 'primary' }, { label: 'Back to Queued', to: 'queued', variant: 'secondary' }],
-  published: [{ label: 'Reopen', to: 'queued', variant: 'secondary' }],
+  new:       [{ label: 'Add to Idea Bank', to: 'idea_bank', variant: 'primary' }, { label: 'Publish', to: 'published', variant: 'primary' }, { label: 'Dismiss', to: 'dismissed', variant: 'secondary' }],
+  idea_bank: [{ label: 'Publish', to: 'published', variant: 'primary' }, { label: 'Back to New', to: 'new', variant: 'secondary' }, { label: 'Dismiss', to: 'dismissed', variant: 'secondary' }],
+  published: [{ label: 'Unpublish (back to Idea Bank)', to: 'idea_bank', variant: 'secondary' }],
   dismissed: [{ label: 'Restore', to: 'new', variant: 'secondary' }],
 }
 
@@ -147,10 +145,18 @@ export default async function ContentIdeasPage({
   if (typeFilter === 'newsletter' || typeFilter === 'blog') {
     query = query.eq('type', typeFilter)
   }
-  if (statusFilter && ['new', 'queued', 'drafted', 'published', 'dismissed'].includes(statusFilter)) {
+  if (statusFilter === 'archived') {
+    // "Archived" = published longer than 90 days ago. Status stays 'published'
+    // but the UI filter shows them as a separate browse tab.
+    query = query.eq('status', 'published').lt('published_at', new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString())
+  } else if (statusFilter === 'published') {
+    // Default published view = last 90 days only.
+    query = query.eq('status', 'published').gte('published_at', new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString())
+  } else if (statusFilter && ['new', 'idea_bank', 'dismissed'].includes(statusFilter)) {
     query = query.eq('status', statusFilter)
   } else if (!statusFilter) {
-    query = query.in('status', ['new', 'queued', 'drafted'])
+    // "Open" view: New + Idea Bank
+    query = query.in('status', ['new', 'idea_bank'])
   }
   // Text search and program filter are applied in-memory below, not via
   // PostgREST `.or()` — PostgREST's or-filter has nasty edge cases with
@@ -320,19 +326,21 @@ export default async function ContentIdeasPage({
       </form>
 
       <div style={{ display: 'flex', gap: '0.375rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+        {/*
+         * Status filter chips. "Open" = New + Idea Bank (the default
+         * workflow view). "Published" = last 90 days. "Archived" = older
+         * published items, still searchable.
+         */}
         <FilterLink href={buildHref({ q, program: programSlug, sortBy: sp.sortBy })} active={!typeFilter && !statusFilter} label="Open" />
+        <FilterLink href={buildHref({ q, program: programSlug, status: 'new', sortBy: sp.sortBy })} active={statusFilter === 'new'} label="New" />
+        <FilterLink href={buildHref({ q, program: programSlug, status: 'idea_bank', sortBy: sp.sortBy })} active={statusFilter === 'idea_bank'} label="Idea Bank" />
+        <FilterLink href={buildHref({ q, program: programSlug, status: 'published', sortBy: sp.sortBy })} active={statusFilter === 'published'} label="Published (last 90d)" />
+        <FilterLink href={buildHref({ q, program: programSlug, status: 'archived', sortBy: sp.sortBy })} active={statusFilter === 'archived'} label="Archived" />
+        <FilterLink href={buildHref({ q, program: programSlug, status: 'dismissed', sortBy: sp.sortBy })} active={statusFilter === 'dismissed'} label="Dismissed" />
+        <span style={{ width: '0.5rem' }} />
+        {/* Newsletter / Blog auto-classified by Sonnet — kept as secondary filter only */}
         <FilterLink href={buildHref({ q, program: programSlug, type: 'newsletter', sortBy: sp.sortBy })} active={typeFilter === 'newsletter' && !statusFilter} label="Newsletter only" />
         <FilterLink href={buildHref({ q, program: programSlug, type: 'blog', sortBy: sp.sortBy })} active={typeFilter === 'blog' && !statusFilter} label="Blog only" />
-        {/*
-         * Per-status filters — useful for jumping straight to the queue
-         * stage you care about. "Open" still aggregates new+queued+drafted
-         * for the default workflow view.
-         */}
-        <FilterLink href={buildHref({ q, program: programSlug, status: 'new', sortBy: sp.sortBy })} active={statusFilter === 'new'} label="New" />
-        <FilterLink href={buildHref({ q, program: programSlug, status: 'queued', sortBy: sp.sortBy })} active={statusFilter === 'queued'} label="Queued" />
-        <FilterLink href={buildHref({ q, program: programSlug, status: 'drafted', sortBy: sp.sortBy })} active={statusFilter === 'drafted'} label="Drafted" />
-        <FilterLink href={buildHref({ q, program: programSlug, status: 'published', sortBy: sp.sortBy })} active={statusFilter === 'published'} label="Published" />
-        <FilterLink href={buildHref({ q, program: programSlug, status: 'dismissed', sortBy: sp.sortBy })} active={statusFilter === 'dismissed'} label="Dismissed" />
       </div>
 
       <div style={{ display: 'flex', gap: '0.375rem', marginBottom: '1.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -366,7 +374,14 @@ function sectionTitle(type: 'newsletter' | 'blog', statusFilter: string | undefi
   // status. Keep it boring and accurate.
   const base = type === 'newsletter' ? 'Newsletter' : 'Blog'
   if (!statusFilter) return type === 'newsletter' ? 'Newsletter Candidates' : 'Blog Ideas'
-  const status = statusFilter[0].toUpperCase() + statusFilter.slice(1)
+  const STATUS_DISPLAY: Record<string, string> = {
+    new: 'New',
+    idea_bank: 'Idea Bank',
+    published: 'Published',
+    archived: 'Archived',
+    dismissed: 'Dismissed',
+  }
+  const status = STATUS_DISPLAY[statusFilter] ?? statusFilter
   return `${status} ${base}`
 }
 
@@ -547,10 +562,22 @@ function VerificationRow({ pills }: { pills: VerificationPill[] }) {
 
 function formatIdeaAge(iso: string): string {
   const d = new Date(iso)
-  const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   const days = Math.floor((Date.now() - d.getTime()) / 86400000)
   const rel = days === 0 ? 'today' : days === 1 ? 'yesterday' : `${days}d ago`
   return `${dateStr} · ${rel}`
+}
+
+function formatPublishedAt(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+const PROGRAM_TYPE_BADGE: Record<string, { emoji: string; label: string; bg: string }> = {
+  airline:         { emoji: '✈️', label: 'Airline',  bg: '#0033A0' },
+  hotel:           { emoji: '🏨', label: 'Hotel',    bg: '#0F766E' },
+  credit_card:     { emoji: '💳', label: 'Card',     bg: '#6B2D8F' },
+  alliance:        { emoji: '🌐', label: 'Alliance', bg: '#1A1A1A' },
+  loyalty_program: { emoji: '💱', label: 'Currency', bg: '#B45309' },
 }
 
 function IdeaCard({
@@ -567,22 +594,86 @@ function IdeaCard({
   const rank = rankLabel(idea)
   const score = idea.source_alert?.computed_score
   const pills = verificationPills(idea)
+  // Type badge: derive from primary_program_slug -> programs.type
+  const linkedProgram = idea.primary_program_slug
+    ? programs.find((p) => p.slug === idea.primary_program_slug)
+    : null
+  const typeBadge = linkedProgram?.type ? PROGRAM_TYPE_BADGE[linkedProgram.type] : null
+  // Time-sensitive pill: from linked alert's expiry, if any
+  const expiresAt = idea.source_alert?.end_date ?? null
+  const expiresInDays = expiresAt
+    ? Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 86400000)
+    : null
+  const expiryPill = expiresInDays !== null
+    ? expiresInDays < 0
+      ? { label: `Expired ${Math.abs(expiresInDays)}d ago`, bg: '#9CA3AF' }
+      : expiresInDays <= 7
+        ? { label: `Expires in ${expiresInDays}d`, bg: '#DC2626' }
+        : expiresInDays <= 30
+          ? { label: `Expires in ${expiresInDays}d`, bg: '#F59E0B' }
+          : { label: `Expires ${formatPublishedAt(expiresAt!)}`, bg: '#6B7280' }
+    : null
   return (
     <div className="admin-card" style={{ padding: '1rem 1.125rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', marginBottom: '0.25rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', marginBottom: '0.375rem' }}>
         <h3 style={{ fontSize: '1rem', margin: 0, flex: 1, color: 'var(--admin-text)' }}>{idea.title}</h3>
         <Badge tone={statusDef.tone}>{statusDef.label}</Badge>
       </div>
-      <div
-        style={{
-          fontFamily: 'var(--font-ui)',
-          fontSize: '0.75rem',
-          color: 'var(--admin-text-muted)',
-          marginBottom: '0.5rem',
-        }}
-        title={`Created ${new Date(idea.created_at).toLocaleString()}`}
-      >
-        {formatIdeaAge(idea.created_at)}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', alignItems: 'center', marginBottom: '0.5rem' }}>
+        {typeBadge && (
+          <span
+            title={`Primary program: ${linkedProgram?.name ?? idea.primary_program_slug}`}
+            style={{
+              padding: '0.0625rem 0.5rem',
+              fontSize: '0.6875rem',
+              fontWeight: 600,
+              color: '#fff',
+              background: typeBadge.bg,
+              borderRadius: '9999px',
+              fontFamily: 'var(--font-ui)',
+            }}
+          >
+            {typeBadge.emoji} {typeBadge.label}
+          </span>
+        )}
+        {expiryPill && (
+          <span
+            title={expiresAt ? `Underlying alert ends ${new Date(expiresAt).toLocaleString()}` : ''}
+            style={{
+              padding: '0.0625rem 0.5rem',
+              fontSize: '0.6875rem',
+              fontWeight: 600,
+              color: '#fff',
+              background: expiryPill.bg,
+              borderRadius: '9999px',
+              fontFamily: 'var(--font-ui)',
+            }}
+          >
+            ⏱ {expiryPill.label}
+          </span>
+        )}
+        <span
+          title={`Pulled ${new Date(idea.created_at).toLocaleString()}`}
+          style={{
+            fontFamily: 'var(--font-ui)',
+            fontSize: '0.75rem',
+            color: 'var(--admin-text-muted)',
+          }}
+        >
+          Pulled {formatIdeaAge(idea.created_at)}
+        </span>
+        {idea.status === 'published' && idea.published_at && (
+          <span
+            style={{
+              fontFamily: 'var(--font-ui)',
+              fontSize: '0.75rem',
+              color: '#15803d',
+              fontWeight: 600,
+            }}
+          >
+            Published {formatPublishedAt(idea.published_at)}
+          </span>
+        )}
       </div>
 
       {(rank || typeof score === 'number') && (

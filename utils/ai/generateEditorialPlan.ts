@@ -67,7 +67,7 @@ export interface GenerateEditorialPlanInput {
   today_intel: PlanIntelItem[]
   voice_samples?: PlanVoiceSample[]
   /**
-   * Titles of currently-open blog ideas in the queue (status in 'new' | 'queued' | 'drafted').
+   * Titles of currently-open blog ideas in the queue (status in 'new' | 'idea_bank').
    * Passed to the model so it does NOT propose semantically duplicate angles. Cap upstream to
    * keep prompt size manageable (recommend 100 most recent).
    */
