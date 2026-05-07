@@ -20,6 +20,22 @@ export interface AlsoHappeningItem {
   alert_id?: string | null
 }
 
+export interface SweetSpotBestUse {
+  /** Specific property/route/award/redemption — concrete, with numbers when possible. */
+  name: string
+  /** 1 sentence — why this is a great use of the bonus/mechanic. */
+  why: string
+}
+
+export interface NewsletterSweetSpot {
+  /** Short phrase — what the play is, e.g. "Capital One -> Qantas 20% transfer bonus". */
+  topic: string
+  /** 3-5 sentences explaining the mechanic plainly. */
+  mechanic_explainer: string
+  /** 3-4 specific best uses. */
+  best_uses: SweetSpotBestUse[]
+}
+
 export interface NewsletterGameSlot {
   /** Game route slug, e.g. "middle-seat". When null, the game card is hidden. */
   slug: string | null
@@ -42,6 +58,10 @@ export interface NewsletterSlots {
   big_story_ref_id: string | null
   /** Pre-rendered HTML for the body (paragraphs + ul). The renderer wraps it in section chrome. */
   big_story_html: string | null
+
+  // ── Sweet Spot ────────────────────────────────────────────────
+  /** Deep-dive value-add card. Null hides the section. */
+  sweet_spot: NewsletterSweetSpot | null
 
   // ── Also Happening ────────────────────────────────────────────
   also_happening: AlsoHappeningItem[]
@@ -68,6 +88,7 @@ export const EMPTY_SLOTS: NewsletterSlots = {
   big_story_ref_type: null,
   big_story_ref_id: null,
   big_story_html: null,
+  sweet_spot: null,
   also_happening: [],
   jills_take_html: null,
   jill_prompt: null,

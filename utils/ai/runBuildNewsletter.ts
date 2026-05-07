@@ -305,6 +305,7 @@ export async function runBuildNewsletter(opts: {
     big_story_ref_type: slotDraft?.big_story_ref_type ?? null,
     big_story_ref_id: slotDraft?.big_story_ref_id ?? null,
     big_story_html: slotDraft?.big_story_html ?? null,
+    sweet_spot: slotDraft?.sweet_spot ?? null,
     also_happening: slotDraft?.also_happening ?? [],
     jills_take_html: slotDraft?.jills_take_html ?? null,
   }

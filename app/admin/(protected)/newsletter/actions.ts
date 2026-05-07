@@ -12,7 +12,7 @@ const FROM = process.env.RESEND_FROM ?? 'Crazy4Points <hello@crazy4points.com>'
 const ADMIN_EMAIL = process.env.BRIEF_RECIPIENT ?? 'jillzeller6@gmail.com'
 
 const SLOT_SELECT =
-  'id, week_of, subject, subject_options, status, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_html, also_happening, jills_take_html, game_slug, game_title, game_clue_text'
+  'id, week_of, subject, subject_options, status, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_html, sweet_spot, also_happening, jills_take_html, game_slug, game_title, game_clue_text'
 
 interface SlotRow {
   id: string
@@ -25,6 +25,7 @@ interface SlotRow {
   big_story_ref_type: 'alert' | 'intel' | null
   big_story_ref_id: string | null
   big_story_html: string | null
+  sweet_spot: NewsletterSlots['sweet_spot'] | null
   also_happening: NewsletterSlots['also_happening'] | null
   jills_take_html: string | null
   game_slug: string | null
@@ -43,6 +44,7 @@ function rowToSlots(row: SlotRow): NewsletterSlots {
     big_story_ref_type: row.big_story_ref_type,
     big_story_ref_id: row.big_story_ref_id,
     big_story_html: row.big_story_html,
+    sweet_spot: row.sweet_spot ?? null,
     also_happening: Array.isArray(row.also_happening) ? row.also_happening : [],
     jills_take_html: row.jills_take_html,
     jill_prompt: row.jill_prompt,
@@ -77,6 +79,7 @@ export async function saveSlotsAction(id: string, slots: NewsletterSlots) {
       big_story_ref_type: slots.big_story_ref_type,
       big_story_ref_id: slots.big_story_ref_id,
       big_story_html: slots.big_story_html,
+      sweet_spot: slots.sweet_spot,
       also_happening: slots.also_happening,
       jills_take_html: slots.jills_take_html,
       game_slug: slots.game.slug,
@@ -131,7 +134,7 @@ export async function sendToSubscribersAction(id: string, confirmWord: string) {
   const slots = rowToSlots(row)
   const subject = slots.subject || 'Crazy4Points — Weekly'
 
-  if (!slots.big_story_html && slots.also_happening.length === 0 && !slots.jills_take_html) {
+  if (!slots.big_story_html && slots.also_happening.length === 0 && !slots.jills_take_html && !slots.sweet_spot) {
     throw new Error('Newsletter is empty — fill at least one section before sending.')
   }
 
