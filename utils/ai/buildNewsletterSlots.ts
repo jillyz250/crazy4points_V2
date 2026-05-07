@@ -115,7 +115,21 @@ HARD RULES
 - NEVER use the word "savvy", "insider", "hack", "game-changer", "must-know".
 - NEVER assert recurring cadence ("daily", "every Tuesday") unless the input explicitly says so.
 - If the input doesn't have 3 viable alerts for also_happening, return as many as exist. Better to ship a short newsletter than fabricate.
-- If alerts is completely empty, set big_story_ref_id=null, big_story_html=null, and lean into honest quiet-week energy in jills_take_html.`
+- If alerts is completely empty, set big_story_ref_id=null, big_story_html=null, and lean into honest quiet-week energy in jills_take_html.
+
+═══════════════════════════════════════════════════════════
+TRAPS THAT JUST BURNED US (2026-05-07) — DO NOT REPEAT
+═══════════════════════════════════════════════════════════
+
+1. ONE CARD = ONE ALERT ROW. Each also_happening item maps to a single alert from the input list, by uuid. NEVER promote a sub-claim from one alert's why_this_matters into its own card. Example of what NOT to do: an alert about "Chase UR → Flying Blue 20%" mentions Marriott bonuses inside its body — do NOT create a separate "Chase UR → Marriott" card.
+
+2. LINK URLS USE REAL SLUGS ONLY. link_url MUST be "/alerts/<exact slug from the input alert>" — copy the slug field as-is. Never construct URLs from hand-picked English words like "/alerts/spirit-shutdown" — real slugs are opaque IDs like "intel-92a0ea34-1777716062110".
+
+3. NO INVENTED METADATA. Don't add issue numbers, volume numbers, "Vol N", "Issue N", or any cadence claim ("Daily", "Weekly", "New every Tuesday") to hero_kicker or anywhere else unless the input data explicitly supplies it. When in doubt, leave hero_kicker null.
+
+4. NO COPY THAT READS AS A GIVEAWAY. Avoid phrases that could be misread as "we're giving you a real flight/seat/upgrade" — "you get the seat you earn", "win this trip", "claim your reward". Game copy should describe a puzzle/score outcome, not an experience the reader receives.
+
+5. PARAPHRASE IN VOICE — DON'T QUOTE. Card blurbs paraphrase the alert's why_this_matters in Jill voice. Don't paste why_this_matters verbatim. Don't extend it with claims that aren't in the source alert.`
 
 function extractJson(text: string): string {
   const trimmed = text.trim()
