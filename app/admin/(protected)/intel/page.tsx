@@ -64,7 +64,7 @@ type SearchParams = { [key: string]: string | string[] | undefined }
 
 export default async function IntelPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const sp = await searchParams
-  const windowFilter = parseFilter<IntelWindow>(sp.window, ['24h', '7d', '30d', 'all'], '24h')
+  const windowFilter = parseFilter<IntelWindow>(sp.window, ['24h', '7d', '30d', 'all'], '7d')
   const confidence = parseFilter<'all' | IntelConfidence>(sp.confidence, ['all', 'high', 'medium', 'low'], 'all')
   const status = parseFilter<IntelStatusFilter>(sp.status, ['all', 'unprocessed', 'staged', 'rejected'], 'all')
   const source = (Array.isArray(sp.source) ? sp.source[0] : sp.source) ?? 'all'
