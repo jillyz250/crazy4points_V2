@@ -63,6 +63,16 @@ export function validate(
   // They count as "seated" once the parent is seated.
   const isLapInfant = (pax: Passenger) =>
     pax.chips.some((c) => c.type === 'infant_lap');
+  // Authoring sanity: every infant_lap chip must point at a real passenger.
+  for (const pax of passengers) {
+    for (const c of pax.chips) {
+      if (c.type === 'infant_lap' && !passengers.some((q) => q.id === c.parent)) {
+        violations.push(
+          `Puzzle bug: ${pax.name}'s lap-infant parent "${c.parent}" doesn't exist.`,
+        );
+      }
+    }
+  }
   const allSeated = passengers.every((pax) => {
     if (isLapInfant(pax)) {
       const lapChip = pax.chips.find((c) => c.type === 'infant_lap');
@@ -95,8 +105,14 @@ export function validate(
     const cabin = cabinForRow(row, layout);
 
     // First-class is reserved: only passengers with class_required:first
-    // are allowed in first class rows.
-    if (cabin === 'first' && !pax.chips.some((c) => c.type === 'class_required' && c.cabin === 'first')) {
+    // are allowed in first class rows. (Skip if pax has any class_required
+    // chip — the per-chip rule below already validates the right cabin and
+    // we don't want to double-fire.)
+    if (
+      cabin === 'first' &&
+      !pax.chips.some((c) => c.type === 'class_required') &&
+      !pax.chips.some((c) => c.type === 'class_required' && c.cabin === 'first')
+    ) {
       violations.push(`${pax.name} doesn't have a first-class ticket — can't sit in first class.`);
     }
 
@@ -142,14 +158,30 @@ export function validate(
         if (other && !seatsAdjacentSameRow(seat, other, layout)) {
           violations.push(`${pax.name} must sit next to their partner.`);
         }
+        // Defensive: warn if the partner doesn't reciprocate the chip.
+        // Helps catch puzzle-authoring typos.
+        const partner = passengers.find((q) => q.id === chip.with);
+        if (
+          partner &&
+          !partner.chips.some((c) => c.type === 'couple' && c.with === pax.id)
+        ) {
+          violations.push(`${pax.name}'s couple chip points at ${partner.name}, but it isn't reciprocated.`);
+        }
       }
       if (chip.type === 'no_minor_behind') {
         // No passenger flagged minor in the same column, exactly one row behind.
+        // Lap infants ride at their parent's seat — count them too.
         const myCol = layout.letters.indexOf(parseSeat(seat).letter);
         for (const other of passengers) {
           if (other.id === pax.id) continue;
           if (!other.minor) continue;
-          const otherSeat = seatByPid.get(other.id);
+          let otherSeat: SeatId | undefined;
+          if (isLapInfant(other)) {
+            const lap = other.chips.find((c) => c.type === 'infant_lap');
+            if (lap && lap.type === 'infant_lap') otherSeat = seatByPid.get(lap.parent);
+          } else {
+            otherSeat = seatByPid.get(other.id);
+          }
           if (!otherSeat) continue;
           const op = parseSeat(otherSeat);
           if (op.row === row + 1 && layout.letters.indexOf(op.letter) === myCol) {
@@ -172,6 +204,12 @@ export function validate(
         // For lap infants: their effective row is their parent's row.
         for (const other of passengers) {
           if (other.id === pax.id) continue;
+          // Skip if this pax IS the parent of the lap infant in question —
+          // a parent obviously can't keep distance from their own lap baby.
+          if (isLapInfant(other)) {
+            const lap = other.chips.find((c) => c.type === 'infant_lap');
+            if (lap && lap.type === 'infant_lap' && lap.parent === pax.id) continue;
+          }
           let matches = false;
           if (chip.from === 'minor' && (other.minor || isLapInfant(other))) matches = true;
           if (chip.from === 'pet' && other.chips.some((c) => c.type === 'pet_in_cabin')) matches = true;

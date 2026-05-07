@@ -29,19 +29,9 @@ const NARROWBODY_LAYOUT: Layout = {
   ],
 };
 
-const BIG_NARROWBODY_LAYOUT: Layout = {
-  rows: 5,
-  exitRows: [3],
-  bulkheadRows: [2],
-  // First class is 2-2: 1A,1B and 1E,1F.
-  blocked: ['1C', '1D'],
-  letters: ['A', 'B', 'C', 'D', 'E', 'F'],
-  aisleAfter: 'C',
-  cabins: [
-    { class: 'first', rows: [1] },
-    { class: 'economy', rows: [2, 3, 4, 5] },
-  ],
-};
+// BIG_NARROWBODY was a separate layout but is now identical to NARROWBODY
+// after the row-count shrink. Aliased so existing puzzle references still work.
+const BIG_NARROWBODY_LAYOUT: Layout = NARROWBODY_LAYOUT;
 
 export const PUZZLE_ROTATION: Omit<Puzzle, 'date'>[] = [
   {
