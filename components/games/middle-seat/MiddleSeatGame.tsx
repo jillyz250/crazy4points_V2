@@ -435,47 +435,68 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
 
   return (
     <div className="rg-container py-8">
-      <header className="mb-4 flex items-center justify-between flex-wrap gap-2">
+      <header className="mb-4 flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-3xl font-display text-[color:var(--color-primary)]">Middle Seat</h1>
           <p className="text-[color:var(--color-text-secondary)] mt-2 text-sm max-w-2xl">
             Read the case. Drag every passenger to a seat that satisfies the clues. Solve as fast as you can — your finish time picks your tier, from 🥂 First Class Suite to 🧌 Last Row, Middle, TV Broken.
           </p>
         </div>
-        <span className={`text-xs font-ui uppercase tracking-wide px-2 py-1 rounded-full ${badge.className}`}>
-          {badge.label}
-        </span>
+        {allPuzzles && allPuzzles.length > 1 ? (
+          <div className="flex gap-1.5 shrink-0">
+            {(['easy', 'medium', 'hard'] as const).map((diff) => {
+              const isActive = puzzle.difficulty === diff;
+              const targetPuzzle = (() => {
+                // Cycle through puzzles of this difficulty if multiple exist;
+                // pick the next one after the current.
+                const matches = allPuzzles.filter((p) => p.difficulty === diff);
+                if (matches.length === 0) return null;
+                if (!isActive) return matches[0];
+                const i = matches.findIndex((p) => p.id === puzzle.id);
+                return matches[(i + 1) % matches.length];
+              })();
+              const styles =
+                diff === 'easy'
+                  ? isActive
+                    ? 'bg-emerald-600 text-white border-emerald-600'
+                    : 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                  : diff === 'medium'
+                  ? isActive
+                    ? 'bg-amber-600 text-white border-amber-600'
+                    : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
+                  : isActive
+                  ? 'bg-rose-600 text-white border-rose-600'
+                  : 'bg-rose-50 text-rose-800 border-rose-200 hover:bg-rose-100';
+              return (
+                <button
+                  key={diff}
+                  type="button"
+                  onClick={() => targetPuzzle && switchPuzzle(targetPuzzle)}
+                  disabled={!targetPuzzle}
+                  className={[
+                    'text-xs font-ui uppercase tracking-wide px-3 py-1.5 rounded-full border-2 transition disabled:opacity-30 disabled:cursor-not-allowed',
+                    styles,
+                  ].join(' ')}
+                >
+                  {diff}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <span className={`text-xs font-ui uppercase tracking-wide px-2 py-1 rounded-full ${badge.className}`}>
+            {badge.label}
+          </span>
+        )}
       </header>
 
-      <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
-        <button
-          type="button"
-          onClick={() => setRulesOpen((v) => !v)}
-          className="text-xs text-[color:var(--color-primary)] underline font-ui"
-        >
-          {rulesOpen ? 'Hide rules' : 'How do exit rows / front rows work?'}
-        </button>
-        {allPuzzles && allPuzzles.length > 1 ? (
-          <div className="flex items-center gap-1.5 text-xs font-ui">
-            <span className="text-[color:var(--color-text-secondary)]">Try:</span>
-            {allPuzzles.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => switchPuzzle(p)}
-                className={[
-                  'px-2 py-0.5 rounded-full border transition uppercase tracking-wide text-[10px]',
-                  activePuzzle.id === p.id
-                    ? 'bg-[color:var(--color-primary)] border-[color:var(--color-primary)] text-white'
-                    : 'bg-white border-[color:var(--color-border-soft)] text-[color:var(--color-text-secondary)] hover:border-[color:var(--color-primary)] hover:text-[color:var(--color-primary)]',
-                ].join(' ')}
-              >
-                {p.difficulty}
-              </button>
-            ))}
-          </div>
-        ) : null}
-      </div>
+      <button
+        type="button"
+        onClick={() => setRulesOpen((v) => !v)}
+        className="text-xs text-[color:var(--color-primary)] underline font-ui mb-3"
+      >
+        {rulesOpen ? 'Hide rules' : 'How do exit rows / front rows work?'}
+      </button>
 
       {rulesOpen ? (
         <div className="mb-4 p-3 rounded-[var(--radius-ui)] bg-[color:var(--color-background-soft)] border border-[color:var(--color-border-soft)] text-sm space-y-1.5">
