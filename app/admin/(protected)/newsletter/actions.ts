@@ -168,10 +168,19 @@ export async function sendToSubscribersAction(id: string, confirmWord: string) {
     isPreview: false,
   })
 
+  // Resend's free tier rate-limits at 5 requests/sec. We throttle each send
+  // by 250ms (= 4/sec) so the last subscribers in the list don't get 429'd
+  // and silently dropped. Discovered the hard way on 2026-05-07: 8 subs sent
+  // in a tight loop, last 3 were rejected. See PR #382/383 history.
+  const SEND_DELAY_MS = 250
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
   let sent = 0
   let failed = 0
   const errors: string[] = []
-  for (const to of recipients) {
+  for (let i = 0; i < recipients.length; i++) {
+    const to = recipients[i]
+    if (i > 0) await sleep(SEND_DELAY_MS)
     try {
       const { error } = await resend.emails.send({
         from: FROM,
