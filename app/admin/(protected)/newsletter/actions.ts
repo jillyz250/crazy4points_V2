@@ -101,10 +101,15 @@ export async function runNowAction() {
 }
 
 /**
- * Send a preview to a specific email. When `toOverride` is omitted or empty,
- * defaults to the admin's address (BRIEF_RECIPIENT). Always rendered as a
- * preview (gold banner + [PREVIEW] subject prefix) so it's never confused
- * with a public broadcast.
+ * Send a single copy of the newsletter. Two modes, picked automatically:
+ *
+ * - **Preview mode** (status='draft' OR no toOverride): renders with the
+ *   gold "Preview" banner and prefixes the subject with [PREVIEW]. Used
+ *   while editing/testing.
+ * - **Catch-up mode** (status='sent' AND toOverride is set): renders as
+ *   the actual newsletter with NO preview chrome. Used to forward a
+ *   published newsletter to a subscriber who joined after the broadcast —
+ *   they should see what everyone else saw, not a "preview" copy.
  */
 export async function sendTestAction(id: string, toOverride?: string) {
   const { row } = await loadSlotRow(id)
@@ -115,21 +120,25 @@ export async function sendTestAction(id: string, toOverride?: string) {
     throw new Error("That email doesn't look right.")
   }
 
+  // Catch-up = forwarding a sent newsletter to a specific late-joining
+  // subscriber. Anything else (drafts, "Send test to me") stays in preview.
+  const isCatchUp = row.status === 'sent' && !!toOverride
+
   const subject = slots.subject || 'Crazy4Points — Weekly'
   const html = renderNewsletterV2Html({
     slots,
     weekOf: formatWeekOf(row.week_of),
-    isPreview: true,
+    isPreview: !isCatchUp,
   })
 
   const { error } = await resend.emails.send({
     from: FROM,
     to: target,
-    subject: `[PREVIEW] ${subject}`,
+    subject: isCatchUp ? subject : `[PREVIEW] ${subject}`,
     html,
   })
   if (error) throw new Error(`Resend: ${error.message}`)
-  return { ok: true, to: target }
+  return { ok: true, to: target, mode: isCatchUp ? ('catchup' as const) : ('preview' as const) }
 }
 
 export async function sendToSubscribersAction(id: string, confirmWord: string) {

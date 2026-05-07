@@ -201,7 +201,7 @@ export default function NewsletterEditor({
       try {
         await saveSlotsAction(id, slots)
         const res = await sendTestAction(id, target)
-        notify(`Preview sent to ${res.to}.`)
+        notify(res.mode === 'catchup' ? `Forwarded to ${res.to}.` : `Preview sent to ${res.to}.`)
         setTestToEmail('')
       } catch (e) { notify(e instanceof Error ? e.message : 'Test send failed', true) }
     })
