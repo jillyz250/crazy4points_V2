@@ -40,7 +40,7 @@ const BIG_NARROWBODY_LAYOUT: Layout = {
   ],
 };
 
-const PUZZLE_ROTATION: Omit<Puzzle, 'date'>[] = [
+export const PUZZLE_ROTATION: Omit<Puzzle, 'date'>[] = [
   {
     id: 'family-trip',
     difficulty: 'easy',

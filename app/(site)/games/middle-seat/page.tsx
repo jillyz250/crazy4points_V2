@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import MiddleSeatGame from '@/components/games/middle-seat/MiddleSeatGame';
-import { fallbackPuzzleForDate, todayDateString } from '@/lib/games/middle-seat/seed';
+import { fallbackPuzzleForDate, todayDateString, PUZZLE_ROTATION } from '@/lib/games/middle-seat/seed';
 import { createAdminClient } from '@/utils/supabase/server';
 import type { Puzzle } from '@/lib/games/middle-seat/types';
 
@@ -39,5 +39,6 @@ async function loadPuzzle(date: string): Promise<Puzzle> {
 export default async function MiddleSeatPage() {
   const date = todayDateString();
   const puzzle = await loadPuzzle(date);
-  return <MiddleSeatGame puzzle={puzzle} />;
+  const allPuzzles = PUZZLE_ROTATION.map((p) => ({ ...p, date }));
+  return <MiddleSeatGame puzzle={puzzle} allPuzzles={allPuzzles} />;
 }
