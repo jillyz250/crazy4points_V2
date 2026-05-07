@@ -18,6 +18,7 @@ import RewriteFromVerifiedFactsButton from '@/components/admin/RewriteFromVerifi
 import ArticleBodyEditor from '@/components/admin/ArticleBodyEditor'
 import SourceTextPanel from '@/components/admin/SourceTextPanel'
 import OriginalityPanel from '@/components/admin/OriginalityPanel'
+import ConflictBanner from './ConflictBanner'
 import BlogMetadataForm from '@/components/admin/BlogMetadataForm'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Badge } from '@/components/admin/ui/Badge'
@@ -77,6 +78,15 @@ interface ContentIdeaRow {
     title: string | null
     end_date: string | null
     computed_score: number | null
+  } | null
+  source_intel?: {
+    id: string
+    conflicts_program_id: string | null
+    conflict_field: string | null
+    conflict_summary: string | null
+    conflict_intel_claim: string | null
+    conflict_program_text: string | null
+    conflict_resolution: string | null
   } | null
 }
 
@@ -139,7 +149,17 @@ export default async function ContentIdeasPage({
 
   let query = supabase
     .from('content_ideas')
-    .select('*, source_alert:alerts!source_alert_id(title, end_date, computed_score)')
+    .select(`*,
+      source_alert:alerts!source_alert_id(title, end_date, computed_score),
+      source_intel:intel_items!source_intel_id(
+        id,
+        conflicts_program_id,
+        conflict_field,
+        conflict_summary,
+        conflict_intel_claim,
+        conflict_program_text,
+        conflict_resolution
+      )`)
     .order('created_at', { ascending: false })
 
   if (typeFilter === 'newsletter' || typeFilter === 'blog') {
@@ -613,8 +633,35 @@ function IdeaCard({
           ? { label: `Expires in ${expiresInDays}d`, bg: '#F59E0B' }
           : { label: `Expires ${formatPublishedAt(expiresAt!)}`, bg: '#6B7280' }
     : null
+  // Conflict flag: linked intel may contradict an existing program page.
+  const conflict =
+    idea.source_intel?.conflicts_program_id &&
+    !idea.source_intel.conflict_resolution
+      ? {
+          program_id: idea.source_intel.conflicts_program_id,
+          field: idea.source_intel.conflict_field ?? '',
+          summary: idea.source_intel.conflict_summary ?? '',
+          intel_claim: idea.source_intel.conflict_intel_claim ?? '',
+          program_text: idea.source_intel.conflict_program_text ?? '',
+          intel_id: idea.source_intel.id,
+        }
+      : null
+  const conflictProgram = conflict
+    ? programs.find((p) => p.id === conflict.program_id)
+    : null
   return (
     <div className="admin-card" style={{ padding: '1rem 1.125rem' }}>
+      {conflict && conflictProgram && (
+        <ConflictBanner
+          intelId={conflict.intel_id}
+          programSlug={conflictProgram.slug}
+          programName={conflictProgram.name}
+          field={conflict.field}
+          summary={conflict.summary}
+          intelClaim={conflict.intel_claim}
+          programText={conflict.program_text}
+        />
+      )}
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', marginBottom: '0.375rem' }}>
         <h3 style={{ fontSize: '1rem', margin: 0, flex: 1, color: 'var(--admin-text)' }}>{idea.title}</h3>
         <Badge tone={statusDef.tone}>{statusDef.label}</Badge>
