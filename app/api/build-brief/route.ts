@@ -129,7 +129,7 @@ export async function GET(req: NextRequest) {
       .from('content_ideas')
       .select('title')
       .eq('type', 'blog')
-      .in('status', ['new', 'queued', 'drafted'])
+      .in('status', ['new', 'idea_bank'])
       .order('created_at', { ascending: false })
       .limit(150),
     supabase
