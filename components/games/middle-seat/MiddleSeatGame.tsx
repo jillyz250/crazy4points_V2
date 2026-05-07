@@ -221,6 +221,7 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
   const [rulesOpen, setRulesOpen] = useState(false);
   const [logicMode, setLogicMode] = useState(true);
   const [gameStarted, setGameStarted] = useState(false);
+  const [hoverSeat, setHoverSeat] = useState<SeatId | null>(null);
   const tickRef = useRef<number | null>(null);
 
   const elapsedSeconds = useMemo(() => {
@@ -284,9 +285,17 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
     setStartedAt(Date.now());
   }, []);
 
+  const autoStartIfNeeded = useCallback(() => {
+    if (!gameStarted) {
+      setGameStarted(true);
+      setStartedAt(Date.now());
+    }
+  }, [gameStarted]);
+
   const handleSeatClick = useCallback(
     (seat: SeatId) => {
-      if (finishedAt || !gameStarted) return;
+      if (finishedAt) return;
+      autoStartIfNeeded();
       const occupant = seatToPid.get(seat);
       if (selectedPid) {
         startTimerIfNeeded();
@@ -305,10 +314,11 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
 
   const handlePassengerClick = useCallback(
     (pid: string) => {
-      if (finishedAt || !gameStarted) return;
+      if (finishedAt) return;
+      autoStartIfNeeded();
       setSelectedPid((cur) => (cur === pid ? null : pid));
     },
-    [finishedAt, gameStarted],
+    [finishedAt, autoStartIfNeeded],
   );
 
   const placeAt = useCallback(
@@ -326,10 +336,11 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
 
   const handleDragStart = useCallback(
     (e: React.DragEvent<HTMLElement>, pid: string) => {
-      if (finishedAt || !gameStarted) {
+      if (finishedAt) {
         e.preventDefault();
         return;
       }
+      autoStartIfNeeded();
       e.dataTransfer.setData('text/plain', pid);
       e.dataTransfer.effectAllowed = 'move';
       // Use the avatar image as the drag preview (not the whole card).
@@ -341,17 +352,23 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
       }
       setSelectedPid(pid);
     },
-    [finishedAt, gameStarted],
+    [finishedAt, autoStartIfNeeded],
   );
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
+  const handleDragOver = useCallback((e: React.DragEvent, seat?: SeatId) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
+    if (seat) setHoverSeat(seat);
+  }, []);
+
+  const handleDragLeave = useCallback((seat: SeatId) => {
+    setHoverSeat((cur) => (cur === seat ? null : cur));
   }, []);
 
   const handleDrop = useCallback(
     (e: React.DragEvent, seat: SeatId) => {
       e.preventDefault();
+      setHoverSeat(null);
       if (finishedAt) return;
       const pid = e.dataTransfer.getData('text/plain');
       if (!pid) return;
@@ -421,8 +438,8 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
       <header className="mb-4 flex items-center justify-between flex-wrap gap-2">
         <div>
           <h1 className="text-3xl font-display text-[color:var(--color-primary)]">Middle Seat</h1>
-          <p className="text-[color:var(--color-text-secondary)] mt-2 text-sm">
-            Tap a passenger, then tap a seat. Hard constraints must be met to submit. Faster = better tier.
+          <p className="text-[color:var(--color-text-secondary)] mt-2 text-sm max-w-2xl">
+            Read the case. Drag every passenger to a seat that satisfies the clues. Solve as fast as you can — your finish time picks your tier, from 🥂 First Class Suite to 🧌 Last Row, Middle, TV Broken.
           </p>
         </div>
         <span className={`text-xs font-ui uppercase tracking-wide px-2 py-1 rounded-full ${badge.className}`}>
@@ -614,9 +631,20 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
 
         {/* AIRPLANE */}
         <div className="relative mx-auto" style={{ maxWidth: 'fit-content' }}>
-          {/* Nose */}
-          <div className="mx-auto w-28 h-14 rounded-t-[3rem] bg-gradient-to-b from-white to-zinc-100 border-2 border-zinc-300 border-b-0 flex items-end justify-center pb-1">
-            <span className="text-[10px] font-ui uppercase tracking-widest text-zinc-500">cockpit</span>
+          {/* Nose with pilot */}
+          <div className="mx-auto w-32 h-20 rounded-t-[3.5rem] bg-gradient-to-b from-white to-zinc-100 border-2 border-zinc-300 border-b-0 flex flex-col items-center justify-end pb-1.5 overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="https://api.dicebear.com/9.x/personas/svg?seed=captain-amelia&backgroundType=solid&backgroundColor=ffffff"
+              alt=""
+              width={44}
+              height={44}
+              className="rounded-full"
+              draggable={false}
+            />
+            <span className="text-[9px] font-ui uppercase tracking-widest text-zinc-500 mt-0.5">
+              Capt. Amelia
+            </span>
           </div>
 
           {/* Fuselage */}
@@ -704,7 +732,8 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
                               onClick={() => handleSeatClick(seat)}
                               draggable={!!pax && !finishedAt}
                               onDragStart={(e) => pax && handleDragStart(e, pax.id)}
-                              onDragOver={handleDragOver}
+                              onDragOver={(e) => handleDragOver(e, seat)}
+                              onDragLeave={() => handleDragLeave(seat)}
                               onDrop={(e) => handleDrop(e, seat)}
                               title={pax ? pax.name : `Seat ${seat}`}
                               aria-label={`Seat ${seat}${pax ? `, ${pax.name}` : ''}`}
@@ -717,6 +746,9 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
                                   : middle
                                   ? 'bg-amber-50 border-amber-300 hover:bg-amber-100'
                                   : 'bg-white border-zinc-300 hover:bg-[color:var(--color-background-soft)] hover:border-[color:var(--color-primary)]/40',
+                                hoverSeat === seat && !blocked
+                                  ? 'ring-4 ring-[color:var(--color-primary)] scale-105 bg-[color:var(--color-background-soft)]'
+                                  : '',
                                 isExit ? 'ring-2 ring-emerald-400 ring-offset-1' : '',
                                 isBulkhead ? 'ring-2 ring-sky-400 ring-offset-1' : '',
                               ].join(' ')}
