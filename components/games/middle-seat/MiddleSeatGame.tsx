@@ -175,6 +175,7 @@ function Avatar({ pax, size = 32 }: { pax: Passenger; size?: number }) {
         height={size}
         className="rounded-full bg-white"
         draggable={false}
+        data-avatar
       />
     );
   }
@@ -382,7 +383,10 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
       e.dataTransfer.setData('text/plain', pid);
       e.dataTransfer.effectAllowed = 'move';
       // Use the avatar image as the drag preview (not the whole card).
-      const avatarImg = e.currentTarget.querySelector('img');
+      // The seat tile may also contain a 🍼 badge — target the avatar specifically.
+      const avatarImg =
+        e.currentTarget.querySelector<HTMLImageElement>('img[data-avatar]') ??
+        e.currentTarget.querySelector('img');
       if (avatarImg) {
         const w = avatarImg.naturalWidth || avatarImg.width || 36;
         const h = avatarImg.naturalHeight || avatarImg.height || 36;
@@ -401,6 +405,16 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
 
   const handleDragLeave = useCallback((seat: SeatId) => {
     setHoverSeat((cur) => (cur === seat ? null : cur));
+  }, []);
+
+  // Clear sticky drop-target highlight when a drag is cancelled (Esc, drop
+  // outside, or browser cancel). Without this, the ring stays on a random seat.
+  useEffect(() => {
+    function onDragEnd() {
+      setHoverSeat(null);
+    }
+    document.addEventListener('dragend', onDragEnd);
+    return () => document.removeEventListener('dragend', onDragEnd);
   }, []);
 
   const handleDrop = useCallback(
@@ -484,11 +498,6 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
     const aisleIdx = layout.letters.indexOf(layout.aisleAfter);
     return layout.letters.some((_, i) => i > 0 && i < layout.letters.length - 1 && i !== aisleIdx && i !== aisleIdx + 1);
   })();
-
-  const cabinSeparators = new Set<number>();
-  for (let i = 1; i < layout.rows; i++) {
-    if (cabinForRow(i, layout) !== cabinForRow(i + 1, layout)) cabinSeparators.add(i);
-  }
 
   // Lap infants ride with their parent and don't take their own seat.
   const lapInfants = passengers.filter((p) =>
@@ -641,7 +650,7 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
       <div className="grid gap-4 lg:grid-cols-[220px_180px_minmax(420px,_1fr)]">
         {/* LEFT COLUMN: case */}
         <div className="flex flex-col gap-3">
-          {puzzle.clues && puzzle.clues.length > 0 ? (
+          {(puzzle.story || (puzzle.clues && puzzle.clues.length > 0)) ? (
             <div className="relative p-4 rounded-[var(--radius-card)] bg-[color:var(--color-background-soft)] border border-[color:var(--color-border-soft)] shadow-sm overflow-hidden">
               <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[color:var(--color-primary)] via-[color:var(--color-accent)] to-[color:var(--color-primary)]" />
               <div className="font-display text-sm tracking-wider uppercase text-[color:var(--color-primary)] mb-2 flex items-center gap-1.5">
@@ -652,11 +661,13 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
                   {puzzle.story}
                 </p>
               ) : null}
-              <ol className="text-xs space-y-1.5 list-decimal pl-4 marker:text-[color:var(--color-primary)] marker:font-bold">
-                {puzzle.clues.map((c, i) => (
-                  <li key={i}>{c}</li>
-                ))}
-              </ol>
+              {puzzle.clues && puzzle.clues.length > 0 ? (
+                <ol className="text-xs space-y-1.5 list-decimal pl-4 marker:text-[color:var(--color-primary)] marker:font-bold">
+                  {puzzle.clues.map((c, i) => (
+                    <li key={i}>{c}</li>
+                  ))}
+                </ol>
+              ) : null}
             </div>
           ) : null}
         </div>
