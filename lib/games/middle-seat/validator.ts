@@ -142,8 +142,12 @@ export function validate(
       if (chip.type === 'feuding_with') {
         const other = seatByPid.get(chip.with);
         if (other && seatsAdjacentSameRow(seat, other, layout)) {
-          violations.push(`${pax.name} can't sit next to ${chip.with}.`);
+          const enemy = passengers.find((q) => q.id === chip.with);
+          violations.push(`${pax.name} can't sit next to ${enemy?.name ?? chip.with}.`);
         }
+      }
+      if (chip.type === 'exit_row_pref' && !layout.exitRows.includes(row)) {
+        violations.push(`${pax.name} needs the exit row.`);
       }
       if (chip.type === 'infant_lap') {
         const parentSeat = seatByPid.get(chip.parent);
@@ -170,12 +174,15 @@ export function validate(
           if (rows.size > 1) {
             violations.push(`Group "${chip.group}" must sit in the same row.`);
           } else {
+            const aisleIdx = layout.letters.indexOf(layout.aisleAfter);
             const indexes = seats
               .map((s) => layout.letters.indexOf(parseSeat(s).letter))
               .sort((a, b) => a - b);
             const contiguous = indexes.every((v, i) => i === 0 || v === indexes[i - 1] + 1);
-            if (!contiguous) {
-              violations.push(`Group "${chip.group}" must sit in contiguous seats.`);
+            // "Side by side" must mean same side of the aisle — no aisle-spanning groups.
+            const spansAisle = indexes.some((v) => v <= aisleIdx) && indexes.some((v) => v > aisleIdx);
+            if (!contiguous || spansAisle) {
+              violations.push(`Group "${chip.group}" must sit side by side on the same side of the aisle.`);
             }
           }
         }
