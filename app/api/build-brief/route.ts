@@ -11,6 +11,7 @@ import { writeAlertDraft, type WriteDraftProgram } from '@/utils/ai/writeAlertDr
 import { editAlertDraft } from '@/utils/ai/editAlertDraft'
 import { verifyAlertDraft, webVerifyClaims, highSeverityUnsupported } from '@/utils/ai/verifyAlertDraft'
 import { buildProgramReferenceForDraft } from '@/utils/ai/programReferenceData'
+import { detectConflict } from '@/utils/ai/detectConflict'
 import { reviseAlertDraft, type RevisionLogEntry } from '@/utils/ai/reviseAlertDraft'
 import type { ApproveMeta } from '@/utils/ai/briefEmail'
 import { updateAlert, setAlertPrograms, logSystemError, loadAllianceContextForPrograms } from '@/utils/supabase/queries'
@@ -38,7 +39,7 @@ export async function GET(req: NextRequest) {
   const [intelRes, recentRes, programsRes] = await Promise.all([
     supabase
       .from('intel_items')
-      .select('id, headline, raw_text, source_name, source_url, confidence, alert_type, programs, expires_at')
+      .select('id, headline, raw_text, source_name, source_url, confidence, alert_type, programs, expires_at, conflict_detected_at')
       .gte('created_at', since24h)
       .is('rejected_at', null)
       .order('confidence', { ascending: false })
@@ -83,6 +84,42 @@ export async function GET(req: NextRequest) {
   const droppedExpired = allItems.length - items.length
   if (droppedExpired > 0) {
     console.log(`[build-brief] dropped ${droppedExpired} expired intel item(s) before Sonnet`)
+  }
+
+  // Phase B: conflict detection. Run Haiku on each non-expired intel item
+  // that hasn't been checked yet, against any linked program pages, to flag
+  // claims that contradict the program reference content. Sequential to
+  // keep cost predictable and avoid rate limits. Best-effort — errors here
+  // do not block the brief generation.
+  const itemsNeedingConflictCheck = items.filter(
+    (r) => !r.conflict_detected_at && Array.isArray(r.programs) && r.programs.length > 0
+  )
+  let conflictsFound = 0
+  if (itemsNeedingConflictCheck.length > 0) {
+    console.log(`[build-brief] running conflict detection on ${itemsNeedingConflictCheck.length} intel item(s)`)
+    for (const row of itemsNeedingConflictCheck) {
+      try {
+        const result = await detectConflict(supabase, {
+          id: row.id as string,
+          headline: row.headline as string,
+          raw_text: (row.raw_text as string | null) ?? null,
+          programs: (row.programs as string[] | null) ?? null,
+        })
+        const updates: Record<string, unknown> = { conflict_detected_at: new Date().toISOString() }
+        if (result) {
+          conflictsFound++
+          updates.conflicts_program_id = result.conflicts_program_id
+          updates.conflict_field = result.conflict_field
+          updates.conflict_summary = result.conflict_summary
+          updates.conflict_intel_claim = result.conflict_intel_claim
+          updates.conflict_program_text = result.conflict_program_text
+        }
+        await supabase.from('intel_items').update(updates).eq('id', row.id)
+      } catch (err) {
+        console.warn(`[build-brief] conflict detection failed for ${row.id}:`, err)
+      }
+    }
+    console.log(`[build-brief] conflict detection complete: ${conflictsFound} conflict(s) flagged`)
   }
 
   // Findings for the Today's Intel section (unchanged shape)

@@ -305,6 +305,51 @@ export async function updateContentIdeaStatusAction(
   revalidatePath('/admin/content-ideas')
 }
 
+/**
+ * Phase B conflict resolution actions. The detector flagged that intel X
+ * contradicts program page Y. Admin makes a call from one of three buttons.
+ */
+
+const VALID_RESOLUTIONS = [
+  'intel_dismissed',     // intel was wrong; reject the intel item
+  'program_updated',     // program page got updated; intel was right (admin edits the page)
+  'external_verified',   // admin checked external sources; resolved with optional note
+  'false_positive',      // detector itself was wrong; both sources are actually consistent
+] as const
+
+export async function resolveIntelConflictAction(
+  intelId: string,
+  resolution: typeof VALID_RESOLUTIONS[number],
+  note: string | null = null
+): Promise<void> {
+  if (!VALID_RESOLUTIONS.includes(resolution)) {
+    throw new Error(`Invalid conflict resolution: ${resolution}`)
+  }
+  const supabase = createAdminClient()
+  const updates: Record<string, unknown> = {
+    conflict_resolution: resolution,
+  }
+  if (resolution === 'intel_dismissed') {
+    // Also reject the intel item so it doesn't surface elsewhere.
+    updates.rejected_at = new Date().toISOString()
+  }
+  const { error } = await supabase
+    .from('intel_items')
+    .update(updates)
+    .eq('id', intelId)
+  if (error) throw error
+  if (note) {
+    // Stash the note on the intel raw_text as a postscript so it's queryable
+    // later. Not a separate table for now - keeps the schema simple.
+    await supabase
+      .from('intel_items')
+      .update({ raw_text: `[CONFLICT RESOLUTION ${resolution} — ${note}]\n\n${note}` })
+      .eq('id', intelId)
+  }
+  revalidatePath('/admin/content-ideas')
+  revalidatePath('/admin/intel')
+}
+
 export type WriteArticleResult =
   | { ok: true }
   | { ok: false; error: string }
