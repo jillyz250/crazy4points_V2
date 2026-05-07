@@ -203,6 +203,8 @@ export interface Program {
   tier: string | null
   monitor_tier: MonitorTier | null
   is_active: boolean
+  /** True for rows that exist solely as FK targets (operating_carrier_id) for partner_redemptions. Excluded from refresh queue + admin completeness UI. */
+  is_reference_stub: boolean
   description: string | null
   logo_url: string | null
   program_url: string | null
