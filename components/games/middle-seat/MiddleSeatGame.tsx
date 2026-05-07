@@ -13,7 +13,120 @@ import { cabinForRow, isMiddleSeat, validate } from '@/lib/games/middle-seat/val
 import { tierForSeconds } from '@/lib/games/middle-seat/tiers';
 import { buildShareString, formatTime } from '@/lib/games/middle-seat/share';
 
-type Props = { puzzle: Puzzle };
+type Props = { puzzle: Puzzle; allPuzzles?: Puzzle[] };
+
+function ResultModal({
+  tier,
+  seconds,
+  onShare,
+  onPlayAgain,
+  showShareCopied,
+  allPuzzles,
+  activePuzzleId,
+  onSwitchPuzzle,
+}: {
+  tier: ReturnType<typeof tierForSeconds>;
+  seconds: number;
+  onShare: () => void;
+  onPlayAgain: () => void;
+  showShareCopied: boolean;
+  allPuzzles?: Puzzle[];
+  activePuzzleId: string;
+  onSwitchPuzzle: (p: Puzzle) => void;
+}) {
+  // Tier rank (0 = best). Used to pick a celebration vs chaos vibe.
+  const isWin = tier.maxSeconds <= 240; // first/business/premium/main aisle
+  const isMid = tier.maxSeconds > 240 && tier.maxSeconds <= 420;
+  const isLoss = tier.maxSeconds > 420;
+
+  const fallEmojis = isWin
+    ? ['🥂', '🍾', '✨', '🎉', '🎊', '🌟', '💎']
+    : isMid
+    ? ['💺', '🪟', '🧳', '☁️']
+    : ['🐈', '🤧', '👶', '😴', '🚽', '🍼', '🐾', '😬'];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm overflow-hidden">
+      {/* Falling emoji background */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {Array.from({ length: 30 }).map((_, i) => {
+          const emoji = fallEmojis[i % fallEmojis.length];
+          const left = (i * 37) % 100;
+          const delay = (i % 10) * 0.3;
+          const duration = 4 + ((i * 7) % 4);
+          const size = 24 + ((i * 13) % 28);
+          return (
+            <span
+              key={i}
+              className="absolute animate-msfall opacity-90"
+              style={{
+                left: `${left}%`,
+                top: '-10%',
+                fontSize: `${size}px`,
+                animationDelay: `${delay}s`,
+                animationDuration: `${duration}s`,
+              }}
+              aria-hidden
+            >
+              {emoji}
+            </span>
+          );
+        })}
+      </div>
+
+      <div
+        className={[
+          'relative max-w-md w-full rounded-[var(--radius-card)] p-6 shadow-2xl border',
+          isWin
+            ? 'bg-gradient-to-br from-amber-50 to-white border-amber-300'
+            : isMid
+            ? 'bg-white border-[color:var(--color-border-soft)]'
+            : 'bg-gradient-to-br from-zinc-100 to-amber-50 border-zinc-300',
+        ].join(' ')}
+      >
+        <div className="text-7xl mb-3 text-center">{tier.emoji}</div>
+        <div className="text-2xl font-display text-[color:var(--color-primary)] text-center mb-1 leading-tight">
+          {tier.name}
+        </div>
+        <div className="font-ui tabular-nums text-sm text-[color:var(--color-text-secondary)] mb-3 text-center">
+          Solved in {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}
+        </div>
+        <p className="text-sm mb-5 text-center italic text-[color:var(--color-text-primary)]">
+          &ldquo;{tier.copy}&rdquo;
+        </p>
+        <div className="flex flex-wrap gap-2 justify-center">
+          <button type="button" onClick={onShare} className="rg-btn-primary text-sm px-4 py-2">
+            {showShareCopied ? '✓ Copied!' : 'Copy share text'}
+          </button>
+          <button type="button" onClick={onPlayAgain} className="rg-btn-secondary text-sm px-4 py-2">
+            Play again
+          </button>
+        </div>
+        {allPuzzles && allPuzzles.length > 1 ? (
+          <div className="mt-4 pt-4 border-t border-[color:var(--color-border-soft)] text-center">
+            <div className="text-xs text-[color:var(--color-text-secondary)] font-ui mb-2 uppercase tracking-wide">
+              Try a different difficulty
+            </div>
+            <div className="flex gap-1.5 justify-center flex-wrap">
+              {allPuzzles
+                .filter((p) => p.id !== activePuzzleId)
+                .map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => onSwitchPuzzle(p)}
+                    className="text-xs font-ui px-3 py-1 rounded-full bg-white border border-[color:var(--color-border-soft)] hover:border-[color:var(--color-primary)] hover:text-[color:var(--color-primary)] uppercase tracking-wide"
+                  >
+                    {p.difficulty}
+                  </button>
+                ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
 
 function Avatar({ pax, size = 32 }: { pax: Passenger; size?: number }) {
   if (pax.avatarSeed) {
@@ -94,7 +207,9 @@ function difficultyBadge(d: Puzzle['difficulty']) {
   return { label: 'Hard', className: 'bg-rose-100 text-rose-800' };
 }
 
-export default function MiddleSeatGame({ puzzle }: Props) {
+export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Props) {
+  const [activePuzzle, setActivePuzzle] = useState<Puzzle>(initialPuzzle);
+  const puzzle = activePuzzle;
   const { layout, passengers } = puzzle;
 
   const [placements, setPlacements] = useState<Placement[]>([]);
@@ -260,6 +375,16 @@ export default function MiddleSeatGame({ puzzle }: Props) {
     setNow(Date.now());
   }, []);
 
+  const switchPuzzle = useCallback((p: Puzzle) => {
+    setActivePuzzle(p);
+    setPlacements([]);
+    setSelectedPid(null);
+    setStartedAt(null);
+    setFinishedAt(null);
+    setGameStarted(false);
+    setNow(Date.now());
+  }, []);
+
   const tier = finishedAt ? tierForSeconds(elapsedSeconds) : null;
 
   const handleShare = useCallback(async () => {
@@ -305,13 +430,35 @@ export default function MiddleSeatGame({ puzzle }: Props) {
         </span>
       </header>
 
-      <button
-        type="button"
-        onClick={() => setRulesOpen((v) => !v)}
-        className="text-xs text-[color:var(--color-primary)] underline font-ui mb-3"
-      >
-        {rulesOpen ? 'Hide rules' : 'How do exit rows / front rows work?'}
-      </button>
+      <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
+        <button
+          type="button"
+          onClick={() => setRulesOpen((v) => !v)}
+          className="text-xs text-[color:var(--color-primary)] underline font-ui"
+        >
+          {rulesOpen ? 'Hide rules' : 'How do exit rows / front rows work?'}
+        </button>
+        {allPuzzles && allPuzzles.length > 1 ? (
+          <div className="flex items-center gap-1.5 text-xs font-ui">
+            <span className="text-[color:var(--color-text-secondary)]">Try:</span>
+            {allPuzzles.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => switchPuzzle(p)}
+                className={[
+                  'px-2 py-0.5 rounded-full border transition uppercase tracking-wide text-[10px]',
+                  activePuzzle.id === p.id
+                    ? 'bg-[color:var(--color-primary)] border-[color:var(--color-primary)] text-white'
+                    : 'bg-white border-[color:var(--color-border-soft)] text-[color:var(--color-text-secondary)] hover:border-[color:var(--color-primary)] hover:text-[color:var(--color-primary)]',
+                ].join(' ')}
+              >
+                {p.difficulty}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
 
       {rulesOpen ? (
         <div className="mb-4 p-3 rounded-[var(--radius-ui)] bg-[color:var(--color-background-soft)] border border-[color:var(--color-border-soft)] text-sm space-y-1.5">
@@ -575,9 +722,7 @@ export default function MiddleSeatGame({ puzzle }: Props) {
                               ].join(' ')}
                             >
                               {pax ? (
-                                <span className="overflow-hidden rounded-sm">
-                                  <Avatar pax={pax} size={40} />
-                                </span>
+                                <Avatar pax={pax} size={44} />
                               ) : (
                                 <span className="text-[10px] opacity-50">{letter}</span>
                               )}
@@ -638,22 +783,16 @@ export default function MiddleSeatGame({ puzzle }: Props) {
       ) : null}
 
       {finishedAt && tier ? (
-        <div className="p-5 rounded-[var(--radius-card)] bg-[color:var(--color-background-soft)] border border-[color:var(--color-border-soft)]">
-          <div className="text-4xl mb-2">{tier.emoji}</div>
-          <div className="text-xl font-display text-[color:var(--color-primary)] mb-1">{tier.name}</div>
-          <div className="font-ui tabular-nums text-sm text-[color:var(--color-text-secondary)] mb-3">
-            Time: {formatTime(elapsedSeconds)}
-          </div>
-          <p className="text-sm mb-4">{tier.copy}</p>
-          <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={handleShare} className="rg-btn-primary text-sm px-4 py-2">
-              {showShareCopied ? 'Copied!' : 'Copy share text'}
-            </button>
-            <button type="button" onClick={handleReset} className="rg-btn-secondary text-sm px-4 py-2">
-              Play again
-            </button>
-          </div>
-        </div>
+        <ResultModal
+          tier={tier}
+          seconds={elapsedSeconds}
+          onShare={handleShare}
+          onPlayAgain={handleReset}
+          showShareCopied={showShareCopied}
+          allPuzzles={allPuzzles}
+          activePuzzleId={activePuzzle.id}
+          onSwitchPuzzle={switchPuzzle}
+        />
       ) : null}
 
       {!finishedAt && placements.length > 0 ? (
