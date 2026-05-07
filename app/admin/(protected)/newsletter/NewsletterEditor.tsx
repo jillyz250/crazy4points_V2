@@ -1,36 +1,31 @@
 'use client'
 
+/**
+ * Newsletter V2 admin editor — slot-based.
+ *
+ * Each section is its own card. Edits persist to the slot columns introduced
+ * in migration 222. The "Send to subscribers" flow keeps the same triple gate
+ * from V1: type "Send" exactly + browser confirm + server-side check.
+ */
 import { useState, useTransition } from 'react'
 import {
-  saveNewsletterAction,
+  saveSlotsAction,
   sendTestAction,
   sendToSubscribersAction,
   runNowAction,
 } from './actions'
-import type { NewsletterDraft } from '@/utils/ai/buildNewsletter'
+import type { NewsletterSlots, AlsoHappeningItem } from '@/utils/ai/newsletterSlots'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Badge } from '@/components/admin/ui/Badge'
-
-interface FactCheckClaim {
-  claim: string
-  // Three-state truth — see utils/ai/claimStatus.ts
-  supported: boolean | 'unsupported'
-  severity: string
-  source_excerpt?: string | null
-}
 
 interface Props {
   id: string
   weekOf: string
   status: 'draft' | 'sent' | 'failed'
-  subject: string
-  subjectOptions: string[]
-  draft: NewsletterDraft
+  slots: NewsletterSlots
   sentAt: string | null
   recipientCount: number | null
   activeSubscriberCount: number
-  factCheckedAt: string | null
-  factCheckClaims: FactCheckClaim[] | null
 }
 
 const labelStyle: React.CSSProperties = {
@@ -51,21 +46,39 @@ const sectionStyle: React.CSSProperties = {
   marginBottom: '1rem',
 }
 
+const cardStyle: React.CSSProperties = {
+  background: 'var(--admin-surface-alt)',
+  border: '1px solid var(--admin-border)',
+  borderRadius: 'var(--admin-radius)',
+  padding: '0.875rem 1rem',
+  marginBottom: '0.625rem',
+}
+
+const btnBase: React.CSSProperties = {
+  padding: '0.5rem 1rem',
+  border: 'none',
+  borderRadius: 'var(--admin-radius)',
+  fontSize: '0.875rem',
+  fontWeight: 600,
+  cursor: 'pointer',
+}
+
+const btnPrimary: React.CSSProperties = { ...btnBase, background: 'var(--admin-accent)', color: '#fff' }
+const btnSecondary: React.CSSProperties = { ...btnBase, background: '#fff', color: 'var(--admin-accent)', border: '1px solid var(--admin-accent)' }
+const btnDanger: React.CSSProperties = { ...btnBase, background: '#c0392b', color: '#fff' }
+const btnDangerDisabled: React.CSSProperties = { ...btnBase, background: '#d9d9d9', color: '#8a8a8a', cursor: 'not-allowed' }
+const btnGhost: React.CSSProperties = { ...btnBase, background: 'transparent', color: 'var(--admin-text-muted)', border: '1px dashed var(--admin-border)', padding: '0.375rem 0.75rem', fontSize: '0.8125rem' }
+
 export default function NewsletterEditor({
   id,
   weekOf,
   status,
-  subject: initialSubject,
-  subjectOptions,
-  draft: initialDraft,
+  slots: initialSlots,
   sentAt,
   recipientCount,
   activeSubscriberCount,
-  factCheckedAt,
-  factCheckClaims,
 }: Props) {
-  const [subject, setSubject] = useState(initialSubject)
-  const [draft, setDraft] = useState<NewsletterDraft>(initialDraft)
+  const [slots, setSlots] = useState<NewsletterSlots>(initialSlots)
   const [confirmWord, setConfirmWord] = useState('')
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -78,38 +91,68 @@ export default function NewsletterEditor({
     else { setMessage(msg); setError(null) }
   }
 
+  function patch<K extends keyof NewsletterSlots>(key: K, value: NewsletterSlots[K]) {
+    setSlots((prev) => ({ ...prev, [key]: value }))
+  }
+
+  function patchGame(p: Partial<NewsletterSlots['game']>) {
+    setSlots((prev) => ({ ...prev, game: { ...prev.game, ...p } }))
+  }
+
+  function setAlso(items: AlsoHappeningItem[]) {
+    setSlots((prev) => ({ ...prev, also_happening: items }))
+  }
+
+  function updateAlso(i: number, p: Partial<AlsoHappeningItem>) {
+    setAlso(slots.also_happening.map((it, idx) => (idx === i ? { ...it, ...p } : it)))
+  }
+
+  function moveAlso(i: number, dir: -1 | 1) {
+    const j = i + dir
+    if (j < 0 || j >= slots.also_happening.length) return
+    const next = slots.also_happening.slice()
+    ;[next[i], next[j]] = [next[j], next[i]]
+    setAlso(next)
+  }
+
+  function addAlso() {
+    setAlso([
+      ...slots.also_happening,
+      { category: '', headline: '', blurb: '', link_url: '', alert_id: null },
+    ])
+  }
+
+  function removeAlso(i: number) {
+    setAlso(slots.also_happening.filter((_, idx) => idx !== i))
+  }
+
   function handleSave() {
     start(async () => {
       try {
-        await saveNewsletterAction(id, { subject, draft_json: draft })
+        await saveSlotsAction(id, slots)
         notify('Saved.')
-      } catch (e) {
-        notify(e instanceof Error ? e.message : 'Save failed', true)
-      }
+      } catch (e) { notify(e instanceof Error ? e.message : 'Save failed', true) }
     })
   }
 
   function handleRunNow() {
-    if (!confirm('Regenerate this week\'s draft? Your edits will be overwritten.')) return
+    if (!confirm("Regenerate this week's draft? Your edits will be overwritten.")) return
     start(async () => {
       try {
         const res = await runNowAction()
-        notify(`Regenerated. ${res.alerts_considered ?? 0} alerts + ${res.ideas_considered ?? 0} ideas considered. Reload the page.`)
-      } catch (e) {
-        notify(e instanceof Error ? e.message : 'Regenerate failed', true)
-      }
+        if (res.ok) notify(`Regenerated. ${(res as { alerts_considered?: number }).alerts_considered ?? 0} alerts considered. Reload the page.`)
+        else notify('Regenerate failed.', true)
+      } catch (e) { notify(e instanceof Error ? e.message : 'Regenerate failed', true) }
     })
   }
 
   function handleSendTest() {
     start(async () => {
       try {
-        await saveNewsletterAction(id, { subject, draft_json: draft })
+        await saveSlotsAction(id, slots)
         const res = await sendTestAction(id)
         notify(`Test sent to ${res.to}.`)
-      } catch (e) {
-        notify(e instanceof Error ? e.message : 'Test send failed', true)
-      }
+      } catch (e) { notify(e instanceof Error ? e.message : 'Test send failed', true) }
     })
   }
 
@@ -121,33 +164,12 @@ export default function NewsletterEditor({
     if (!confirm(`Really send to ${activeSubscriberCount} active subscribers?`)) return
     start(async () => {
       try {
-        await saveNewsletterAction(id, { subject, draft_json: draft })
+        await saveSlotsAction(id, slots)
         const res = await sendToSubscribersAction(id, confirmWord)
         notify(`Sent to ${res.sent}/${res.total} subscribers.${res.failed ? ` ${res.failed} failed.` : ''}`)
         setConfirmWord('')
-      } catch (e) {
-        notify(e instanceof Error ? e.message : 'Send failed', true)
-      }
+      } catch (e) { notify(e instanceof Error ? e.message : 'Send failed', true) }
     })
-  }
-
-  // The validator emits new field names AND mirrors them onto legacy ones,
-  // so reading either works. Helpers below prefer the new names.
-  const headline = draft.the_headline ?? draft.big_one ?? null
-  const quickWins = draft.quick_wins ?? draft.haul ?? []
-  const play = draft.play_of_the_week ?? draft.sweet_spot ?? null
-  const headsUp = draft.heads_up ?? []
-  const onMyRadar = draft.on_my_radar ?? []
-
-  function updateQuickWin(i: number, patch: Partial<(typeof quickWins)[number]>) {
-    const next = quickWins.map((h, idx) => (idx === i ? { ...h, ...patch } : h))
-    setDraft({ ...draft, quick_wins: next, haul: next })
-  }
-  function updateHeadsUp(i: number, patch: Partial<(typeof headsUp)[number]>) {
-    setDraft({ ...draft, heads_up: headsUp.map((h, idx) => (idx === i ? { ...h, ...patch } : h)) })
-  }
-  function updateRadar(i: number, patch: Partial<(typeof onMyRadar)[number]>) {
-    setDraft({ ...draft, on_my_radar: onMyRadar.map((r, idx) => (idx === i ? { ...r, ...patch } : r)) })
   }
 
   const sendEnabled = confirmWord === 'Send' && !isPending && !isSent
@@ -172,64 +194,17 @@ export default function NewsletterEditor({
           background: error ? 'var(--admin-danger-soft)' : 'var(--admin-success-soft)',
           color: error ? 'var(--admin-danger)' : 'var(--admin-success)',
           fontSize: '0.875rem',
-        }}>
-          {error ?? message}
-        </div>
+        }}>{error ?? message}</div>
       )}
 
-      {/* Phase 6b — fact-check summary */}
-      {factCheckedAt && factCheckClaims && (() => {
-        // "Unsupported" here = anything not positively confirmed (covers both
-        // contradicted false + silent 'unsupported'). Preserves legacy
-        // semantic of the warning panel.
-        const unsupported = factCheckClaims.filter((c) => c.supported !== true)
-        const high = unsupported.filter((c) => c.severity === 'high')
-        const checked = new Date(factCheckedAt).toLocaleString()
-        if (unsupported.length === 0) {
-          return (
-            <div style={{ padding: '0.5rem 0.75rem', marginBottom: '1rem', borderRadius: 'var(--admin-radius)', background: '#e6f4ea', border: '1px solid #9ac4a7', fontSize: '0.8125rem', color: '#1e5c2e' }}>
-              ✓ Fact-checked — no unsupported claims · checked {checked}
-            </div>
-          )
-        }
-        return (
-          <details
-            open={high.length > 0}
-            style={{
-              marginBottom: '1rem',
-              background: '#fff8e1',
-              border: '1px solid #fde68a',
-              borderRadius: 'var(--admin-radius)',
-              fontSize: '0.8125rem',
-              color: '#5a4210',
-            }}
-          >
-            <summary style={{ padding: '0.5rem 0.75rem', cursor: 'pointer', fontWeight: 600 }}>
-              ⚠ {unsupported.length} claim{unsupported.length === 1 ? '' : 's'} flagged
-              {high.length > 0 && <span style={{ fontWeight: 400 }}> · {high.length} high-severity</span>}
-              <span style={{ fontWeight: 400, color: '#7a5a1f' }}> · checked {checked}</span>
-            </summary>
-            <ul style={{ margin: 0, padding: '0 0.75rem 0.625rem 1.75rem', display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-              {unsupported.map((c, i) => (
-                <li key={i} style={{ lineHeight: 1.4 }}>
-                  <strong style={{ color: c.severity === 'high' ? '#7a1f1f' : '#7a5a1f' }}>
-                    [{c.severity}]
-                  </strong>{' '}
-                  {c.claim}
-                </li>
-              ))}
-            </ul>
-          </details>
-        )
-      })()}
-
+      {/* Subject */}
       <div style={sectionStyle}>
         <label style={labelStyle}>Subject line</label>
-        {subjectOptions.length > 0 && (
+        {slots.subject_options.length > 0 && (
           <div style={{ display: 'grid', gap: '0.375rem', marginBottom: '0.75rem' }}>
-            {subjectOptions.map((opt, i) => (
+            {slots.subject_options.map((opt, i) => (
               <label key={i} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: '0.875rem', cursor: 'pointer' }}>
-                <input type="radio" name="subject" checked={subject === opt} onChange={() => setSubject(opt)} disabled={isSent} style={{ accentColor: 'var(--admin-accent)' }} />
+                <input type="radio" name="subject" checked={slots.subject === opt} onChange={() => patch('subject', opt)} disabled={isSent} style={{ accentColor: 'var(--admin-accent)' }} />
                 <span>{opt}</span>
               </label>
             ))}
@@ -237,189 +212,123 @@ export default function NewsletterEditor({
         )}
         <input
           type="text"
-          value={subject}
-          onChange={(e) => setSubject(e.target.value)}
+          value={slots.subject}
+          onChange={(e) => patch('subject', e.target.value)}
           placeholder="Type a custom subject"
           className="admin-input"
           disabled={isSent}
         />
       </div>
 
-      {headline && (
-        <div style={sectionStyle}>
-          <label style={labelStyle}>The Headline</label>
-          <input
-            type="text"
-            value={headline.headline}
-            onChange={(e) => setDraft({ ...draft, the_headline: { ...headline, headline: e.target.value }, big_one: { ...headline, headline: e.target.value } })}
-            placeholder="Headline"
-            className="admin-input"
-            style={{ marginBottom: '0.5rem' }}
-            disabled={isSent}
-          />
-          <textarea
-            value={headline.why_it_matters}
-            onChange={(e) => setDraft({ ...draft, the_headline: { ...headline, why_it_matters: e.target.value }, big_one: { ...headline, why_it_matters: e.target.value } })}
-            placeholder="Why it matters"
-            className="admin-input"
-            style={{ minHeight: '4.5rem', resize: 'vertical', lineHeight: 1.5, marginBottom: '0.5rem' }}
-            disabled={isSent}
-          />
-          <textarea
-            value={headline.what_to_do}
-            onChange={(e) => setDraft({ ...draft, the_headline: { ...headline, what_to_do: e.target.value }, big_one: { ...headline, what_to_do: e.target.value } })}
-            placeholder="What to do"
-            className="admin-input"
-            style={{ minHeight: '4.5rem', resize: 'vertical', lineHeight: 1.5 }}
-            disabled={isSent}
-          />
-        </div>
-      )}
-
-      {quickWins.length > 0 && (
-        <div style={sectionStyle}>
-          <label style={labelStyle}>Quick Wins ({quickWins.length})</label>
-          {quickWins.map((item, i) => (
-            <div key={i} style={{ padding: '0.75rem 0', borderTop: i === 0 ? 'none' : '1px dashed var(--admin-border)' }}>
-              <input
-                type="text"
-                value={item.headline}
-                onChange={(e) => updateQuickWin(i, { headline: e.target.value })}
-                placeholder="Headline"
-                className="admin-input"
-                style={{ marginBottom: '0.5rem' }}
-                disabled={isSent}
-              />
-              <textarea
-                value={item.blurb}
-                onChange={(e) => updateQuickWin(i, { blurb: e.target.value })}
-                placeholder="Blurb (auto-sourced from the alert's why_this_matters when present)"
-                className="admin-input"
-                style={{ minHeight: '4.5rem', resize: 'vertical', lineHeight: 1.5 }}
-                disabled={isSent}
-              />
-            </div>
-          ))}
-        </div>
-      )}
-
-      {play && (
-        <div style={sectionStyle}>
-          <label style={labelStyle}>The Play of the Week</label>
-          <input
-            type="text"
-            value={play.topic}
-            onChange={(e) => setDraft({ ...draft, play_of_the_week: { ...play, topic: e.target.value }, sweet_spot: { ...play, topic: e.target.value } })}
-            placeholder="Topic"
-            className="admin-input"
-            style={{ marginBottom: '0.5rem' }}
-            disabled={isSent}
-          />
-          <textarea
-            value={play.mechanic_explainer}
-            onChange={(e) => setDraft({ ...draft, play_of_the_week: { ...play, mechanic_explainer: e.target.value }, sweet_spot: { ...play, mechanic_explainer: e.target.value } })}
-            placeholder="Mechanic explainer"
-            className="admin-input"
-            style={{ minHeight: '7rem', resize: 'vertical', lineHeight: 1.5 }}
-            disabled={isSent}
-          />
-          <p style={{ margin: '0.625rem 0 0', fontSize: '0.75rem', color: 'var(--admin-text-muted)' }}>
-            Best uses: {play.best_uses?.length ?? 0} items (edit via Run Now regeneration for now)
-          </p>
-        </div>
-      )}
-
-      {headsUp.length > 0 && (
-        <div style={sectionStyle}>
-          <label style={labelStyle}>Heads Up ({headsUp.length})</label>
-          {headsUp.map((item, i) => (
-            <div key={i} style={{ padding: '0.625rem 0', borderTop: i === 0 ? 'none' : '1px dashed var(--admin-border)' }}>
-              <input
-                type="text"
-                value={item.headline}
-                onChange={(e) => updateHeadsUp(i, { headline: e.target.value })}
-                placeholder="What's changing"
-                className="admin-input"
-                style={{ marginBottom: '0.375rem' }}
-                disabled={isSent}
-              />
-              <textarea
-                value={item.what}
-                onChange={(e) => updateHeadsUp(i, { what: e.target.value })}
-                placeholder="One-sentence what"
-                className="admin-input"
-                style={{ minHeight: '3rem', resize: 'vertical', lineHeight: 1.5, marginBottom: '0.375rem' }}
-                disabled={isSent}
-              />
-              <input
-                type="text"
-                value={item.when}
-                onChange={(e) => updateHeadsUp(i, { when: e.target.value })}
-                placeholder="When (e.g. Ends Apr 30)"
-                className="admin-input"
-                disabled={isSent}
-              />
-            </div>
-          ))}
-        </div>
-      )}
-
-      {onMyRadar.length > 0 && (
-        <div style={sectionStyle}>
-          <label style={labelStyle}>On My Radar ({onMyRadar.length})</label>
-          {onMyRadar.map((item, i) => (
-            <div key={i} style={{ padding: '0.625rem 0', borderTop: i === 0 ? 'none' : '1px dashed var(--admin-border)' }}>
-              <input
-                type="text"
-                value={item.headline}
-                onChange={(e) => updateRadar(i, { headline: e.target.value })}
-                placeholder="Headline"
-                className="admin-input"
-                style={{ marginBottom: '0.375rem' }}
-                disabled={isSent}
-              />
-              <textarea
-                value={item.why}
-                onChange={(e) => updateRadar(i, { why: e.target.value })}
-                placeholder="Why it might matter soon"
-                className="admin-input"
-                style={{ minHeight: '3rem', resize: 'vertical', lineHeight: 1.5 }}
-                disabled={isSent}
-              />
-            </div>
-          ))}
-        </div>
-      )}
-
+      {/* Hero kicker (optional) */}
       <div style={sectionStyle}>
-        <label style={labelStyle}>Jill's Take</label>
-        <textarea
-          value={draft.jills_take}
-          onChange={(e) => setDraft({ ...draft, jills_take: e.target.value })}
+        <label style={labelStyle}>Hero eyebrow (optional, above "Week of …")</label>
+        <input
+          type="text"
+          value={slots.hero_kicker ?? ''}
+          onChange={(e) => patch('hero_kicker', e.target.value || null)}
+          placeholder='Leave empty for no eyebrow'
           className="admin-input"
-          style={{ minHeight: '4.5rem', resize: 'vertical', lineHeight: 1.5 }}
           disabled={isSent}
         />
       </div>
 
+      {/* Game slot */}
+      <div style={sectionStyle}>
+        <label style={labelStyle}>🎮 Game of the Week</label>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
+          <input type="text" value={slots.game.slug ?? ''} onChange={(e) => patchGame({ slug: e.target.value || null })} placeholder="Game slug (e.g. middle-seat) — empty hides card" className="admin-input" disabled={isSent} />
+          <input type="text" value={slots.game.title ?? ''} onChange={(e) => patchGame({ title: e.target.value || null })} placeholder="Display title" className="admin-input" disabled={isSent} />
+        </div>
+        <textarea
+          value={slots.game.clue_text ?? ''}
+          onChange={(e) => patchGame({ clue_text: e.target.value || null })}
+          placeholder="Body copy under the title (one short sentence)"
+          className="admin-input"
+          style={{ minHeight: '3.5rem', resize: 'vertical', lineHeight: 1.5 }}
+          disabled={isSent}
+        />
+      </div>
+
+      {/* Big Story */}
+      <div style={sectionStyle}>
+        <label style={labelStyle}>🚨 The Big Story</label>
+        <p style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)', margin: '0 0 0.5rem' }}>
+          ~150 words, plain HTML. Use {'<p>'} for paragraphs and one {'<ul>'} of bullets. The renderer adds the section heading.
+        </p>
+        <textarea
+          value={slots.big_story_html ?? ''}
+          onChange={(e) => patch('big_story_html', e.target.value || null)}
+          placeholder="<p>Spirit went dark this week — full ground stop…</p>"
+          className="admin-input"
+          style={{ minHeight: '12rem', resize: 'vertical', lineHeight: 1.5, fontFamily: 'monospace', fontSize: '0.8125rem' }}
+          disabled={isSent}
+        />
+      </div>
+
+      {/* Also Happening */}
+      <div style={sectionStyle}>
+        <label style={labelStyle}>📍 Also Happening ({slots.also_happening.length})</label>
+        {slots.also_happening.length === 0 && (
+          <p style={{ fontSize: '0.8125rem', color: 'var(--admin-text-muted)', margin: '0 0 0.75rem' }}>No cards yet. Add one below.</p>
+        )}
+        {slots.also_happening.map((item, i) => (
+          <div key={i} style={cardStyle}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
+              <input type="text" value={item.category} onChange={(e) => updateAlso(i, { category: e.target.value })} placeholder="Category (free-text)" className="admin-input" disabled={isSent} />
+              <input type="text" value={item.link_url} onChange={(e) => updateAlso(i, { link_url: e.target.value })} placeholder="Link URL (e.g. /alerts/intel-...)" className="admin-input" disabled={isSent} />
+            </div>
+            <input type="text" value={item.headline} onChange={(e) => updateAlso(i, { headline: e.target.value })} placeholder="Headline" className="admin-input" style={{ marginBottom: '0.375rem' }} disabled={isSent} />
+            <textarea value={item.blurb} onChange={(e) => updateAlso(i, { blurb: e.target.value })} placeholder="1–2 sentence blurb" className="admin-input" style={{ minHeight: '4rem', resize: 'vertical', lineHeight: 1.5 }} disabled={isSent} />
+            <div style={{ display: 'flex', gap: '0.375rem', marginTop: '0.5rem' }}>
+              <button type="button" onClick={() => moveAlso(i, -1)} disabled={i === 0 || isSent} style={btnGhost}>↑</button>
+              <button type="button" onClick={() => moveAlso(i, 1)} disabled={i === slots.also_happening.length - 1 || isSent} style={btnGhost}>↓</button>
+              <button type="button" onClick={() => removeAlso(i)} disabled={isSent} style={btnGhost}>Remove</button>
+            </div>
+          </div>
+        ))}
+        {!isSent && (
+          <button type="button" onClick={addAlso} style={btnSecondary}>+ Add card</button>
+        )}
+      </div>
+
+      {/* Jill's Take */}
+      <div style={sectionStyle}>
+        <label style={labelStyle}>💬 Jill's Take — steering scratchpad</label>
+        <p style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)', margin: '0 0 0.5rem' }}>
+          Optional. What should this week's take focus on? Persists between regenerates. Empty = generator picks the topic.
+        </p>
+        <textarea
+          value={slots.jill_prompt ?? ''}
+          onChange={(e) => patch('jill_prompt', e.target.value || null)}
+          placeholder="e.g. Focus on the JetBlue match opportunity for ex-Spirit elites"
+          className="admin-input"
+          style={{ minHeight: '3.5rem', resize: 'vertical', lineHeight: 1.5, marginBottom: '0.875rem' }}
+          disabled={isSent}
+        />
+        <label style={{ ...labelStyle, marginTop: '0.5rem' }}>Take (renders as italic block at bottom)</label>
+        <textarea
+          value={slots.jills_take_html ?? ''}
+          onChange={(e) => patch('jills_take_html', e.target.value || null)}
+          placeholder="<p>1–2 short sentences…</p>"
+          className="admin-input"
+          style={{ minHeight: '6rem', resize: 'vertical', lineHeight: 1.5, fontFamily: 'monospace', fontSize: '0.8125rem' }}
+          disabled={isSent}
+        />
+      </div>
+
+      {/* Action bar */}
       {!isSent && (
         <div style={{ ...sectionStyle, background: 'var(--admin-surface-alt)' }}>
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
-            <button type="button" onClick={handleSave} disabled={isPending} className="admin-btn admin-btn-secondary admin-btn-sm">
-              {isPending ? 'Working…' : 'Save'}
-            </button>
-            <button type="button" onClick={handleRunNow} disabled={isPending} className="admin-btn admin-btn-secondary admin-btn-sm">
-              Run Now (regenerate)
-            </button>
-            <button type="button" onClick={handleSendTest} disabled={isPending} className="admin-btn admin-btn-primary admin-btn-sm">
-              Send test to me
-            </button>
+          <div style={{ display: 'flex', gap: '0.625rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+            <button type="button" onClick={handleSave} disabled={isPending} style={btnSecondary}>{isPending ? 'Working…' : 'Save'}</button>
+            <button type="button" onClick={handleRunNow} disabled={isPending} style={btnSecondary}>Run Now (regenerate)</button>
+            <button type="button" onClick={handleSendTest} disabled={isPending} style={btnPrimary}>Send test to me</button>
           </div>
-
-          <div style={{ borderTop: '1px solid var(--admin-border)', paddingTop: '1rem' }}>
+          <div style={{ borderTop: '1px solid var(--admin-border)', paddingTop: '0.875rem' }}>
             <label style={labelStyle}>Danger zone — send to real subscribers</label>
             <p style={{ margin: '0 0 0.5rem', fontSize: '0.8125rem', color: 'var(--admin-text-muted)' }}>
-              Type <strong>Send</strong> below exactly. Case-sensitive. Then click the button.
+              Type <strong>Send</strong> below exactly. Case-sensitive.
             </p>
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
               <input
@@ -430,12 +339,7 @@ export default function NewsletterEditor({
                 className="admin-input"
                 style={{ maxWidth: '220px' }}
               />
-              <button
-                type="button"
-                onClick={handleSendToSubscribers}
-                disabled={!sendEnabled}
-                className="admin-btn admin-btn-danger admin-btn-sm"
-              >
+              <button type="button" onClick={handleSendToSubscribers} disabled={!sendEnabled} style={sendEnabled ? btnDanger : btnDangerDisabled}>
                 Send to {activeSubscriberCount} subscribers
               </button>
             </div>
