@@ -458,15 +458,15 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
               const styles =
                 diff === 'easy'
                   ? isActive
-                    ? 'bg-emerald-600 text-white border-emerald-600'
-                    : 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                    ? 'bg-emerald-600 text-white border-emerald-700 shadow-md scale-105'
+                    : 'bg-emerald-200 text-emerald-900 border-emerald-400 hover:bg-emerald-300 hover:border-emerald-500 shadow-sm'
                   : diff === 'medium'
                   ? isActive
-                    ? 'bg-amber-600 text-white border-amber-600'
-                    : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
+                    ? 'bg-amber-500 text-white border-amber-600 shadow-md scale-105'
+                    : 'bg-amber-200 text-amber-900 border-amber-400 hover:bg-amber-300 hover:border-amber-500 shadow-sm'
                   : isActive
-                  ? 'bg-rose-600 text-white border-rose-600'
-                  : 'bg-rose-50 text-rose-800 border-rose-200 hover:bg-rose-100';
+                  ? 'bg-rose-600 text-white border-rose-700 shadow-md scale-105'
+                  : 'bg-rose-200 text-rose-900 border-rose-400 hover:bg-rose-300 hover:border-rose-500 shadow-sm';
               return (
                 <button
                   key={diff}
@@ -474,7 +474,7 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
                   onClick={() => targetPuzzle && switchPuzzle(targetPuzzle)}
                   disabled={!targetPuzzle}
                   className={[
-                    'text-xs font-ui uppercase tracking-wide px-3 py-1.5 rounded-full border-2 transition disabled:opacity-30 disabled:cursor-not-allowed',
+                    'text-xs font-ui font-bold uppercase tracking-wide px-4 py-2 rounded-full border-2 transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed',
                     styles,
                   ].join(' ')}
                 >
