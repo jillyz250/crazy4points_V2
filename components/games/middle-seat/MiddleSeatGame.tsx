@@ -142,18 +142,32 @@ function ResultModal({
               Try a different difficulty
             </div>
             <div className="flex gap-1.5 justify-center flex-wrap">
-              {allPuzzles
-                .filter((p) => p.id !== activePuzzleId)
-                .map((p) => (
+              {(() => {
+                // Show one button per unique difficulty (excluding the
+                // current one). If multiple puzzles share a difficulty,
+                // pick a deterministic one.
+                const active = allPuzzles.find((p) => p.id === activePuzzleId);
+                const seen = new Set<string>();
+                const buttons: Puzzle[] = [];
+                for (const diff of ['easy', 'medium', 'hard'] as const) {
+                  if (active && active.difficulty === diff) continue;
+                  const match = allPuzzles.find((p) => p.difficulty === diff);
+                  if (match && !seen.has(diff)) {
+                    seen.add(diff);
+                    buttons.push(match);
+                  }
+                }
+                return buttons.map((p) => (
                   <button
-                    key={p.id}
+                    key={p.difficulty}
                     type="button"
                     onClick={() => onSwitchPuzzle(p)}
                     className="text-xs font-ui px-3 py-1 rounded-full bg-white border border-[color:var(--color-border-soft)] hover:border-[color:var(--color-primary)] hover:text-[color:var(--color-primary)] uppercase tracking-wide"
                   >
                     {p.difficulty}
                   </button>
-                ))}
+                ));
+              })()}
             </div>
           </div>
         ) : null}
@@ -258,6 +272,7 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
   const [finishedAt, setFinishedAt] = useState<number | null>(null);
   const [showShareCopied, setShowShareCopied] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [submitFlash, setSubmitFlash] = useState(false);
   const [logicMode, setLogicMode] = useState(true);
   const [gameStarted, setGameStarted] = useState(false);
   const [hoverSeat, setHoverSeat] = useState<SeatId | null>(null);
@@ -430,9 +445,14 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
   );
 
   const handleSubmit = useCallback(() => {
-    if (!result.isComplete) return;
-    setFinishedAt(Date.now());
-    setSelectedPid(null);
+    if (result.isComplete) {
+      setFinishedAt(Date.now());
+      setSelectedPid(null);
+      return;
+    }
+    // Not complete: flash the error banner so the player notices.
+    setSubmitFlash(true);
+    setTimeout(() => setSubmitFlash(false), 900);
   }, [result.isComplete]);
 
   const handleReset = useCallback(() => {
@@ -618,16 +638,23 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
 
       <div className="flex items-center justify-between mb-4 px-3 py-2 rounded-[var(--radius-ui)] bg-[color:var(--color-background-soft)]">
         <div className="font-ui text-sm">
-          {!gameStarted
-            ? 'Read the case, then press Start.'
-            : unseatedCount === 0
-            ? '✅ Everyone seated'
-            : (
-              <>
-                <span className="font-semibold text-[color:var(--color-primary)]">{unseatedCount}</span>{' '}
-                <span className="text-[color:var(--color-text-secondary)]">left to seat — drag, or tap a passenger then a seat</span>
-              </>
-            )}
+          {!gameStarted ? (
+            'Read the case, then press Start.'
+          ) : unseatedCount === 0 && result.hardViolations.length === 0 ? (
+            '✅ Everyone seated — hit Submit'
+          ) : selectedPid ? (
+            <>
+              <span className="font-semibold text-[color:var(--color-primary)]">
+                {passengers.find((p) => p.id === selectedPid)?.name} selected
+              </span>{' '}
+              <span className="text-[color:var(--color-text-secondary)]">— now tap a seat</span>
+            </>
+          ) : (
+            <>
+              <span className="font-semibold text-[color:var(--color-primary)]">{unseatedCount}</span>{' '}
+              <span className="text-[color:var(--color-text-secondary)]">left to seat — tap a passenger, then a seat (or drag)</span>
+            </>
+          )}
         </div>
         <div className="font-ui text-lg tabular-nums">{formatTime(elapsedSeconds)}</div>
         {!gameStarted ? (
@@ -638,7 +665,7 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={!result.isComplete || !!finishedAt}
+            disabled={!!finishedAt}
             className="rg-btn-primary disabled:opacity-40 disabled:cursor-not-allowed text-sm px-4 py-2"
           >
             {finishedAt ? 'Done' : 'Submit'}
@@ -935,6 +962,12 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
                                   : middle
                                   ? 'bg-amber-50 border-amber-300 hover:bg-amber-100'
                                   : 'bg-white border-zinc-300 hover:bg-[color:var(--color-background-soft)] hover:border-[color:var(--color-primary)]/40',
+                                // When a passenger is selected, glow all
+                                // non-blocked, non-occupied seats so it's
+                                // obvious the player can tap one to place.
+                                selectedPid && !blocked && !pax
+                                  ? 'ring-2 ring-[color:var(--color-primary)]/50 animate-ms-select'
+                                  : '',
                                 hoverSeat === seat && !blocked
                                   ? 'ring-4 ring-[color:var(--color-primary)] scale-105 bg-[color:var(--color-background-soft)]'
                                   : '',
@@ -1007,21 +1040,43 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
         </div>
       </div>
 
-      {!finishedAt && result.hardViolations.length > 0 ? (
-        <div className="mb-6 p-3 rounded-[var(--radius-ui)] bg-amber-50 border border-amber-200 text-sm">
+      {!finishedAt && (result.hardViolations.length > 0 || unseatedCount > 0) ? (
+        <div
+          className={[
+            'mb-6 p-3 rounded-[var(--radius-ui)] border text-sm transition',
+            submitFlash
+              ? 'bg-rose-100 border-rose-400 ring-4 ring-rose-300 scale-[1.01]'
+              : 'bg-amber-50 border-amber-200',
+          ].join(' ')}
+        >
           {logicMode ? (
             <div>
-              <span className="font-medium">{result.hardViolations.length}</span>{' '}
-              {result.hardViolations.length === 1 ? 'clue' : 'clues'} still violated. Re-read the case.
+              {result.hardViolations.length > 0 ? (
+                <>
+                  <span className="font-medium">❌ {result.hardViolations.length}</span>{' '}
+                  {result.hardViolations.length === 1 ? 'error' : 'errors'}
+                  {unseatedCount > 0 ? `, plus ${unseatedCount} still to seat` : ''}
+                  . Re-read the case and keep going.
+                </>
+              ) : (
+                <>{unseatedCount} passenger{unseatedCount === 1 ? '' : 's'} still to seat.</>
+              )}
             </div>
           ) : (
             <>
-              <div className="font-medium mb-1">Constraints not yet met:</div>
+              <div className="font-medium mb-1">
+                ❌ {result.hardViolations.length} {result.hardViolations.length === 1 ? 'error' : 'errors'}:
+              </div>
               <ul className="list-disc pl-5 space-y-0.5">
                 {result.hardViolations.map((v) => (
                   <li key={v}>{v}</li>
                 ))}
               </ul>
+              {unseatedCount > 0 ? (
+                <div className="mt-2 text-[color:var(--color-text-secondary)]">
+                  Plus {unseatedCount} passenger{unseatedCount === 1 ? '' : 's'} still to seat.
+                </div>
+              ) : null}
             </>
           )}
         </div>
