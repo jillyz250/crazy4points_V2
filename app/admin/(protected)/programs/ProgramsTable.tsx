@@ -8,22 +8,7 @@ import { Card } from '@/components/admin/ui/Card'
 import { Badge } from '@/components/admin/ui/Badge'
 import { EmptyState } from '@/components/admin/ui/EmptyState'
 import ProgramPageContentEditor from './ProgramPageContentEditor'
-
-const ALLIANCE_LABEL: Record<string, string> = {
-  skyteam:        'SkyTeam',
-  star_alliance:  'Star Alliance',
-  oneworld:       'oneworld',
-  none:           'Independent',
-  other:          'Partnership',
-}
-
-const ALLIANCE_COLOR: Record<string, string> = {
-  skyteam:        '#0033A0',
-  star_alliance:  '#1A1A1A',
-  oneworld:       '#C8102E',
-  none:           '#4A4A4A',
-  other:          '#4A4A4A',
-}
+import { ALLIANCE_LABEL, ALLIANCE_BADGE_COLOR, ALLIANCE_BADGE_TEXT_COLOR } from '@/lib/alliance'
 
 /**
  * Counts how many of the page-content sections a program has populated.
@@ -309,8 +294,8 @@ export default function ProgramsTable({ programs }: { programs: Program[] }) {
                               fontSize: '0.625rem',
                               fontWeight: 700,
                               letterSpacing: '0.04em',
-                              color: '#fff',
-                              background: ALLIANCE_COLOR[program.alliance] ?? '#4A4A4A',
+                              color: ALLIANCE_BADGE_TEXT_COLOR[program.alliance] ?? '#fff',
+                              background: ALLIANCE_BADGE_COLOR[program.alliance] ?? '#4A4A4A',
                               borderRadius: '9999px',
                             }}
                           >

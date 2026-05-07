@@ -10,20 +10,7 @@ import type {
 } from '@/utils/supabase/queries'
 
 // ─── Color tokens (domain-specific to this section) ───────────────────────────
-const ALLIANCE_COLOR: Record<string, string> = {
-  oneworld: '#C8102E',
-  skyteam: '#0033A0',
-  star_alliance: '#1A1A1A',
-  none: '#6B2D8F',
-  other: '#6B2D8F',
-}
-const ALLIANCE_LABEL: Record<string, string> = {
-  oneworld: 'oneworld',
-  skyteam: 'SkyTeam',
-  star_alliance: 'Star Alliance',
-  none: 'Independent',
-  other: 'Partnership',
-}
+import { ALLIANCE_BADGE_COLOR as ALLIANCE_COLOR, ALLIANCE_LABEL } from '@/lib/alliance'
 
 const CABIN_BG: Record<RedemptionCabin, string> = {
   Economy: '#E0F2FE',
