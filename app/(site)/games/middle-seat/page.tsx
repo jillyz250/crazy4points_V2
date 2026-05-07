@@ -17,15 +17,16 @@ async function loadPuzzle(date: string): Promise<Puzzle> {
     const supabase = createAdminClient();
     const { data } = await supabase
       .from('game_middleseat_puzzles')
-      .select('date, layout_json, passengers_json')
+      .select('date, layout_json, passengers_json, clues_json, story, difficulty')
       .eq('date', date)
       .maybeSingle();
     if (data && data.layout_json && data.passengers_json) {
       return {
         id: `db-${date}`,
         date,
-        difficulty: 'medium',
-        clues: [],
+        difficulty: (data.difficulty as Puzzle['difficulty']) ?? 'medium',
+        story: (data.story as string | null) ?? undefined,
+        clues: (data.clues_json as string[] | null) ?? [],
         layout: data.layout_json as Puzzle['layout'],
         passengers: data.passengers_json as Puzzle['passengers'],
       };

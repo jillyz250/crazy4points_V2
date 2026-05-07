@@ -795,3 +795,30 @@ a.admin-btn-primary:hover:not(:disabled) {
   animation-timing-function: linear;
   animation-iteration-count: infinite;
 }
+
+/* Middle Seat — selected passenger pulse */
+@keyframes ms-select-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(107, 45, 143, 0.45); }
+  50% { box-shadow: 0 0 0 6px rgba(107, 45, 143, 0); }
+}
+.animate-ms-select {
+  animation: ms-select-pulse 1.6s ease-in-out infinite;
+}
+
+/* Middle Seat — confetti burst on win */
+@keyframes ms-burst {
+  0% { transform: translate(0, 0) rotate(0deg) scale(0.5); opacity: 1; }
+  100% { transform: translate(var(--mx, 0), var(--my, -200px)) rotate(720deg) scale(1); opacity: 0; }
+}
+.animate-ms-burst {
+  animation: ms-burst 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Middle Seat — airplane ground shadow drift */
+@keyframes ms-shadow {
+  0%, 100% { transform: translateX(-50%) scaleX(1); opacity: 0.18; }
+  50% { transform: translateX(-50%) scaleX(0.94); opacity: 0.12; }
+}
+.animate-ms-shadow {
+  animation: ms-shadow 6s ease-in-out infinite;
+}

@@ -4,7 +4,7 @@ import type { Puzzle, Layout } from './types';
 const REGIONAL_LAYOUT: Layout = {
   rows: 4,
   exitRows: [2],
-  bulkheadRows: [1],
+  bulkheadRows: [2],
   blocked: [],
   letters: ['A', 'B', 'C', 'D'],
   aisleAfter: 'B',
@@ -17,7 +17,7 @@ const REGIONAL_LAYOUT: Layout = {
 const NARROWBODY_LAYOUT: Layout = {
   rows: 5,
   exitRows: [3],
-  bulkheadRows: [1],
+  bulkheadRows: [2],
   blocked: [],
   letters: ['A', 'B', 'C', 'D', 'E', 'F'],
   aisleAfter: 'C',
@@ -30,7 +30,7 @@ const NARROWBODY_LAYOUT: Layout = {
 const BIG_NARROWBODY_LAYOUT: Layout = {
   rows: 6,
   exitRows: [3],
-  bulkheadRows: [1],
+  bulkheadRows: [2],
   blocked: [],
   letters: ['A', 'B', 'C', 'D', 'E', 'F'],
   aisleAfter: 'C',
@@ -48,7 +48,8 @@ export const PUZZLE_ROTATION: Omit<Puzzle, 'date'>[] = [
       "Friday afternoon flight to Orlando. Six passengers boarding a regional jet. Make it work before the gate agent loses patience.",
     clues: [
       "Marcus is a Diamond member and never flies anything but first class.",
-      "Sarah is traveling with her two kids, Ezra and Mila — they all need to sit in the same row, side by side.",
+      "Sarah is traveling with her toddler Ezra — they need to sit next to each other (same side of the aisle).",
+      "Mila is Sarah's older kid — old enough to sit alone, but she gets bored fast and wants a window to watch the clouds.",
       "Sam is 6'5\" — he absolutely must have an aisle seat.",
       "Lila gets motion sick unless she can stare out a window.",
       "Lila is also a light sleeper and gets cranky when kids kick her seat from behind.",
@@ -58,7 +59,7 @@ export const PUZZLE_ROTATION: Omit<Puzzle, 'date'>[] = [
       { id: 'p1', name: 'Marcus', avatar: '💼', avatarSeed: 'marcus-diamond', chips: [{ type: 'class_required', cabin: 'first' }] },
       { id: 'p2', name: 'Sarah', avatar: '👩‍🦰', avatarSeed: 'mom-redhair-42', chips: [{ type: 'adjacency', group: 'fam' }] },
       { id: 'p3', name: 'Ezra', avatar: '🧒', avatarSeed: 'ezra-kid-7', minor: true, chips: [{ type: 'adjacency', group: 'fam' }] },
-      { id: 'p4', name: 'Mila', avatar: '👧', avatarSeed: 'mila-girl-5', minor: true, chips: [{ type: 'adjacency', group: 'fam' }] },
+      { id: 'p4', name: 'Mila', avatar: '👧', avatarSeed: 'mila-girl-5', minor: true, chips: [{ type: 'window_required' }] },
       { id: 'p5', name: 'Sam', avatar: '🧑‍🦱', avatarSeed: 'sam-tall-curly', chips: [{ type: 'aisle_required' }] },
       {
         id: 'p6',
@@ -141,6 +142,7 @@ export const PUZZLE_ROTATION: Omit<Puzzle, 'date'>[] = [
       "Owen is severely allergic to cats. He cannot share a row with the cat. He also wants a window — naps.",
       "Brad is flying with a service dog. The dog needs floor space — no middle seat, ever, and no exit row (FAA rule).",
       "Alex and Jordan used to date. It ended badly. They cannot sit next to each other.",
+      "Alex is a Gold elite — never sits past row 4.",
       "Hannah has the bassinet baby — she needs the front row of economy.",
       "Eli is the baby. He's on Hannah's lap, so they share her row exactly.",
     ],
@@ -162,7 +164,7 @@ export const PUZZLE_ROTATION: Omit<Puzzle, 'date'>[] = [
         chips: [{ type: 'allergic_to', tag: 'cat' }, { type: 'window_required' }],
       },
       { id: 'p4', name: 'Brad', avatar: '🦮', avatarSeed: 'brad-servicedog', chips: [{ type: 'service_animal' }, { type: 'no_middle' }] },
-      { id: 'p5', name: 'Alex', avatar: '😠', avatarSeed: 'alex-ex', chips: [{ type: 'feuding_with', with: 'p6' }] },
+      { id: 'p5', name: 'Alex', avatar: '😠', avatarSeed: 'alex-ex', chips: [{ type: 'feuding_with', with: 'p6' }, { type: 'status_row', maxRow: 4 }] },
       { id: 'p6', name: 'Jordan', avatar: '😤', avatarSeed: 'jordan-ex', chips: [{ type: 'feuding_with', with: 'p5' }] },
       { id: 'p7', name: 'Hannah', avatar: '🤱', avatarSeed: 'hannah-parent', chips: [{ type: 'bulkhead_required' }] },
       { id: 'p8', name: 'Eli', avatar: '👶', minor: true, chips: [{ type: 'infant_lap', parent: 'p7' }] },
