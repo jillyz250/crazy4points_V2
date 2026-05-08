@@ -1,4 +1,5 @@
 import Link from "next/link";
+import FooterNewsletterSignup from "./FooterNewsletterSignup";
 
 const footerNav = [
   {
@@ -34,6 +35,11 @@ const footerNav = [
 export default function Footer() {
   return (
     <footer className="border-t border-[var(--color-border-soft)] bg-[var(--color-background-soft)]">
+      {/* Newsletter signup band — sitewide CTA at top of footer */}
+      <div className="border-b border-[var(--color-border-soft)] bg-[var(--color-background)]">
+        <FooterNewsletterSignup />
+      </div>
+
       <div className="rg-container px-6 py-20 md:px-8">
         <div className="grid grid-cols-1 gap-10 md:grid-cols-4">
 
