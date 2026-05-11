@@ -1,8 +1,9 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { createAdminClient } from '@/utils/supabase/server'
-import { getRedemptionsForBucket } from '@/utils/supabase/bestWayToBookQueries'
-import type { PartnerRedemptionWithPrograms, RedemptionCabin } from '@/utils/supabase/queries'
+import { getRedemptionsForRoute } from '@/utils/supabase/bestWayToBookQueries'
+import type { EnrichedRedemptionRow } from '@/utils/supabase/bestWayToBookQueries'
+import type { RedemptionCabin } from '@/utils/supabase/queries'
 import { AIRPORTS, findAirport, mapRouteToBucket, distanceMiles, ROUTE_BUCKET_LABELS } from '@/lib/airports'
 import BestWayToBookForm from '@/components/hub/BestWayToBookForm'
 import BestWayToBookResultRow from '@/components/hub/BestWayToBookResultRow'
@@ -36,7 +37,7 @@ export default async function Page({
 
   let bucket = null
   let distance = 0
-  let rows: PartnerRedemptionWithPrograms[] = []
+  let rows: EnrichedRedemptionRow[] = []
   let queryError: string | null = null
 
   if (fromAirport && toAirport) {
@@ -45,7 +46,7 @@ export default async function Page({
     if (bucket) {
       try {
         const supabase = createAdminClient()
-        rows = await getRedemptionsForBucket(supabase, bucket, cabin)
+        rows = await getRedemptionsForRoute(supabase, fromAirport, toAirport, cabin)
       } catch (err) {
         console.error('[hub/best-way-to-book] query failed:', err)
         queryError = 'Something went wrong loading redemptions. Refresh and try again.'

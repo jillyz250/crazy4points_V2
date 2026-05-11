@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { PartnerRedemptionWithPrograms } from '@/utils/supabase/queries'
+import type { AwardCostResult } from '@/lib/awardChart'
 
 const ALLIANCE_COLOR: Record<string, string> = {
   oneworld: '#C8102E',
@@ -7,6 +8,10 @@ const ALLIANCE_COLOR: Record<string, string> = {
   star_alliance: '#1A1A1A',
   none: '#6B2D8F',
   other: '#6B2D8F',
+}
+
+function fmtKilo(n: number): string {
+  return n >= 1000 ? `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}k` : String(n)
 }
 
 function fmtMiles(low: number | null, high: number | null, model: string): string {
@@ -94,23 +99,40 @@ export default function BestWayToBookResultRow({
   r,
   rank,
 }: {
-  r: PartnerRedemptionWithPrograms
+  r: PartnerRedemptionWithPrograms & { computed_cost?: AwardCostResult | null }
   rank: number
 }) {
   const stripeColor = ALLIANCE_COLOR[r.operating_carrier?.alliance ?? 'none'] ?? ALLIANCE_COLOR.none
   const cashStr = fmtCash(r.cash_fee_low, r.cash_fee_high)
   const cashTone = feeTone(r.cash_fee_high ?? r.cash_fee_low)
-  const noPublishedRate = r.cost_miles_low === null && r.cost_miles_high === null
 
-  // Surface dynamic-pricing warning when the program is explicitly dynamic
-  // OR the published range is wide enough that the floor would mislead
-  // (high >= 3x low). The floor is technically valid but only for ideal
-  // dates/routes — most real bookings land closer to the upper end.
+  // Phase 3: prefer chart-computed cost when available (means a structured
+  // chart is authored on this currency program). Falls back to stored
+  // cost_miles_low/high for programs without a chart yet.
+  const computed = r.computed_cost
+  const hasComputed = computed != null
+  const noPublishedRate =
+    !hasComputed && r.cost_miles_low === null && r.cost_miles_high === null
+
+  // Range vs single number from compute
+  const computedRange =
+    hasComputed && typeof computed!.miles === 'object'
+      ? (computed!.miles as { low: number; high: number })
+      : null
+  const computedSingle =
+    hasComputed && typeof computed!.miles === 'number'
+      ? (computed!.miles as number)
+      : null
+
+  // Dynamic-pricing warning: prefer compute-derived signal (source =
+  // 'dynamic_estimate'), fall back to legacy heuristic.
   const isWideRange =
+    !hasComputed &&
     r.cost_miles_low != null &&
     r.cost_miles_high != null &&
     r.cost_miles_high >= r.cost_miles_low * 3
-  const showDynamicChip = r.pricing_model === 'dynamic' || isWideRange
+  const showDynamicChip =
+    computed?.source === 'dynamic_estimate' || (!hasComputed && r.pricing_model === 'dynamic') || isWideRange
 
   return (
     <article
@@ -286,8 +308,25 @@ export default function BestWayToBookResultRow({
             lineHeight: 1.1,
           }}
         >
-          {fmtMiles(r.cost_miles_low, r.cost_miles_high, r.pricing_model)}
+          {hasComputed
+            ? computedRange
+              ? `${fmtKilo(computedRange.low)}–${fmtKilo(computedRange.high)}`
+              : fmtKilo(computedSingle as number)
+            : fmtMiles(r.cost_miles_low, r.cost_miles_high, r.pricing_model)}
         </div>
+        {hasComputed && computed!.band && (
+          <div
+            style={{
+              fontSize: '0.625rem',
+              color: 'var(--color-text-secondary)',
+              marginTop: '0.125rem',
+              fontStyle: 'italic',
+            }}
+          >
+            {computed!.band}
+            {computed!.season ? ` · ${computed!.season}` : ''}
+          </div>
+        )}
         {!noPublishedRate && (
           <div
             style={{
