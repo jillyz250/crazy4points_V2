@@ -6,6 +6,7 @@ import type { PartnerRedemptionWithPrograms, RedemptionCabin } from '@/utils/sup
 import { AIRPORTS, findAirport, mapRouteToBucket, distanceMiles, ROUTE_BUCKET_LABELS } from '@/lib/airports'
 import BestWayToBookForm from '@/components/hub/BestWayToBookForm'
 import BestWayToBookResultRow from '@/components/hub/BestWayToBookResultRow'
+import ChartDisclaimer from '@/components/hub/ChartDisclaimer'
 
 export const metadata: Metadata = {
   title: 'Best Way to Book It — The Points Hub — crazy4points',
@@ -97,6 +98,7 @@ export default async function Page({
           inline so you don&apos;t get surprised at checkout.
         </p>
 
+        <ChartDisclaimer />
         <BestWayToBookForm
           airports={AIRPORTS}
           initialFrom={fromCode}

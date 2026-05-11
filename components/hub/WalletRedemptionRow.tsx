@@ -102,7 +102,8 @@ export default function WalletRedemptionRow({
           }}
         >
           ✅ You hold <strong>{fmt(reach.direct)}</strong>{' '}
-          {row.currency_program?.name}. Plenty to book this.
+          {row.currency_program?.name} — enough miles for this rate. Confirm
+          space on the airline&apos;s site before booking.
         </p>
       )}
 

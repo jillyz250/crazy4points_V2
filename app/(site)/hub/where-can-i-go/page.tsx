@@ -10,11 +10,12 @@ import type { Wallet, WalletRedemption } from '@/utils/supabase/whereCanIGoQueri
 import type { Program } from '@/utils/supabase/queries'
 import WalletForm from '@/components/hub/WalletForm'
 import WalletRedemptionRow from '@/components/hub/WalletRedemptionRow'
+import ChartDisclaimer from '@/components/hub/ChartDisclaimer'
 
 export const metadata: Metadata = {
   title: 'Where Can My Points Take Me? — The Points Hub — crazy4points',
   description:
-    'Plug in your balances. See the real redemptions you can book today, plus the ones one transfer away.',
+    "Plug in your balances. See which published partner redemptions your points are priced for — direct and one transfer away.",
   alternates: { canonical: 'https://www.crazy4points.com/hub/where-can-i-go' },
 }
 
@@ -95,10 +96,13 @@ export default async function Page({
             maxWidth: '40rem',
           }}
         >
-          Plug in your balances. We&apos;ll show real redemptions you can book
-          today, the ones one transfer away, and skip the fantasy math.
+          Plug in your balances. We&apos;ll match them against published
+          partner award charts so you can see what&apos;s priced within your
+          reach — direct, one transfer away, and (optionally) the
+          aspirational stuff in a separate section.
         </p>
 
+        <ChartDisclaimer />
         <WalletForm options={options} initialWallet={wallet} />
 
         {queryError && (
@@ -158,8 +162,8 @@ export default async function Page({
 
             {ready.length > 0 && (
               <Section
-                title="✅ Ready to book"
-                subtitle={`${ready.length} ${ready.length === 1 ? 'redemption' : 'redemptions'} you can pay for outright.`}
+                title="✅ Priced within your reach"
+                subtitle={`${ready.length} ${ready.length === 1 ? 'redemption rate is' : 'redemption rates are'} fully covered by what you hold. Search the operating airline for actual availability before booking.`}
               >
                 <div style={{ display: 'grid', gap: '0.75rem' }}>
                   {ready.map((i) => (
@@ -172,7 +176,7 @@ export default async function Page({
             {oneAway.length > 0 && (
               <Section
                 title="⚠️ One transfer away"
-                subtitle={`${oneAway.length} ${oneAway.length === 1 ? 'redemption' : 'redemptions'} you can unlock with a single transfer.`}
+                subtitle={`${oneAway.length} ${oneAway.length === 1 ? 'rate is' : 'rates are'} covered after a single transfer in. Confirm availability before transferring — transfers are irreversible.`}
               >
                 <div style={{ display: 'grid', gap: '0.75rem' }}>
                   {oneAway.map((i) => (

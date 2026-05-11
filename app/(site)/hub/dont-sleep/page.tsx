@@ -6,6 +6,7 @@ import type { PartnerRedemptionWithPrograms } from '@/utils/supabase/queries'
 import { ROUTE_BUCKET_LABELS } from '@/lib/airports'
 import type { RouteBucket } from '@/lib/airports'
 import SweetSpotCard from '@/components/hub/SweetSpotCard'
+import ChartDisclaimer from '@/components/hub/ChartDisclaimer'
 
 export const metadata: Metadata = {
   title: "Don't Sleep On These — The Points Hub — crazy4points",
@@ -96,10 +97,13 @@ export default async function Page() {
             maxWidth: '40rem',
           }}
         >
-          We don&apos;t list fantasy redemptions you can&apos;t actually book.
-          Every spot here has been flagged as bookable with at least decent
-          availability.
+          We skip fantasy redemptions. Every spot here is on a published
+          chart that traditionally has decent availability — but you still
+          need to confirm space on the operating airline before transferring
+          miles.
         </p>
+
+        <ChartDisclaimer />
 
         {rows.length === 0 ? (
           <div
