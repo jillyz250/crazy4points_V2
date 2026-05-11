@@ -32,6 +32,7 @@ const TILES: Tile[] = [
   { title: 'Refresh Queue', description: 'Editorial content due for re-verification (cards, programs, properties).', href: '/admin/refresh-queue', cta: 'View' },
   { title: 'Scrapes', description: 'Auto-refresh history from Firecrawl scrapes of program pages.', href: '/admin/scrapes', cta: 'View' },
   { title: 'AI Usage', description: 'Anthropic API spend by day, caller, and model.', href: '/admin/ai-usage', cta: 'View' },
+  { title: 'Analytics', description: 'GA4 — active users, key events, top cities, top pages.', href: '/admin/analytics', cta: 'View' },
 ]
 
 async function loadStats() {

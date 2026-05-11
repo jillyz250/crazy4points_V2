@@ -48,7 +48,7 @@ export const TIERS: Tier[] = [
     emoji: '🚽',
     name: 'Middle Seat by the Lav, Broken Flush Light',
     copy: "It dings. It dings AGAIN. Someone's been in there 22 minutes. You've stopped speculating about why.",
-    maxSeconds: 540,
+    maxSeconds: 480,
   },
   {
     key: 'last_row',

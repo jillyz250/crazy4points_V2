@@ -1,12 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createAdminClient } from '@/utils/supabase/server'
-import { renderNewsletterHtml } from '@/utils/ai/newsletterEmail'
-import type { NewsletterDraft } from '@/utils/ai/buildNewsletter'
+import { renderNewsletterV2Html, formatWeekOf } from '@/utils/ai/newsletterEmailV2'
+import type { NewsletterSlots, AlsoHappeningItem } from '@/utils/ai/newsletterSlots'
 
 export const maxDuration = 60
 
 const resend = new Resend(process.env.RESEND_API_KEY)
+
+const SLOT_SELECT =
+  'id, week_of, subject, subject_options, status, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_html, sweet_spot, also_happening, jills_take_html, game_slug, game_title, game_clue_text'
+
+interface SlotRow {
+  id: string
+  week_of: string
+  subject: string | null
+  subject_options: string[] | null
+  status: 'draft' | 'sent' | 'failed'
+  hero_kicker: string | null
+  jill_prompt: string | null
+  big_story_ref_type: 'alert' | 'intel' | null
+  big_story_ref_id: string | null
+  big_story_html: string | null
+  sweet_spot: NewsletterSlots['sweet_spot'] | null
+  also_happening: AlsoHappeningItem[] | null
+  jills_take_html: string | null
+  game_slug: string | null
+  game_title: string | null
+  game_clue_text: string | null
+}
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
@@ -23,14 +45,10 @@ export async function GET(req: NextRequest) {
   const toParam = url.searchParams.get('to')
 
   const supabase = createAdminClient()
-
-  const query = supabase
-    .from('newsletters')
-    .select('id, week_of, subject, subject_options, draft_json, comic_url, status')
-
+  const q = supabase.from('newsletters').select(SLOT_SELECT)
   const { data, error } = idParam
-    ? await query.eq('id', idParam).maybeSingle()
-    : await query.eq('status', 'draft').order('week_of', { ascending: false }).limit(1).maybeSingle()
+    ? await q.eq('id', idParam).maybeSingle()
+    : await q.eq('status', 'draft').order('week_of', { ascending: false }).limit(1).maybeSingle()
 
   if (error) {
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
@@ -42,21 +60,25 @@ export async function GET(req: NextRequest) {
     )
   }
 
-  const draft = data.draft_json as NewsletterDraft | null
-  if (!draft) {
-    return NextResponse.json(
-      { ok: false, error: 'Row has no draft_json. Regenerate it.' },
-      { status: 422 },
-    )
+  const row = data as SlotRow
+  const slots: NewsletterSlots = {
+    hero_kicker: row.hero_kicker,
+    game: { slug: row.game_slug, title: row.game_title, clue_text: row.game_clue_text },
+    big_story_ref_type: row.big_story_ref_type,
+    big_story_ref_id: row.big_story_ref_id,
+    big_story_html: row.big_story_html,
+    sweet_spot: row.sweet_spot ?? null,
+    also_happening: Array.isArray(row.also_happening) ? row.also_happening : [],
+    jills_take_html: row.jills_take_html,
+    jill_prompt: row.jill_prompt,
+    subject: row.subject ?? row.subject_options?.[0] ?? 'Crazy4Points — Weekly',
+    subject_options: row.subject_options ?? [],
   }
 
-  const subject = data.subject ?? (Array.isArray(data.subject_options) ? data.subject_options[0] : null) ?? 'Crazy4Points — Weekly'
-
-  const html = renderNewsletterHtml({
-    draft,
-    subject,
-    weekOf: data.week_of,
-    comicUrl: data.comic_url ?? null,
+  const subject = slots.subject || 'Crazy4Points — Weekly'
+  const html = renderNewsletterV2Html({
+    slots,
+    weekOf: formatWeekOf(row.week_of),
     isPreview: true,
   })
 
@@ -80,8 +102,8 @@ export async function GET(req: NextRequest) {
     ok: true,
     message: 'Preview sent',
     to,
-    newsletter_id: data.id,
-    week_of: data.week_of,
+    newsletter_id: row.id,
+    week_of: row.week_of,
     subject,
   })
 }

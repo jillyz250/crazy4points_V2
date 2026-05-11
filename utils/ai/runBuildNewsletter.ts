@@ -17,6 +17,7 @@ import {
   type NewsletterIdeaInput,
   type NewsletterRadarSignalInput,
 } from './buildNewsletter'
+import { buildNewsletterSlots } from './buildNewsletterSlots'
 import { verifyNewsletterDraft } from './verifyNewsletterDraft'
 
 export function mondayOfWeek(date: Date = new Date()): string {
@@ -156,7 +157,7 @@ export async function runBuildNewsletter(opts: {
 
   const { data: existing } = await supabase
     .from('newsletters')
-    .select('id, status, draft_json')
+    .select('id, status, draft_json, jill_prompt')
     .eq('week_of', weekOf)
     .maybeSingle()
 
@@ -179,13 +180,30 @@ export async function runBuildNewsletter(opts: {
     }
   }
 
-  const draft = await buildNewsletter({
-    week_of: weekOf,
-    alerts: inputs.alerts,
-    newsletter_ideas: inputs.newsletter_ideas,
-    blog_ideas: inputs.blog_ideas,
-    radar_signals: inputs.radar_signals,
-  })
+  // Generate both V1 (legacy draft_json — kept for fact-check pipeline) and
+  // V2 (slot fields — what the new admin + email renderer read). Both shapes
+  // are saved so we have a fallback during the redesign rollout. The admin
+  // editor only writes V2 going forward.
+  const jillPrompt: string | null =
+    (existing && (existing as { jill_prompt?: string | null }).jill_prompt) ?? null
+
+  const [draft, slotDraft] = await Promise.all([
+    buildNewsletter({
+      week_of: weekOf,
+      alerts: inputs.alerts,
+      newsletter_ideas: inputs.newsletter_ideas,
+      blog_ideas: inputs.blog_ideas,
+      radar_signals: inputs.radar_signals,
+    }),
+    buildNewsletterSlots({
+      week_of: weekOf,
+      alerts: inputs.alerts,
+      newsletter_ideas: inputs.newsletter_ideas,
+      blog_ideas: inputs.blog_ideas,
+      radar_signals: inputs.radar_signals,
+      jill_prompt: jillPrompt,
+    }),
+  ])
 
   if (!draft) {
     return {
@@ -257,6 +275,11 @@ export async function runBuildNewsletter(opts: {
 
   const verify = await verifyNewsletterDraft({ draft, source_text: sourceText })
 
+  // Prefer slot subjects when available; fall back to V1 generator's options.
+  const subjectOptions = slotDraft?.subject_options?.length
+    ? slotDraft.subject_options
+    : draft.subject_options
+
   const row = {
     week_of: weekOf,
     status: 'draft' as const,
@@ -273,10 +296,18 @@ export async function runBuildNewsletter(opts: {
       haul: draft.quick_wins,
       sweet_spot: draft.play_of_the_week,
     },
-    subject_options: draft.subject_options,
-    subject: draft.subject_options[0] ?? null,
+    subject_options: subjectOptions,
+    subject: subjectOptions[0] ?? null,
     fact_checked_at: verify?.checked_at ?? null,
     fact_check_claims: verify?.claims ?? null,
+    // V2 slot fields — these are what the new admin + email renderer read.
+    hero_kicker: slotDraft?.hero_kicker ?? null,
+    big_story_ref_type: slotDraft?.big_story_ref_type ?? null,
+    big_story_ref_id: slotDraft?.big_story_ref_id ?? null,
+    big_story_html: slotDraft?.big_story_html ?? null,
+    sweet_spot: slotDraft?.sweet_spot ?? null,
+    also_happening: slotDraft?.also_happening ?? [],
+    jills_take_html: slotDraft?.jills_take_html ?? null,
   }
 
   if (existing) {

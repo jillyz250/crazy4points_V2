@@ -46,44 +46,78 @@ function ResultModal({
     : ['🐈', '🤧', '👶', '😴', '🚽', '🍼', '🐾', '😬'];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm overflow-hidden">
-      {/* Falling emoji background */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        {Array.from({ length: 30 }).map((_, i) => {
-          const emoji = fallEmojis[i % fallEmojis.length];
-          const left = (i * 37) % 100;
-          const delay = (i % 10) * 0.3;
-          const duration = 4 + ((i * 7) % 4);
-          const size = 24 + ((i * 13) % 28);
-          return (
-            <span
-              key={i}
-              className="absolute animate-msfall opacity-90"
-              style={{
-                left: `${left}%`,
-                top: '-10%',
-                fontSize: `${size}px`,
-                animationDelay: `${delay}s`,
-                animationDuration: `${duration}s`,
-              }}
-              aria-hidden
-            >
-              {emoji}
-            </span>
-          );
-        })}
-      </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[color:var(--color-primary)]/40 backdrop-blur-sm overflow-hidden">
+      {/* One-shot confetti burst (wins only) */}
+      {isWin ? (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          {Array.from({ length: 36 }).map((_, i) => {
+            const angle = (i / 36) * Math.PI * 2;
+            const dist = 220 + ((i * 17) % 180);
+            const mx = `${Math.cos(angle) * dist}px`;
+            const my = `${Math.sin(angle) * dist}px`;
+            const size = 14 + ((i * 11) % 18);
+            const palette = ['#6B2D8F', '#D4AF37', '#F8F5FB', '#FFFFFF'];
+            const bg = palette[i % palette.length];
+            return (
+              <span
+                key={i}
+                className="absolute top-1/2 left-1/2 animate-ms-burst rounded-sm"
+                style={{
+                  width: `${size}px`,
+                  height: `${size * 0.4}px`,
+                  background: bg,
+                  animationDelay: `${(i % 6) * 0.04}s`,
+                  '--mx': mx,
+                  '--my': my,
+                } as React.CSSProperties}
+                aria-hidden
+              />
+            );
+          })}
+        </div>
+      ) : (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          {Array.from({ length: 18 }).map((_, i) => {
+            const emoji = fallEmojis[i % fallEmojis.length];
+            const left = (i * 37) % 100;
+            const delay = (i % 6) * 0.3;
+            const duration = 5 + ((i * 7) % 4);
+            const size = 22 + ((i * 13) % 24);
+            return (
+              <span
+                key={i}
+                className="absolute animate-msfall opacity-80"
+                style={{
+                  left: `${left}%`,
+                  top: '-10%',
+                  fontSize: `${size}px`,
+                  animationDelay: `${delay}s`,
+                  animationDuration: `${duration}s`,
+                }}
+                aria-hidden
+              >
+                {emoji}
+              </span>
+            );
+          })}
+        </div>
+      )}
 
       <div
         className={[
-          'relative max-w-md w-full rounded-[var(--radius-card)] p-6 shadow-2xl border',
+          'relative max-w-md w-full rounded-[var(--radius-card)] p-6 shadow-2xl border-2',
           isWin
-            ? 'bg-gradient-to-br from-amber-50 to-white border-amber-300'
+            ? 'bg-white border-[color:var(--color-accent)]'
             : isMid
             ? 'bg-white border-[color:var(--color-border-soft)]'
-            : 'bg-gradient-to-br from-zinc-100 to-amber-50 border-zinc-300',
+            : 'bg-[color:var(--color-background-soft)] border-[color:var(--color-border-soft)]',
         ].join(' ')}
       >
+        {isWin ? (
+          <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-[10px] font-ui font-bold uppercase tracking-widest bg-[color:var(--color-accent)] text-[color:var(--color-text-primary)] shadow-md">
+            ✦ Champagne Toast ✦
+          </div>
+        ) : null}
         <div className="text-7xl mb-3 text-center">{tier.emoji}</div>
         <div className="text-2xl font-display text-[color:var(--color-primary)] text-center mb-1 leading-tight">
           {tier.name}
@@ -108,18 +142,32 @@ function ResultModal({
               Try a different difficulty
             </div>
             <div className="flex gap-1.5 justify-center flex-wrap">
-              {allPuzzles
-                .filter((p) => p.id !== activePuzzleId)
-                .map((p) => (
+              {(() => {
+                // Show one button per unique difficulty (excluding the
+                // current one). If multiple puzzles share a difficulty,
+                // pick a deterministic one.
+                const active = allPuzzles.find((p) => p.id === activePuzzleId);
+                const seen = new Set<string>();
+                const buttons: Puzzle[] = [];
+                for (const diff of ['easy', 'medium', 'hard'] as const) {
+                  if (active && active.difficulty === diff) continue;
+                  const match = allPuzzles.find((p) => p.difficulty === diff);
+                  if (match && !seen.has(diff)) {
+                    seen.add(diff);
+                    buttons.push(match);
+                  }
+                }
+                return buttons.map((p) => (
                   <button
-                    key={p.id}
+                    key={p.difficulty}
                     type="button"
                     onClick={() => onSwitchPuzzle(p)}
                     className="text-xs font-ui px-3 py-1 rounded-full bg-white border border-[color:var(--color-border-soft)] hover:border-[color:var(--color-primary)] hover:text-[color:var(--color-primary)] uppercase tracking-wide"
                   >
                     {p.difficulty}
                   </button>
-                ))}
+                ));
+              })()}
             </div>
           </div>
         ) : null}
@@ -141,6 +189,7 @@ function Avatar({ pax, size = 32 }: { pax: Passenger; size?: number }) {
         height={size}
         className="rounded-full bg-white"
         draggable={false}
+        data-avatar
       />
     );
   }
@@ -189,6 +238,10 @@ function chipLabel(chip: Chip, all: Passenger[]): string {
     }
     case 'no_minor_behind':
       return '😴 No kid behind';
+    case 'keep_distance':
+      return chip.from === 'minor'
+        ? `🚸 ≥${chip.minRows} rows from kids`
+        : `🐾 ≥${chip.minRows} rows from pets`;
   }
 }
 
@@ -219,6 +272,7 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
   const [finishedAt, setFinishedAt] = useState<number | null>(null);
   const [showShareCopied, setShowShareCopied] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [submitFlash, setSubmitFlash] = useState(false);
   const [logicMode, setLogicMode] = useState(true);
   const [gameStarted, setGameStarted] = useState(false);
   const [hoverSeat, setHoverSeat] = useState<SeatId | null>(null);
@@ -309,7 +363,7 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
       }
       if (occupant) setSelectedPid(occupant);
     },
-    [finishedAt, seatToPid, selectedPid, startTimerIfNeeded],
+    [finishedAt, seatToPid, selectedPid, startTimerIfNeeded, autoStartIfNeeded],
   );
 
   const handlePassengerClick = useCallback(
@@ -344,7 +398,10 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
       e.dataTransfer.setData('text/plain', pid);
       e.dataTransfer.effectAllowed = 'move';
       // Use the avatar image as the drag preview (not the whole card).
-      const avatarImg = e.currentTarget.querySelector('img');
+      // The seat tile may also contain a 🍼 badge — target the avatar specifically.
+      const avatarImg =
+        e.currentTarget.querySelector<HTMLImageElement>('img[data-avatar]') ??
+        e.currentTarget.querySelector('img');
       if (avatarImg) {
         const w = avatarImg.naturalWidth || avatarImg.width || 36;
         const h = avatarImg.naturalHeight || avatarImg.height || 36;
@@ -365,6 +422,16 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
     setHoverSeat((cur) => (cur === seat ? null : cur));
   }, []);
 
+  // Clear sticky drop-target highlight when a drag is cancelled (Esc, drop
+  // outside, or browser cancel). Without this, the ring stays on a random seat.
+  useEffect(() => {
+    function onDragEnd() {
+      setHoverSeat(null);
+    }
+    document.addEventListener('dragend', onDragEnd);
+    return () => document.removeEventListener('dragend', onDragEnd);
+  }, []);
+
   const handleDrop = useCallback(
     (e: React.DragEvent, seat: SeatId) => {
       e.preventDefault();
@@ -378,9 +445,14 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
   );
 
   const handleSubmit = useCallback(() => {
-    if (!result.isComplete) return;
-    setFinishedAt(Date.now());
-    setSelectedPid(null);
+    if (result.isComplete) {
+      setFinishedAt(Date.now());
+      setSelectedPid(null);
+      return;
+    }
+    // Not complete: flash the error banner so the player notices.
+    setSubmitFlash(true);
+    setTimeout(() => setSubmitFlash(false), 900);
   }, [result.isComplete]);
 
   const handleReset = useCallback(() => {
@@ -418,6 +490,27 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
 
   const rows = Array.from({ length: layout.rows }, (_, i) => i + 1);
   const wingRow = layout.exitRows[0] ?? Math.ceil(layout.rows / 2);
+  const wingRowRef = useRef<HTMLDivElement | null>(null);
+  const fuselageRef = useRef<HTMLDivElement | null>(null);
+  const [wingTop, setWingTop] = useState<number | null>(null);
+  useEffect(() => {
+    function recompute() {
+      const wingEl = wingRowRef.current;
+      const fusEl = fuselageRef.current;
+      if (!wingEl || !fusEl) return;
+      const wingRect = wingEl.getBoundingClientRect();
+      const fusRect = fusEl.getBoundingClientRect();
+      setWingTop(wingRect.top - fusRect.top + wingRect.height / 2);
+    }
+    recompute();
+    const ro = new ResizeObserver(recompute);
+    if (fuselageRef.current) ro.observe(fuselageRef.current);
+    window.addEventListener('resize', recompute);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', recompute);
+    };
+  }, [layout.rows, layout.letters.length]);
   const badge = difficultyBadge(puzzle.difficulty);
 
   // Layout has middle seats only if there are letters between aisle and edges.
@@ -426,12 +519,12 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
     return layout.letters.some((_, i) => i > 0 && i < layout.letters.length - 1 && i !== aisleIdx && i !== aisleIdx + 1);
   })();
 
-  const cabinSeparators = new Set<number>();
-  for (let i = 1; i < layout.rows; i++) {
-    if (cabinForRow(i, layout) !== cabinForRow(i + 1, layout)) cabinSeparators.add(i);
-  }
-
-  const unseatedCount = passengers.length - placements.length;
+  // Lap infants ride with their parent and don't take their own seat.
+  const lapInfants = passengers.filter((p) =>
+    p.chips.some((c) => c.type === 'infant_lap'),
+  );
+  const seatablePassengers = passengers.filter((p) => !lapInfants.includes(p));
+  const unseatedCount = seatablePassengers.length - placements.length;
 
   return (
     <div className="rg-container py-8">
@@ -455,18 +548,11 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
                 const i = matches.findIndex((p) => p.id === puzzle.id);
                 return matches[(i + 1) % matches.length];
               })();
-              const styles =
-                diff === 'easy'
-                  ? isActive
-                    ? 'bg-emerald-600 text-white border-emerald-700 shadow-md scale-105'
-                    : 'bg-emerald-200 text-emerald-900 border-emerald-400 hover:bg-emerald-300 hover:border-emerald-500 shadow-sm'
-                  : diff === 'medium'
-                  ? isActive
-                    ? 'bg-amber-500 text-white border-amber-600 shadow-md scale-105'
-                    : 'bg-amber-200 text-amber-900 border-amber-400 hover:bg-amber-300 hover:border-amber-500 shadow-sm'
-                  : isActive
-                  ? 'bg-rose-600 text-white border-rose-700 shadow-md scale-105'
-                  : 'bg-rose-200 text-rose-900 border-rose-400 hover:bg-rose-300 hover:border-rose-500 shadow-sm';
+              const dot =
+                diff === 'easy' ? '🟢' : diff === 'medium' ? '🟡' : '🔴';
+              const styles = isActive
+                ? 'bg-[color:var(--color-primary)] text-white border-[color:var(--color-primary)] shadow-md scale-105'
+                : 'bg-white text-[color:var(--color-text-primary)] border-[color:var(--color-border-soft)] hover:border-[color:var(--color-primary)] hover:text-[color:var(--color-primary)] shadow-sm';
               return (
                 <button
                   key={diff}
@@ -474,10 +560,11 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
                   onClick={() => targetPuzzle && switchPuzzle(targetPuzzle)}
                   disabled={!targetPuzzle}
                   className={[
-                    'text-xs font-ui font-bold uppercase tracking-wide px-4 py-2 rounded-full border-2 transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed',
+                    'text-xs font-ui font-bold uppercase tracking-wide px-3.5 py-2 rounded-full border transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed inline-flex items-center gap-1.5',
                     styles,
                   ].join(' ')}
                 >
+                  <span aria-hidden className="text-[8px] leading-none">{dot}</span>
                   {diff}
                 </button>
               );
@@ -538,16 +625,36 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
             <strong>Middle seat</strong> (amber) — the dreaded one. Some passengers have constraints
             saying they can&apos;t end up here.
           </p>
+          <p>
+            <strong>First class</strong> (gold tint) — reserved. Only passengers with a first-class
+            ticket can sit here.
+          </p>
+          <p>
+            <strong>Lap infants</strong> ride with their parent and don&apos;t take their own seat —
+            you&apos;ll see them in &ldquo;Riding along&rdquo; below the passenger list.
+          </p>
         </div>
       ) : null}
 
       <div className="flex items-center justify-between mb-4 px-3 py-2 rounded-[var(--radius-ui)] bg-[color:var(--color-background-soft)]">
         <div className="font-ui text-sm">
-          {!gameStarted
-            ? 'Read the case, then press Start.'
-            : unseatedCount === 0
-            ? '✅ Everyone seated'
-            : `${unseatedCount} left to seat`}
+          {!gameStarted ? (
+            'Read the case, then press Start.'
+          ) : unseatedCount === 0 && result.hardViolations.length === 0 ? (
+            '✅ Everyone seated — hit Submit'
+          ) : selectedPid ? (
+            <>
+              <span className="font-semibold text-[color:var(--color-primary)]">
+                {passengers.find((p) => p.id === selectedPid)?.name} selected
+              </span>{' '}
+              <span className="text-[color:var(--color-text-secondary)]">— now tap a seat</span>
+            </>
+          ) : (
+            <>
+              <span className="font-semibold text-[color:var(--color-primary)]">{unseatedCount}</span>{' '}
+              <span className="text-[color:var(--color-text-secondary)]">left to seat — tap a passenger, then a seat (or drag)</span>
+            </>
+          )}
         </div>
         <div className="font-ui text-lg tabular-nums">{formatTime(elapsedSeconds)}</div>
         {!gameStarted ? (
@@ -558,7 +665,7 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={!result.isComplete || !!finishedAt}
+            disabled={!!finishedAt}
             className="rg-btn-primary disabled:opacity-40 disabled:cursor-not-allowed text-sm px-4 py-2"
           >
             {finishedAt ? 'Done' : 'Submit'}
@@ -567,24 +674,27 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
       </div>
 
       {/* THREE-COLUMN: case (left) + passengers (middle) + airplane (right) */}
-      <div className="grid gap-4 md:grid-cols-[240px_180px_1fr]">
+      <div className="grid gap-4 lg:grid-cols-[220px_180px_minmax(420px,_1fr)]">
         {/* LEFT COLUMN: case */}
         <div className="flex flex-col gap-3">
-          {puzzle.clues && puzzle.clues.length > 0 ? (
-            <div className="p-3 rounded-[var(--radius-card)] bg-white border border-[color:var(--color-border-soft)] shadow-sm">
-              <div className="text-xs font-ui uppercase tracking-wide text-[color:var(--color-text-secondary)] mb-2">
-                The Case
+          {(puzzle.story || (puzzle.clues && puzzle.clues.length > 0)) ? (
+            <div className="relative p-4 rounded-[var(--radius-card)] bg-[color:var(--color-background-soft)] border border-[color:var(--color-border-soft)] shadow-sm overflow-hidden">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[color:var(--color-primary)] via-[color:var(--color-accent)] to-[color:var(--color-primary)]" />
+              <div className="font-display text-sm tracking-wider uppercase text-[color:var(--color-primary)] mb-2 flex items-center gap-1.5">
+                <span aria-hidden>📁</span> The Case
               </div>
               {puzzle.story ? (
                 <p className="text-xs italic text-[color:var(--color-text-secondary)] mb-2">
                   {puzzle.story}
                 </p>
               ) : null}
-              <ol className="text-xs space-y-1.5 list-decimal pl-4 marker:text-[color:var(--color-primary)] marker:font-bold">
-                {puzzle.clues.map((c, i) => (
-                  <li key={i}>{c}</li>
-                ))}
-              </ol>
+              {puzzle.clues && puzzle.clues.length > 0 ? (
+                <ol className="text-xs space-y-1.5 list-decimal pl-4 marker:text-[color:var(--color-primary)] marker:font-bold">
+                  {puzzle.clues.map((c, i) => (
+                    <li key={i}>{c}</li>
+                  ))}
+                </ol>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -595,7 +705,7 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
             Passengers
           </h2>
           <div className="flex flex-col gap-1.5">
-            {passengers.map((pax) => {
+            {seatablePassengers.map((pax) => {
               const seated = seatedPids.has(pax.id);
               const seat = pidToSeat.get(pax.id);
               const selected = selectedPid === pax.id;
@@ -610,7 +720,7 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
                   className={[
                     'text-left px-2.5 py-2 rounded-[var(--radius-ui)] border transition font-ui cursor-grab active:cursor-grabbing',
                     selected
-                      ? 'bg-[color:var(--color-primary)] text-white border-[color:var(--color-primary)] shadow-md'
+                      ? 'bg-[color:var(--color-primary)] text-white border-[color:var(--color-primary)] shadow-md animate-ms-select'
                       : seated
                       ? 'bg-[color:var(--color-background-soft)] border-zinc-300 opacity-60'
                       : 'bg-white border-zinc-300 hover:bg-[color:var(--color-background-soft)] hover:shadow-sm',
@@ -662,73 +772,132 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
               );
             })}
           </div>
+          {lapInfants.length > 0 ? (
+            <div className="mt-3 p-2 rounded-[var(--radius-ui)] bg-[color:var(--color-background-soft)] border border-[color:var(--color-border-soft)]">
+              <div className="text-[10px] font-ui uppercase tracking-wider text-[color:var(--color-text-secondary)] mb-1">
+                🍼 Riding along
+              </div>
+              {lapInfants.map((baby) => {
+                const lapChip = baby.chips.find((c) => c.type === 'infant_lap');
+                const parentName =
+                  lapChip && lapChip.type === 'infant_lap'
+                    ? passengers.find((p) => p.id === lapChip.parent)?.name
+                    : null;
+                return (
+                  <div key={baby.id} className="flex items-center gap-2 text-xs">
+                    <Avatar pax={baby} size={24} />
+                    <span className="font-medium">{baby.name}</span>
+                    <span className="text-[color:var(--color-text-secondary)]">
+                      on {parentName ?? '?'}'s lap
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
         </div>
 
-        {/* AIRPLANE */}
+        {/* AIRPLANE — wrapper clips wing overflow on narrow viewports */}
+        <div className="relative w-full overflow-x-clip flex justify-center">
         <div className="relative mx-auto" style={{ maxWidth: 'fit-content' }}>
-          {/* Nose with pilot */}
-          <div className="mx-auto w-32 h-20 rounded-t-[3.5rem] bg-gradient-to-b from-white to-zinc-100 border-2 border-zinc-300 border-b-0 flex flex-col items-center justify-end pb-1.5 overflow-hidden">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="https://api.dicebear.com/9.x/personas/svg?seed=captain-amelia&backgroundType=solid&backgroundColor=ffffff"
-              alt=""
-              width={44}
-              height={44}
-              className="rounded-full"
-              draggable={false}
-            />
-            <span className="text-[9px] font-ui uppercase tracking-widest text-zinc-500 mt-0.5">
+          {/* Nose with pilot — cockpit window */}
+          <div className="mx-auto w-36 h-24 rounded-t-[4rem] bg-gradient-to-b from-white via-zinc-50 to-zinc-100 border-2 border-zinc-300 border-b-0 flex flex-col items-center justify-end pb-2 overflow-hidden relative">
+            {/* Cockpit windshield */}
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 w-20 h-10 rounded-t-[1.5rem] rounded-b-md bg-gradient-to-b from-[color:var(--color-primary)] via-[#3a1a4a] to-[#1a0a25] border border-[color:var(--color-primary)]/40 shadow-inner overflow-hidden flex items-end justify-center pb-0.5">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="https://api.dicebear.com/9.x/personas/svg?seed=captain-amelia&backgroundType=solid&backgroundColor=ffffff"
+                alt=""
+                width={28}
+                height={28}
+                className="rounded-full ring-1 ring-white/40"
+                draggable={false}
+              />
+            </div>
+            <span className="text-[9px] font-ui uppercase tracking-[0.18em] text-zinc-500 mt-0.5 relative z-10">
               Capt. Amelia
             </span>
           </div>
 
           {/* Fuselage */}
-          <div className="relative bg-zinc-50 border-x-4 border-zinc-300 px-4 py-4">
-            {/* SWEPT-BACK WINGS — SVG */}
+          <div
+            ref={fuselageRef}
+            className="relative bg-gradient-to-b from-white via-zinc-50 to-white border-x-4 border-zinc-300 px-5 py-4"
+          >
+            {/* Livery stripe — subtle purple band along the fuselage */}
             <div
-              className="absolute left-0 right-0 pointer-events-none z-0"
-              style={{ top: `calc(${(wingRow - 0.5) / layout.rows} * 100%)` }}
-            >
-              {/* Left wing */}
-              <svg
-                className="absolute right-full top-1/2 -translate-y-1/2"
-                width="120"
-                height="56"
-                viewBox="0 0 120 56"
+              className="absolute inset-y-0 pointer-events-none"
+              style={{
+                left: 0,
+                right: 0,
+                background:
+                  'linear-gradient(to bottom, transparent 0, transparent 4px, rgba(107,45,143,0.08) 4px, rgba(107,45,143,0.08) 6px, transparent 6px, transparent calc(100% - 6px), rgba(107,45,143,0.08) calc(100% - 6px), rgba(107,45,143,0.08) calc(100% - 4px), transparent calc(100% - 4px))',
+              }}
+              aria-hidden
+            />
+
+            {/* SWEPT-BACK WINGS — anchored to actual exit row */}
+            {wingTop !== null ? (
+              <div
+                className="absolute left-0 right-0 pointer-events-none z-0"
+                style={{ top: `${wingTop}px` }}
                 aria-hidden
               >
-                <path
-                  d="M120 16 L20 22 L0 36 L8 42 L120 40 Z"
-                  fill="#d4d4d8"
-                  stroke="#a1a1aa"
-                  strokeWidth="1"
-                />
-                <path d="M118 18 L118 38" stroke="#a1a1aa" strokeWidth="0.5" />
-              </svg>
-              {/* Right wing */}
-              <svg
-                className="absolute left-full top-1/2 -translate-y-1/2"
-                width="120"
-                height="56"
-                viewBox="0 0 120 56"
-                aria-hidden
-              >
-                <path
-                  d="M0 16 L100 22 L120 36 L112 42 L0 40 Z"
-                  fill="#d4d4d8"
-                  stroke="#a1a1aa"
-                  strokeWidth="1"
-                />
-                <path d="M2 18 L2 38" stroke="#a1a1aa" strokeWidth="0.5" />
-              </svg>
-            </div>
+                {/* Left wing */}
+                <svg
+                  className="absolute right-full top-1/2 -translate-y-1/2"
+                  width="140"
+                  height="64"
+                  viewBox="0 0 140 64"
+                >
+                  <defs>
+                    <linearGradient id="ms-wing-l" x1="0" x2="1" y1="0" y2="0">
+                      <stop offset="0%" stopColor="#e4e4e7" />
+                      <stop offset="100%" stopColor="#a1a1aa" />
+                    </linearGradient>
+                  </defs>
+                  <path
+                    d="M140 18 L24 24 L0 40 L10 48 L140 44 Z"
+                    fill="url(#ms-wing-l)"
+                    stroke="#71717a"
+                    strokeWidth="1"
+                  />
+                  {/* Engine */}
+                  <ellipse cx="38" cy="44" rx="14" ry="5" fill="#52525b" stroke="#3f3f46" strokeWidth="0.5" />
+                  <path d="M132 22 L132 42" stroke="#71717a" strokeWidth="0.5" />
+                </svg>
+                {/* Right wing */}
+                <svg
+                  className="absolute left-full top-1/2 -translate-y-1/2"
+                  width="140"
+                  height="64"
+                  viewBox="0 0 140 64"
+                >
+                  <defs>
+                    <linearGradient id="ms-wing-r" x1="0" x2="1" y1="0" y2="0">
+                      <stop offset="0%" stopColor="#a1a1aa" />
+                      <stop offset="100%" stopColor="#e4e4e7" />
+                    </linearGradient>
+                  </defs>
+                  <path
+                    d="M0 18 L116 24 L140 40 L130 48 L0 44 Z"
+                    fill="url(#ms-wing-r)"
+                    stroke="#71717a"
+                    strokeWidth="1"
+                  />
+                  <ellipse cx="102" cy="44" rx="14" ry="5" fill="#52525b" stroke="#3f3f46" strokeWidth="0.5" />
+                  <path d="M8 22 L8 42" stroke="#71717a" strokeWidth="0.5" />
+                </svg>
+              </div>
+            ) : null}
 
             <div className="flex flex-col gap-1.5 mx-auto relative z-10" style={{ width: 'fit-content' }}>
               {rows.map((row) => {
                 const isExit = layout.exitRows.includes(row);
                 const isBulkhead = layout.bulkheadRows.includes(row);
                 const cabin = cabinForRow(row, layout);
-                const isFirstRowOfFirstClass = cabin === 'first' && !rows.includes(row - 1) ? false : false;
+                const isCabinTransition =
+                  row > 1 && cabinForRow(row - 1, layout) !== cabin;
                 const showFirstClassPill =
                   cabin === 'first' && (row === 1 || cabinForRow(row - 1, layout) !== 'first');
                 const showExitPill = isExit;
@@ -736,19 +905,31 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
                   <div key={row}>
                     {showFirstClassPill ? (
                       <div className="flex justify-center mb-1">
-                        <span className="text-[10px] font-ui uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                        <span className="text-[10px] font-ui uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-[color:var(--color-accent)]/20 text-[color:var(--color-text-primary)] border border-[color:var(--color-accent)]/60">
                           🥂 First Class
                         </span>
                       </div>
                     ) : null}
+                    {isCabinTransition ? (
+                      <div className="flex items-center justify-center gap-2 my-2" aria-hidden>
+                        <span className="h-px flex-1 bg-gradient-to-r from-transparent via-[color:var(--color-accent)] to-transparent" />
+                        <span className="text-[9px] font-ui uppercase tracking-[0.2em] text-[color:var(--color-text-secondary)]">
+                          ✦ Galley ✦
+                        </span>
+                        <span className="h-px flex-1 bg-gradient-to-r from-transparent via-[color:var(--color-accent)] to-transparent" />
+                      </div>
+                    ) : null}
                     {showExitPill ? (
                       <div className="flex justify-center mb-1">
-                        <span className="text-[10px] font-ui uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        <span className="text-[10px] font-ui uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300">
                           🚪 Exit Row
                         </span>
                       </div>
                     ) : null}
-                    <div className={`flex items-center gap-1.5 rounded-md px-1 py-0.5 ${cabinColor(cabin)}`}>
+                    <div
+                      ref={row === wingRow ? wingRowRef : undefined}
+                      className={`flex items-center gap-1.5 rounded-md px-1 py-0.5 ${cabinColor(cabin)}`}
+                    >
                       <span className="w-8 h-8 flex items-center justify-center text-sm font-ui font-bold rounded-full bg-[color:var(--color-primary)] text-white tabular-nums shrink-0 shadow-sm">
                         {row}
                       </span>
@@ -775,12 +956,18 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
                               className={[
                                 'rg-tap-target relative flex items-center justify-center font-ui rounded-md border-2 transition w-12 h-12',
                                 blocked
-                                  ? 'bg-zinc-200 border-zinc-300 cursor-not-allowed'
+                                  ? 'bg-zinc-100 border-zinc-200 cursor-not-allowed opacity-50 [background-image:repeating-linear-gradient(45deg,_transparent,_transparent_4px,_rgba(0,0,0,0.06)_4px,_rgba(0,0,0,0.06)_5px)]'
                                   : pax
                                   ? 'bg-[color:var(--color-primary)] border-[color:var(--color-primary)] shadow-md cursor-grab active:cursor-grabbing'
                                   : middle
                                   ? 'bg-amber-50 border-amber-300 hover:bg-amber-100'
                                   : 'bg-white border-zinc-300 hover:bg-[color:var(--color-background-soft)] hover:border-[color:var(--color-primary)]/40',
+                                // When a passenger is selected, glow all
+                                // non-blocked, non-occupied seats so it's
+                                // obvious the player can tap one to place.
+                                selectedPid && !blocked && !pax
+                                  ? 'ring-2 ring-[color:var(--color-primary)]/50 animate-ms-select'
+                                  : '',
                                 hoverSeat === seat && !blocked
                                   ? 'ring-4 ring-[color:var(--color-primary)] scale-105 bg-[color:var(--color-background-soft)]'
                                   : '',
@@ -788,10 +975,24 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
                                 isBulkhead ? 'ring-2 ring-sky-400 ring-offset-1' : '',
                               ].join(' ')}
                             >
-                              {pax ? (
-                                <Avatar pax={pax} size={44} />
+                              {blocked ? null : pax ? (
+                                <>
+                                  <Avatar pax={pax} size={44} />
+                                  {lapInfants.some((b) =>
+                                    b.chips.some(
+                                      (c) => c.type === 'infant_lap' && c.parent === pax.id,
+                                    ),
+                                  ) ? (
+                                    <span
+                                      className="absolute -bottom-1 -right-1 text-base bg-white rounded-full ring-2 ring-[color:var(--color-primary)] w-5 h-5 flex items-center justify-center shadow"
+                                      aria-label="lap infant"
+                                    >
+                                      🍼
+                                    </span>
+                                  ) : null}
+                                </>
                               ) : (
-                                <span className="text-[10px] opacity-50">{letter}</span>
+                                <span className="text-[11px] font-medium text-zinc-500">{letter}</span>
                               )}
                             </button>
                             {showAisleGap ? <span className="w-4" /> : null}
@@ -805,12 +1006,21 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
             </div>
           </div>
 
-          {/* Tail */}
-          <div className="mx-auto w-32 h-16 rounded-b-[3rem] bg-gradient-to-t from-white to-zinc-100 border-2 border-zinc-300 border-t-0 flex items-start justify-center pt-1">
-            <span className="text-[10px] font-ui uppercase tracking-widest text-zinc-500">tail</span>
+          {/* Tail with vertical stabilizer + c4p mark */}
+          <div className="relative mx-auto w-36 h-20 rounded-b-[3.5rem] bg-gradient-to-t from-white via-zinc-50 to-zinc-100 border-2 border-zinc-300 border-t-0 flex items-start justify-center pt-1.5">
+            <div className="w-8 h-12 bg-gradient-to-b from-[color:var(--color-primary)] to-[#3a1a4a] rounded-t-md flex items-start justify-center pt-1 shadow-sm">
+              <span className="text-[8px] font-display text-[color:var(--color-accent)] tracking-wider">c4p</span>
+            </div>
           </div>
 
-          <div className="flex flex-wrap gap-3 text-xs text-[color:var(--color-text-secondary)] mt-4 justify-center font-ui">
+          {/* Ground shadow */}
+          <div
+            className="absolute left-1/2 -translate-x-1/2 -bottom-3 h-5 rounded-[100%] bg-black/15 blur-md animate-ms-shadow pointer-events-none"
+            style={{ width: '60%' }}
+            aria-hidden
+          />
+
+          <div className="flex flex-wrap gap-3 text-xs text-[color:var(--color-text-secondary)] mt-6 justify-center font-ui">
             {hasMiddles ? (
               <span>
                 <span className="inline-block w-3 h-3 align-middle bg-amber-50 border border-amber-200 rounded-sm mr-1" />{' '}
@@ -827,23 +1037,46 @@ export default function MiddleSeatGame({ puzzle: initialPuzzle, allPuzzles }: Pr
             </span>
           </div>
         </div>
+        </div>
       </div>
 
-      {!finishedAt && result.hardViolations.length > 0 ? (
-        <div className="mb-6 p-3 rounded-[var(--radius-ui)] bg-amber-50 border border-amber-200 text-sm">
+      {!finishedAt && (result.hardViolations.length > 0 || unseatedCount > 0) ? (
+        <div
+          className={[
+            'mb-6 p-3 rounded-[var(--radius-ui)] border text-sm transition',
+            submitFlash
+              ? 'bg-rose-100 border-rose-400 ring-4 ring-rose-300 scale-[1.01]'
+              : 'bg-amber-50 border-amber-200',
+          ].join(' ')}
+        >
           {logicMode ? (
             <div>
-              <span className="font-medium">{result.hardViolations.length}</span>{' '}
-              {result.hardViolations.length === 1 ? 'clue' : 'clues'} still violated. Re-read the case.
+              {result.hardViolations.length > 0 ? (
+                <>
+                  <span className="font-medium">❌ {result.hardViolations.length}</span>{' '}
+                  {result.hardViolations.length === 1 ? 'error' : 'errors'}
+                  {unseatedCount > 0 ? `, plus ${unseatedCount} still to seat` : ''}
+                  . Re-read the case and keep going.
+                </>
+              ) : (
+                <>{unseatedCount} passenger{unseatedCount === 1 ? '' : 's'} still to seat.</>
+              )}
             </div>
           ) : (
             <>
-              <div className="font-medium mb-1">Constraints not yet met:</div>
+              <div className="font-medium mb-1">
+                ❌ {result.hardViolations.length} {result.hardViolations.length === 1 ? 'error' : 'errors'}:
+              </div>
               <ul className="list-disc pl-5 space-y-0.5">
                 {result.hardViolations.map((v) => (
                   <li key={v}>{v}</li>
                 ))}
               </ul>
+              {unseatedCount > 0 ? (
+                <div className="mt-2 text-[color:var(--color-text-secondary)]">
+                  Plus {unseatedCount} passenger{unseatedCount === 1 ? '' : 's'} still to seat.
+                </div>
+              ) : null}
             </>
           )}
         </div>

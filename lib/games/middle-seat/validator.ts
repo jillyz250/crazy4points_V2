@@ -59,7 +59,29 @@ export function validate(
   const seatByPid = new Map<string, SeatId>();
   for (const p of placements) seatByPid.set(p.passengerId, p.seat);
 
-  const allSeated = passengers.every((pax) => seatByPid.has(pax.id));
+  // Lap infants don't get their own seat — they ride along with their parent.
+  // They count as "seated" once the parent is seated.
+  const isLapInfant = (pax: Passenger) =>
+    pax.chips.some((c) => c.type === 'infant_lap');
+  // Authoring sanity: every infant_lap chip must point at a real passenger.
+  for (const pax of passengers) {
+    for (const c of pax.chips) {
+      if (c.type === 'infant_lap' && !passengers.some((q) => q.id === c.parent)) {
+        violations.push(
+          `Puzzle bug: ${pax.name}'s lap-infant parent "${c.parent}" doesn't exist.`,
+        );
+      }
+    }
+  }
+  const allSeated = passengers.every((pax) => {
+    if (isLapInfant(pax)) {
+      const lapChip = pax.chips.find((c) => c.type === 'infant_lap');
+      if (lapChip && lapChip.type === 'infant_lap') {
+        return seatByPid.has(lapChip.parent);
+      }
+    }
+    return seatByPid.has(pax.id);
+  });
 
   // Tag pets by tag for allergy checks.
   const petsByTag = new Map<string, string[]>(); // tag -> passenger ids
@@ -74,18 +96,30 @@ export function validate(
   }
 
   for (const pax of passengers) {
+    // Lap infants don't get a seat — skip seat-based checks for them; their
+    // location is implied by their parent's seat (validated below).
+    if (isLapInfant(pax)) continue;
     const seat = seatByPid.get(pax.id);
     if (!seat) continue;
     const { row } = parseSeat(seat);
+    const cabin = cabinForRow(row, layout);
 
-    // FAA-style exit row rule: minors, infants on lap, and service animals
-    // can't sit in exit rows.
+    // First-class is reserved: only passengers with class_required:first
+    // are allowed in first class rows. (Skip if pax has any class_required
+    // chip — the per-chip rule below already validates the right cabin and
+    // we don't want to double-fire.)
+    if (
+      cabin === 'first' &&
+      !pax.chips.some((c) => c.type === 'class_required') &&
+      !pax.chips.some((c) => c.type === 'class_required' && c.cabin === 'first')
+    ) {
+      violations.push(`${pax.name} doesn't have a first-class ticket — can't sit in first class.`);
+    }
+
+    // FAA-style exit row rule: minors and service animals can't sit in exit rows.
     if (layout.exitRows.includes(row)) {
       if (pax.minor) {
         violations.push(`${pax.name} is a minor — can't sit in the exit row.`);
-      }
-      if (pax.chips.some((c) => c.type === 'infant_lap')) {
-        violations.push(`${pax.name} (lap infant) can't sit in the exit row.`);
       }
       if (pax.chips.some((c) => c.type === 'service_animal')) {
         violations.push(`${pax.name}'s service animal can't sit in the exit row.`);
@@ -124,14 +158,30 @@ export function validate(
         if (other && !seatsAdjacentSameRow(seat, other, layout)) {
           violations.push(`${pax.name} must sit next to their partner.`);
         }
+        // Defensive: warn if the partner doesn't reciprocate the chip.
+        // Helps catch puzzle-authoring typos.
+        const partner = passengers.find((q) => q.id === chip.with);
+        if (
+          partner &&
+          !partner.chips.some((c) => c.type === 'couple' && c.with === pax.id)
+        ) {
+          violations.push(`${pax.name}'s couple chip points at ${partner.name}, but it isn't reciprocated.`);
+        }
       }
       if (chip.type === 'no_minor_behind') {
         // No passenger flagged minor in the same column, exactly one row behind.
+        // Lap infants ride at their parent's seat — count them too.
         const myCol = layout.letters.indexOf(parseSeat(seat).letter);
         for (const other of passengers) {
           if (other.id === pax.id) continue;
           if (!other.minor) continue;
-          const otherSeat = seatByPid.get(other.id);
+          let otherSeat: SeatId | undefined;
+          if (isLapInfant(other)) {
+            const lap = other.chips.find((c) => c.type === 'infant_lap');
+            if (lap && lap.type === 'infant_lap') otherSeat = seatByPid.get(lap.parent);
+          } else {
+            otherSeat = seatByPid.get(other.id);
+          }
           if (!otherSeat) continue;
           const op = parseSeat(otherSeat);
           if (op.row === row + 1 && layout.letters.indexOf(op.letter) === myCol) {
@@ -142,15 +192,49 @@ export function validate(
       if (chip.type === 'feuding_with') {
         const other = seatByPid.get(chip.with);
         if (other && seatsAdjacentSameRow(seat, other, layout)) {
-          violations.push(`${pax.name} can't sit next to ${chip.with}.`);
+          const enemy = passengers.find((q) => q.id === chip.with);
+          violations.push(`${pax.name} can't sit next to ${enemy?.name ?? chip.with}.`);
         }
       }
-      if (chip.type === 'infant_lap') {
-        const parentSeat = seatByPid.get(chip.parent);
-        if (parentSeat && !seatsInSameRow(seat, parentSeat)) {
-          violations.push(`${pax.name} must be in the same row as their parent.`);
+      if (chip.type === 'exit_row_pref' && !layout.exitRows.includes(row)) {
+        violations.push(`${pax.name} needs the exit row.`);
+      }
+      if (chip.type === 'keep_distance') {
+        // Find anyone matching `from` who's been seated, and check row distance.
+        // For lap infants: their effective row is their parent's row.
+        for (const other of passengers) {
+          if (other.id === pax.id) continue;
+          // Skip if this pax IS the parent of the lap infant in question —
+          // a parent obviously can't keep distance from their own lap baby.
+          if (isLapInfant(other)) {
+            const lap = other.chips.find((c) => c.type === 'infant_lap');
+            if (lap && lap.type === 'infant_lap' && lap.parent === pax.id) continue;
+          }
+          let matches = false;
+          if (chip.from === 'minor' && (other.minor || isLapInfant(other))) matches = true;
+          if (chip.from === 'pet' && other.chips.some((c) => c.type === 'pet_in_cabin')) matches = true;
+          if (!matches) continue;
+          let otherRow: number | null = null;
+          if (isLapInfant(other)) {
+            const lap = other.chips.find((c) => c.type === 'infant_lap');
+            if (lap && lap.type === 'infant_lap') {
+              const ps = seatByPid.get(lap.parent);
+              if (ps) otherRow = parseSeat(ps).row;
+            }
+          } else {
+            const os = seatByPid.get(other.id);
+            if (os) otherRow = parseSeat(os).row;
+          }
+          if (otherRow !== null && Math.abs(otherRow - row) < chip.minRows) {
+            const what = chip.from === 'minor' ? 'kids' : 'pets';
+            violations.push(
+              `${pax.name} needs at least ${chip.minRows} rows between them and ${what} (${other.name}).`,
+            );
+          }
         }
       }
+      // (infant_lap chip is handled below via parent's seat — the infant
+      //  doesn't have their own seat to check.)
       if (chip.type === 'allergic_to') {
         const petIds = petsByTag.get(chip.tag) ?? [];
         for (const petId of petIds) {
@@ -170,16 +254,36 @@ export function validate(
           if (rows.size > 1) {
             violations.push(`Group "${chip.group}" must sit in the same row.`);
           } else {
+            const aisleIdx = layout.letters.indexOf(layout.aisleAfter);
             const indexes = seats
               .map((s) => layout.letters.indexOf(parseSeat(s).letter))
               .sort((a, b) => a - b);
             const contiguous = indexes.every((v, i) => i === 0 || v === indexes[i - 1] + 1);
-            if (!contiguous) {
-              violations.push(`Group "${chip.group}" must sit in contiguous seats.`);
+            // "Side by side" must mean same side of the aisle — no aisle-spanning groups.
+            const spansAisle = indexes.some((v) => v <= aisleIdx) && indexes.some((v) => v > aisleIdx);
+            if (!contiguous || spansAisle) {
+              violations.push(`Group "${chip.group}" must sit side by side on the same side of the aisle.`);
             }
           }
         }
       }
+    }
+  }
+
+  // Lap infants ride with their parent. If the parent is in an exit row,
+  // FAA forbids it (so it's the parent that's violating, not the infant).
+  for (const pax of passengers) {
+    if (!isLapInfant(pax)) continue;
+    const lapChip = pax.chips.find((c) => c.type === 'infant_lap');
+    if (!lapChip || lapChip.type !== 'infant_lap') continue;
+    const parentSeat = seatByPid.get(lapChip.parent);
+    if (!parentSeat) continue;
+    const parentRow = parseSeat(parentSeat).row;
+    if (layout.exitRows.includes(parentRow)) {
+      const parent = passengers.find((q) => q.id === lapChip.parent);
+      violations.push(
+        `${parent?.name ?? 'Parent'} can't sit in the exit row with a lap infant (${pax.name}).`,
+      );
     }
   }
 

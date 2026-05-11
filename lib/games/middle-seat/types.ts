@@ -17,7 +17,8 @@ export type ChipType =
   | 'allergic_to'
   | 'pet_in_cabin'
   | 'feuding_with'
-  | 'no_minor_behind';
+  | 'no_minor_behind'
+  | 'keep_distance';
 
 export type Chip =
   | { type: 'adjacency'; group: string }
@@ -34,7 +35,10 @@ export type Chip =
   | { type: 'allergic_to'; tag: string } // can't share row with anyone whose pet_in_cabin tag matches
   | { type: 'pet_in_cabin'; tag: string }
   | { type: 'feuding_with'; with: string }
-  | { type: 'no_minor_behind' };
+  | { type: 'no_minor_behind' }
+  // Must sit at least `minRows` rows away from any passenger matching `from`
+  // ('minor' = pax.minor or lap_infant; 'pet' = anyone with pet_in_cabin).
+  | { type: 'keep_distance'; from: 'minor' | 'pet'; minRows: number };
 
 export type Passenger = {
   id: string;

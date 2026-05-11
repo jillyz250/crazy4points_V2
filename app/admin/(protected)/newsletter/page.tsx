@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { createAdminClient } from '@/utils/supabase/server'
 import NewsletterEditor from './NewsletterEditor'
 import InputsPreview from './InputsPreview'
-import type { NewsletterDraft } from '@/utils/ai/buildNewsletter'
+import type { NewsletterSlots, AlsoHappeningItem } from '@/utils/ai/newsletterSlots'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Card } from '@/components/admin/ui/Card'
 import { Badge } from '@/components/admin/ui/Badge'
@@ -15,14 +15,49 @@ type NewsletterRow = {
   week_of: string
   subject: string | null
   subject_options: string[] | null
-  draft_json: NewsletterDraft | null
-  comic_url: string | null
   status: 'draft' | 'sent' | 'failed'
   sent_at: string | null
   recipient_count: number | null
   created_at: string
-  fact_checked_at: string | null
-  fact_check_claims: { claim: string; supported: boolean | 'unsupported'; severity: string; source_excerpt?: string | null }[] | null
+  // V2 slot columns (migration 222)
+  hero_kicker: string | null
+  jill_prompt: string | null
+  big_story_ref_type: 'alert' | 'intel' | null
+  big_story_ref_id: string | null
+  big_story_html: string | null
+  sweet_spot: NewsletterSlots['sweet_spot'] | null
+  also_happening: AlsoHappeningItem[] | null
+  jills_take_html: string | null
+  game_slug: string | null
+  game_title: string | null
+  game_clue_text: string | null
+}
+
+function rowToSlots(r: NewsletterRow): NewsletterSlots {
+  return {
+    hero_kicker: r.hero_kicker,
+    game: { slug: r.game_slug, title: r.game_title, clue_text: r.game_clue_text },
+    big_story_ref_type: r.big_story_ref_type,
+    big_story_ref_id: r.big_story_ref_id,
+    big_story_html: r.big_story_html,
+    sweet_spot: r.sweet_spot ?? null,
+    also_happening: Array.isArray(r.also_happening) ? r.also_happening : [],
+    jills_take_html: r.jills_take_html,
+    jill_prompt: r.jill_prompt,
+    subject: r.subject ?? r.subject_options?.[0] ?? '',
+    subject_options: r.subject_options ?? [],
+  }
+}
+
+function isPopulated(r: NewsletterRow): boolean {
+  return !!(
+    r.big_story_html ||
+    r.sweet_spot ||
+    (r.also_happening && r.also_happening.length > 0) ||
+    r.jills_take_html ||
+    r.subject ||
+    (r.subject_options && r.subject_options.length > 0)
+  )
 }
 
 export default async function NewsletterAdminPage({
@@ -35,7 +70,9 @@ export default async function NewsletterAdminPage({
 
   const { data: rowsData } = await supabase
     .from('newsletters')
-    .select('id, week_of, subject, subject_options, draft_json, comic_url, status, sent_at, recipient_count, created_at, fact_checked_at, fact_check_claims')
+    .select(
+      'id, week_of, subject, subject_options, status, sent_at, recipient_count, created_at, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_html, sweet_spot, also_happening, jills_take_html, game_slug, game_title, game_clue_text',
+    )
     .order('week_of', { ascending: false })
     .limit(12)
 
@@ -54,24 +91,18 @@ export default async function NewsletterAdminPage({
 
   return (
     <div>
-      {current && current.draft_json ? (
+      {current && isPopulated(current) ? (
         <>
           <NewsletterEditor
             id={current.id}
             weekOf={current.week_of}
             status={current.status}
-            subject={current.subject ?? current.subject_options?.[0] ?? ''}
-            subjectOptions={current.subject_options ?? []}
-            draft={current.draft_json}
+            slots={rowToSlots(current)}
             sentAt={current.sent_at}
             recipientCount={current.recipient_count}
             activeSubscriberCount={activeCount}
-            factCheckedAt={current.fact_checked_at}
-            factCheckClaims={current.fact_check_claims}
           />
-          {/* Don't show the inputs preview for already-sent newsletters; it
-              describes what the NEXT regenerate would see, which is irrelevant
-              once a week has shipped. */}
+          {/* Don't show the inputs preview for already-sent newsletters. */}
           {current.status !== 'sent' && <InputsPreview />}
           <History rows={rows} activeId={current.id} />
         </>
@@ -134,8 +165,8 @@ function EmptyShell({ hasAny, rows }: { hasAny: boolean; rows: NewsletterRow[] }
     <div>
       <PageHeader title="Newsletter" description="Weekly newsletter draft & send." />
       <UIEmptyState
-        title={hasAny ? 'Selected newsletter has no draft content' : 'No newsletters yet'}
-        description={`Trigger one manually: curl -H "x-intel-secret: $INTEL_API_SECRET" http://localhost:3000/api/build-newsletter?force=1`}
+        title={hasAny ? 'Selected newsletter has no slot content yet' : 'No newsletters yet'}
+        description={'Click "Run Now" once we have a draft row, or trigger via curl: curl -H "x-intel-secret: $INTEL_API_SECRET" http://localhost:3000/api/build-newsletter?force=1'}
       />
       {hasAny && <History rows={rows} activeId="" />}
     </div>
