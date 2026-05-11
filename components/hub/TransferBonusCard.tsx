@@ -328,22 +328,47 @@ export default function TransferBonusCard({ bonus }: { bonus: ActiveTransferBonu
                   color: 'var(--color-primary)',
                   whiteSpace: 'nowrap',
                   lineHeight: 1,
+                  display: 'inline-flex',
+                  alignItems: 'baseline',
+                  gap: '0.3125rem',
                 }}
               >
-                {formatMiles(top.cost_miles_low, top.cost_miles_high)}
-                <span
-                  style={{
-                    fontFamily: 'var(--font-ui)',
-                    fontSize: '0.6875rem',
-                    fontWeight: 600,
-                    letterSpacing: '0.06em',
-                    textTransform: 'uppercase',
-                    color: 'var(--color-text-secondary)',
-                    marginLeft: '0.3125rem',
-                  }}
-                >
-                  miles
-                </span>
+                {(() => {
+                  const low = top.cost_miles_low
+                  const high = top.cost_miles_high
+                  const isRange = low != null && high != null && high > low
+                  return (
+                    <>
+                      {isRange && (
+                        <span
+                          style={{
+                            fontFamily: 'var(--font-ui)',
+                            fontSize: '0.6875rem',
+                            fontWeight: 700,
+                            letterSpacing: '0.08em',
+                            textTransform: 'uppercase',
+                            color: 'var(--color-text-secondary)',
+                          }}
+                        >
+                          From
+                        </span>
+                      )}
+                      <span>{fmtKilo(low ?? high ?? 0)}</span>
+                      <span
+                        style={{
+                          fontFamily: 'var(--font-ui)',
+                          fontSize: '0.6875rem',
+                          fontWeight: 600,
+                          letterSpacing: '0.06em',
+                          textTransform: 'uppercase',
+                          color: 'var(--color-text-secondary)',
+                        }}
+                      >
+                        miles
+                      </span>
+                    </>
+                  )
+                })()}
               </div>
             </div>
 
@@ -420,11 +445,14 @@ export default function TransferBonusCard({ bonus }: { bonus: ActiveTransferBonu
 }
 
 function formatMiles(low: number | null, high: number | null): string {
-  const fmt = (n: number) =>
-    n >= 1000 ? `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}k` : String(n)
   if (low == null && high == null) return '—'
-  if (low != null && high != null && high > low) return `${fmt(low)}–${fmt(high)}`
-  return fmt((low ?? high) as number)
+  if (low != null && high != null && high > low)
+    return `${fmtKilo(low)}–${fmtKilo(high)}`
+  return fmtKilo((low ?? high) as number)
+}
+
+function fmtKilo(n: number): string {
+  return n >= 1000 ? `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}k` : String(n)
 }
 
 function extractBonusPct(title: string): number | null {
