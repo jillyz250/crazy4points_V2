@@ -6,14 +6,17 @@ import { useState } from "react";
 import { BLOG_CATEGORIES } from "@/lib/blog/categories";
 import type { ResourceNavCounts } from "@/utils/supabase/queries";
 
-const toolsItems: { label: string; comingSoon: boolean; href: string | null; featured?: boolean }[] = [
-  { label: "The Points Hub", comingSoon: false, href: "/hub", featured: true },
+const hubItems: { label: string; comingSoon: boolean; href: string | null; featured?: boolean }[] = [
+  { label: "The Points Hub — overview", comingSoon: false, href: "/hub", featured: true },
   { label: "Should I Transfer?", comingSoon: false, href: "/hub/should-i-transfer" },
   { label: "Best Way to Book It", comingSoon: false, href: "/hub/best-way-to-book" },
   { label: "Will My FNC Fit?", comingSoon: false, href: "/hub/fnc-fit" },
   { label: "Earn Path", comingSoon: false, href: "/hub/earn-path" },
   { label: "Don't Sleep On These", comingSoon: false, href: "/hub/dont-sleep" },
   { label: "Where Can My Points Take Me?", comingSoon: false, href: "/hub/where-can-i-go" },
+];
+
+const toolsItems: { label: string; comingSoon: boolean; href: string | null; featured?: boolean }[] = [
   { label: "Alliance Explorer", comingSoon: false, href: "/tools/alliances" },
   { label: "Decision Engine", comingSoon: false, href: "/decision-engine" },
 ];
@@ -46,6 +49,7 @@ export default function Header({
   const [logoError, setLogoError] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
+  const [hubOpen, setHubOpen] = useState(false);
   // Mobile-only — desktop dropdown uses CSS hover via group-hover.
   const [blogOpen, setBlogOpen] = useState(false);
   const [resourcesOpen, setResourcesOpen] = useState(false);
@@ -82,6 +86,52 @@ export default function Header({
               Alerts
               <span className="absolute -bottom-1 left-0 h-0.5 w-full origin-left scale-x-0 bg-[var(--color-accent)] transition-transform duration-200 group-hover:scale-x-100" />
             </Link>
+
+            {/* Hub dropdown — Points Hub landing + 6 sub-tools */}
+            <div className="group relative">
+              <button
+                type="button"
+                className="flex items-center gap-1 font-ui !text-xs font-medium uppercase tracking-[0.14em] text-[var(--color-text-secondary)] hover:text-[var(--color-primary)]"
+              >
+                Hub
+                <svg className="h-3 w-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              <div className="invisible absolute left-0 top-full z-50 w-72 pt-2 group-hover:visible">
+                <div className="rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] py-1 shadow-[var(--shadow-soft)]">
+                  {hubItems.map((item, idx) => {
+                    const prevFeatured = idx > 0 && hubItems[idx - 1].featured
+                    const showDivider = idx === 1 && prevFeatured
+                    return (
+                      <div key={item.label}>
+                        {showDivider && (
+                          <div className="my-1 mx-3 border-t border-[var(--color-border-soft)]" />
+                        )}
+                        {item.featured ? (
+                          <Link
+                            href={item.href!}
+                            className="flex items-center justify-between px-4 py-2.5 font-ui text-xs font-bold text-[var(--color-primary)] hover:bg-[var(--color-background-soft)]"
+                          >
+                            {item.label}
+                            <span className="ml-3 shrink-0 rounded-full bg-[var(--color-accent)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#1A1A1A]">
+                              New
+                            </span>
+                          </Link>
+                        ) : (
+                          <Link
+                            href={item.href!}
+                            className="flex items-center px-4 py-2.5 font-ui text-xs font-medium text-[var(--color-text-primary)] hover:text-[var(--color-primary)]"
+                          >
+                            {item.label}
+                          </Link>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
 
             {/* Tools dropdown */}
             <div className="group relative">
@@ -260,6 +310,43 @@ export default function Header({
           >
             Alerts
           </Link>
+
+          {/* Mobile Hub — expandable list */}
+          <button
+            type="button"
+            className="flex min-h-[44px] w-full items-center justify-between border-b border-[var(--color-border-soft)] px-6 font-ui text-sm font-medium uppercase tracking-[0.14em] text-[var(--color-text-secondary)]"
+            onClick={() => setHubOpen((o) => !o)}
+          >
+            Hub
+            <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d={hubOpen ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"} />
+            </svg>
+          </button>
+          {hubOpen &&
+            hubItems.map((item) =>
+              item.featured ? (
+                <Link
+                  key={item.label}
+                  href={item.href!}
+                  onClick={() => setMenuOpen(false)}
+                  className="flex min-h-[44px] items-center justify-between border-b border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-8 font-ui text-sm font-bold text-[var(--color-primary)]"
+                >
+                  {item.label}
+                  <span className="ml-3 shrink-0 rounded-full bg-[var(--color-accent)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#1A1A1A]">
+                    New
+                  </span>
+                </Link>
+              ) : (
+                <Link
+                  key={item.label}
+                  href={item.href!}
+                  onClick={() => setMenuOpen(false)}
+                  className="flex min-h-[44px] items-center border-b border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-8 font-ui text-sm font-medium text-[var(--color-text-primary)] hover:text-[var(--color-primary)]"
+                >
+                  {item.label}
+                </Link>
+              )
+            )}
 
           <button
             type="button"
