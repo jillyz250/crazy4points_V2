@@ -66,6 +66,23 @@ export default function TransferBonusCard({ bonus }: { bonus: ActiveTransferBonu
         <VerdictChip verdict={verdict} />
       </div>
 
+      {/* Anti-speculation per-card reminder — short, red, unmissable */}
+      <div
+        style={{
+          padding: '0.5rem 0.75rem',
+          background: '#FEF2F2',
+          border: '1px solid #FCA5A5',
+          borderRadius: 'var(--radius-ui)',
+          fontFamily: 'var(--font-body)',
+          fontSize: '0.8125rem',
+          color: '#7F1D1D',
+          lineHeight: 1.45,
+        }}
+      >
+        <strong>Only if you have a redemption in mind.</strong> Confirm award
+        space before you transfer — transfers are one-way.
+      </div>
+
       <div
         style={{
           display: 'flex',

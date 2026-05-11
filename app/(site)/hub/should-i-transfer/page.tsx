@@ -61,7 +61,7 @@ export default async function Page() {
             fontFamily: 'var(--font-body)',
             fontSize: '1.0625rem',
             color: 'var(--color-text-secondary)',
-            margin: '0 0 2rem',
+            margin: '0 0 1.25rem',
             lineHeight: 1.55,
             maxWidth: '40rem',
           }}
@@ -70,6 +70,52 @@ export default async function Page() {
           drops. We&apos;ll tell you when it&apos;s actually worth it — and
           what breaks the deal when it isn&apos;t.
         </p>
+
+        {/* Hard red warning — anti-speculation rule, above everything */}
+        <div
+          role="alert"
+          style={{
+            margin: '0 0 1.75rem',
+            padding: '1rem 1.125rem',
+            background: '#FEF2F2',
+            border: '2px solid #DC2626',
+            borderRadius: 'var(--radius-card)',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              fontFamily: 'var(--font-ui)',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: '#7F1D1D',
+              marginBottom: '0.5rem',
+            }}
+          >
+            <span aria-hidden style={{ fontSize: '1rem' }}>⚠️</span>
+            Never transfer speculatively
+          </div>
+          <p
+            style={{
+              fontFamily: 'var(--font-body)',
+              fontSize: '0.9375rem',
+              color: '#7F1D1D',
+              margin: 0,
+              lineHeight: 1.55,
+            }}
+          >
+            We do not recommend transferring points unless you have a{' '}
+            <strong>specific redemption in mind</strong> and have confirmed the
+            award space first. Award charts, partner rosters, and dynamic
+            pricing can shift before you get to book — and once points leave a
+            flexible currency, they&apos;re stuck. Search availability,{' '}
+            <em>then</em> transfer.
+          </p>
+        </div>
 
         {bonuses.length === 0 ? (
           <div
@@ -107,39 +153,6 @@ export default async function Page() {
           <ShouldITransferClient bonuses={bonuses} />
         )}
 
-        <div
-          style={{
-            marginTop: '3rem',
-            padding: '1.25rem',
-            background: 'var(--color-background-soft)',
-            border: '1px solid var(--color-border-soft)',
-            borderRadius: 'var(--radius-card)',
-          }}
-        >
-          <h2
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: '1.0625rem',
-              color: 'var(--color-primary)',
-              margin: '0 0 0.5rem',
-            }}
-          >
-            One rule of transfers: never speculate
-          </h2>
-          <p
-            style={{
-              fontFamily: 'var(--font-body)',
-              fontSize: '0.9375rem',
-              color: 'var(--color-text-secondary)',
-              margin: 0,
-              lineHeight: 1.55,
-            }}
-          >
-            Transferable points are flexible. Once they move into an airline
-            program, they&apos;re stuck there. Confirm your award space first.
-            Then transfer.
-          </p>
-        </div>
       </div>
     </main>
   )
