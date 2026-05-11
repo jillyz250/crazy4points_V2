@@ -1973,6 +1973,13 @@ export interface PartnerRedemption {
   cash_fee_low: number | null
   cash_fee_high: number | null
   fees_note: string | null
+  // Hub-tool additions (migration 083).
+  complexity_score: 'easy' | 'annoying' | 'nerd_stuff' | null
+  what_breaks_this: string | null
+  devalued_at: string | null
+  devaluation_note: string | null
+  availability_reality: 'excellent' | 'good' | 'mixed' | 'rare' | 'unicorn' | null
+  route_buckets: string[] | null
 }
 
 export type PartnerRedemptionInsert = Omit<

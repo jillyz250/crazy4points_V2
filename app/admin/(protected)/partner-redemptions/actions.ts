@@ -84,6 +84,14 @@ export async function createPartnerRedemptionAction(
       cash_fee_low: null,
       cash_fee_high: null,
       fees_note: null,
+      // Hub-tool columns (migration 083) — populated by editorial workflow,
+      // not the admin quick-add form.
+      complexity_score: null,
+      what_breaks_this: null,
+      devalued_at: null,
+      devaluation_note: null,
+      availability_reality: null,
+      route_buckets: null,
     })
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Failed to create redemption.' }
