@@ -6,12 +6,16 @@ import { useState } from "react";
 import { BLOG_CATEGORIES } from "@/lib/blog/categories";
 import type { ResourceNavCounts } from "@/utils/supabase/queries";
 
-const toolsItems = [
+const toolsItems: { label: string; comingSoon: boolean; href: string | null; featured?: boolean }[] = [
+  { label: "The Points Hub", comingSoon: false, href: "/hub", featured: true },
+  { label: "Should I Transfer?", comingSoon: false, href: "/hub/should-i-transfer" },
+  { label: "Best Way to Book It", comingSoon: false, href: "/hub/best-way-to-book" },
+  { label: "Will My FNC Fit?", comingSoon: false, href: "/hub/fnc-fit" },
+  { label: "Earn Path", comingSoon: false, href: "/hub/earn-path" },
+  { label: "Don't Sleep On These", comingSoon: false, href: "/hub/dont-sleep" },
+  { label: "Where Can My Points Take Me?", comingSoon: false, href: "/hub/where-can-i-go" },
   { label: "Alliance Explorer", comingSoon: false, href: "/tools/alliances" },
-  { label: "Card Benefits Search", comingSoon: true, href: null },
   { label: "Decision Engine", comingSoon: false, href: "/decision-engine" },
-  { label: "Transfer Bonus Tracker", comingSoon: true, href: null },
-  { label: "Transfer Partner Map", comingSoon: true, href: null },
 ];
 
 const RESOURCE_ITEMS: { label: string; key: keyof ResourceNavCounts; href: string }[] = [
@@ -90,29 +94,46 @@ export default function Header({
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
-              <div className="invisible absolute left-0 top-full z-50 w-60 pt-2 group-hover:visible">
+              <div className="invisible absolute left-0 top-full z-50 w-64 pt-2 group-hover:visible">
                 <div className="rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] py-1 shadow-[var(--shadow-soft)]">
-                  {toolsItems.map((item) =>
-                    item.comingSoon ? (
-                      <span
-                        key={item.label}
-                        className="flex items-center justify-between px-4 py-2.5 font-ui text-xs text-[var(--color-text-secondary)] opacity-50"
-                      >
-                        {item.label}
-                        <span className="ml-3 shrink-0 rounded bg-[var(--color-background-soft)] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-secondary)]">
-                          Coming Soon
-                        </span>
-                      </span>
-                    ) : (
-                      <Link
-                        key={item.label}
-                        href={item.href!}
-                        className="flex items-center px-4 py-2.5 font-ui text-xs font-medium text-[var(--color-text-primary)] hover:text-[var(--color-primary)]"
-                      >
-                        {item.label}
-                      </Link>
+                  {toolsItems.map((item, idx) => {
+                    const prevFeatured = idx > 0 && toolsItems[idx - 1].featured
+                    const showDivider =
+                      (idx === 1 && prevFeatured) ||
+                      (item.label === "Alliance Explorer" && idx > 1)
+                    return (
+                      <div key={item.label}>
+                        {showDivider && (
+                          <div className="my-1 mx-3 border-t border-[var(--color-border-soft)]" />
+                        )}
+                        {item.comingSoon ? (
+                          <span className="flex items-center justify-between px-4 py-2.5 font-ui text-xs text-[var(--color-text-secondary)] opacity-50">
+                            {item.label}
+                            <span className="ml-3 shrink-0 rounded bg-[var(--color-background-soft)] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-secondary)]">
+                              Coming Soon
+                            </span>
+                          </span>
+                        ) : item.featured ? (
+                          <Link
+                            href={item.href!}
+                            className="flex items-center justify-between px-4 py-2.5 font-ui text-xs font-bold text-[var(--color-primary)] hover:bg-[var(--color-background-soft)]"
+                          >
+                            {item.label}
+                            <span className="ml-3 shrink-0 rounded-full bg-[var(--color-accent)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#1A1A1A]">
+                              New
+                            </span>
+                          </Link>
+                        ) : (
+                          <Link
+                            href={item.href!}
+                            className="flex items-center px-4 py-2.5 font-ui text-xs font-medium text-[var(--color-text-primary)] hover:text-[var(--color-primary)]"
+                          >
+                            {item.label}
+                          </Link>
+                        )}
+                      </div>
                     )
-                  )}
+                  })}
                 </div>
               </div>
             </div>
@@ -262,6 +283,18 @@ export default function Header({
                     Coming Soon
                   </span>
                 </span>
+              ) : item.featured ? (
+                <Link
+                  key={item.label}
+                  href={item.href!}
+                  onClick={() => setMenuOpen(false)}
+                  className="flex min-h-[44px] items-center justify-between border-b border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-8 font-ui text-sm font-bold text-[var(--color-primary)]"
+                >
+                  {item.label}
+                  <span className="ml-3 shrink-0 rounded-full bg-[var(--color-accent)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#1A1A1A]">
+                    New
+                  </span>
+                </Link>
               ) : (
                 <Link
                   key={item.label}

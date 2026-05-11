@@ -5,6 +5,7 @@ const footerNav = [
   {
     heading: "Explore",
     links: [
+      { label: "The Points Hub", href: "/hub" },
       { label: "Alerts", href: "/alerts" },
       { label: "Blog", href: "/blog" },
       { label: "Alliance Explorer", href: "/tools/alliances" },
