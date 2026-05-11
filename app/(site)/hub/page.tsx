@@ -65,7 +65,7 @@ const TOOLS = [
       'Got 100k MR doing nothing? Real redemptions you can actually book, not fantasy math.',
     icon: '🗺️',
     href: '/hub/where-can-i-go',
-    status: 'coming-soon' as const,
+    status: 'live' as const,
   },
   {
     title: 'Alliance Explorer',
