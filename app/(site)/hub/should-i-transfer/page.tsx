@@ -21,6 +21,12 @@ export default async function Page() {
   let bonuses: ActiveTransferBonus[] = []
   try {
     bonuses = await getActiveTransferBonuses(supabase)
+    // Temporarily hide Marriott Bonvoy destinations — hotel side of the Hub
+    // (Will My FNC Fit?, etc.) isn't fully indexed for Marriott yet, so we
+    // can't responsibly route the user from a transfer bonus to a redemption.
+    bonuses = bonuses.filter(
+      (b) => b.destinationProgram?.slug !== 'marriott-bonvoy',
+    )
   } catch (err) {
     console.error('[hub/should-i-transfer] getActiveTransferBonuses failed:', err)
     bonuses = []
@@ -66,9 +72,8 @@ export default async function Page() {
             maxWidth: '40rem',
           }}
         >
-          Every other site screams &ldquo;TRANSFER NOW!&rdquo; the second a bonus
-          drops. We&apos;ll tell you when it&apos;s actually worth it — and
-          what breaks the deal when it isn&apos;t.
+          A transfer bonus looks great until you do the math. Here are the
+          live ones — with the math, the verdict, and what breaks the deal.
         </p>
 
         {bonuses.length === 0 ? (
