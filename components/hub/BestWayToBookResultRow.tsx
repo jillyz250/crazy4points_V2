@@ -44,19 +44,23 @@ const FEE_TONE_STYLE = {
   neutral: { bg: 'var(--color-background-soft)', fg: 'var(--color-text-secondary)' },
 } as const
 
-const COMPLEXITY_STYLE = {
-  easy: { label: 'Easy', bg: '#D1FAE5', fg: '#065F46' },
+// Chips fire only when there's information worth flagging — the default
+// "easy / lots of space / online bookable" case is communicated by the
+// ABSENCE of chips. "Easy" + "Easy to book" + "Usually open" used to fire
+// on most rows, which made them noise.
+const COMPLEXITY_STYLE: Record<string, { label: string; bg: string; fg: string } | null> = {
+  easy: null,
   annoying: { label: 'Has hoops', bg: '#FEF3C7', fg: '#78350F' },
-  nerd_stuff: { label: 'Advanced', bg: '#E0E7FF', fg: '#3730A3' },
-} as const
+  nerd_stuff: { label: 'Routing knowledge', bg: '#E0E7FF', fg: '#3730A3' },
+}
 
-const REALITY_STYLE = {
-  excellent: { label: 'Easy to book', bg: '#D1FAE5', fg: '#065F46' },
-  good: { label: 'Usually open', bg: '#D1FAE5', fg: '#065F46' },
+const REALITY_STYLE: Record<string, { label: string; bg: string; fg: string } | null> = {
+  excellent: null,
+  good: null,
   mixed: { label: 'Worth a search', bg: '#FEF3C7', fg: '#78350F' },
   rare: { label: 'Set an alert', bg: '#FED7AA', fg: '#7C2D12' },
   unicorn: { label: "Don't count on it", bg: '#FECACA', fg: '#7F1D1D' },
-} as const
+}
 
 const SURCHARGE_STYLE = {
   none: { label: 'No fuel surcharges', bg: '#D1FAE5', fg: '#065F46' },
@@ -262,20 +266,20 @@ export default function BestWayToBookResultRow({
               {SURCHARGE_STYLE[r.fuel_surcharges].label}
             </Chip>
           )}
-          {r.complexity_score && (
+          {r.complexity_score && COMPLEXITY_STYLE[r.complexity_score] && (
             <Chip
-              bg={COMPLEXITY_STYLE[r.complexity_score].bg}
-              fg={COMPLEXITY_STYLE[r.complexity_score].fg}
+              bg={COMPLEXITY_STYLE[r.complexity_score]!.bg}
+              fg={COMPLEXITY_STYLE[r.complexity_score]!.fg}
             >
-              {COMPLEXITY_STYLE[r.complexity_score].label}
+              {COMPLEXITY_STYLE[r.complexity_score]!.label}
             </Chip>
           )}
-          {r.availability_reality && (
+          {r.availability_reality && REALITY_STYLE[r.availability_reality] && (
             <Chip
-              bg={REALITY_STYLE[r.availability_reality].bg}
-              fg={REALITY_STYLE[r.availability_reality].fg}
+              bg={REALITY_STYLE[r.availability_reality]!.bg}
+              fg={REALITY_STYLE[r.availability_reality]!.fg}
             >
-              {REALITY_STYLE[r.availability_reality].label}
+              {REALITY_STYLE[r.availability_reality]!.label}
             </Chip>
           )}
           {r.bookable_online === false && (
