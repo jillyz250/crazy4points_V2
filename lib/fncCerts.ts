@@ -1,0 +1,144 @@
+/**
+ * Free Night Certificate definitions for the Will My FNC Fit? tool.
+ *
+ * Two matching models:
+ *   - Points-based (Marriott, IHG): cert covers any property whose
+ *     standard_points is at or below the cap. Topup allowed up to the
+ *     program's topup limit.
+ *   - Category-based (Hyatt): cert covers any property at or below a
+ *     given category, regardless of off-peak/standard/peak rate.
+ */
+
+export type CertMatchModel = 'points' | 'category'
+
+export interface CertDef {
+  id: string
+  label: string
+  programSlug: string // program slug to look up in `programs` table
+  matchModel: CertMatchModel
+  /** Points cap (for points-based certs). */
+  maxPoints?: number
+  /** Max topup points allowed (points-based only). 0 = no topup. */
+  topupMax?: number
+  /** Maximum category covered (category-based certs only). */
+  maxCategory?: number
+  /** Display fees note. */
+  feesNote?: string
+}
+
+export const FNC_CERTS: CertDef[] = [
+  {
+    id: 'marriott-35k',
+    label: '35k Marriott Free Night Cert',
+    programSlug: 'marriott-bonvoy',
+    matchModel: 'points',
+    maxPoints: 35000,
+    topupMax: 15000,
+    feesNote: 'Marriott allows up to 15k points top-up since 2024.',
+  },
+  {
+    id: 'marriott-50k',
+    label: '50k Marriott Free Night Cert',
+    programSlug: 'marriott-bonvoy',
+    matchModel: 'points',
+    maxPoints: 50000,
+    topupMax: 15000,
+  },
+  {
+    id: 'marriott-85k',
+    label: '85k Marriott Free Night Cert',
+    programSlug: 'marriott-bonvoy',
+    matchModel: 'points',
+    maxPoints: 85000,
+    topupMax: 15000,
+  },
+  {
+    id: 'hyatt-1-4',
+    label: 'Hyatt Category 1-4 Free Night',
+    programSlug: 'hyatt',
+    matchModel: 'category',
+    maxCategory: 4,
+    feesNote: 'Covers any Cat 1-4 property regardless of peak / standard / off-peak.',
+  },
+  {
+    id: 'hyatt-1-7',
+    label: 'Hyatt Category 1-7 Free Night',
+    programSlug: 'hyatt',
+    matchModel: 'category',
+    maxCategory: 7,
+    feesNote: 'Covers any Cat 1-7 property regardless of peak / standard / off-peak.',
+  },
+  {
+    id: 'ihg-anniv',
+    label: 'IHG Anniversary Free Night',
+    programSlug: 'ihg',
+    matchModel: 'points',
+    maxPoints: 40000,
+    topupMax: 999_000,
+    feesNote: 'IHG anniversary cert allows unlimited points + cash top-up.',
+  },
+]
+
+export function findCert(id: string): CertDef | null {
+  return FNC_CERTS.find((c) => c.id === id) ?? null
+}
+
+export type FitVerdict = 'fits' | 'fits_with_topup' | 'doesnt_fit'
+
+export interface FitResult {
+  verdict: FitVerdict
+  topupPoints?: number // when fits_with_topup
+  valueRating: 'great' | 'good' | 'wasting' | 'unknown'
+}
+
+/**
+ * Compute whether a property fits the cert and provide a value rating.
+ * Pure function — UI just renders the result.
+ */
+export function computeFit(
+  cert: CertDef,
+  property: {
+    category: string | null
+    standard_points: number | null
+    off_peak_points: number | null
+    peak_points: number | null
+  },
+): FitResult {
+  if (cert.matchModel === 'category') {
+    const cat = parseInt(property.category ?? '', 10)
+    if (isNaN(cat))
+      return { verdict: 'doesnt_fit', valueRating: 'unknown' }
+    if (cat <= (cert.maxCategory ?? 0)) {
+      // Value rating: closer to cert cap = better use
+      const ratio = cat / (cert.maxCategory ?? 1)
+      const valueRating =
+        ratio > 0.85 ? 'great' : ratio > 0.5 ? 'good' : 'wasting'
+      return { verdict: 'fits', valueRating }
+    }
+    return { verdict: 'doesnt_fit', valueRating: 'unknown' }
+  }
+
+  // Points model
+  const standard = property.standard_points
+  if (standard == null) {
+    return { verdict: 'doesnt_fit', valueRating: 'unknown' }
+  }
+  const cap = cert.maxPoints ?? 0
+  if (standard <= cap) {
+    const ratio = standard / cap
+    const valueRating =
+      ratio > 0.85 ? 'great' : ratio > 0.5 ? 'good' : 'wasting'
+    return { verdict: 'fits', valueRating }
+  }
+  // Doesn't fit at standard; check topup
+  const topupMax = cert.topupMax ?? 0
+  const shortfall = standard - cap
+  if (topupMax >= shortfall) {
+    return {
+      verdict: 'fits_with_topup',
+      topupPoints: shortfall,
+      valueRating: shortfall < 5000 ? 'great' : 'good',
+    }
+  }
+  return { verdict: 'doesnt_fit', valueRating: 'unknown' }
+}

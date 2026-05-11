@@ -1,17 +1,24 @@
 # Active Build
 
-**Current Phase:** Phase N+1 — Weekly Newsletter MVP
-**Started:** 2026-04-21
-**Scope doc:** [plans/newsletter-mvp.md](plans/newsletter-mvp.md)
+**Current Phase:** Phase N+2 — The Points Hub (decision-support tools)
+**Started:** 2026-05-04
+**Scope doc:** [plans/points-hub-tools.md](plans/points-hub-tools.md)
 
 ## Next code task
 
-Migration for `newsletters` table + stub `/api/build-newsletter` route that inserts a draft row for the current week. No Sonnet, no email. Proves the write path.
+Phase 1 — Build the Hub landing page at `/hub` with 7 block cards + the tagline. Plus ship the first tool: `/hub/should-i-transfer`. The other 5 tools render as "Coming soon" cards with email capture.
 
 ## Recently shipped
 
-- Phase 7 spec — social ads intel (PR #45, 2026-04-21)
-- Newsletter MVP scope doc (PR #46, 2026-04-21)
-- Local brief runner + maxDuration bump (PR #44)
-- Source pipeline cleanup + migration 009 (26 officials / 17 blogs / 12 community)
-- Intel Phase 3 — Enhanced Daily Brief (2026-04-19)
+- Phase N+1 — Weekly Newsletter MVP (slot-based redesign, PR #381)
+- Ways To Book — AA Tier 1 partner_redemptions (PR #314, 2026-05-03)
+- Visual redesign + route picker + fees layer (PR #314, 2026-05-03)
+- Post-Dec-2025 Avios chart + brand-voice pass (commit `79243f9`)
+- Fuel-surcharges chip label clarity fix (commit `cd3802f`)
+- Phase 7 spec — social ads intel (PR #45)
+- Source pipeline cleanup + migration 009
+- Intel Phase 3 — Enhanced Daily Brief
+
+## What "newsletter done" means
+
+The slot-based newsletter shipped April-May 2026 per `plans/handoff-2026-05-07-newsletter.md`. Future tweaks land as small PRs, not as a primary phase. The Hub is now the focus.

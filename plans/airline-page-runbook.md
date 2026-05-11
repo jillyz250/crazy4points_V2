@@ -373,6 +373,53 @@ Per project convention: no em-dashes, smart quotes, ellipsis, or other non-ASCII
 
 If this airline is also a Tier 1 booking program (e.g., authoring AA also means AAdvantage as a booker), add its rows pricing OTHER operators in the forward direction.
 
+### Sub-step 6.5g - Hub columns (every row, populate during authoring)
+
+Three columns power The Points Hub tools. Author them as you write the row, not later.
+
+**`complexity_score`** (required) - friction signal. One of:
+- `easy` - online booking, no surcharges, single program (most rows)
+- `annoying` - phone-only, per-segment trap, surcharge risk, round-trip required
+- `nerd_stuff` - multi-carrier itineraries, stopover gymnastics, married segments
+
+**`route_buckets`** (required) - text[] array. Use the enum:
+`us-short`, `us-medium`, `us-long`, `us-eu-east`, `us-eu-west`, `us-japan`, `us-se-asia`, `us-me-india`, `us-pacific`, `us-africa`, `us-samerica`.
+
+Tag every bucket the row applies to. If a chart cell spans buckets (e.g., AAdvantage's "Within North America" prices all US-to-US the same), include all applicable buckets in the array.
+
+**`what_breaks_this`** (optional) - the catch in plain language. Only populate when there's a non-obvious gotcha worth surfacing inline. Examples:
+- "BA fuel surcharges $700+ on own metal."
+- "Per-segment pricing - connections double the cost."
+- "Phone booking required, 30-60 min hold."
+
+Skip when the row is straightforward.
+
+### Sub-step 6.5h - Availability reality (SPARSE - only HIGH-confidence cases)
+
+Only populate `availability_reality` when there is strong industry consensus. Otherwise leave NULL. NULL means the chip won't render. Better silence than a wrong rating.
+
+Enum values:
+- `excellent` - opens daily, multiple seats (e.g., Iberia off-peak J)
+- `good` - usually open with flexibility (e.g., AA short-haul saver)
+- `mixed` - decent but goes fast in peak (e.g., Cathay J HKG-USA)
+- `rare` - occasional, requires patience (e.g., Qantas J)
+- `unicorn` - might go years without a saver seat (e.g., ANA F, Lufthansa F advance, Cathay F)
+
+Authoring rule: only set this column when at least one of these is true:
+1. A major points blog (TPG / OMAAT / Frequent Miler / AwardWallet) called it out by name in the last 12 months
+2. You personally know the route from booking experience
+3. Multiple Reddit/FlyerTalk threads in past 90 days corroborate
+
+If unsure, leave NULL.
+
+### Sub-step 6.5i - Devaluation tracking (when applicable)
+
+If the redemption was materially changed by a devaluation, set:
+- `devalued_at` - date of the change
+- `devaluation_note` - one-line summary ("Bands 1-4 up 12-14%")
+
+Example: BA Avios distance band 1 went from 7,500 to 13,500 Y in Dec 2025. All BA Avios short-haul rows get `devalued_at = '2025-12-15'` plus a note.
+
 ---
 
 ## Anti-patterns to avoid
