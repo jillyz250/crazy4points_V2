@@ -41,7 +41,7 @@ const FEE_TONE_STYLE = {
 
 const COMPLEXITY_STYLE = {
   easy: { label: 'Easy', bg: '#D1FAE5', fg: '#065F46' },
-  annoying: { label: 'Annoying', bg: '#FEF3C7', fg: '#78350F' },
+  annoying: { label: 'Has hoops', bg: '#FEF3C7', fg: '#78350F' },
   nerd_stuff: { label: 'Advanced', bg: '#E0E7FF', fg: '#3730A3' },
 } as const
 
