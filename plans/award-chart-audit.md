@@ -179,14 +179,22 @@ Plus Caribbean / Frontier / Allegiant / JetBlue as **simple fixed_route or zone 
 
 ---
 
+## Decisions (signed off 2026-05-11)
+
+1. **Slug cleanup** — Phase 1 migration collapses snake_case dupes to kebab-case canonical (matches existing `feedback_program_slug_convention.md`). Chart authored on canonical slug.
+2. **AAnytime + saver** — Solved via multi-chart support (decision #3). AA gets two chart entries: `zone` for saver + `dynamic` for AAnytime.
+3. **JAL hybrid → multi-chart pattern** — Schema becomes `{ charts: AwardChart[] }`. Each chart keeps its `type` discriminator + a `label` for admin clarity. Compute walks the charts, picks the one whose `partners` includes the requested carrier, runs that chart's computer.
+4. **Out-of-scope for v1 chart authoring** — Korean SKYPASS, SriLankan, Frontier, Allegiant. Hub renders "Chart pending — see program page" instead of fake cost.
+5. **Don't Sleep anchoring** — Add `origin_iata` + `dest_iata` columns to `partner_redemptions`. Phase 1 migration auto-populates from `region_or_route` text via regex + small mapping table for ambiguous rows.
+
 ## What's next
 
-Sign-off needed on:
-- [ ] Phase 2 batch ordering (above)
-- [ ] Open question #3 (JAL hybrid → multi-chart pattern)
-- [ ] Open question #2 (AAnytime + saver coexistence)
-- [ ] Open question #1 (slug-cleanup migration before authoring)
+Phase 1 ships:
+- Schema migration: `programs.award_chart_structured jsonb` (multi-chart shape per decision #3)
+- Schema migration: `partner_redemptions.origin_iata text, dest_iata text` + backfill (per decision #5)
+- Slug cleanup migration (per decision #1)
+- `lib/awardChart.ts` v2 with multi-chart support
+- `lib/awardChart.compute.ts` ported from `scripts/avios-pilot.mjs` + multi-chart walker
+- Admin preview-compute endpoint `/admin/programs/[slug]/chart/preview?from=X&to=Y&cabin=Z&date=D`
 
-Once signed off:
-- Phase 1 ships: `programs.award_chart_structured jsonb` migration + `lib/awardChart.compute.ts` ported from `scripts/avios-pilot.mjs` + admin preview-compute endpoint
-- Phase 2 batch 1 begins
+Then Phase 2 batch 1 (AA, Aeroplan, Atmos, BA Avios, United).
