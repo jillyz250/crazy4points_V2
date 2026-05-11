@@ -33,7 +33,7 @@ const TOOLS = [
       'Punch in JFK→HNL and see every smart way to book it. Sorted by miles, with the catch up front.',
     icon: '✈️',
     href: '/hub/best-way-to-book',
-    status: 'coming-soon' as const,
+    status: 'live' as const,
   },
   {
     title: 'Will My FNC Fit?',
@@ -41,7 +41,7 @@ const TOOLS = [
       'Can your 35k Marriott cert cover this hotel? Yes / yes-with-topup / no, in three seconds.',
     icon: '🏨',
     href: '/hub/fnc-fit',
-    status: 'coming-soon' as const,
+    status: 'live' as const,
   },
   {
     title: 'Earn Path',
@@ -49,7 +49,7 @@ const TOOLS = [
       'Need 70k Atmos? Fastest, cheapest, or easiest path — three buttons, real answers.',
     icon: '🚀',
     href: '/hub/earn-path',
-    status: 'coming-soon' as const,
+    status: 'live' as const,
   },
   {
     title: "Don't Sleep On These",
@@ -57,7 +57,7 @@ const TOOLS = [
       'Living sweet spots — what still works in 2026 and what to grab before it dies.',
     icon: '⭐',
     href: '/hub/dont-sleep',
-    status: 'coming-soon' as const,
+    status: 'live' as const,
   },
   {
     title: 'Where Can My Points Take Me?',
