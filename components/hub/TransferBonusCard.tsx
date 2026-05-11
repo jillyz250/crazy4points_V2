@@ -124,20 +124,6 @@ export default function TransferBonusCard({ bonus }: { bonus: ActiveTransferBonu
         )}
       </div>
 
-      {alert.summary && (
-        <p
-          style={{
-            fontFamily: 'var(--font-body)',
-            fontSize: '0.9375rem',
-            color: 'var(--color-text-primary)',
-            margin: 0,
-            lineHeight: 1.5,
-          }}
-        >
-          {alert.summary}
-        </p>
-      )}
-
       {bonusPct > 0 && (
         <div
           style={{
@@ -275,89 +261,119 @@ export default function TransferBonusCard({ bonus }: { bonus: ActiveTransferBonu
         </div>
       )}
 
-      {examples.length > 0 && (
-        <div
-          style={{
-            padding: '0.75rem 0.875rem',
-            background: 'var(--color-background-soft)',
-            border: '1px solid var(--color-border-soft)',
-            borderRadius: 'var(--radius-ui)',
-            display: 'grid',
-            gap: '0.5rem',
-          }}
-        >
+      {examples.length > 0 && (() => {
+        const top = examples[0]
+        return (
           <div
             style={{
-              fontFamily: 'var(--font-ui)',
-              fontSize: '0.6875rem',
-              fontWeight: 700,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              color: 'var(--color-text-secondary)',
-            }}
-          >
-            Sweet spots worth transferring for
-          </div>
-          <ul
-            style={{
-              listStyle: 'none',
-              margin: 0,
-              padding: 0,
+              position: 'relative',
+              padding: '1rem 1.125rem 1rem 1.25rem',
+              background:
+                'linear-gradient(135deg, #F8F5FB 0%, #FFFFFF 100%)',
+              border: '1px solid var(--color-border-soft)',
+              borderLeft: '4px solid var(--color-accent)',
+              borderRadius: 'var(--radius-card)',
+              boxShadow: 'var(--shadow-soft)',
               display: 'grid',
               gap: '0.5rem',
             }}
           >
-            {examples.map((ex) => (
-              <li key={ex.id}>
-                <div
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.375rem',
+                fontFamily: 'var(--font-ui)',
+                fontSize: '0.6875rem',
+                fontWeight: 700,
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                color: '#92400E',
+              }}
+            >
+              <span aria-hidden style={{ fontSize: '0.875rem' }}>⭐</span>
+              Top sweet spot
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'baseline',
+                justifyContent: 'space-between',
+                gap: '0.75rem',
+                flexWrap: 'wrap',
+              }}
+            >
+              <div
+                style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: '1.0625rem',
+                  fontWeight: 700,
+                  color: 'var(--color-primary)',
+                  lineHeight: 1.25,
+                  flex: 1,
+                  minWidth: '12rem',
+                }}
+              >
+                {top.cabin}
+                {top.operating_carrier?.name
+                  ? ` on ${top.operating_carrier.name}`
+                  : ''}
+              </div>
+              <div
+                style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: '1.625rem',
+                  fontWeight: 700,
+                  color: 'var(--color-primary)',
+                  whiteSpace: 'nowrap',
+                  lineHeight: 1,
+                }}
+              >
+                {formatMiles(top.cost_miles_low, top.cost_miles_high)}
+                <span
                   style={{
-                    display: 'flex',
-                    alignItems: 'baseline',
-                    justifyContent: 'space-between',
-                    gap: '0.5rem',
-                    flexWrap: 'wrap',
-                    fontFamily: 'var(--font-body)',
-                    fontSize: '0.875rem',
-                    color: 'var(--color-text-primary)',
-                    lineHeight: 1.4,
+                    fontFamily: 'var(--font-ui)',
+                    fontSize: '0.6875rem',
+                    fontWeight: 600,
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    color: 'var(--color-text-secondary)',
+                    marginLeft: '0.3125rem',
                   }}
                 >
-                  <span style={{ flex: 1, minWidth: '12rem' }}>
-                    <strong>{ex.cabin}</strong>{' '}
-                    {ex.operating_carrier?.name ? `on ${ex.operating_carrier.name} ` : ''}
-                    — {ex.region_or_route}
-                  </span>
-                  <span
-                    style={{
-                      fontFamily: 'var(--font-display)',
-                      fontSize: '1rem',
-                      fontWeight: 700,
-                      color: 'var(--color-primary)',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {formatMiles(ex.cost_miles_low, ex.cost_miles_high)}
-                  </span>
-                </div>
-                {ex.teach_caption && (
-                  <div
-                    style={{
-                      fontFamily: 'var(--font-body)',
-                      fontSize: '0.75rem',
-                      color: 'var(--color-text-secondary)',
-                      fontStyle: 'italic',
-                      marginTop: '0.125rem',
-                      lineHeight: 1.4,
-                    }}
-                  >
-                    {ex.teach_caption}
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+                  miles
+                </span>
+              </div>
+            </div>
+
+            <div
+              style={{
+                fontFamily: 'var(--font-body)',
+                fontSize: '0.875rem',
+                color: 'var(--color-text-primary)',
+                lineHeight: 1.4,
+              }}
+            >
+              {top.region_or_route}
+            </div>
+
+            {top.teach_caption && (
+              <div
+                style={{
+                  fontFamily: 'var(--font-body)',
+                  fontSize: '0.8125rem',
+                  color: 'var(--color-text-secondary)',
+                  fontStyle: 'italic',
+                  lineHeight: 1.5,
+                }}
+              >
+                {top.teach_caption}
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {destinationProgram?.slug && (
         <div
