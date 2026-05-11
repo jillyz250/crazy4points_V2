@@ -38,9 +38,11 @@ export const BA_AVIOS_CHART: AwardChartProgram = {
       label: 'BA Avios — Reward Flights',
       peak_calendar: BA_PEAK_CALENDAR,
       rfs_caps: {
-        // RFS cash co-pay caps (USD-approximated; BA publishes in GBP)
-        economy:  { 'intra-europe': 50, 'us-eu-east': 175, 'us-eu-west': 200 },
-        business: { 'intra-europe': 175, 'us-eu-east': 550, 'us-eu-west': 600 },
+        // RFS cash co-pay caps (USD-approximated; BA publishes in GBP).
+        // Intra-Europe RFS exists too but our RouteBucket type doesn't model
+        // intra-Europe yet — add when needed.
+        economy:  { 'us-eu-east': 175, 'us-eu-west': 200 },
+        business: { 'us-eu-east': 550, 'us-eu-west': 600 },
       },
       partners: {
         // BA own-metal — full distance chart
