@@ -93,9 +93,11 @@ export default async function Page({
             maxWidth: '40rem',
           }}
         >
-          Pick a route. We&apos;ll show every smart way to book it with points,
-          ranked cheapest miles first. Cash fees and the gotchas surface
-          inline so you don&apos;t get surprised at checkout.
+          Pick a route. We&apos;ll surface the programs we&apos;ve authored
+          for that route region, ranked by typical miles cost — with cash
+          fees and the catches inline. Coverage expands as we add programs;
+          if a program you expect isn&apos;t here yet, it&apos;s on the
+          roadmap, not missing on purpose.
         </p>
 
         <ChartDisclaimer />

@@ -102,6 +102,16 @@ export default function BestWayToBookResultRow({
   const cashTone = feeTone(r.cash_fee_high ?? r.cash_fee_low)
   const noPublishedRate = r.cost_miles_low === null && r.cost_miles_high === null
 
+  // Surface dynamic-pricing warning when the program is explicitly dynamic
+  // OR the published range is wide enough that the floor would mislead
+  // (high >= 3x low). The floor is technically valid but only for ideal
+  // dates/routes — most real bookings land closer to the upper end.
+  const isWideRange =
+    r.cost_miles_low != null &&
+    r.cost_miles_high != null &&
+    r.cost_miles_high >= r.cost_miles_low * 3
+  const showDynamicChip = r.pricing_model === 'dynamic' || isWideRange
+
   return (
     <article
       style={{
@@ -254,6 +264,11 @@ export default function BestWayToBookResultRow({
           {r.devalued_at && (
             <Chip bg="#FED7AA" fg="#7C2D12">
               Devalued {r.devalued_at.slice(0, 7)}
+            </Chip>
+          )}
+          {showDynamicChip && (
+            <Chip bg="#FED7AA" fg="#7C2D12">
+              Dynamic — expect upper end
             </Chip>
           )}
         </div>
