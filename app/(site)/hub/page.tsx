@@ -62,7 +62,7 @@ const TOOLS = [
   {
     title: 'Where Can My Points Take Me?',
     description:
-      'Got 100k MR doing nothing? Real redemptions you can actually book, not fantasy math.',
+      'Got 100k MR doing nothing? See where your points are priced to fly — direct or one transfer away.',
     icon: '🗺️',
     href: '/hub/where-can-i-go',
     status: 'live' as const,
