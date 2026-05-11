@@ -114,11 +114,11 @@ export default async function Page() {
             }}
           >
             We do not recommend transferring points unless you have a{' '}
-            <strong>specific redemption in mind</strong> and have confirmed the
-            award space first. Award charts, partner rosters, and dynamic
-            pricing can shift before you get to book — and once points leave a
-            flexible currency, they&apos;re stuck. Search availability,{' '}
-            <em>then</em> transfer.
+            <strong>specific redemption in mind</strong> AND{' '}
+            <strong>confirmed availability</strong>. Award charts, partner
+            rosters, and dynamic pricing can shift before you book — and once
+            points leave a flexible currency, they&apos;re stuck. Search
+            availability, <em>then</em> transfer.
           </p>
         </div>
 
