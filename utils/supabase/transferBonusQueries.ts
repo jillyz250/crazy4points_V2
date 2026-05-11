@@ -96,19 +96,23 @@ export async function getActiveTransferBonuses(
       }
     }
 
-    // Pull 1-2 "best of" sweet-spot examples for this destination program.
-    // Definition of "best": high-quality redemptions only — easy complexity,
-    // excellent/good availability, ordered by cheapest miles first. We surface
-    // these to give the user a concrete "what would I actually book with this?"
-    // instead of leaving them guessing.
+    // Pull "best of" sweet-spot example for this destination program.
+    // Two-pass strategy:
+    //   Pass 1 (preferred): high-quality only — easy complexity + good/excellent
+    //                       availability, cheapest miles first.
+    //   Pass 2 (fallback):  any active row with miles populated, cheapest first.
+    // Fallback exists because hub columns (complexity_score, availability_reality)
+    // are only backfilled for AA + UA today — other programs would otherwise
+    // surface no example at all, which is worse than surfacing the cheapest
+    // active row we have.
     const examples: SweetSpotExample[] = []
     if (a.primary_program_id) {
-      const { data: exRows } = await supabase
+      const baseSelect = `id, cabin, region_or_route, cost_miles_low, cost_miles_high, teach_caption,
+           operating_carrier:programs!partner_redemptions_operating_carrier_id_fkey(name, slug)`
+
+      const strict = await supabase
         .from('partner_redemptions')
-        .select(
-          `id, cabin, region_or_route, cost_miles_low, cost_miles_high, teach_caption,
-           operating_carrier:programs!partner_redemptions_operating_carrier_id_fkey(name, slug)`,
-        )
+        .select(baseSelect)
         .eq('currency_program_id', a.primary_program_id)
         .eq('is_active', true)
         .eq('complexity_score', 'easy')
@@ -117,7 +121,21 @@ export async function getActiveTransferBonuses(
         .order('cost_miles_low', { ascending: true })
         .limit(2)
 
-      for (const r of exRows ?? []) {
+      let rows = strict.data ?? []
+
+      if (rows.length === 0) {
+        const fallback = await supabase
+          .from('partner_redemptions')
+          .select(baseSelect)
+          .eq('currency_program_id', a.primary_program_id)
+          .eq('is_active', true)
+          .not('cost_miles_low', 'is', null)
+          .order('cost_miles_low', { ascending: true })
+          .limit(2)
+        rows = fallback.data ?? []
+      }
+
+      for (const r of rows) {
         const carrier = Array.isArray(r.operating_carrier)
           ? r.operating_carrier[0]
           : r.operating_carrier
