@@ -146,6 +146,12 @@ function chartCoversPartner(chart, partnerSlug) {
   if (chart.type === 'fixed_route') return chart.routes.length > 0
   return partnerSlug in chart.partners
 }
+function chartAppliesToBucket(chart, bucket) {
+  const allowed = chart.applies_to_buckets
+  if (!allowed?.length) return true
+  if (!bucket) return false
+  return allowed.includes(bucket)
+}
 function computeOne(chart, partnerSlug, origin, dest, cabin, opts) {
   const cal = 'peak_calendar' in chart ? chart.peak_calendar : undefined
   const season = cal ? (inPeakWindow(cal, opts?.travelDate) ? 'peak' : 'off_peak') : undefined
@@ -161,8 +167,10 @@ function computeOne(chart, partnerSlug, origin, dest, cabin, opts) {
 }
 function computeAwardCost(program, partnerSlug, origin, dest, cabin, opts = {}) {
   if (!program?.charts?.length) return null
+  const bucket = mapRouteToBucket(origin, dest)
   for (const chart of program.charts) {
     if (!chartCoversPartner(chart, partnerSlug)) continue
+    if (!chartAppliesToBucket(chart, bucket)) continue
     const r = computeOne(chart, partnerSlug, origin, dest, cabin, opts)
     if (r) return r
   }
@@ -288,6 +296,43 @@ const CARIBBEAN_LIKE = {
   ],
 }
 
+// 8. Bucket-scoped multi-region (Aeroplan-style)
+const AEROPLAN_LIKE = {
+  charts: [
+    {
+      type: 'distance', label: 'NA',
+      applies_to_buckets: ['us-short', 'us-medium', 'us-long'],
+      partners: {
+        united: { bands: [
+          { max_miles: 500,  cabin: { economy: 6000  } },
+          { max_miles: 2750, cabin: { economy: 12500 } },
+          { max_miles: 6000, cabin: { economy: 25000 } },
+        ]},
+      },
+    },
+    {
+      type: 'distance', label: 'Atlantic',
+      applies_to_buckets: ['us-eu-east', 'us-eu-west', 'us-me-india', 'us-africa'],
+      partners: {
+        united: { bands: [
+          { max_miles: 4000, cabin: { economy: 35000, business: 60000 } },
+          { max_miles: 6000, cabin: { economy: 40000, business: 70000 } },
+        ]},
+      },
+    },
+    {
+      type: 'distance', label: 'Pacific',
+      applies_to_buckets: ['us-japan', 'us-se-asia', 'us-pacific'],
+      partners: {
+        united: { bands: [
+          { max_miles: 6000,  cabin: { economy: 35000, business: 75000 } },
+          { max_miles: 10000, cabin: { economy: 45000, business: 75000 } },
+        ]},
+      },
+    },
+  ],
+}
+
 // 7. dynamic ranges_by_distance (finer-grained United)
 const UNITED_FINE = {
   charts: [
@@ -337,6 +382,12 @@ const TESTS = [
   { id: 19, desc: 'UA fine: transcon Y range',   program: UNITED_FINE,    partner: 'united',            from: 'JFK', to: 'LAX', cabin: 'economy',  expectRange: { low: 8000, high: 35000 } },
   // 20: no chart matches → null
   { id: 20, desc: 'No matching partner → null',  program: ETIHAD_LIKE,    partner: 'unknown_carrier',    from: 'JFK', to: 'LAX', cabin: 'economy',  expectNull: true },
+
+  // 21-24: bucket-scoped charts (v1.1 — Aeroplan-style multi-region)
+  { id: 21, desc: 'AeroplanLike NA transcon Y (NA chart wins)',  program: AEROPLAN_LIKE, partner: 'united', from: 'JFK', to: 'LAX', cabin: 'economy', expect: 12500 },
+  { id: 22, desc: 'AeroplanLike US-EU Y (Atlantic wins)',        program: AEROPLAN_LIKE, partner: 'united', from: 'JFK', to: 'LHR', cabin: 'economy', expect: 35000 },
+  { id: 23, desc: 'AeroplanLike US-Asia Y (Pacific wins)',       program: AEROPLAN_LIKE, partner: 'united', from: 'LAX', to: 'NRT', cabin: 'economy', expect: 35000 },
+  { id: 24, desc: 'AeroplanLike US-Asia J (Pacific J)',          program: AEROPLAN_LIKE, partner: 'united', from: 'LAX', to: 'NRT', cabin: 'business', expect: 75000 },
 ]
 
 // ─── Runner ───────────────────────────────────────────────────────────────
