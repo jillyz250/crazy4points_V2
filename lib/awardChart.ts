@@ -173,12 +173,30 @@ export interface FixedRouteChart {
 
 // ─── Discriminated union ───────────────────────────────────────────────────
 
+/** One chart object. A program can have multiple (e.g. AA: [saver_zone, anytime_dynamic]). */
 export type AwardChart =
   | DistanceChart
   | ZoneChart
   | DistancePlusModifiersChart
   | DynamicChart
   | FixedRouteChart
+
+/**
+ * Multi-chart container stored at `programs.award_chart_structured`.
+ *
+ * Per audit decision #3 (plans/award-chart-audit.md): JAL has zone for
+ * own-metal + distance for partners, AA has zone saver + dynamic AAnytime.
+ * Multiple charts let us model these without polluting individual chart
+ * types with hybrid fields.
+ *
+ * Compute walks `charts` in order, picks the first whose partners include
+ * the requested carrier, runs that chart's computer. Order matters —
+ * author the more specific / preferred chart first (saver before AAnytime,
+ * own-metal before partner, peak-promo before standard, etc.).
+ */
+export interface AwardChartProgram {
+  charts: Array<AwardChart & { label?: string }>
+}
 
 // ─── Compute result ─────────────────────────────────────────────────────────
 
