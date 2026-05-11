@@ -58,12 +58,27 @@ export function computeAwardCost(
 ): AwardCostResult | null {
   if (!program?.charts?.length) return null
 
+  const bucket = mapRouteToBucket(origin, destination)
   for (const chart of program.charts) {
     if (!chartCoversPartner(chart, partnerSlug)) continue
+    if (!chartAppliesToBucket(chart, bucket)) continue
     const result = computeOne(chart, partnerSlug, origin, destination, cabin, opts)
     if (result) return result
   }
   return null
+}
+
+/**
+ * v1.1 (Aeroplan authoring surfaced gap): some charts only apply to certain
+ * route buckets (NA-internal distance bands ≠ Atlantic-crossing bands).
+ * If the chart specifies applies_to_buckets, skip when route's bucket isn't
+ * in the list. Charts without the field match any bucket.
+ */
+function chartAppliesToBucket(chart: AwardChart, bucket: string | null): boolean {
+  const allowed = (chart as { applies_to_buckets?: string[] }).applies_to_buckets
+  if (!allowed?.length) return true
+  if (!bucket) return false
+  return allowed.includes(bucket)
 }
 
 // ─── Chart-level dispatch ──────────────────────────────────────────────────

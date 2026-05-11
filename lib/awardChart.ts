@@ -84,6 +84,14 @@ export interface DistanceChart {
   partners: Record<string, DistancePartnerChart>
   overrides?: ChartOverride[]
   elite_modifiers?: EliteModifiers
+  /**
+   * v1.1 (2026-05-11): scope this chart to only match certain route buckets.
+   * Required when distance bands vary by route region (Aeroplan NA-internal
+   * vs Atlantic-crossing vs Pacific; Atmos partner per geography). Omitted
+   * = chart applies to any route. Compute skips the chart if a bucket
+   * constraint is set and the route's bucket isn't in the list.
+   */
+  applies_to_buckets?: RouteBucket[]
 }
 
 // ─── Type 2: zone ──────────────────────────────────────────────────────────
@@ -98,6 +106,7 @@ export interface ZoneChart {
   partners: Record<string, ZonePartnerChart>
   overrides?: ChartOverride[]
   elite_modifiers?: EliteModifiers
+  applies_to_buckets?: RouteBucket[]
 }
 
 // ─── Type 3: distance_plus_modifiers ───────────────────────────────────────
@@ -127,6 +136,7 @@ export interface DistancePlusModifiersChart {
   rfs_caps?: RfsCaps
   overrides?: ChartOverride[]
   elite_modifiers?: EliteModifiers
+  applies_to_buckets?: RouteBucket[]
 }
 
 // ─── Type 4: dynamic ───────────────────────────────────────────────────────
@@ -153,6 +163,7 @@ export interface DynamicChart {
   partners: Record<string, DynamicPartnerChart>
   overrides?: ChartOverride[]
   elite_modifiers?: EliteModifiers
+  applies_to_buckets?: RouteBucket[]
 }
 
 // ─── Type 5: fixed_route ───────────────────────────────────────────────────
@@ -169,6 +180,7 @@ export interface FixedRouteChart {
   routes: FixedRouteEntry[]
   overrides?: ChartOverride[]
   elite_modifiers?: EliteModifiers
+  applies_to_buckets?: RouteBucket[]
 }
 
 // ─── Discriminated union ───────────────────────────────────────────────────
