@@ -19,7 +19,7 @@ function daysBetween(endDateIso: string | null): number | null {
  *  - verdict chip based on warning severity
  */
 export default function TransferBonusCard({ bonus }: { bonus: ActiveTransferBonus }) {
-  const { alert, destinationProgram, warnings } = bonus
+  const { alert, destinationProgram, warnings, examples } = bonus
   const days = daysBetween(alert.end_date)
   const bonusPct = extractBonusPct(alert.title) ?? 0
 
@@ -275,8 +275,100 @@ export default function TransferBonusCard({ bonus }: { bonus: ActiveTransferBonu
         </div>
       )}
 
+      {examples.length > 0 && (
+        <div
+          style={{
+            padding: '0.75rem 0.875rem',
+            background: 'var(--color-background-soft)',
+            border: '1px solid var(--color-border-soft)',
+            borderRadius: 'var(--radius-ui)',
+            display: 'grid',
+            gap: '0.5rem',
+          }}
+        >
+          <div
+            style={{
+              fontFamily: 'var(--font-ui)',
+              fontSize: '0.6875rem',
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: 'var(--color-text-secondary)',
+            }}
+          >
+            Sweet spots worth transferring for
+          </div>
+          <ul
+            style={{
+              listStyle: 'none',
+              margin: 0,
+              padding: 0,
+              display: 'grid',
+              gap: '0.5rem',
+            }}
+          >
+            {examples.map((ex) => (
+              <li key={ex.id}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'baseline',
+                    justifyContent: 'space-between',
+                    gap: '0.5rem',
+                    flexWrap: 'wrap',
+                    fontFamily: 'var(--font-body)',
+                    fontSize: '0.875rem',
+                    color: 'var(--color-text-primary)',
+                    lineHeight: 1.4,
+                  }}
+                >
+                  <span style={{ flex: 1, minWidth: '12rem' }}>
+                    <strong>{ex.cabin}</strong>{' '}
+                    {ex.operating_carrier?.name ? `on ${ex.operating_carrier.name} ` : ''}
+                    — {ex.region_or_route}
+                  </span>
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-display)',
+                      fontSize: '1rem',
+                      fontWeight: 700,
+                      color: 'var(--color-primary)',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {formatMiles(ex.cost_miles_low, ex.cost_miles_high)}
+                  </span>
+                </div>
+                {ex.teach_caption && (
+                  <div
+                    style={{
+                      fontFamily: 'var(--font-body)',
+                      fontSize: '0.75rem',
+                      color: 'var(--color-text-secondary)',
+                      fontStyle: 'italic',
+                      marginTop: '0.125rem',
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    {ex.teach_caption}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {destinationProgram?.slug && (
-        <div style={{ borderTop: '1px solid var(--color-border-soft)', paddingTop: '0.875rem' }}>
+        <div
+          style={{
+            borderTop: '1px solid var(--color-border-soft)',
+            paddingTop: '0.875rem',
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '0.75rem 1.25rem',
+          }}
+        >
           <Link
             href={`/programs/${destinationProgram.slug}`}
             style={{
@@ -289,12 +381,34 @@ export default function TransferBonusCard({ bonus }: { bonus: ActiveTransferBonu
               textDecoration: 'none',
             }}
           >
-            See {destinationProgram.name} sweet spots →
+            More on {destinationProgram.name} →
+          </Link>
+          <Link
+            href="/hub/dont-sleep"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              fontFamily: 'var(--font-ui)',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              color: 'var(--color-primary)',
+              textDecoration: 'none',
+            }}
+          >
+            More sweet spots →
           </Link>
         </div>
       )}
     </article>
   )
+}
+
+function formatMiles(low: number | null, high: number | null): string {
+  const fmt = (n: number) =>
+    n >= 1000 ? `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}k` : String(n)
+  if (low == null && high == null) return '—'
+  if (low != null && high != null && high > low) return `${fmt(low)}–${fmt(high)}`
+  return fmt((low ?? high) as number)
 }
 
 function extractBonusPct(title: string): number | null {

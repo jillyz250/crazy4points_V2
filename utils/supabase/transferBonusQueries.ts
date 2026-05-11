@@ -6,10 +6,21 @@ import type { Alert, Program } from '@/utils/supabase/queries'
  * "what breaks this deal" warnings derived from the destination's
  * partner_redemptions rows. The Should I Transfer? tool consumes this.
  */
+export interface SweetSpotExample {
+  id: string
+  cabin: string
+  region_or_route: string
+  cost_miles_low: number | null
+  cost_miles_high: number | null
+  operating_carrier: { name: string; slug: string } | null
+  teach_caption: string | null
+}
+
 export interface ActiveTransferBonus {
   alert: Alert
   destinationProgram: Program | null
   warnings: string[]
+  examples: SweetSpotExample[]
 }
 
 /**
@@ -85,7 +96,51 @@ export async function getActiveTransferBonuses(
       }
     }
 
-    out.push({ alert: a, destinationProgram, warnings: warnings.slice(0, 4) })
+    // Pull 1-2 "best of" sweet-spot examples for this destination program.
+    // Definition of "best": high-quality redemptions only — easy complexity,
+    // excellent/good availability, ordered by cheapest miles first. We surface
+    // these to give the user a concrete "what would I actually book with this?"
+    // instead of leaving them guessing.
+    const examples: SweetSpotExample[] = []
+    if (a.primary_program_id) {
+      const { data: exRows } = await supabase
+        .from('partner_redemptions')
+        .select(
+          `id, cabin, region_or_route, cost_miles_low, cost_miles_high, teach_caption,
+           operating_carrier:programs!partner_redemptions_operating_carrier_id_fkey(name, slug)`,
+        )
+        .eq('currency_program_id', a.primary_program_id)
+        .eq('is_active', true)
+        .eq('complexity_score', 'easy')
+        .in('availability_reality', ['excellent', 'good'])
+        .not('cost_miles_low', 'is', null)
+        .order('cost_miles_low', { ascending: true })
+        .limit(2)
+
+      for (const r of exRows ?? []) {
+        const carrier = Array.isArray(r.operating_carrier)
+          ? r.operating_carrier[0]
+          : r.operating_carrier
+        examples.push({
+          id: r.id as string,
+          cabin: r.cabin as string,
+          region_or_route: r.region_or_route as string,
+          cost_miles_low: r.cost_miles_low as number | null,
+          cost_miles_high: r.cost_miles_high as number | null,
+          operating_carrier: carrier
+            ? { name: carrier.name as string, slug: carrier.slug as string }
+            : null,
+          teach_caption: (r.teach_caption as string | null) ?? null,
+        })
+      }
+    }
+
+    out.push({
+      alert: a,
+      destinationProgram,
+      warnings: warnings.slice(0, 4),
+      examples,
+    })
   }
 
   return out
