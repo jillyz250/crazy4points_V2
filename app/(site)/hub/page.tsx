@@ -36,7 +36,7 @@ const TOOLS = [
     status: 'live' as const,
   },
   {
-    title: 'Will My FNC Fit?',
+    title: 'Will My Free Night Cert Fit?',
     description:
       'Can your 35k Marriott cert cover this hotel? Yes / yes-with-topup / no, in three seconds.',
     icon: '🏨',
