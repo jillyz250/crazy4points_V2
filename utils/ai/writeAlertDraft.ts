@@ -413,6 +413,33 @@ as real bullets in the "What qualifies" block — they're verified data
 now. Remove them from gaps_acknowledged in your output (no longer
 unknown). Order them per the standard "reader-impact" sort.
 
+INFERENCE RULES (apply these BEFORE flagging gaps):
+
+1. REGISTRATION — Most transfer bonuses, point sales, and dining bonuses
+   DO NOT require registration. They run automatically for eligible
+   members. Default to "Not required" UNLESS the source explicitly
+   mentions an opt-in step, registration link, MyOffers code, or
+   targeted-only language. Do NOT flag registration as a gap on
+   transfer-bonus alerts unless the T&Cs name a specific opt-in.
+
+2. CARDMEMBER ELIGIBILITY LISTS = EXCLUSIONS. When verified_terms
+   (or raw_text) lists which cards are eligible for a transfer or
+   purchase bonus, treat that list as the exclusions field. Surface it
+   as a real "Excluded" or "Eligible cards only" bullet — name the
+   eligible cards directly, and call out any well-known cards that
+   are NOT on the list (e.g., Citi Rewards+ on a Citi TYP transfer
+   bonus). Do NOT flag exclusions as a gap just because the source
+   doesn't have a literal "Exclusions:" header — eligibility ≈ exclusion
+   for promo purposes. The reader needs to know if their card qualifies.
+
+3. MIN SPEND / MIN NIGHTS only apply when the offer mechanic actually
+   involves spending or staying. A pure transfer-bonus has neither —
+   omit the bullets, don't flag as gaps.
+
+4. STATUS TIER REQUIREMENT only applies when the source mentions a
+   specific tier name. If the offer is open to all members, omit the
+   bullet and do NOT flag as a gap.
+
 ────────────────────────────────────────
 HYBRID FORMAT — required structure for promo descriptions
 ────────────────────────────────────────
