@@ -816,6 +816,33 @@ export type AlertPipelineResult =
     }
   | { ok: false; error: string }
 
+/**
+ * Save verified_terms (or any unsaved edit-form value) FIRST, then run the
+ * full pipeline. Prevents the "I pasted T&Cs but the writer didn't see them"
+ * bug: regenerateAlertDraftAction reads alert.verified_terms from the DB,
+ * which is only populated after the user clicks "Save Changes". This action
+ * persists the field before regen so admins can iterate without that extra
+ * click.
+ */
+export async function saveAndRunAllChecksAction(
+  id: string,
+  verifiedTerms: string,
+): Promise<AlertPipelineResult> {
+  // Save verified_terms first (lightweight: just this one field).
+  const supabase = createAdminClient()
+  const trimmed = verifiedTerms.trim()
+  const value = trimmed.length > 0 ? trimmed : null
+  const { error } = await supabase
+    .from('alerts')
+    .update({ verified_terms: value })
+    .eq('id', id)
+  if (error) {
+    return { ok: false, error: `save verified_terms failed — ${error.message}` }
+  }
+  // Then run the full pipeline as usual.
+  return runAllChecksAlertAction(id)
+}
+
 export async function runAllChecksAlertAction(id: string): Promise<AlertPipelineResult> {
   // Regenerate already runs writer + fact-check + web-verify in one shot.
   const regen = await regenerateAlertDraftAction(id)
