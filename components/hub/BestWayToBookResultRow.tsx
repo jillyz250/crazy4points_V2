@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import type { PartnerRedemptionWithPrograms } from '@/utils/supabase/queries'
 import type { AwardCostResult } from '@/lib/awardChart'
+import HowToBookDisclosure from '@/components/hub/HowToBookDisclosure'
 
 const ALLIANCE_COLOR: Record<string, string> = {
   oneworld: '#C8102E',
@@ -362,6 +363,10 @@ export default function BestWayToBookResultRow({
             {cashStr}
           </div>
         )}
+      </div>
+
+      <div style={{ gridColumn: '1 / -1' }}>
+        <HowToBookDisclosure r={r} />
       </div>
     </article>
   )

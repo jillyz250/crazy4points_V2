@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import type { ActiveTransferBonus } from '@/utils/supabase/transferBonusQueries'
+import HowToBookDisclosure from '@/components/hub/HowToBookDisclosure'
 
 function daysBetween(endDateIso: string | null): number | null {
   if (!endDateIso) return null
@@ -410,6 +411,24 @@ export default function TransferBonusCard({ bonus }: { bonus: ActiveTransferBonu
                 {top.teach_caption}
               </div>
             )}
+
+            <HowToBookDisclosure
+              r={{
+                booking_channel: top.booking_channel,
+                bookable_online: top.bookable_online,
+                routing_rules: top.routing_rules,
+                non_saver_fallback: top.non_saver_fallback,
+                what_breaks_this: top.what_breaks_this,
+                fuel_surcharges: top.fuel_surcharges,
+                cash_fee_low: top.cash_fee_low,
+                cash_fee_high: top.cash_fee_high,
+                fees_note: top.fees_note,
+                requires_saver_space: top.requires_saver_space,
+                availability_reality: top.availability_reality,
+                currency_program: top.currency_program,
+                operating_carrier: top.operating_carrier,
+              }}
+            />
           </div>
         )
       })()}

@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import type { PartnerRedemptionWithPrograms } from '@/utils/supabase/queries'
 import type { AwardCostResult } from '@/lib/awardChart'
+import HowToBookDisclosure from '@/components/hub/HowToBookDisclosure'
 
 function fmtKilo(n: number): string {
   return n >= 1000 ? `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}k` : String(n)
@@ -300,6 +301,8 @@ export default function SweetSpotCard({
           See all options for {example.from} → {example.to} →
         </Link>
       )}
+
+      <HowToBookDisclosure r={r} />
     </article>
   )
 }

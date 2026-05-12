@@ -17,9 +17,22 @@ export interface SweetSpotExample {
   cost_miles_low: number | null
   cost_miles_high: number | null
   operating_carrier: { name: string; slug: string } | null
+  currency_program: { name: string; slug: string } | null
   teach_caption: string | null
   /** Phase 3.2: chart-computed cost when destination program has a chart. */
   computed_cost: AwardCostResult | null
+  // Phase 4 (How to book this disclosure) — narrative fields surfaced inline
+  booking_channel: string | null
+  bookable_online: boolean | null
+  routing_rules: string | null
+  non_saver_fallback: string | null
+  what_breaks_this: string | null
+  fuel_surcharges: 'none' | 'low' | 'high' | null
+  cash_fee_low: number | null
+  cash_fee_high: number | null
+  fees_note: string | null
+  requires_saver_space: boolean | null
+  availability_reality: 'excellent' | 'good' | 'mixed' | 'rare' | 'unicorn' | null
 }
 
 const REDEMPTION_TO_CHART_CABIN: Record<string, Cabin> = {
@@ -133,7 +146,11 @@ export async function getActiveTransferBonuses(
     if (a.primary_program_id) {
       const baseSelect = `id, cabin, region_or_route, cost_miles_low, cost_miles_high, teach_caption,
            origin_iata, dest_iata, route_buckets,
-           operating_carrier:programs!partner_redemptions_operating_carrier_id_fkey(name, slug)`
+           booking_channel, bookable_online, routing_rules, non_saver_fallback,
+           what_breaks_this, fuel_surcharges, cash_fee_low, cash_fee_high,
+           fees_note, requires_saver_space, availability_reality,
+           operating_carrier:programs!partner_redemptions_operating_carrier_id_fkey(name, slug),
+           currency_program:programs!partner_redemptions_currency_program_id_fkey(name, slug)`
 
       const strict = await supabase
         .from('partner_redemptions')
@@ -193,6 +210,9 @@ export async function getActiveTransferBonuses(
           }
         }
 
+        const currency = Array.isArray(r.currency_program)
+          ? r.currency_program[0]
+          : r.currency_program
         examples.push({
           id: r.id as string,
           cabin: r.cabin as string,
@@ -202,8 +222,22 @@ export async function getActiveTransferBonuses(
           operating_carrier: carrier
             ? { name: carrier.name as string, slug: carrier.slug as string }
             : null,
+          currency_program: currency
+            ? { name: currency.name as string, slug: currency.slug as string }
+            : null,
           teach_caption: (r.teach_caption as string | null) ?? null,
           computed_cost: computed,
+          booking_channel: (r.booking_channel as string | null) ?? null,
+          bookable_online: (r.bookable_online as boolean | null) ?? null,
+          routing_rules: (r.routing_rules as string | null) ?? null,
+          non_saver_fallback: (r.non_saver_fallback as string | null) ?? null,
+          what_breaks_this: (r.what_breaks_this as string | null) ?? null,
+          fuel_surcharges: r.fuel_surcharges as 'none' | 'low' | 'high' | null,
+          cash_fee_low: (r.cash_fee_low as number | null) ?? null,
+          cash_fee_high: (r.cash_fee_high as number | null) ?? null,
+          fees_note: (r.fees_note as string | null) ?? null,
+          requires_saver_space: (r.requires_saver_space as boolean | null) ?? null,
+          availability_reality: r.availability_reality as 'excellent' | 'good' | 'mixed' | 'rare' | 'unicorn' | null,
         })
       }
     }
