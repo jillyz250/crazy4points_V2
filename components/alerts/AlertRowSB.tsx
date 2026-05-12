@@ -13,7 +13,7 @@ const TYPE_LABELS: Record<string, string> = {
   award_sale: 'Award Sale',
   sweet_spot: 'Sweet Spot',
   companion_pass: 'Companion',
-  limited_time_offer: 'LTO',
+  limited_time_offer: 'Promo',
   retention_offer: 'Retention',
   card_credit: 'Credit',
   card_refresh: 'Refresh',
