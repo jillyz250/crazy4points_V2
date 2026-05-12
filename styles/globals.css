@@ -4,8 +4,10 @@
   /* Royal Glow colors */
   --color-primary: #6B2D8F;
   --color-primary-hover: #5A237A;
-  --color-accent: #F5C300;
-  --color-accent-hover: #E0B000;
+  /* Antique gold per Royal Glow brand spec — was #F5C300 (bright marigold),
+     reconciled with CLAUDE.md token 2026-05-12 design pass. */
+  --color-accent: #D4AF37;
+  --color-accent-hover: #B8941F;
   --color-background: #FFFFFF;
   --color-background-soft: #F8F5FB;
   --color-text-primary: #1A1A1A;
@@ -17,12 +19,20 @@
   --font-body: var(--font-lato), "Lato", system-ui, sans-serif;
   --font-ui: var(--font-montserrat), "Montserrat", system-ui, sans-serif;
 
+  /* Display-scale typography — one dramatic Playfair moment per page.
+     Use via .rg-display utility class on the single most important heading. */
+  --font-size-display: clamp(2.5rem, 6vw, 4.5rem);
+
   /* Spacing + radius + shadows */
   --spacing-section: 5rem;   /* py-20 */
   --spacing-subsection: 2.5rem; /* py-10 */
   --radius-ui: 0.375rem;
   --radius-card: 0.75rem;
-  --shadow-soft: 0 2px 8px rgba(26, 26, 26, 0.04);
+  /* Purple-tinted elevation tokens (2026-05-12 design pass).
+     --shadow-soft was '0 2px 8px rgba(26,26,26,0.04)' — functionally invisible.
+     New tokens lift cards off the page in the brand's warm purple register. */
+  --shadow-soft: 0 12px 32px rgba(107, 45, 143, 0.08), 0 2px 4px rgba(107, 45, 143, 0.04);
+  --shadow-elevated: 0 24px 48px rgba(107, 45, 143, 0.12), 0 4px 8px rgba(107, 45, 143, 0.06);
 
   /* ── Admin design tokens (purist: neutral slate + purple accent) ── */
   --admin-bg: #fafafa;
@@ -110,6 +120,18 @@ button {
   .rg-container {
     padding-inline: 2rem;
   }
+}
+
+/* Display headline — one dramatic Playfair moment per page. Use for
+   the single most important heading (homepage hero, program page title,
+   hub tool title). Other h1/h2/h3 use the default scale. */
+.rg-display {
+  font-family: var(--font-display);
+  font-size: var(--font-size-display);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+  color: var(--color-primary);
 }
 
 .rg-major-section {
