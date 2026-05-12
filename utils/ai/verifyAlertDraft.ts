@@ -890,7 +890,10 @@ export async function verifyAlertDraft(args: {
       // Bumped from 2400 — alerts with promo_terms_status + many claims can
       // overflow. 6000 leaves headroom; Sonnet 4.6 supports ~16K.
       max_tokens: 6000,
-      system: SYSTEM_PROMPT,
+      // Prompt caching (5-min ephemeral) — stable ~15K-token system prompt.
+      system: [
+        { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
+      ],
       messages: [{ role: 'user', content: userContent }],
     })
     await logUsage(message, 'verifyAlertDraft')
@@ -1031,7 +1034,10 @@ export async function webVerifyClaims(args: {
     tools: [
       { type: 'web_search_20250305', name: 'web_search', max_uses: Math.min(unsupported.length * 2, 10) },
     ],
-    system: WEB_VERIFY_PROMPT,
+    // Prompt caching — WEB_VERIFY_PROMPT is stable across calls.
+    system: [
+      { type: 'text', text: WEB_VERIFY_PROMPT, cache_control: { type: 'ephemeral' } },
+    ],
     messages: [{ role: 'user', content: userContent }],
   })
   await logUsage(response, 'verifyAlertDraft')

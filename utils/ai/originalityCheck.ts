@@ -281,9 +281,20 @@ export async function originalityCheck(
   try {
     const client = new Anthropic({ apiKey })
     const response = await client.messages.create({
-      model: 'claude-sonnet-4-6',
+      // Haiku is sufficient for originality (pattern detection over a known
+      // reference corpus). Was Sonnet at $0.092/call avg — Haiku ~$0.018.
+      // Web-fallback path keeps Sonnet because web_search + judgment are
+      // higher-reasoning tasks where Haiku underperforms.
+      model: useWebFallback ? 'claude-sonnet-4-6' : 'claude-haiku-4-5',
       max_tokens: useWebFallback ? 3000 : 2000,
-      system: useWebFallback ? SYSTEM_PROMPT_WEB : SYSTEM_PROMPT,
+      // Prompt caching — both system prompts are stable.
+      system: [
+        {
+          type: 'text',
+          text: useWebFallback ? SYSTEM_PROMPT_WEB : SYSTEM_PROMPT,
+          cache_control: { type: 'ephemeral' },
+        },
+      ],
       ...(useWebFallback
         ? { tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 4 }] }
         : {}),

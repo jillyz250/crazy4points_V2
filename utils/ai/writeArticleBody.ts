@@ -426,7 +426,16 @@ export async function writeArticleBody(input: WriteArticleInput): Promise<Articl
       // article. Sonnet 4.6 supports up to ~16K output; 8K leaves headroom
       // for several searches plus a 600-800 word article.
       max_tokens: input.type === 'blog' ? 8000 : 2000,
-      system: systemPrompt(input.type) + typeSpecificBlock(input.content_type, input.activity_frame),
+      // Prompt caching (5-min ephemeral). System is long + stable per
+      // (type × content_type × activity_frame); identical re-runs within
+      // 5 min get 90% input-cost discount.
+      system: [
+        {
+          type: 'text',
+          text: systemPrompt(input.type) + typeSpecificBlock(input.content_type, input.activity_frame),
+          cache_control: { type: 'ephemeral' },
+        },
+      ],
       tools: [
         {
           type: 'web_search_20250305',
