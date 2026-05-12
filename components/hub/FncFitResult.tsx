@@ -142,8 +142,15 @@ export default function FncFitResult({
           <span>
             Your <strong>{cert.label}</strong> is short by{' '}
             <strong>{fit.topupPoints?.toLocaleString()} points</strong>.
-            Marriott allows up to 15,000 points top-up — pay the gap and the
-            cert still works.
+            {cert.topupMax && cert.topupMax < 999_000 ? (
+              <>
+                {' '}This program allows up to{' '}
+                <strong>{cert.topupMax.toLocaleString()} points</strong>{' '}
+                top-up — pay the gap and the cert still works.
+              </>
+            ) : (
+              <> Pay the gap with points (or points + cash where supported) and the cert still works.</>
+            )}
           </span>
         )}
         {fit.verdict === 'doesnt_fit' && (

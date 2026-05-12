@@ -51,8 +51,11 @@ export default function FncFitForm({
     >
       {/* Top-of-form expiry heads-up. The tool exists to beat expiry,
           so the very first thing a user sees should be a reminder to
-          check their account. Each cert's specific expiry then surfaces
-          in the result card after a match. */}
+          check their account. Each cert's specific expiry surfaces in
+          the result card after a match.
+
+          Hyatt + IHG nuance worth flagging upfront: the full STAY must
+          be completed before the cert expires, not just booked. */}
       <p
         style={{
           fontFamily: 'var(--font-body)',
@@ -63,9 +66,10 @@ export default function FncFitForm({
         }}
       >
         <strong style={{ color: 'var(--color-text-primary)' }}>Before you start:</strong>{' '}
-        Free Night Certs typically expire about 12 months from when they post.
-        Log into your loyalty account to confirm your cert&apos;s exact expiration
-        before booking.
+        Free Night Cert expirations vary (typically 6–12 months from issue).
+        For Hyatt and IHG, your stay must be <strong>completed</strong> before
+        the cert expires — not just booked. Log into your loyalty account to
+        confirm the exact date.
       </p>
 
       <div>
