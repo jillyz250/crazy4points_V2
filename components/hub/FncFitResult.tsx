@@ -42,6 +42,29 @@ export default function FncFitResult({
         gap: '0.875rem',
       }}
     >
+      {/* Expiry hint — the whole point of this tool is to beat expiry,
+          so we lead with it. Surfaced top-of-card before verdict. */}
+      {cert.expiryHint && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '0.5rem',
+            padding: '0.625rem 0.875rem',
+            background: 'rgba(212, 175, 55, 0.12)',
+            border: '1px solid var(--color-accent)',
+            borderRadius: 'var(--radius-ui)',
+            fontFamily: 'var(--font-body)',
+            fontSize: '0.8125rem',
+            color: 'var(--color-text-primary)',
+            lineHeight: 1.45,
+          }}
+        >
+          <span aria-hidden style={{ fontSize: '0.9375rem', lineHeight: 1 }}>⏳</span>
+          <span><strong>Expiry check first:</strong> {cert.expiryHint}</span>
+        </div>
+      )}
+
       <div
         style={{
           display: 'flex',

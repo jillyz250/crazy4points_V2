@@ -24,6 +24,12 @@ export interface CertDef {
   maxCategory?: number
   /** Display fees note. */
   feesNote?: string
+  /** One-line expiry hint surfaced on the result card. Phrased
+   *  conservatively ("typically X — check your account") because
+   *  individual cert expiries vary by issue date + program extensions.
+   *  The whole point of this tool is to beat expiry, so this can't
+   *  be silent. */
+  expiryHint?: string
 }
 
 export const FNC_CERTS: CertDef[] = [
@@ -35,6 +41,7 @@ export const FNC_CERTS: CertDef[] = [
     maxPoints: 35000,
     topupMax: 15000,
     feesNote: 'Marriott allows up to 15k points top-up since 2024.',
+    expiryHint: 'Marriott Free Night Awards typically expire about 12 months from when they post — check your Marriott account for the exact date.',
   },
   {
     id: 'marriott-50k',
@@ -43,6 +50,7 @@ export const FNC_CERTS: CertDef[] = [
     matchModel: 'points',
     maxPoints: 50000,
     topupMax: 15000,
+    expiryHint: 'Marriott Free Night Awards typically expire about 12 months from when they post — check your Marriott account for the exact date.',
   },
   {
     id: 'marriott-85k',
@@ -51,6 +59,7 @@ export const FNC_CERTS: CertDef[] = [
     matchModel: 'points',
     maxPoints: 85000,
     topupMax: 15000,
+    expiryHint: 'Marriott Free Night Awards typically expire about 12 months from when they post — check your Marriott account for the exact date.',
   },
   {
     id: 'hyatt-1-4',
@@ -59,6 +68,7 @@ export const FNC_CERTS: CertDef[] = [
     matchModel: 'category',
     maxCategory: 4,
     feesNote: 'Covers any Cat 1-4 property regardless of peak / standard / off-peak.',
+    expiryHint: 'Hyatt Free Night Awards typically expire about 12 months from issue date — check your World of Hyatt account for the exact date.',
   },
   {
     id: 'hyatt-1-7',
@@ -67,6 +77,7 @@ export const FNC_CERTS: CertDef[] = [
     matchModel: 'category',
     maxCategory: 7,
     feesNote: 'Covers any Cat 1-7 property regardless of peak / standard / off-peak.',
+    expiryHint: 'Hyatt Free Night Awards typically expire about 12 months from issue date — check your World of Hyatt account for the exact date.',
   },
   {
     id: 'ihg-anniv',
@@ -76,6 +87,7 @@ export const FNC_CERTS: CertDef[] = [
     maxPoints: 40000,
     topupMax: 999_000,
     feesNote: 'IHG anniversary cert allows unlimited points + cash top-up.',
+    expiryHint: 'IHG Anniversary Free Nights typically expire about 12 months from issue date — check your IHG One Rewards account for the exact date.',
   },
 ]
 

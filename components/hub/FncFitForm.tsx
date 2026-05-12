@@ -49,6 +49,25 @@ export default function FncFitForm({
         gap: '1rem',
       }}
     >
+      {/* Top-of-form expiry heads-up. The tool exists to beat expiry,
+          so the very first thing a user sees should be a reminder to
+          check their account. Each cert's specific expiry then surfaces
+          in the result card after a match. */}
+      <p
+        style={{
+          fontFamily: 'var(--font-body)',
+          fontSize: '0.8125rem',
+          color: 'var(--color-text-secondary)',
+          margin: 0,
+          lineHeight: 1.45,
+        }}
+      >
+        <strong style={{ color: 'var(--color-text-primary)' }}>Before you start:</strong>{' '}
+        Free Night Certs typically expire about 12 months from when they post.
+        Log into your loyalty account to confirm your cert&apos;s exact expiration
+        before booking.
+      </p>
+
       <div>
         <div
           style={{
