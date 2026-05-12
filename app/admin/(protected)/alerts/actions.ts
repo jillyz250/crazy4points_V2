@@ -111,25 +111,50 @@ export async function publishAlertAction(id: string) {
   const supabase = createAdminClient()
   const prev = await getAlertById(supabase, id)
   const now = new Date().toISOString()
+
+  // Generate a short_slug if missing (for shareable URLs at /a/<short>).
+  const shortSlug = await ensureShortSlug(supabase, prev as { id: string; title: string; short_slug?: string | null })
+
   await updateAlert(supabase, id, {
     status: 'published',
     published_at: now,
     decided_at: now,
+    ...(shortSlug ? { short_slug: shortSlug } : {}),
   })
   await trackSourceApprovalIfNeeded(supabase, prev, 'published')
   await revalidateAlertPaths(supabase, id, prev.slug)
   redirect('/admin/alerts')
 }
 
+/**
+ * Generate a short_slug if the alert doesn't already have one. Idempotent:
+ * returns the existing slug if set. Used by publish + bulk-approve paths.
+ */
+async function ensureShortSlug(
+  supabase: ReturnType<typeof createAdminClient>,
+  alert: { id: string; title: string; short_slug?: string | null },
+): Promise<string | null> {
+  if (alert.short_slug) return null // already has one, don't overwrite
+  try {
+    const { generateUniqueShortSlug } = await import('@/utils/alerts/generateShortSlug')
+    return await generateUniqueShortSlug(supabase, alert.title, alert.id)
+  } catch (err) {
+    console.error('[ensureShortSlug] failed:', err)
+    return null
+  }
+}
+
 export async function approveIntelAlertAction(id: string) {
   const supabase = createAdminClient()
   const prev = await getAlertById(supabase, id)
   const now = new Date().toISOString()
+  const shortSlug = await ensureShortSlug(supabase, prev as { id: string; title: string; short_slug?: string | null })
   await updateAlert(supabase, id, {
     status: 'published',
     published_at: now,
     approved_at: now,
     decided_at: now,
+    ...(shortSlug ? { short_slug: shortSlug } : {}),
   })
   await trackSourceApprovalIfNeeded(supabase, prev, 'published')
   await revalidateAlertPaths(supabase, id, prev.slug)
@@ -144,11 +169,13 @@ export async function bulkApproveIntelAlertsAction(ids: string[]) {
     const prev = await getAlertById(supabase, id).catch(() => null)
     if (!prev) continue
     if (prev.status === 'published') continue
+    const shortSlug = await ensureShortSlug(supabase, prev as { id: string; title: string; short_slug?: string | null })
     await updateAlert(supabase, id, {
       status: 'published',
       published_at: now,
       approved_at: now,
       decided_at: now,
+      ...(shortSlug ? { short_slug: shortSlug } : {}),
     })
     await trackSourceApprovalIfNeeded(supabase, prev, 'published')
     await revalidateAlertPaths(supabase, id, prev.slug)

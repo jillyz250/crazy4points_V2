@@ -6,6 +6,7 @@ import FactCheckWarnings from '@/components/admin/FactCheckWarnings'
 import AlertGapsBanner from '@/components/admin/AlertGapsBanner'
 import QuickFixVoiceButton from '@/components/admin/QuickFixVoiceButton'
 import RunAllChecksAlertButton from '@/components/admin/RunAllChecksAlertButton'
+import ShortUrlCopy from '@/components/admin/ShortUrlCopy'
 import { Badge } from '@/components/admin/ui/Badge'
 import { ALERT_TYPES, ACTION_TYPES } from '@/lib/admin/alertTypes'
 import TextField from '@/components/admin/form/TextField'
@@ -53,6 +54,11 @@ export default function EditAlertForm({ alert, programs, taggedProgramIds }: Pro
     <form onSubmit={handleSubmit} style={{ maxWidth: '640px' }}>
       {/* Preserve published_at so update action can keep it unchanged */}
       <input type="hidden" name="existing_published_at" value={alert.published_at ?? ''} />
+
+      {/* Shareable short URL for social posts (only when published + slug set). */}
+      {alert.status === 'published' && alert.short_slug && (
+        <ShortUrlCopy shortSlug={alert.short_slug} />
+      )}
 
       {/* Phase 5b — verification pills + one-click pipeline. Mirrors the blog
           drafts UI on /admin/content-ideas so the alert review workflow has

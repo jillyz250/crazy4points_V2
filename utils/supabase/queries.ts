@@ -93,6 +93,11 @@ export type SourceWithFeedCount = Source & { feed_count: number }
 export interface Alert {
   id: string
   slug: string
+  /**
+   * Short, human-readable slug for /a/<short> shareable URLs.
+   * Auto-generated from title at publish time. Migration 245.
+   */
+  short_slug: string | null
   title: string
   summary: string
   description: string | null
@@ -257,7 +262,7 @@ export type AlertWithPrograms = Alert & {
   alert_programs: (AlertProgram & { programs: Program })[]
 }
 
-export type AlertInsert = Omit<Alert, 'id' | 'created_at' | 'updated_at' | 'computed_score' | 'score_last_computed_at' | 'approved_at' | 'source_intel_id' | 'fact_check_claims' | 'fact_check_at' | 'revision_log' | 'decided_at' | 'revisit_after' | 'rejected_reason' | 'why_this_matters' | 'override_reason' | 'voice_checked_at' | 'voice_pass' | 'voice_notes' | 'originality_checked_at' | 'originality_pass' | 'originality_notes'>
+export type AlertInsert = Omit<Alert, 'id' | 'created_at' | 'updated_at' | 'computed_score' | 'score_last_computed_at' | 'approved_at' | 'source_intel_id' | 'fact_check_claims' | 'fact_check_at' | 'revision_log' | 'decided_at' | 'revisit_after' | 'rejected_reason' | 'why_this_matters' | 'override_reason' | 'voice_checked_at' | 'voice_pass' | 'voice_notes' | 'originality_checked_at' | 'originality_pass' | 'originality_notes' | 'short_slug'>
 
 // Phase 2 — decision memory.
 // How long Scout suppresses similar findings after each decision, in days.
