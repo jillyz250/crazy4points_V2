@@ -426,7 +426,9 @@ export default function TransferBonusCard({ bonus }: { bonus: ActiveTransferBonu
                 {top.region_or_route}
               </div>
 
-              {/* Marquee pitch — the "why this one" sentence */}
+              {/* Marquee pitch — the "why this one" sentence.
+                  Gated on source URL (Migration 248): if no source,
+                  query returns null pitch — better silent than fabricated. */}
               {isMarquee && top.marquee_pitch && (
                 <div
                   style={{
@@ -438,9 +440,30 @@ export default function TransferBonusCard({ bonus }: { bonus: ActiveTransferBonu
                     fontSize: '0.875rem',
                     color: 'var(--color-text-primary)',
                     lineHeight: 1.5,
+                    display: 'grid',
+                    gap: '0.375rem',
                   }}
                 >
-                  {top.marquee_pitch}
+                  <div>{top.marquee_pitch}</div>
+                  {top.marquee_pitch_source_url && (
+                    <a
+                      href={top.marquee_pitch_source_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        fontFamily: 'var(--font-ui)',
+                        fontSize: '0.6875rem',
+                        fontWeight: 600,
+                        letterSpacing: '0.04em',
+                        textTransform: 'uppercase',
+                        color: 'var(--color-primary)',
+                        textDecoration: 'none',
+                        opacity: 0.75,
+                      }}
+                    >
+                      Source ↗
+                    </a>
+                  )}
                 </div>
               )}
 

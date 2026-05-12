@@ -30,9 +30,15 @@ export interface SweetSpotExample {
   is_marquee: boolean
   /**
    * One-sentence "why this is the famous one" pitch (Migration 247).
-   * Only populated when is_marquee=true AND the program has marquee_pitch set.
+   * Only populated when ALL of: is_marquee=true, marquee_pitch set,
+   * AND marquee_pitch_source_url set (Migration 248 source gate).
+   * If source URL is missing, pitch is forcibly null — better silent
+   * than fabricated. Card falls back to plain "Editor's pick" with no
+   * narrative.
    */
   marquee_pitch: string | null
+  /** URL backing marquee_pitch claims. Surfaced as a "Source" link. */
+  marquee_pitch_source_url: string | null
   // Phase 4 (How to book this disclosure) — narrative fields surfaced inline
   booking_channel: string | null
   bookable_online: boolean | null
@@ -148,15 +154,23 @@ export async function getActiveTransferBonuses(
     let destinationChart: AwardChartProgram | null = null
     let marqueeRedemptionId: string | null = null
     let marqueePitch: string | null = null
+    let marqueePitchSourceUrl: string | null = null
     if (a.primary_program_id) {
       const { data: progRow } = await supabase
         .from('programs')
-        .select('award_chart_structured, marquee_redemption_id, marquee_pitch')
+        .select('award_chart_structured, marquee_redemption_id, marquee_pitch, marquee_pitch_source_url')
         .eq('id', a.primary_program_id)
         .maybeSingle()
       destinationChart = (progRow?.award_chart_structured as AwardChartProgram | null) ?? null
       marqueeRedemptionId = (progRow?.marquee_redemption_id as string | null) ?? null
-      marqueePitch = (progRow?.marquee_pitch as string | null) ?? null
+      const rawPitch = (progRow?.marquee_pitch as string | null) ?? null
+      const rawSource = (progRow?.marquee_pitch_source_url as string | null) ?? null
+      // Source gate (Migration 248): pitch only renders when source URL is present.
+      // Better silent than fabricated.
+      if (rawPitch && rawSource) {
+        marqueePitch = rawPitch
+        marqueePitchSourceUrl = rawSource
+      }
     }
 
     if (a.primary_program_id) {
@@ -270,6 +284,8 @@ export async function getActiveTransferBonuses(
           computed_cost: computed,
           is_marquee: marqueeRedemptionId === r.id,
           marquee_pitch: marqueeRedemptionId === r.id ? marqueePitch : null,
+          marquee_pitch_source_url:
+            marqueeRedemptionId === r.id ? marqueePitchSourceUrl : null,
           booking_channel: (r.booking_channel as string | null) ?? null,
           bookable_online: (r.bookable_online as boolean | null) ?? null,
           routing_rules: (r.routing_rules as string | null) ?? null,
