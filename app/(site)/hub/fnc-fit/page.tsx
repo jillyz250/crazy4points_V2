@@ -11,7 +11,7 @@ import FncFitForm from '@/components/hub/FncFitForm'
 import FncFitResult from '@/components/hub/FncFitResult'
 
 export const metadata: Metadata = {
-  title: 'Will My FNC Fit? — The Points Hub — crazy4points',
+  title: 'Will My Free Night Cert Fit? — The Points Hub — crazy4points',
   description:
     "Three-second yes/no on whether your Free Night Cert covers a hotel — plus top-up math and alternatives nearby that DO fit.",
   alternates: { canonical: 'https://www.crazy4points.com/hub/fnc-fit' },
@@ -90,7 +90,7 @@ export default async function Page({
             lineHeight: 1.1,
           }}
         >
-          Will My FNC Fit?
+          Will My Free Night Cert Fit?
         </h1>
         <p
           style={{
@@ -269,10 +269,10 @@ export default async function Page({
             </h2>
             <div style={{ display: 'grid', gap: '0.375rem' }}>
               {[
-                { cert: 'hyatt-1-7', q: 'Andaz Maui', label: 'Hyatt 1-7 FNC → Andaz Maui (Cat 8 — see what happens)' },
-                { cert: 'hyatt-1-7', q: 'Park Hyatt Vienna', label: 'Hyatt 1-7 FNC → Park Hyatt Vienna' },
-                { cert: 'hyatt-1-4', q: 'Hyatt Place', label: 'Hyatt 1-4 FNC → Hyatt Place options' },
-                { cert: 'hyatt-1-4', q: 'Tokyo', label: 'Hyatt 1-4 FNC → Tokyo properties' },
+                { cert: 'hyatt-1-7', q: 'Andaz Maui', label: 'Hyatt 1-7 cert → Andaz Maui (Cat 8 — see what happens)' },
+                { cert: 'hyatt-1-7', q: 'Park Hyatt Vienna', label: 'Hyatt 1-7 cert → Park Hyatt Vienna' },
+                { cert: 'hyatt-1-4', q: 'Hyatt Place', label: 'Hyatt 1-4 cert → Hyatt Place options' },
+                { cert: 'hyatt-1-4', q: 'Tokyo', label: 'Hyatt 1-4 cert → Tokyo properties' },
               ].map((ex) => (
                 <Link
                   key={`${ex.cert}-${ex.q}`}
