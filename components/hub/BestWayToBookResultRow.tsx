@@ -299,6 +299,11 @@ export default function BestWayToBookResultRow({
               Dynamic — expect upper end
             </Chip>
           )}
+          {!hasComputed && !noPublishedRate && (
+            <Chip bg="var(--color-background-soft)" fg="var(--color-text-secondary)">
+              Approximate
+            </Chip>
+          )}
         </div>
       </div>
 
