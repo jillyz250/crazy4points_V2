@@ -311,9 +311,7 @@ export default function TransferBonusCard({ bonus }: { bonus: ActiveTransferBonu
               <span aria-hidden style={{ fontSize: isMarquee ? '1rem' : '0.875rem' }}>
                 {isMarquee ? '★' : '⭐'}
               </span>
-              <span>
-                {isMarquee ? 'Editor’s pick' : 'Top sweet spot'}
-              </span>
+              <span>Editor’s pick</span>
               {isMarquee && (
                 <span
                   style={{
