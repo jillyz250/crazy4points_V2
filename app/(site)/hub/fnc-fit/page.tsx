@@ -33,7 +33,13 @@ export default async function Page({
   let alternatives: Awaited<ReturnType<typeof findAlternatives>> = []
   let queryError: string | null = null
 
-  if (cert && query) {
+  // Short-circuit when the cert's program isn't indexed yet (Migration
+  // backlog — see lib/fncCerts.ts `available: false`). Give the user a
+  // clear "coming soon" message instead of letting the search fall
+  // through to an empty result set.
+  if (cert && cert.available === false) {
+    queryError = `${cert.label.replace(/ Free Night.*$/, '')} property data is coming soon. Hyatt and Marriott searches work today.`
+  } else if (cert && query) {
     try {
       const supabase = createAdminClient()
       const programId = await getProgramIdBySlug(supabase, cert.programSlug)

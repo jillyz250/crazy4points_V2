@@ -102,11 +102,14 @@ export default function FncFitForm({
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
                 {certs.map((c) => {
                   const active = cert === c.id
+                  const disabled = c.available === false
                   return (
                     <button
                       key={c.id}
                       type="button"
-                      onClick={() => setCert(c.id)}
+                      onClick={() => !disabled && setCert(c.id)}
+                      disabled={disabled}
+                      title={disabled ? 'Property data coming soon' : undefined}
                       style={{
                         padding: '0.4375rem 0.75rem',
                         fontFamily: 'var(--font-ui)',
@@ -115,14 +118,35 @@ export default function FncFitForm({
                         border: active ? 'none' : '1px solid var(--color-border-soft)',
                         background: active
                           ? 'var(--color-primary)'
-                          : '#fff',
-                        color: active ? '#fff' : 'var(--color-text-primary)',
+                          : disabled
+                            ? 'var(--color-background-soft)'
+                            : '#fff',
+                        color: active
+                          ? '#fff'
+                          : disabled
+                            ? 'var(--color-text-secondary)'
+                            : 'var(--color-text-primary)',
                         borderRadius: '999px',
-                        cursor: 'pointer',
+                        cursor: disabled ? 'not-allowed' : 'pointer',
+                        opacity: disabled ? 0.6 : 1,
                         whiteSpace: 'nowrap',
                       }}
                     >
                       {c.label.replace(/ Free Night.*$/, '')}
+                      {disabled && (
+                        <span
+                          style={{
+                            marginLeft: '0.375rem',
+                            fontSize: '0.625rem',
+                            fontWeight: 700,
+                            letterSpacing: '0.05em',
+                            textTransform: 'uppercase',
+                            color: 'var(--color-text-secondary)',
+                          }}
+                        >
+                          · soon
+                        </span>
+                      )}
                     </button>
                   )
                 })}

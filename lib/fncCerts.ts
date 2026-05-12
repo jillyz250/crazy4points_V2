@@ -30,6 +30,11 @@ export interface CertDef {
    *  The whole point of this tool is to beat expiry, so this can't
    *  be silent. */
   expiryHint?: string
+  /** When false, the cert renders as a disabled "Coming soon" option
+   *  in the form because the program's hotel_properties data isn't
+   *  loaded in Supabase yet. Picking it via URL still routes through
+   *  the page, where a coming-soon message replaces the result. */
+  available?: boolean
 }
 
 export const FNC_CERTS: CertDef[] = [
@@ -102,6 +107,9 @@ export const FNC_CERTS: CertDef[] = [
     topupMax: 999_000,
     feesNote: 'Top up with additional points or points + cash. Covers room + taxes (not resort/parking fees).',
     expiryHint: 'IHG Anniversary Free Nights expire 12 months from issue. Your full stay must be completed before expiry — not just booked. Check your IHG One Rewards account for the exact date.',
+    // IHG property data not yet loaded in Supabase. Selecting this cert
+    // surfaces a "coming soon" message instead of running the lookup.
+    available: false,
   },
 ]
 
