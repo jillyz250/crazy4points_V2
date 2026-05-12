@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import type { WalletRedemption } from '@/utils/supabase/whereCanIGoQueries'
 import HowToBookDisclosure from '@/components/hub/HowToBookDisclosure'
+import { displayCarrierName } from '@/lib/carrierDisplay'
 
 const ALLIANCE_COLOR: Record<string, string> = {
   oneworld: '#C8102E',
@@ -53,7 +54,7 @@ export default function WalletRedemptionRow({
             lineHeight: 1.25,
           }}
         >
-          {row.cabin} on {row.operating_carrier?.name ?? '—'}
+          {row.cabin} on {displayCarrierName(row.operating_carrier)}
         </h3>
         <span
           style={{
@@ -170,7 +171,7 @@ export default function WalletRedemptionRow({
               textDecoration: 'none',
             }}
           >
-            About {row.operating_carrier.name} →
+            About {displayCarrierName(row.operating_carrier)} →
           </Link>
         )}
       </div>
