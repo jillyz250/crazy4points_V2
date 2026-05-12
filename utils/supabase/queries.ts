@@ -2003,6 +2003,11 @@ export interface PartnerRedemption {
   devaluation_note: string | null
   availability_reality: 'excellent' | 'good' | 'mixed' | 'rare' | 'unicorn' | null
   route_buckets: string[] | null
+  // Phase 1 of Award Chart Rebuild (migration 227): IATA anchors for
+  // chart-computed route-level pricing on Don't Sleep / Should I Transfer /
+  // Where Can I Go surfaces. Null on bucket-level rows.
+  origin_iata: string | null
+  dest_iata: string | null
 }
 
 export type PartnerRedemptionInsert = Omit<

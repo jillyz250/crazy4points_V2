@@ -1,5 +1,16 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { PartnerRedemptionWithPrograms, Program, TransferPartnerRow } from '@/utils/supabase/queries'
+import type { AwardChartProgram, AwardCostResult, Cabin } from '@/lib/awardChart'
+import type { RouteBucket } from '@/lib/airports'
+import { findAirport } from '@/lib/airports'
+import { computeAwardCost, computeBucketTypicalCost } from '@/lib/awardChart.compute'
+
+const REDEMPTION_TO_CHART_CABIN: Record<string, Cabin> = {
+  'Economy': 'economy',
+  'Premium Economy': 'premium_economy',
+  'Business': 'business',
+  'First': 'first',
+}
 
 /**
  * A user's wallet: program slug → miles balance.
@@ -106,6 +117,8 @@ export interface WalletRedemption {
   tier: 'ready' | 'one_transfer_away' | 'unreachable'
   reach: ReachInfo
   miles_needed: number // cheapest cost cell
+  /** Phase 3.2: chart-computed cost when destination program has a chart. */
+  computed_cost: AwardCostResult | null
 }
 
 /**
@@ -132,10 +145,53 @@ export async function getWalletRedemptions(
 
   const rows = (data ?? []) as unknown as PartnerRedemptionWithPrograms[]
 
+  // Phase 3.2: batch-fetch destination chart JSON for chart-compute enrichment.
+  const uniqueCurrencyIds = Array.from(
+    new Set(rows.map((r) => r.currency_program_id).filter(Boolean)),
+  )
+  const chartByProgramId = new Map<string, AwardChartProgram | null>()
+  if (uniqueCurrencyIds.length > 0) {
+    const { data: programs } = await supabase
+      .from('programs')
+      .select('id, award_chart_structured')
+      .in('id', uniqueCurrencyIds)
+    for (const p of programs ?? []) {
+      chartByProgramId.set(p.id as string, (p.award_chart_structured as AwardChartProgram | null) ?? null)
+    }
+  }
+
   const out: WalletRedemption[] = []
   for (const r of rows) {
     if (!r.currency_program?.slug || r.cost_miles_low == null) continue
-    const miles_needed = r.cost_miles_low
+
+    // Phase 3.2: try chart compute. Prefer route-level when row has IATAs;
+    // fall back to bucket-typical when only route_buckets is set.
+    const chart = chartByProgramId.get(r.currency_program_id) ?? null
+    const carrierSlug = r.operating_carrier?.slug ?? null
+    const chartCabin = REDEMPTION_TO_CHART_CABIN[r.cabin as string] ?? 'economy'
+    let computed: AwardCostResult | null = null
+    if (chart && carrierSlug) {
+      if (r.origin_iata && r.dest_iata) {
+        const o = findAirport(r.origin_iata)
+        const d = findAirport(r.dest_iata)
+        if (o && d) computed = computeAwardCost(chart, carrierSlug, o, d, chartCabin)
+      }
+      if (!computed) {
+        const buckets = (r.route_buckets ?? []) as string[]
+        if (buckets.length > 0) {
+          computed = computeBucketTypicalCost(chart, carrierSlug, buckets[0] as RouteBucket, chartCabin)
+        }
+      }
+    }
+
+    // Use computed cost for tier matching when available — more accurate than
+    // the row's stored cost_miles_low (which can be misleadingly low on
+    // dynamic-pricing programs).
+    let miles_needed = r.cost_miles_low
+    if (computed) {
+      miles_needed = typeof computed.miles === 'object' ? computed.miles.low : computed.miles
+    }
+
     const reach = computeReach(wallet, graph, r.currency_program.slug)
 
     let tier: WalletRedemption['tier']
@@ -143,7 +199,7 @@ export async function getWalletRedemptions(
     else if ((reach.oneTransferFrom?.transferable ?? 0) >= miles_needed) tier = 'one_transfer_away'
     else tier = 'unreachable'
 
-    out.push({ row: r, tier, reach, miles_needed })
+    out.push({ row: r, tier, reach, miles_needed, computed_cost: computed })
   }
 
   return out

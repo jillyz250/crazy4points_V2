@@ -81,6 +81,110 @@ function chartAppliesToBucket(chart: AwardChart, bucket: string | null): boolean
   return allowed.includes(bucket)
 }
 
+// ─── Bucket-level compute ──────────────────────────────────────────────────
+//
+// Some Hub surfaces (Should I Transfer top sweet spot, Where Can I Go,
+// Don't Sleep) work in BUCKETS, not specific routes. They need:
+//   "typical cost for this (program × carrier × bucket × cabin)"
+// without a concrete origin/dest. This helper picks a representative
+// midpoint distance per bucket for distance/DPM charts, and a direct
+// matrix lookup for zone/dynamic charts.
+//
+// For programs without a structured chart, returns null and callers should
+// fall back to partner_redemptions.cost_miles_low/high.
+
+import type { RouteBucket } from './airports'
+
+/** Representative great-circle distance per bucket (rough midpoint). */
+const BUCKET_TYPICAL_DISTANCE: Record<RouteBucket, number> = {
+  'us-short':   400,
+  'us-medium':  1500,
+  'us-long':    3500,
+  'us-eu-east': 4000,
+  'us-eu-west': 6000,
+  'us-japan':   6500,
+  'us-se-asia': 9000,
+  'us-me-india':7500,
+  'us-pacific': 8000,
+  'us-africa':  8000,
+  'us-samerica':5500,
+}
+
+export function computeBucketTypicalCost(
+  program: AwardChartProgram | null | undefined,
+  partnerSlug: string,
+  bucket: RouteBucket,
+  cabin: Cabin,
+): AwardCostResult | null {
+  if (!program?.charts?.length) return null
+
+  for (const chart of program.charts) {
+    if (!chartCoversPartner(chart, partnerSlug)) continue
+    if (!chartAppliesToBucket(chart, bucket)) continue
+    const result = computeOneForBucket(chart, partnerSlug, bucket, cabin)
+    if (result) return result
+  }
+  return null
+}
+
+function computeOneForBucket(
+  chart: AwardChart,
+  partnerSlug: string,
+  bucket: RouteBucket,
+  cabin: Cabin,
+): AwardCostResult | null {
+  switch (chart.type) {
+    case 'zone': {
+      const partner = chart.partners[partnerSlug]
+      const cost = partner?.matrix[bucket]?.[cabin]
+      if (cost == null) return null
+      return { miles: cost, typical: cost, exact: true, source: 'chart', band: bucket }
+    }
+    case 'dynamic': {
+      const partner = chart.partners[partnerSlug]
+      const pct = partner?.ranges_by_bucket?.[bucket]?.[cabin]
+      if (!pct) return null
+      return {
+        miles: { low: pct.p10, high: pct.p90 },
+        typical: pct.p50,
+        exact: false,
+        source: 'dynamic_estimate',
+        band: bucket,
+        notes: 'Dynamic pricing — expect the typical figure on most days.',
+      }
+    }
+    case 'distance':
+    case 'distance_plus_modifiers': {
+      const distance = BUCKET_TYPICAL_DISTANCE[bucket]
+      const partner = chart.partners[partnerSlug] as { bands?: Array<{ max_miles: number; cabin?: Record<string, number>; peak?: Record<string, number>; off_peak?: Record<string, number> }>; multiplier?: number } | undefined
+      if (!partner?.bands) return null
+      let prevMax = 0
+      for (const band of partner.bands) {
+        if (distance <= band.max_miles) {
+          // distance chart has `cabin`; DPM has peak/off_peak — use off_peak default
+          const cost = band.cabin?.[cabin] ?? band.off_peak?.[cabin]
+          if (cost == null) return null
+          const mult = partner.multiplier ?? 1.0
+          const finalCost = Math.round(cost * mult)
+          return {
+            miles: finalCost,
+            typical: finalCost,
+            exact: true,
+            source: 'chart',
+            band: `${(prevMax + 1).toLocaleString()}–${band.max_miles.toLocaleString()} mi @ ${fmtKilo(finalCost)}`,
+            season: chart.type === 'distance_plus_modifiers' ? 'off_peak' : undefined,
+          }
+        }
+        prevMax = band.max_miles
+      }
+      return null
+    }
+    case 'fixed_route':
+      // No bucket-level concept for fixed routes; caller falls back to stored.
+      return null
+  }
+}
+
 // ─── Chart-level dispatch ──────────────────────────────────────────────────
 
 function computeOne(

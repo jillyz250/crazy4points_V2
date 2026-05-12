@@ -334,8 +334,22 @@ export default function TransferBonusCard({ bonus }: { bonus: ActiveTransferBonu
                 }}
               >
                 {(() => {
-                  const low = top.cost_miles_low
-                  const high = top.cost_miles_high
+                  // Phase 3.2: prefer chart-computed when available
+                  const computed = top.computed_cost
+                  let low: number | null
+                  let high: number | null
+                  if (computed) {
+                    if (typeof computed.miles === 'object') {
+                      low = computed.miles.low
+                      high = computed.miles.high
+                    } else {
+                      low = computed.miles as number
+                      high = null
+                    }
+                  } else {
+                    low = top.cost_miles_low
+                    high = top.cost_miles_high
+                  }
                   const isRange = low != null && high != null && high > low
                   return (
                     <>
