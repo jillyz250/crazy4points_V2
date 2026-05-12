@@ -105,6 +105,16 @@ export default function EditAlertForm({ alert, programs, taggedProgramIds }: Pro
               : 'Originality not checked',
           },
         ]
+        // Collect inline failure notes for any check that ran-and-failed.
+        // Shown beneath the pills so admins don't have to hover for the reason.
+        const failureNotes: { label: string; note: string }[] = []
+        if (alert.voice_checked_at && alert.voice_pass === false && alert.voice_notes) {
+          failureNotes.push({ label: 'On-brand voice', note: alert.voice_notes })
+        }
+        if (alert.originality_checked_at && alert.originality_pass === false && alert.originality_notes) {
+          failureNotes.push({ label: 'Originality', note: alert.originality_notes })
+        }
+
         return (
           <div style={{ marginBottom: '1.25rem' }}>
             <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap', marginBottom: '0.625rem' }}>
@@ -119,6 +129,48 @@ export default function EditAlertForm({ alert, programs, taggedProgramIds }: Pro
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
               <RunAllChecksAlertButton alertId={alert.id} />
             </div>
+            {failureNotes.length > 0 && (
+              <div
+                style={{
+                  marginTop: '0.625rem',
+                  padding: '0.75rem 0.875rem',
+                  background: '#FEF2F2',
+                  border: '1px solid #FCA5A5',
+                  borderRadius: 'var(--radius-ui)',
+                  display: 'grid',
+                  gap: '0.5rem',
+                }}
+              >
+                {failureNotes.map((f) => (
+                  <div key={f.label}>
+                    <div
+                      style={{
+                        fontFamily: 'var(--font-ui)',
+                        fontSize: '0.6875rem',
+                        fontWeight: 700,
+                        letterSpacing: '0.06em',
+                        textTransform: 'uppercase',
+                        color: '#7F1D1D',
+                        marginBottom: '0.25rem',
+                      }}
+                    >
+                      ✗ {f.label} failed
+                    </div>
+                    <div
+                      style={{
+                        fontFamily: 'var(--font-body)',
+                        fontSize: '0.8125rem',
+                        color: '#7F1D1D',
+                        lineHeight: 1.5,
+                        whiteSpace: 'pre-wrap',
+                      }}
+                    >
+                      {f.note}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )
       })()}
