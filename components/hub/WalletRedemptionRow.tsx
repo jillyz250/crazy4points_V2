@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { WalletRedemption } from '@/utils/supabase/whereCanIGoQueries'
+import HowToBookDisclosure from '@/components/hub/HowToBookDisclosure'
 
 const ALLIANCE_COLOR: Record<string, string> = {
   oneworld: '#C8102E',
@@ -173,6 +174,8 @@ export default function WalletRedemptionRow({
           </Link>
         )}
       </div>
+
+      <HowToBookDisclosure r={row} />
     </article>
   )
 }
