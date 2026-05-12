@@ -22,8 +22,23 @@ export default function HomeHeroV2({ lastUpdated }: Props) {
             Smart travel with points
           </p>
 
-          <h1 className="font-display text-4xl leading-[1.1] text-[var(--color-primary)] md:text-5xl lg:text-6xl">
-            Because paying full price is overrated.
+          {/* Display-scale hero — uses the .rg-display token (clamps
+              2.5rem mobile / 4.5rem desktop, line-height 1.05,
+              letter-spacing -0.02em). Gold underline-flourish on the
+              punchline word per Royal Glow audit recommendation. */}
+          <h1 className="rg-display">
+            Because paying full price is{" "}
+            <span
+              style={{
+                textDecoration: "underline",
+                textDecorationColor: "var(--color-accent)",
+                textDecorationThickness: "0.15em",
+                textUnderlineOffset: "0.12em",
+              }}
+            >
+              overrated
+            </span>
+            .
           </h1>
 
           <p className="max-w-2xl font-body text-lg text-[var(--color-text-secondary)] md:text-xl">
@@ -32,7 +47,7 @@ export default function HomeHeroV2({ lastUpdated }: Props) {
 
           <Link
             href="/alerts"
-            className="mt-2 inline-flex items-center rounded-md bg-[var(--color-accent)] px-7 py-3.5 font-ui text-sm font-semibold uppercase tracking-[0.1em] text-[var(--color-primary)] shadow-sm transition hover:bg-[#c49f2f] hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)]"
+            className="mt-2 inline-flex items-center rounded-md bg-[var(--color-accent)] px-7 py-3.5 font-ui text-sm font-semibold uppercase tracking-[0.1em] text-[var(--color-primary)] shadow-sm transition hover:bg-[var(--color-accent-hover)] hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)]"
           >
             Start here →
           </Link>
