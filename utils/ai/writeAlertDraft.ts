@@ -962,7 +962,13 @@ export async function writeAlertDraft(args: {
     const message = await client.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 1500,
-      system: SYSTEM_PROMPT,
+      // Prompt caching — SYSTEM_PROMPT is a stable ~15K-token system prompt.
+      // Cache it (5-min TTL) so consecutive calls within the same admin
+      // session pay 90% less for input tokens. Cache write costs $3.75/M
+      // (vs $3/M input) once; cache read costs $0.30/M (10x cheaper).
+      system: [
+        { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
+      ],
       messages: [{ role: 'user', content: userContent }],
     })
     await logUsage(message, 'writeAlertDraft')
