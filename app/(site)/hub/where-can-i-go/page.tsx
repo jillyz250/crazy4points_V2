@@ -44,8 +44,8 @@ export default async function Page({
   try {
     options = await getWalletPickerOptions(supabase)
     if (hasWallet) {
-      const graph = await buildTransferGraph(supabase)
-      items = await getWalletRedemptions(supabase, wallet, graph)
+      const { graph, nameBySlug } = await buildTransferGraph(supabase)
+      items = await getWalletRedemptions(supabase, wallet, graph, nameBySlug)
     }
   } catch (err) {
     console.error('[hub/where-can-i-go] query failed:', err)

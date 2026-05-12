@@ -31,20 +31,36 @@ export type TransferGraph = Record<
 >
 
 /**
+ * Slug → display name lookup. Built alongside the transfer graph so the
+ * "one transfer away" copy can render "Capital One Miles" instead of
+ * leaking the raw slug ("CAPITAL_ONE") to readers.
+ */
+export type ProgramNameMap = Record<string, string>
+
+/**
  * Build the transfer graph by scanning every program's transfer_partners.
  * Reverses the relationship (transfer_partners lists inbound partners; we
  * want outbound paths from each currency).
+ *
+ * Also returns a `nameBySlug` map for every program touched, so callers
+ * can render proper program names instead of slugs.
  */
 export async function buildTransferGraph(
   supabase: SupabaseClient,
-): Promise<TransferGraph> {
+): Promise<{ graph: TransferGraph; nameBySlug: ProgramNameMap }> {
   const { data } = await supabase
     .from('programs')
-    .select('slug, transfer_partners')
+    .select('slug, name, transfer_partners')
     .not('transfer_partners', 'is', null)
 
   const graph: TransferGraph = {}
-  for (const p of (data ?? []) as Array<{ slug: string; transfer_partners: TransferPartnerRow[] | null }>) {
+  const nameBySlug: ProgramNameMap = {}
+  for (const p of (data ?? []) as Array<{
+    slug: string
+    name: string
+    transfer_partners: TransferPartnerRow[] | null
+  }>) {
+    if (p.slug && p.name) nameBySlug[p.slug] = p.name
     if (!Array.isArray(p.transfer_partners)) continue
     for (const tp of p.transfer_partners) {
       if (!tp.from_slug) continue
@@ -56,7 +72,7 @@ export async function buildTransferGraph(
       })
     }
   }
-  return graph
+  return { graph, nameBySlug }
 }
 
 /**
@@ -71,13 +87,29 @@ export async function buildTransferGraph(
  */
 export interface ReachInfo {
   direct: number // miles the user holds in this program directly
-  oneTransferFrom?: { fromSlug: string; ratio: string | null; transferable: number }
+  oneTransferFrom?: {
+    fromSlug: string
+    /** Display name (e.g. "Capital One Miles"). Falls back to a
+     *  prettified slug if no name was found in programs.name. */
+    fromName: string
+    ratio: string | null
+    transferable: number
+  }
+}
+
+/** Fallback prettifier for slugs missing from the name map. */
+function prettifySlug(slug: string): string {
+  return slug
+    .split(/[-_]/)
+    .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : ''))
+    .join(' ')
 }
 
 export function computeReach(
   wallet: Wallet,
   graph: TransferGraph,
   destinationSlug: string,
+  nameBySlug: ProgramNameMap = {},
 ): ReachInfo {
   const direct = wallet[destinationSlug] ?? 0
 
@@ -102,7 +134,12 @@ export function computeReach(
     }
     const transferable = Math.floor(balance * multiplier)
     if (!bestOneTransfer || transferable > bestOneTransfer.transferable) {
-      bestOneTransfer = { fromSlug: sourceSlug, ratio: edge.ratio, transferable }
+      bestOneTransfer = {
+        fromSlug: sourceSlug,
+        fromName: nameBySlug[sourceSlug] ?? prettifySlug(sourceSlug),
+        ratio: edge.ratio,
+        transferable,
+      }
     }
   }
 
@@ -130,6 +167,7 @@ export async function getWalletRedemptions(
   supabase: SupabaseClient,
   wallet: Wallet,
   graph: TransferGraph,
+  nameBySlug: ProgramNameMap = {},
 ): Promise<WalletRedemption[]> {
   const { data } = await supabase
     .from('partner_redemptions')
@@ -192,7 +230,7 @@ export async function getWalletRedemptions(
       miles_needed = typeof computed.miles === 'object' ? computed.miles.low : computed.miles
     }
 
-    const reach = computeReach(wallet, graph, r.currency_program.slug)
+    const reach = computeReach(wallet, graph, r.currency_program.slug, nameBySlug)
 
     let tier: WalletRedemption['tier']
     if (reach.direct >= miles_needed) tier = 'ready'
