@@ -21,6 +21,13 @@ export interface SweetSpotExample {
   teach_caption: string | null
   /** Phase 3.2: chart-computed cost when destination program has a chart. */
   computed_cost: AwardCostResult | null
+  /**
+   * True when this example is the curator-pinned marquee redemption for
+   * the destination program (Migration 246). Display gets an
+   * "EDITOR'S PICK" badge so the reader knows it's the famous one,
+   * not just the cheapest active row.
+   */
+  is_marquee: boolean
   // Phase 4 (How to book this disclosure) — narrative fields surfaced inline
   booking_channel: string | null
   bookable_online: boolean | null
@@ -132,15 +139,17 @@ export async function getActiveTransferBonuses(
     // surface no example at all, which is worse than surfacing the cheapest
     // active row we have.
     const examples: SweetSpotExample[] = []
-    // Fetch the destination program's chart once so we can enrich examples.
+    // Fetch the destination program's chart + marquee FK once.
     let destinationChart: AwardChartProgram | null = null
+    let marqueeRedemptionId: string | null = null
     if (a.primary_program_id) {
       const { data: progRow } = await supabase
         .from('programs')
-        .select('award_chart_structured')
+        .select('award_chart_structured, marquee_redemption_id')
         .eq('id', a.primary_program_id)
         .maybeSingle()
       destinationChart = (progRow?.award_chart_structured as AwardChartProgram | null) ?? null
+      marqueeRedemptionId = (progRow?.marquee_redemption_id as string | null) ?? null
     }
 
     if (a.primary_program_id) {
@@ -151,6 +160,26 @@ export async function getActiveTransferBonuses(
            fees_note, requires_saver_space, availability_reality,
            operating_carrier:programs!partner_redemptions_operating_carrier_id_fkey(name, slug),
            currency_program:programs!partner_redemptions_currency_program_id_fkey(name, slug)`
+
+      // Phase 3 marquee: if curator pinned a marquee redemption for this
+      // program, fetch it FIRST so it surfaces in the top sweet spot block
+      // regardless of cost. Fills the rest of the 2 slots from cheapest-easy.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let rows: any[] = []
+      const collectedIds = new Set<string>()
+
+      if (marqueeRedemptionId) {
+        const marquee = await supabase
+          .from('partner_redemptions')
+          .select(baseSelect)
+          .eq('id', marqueeRedemptionId)
+          .eq('is_active', true)
+          .maybeSingle()
+        if (marquee.data) {
+          rows.push(marquee.data)
+          collectedIds.add(marquee.data.id as string)
+        }
+      }
 
       const strict = await supabase
         .from('partner_redemptions')
@@ -163,7 +192,12 @@ export async function getActiveTransferBonuses(
         .order('cost_miles_low', { ascending: true })
         .limit(2)
 
-      let rows = strict.data ?? []
+      for (const row of strict.data ?? []) {
+        if (rows.length >= 2) break
+        if (collectedIds.has(row.id as string)) continue
+        rows.push(row)
+        collectedIds.add(row.id as string)
+      }
 
       if (rows.length === 0) {
         const fallback = await supabase
@@ -227,6 +261,7 @@ export async function getActiveTransferBonuses(
             : null,
           teach_caption: (r.teach_caption as string | null) ?? null,
           computed_cost: computed,
+          is_marquee: marqueeRedemptionId === r.id,
           booking_channel: (r.booking_channel as string | null) ?? null,
           bookable_online: (r.bookable_online as boolean | null) ?? null,
           routing_rules: (r.routing_rules as string | null) ?? null,
