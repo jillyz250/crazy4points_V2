@@ -24,21 +24,10 @@ export default function HomeHeroV2({ lastUpdated }: Props) {
 
           {/* Display-scale hero — uses the .rg-display token (clamps
               2.5rem mobile / 4.5rem desktop, line-height 1.05,
-              letter-spacing -0.02em). Gold underline-flourish on the
-              punchline word per Royal Glow audit recommendation. */}
+              letter-spacing -0.02em). One dramatic Playfair moment
+              per page, no decoration. */}
           <h1 className="rg-display">
-            Because paying full price is{" "}
-            <span
-              style={{
-                textDecoration: "underline",
-                textDecorationColor: "var(--color-accent)",
-                textDecorationThickness: "0.15em",
-                textUnderlineOffset: "0.12em",
-              }}
-            >
-              overrated
-            </span>
-            .
+            Because paying full price is overrated.
           </h1>
 
           <p className="max-w-2xl font-body text-lg text-[var(--color-text-secondary)] md:text-xl">
