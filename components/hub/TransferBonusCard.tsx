@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import type { ActiveTransferBonus } from '@/utils/supabase/transferBonusQueries'
 import HowToBookDisclosure from '@/components/hub/HowToBookDisclosure'
+import { displayCarrierName } from '@/lib/carrierDisplay'
 
 function daysBetween(endDateIso: string | null): number | null {
   if (!endDateIso) return null
@@ -317,8 +318,8 @@ export default function TransferBonusCard({ bonus }: { bonus: ActiveTransferBonu
                 }}
               >
                 {top.cabin}
-                {top.operating_carrier?.name
-                  ? ` on ${top.operating_carrier.name}`
+                {top.operating_carrier
+                  ? ` on ${displayCarrierName(top.operating_carrier)}`
                   : ''}
               </div>
               <div

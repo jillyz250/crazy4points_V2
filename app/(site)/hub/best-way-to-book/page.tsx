@@ -211,7 +211,7 @@ export default async function Page({
                   }}
                 >
                   {rows.length}{' '}
-                  {rows.length === 1 ? 'option' : 'options'} · cheapest first
+                  {rows.length === 1 ? 'way' : 'ways'} to book · lowest miles first
                 </div>
                 <div style={{ display: 'grid', gap: '0.75rem' }}>
                   {rows.map((r, i) => (

@@ -2,6 +2,7 @@ import Link from 'next/link'
 import type { PartnerRedemptionWithPrograms } from '@/utils/supabase/queries'
 import type { AwardCostResult } from '@/lib/awardChart'
 import HowToBookDisclosure from '@/components/hub/HowToBookDisclosure'
+import { displayCarrierName } from '@/lib/carrierDisplay'
 
 const ALLIANCE_COLOR: Record<string, string> = {
   oneworld: '#C8102E',
@@ -200,7 +201,7 @@ export default function BestWayToBookResultRow({
         >
           on{' '}
           <strong style={{ color: 'var(--color-text-primary)' }}>
-            {r.operating_carrier?.name ?? 'Unknown carrier'}
+            {displayCarrierName(r.operating_carrier)}
           </strong>{' '}
           · {r.region_or_route}
         </div>
