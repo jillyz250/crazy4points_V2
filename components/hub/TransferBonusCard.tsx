@@ -312,19 +312,6 @@ export default function TransferBonusCard({ bonus }: { bonus: ActiveTransferBonu
                 {isMarquee ? '★' : '⭐'}
               </span>
               <span>Editor’s pick</span>
-              {isMarquee && (
-                <span
-                  style={{
-                    marginLeft: 'auto',
-                    fontSize: '0.625rem',
-                    fontWeight: 600,
-                    letterSpacing: '0.08em',
-                    opacity: 0.75,
-                  }}
-                >
-                  the famous one
-                </span>
-              )}
             </div>
 
             <div
