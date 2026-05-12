@@ -218,6 +218,7 @@ export interface Program {
   transfer_partners: TransferPartnerRow[] | null
   sweet_spots: string | null
   marquee_redemption_id: string | null
+  marquee_pitch: string | null
   quirks: string | null
   how_to_spend: string | null
   tier_benefits: TierBenefitRow[] | null
@@ -1377,6 +1378,8 @@ export interface ProgramPageContentInput {
   sweet_spots: string | null
   /** Optional — curator-set via a separate path (Should I Transfer marquee). */
   marquee_redemption_id?: string | null
+  /** Optional — one-sentence pitch surfaced under the marquee pick. */
+  marquee_pitch?: string | null
   quirks: string | null
   how_to_spend: string | null
   tier_benefits: TierBenefitRow[] | null

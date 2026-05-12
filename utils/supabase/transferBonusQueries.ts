@@ -28,6 +28,11 @@ export interface SweetSpotExample {
    * not just the cheapest active row.
    */
   is_marquee: boolean
+  /**
+   * One-sentence "why this is the famous one" pitch (Migration 247).
+   * Only populated when is_marquee=true AND the program has marquee_pitch set.
+   */
+  marquee_pitch: string | null
   // Phase 4 (How to book this disclosure) — narrative fields surfaced inline
   booking_channel: string | null
   bookable_online: boolean | null
@@ -142,14 +147,16 @@ export async function getActiveTransferBonuses(
     // Fetch the destination program's chart + marquee FK once.
     let destinationChart: AwardChartProgram | null = null
     let marqueeRedemptionId: string | null = null
+    let marqueePitch: string | null = null
     if (a.primary_program_id) {
       const { data: progRow } = await supabase
         .from('programs')
-        .select('award_chart_structured, marquee_redemption_id')
+        .select('award_chart_structured, marquee_redemption_id, marquee_pitch')
         .eq('id', a.primary_program_id)
         .maybeSingle()
       destinationChart = (progRow?.award_chart_structured as AwardChartProgram | null) ?? null
       marqueeRedemptionId = (progRow?.marquee_redemption_id as string | null) ?? null
+      marqueePitch = (progRow?.marquee_pitch as string | null) ?? null
     }
 
     if (a.primary_program_id) {
@@ -262,6 +269,7 @@ export async function getActiveTransferBonuses(
           teach_caption: (r.teach_caption as string | null) ?? null,
           computed_cost: computed,
           is_marquee: marqueeRedemptionId === r.id,
+          marquee_pitch: marqueeRedemptionId === r.id ? marqueePitch : null,
           booking_channel: (r.booking_channel as string | null) ?? null,
           bookable_online: (r.bookable_online as boolean | null) ?? null,
           routing_rules: (r.routing_rules as string | null) ?? null,
