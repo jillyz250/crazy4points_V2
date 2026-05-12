@@ -1,5 +1,10 @@
 import Link from 'next/link'
 import type { PartnerRedemptionWithPrograms } from '@/utils/supabase/queries'
+import type { AwardCostResult } from '@/lib/awardChart'
+
+function fmtKilo(n: number): string {
+  return n >= 1000 ? `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}k` : String(n)
+}
 
 const ALLIANCE_COLOR: Record<string, string> = {
   oneworld: '#C8102E',
@@ -54,7 +59,11 @@ const BUCKET_TO_EXAMPLE_ROUTE: Record<string, { from: string; to: string }> = {
   'us-samerica': { from: 'JFK', to: 'GRU' },
 }
 
-export default function SweetSpotCard({ r }: { r: PartnerRedemptionWithPrograms }) {
+export default function SweetSpotCard({
+  r,
+}: {
+  r: PartnerRedemptionWithPrograms & { computed_cost?: AwardCostResult | null }
+}) {
   const stripeColor = ALLIANCE_COLOR[r.operating_carrier?.alliance ?? 'none'] ?? ALLIANCE_COLOR.none
   const health = r.availability_reality && r.availability_reality in HEALTH_STYLE
     ? HEALTH_STYLE[r.availability_reality as keyof typeof HEALTH_STYLE]
@@ -159,7 +168,16 @@ export default function SweetSpotCard({ r }: { r: PartnerRedemptionWithPrograms 
             fontWeight: 700,
           }}
         >
-          {fmt(r.cost_miles_low, r.cost_miles_high, r.pricing_model)}
+          {(() => {
+            const computed = r.computed_cost
+            if (computed) {
+              if (typeof computed.miles === 'object') {
+                return `${fmtKilo(computed.miles.low)}-${fmtKilo(computed.miles.high)}`
+              }
+              return fmtKilo(computed.miles as number)
+            }
+            return fmt(r.cost_miles_low, r.cost_miles_high, r.pricing_model)
+          })()}
         </span>
         <span
           style={{

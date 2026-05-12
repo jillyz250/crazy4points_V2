@@ -1,5 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Alert, Program } from '@/utils/supabase/queries'
+import type { AwardChartProgram, AwardCostResult, Cabin } from '@/lib/awardChart'
+import type { RouteBucket } from '@/lib/airports'
+import { findAirport } from '@/lib/airports'
+import { computeAwardCost, computeBucketTypicalCost } from '@/lib/awardChart.compute'
 
 /**
  * Active transfer-bonus alert + its destination program metadata + any
@@ -14,6 +18,15 @@ export interface SweetSpotExample {
   cost_miles_high: number | null
   operating_carrier: { name: string; slug: string } | null
   teach_caption: string | null
+  /** Phase 3.2: chart-computed cost when destination program has a chart. */
+  computed_cost: AwardCostResult | null
+}
+
+const REDEMPTION_TO_CHART_CABIN: Record<string, Cabin> = {
+  'Economy': 'economy',
+  'Premium Economy': 'premium_economy',
+  'Business': 'business',
+  'First': 'first',
 }
 
 export interface ActiveTransferBonus {
@@ -106,8 +119,20 @@ export async function getActiveTransferBonuses(
     // surface no example at all, which is worse than surfacing the cheapest
     // active row we have.
     const examples: SweetSpotExample[] = []
+    // Fetch the destination program's chart once so we can enrich examples.
+    let destinationChart: AwardChartProgram | null = null
+    if (a.primary_program_id) {
+      const { data: progRow } = await supabase
+        .from('programs')
+        .select('award_chart_structured')
+        .eq('id', a.primary_program_id)
+        .maybeSingle()
+      destinationChart = (progRow?.award_chart_structured as AwardChartProgram | null) ?? null
+    }
+
     if (a.primary_program_id) {
       const baseSelect = `id, cabin, region_or_route, cost_miles_low, cost_miles_high, teach_caption,
+           origin_iata, dest_iata, route_buckets,
            operating_carrier:programs!partner_redemptions_operating_carrier_id_fkey(name, slug)`
 
       const strict = await supabase
@@ -139,6 +164,35 @@ export async function getActiveTransferBonuses(
         const carrier = Array.isArray(r.operating_carrier)
           ? r.operating_carrier[0]
           : r.operating_carrier
+        const carrierSlug = (carrier?.slug as string | undefined) ?? null
+        const chartCabin = REDEMPTION_TO_CHART_CABIN[r.cabin as string] ?? 'economy'
+
+        // Phase 3.2: try chart compute. Two paths:
+        //   a. If row has origin_iata + dest_iata, do exact route compute.
+        //   b. Else, pick the first route_bucket on the row and use
+        //      bucket-typical compute (returns matrix cell or band midpoint).
+        let computed: AwardCostResult | null = null
+        if (destinationChart && carrierSlug) {
+          if (r.origin_iata && r.dest_iata) {
+            const origin = findAirport(r.origin_iata as string)
+            const dest = findAirport(r.dest_iata as string)
+            if (origin && dest) {
+              computed = computeAwardCost(destinationChart, carrierSlug, origin, dest, chartCabin)
+            }
+          }
+          if (!computed) {
+            const buckets = (r.route_buckets as string[] | null) ?? []
+            if (buckets.length > 0) {
+              computed = computeBucketTypicalCost(
+                destinationChart,
+                carrierSlug,
+                buckets[0] as RouteBucket,
+                chartCabin,
+              )
+            }
+          }
+        }
+
         examples.push({
           id: r.id as string,
           cabin: r.cabin as string,
@@ -149,6 +203,7 @@ export async function getActiveTransferBonuses(
             ? { name: carrier.name as string, slug: carrier.slug as string }
             : null,
           teach_caption: (r.teach_caption as string | null) ?? null,
+          computed_cost: computed,
         })
       }
     }

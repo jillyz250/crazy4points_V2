@@ -92,6 +92,8 @@ export async function createPartnerRedemptionAction(
       devaluation_note: null,
       availability_reality: null,
       route_buckets: null,
+      origin_iata: null,
+      dest_iata: null,
     })
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Failed to create redemption.' }

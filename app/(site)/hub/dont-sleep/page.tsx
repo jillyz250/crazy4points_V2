@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { createAdminClient } from '@/utils/supabase/server'
 import { getDontSleepSweetSpots, groupByRouteBucket } from '@/utils/supabase/dontSleepQueries'
-import type { PartnerRedemptionWithPrograms } from '@/utils/supabase/queries'
+import type { EnrichedSweetSpot } from '@/utils/supabase/dontSleepQueries'
 import { ROUTE_BUCKET_LABELS } from '@/lib/airports'
 import type { RouteBucket } from '@/lib/airports'
 import SweetSpotCard from '@/components/hub/SweetSpotCard'
@@ -33,7 +33,7 @@ const BUCKET_ORDER: RouteBucket[] = [
 
 export default async function Page() {
   const supabase = createAdminClient()
-  let rows: PartnerRedemptionWithPrograms[] = []
+  let rows: EnrichedSweetSpot[] = []
   try {
     rows = await getDontSleepSweetSpots(supabase)
   } catch (err) {
