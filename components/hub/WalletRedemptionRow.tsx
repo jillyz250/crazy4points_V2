@@ -123,7 +123,7 @@ export default function WalletRedemptionRow({
           }}
         >
           🔄 Transfer from your{' '}
-          <strong>{reach.oneTransferFrom.fromSlug.toUpperCase()}</strong> balance
+          <strong>{reach.oneTransferFrom.fromName}</strong> balance
           ({reach.oneTransferFrom.ratio ?? 'rate varies'}). You&apos;ll end up
           with about <strong>{fmt(reach.oneTransferFrom.transferable)}</strong>{' '}
           {row.currency_program?.name} — enough for this redemption.
