@@ -265,155 +265,215 @@ export default function TransferBonusCard({ bonus }: { bonus: ActiveTransferBonu
 
       {examples.length > 0 && (() => {
         const top = examples[0]
+        const isMarquee = top.is_marquee
         return (
           <div
             style={{
               position: 'relative',
-              padding: '1rem 1.125rem 1rem 1.25rem',
-              background:
-                'linear-gradient(135deg, #F8F5FB 0%, #FFFFFF 100%)',
-              border: '1px solid var(--color-border-soft)',
-              borderLeft: '4px solid var(--color-accent)',
+              padding: 0,
+              background: isMarquee
+                ? 'linear-gradient(155deg, #FFFCF1 0%, #FFFFFF 55%, #FFF7E0 100%)'
+                : 'linear-gradient(135deg, #F8F5FB 0%, #FFFFFF 100%)',
+              border: isMarquee
+                ? '2px solid var(--color-accent)'
+                : '1px solid var(--color-border-soft)',
+              borderLeft: isMarquee
+                ? '2px solid var(--color-accent)'
+                : '4px solid var(--color-accent)',
               borderRadius: 'var(--radius-card)',
-              boxShadow: 'var(--shadow-soft)',
+              boxShadow: isMarquee
+                ? '0 8px 24px rgba(212, 175, 55, 0.18), 0 2px 6px rgba(26, 26, 26, 0.06)'
+                : 'var(--shadow-soft)',
+              overflow: 'hidden',
               display: 'grid',
-              gap: '0.5rem',
+              gap: 0,
             }}
           >
+            {/* Header ribbon — gold fill for marquee, subtle for fallback */}
             <div
               style={{
-                display: 'inline-flex',
+                display: 'flex',
                 alignItems: 'center',
-                gap: '0.375rem',
+                gap: '0.5rem',
+                padding: isMarquee ? '0.5rem 1rem' : '0 1.25rem',
+                background: isMarquee
+                  ? 'linear-gradient(90deg, var(--color-accent) 0%, #E5C254 100%)'
+                  : 'transparent',
                 fontFamily: 'var(--font-ui)',
-                fontSize: '0.6875rem',
+                fontSize: isMarquee ? '0.75rem' : '0.6875rem',
                 fontWeight: 700,
-                letterSpacing: '0.1em',
+                letterSpacing: '0.12em',
                 textTransform: 'uppercase',
-                color: '#92400E',
+                color: isMarquee ? '#3D2A00' : '#92400E',
+                marginTop: isMarquee ? 0 : '1rem',
               }}
             >
-              <span aria-hidden style={{ fontSize: '0.875rem' }}>⭐</span>
-              {top.is_marquee ? 'Editor’s pick' : 'Top sweet spot'}
+              <span aria-hidden style={{ fontSize: isMarquee ? '1rem' : '0.875rem' }}>
+                {isMarquee ? '★' : '⭐'}
+              </span>
+              <span>
+                {isMarquee ? 'Editor’s pick' : 'Top sweet spot'}
+              </span>
+              {isMarquee && (
+                <span
+                  style={{
+                    marginLeft: 'auto',
+                    fontSize: '0.625rem',
+                    fontWeight: 600,
+                    letterSpacing: '0.08em',
+                    opacity: 0.75,
+                  }}
+                >
+                  the famous one
+                </span>
+              )}
             </div>
 
             <div
               style={{
-                display: 'flex',
-                alignItems: 'baseline',
-                justifyContent: 'space-between',
-                gap: '0.75rem',
-                flexWrap: 'wrap',
+                padding: isMarquee
+                  ? '1.25rem 1.25rem 1.125rem'
+                  : '0 1.25rem 1rem',
+                display: 'grid',
+                gap: isMarquee ? '0.75rem' : '0.5rem',
               }}
             >
               <div
                 style={{
-                  fontFamily: 'var(--font-display)',
-                  fontSize: '1.0625rem',
-                  fontWeight: 700,
-                  color: 'var(--color-primary)',
-                  lineHeight: 1.25,
-                  flex: 1,
-                  minWidth: '12rem',
-                }}
-              >
-                {top.cabin}
-                {top.operating_carrier
-                  ? ` on ${displayCarrierName(top.operating_carrier)}`
-                  : ''}
-              </div>
-              <div
-                style={{
-                  fontFamily: 'var(--font-display)',
-                  fontSize: '1.625rem',
-                  fontWeight: 700,
-                  color: 'var(--color-primary)',
-                  whiteSpace: 'nowrap',
-                  lineHeight: 1,
-                  display: 'inline-flex',
+                  display: 'flex',
                   alignItems: 'baseline',
-                  gap: '0.3125rem',
+                  justifyContent: 'space-between',
+                  gap: '0.75rem',
+                  flexWrap: 'wrap',
                 }}
               >
-                {(() => {
-                  // Phase 3.2: prefer chart-computed when available
-                  const computed = top.computed_cost
-                  let low: number | null
-                  let high: number | null
-                  if (computed) {
-                    if (typeof computed.miles === 'object') {
-                      low = computed.miles.low
-                      high = computed.miles.high
+                <div
+                  style={{
+                    fontFamily: 'var(--font-display)',
+                    fontSize: isMarquee ? '1.375rem' : '1.0625rem',
+                    fontWeight: 700,
+                    color: 'var(--color-primary)',
+                    lineHeight: 1.2,
+                    flex: 1,
+                    minWidth: '12rem',
+                  }}
+                >
+                  {top.cabin}
+                  {top.operating_carrier
+                    ? ` on ${displayCarrierName(top.operating_carrier)}`
+                    : ''}
+                </div>
+                <div
+                  style={{
+                    fontFamily: 'var(--font-display)',
+                    fontSize: isMarquee ? '2.5rem' : '1.625rem',
+                    fontWeight: 700,
+                    color: 'var(--color-primary)',
+                    whiteSpace: 'nowrap',
+                    lineHeight: 1,
+                    display: 'inline-flex',
+                    alignItems: 'baseline',
+                    gap: '0.3125rem',
+                  }}
+                >
+                  {(() => {
+                    // Phase 3.2: prefer chart-computed when available
+                    const computed = top.computed_cost
+                    let low: number | null
+                    let high: number | null
+                    if (computed) {
+                      if (typeof computed.miles === 'object') {
+                        low = computed.miles.low
+                        high = computed.miles.high
+                      } else {
+                        low = computed.miles as number
+                        high = null
+                      }
                     } else {
-                      low = computed.miles as number
-                      high = null
+                      low = top.cost_miles_low
+                      high = top.cost_miles_high
                     }
-                  } else {
-                    low = top.cost_miles_low
-                    high = top.cost_miles_high
-                  }
-                  const isRange = low != null && high != null && high > low
-                  return (
-                    <>
-                      {isRange && (
+                    const isRange = low != null && high != null && high > low
+                    return (
+                      <>
+                        {isRange && (
+                          <span
+                            style={{
+                              fontFamily: 'var(--font-ui)',
+                              fontSize: '0.6875rem',
+                              fontWeight: 700,
+                              letterSpacing: '0.08em',
+                              textTransform: 'uppercase',
+                              color: 'var(--color-text-secondary)',
+                            }}
+                          >
+                            From
+                          </span>
+                        )}
+                        <span>{fmtKilo(low ?? high ?? 0)}</span>
                         <span
                           style={{
                             fontFamily: 'var(--font-ui)',
-                            fontSize: '0.6875rem',
-                            fontWeight: 700,
-                            letterSpacing: '0.08em',
+                            fontSize: isMarquee ? '0.75rem' : '0.6875rem',
+                            fontWeight: 600,
+                            letterSpacing: '0.06em',
                             textTransform: 'uppercase',
                             color: 'var(--color-text-secondary)',
                           }}
                         >
-                          From
+                          miles
                         </span>
-                      )}
-                      <span>{fmtKilo(low ?? high ?? 0)}</span>
-                      <span
-                        style={{
-                          fontFamily: 'var(--font-ui)',
-                          fontSize: '0.6875rem',
-                          fontWeight: 600,
-                          letterSpacing: '0.06em',
-                          textTransform: 'uppercase',
-                          color: 'var(--color-text-secondary)',
-                        }}
-                      >
-                        miles
-                      </span>
-                    </>
-                  )
-                })()}
+                      </>
+                    )
+                  })()}
+                </div>
               </div>
-            </div>
 
-            <div
-              style={{
-                fontFamily: 'var(--font-body)',
-                fontSize: '0.875rem',
-                color: 'var(--color-text-primary)',
-                lineHeight: 1.4,
-              }}
-            >
-              {top.region_or_route}
-            </div>
-
-            {top.teach_caption && (
               <div
                 style={{
                   fontFamily: 'var(--font-body)',
-                  fontSize: '0.8125rem',
-                  color: 'var(--color-text-secondary)',
-                  fontStyle: 'italic',
-                  lineHeight: 1.5,
+                  fontSize: isMarquee ? '0.9375rem' : '0.875rem',
+                  fontWeight: isMarquee ? 500 : 400,
+                  color: 'var(--color-text-primary)',
+                  lineHeight: 1.4,
                 }}
               >
-                {top.teach_caption}
+                {top.region_or_route}
               </div>
-            )}
 
-            <HowToBookDisclosure
+              {/* Marquee pitch — the "why this one" sentence */}
+              {isMarquee && top.marquee_pitch && (
+                <div
+                  style={{
+                    padding: '0.625rem 0.875rem',
+                    background: 'rgba(212, 175, 55, 0.12)',
+                    borderLeft: '3px solid var(--color-accent)',
+                    borderRadius: '0.25rem',
+                    fontFamily: 'var(--font-body)',
+                    fontSize: '0.875rem',
+                    color: 'var(--color-text-primary)',
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {top.marquee_pitch}
+                </div>
+              )}
+
+              {top.teach_caption && (
+                <div
+                  style={{
+                    fontFamily: 'var(--font-body)',
+                    fontSize: '0.8125rem',
+                    color: 'var(--color-text-secondary)',
+                    fontStyle: 'italic',
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {top.teach_caption}
+                </div>
+              )}
+
+              <HowToBookDisclosure
               r={{
                 booking_channel: top.booking_channel,
                 bookable_online: top.bookable_online,
@@ -430,6 +490,7 @@ export default function TransferBonusCard({ bonus }: { bonus: ActiveTransferBonu
                 operating_carrier: top.operating_carrier,
               }}
             />
+            </div>
           </div>
         )
       })()}
