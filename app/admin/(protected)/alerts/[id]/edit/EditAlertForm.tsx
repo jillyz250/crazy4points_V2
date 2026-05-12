@@ -4,6 +4,7 @@ import { updateAlertAction } from './actions'
 import type { Alert, Program } from '@/utils/supabase/queries'
 import FactCheckWarnings from '@/components/admin/FactCheckWarnings'
 import AlertGapsBanner from '@/components/admin/AlertGapsBanner'
+import QuickFixVoiceButton from '@/components/admin/QuickFixVoiceButton'
 import RunAllChecksAlertButton from '@/components/admin/RunAllChecksAlertButton'
 import { Badge } from '@/components/admin/ui/Badge'
 import { ALERT_TYPES, ACTION_TYPES } from '@/lib/admin/alertTypes'
@@ -145,16 +146,29 @@ export default function EditAlertForm({ alert, programs, taggedProgramIds }: Pro
                   <div key={f.label}>
                     <div
                       style={{
-                        fontFamily: 'var(--font-ui)',
-                        fontSize: '0.6875rem',
-                        fontWeight: 700,
-                        letterSpacing: '0.06em',
-                        textTransform: 'uppercase',
-                        color: '#7F1D1D',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: '0.5rem',
                         marginBottom: '0.25rem',
                       }}
                     >
-                      ✗ {f.label} failed
+                      <div
+                        style={{
+                          fontFamily: 'var(--font-ui)',
+                          fontSize: '0.6875rem',
+                          fontWeight: 700,
+                          letterSpacing: '0.06em',
+                          textTransform: 'uppercase',
+                          color: '#7F1D1D',
+                        }}
+                      >
+                        ✗ {f.label} failed
+                      </div>
+                      {f.label === 'On-brand voice' && (
+                        <QuickFixVoiceButton alertId={alert.id} />
+                      )}
                     </div>
                     <div
                       style={{

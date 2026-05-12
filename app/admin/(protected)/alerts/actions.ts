@@ -719,6 +719,57 @@ export type AlertVoiceCheckResult =
   | { ok: true; pass: boolean }
   | { ok: false; error: string }
 
+/**
+ * Apply the voice checker's failure notes back to the article body via a
+ * surgical AI edit, save the revised description, and re-run the voice
+ * check. Faster than re-running the full pipeline because writer +
+ * fact-check + originality don't need to re-execute.
+ */
+export type AlertQuickFixVoiceResult =
+  | { ok: true; pass: boolean }
+  | { ok: false; error: string }
+
+export async function quickFixVoiceAlertAction(id: string): Promise<AlertQuickFixVoiceResult> {
+  const { voiceFixArticle } = await import('@/utils/ai/voiceFixArticle')
+  const supabase = createAdminClient()
+  const { data: alert } = await supabase
+    .from('alerts')
+    .select('id, title, description, voice_notes, voice_pass')
+    .eq('id', id)
+    .single()
+  if (!alert) return { ok: false, error: 'Alert not found' }
+  if (!alert.description || !alert.description.trim()) {
+    return { ok: false, error: 'No description to fix' }
+  }
+  if (alert.voice_pass !== false || !alert.voice_notes) {
+    return { ok: false, error: 'No voice failure notes to apply (voice check has not failed)' }
+  }
+
+  const fix = await voiceFixArticle({
+    title: alert.title as string,
+    article_body: alert.description as string,
+    voice_notes: alert.voice_notes as string,
+  })
+  if (!fix) return { ok: false, error: 'Quick-fix call failed (see logs)' }
+
+  const { error: updateErr } = await supabase
+    .from('alerts')
+    .update({
+      description: fix.article_body,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+  if (updateErr) return { ok: false, error: updateErr.message }
+
+  // Re-run the voice check against the revised body. If it still fails,
+  // surface the new notes; if it passes, the pill flips green.
+  const recheck = await voiceCheckAlertAction(id)
+  if (!recheck.ok) return { ok: false, error: `voice re-check failed — ${recheck.error}` }
+
+  revalidatePath(`/admin/alerts/${id}/edit`)
+  return { ok: true, pass: recheck.pass }
+}
+
 export async function voiceCheckAlertAction(id: string): Promise<AlertVoiceCheckResult> {
   const supabase = createAdminClient()
   const { data: alert } = await supabase
