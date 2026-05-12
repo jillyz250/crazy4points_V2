@@ -294,7 +294,7 @@ export default function TransferBonusCard({ bonus }: { bonus: ActiveTransferBonu
               }}
             >
               <span aria-hidden style={{ fontSize: '0.875rem' }}>⭐</span>
-              Top sweet spot
+              {top.is_marquee ? 'Editor’s pick' : 'Top sweet spot'}
             </div>
 
             <div
