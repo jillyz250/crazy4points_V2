@@ -41,26 +41,43 @@ const TYPE_BADGE: Record<string, { label: string; cls: string }> = {
   industry_news:         { label: 'Industry News',        cls: 'bg-slate-100 text-slate-600' },
 }
 
-// Urgency tiers based on days until expiry — full literal classes for Tailwind v4 JIT
-type UrgencyTier = 'critical' | 'urgent' | 'soon' | 'upcoming' | 'evergreen'
+// Urgency tiers (simplified 2026-05-12 design pass: 5 colors → 3).
+//
+// Old model used red/orange/amber/blue/green — too many colors,
+// none brand-aligned, and the page read chaotic. New model uses
+// one alarm color (red for "act now"), one brand color (soft purple
+// for normal-priority), and one neutral (long runway / FYI).
+type UrgencyTier = 'urgent' | 'standard' | 'long_runway'
 
-const URGENCY: Record<UrgencyTier, { border: string; bg: string; label: string; labelCls: string }> = {
-  critical:  { border: 'border-l-red-500',    bg: 'bg-red-50',    label: '',  labelCls: 'text-red-600 font-semibold' },
-  urgent:    { border: 'border-l-orange-500',  bg: 'bg-orange-50', label: '',  labelCls: 'text-orange-600 font-semibold' },
-  soon:      { border: 'border-l-amber-500',   bg: 'bg-amber-50',  label: '',  labelCls: 'text-amber-600' },
-  upcoming:  { border: 'border-l-blue-500',    bg: 'bg-blue-50',   label: '',  labelCls: 'text-blue-600' },
-  evergreen: { border: 'border-l-green-500',   bg: 'bg-green-50',  label: '',  labelCls: 'text-green-700' },
+const URGENCY: Record<UrgencyTier, { border: string; bg: string; labelCls: string }> = {
+  urgent: {
+    border: 'border-l-red-500',
+    bg: 'bg-red-50',
+    labelCls: 'text-red-600 font-semibold',
+  },
+  standard: {
+    border: 'border-l-[var(--color-primary)]',
+    bg: 'bg-[var(--color-background-soft)]',
+    labelCls: 'text-[var(--color-text-secondary)]',
+  },
+  long_runway: {
+    border: 'border-l-[var(--color-border-soft)]',
+    bg: 'bg-white',
+    labelCls: 'text-[var(--color-text-secondary)]',
+  },
 }
 
-function getUrgencyTier(endDate: string | null): UrgencyTier {
-  if (!endDate) return 'evergreen'
+function getUrgencyTier(endDate: string | null, impactScore: number): UrgencyTier {
+  if (!endDate) {
+    // Evergreen / open-ended: still worth surfacing in brand color if
+    // it has editorial weight, otherwise fade it.
+    return impactScore >= 5 ? 'standard' : 'long_runway'
+  }
   const diffDays = Math.ceil((new Date(endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-  if (diffDays <= 0)  return 'evergreen' // expired — shouldn't appear on public pages
-  if (diffDays <= 1)  return 'critical'
+  if (diffDays <= 0)  return 'long_runway' // expired — shouldn't appear on public pages
   if (diffDays <= 7)  return 'urgent'
-  if (diffDays <= 14) return 'soon'
-  if (diffDays <= 30) return 'upcoming'
-  return 'evergreen'
+  if (diffDays <= 30) return 'standard'
+  return 'long_runway'
 }
 
 function formatEndDate(endDate: string | null): string | null {
@@ -73,7 +90,7 @@ export default function AlertCardSB({ alert }: { alert: AlertWithPrograms }) {
   const badge     = TYPE_BADGE[alert.type] ?? { label: alert.type, cls: 'bg-slate-100 text-slate-600' }
   const endLabel  = formatEndDate(alert.end_date)
   const isExpired = endLabel === 'Expired'
-  const urgency   = getUrgencyTier(alert.end_date)
+  const urgency   = getUrgencyTier(alert.end_date, alert.impact_score)
   const urg       = URGENCY[urgency]
 
   // Primary program first, then secondaries in insertion order
