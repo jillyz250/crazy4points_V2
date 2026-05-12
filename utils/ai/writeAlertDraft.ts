@@ -440,6 +440,25 @@ INFERENCE RULES (apply these BEFORE flagging gaps):
    specific tier name. If the offer is open to all members, omit the
    bullet and do NOT flag as a gap.
 
+5. NO MATH UNLESS 100% VERIFIED. Never compute CPM, "value per point",
+   "cents per point", or derived ratios from your own estimates. Only
+   surface a numeric value when BOTH inputs are present in the source
+   intel OR the destination program's authored content (extra_context):
+     a. The exact conversion rate (e.g., "1,000 TYP = 250 LC points")
+     b. The downstream redemption value with a date + a verified
+        per-point benchmark (e.g., "Atmos values LC points at $X based
+        on the program's published cash-and-points rate on Y date").
+   If you don't have BOTH, don't compute. Describe the bonus mechanic
+   in points terms only ("250 Leaders Club points per 1,000 TYP at the
+   Strata-Premier tier"), NOT in fabricated cpm/cash terms. Hedged math
+   like "roughly 1.7 cpp" is the failure mode — it looks authoritative
+   but the per-point value was your guess.
+
+   Acceptable: "1,000 TYP = 250 LC points at the higher tier."
+   Acceptable: "AA charges $5.60 per segment in 9/11 fees" (verified).
+   FORBIDDEN: "That's about 1.5 cpp on TYP." (per-LC value not verified)
+   FORBIDDEN: "Roughly $X of hotel value per 1,000 TYP." (synthesized)
+
 ────────────────────────────────────────
 HYBRID FORMAT — required structure for promo descriptions
 ────────────────────────────────────────
@@ -488,7 +507,15 @@ THREE PARTS in this exact order:
      • Strategic angle, urgency, or gotcha that didn't fit in bullets.
      • Stack callouts ("pair with X card for Y total"), warning
        ("this is one bonus per member"), or timing reminders.
-     • ~30-60 words. Voice-heavy.
+     • REQUIRED: include a verdict sentence — "Worth it if X" or
+       "Skip if Y" or "Make sense when Z". One sentence is enough.
+       Promo alerts without a verdict leave the reader guessing
+       whether to act. The verdict can be tonally direct ("Skip
+       unless you have a specific stay booked") or framing-style
+       ("Best for readers who already have an LHW night in mind").
+       Either way, it must be a real recommendation, not a hedge.
+     • ~40-80 words now that the verdict sentence is required.
+       Voice-heavy throughout.
 
 Required fields to consider for the bullet block — by alert type:
 
