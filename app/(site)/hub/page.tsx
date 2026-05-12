@@ -41,7 +41,10 @@ const TOOLS = [
       'Can your 35k Marriott cert cover this hotel? Yes / yes-with-topup / no, in three seconds.',
     icon: '🏨',
     href: '/hub/fnc-fit',
-    status: 'live' as const,
+    // Marked coming-soon until Marriott property data fully loads and
+    // IHG + Hilton hotel_properties get scraped + indexed. Hyatt is
+    // currently the only fully-supported program (1,613 properties).
+    status: 'coming-soon' as const,
   },
   {
     title: 'Earn Path',

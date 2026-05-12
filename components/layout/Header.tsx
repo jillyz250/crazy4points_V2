@@ -10,7 +10,7 @@ const hubItems: { label: string; comingSoon: boolean; href: string | null; featu
   { label: "The Points Hub — overview", comingSoon: false, href: "/hub", featured: true },
   { label: "Should I Transfer?", comingSoon: false, href: "/hub/should-i-transfer" },
   { label: "Best Way to Book It", comingSoon: false, href: "/hub/best-way-to-book" },
-  { label: "Will My Free Night Cert Fit?", comingSoon: false, href: "/hub/fnc-fit" },
+  { label: "Will My Free Night Cert Fit?", comingSoon: true, href: "/hub/fnc-fit" },
   { label: "Earn Path", comingSoon: false, href: "/hub/earn-path" },
   { label: "Don't Sleep On These", comingSoon: false, href: "/hub/dont-sleep" },
   { label: "Where Can My Points Take Me?", comingSoon: false, href: "/hub/where-can-i-go" },
