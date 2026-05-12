@@ -219,6 +219,7 @@ export interface Program {
   sweet_spots: string | null
   marquee_redemption_id: string | null
   marquee_pitch: string | null
+  marquee_pitch_source_url: string | null
   quirks: string | null
   how_to_spend: string | null
   tier_benefits: TierBenefitRow[] | null
@@ -1380,6 +1381,8 @@ export interface ProgramPageContentInput {
   marquee_redemption_id?: string | null
   /** Optional — one-sentence pitch surfaced under the marquee pick. */
   marquee_pitch?: string | null
+  /** Optional — source URL gating marquee_pitch render. Required for pitch to display. */
+  marquee_pitch_source_url?: string | null
   quirks: string | null
   how_to_spend: string | null
   tier_benefits: TierBenefitRow[] | null
