@@ -12,6 +12,8 @@ import ProgramPageHero from '@/components/programs/ProgramPageHero'
 import PropertiesTable from '@/components/programs/PropertiesTable'
 import PartnerRedemptionsSection from '@/components/programs/PartnerRedemptionsSection'
 import CardsThatEarnIntoProgram from '@/components/cards/CardsThatEarnIntoProgram'
+import ActivePromosSection from '@/components/programs/ActivePromosSection'
+import { getActivePromosForProgram, type PromoReward } from '@/utils/supabase/promoQueries'
 
 export const revalidate = 60
 
@@ -137,6 +139,15 @@ export default async function ProgramPage({
     }
   }
 
+  // Active scraped promos (Promo Intelligence Engine — Phase 2).
+  // Empty array if none are published yet; section auto-hides.
+  let activePromos: PromoReward[] = []
+  try {
+    activePromos = await getActivePromosForProgram(supabase, program.id)
+  } catch (err) {
+    console.error('[programs/[slug]] getActivePromosForProgram failed:', err)
+  }
+
   const nowMs = Date.now()
 
   // Split active vs expired. Treats end_date as inclusive end-of-day
@@ -238,6 +249,7 @@ export default async function ProgramPage({
             ).values()
           ).sort((a, b) => a.name.localeCompare(b.name))}
           sections={[
+            ...(activePromos.length > 0 ? [{ id: 'active-promos', label: 'Active promos' }] : []),
             ...(program.intro ? [{ id: 'intro', label: 'Intro' }] : []),
             ...(program.award_chart ? [{ id: 'award-chart', label: 'Award chart' }] : []),
             ...((program.transfer_partners?.length ?? 0) > 0 && program.type !== 'alliance' ? [{ id: 'transfer-partners', label: 'Transfer partners' }] : []),
@@ -253,6 +265,15 @@ export default async function ProgramPage({
             ...(earnIntoCards.length > 0 ? [{ id: 'earn-into', label: 'Cards' }] : []),
             ...(allAlerts.length > 0 ? [{ id: 'alerts', label: 'Alerts' }] : []),
           ]}
+        />
+
+        {/* Active scraped promos — Phase 2 of Promo Intelligence Engine.
+            Renders only when there are published promo_rewards rows for
+            this program. Empty array hides the section automatically. */}
+        <ActivePromosSection
+          promos={activePromos}
+          programName={program.name}
+          programChartUrl={program.partner_chart_url}
         />
 
         {/* Editorial content (intro / transfer partners / sweet spots / quirks) */}
