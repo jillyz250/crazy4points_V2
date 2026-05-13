@@ -64,6 +64,7 @@ export interface PromoReward {
   intel_type: IntelType | null
   intel_discount_percent: number | null
   intel_value_score: number | null
+  intel_inferred_baseline: number | null
   intel_affects_redemption_ids: string[] | null
   intel_affects_alert_ids: string[] | null
   intel_match_confidence: MatchConfidence | null
