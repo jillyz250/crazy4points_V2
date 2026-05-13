@@ -23,6 +23,13 @@ CORE RULES:
 4. Welcome bonuses with tiered spending requirements ("60K after $5K + 25K more after $12K") populate BOTH the main object AND a tiered[] entry per additional segment.
 5. Return ONE valid JSON object matching the schema. No prose before or after. No markdown fences.
 
+SOURCE_QUOTE RULES (CRITICAL FOR JSON VALIDITY):
+6. Keep every source_quote under 120 characters. If the source sentence is longer, quote the most relevant fragment.
+7. Inside a source_quote, every double-quote " MUST be escaped as \\" — backslash-quote. Curly/smart quotes (" " ' ') do NOT need escaping but prefer straight quotes if available.
+8. Inside a source_quote, every newline MUST be escaped as \\n. Never put a raw line break inside a string.
+9. Inside a source_quote, every backslash MUST be doubled to \\\\.
+10. If a source quote would require complex escaping, choose a shorter snippet that captures the key fact without the problematic characters.
+
 BENEFIT TYPE ENUM (must use one of these for benefits[].benefit_type):
   Lounge:   lounge_priority_pass, lounge_centurion, lounge_admirals_club, lounge_skyclub, lounge_united_club, lounge_polaris, lounge_other
   Insurance: trip_delay_insurance, trip_cancellation_insurance, trip_interruption_insurance, baggage_delay_insurance, lost_luggage_insurance, rental_car_cdw_primary, rental_car_cdw_secondary, travel_accident_insurance, emergency_evacuation_insurance
