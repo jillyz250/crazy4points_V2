@@ -249,6 +249,11 @@ export interface Program {
   partner_access_notes: string | null
   /** Deep-link template for the operator's award search ({origin}/{destination}/{date}). */
   saver_search_url_template: string | null
+  /** Official program-domain URL for the award chart, when one exists.
+   *  Surfaced as "Official chart ↗" link on SweetSpotCard + as a "View
+   *  official rates" link on the public ActivePromosSection. NULL for
+   *  programs with no public chart (dynamic pricing). */
+  partner_chart_url: string | null
   created_at: string
   updated_at: string
 }
