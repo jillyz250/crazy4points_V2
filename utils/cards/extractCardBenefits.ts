@@ -11,7 +11,7 @@
 
 import Anthropic from '@anthropic-ai/sdk'
 import { jsonrepair } from 'jsonrepair'
-import { fetchFirecrawl } from '@/utils/ai/firecrawl'
+import { fetchFirecrawl, fetchFirecrawlInteractive } from '@/utils/ai/firecrawl'
 import { logUsage } from '@/utils/ai/logUsage'
 import { createAdminClient } from '@/utils/supabase/server'
 import {
@@ -34,15 +34,26 @@ export async function extractCardBenefits({
   cardId,
   cardName,
   sourceUrl,
+  interactive = false,
 }: {
   cardId: string
   cardName: string
   sourceUrl: string
+  /**
+   * When true, runs Firecrawl with EXPAND_EVERYTHING_ACTIONS — opens all
+   * <details>, clicks Show more/View all/Expand buttons, toggles aria-expanded
+   * elements before extracting markdown. Use for JS-heavy issuer pages
+   * (Citi, US Bank, Wells Fargo) where benefits hide behind accordions.
+   * Adds ~5-10s to extraction time and ~$0.002 in Firecrawl cost.
+   */
+  interactive?: boolean
 }): Promise<ExtractionResult> {
   const supabase = createAdminClient()
 
-  // 1. Firecrawl → markdown
-  const markdown = await fetchFirecrawl(sourceUrl, MARKDOWN_CHAR_LIMIT)
+  // 1. Firecrawl → markdown (optionally interactive)
+  const markdown = interactive
+    ? await fetchFirecrawlInteractive(sourceUrl, { maxChars: MARKDOWN_CHAR_LIMIT })
+    : await fetchFirecrawl(sourceUrl, { maxChars: MARKDOWN_CHAR_LIMIT })
   if (!markdown) {
     await supabase.from('credit_card_extractions').insert({
       card_id: cardId,
@@ -86,6 +97,7 @@ export async function extractCardBenefits({
       source_url: sourceUrl,
       raw_markdown: markdown,
       markdown_chars: markdown.length,
+      used_interactive: interactive,
       extraction: {},
       model: MODEL,
       status: 'failed',
@@ -129,6 +141,7 @@ export async function extractCardBenefits({
       source_url: sourceUrl,
       raw_markdown: markdown,
       markdown_chars: markdown.length,
+      used_interactive: interactive,
       extraction: { raw: rawText, stop_reason: stopReason },
       model: MODEL,
       input_tokens: response.usage?.input_tokens ?? null,
@@ -163,6 +176,7 @@ export async function extractCardBenefits({
       source_url: sourceUrl,
       raw_markdown: markdown,
       markdown_chars: markdown.length,
+      used_interactive: interactive,
       extraction,
       model: MODEL,
       input_tokens: response.usage?.input_tokens ?? null,
