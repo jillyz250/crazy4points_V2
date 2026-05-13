@@ -21,7 +21,7 @@ function daysBetween(endDateIso: string | null): number | null {
  *  - verdict chip based on warning severity
  */
 export default function TransferBonusCard({ bonus }: { bonus: ActiveTransferBonus }) {
-  const { alert, destinationProgram, warnings, examples } = bonus
+  const { alert, destinationProgram, warnings, examples, enrichedRowCount } = bonus
   const days = daysBetween(alert.end_date)
   const bonusPct = extractBonusPct(alert.title) ?? 0
 
@@ -30,7 +30,7 @@ export default function TransferBonusCard({ bonus }: { bonus: ActiveTransferBonu
     return Math.floor(sourceAmount * (1 + bonusPct / 100))
   }, [sourceAmount, bonusPct])
 
-  const verdict = computeVerdict(warnings.length, bonusPct, days)
+  const verdict = computeVerdict(warnings.length, bonusPct, days, enrichedRowCount)
 
   return (
     <article
@@ -568,19 +568,42 @@ function extractBonusPct(title: string): number | null {
 
 type Verdict = 'worth_it' | 'situational' | 'skip' | 'unknown'
 
+/**
+ * Verdict chip policy (revised 2026-05-13 audit close):
+ *
+ * The old rule treated "zero warnings" as evidence of a clean deal. But
+ * warnings only exist when curators have authored what_breaks_this notes
+ * on partner_redemptions rows — so programs with sparse data (anything
+ * not AA / UA / a few others) systematically got green "Worth it" chips
+ * just because no one had written warnings yet.
+ *
+ * Fix: "Worth it" now requires AT LEAST 3 enriched rows on the
+ * destination program. Below that threshold, the empty warning shelf
+ * doesn't mean "clean" — it means "we don't have coverage to know." Fall
+ * back to "Worth it for some" so readers see the hedge.
+ */
+const ENRICHED_ROW_FLOOR = 3
+
 function computeVerdict(
   warningCount: number,
   bonusPct: number,
   daysLeft: number | null,
+  enrichedRowCount: number,
 ): Verdict {
   if (bonusPct === 0) return 'unknown'
-  // High bonus + no warnings = clear win
-  if (bonusPct >= 25 && warningCount === 0) return 'worth_it'
   // Low bonus + heavy warnings = skip
   if (bonusPct < 15 && warningCount >= 2) return 'skip'
-  // Medium bonus or some warnings = situational
+  // Some warnings present = situational regardless of bonus size
   if (warningCount >= 1) return 'situational'
-  if (bonusPct >= 20) return 'worth_it'
+
+  // No warnings present. Gate "Worth it" on having editorial coverage —
+  // otherwise the absence of warnings is just absence of data.
+  const hasCoverage = enrichedRowCount >= ENRICHED_ROW_FLOOR
+  if (hasCoverage) {
+    if (bonusPct >= 25) return 'worth_it'
+    if (bonusPct >= 20) return 'worth_it'
+  }
+
   return 'situational'
 }
 

@@ -91,22 +91,46 @@ export default function WalletRedemptionRow({
       </div>
 
       {tier === 'ready' && (
-        <p
-          style={{
-            margin: 0,
-            padding: '0.5rem 0.75rem',
-            background: '#D1FAE5',
-            color: '#065F46',
-            borderRadius: 'var(--radius-ui)',
-            fontFamily: 'var(--font-body)',
-            fontSize: '0.875rem',
-            lineHeight: 1.4,
-          }}
-        >
-          ✅ You hold <strong>{fmt(reach.direct)}</strong>{' '}
-          {row.currency_program?.name} — enough miles for this rate. Confirm
-          space on the airline&apos;s site before booking.
-        </p>
+        <>
+          {/* Hub audit #5: mixed-availability rows shouldn't be presented
+              as "you can book this" without a hedge. The green pill below
+              still renders so users see they have the miles, but the
+              yellow warning sets expectations correctly. */}
+          {row.availability_reality === 'mixed' && (
+            <p
+              style={{
+                margin: 0,
+                padding: '0.5rem 0.75rem',
+                background: '#FEF3C7',
+                color: '#78350F',
+                border: '1px solid #FDE68A',
+                borderRadius: 'var(--radius-ui)',
+                fontFamily: 'var(--font-body)',
+                fontSize: '0.8125rem',
+                lineHeight: 1.4,
+              }}
+            >
+              ⚠ <strong>Award space varies on this route</strong> — search the
+              operating airline first before transferring miles.
+            </p>
+          )}
+          <p
+            style={{
+              margin: 0,
+              padding: '0.5rem 0.75rem',
+              background: '#D1FAE5',
+              color: '#065F46',
+              borderRadius: 'var(--radius-ui)',
+              fontFamily: 'var(--font-body)',
+              fontSize: '0.875rem',
+              lineHeight: 1.4,
+            }}
+          >
+            ✅ You hold <strong>{fmt(reach.direct)}</strong>{' '}
+            {row.currency_program?.name} — enough miles for this rate. Confirm
+            space on the airline&apos;s site before booking.
+          </p>
+        </>
       )}
 
       {tier === 'one_transfer_away' && reach.oneTransferFrom && (
