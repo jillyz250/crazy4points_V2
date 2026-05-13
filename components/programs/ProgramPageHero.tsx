@@ -205,21 +205,8 @@ export default function ProgramPageHero({
               <Link
                 key={p.slug}
                 href={`/programs/${p.slug}`}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  padding: '0.25rem 0.65rem',
-                  fontFamily: 'var(--font-ui)',
-                  fontSize: '0.75rem',
-                  fontWeight: isHome ? 700 : 600,
-                  color: isHome ? 'var(--color-primary)' : 'var(--color-text-primary)',
-                  background: isHome ? 'var(--color-background-soft)' : 'var(--color-background-soft)',
-                  border: isHome
-                    ? '1.5px solid var(--color-primary)'
-                    : '1px solid var(--color-border-soft)',
-                  borderRadius: '9999px',
-                  textDecoration: 'none',
-                }}
+                className="rg-partner-pill"
+                data-home={isHome ? 'true' : undefined}
               >
                 {p.name}
               </Link>

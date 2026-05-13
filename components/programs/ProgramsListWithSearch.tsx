@@ -168,6 +168,12 @@ function ProgramCard({
             </p>
           )
         )}
+        {program.promoCount > 0 && (
+          <p>
+            <span className="font-medium text-[var(--color-accent-hover)]">{program.promoCount}</span>{' '}
+            promo route{program.promoCount === 1 ? '' : 's'} live
+          </p>
+        )}
       </div>
 
       <div className="mt-auto pt-4">

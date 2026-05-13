@@ -7,13 +7,14 @@ import type { AlertWithPrograms, HotelProperty, CardThatEarnsIn, PartnerRedempti
 import AlertsGridSB from '@/components/alerts/AlertsGridSB'
 import ExpiredAlertsList from '@/components/alerts/ExpiredAlertsList'
 import { isAlertActive } from '@/lib/alertExpiry'
-import ProgramPageContent from '@/components/programs/ProgramPageContent'
 import ProgramPageHero from '@/components/programs/ProgramPageHero'
 import PropertiesTable from '@/components/programs/PropertiesTable'
 import PartnerRedemptionsSection from '@/components/programs/PartnerRedemptionsSection'
 import CardsThatEarnIntoProgram from '@/components/cards/CardsThatEarnIntoProgram'
 import ActivePromosSection from '@/components/programs/ActivePromosSection'
-import LiveNowSection from '@/components/programs/LiveNowSection'
+import LiveBarsHero from '@/components/programs/LiveBarsHero'
+import SimpleTileGrid from '@/components/programs/SimpleTileGrid'
+import IntroBlock from '@/components/programs/IntroBlock'
 import { getActivePromosForProgram, type PromoReward } from '@/utils/supabase/promoQueries'
 
 export const revalidate = 60
@@ -289,38 +290,31 @@ export default async function ProgramPage({
             auto-detected stack when both are live. Renders
             nothing when no signals are live.
 
-            Visual treatment: editorial "dateline frame" with
-            cream→lavender gradient + Playfair italic pull quote.
-            See LiveNowSection.tsx for full design context. */}
-        <LiveNowSection
+            Two stacked LIVE bars. Bar 1 = transfer bonus → alert detail.
+            Bar 2 = promo rewards → expands inline to show the full table.
+            Both bars hide when no live signals exist. */}
+        <LiveBarsHero
           programName={program.name}
-          transferBonuses={liveTransferBonuses}
+          transferBonus={liveTransferBonuses[0] ?? null}
           promosCount={activePromos.length}
           promosDiscountPercent={promosDiscountPercent}
-          newestScrapeAt={
-            activePromos.length > 0
-              ? new Date(
-                  activePromos.reduce((max, p) => {
-                    const d = new Date(p.last_scraped_at).getTime()
-                    return d > max ? d : max
-                  }, 0),
-                )
-              : null
+          promosChildren={
+            activePromos.length > 0 ? (
+              <ActivePromosSection
+                promos={activePromos}
+                programName={program.name}
+                programChartUrl={program.partner_chart_url}
+              />
+            ) : null
           }
-          stackNoteOverride={program.stack_note_override}
         />
 
-        {/* Active scraped promos — Phase 2 of Promo Intelligence Engine.
-            Renders only when there are published promo_rewards rows for
-            this program. Empty array hides the section automatically. */}
-        <ActivePromosSection
-          promos={activePromos}
-          programName={program.name}
-          programChartUrl={program.partner_chart_url}
-        />
+        {/* Intro paragraph stays visible — it's the on-ramp. */}
+        <IntroBlock intro={program.intro} />
 
-        {/* Editorial content (intro / transfer partners / sweet spots / quirks) */}
-        <ProgramPageContent program={program} programNameBySlug={programNameBySlug} />
+        {/* Simple uniform-grid tile cards for reference sections.
+            Each tile click expands inline (server-rendered <details>). */}
+        <SimpleTileGrid program={program} programNameBySlug={programNameBySlug} />
 
         {/* Per-property table — hotels only. */}
         {properties.length > 0 && (

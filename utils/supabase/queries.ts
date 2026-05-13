@@ -2206,6 +2206,12 @@ export interface ResourceCard {
    * no partner_redemptions rows are seeded for this program.
    */
   partners: { slug: string; name: string }[]
+  /**
+   * Active published promo_rewards count for this program — used by the
+   * /programs index tile to surface "X promo routes live this month"
+   * when the scraper has flowed data through.
+   */
+  promoCount: number
 }
 
 /**
@@ -2314,6 +2320,22 @@ export async function listProgramsForIndex(
   // like JetBlue where the alliance pill is suppressed).
   const partnersByProgramId = await getPartnersByProgramIds(supabase, rows.map((r) => r.id))
 
+  // Active published promo_rewards count per program — for "X promo routes
+  // live this month" on the listing tile. Filters to published + active
+  // + non-expired in one trip.
+  const today = new Date().toISOString().slice(0, 10)
+  const { data: promoRows } = await supabase
+    .from('promo_rewards')
+    .select('program_id')
+    .in('program_id', rows.map((r) => r.id))
+    .eq('admin_status', 'published')
+    .eq('last_seen_active', true)
+    .or(`valid_to.gte.${today},valid_to.is.null`)
+  const promoCounts = new Map<string, number>()
+  for (const row of (promoRows ?? []) as Array<{ program_id: string }>) {
+    promoCounts.set(row.program_id, (promoCounts.get(row.program_id) ?? 0) + 1)
+  }
+
   return rows.map((r) => ({
     id: r.id,
     slug: r.slug,
@@ -2333,5 +2355,6 @@ export async function listProgramsForIndex(
         ? { slug: r.parent_program_slug, name: slugsByName.get(r.parent_program_slug)! }
         : null,
     partners: partnersByProgramId.get(r.id) ?? [],
+    promoCount: promoCounts.get(r.id) ?? 0,
   }))
 }
