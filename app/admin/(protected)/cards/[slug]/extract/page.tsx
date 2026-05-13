@@ -78,6 +78,15 @@ export default async function CardExtractPage({
         <p className="mt-1 font-body text-sm text-[var(--color-text-secondary)]">
           {card.card_type} · {card.card_tier} · status: {card.status}
           {card.last_verified ? ` · last verified ${card.last_verified}` : ' · never verified'}
+          {' · '}
+          <a
+            className="text-[var(--color-primary)] underline"
+            href={`/cards/${card.slug}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            view public page →
+          </a>
           {issuerSite ? (
             <>
               {' · '}
