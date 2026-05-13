@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import type { PromoReward } from '@/utils/supabase/promoQueries'
 import {
   getRegionForCity,
@@ -7,57 +8,73 @@ import {
 } from '@/lib/cityRegions'
 
 /**
- * Public "Active Promos" section on /programs/[slug]. Renders published
- * promo_rewards rows scraped from the program's own site, organized into
- * regional buckets to keep N=41+ rows scannable.
+ * Public "Active Promos" section on /programs/[slug]. Treatment is a
+ * data-terminal table — high information density, tabular numerals,
+ * gold accents as connectors (not fills).
  *
- * Design (2026-05-13 FE audit):
- *   - "Promo Picks · Curator's Shortlist" — Top 3 cheapest as cream
- *     tiles with gold hairline borders
- *   - Regional buckets below as bordered cards, each with collapsed
- *     <details> revealing the per-route list
- *   - Section eyebrow + 48px gold rule (visual rhyme with Live Now)
+ * Filter + sort state lives in URL params (?region, ?cabin, ?sort) so
+ * results are deep-linkable, server-renderable, and AI/LLM citable.
  *
- * Cardinal rule from plans/promo-scraper.md: only renders rows where
- * admin_status='published' AND last_seen_active=true (enforced in
- * getActivePromosForProgram query).
+ * Per 2026-05-13 design audit:
+ *   - Drop regional buckets. Flat table reads faster.
+ *   - Miles column is the visual anchor: Playfair Display tabular nums
+ *     in purple.
+ *   - Gold appears as a CONNECTOR (the → between origin/dest) and as
+ *     an URGENCY MARKER (left-border on rows expiring within 14 days).
+ *   - Heavy 2px black header rule — single instance on the page.
+ *   - No zebra striping; soft purple hover only.
+ *
+ * Cardinal rule: only renders rows where admin_status='published'
+ * AND last_seen_active=true (enforced upstream in
+ * getActivePromosForProgram).
  */
+
+export type PromoSort = 'cheapest' | 'biggest_discount' | 'soonest_expiry' | 'region'
+
+interface Props {
+  promos: PromoReward[]
+  programName: string
+  programChartUrl?: string | null
+  programSlug: string
+  /** Current filter+sort state from URL search params */
+  region: PromoRegion | 'all'
+  cabin: string | 'all'
+  sort: PromoSort
+}
+
 export default function ActivePromosSection({
   promos,
   programName,
   programChartUrl,
-}: {
-  promos: PromoReward[]
-  programName: string
-  programChartUrl?: string | null
-}) {
+  programSlug,
+  region,
+  cabin,
+  sort,
+}: Props) {
   if (promos.length === 0) return null
 
-  // Top 3 picks — cheapest by points_required. Ties broken by
-  // last_scraped_at (newest first) so a recently-refreshed promo
-  // surfaces ahead of a stale one at the same price.
-  const top3 = [...promos]
-    .filter((p) => p.points_required != null)
-    .sort((a, b) => {
-      const pa = a.points_required ?? Infinity
-      const pb = b.points_required ?? Infinity
-      if (pa !== pb) return pa - pb
-      return new Date(b.last_scraped_at).getTime() - new Date(a.last_scraped_at).getTime()
-    })
-    .slice(0, 3)
-
-  // Bucket all promos by region (using destination city → region lookup)
-  const buckets = new Map<PromoRegion, PromoReward[]>()
+  // Available regions + cabins drawn from the actual data (no
+  // hardcoding — chips appear only when there's something to filter)
+  const regionsPresent = new Set<PromoRegion>()
+  const cabinsPresent = new Set<string>()
   for (const p of promos) {
-    const region = getRegionForCity(p.dest_label ?? p.dest_iata)
-    const arr = buckets.get(region) ?? []
-    arr.push(p)
-    buckets.set(region, arr)
+    regionsPresent.add(getRegionForCity(p.dest_label ?? p.dest_iata))
+    if (p.cabin) cabinsPresent.add(p.cabin)
   }
+  const availableRegions = REGION_ORDER.filter((r) => regionsPresent.has(r))
+  const availableCabins = Array.from(cabinsPresent).sort(cabinSortOrder)
 
-  const sortedBuckets = REGION_ORDER
-    .filter((r) => buckets.has(r))
-    .map((r) => [r, buckets.get(r)!] as const)
+  // Apply filters
+  const filtered = promos.filter((p) => {
+    if (region !== 'all' && getRegionForCity(p.dest_label ?? p.dest_iata) !== region) {
+      return false
+    }
+    if (cabin !== 'all' && p.cabin !== cabin) return false
+    return true
+  })
+
+  // Apply sort
+  const sorted = sortPromos(filtered, sort)
 
   // Section-wide verified timestamp (newest scrape across all rows)
   const newestScrape = promos.reduce((max, p) => {
@@ -67,6 +84,19 @@ export default function ActivePromosSection({
   const hoursSinceScrape = (Date.now() - newestScrape) / (1000 * 60 * 60)
   const isStale = hoursSinceScrape > 48
 
+  // Build href helpers
+  const buildHref = (overrides: Partial<{ region: string; cabin: string; sort: PromoSort }>) => {
+    const params = new URLSearchParams()
+    const r = overrides.region ?? region
+    const c = overrides.cabin ?? cabin
+    const s = overrides.sort ?? sort
+    if (r !== 'all') params.set('region', r)
+    if (c !== 'all') params.set('cabin', c)
+    if (s !== 'cheapest') params.set('sort', s)
+    const qs = params.toString()
+    return `/programs/${programSlug}${qs ? `?${qs}` : ''}#active-promos`
+  }
+
   return (
     <section
       id="active-promos"
@@ -75,7 +105,7 @@ export default function ActivePromosSection({
         scrollMarginTop: '2rem',
       }}
     >
-      {/* Section header — gold rule rhymes with Live Now ────────────── */}
+      {/* Eyebrow + 48px gold rule rhymes with Live Now ───────────────── */}
       <div
         aria-hidden
         style={{
@@ -85,17 +115,30 @@ export default function ActivePromosSection({
           marginBottom: '0.625rem',
         }}
       />
+      <p
+        style={{
+          fontFamily: 'var(--font-ui)',
+          fontSize: '0.6875rem',
+          fontWeight: 600,
+          letterSpacing: '0.16em',
+          textTransform: 'uppercase',
+          color: 'var(--color-primary)',
+          margin: 0,
+        }}
+      >
+        Active promos · {promos.length} routes
+      </p>
       <h2
         style={{
           fontFamily: 'var(--font-display)',
           fontSize: 'clamp(1.5rem, 3vw, 1.875rem)',
           fontWeight: 700,
-          color: 'var(--color-primary)',
-          margin: '0 0 0.25rem',
+          color: 'var(--color-text-primary)',
+          margin: '0.25rem 0 0.5rem',
           lineHeight: 1.2,
         }}
       >
-        Active promos
+        Live promotional awards
       </h2>
       <p
         style={{
@@ -103,12 +146,12 @@ export default function ActivePromosSection({
           fontSize: '0.9375rem',
           fontStyle: 'italic',
           color: 'var(--color-text-secondary)',
-          margin: '0 0 0.25rem',
+          margin: '0 0 0.5rem',
           lineHeight: 1.5,
+          maxWidth: '60ch',
         }}
       >
-        {promos.length} routes live now · scraped directly from {programName}.
-        Rates rotate monthly.
+        Scraped directly from {programName}. Rotates monthly.
         {programChartUrl && (
           <>
             {' '}
@@ -134,7 +177,7 @@ export default function ActivePromosSection({
           letterSpacing: '0.08em',
           textTransform: 'uppercase',
           color: isStale ? '#92400E' : 'var(--color-text-secondary)',
-          margin: '0 0 2rem',
+          margin: '0 0 1.5rem',
         }}
       >
         Verified{' '}
@@ -146,312 +189,454 @@ export default function ActivePromosSection({
         {isStale && ' — data may be stale'}
       </p>
 
-      {/* Top 3 Picks rail ───────────────────────────────────────────── */}
-      {top3.length > 0 && (
-        <div style={{ marginBottom: '2.5rem' }}>
-          <p
-            style={{
-              fontFamily: 'var(--font-ui)',
-              fontSize: '0.6875rem',
-              fontWeight: 600,
-              letterSpacing: '0.16em',
-              textTransform: 'uppercase',
-              color: 'var(--color-primary)',
-              margin: '0 0 0.75rem',
-            }}
-          >
-            Promo picks · Curator&apos;s shortlist
-          </p>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(14rem, 1fr))',
-              gap: '0.875rem',
-            }}
-          >
-            {top3.map((p) => (
-              <TopPickTile key={p.id} promo={p} />
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Filter + sort bar ───────────────────────────────────────────── */}
+      <FilterBar
+        availableRegions={availableRegions}
+        availableCabins={availableCabins}
+        region={region}
+        cabin={cabin}
+        sort={sort}
+        buildHref={buildHref}
+      />
 
-      {/* Regional buckets ───────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gap: '1rem' }}>
-        {sortedBuckets.map(([region, rows]) => (
-          <RegionBucket key={region} region={region} promos={rows} />
-        ))}
-      </div>
+      {/* Table ───────────────────────────────────────────────────────── */}
+      {sorted.length === 0 ? (
+        <EmptyState
+          regionLabel={region === 'all' ? null : REGION_LABEL[region as PromoRegion]}
+          clearHref={`/programs/${programSlug}#active-promos`}
+        />
+      ) : (
+        <PromosTable promos={sorted} sort={sort} buildHref={buildHref} />
+      )}
     </section>
   )
 }
 
-/**
- * Top 3 pick tile — cream background, gold hairline border. Compact
- * read of route + price + hedge.
- */
-function TopPickTile({ promo }: { promo: PromoReward }) {
-  const route =
-    promo.origin_label && promo.dest_label
-      ? `${promo.origin_label} → ${promo.dest_label}`
-      : promo.dest_label
-        ? promo.dest_label
-        : 'Route'
-  const baseline = promo.points_baseline ?? promo.intel_inferred_baseline
-  const isInferred =
-    promo.points_baseline == null && promo.intel_inferred_baseline != null
+// ── Filter bar ─────────────────────────────────────────────────────
 
-  return (
-    <article
-      style={{
-        padding: '1rem 1.125rem',
-        background: '#FBF7F0',
-        border: '1px solid rgba(212, 175, 55, 0.4)',
-        borderRadius: '0.5rem',
-        display: 'grid',
-        gap: '0.25rem',
-      }}
-    >
-      <h3
-        style={{
-          fontFamily: 'var(--font-display)',
-          fontSize: '1.125rem',
-          fontWeight: 700,
-          color: 'var(--color-primary)',
-          margin: 0,
-          lineHeight: 1.2,
-        }}
-      >
-        {route}
-      </h3>
-      <div
-        style={{
-          fontFamily: 'var(--font-ui)',
-          fontSize: '1.5rem',
-          fontWeight: 700,
-          color: 'var(--color-text-primary)',
-          fontVariantNumeric: 'tabular-nums',
-          letterSpacing: '-0.01em',
-          lineHeight: 1.1,
-        }}
-      >
-        {promo.points_required?.toLocaleString() ?? '—'}
-        <span
-          style={{
-            fontSize: '0.6875rem',
-            fontWeight: 600,
-            color: 'var(--color-text-secondary)',
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            marginLeft: '0.375rem',
-          }}
-        >
-          {promo.cabin ?? ''} miles
-        </span>
-      </div>
-      {baseline != null && promo.intel_discount_percent != null && (
-        <p
-          style={{
-            fontFamily: 'var(--font-body)',
-            fontSize: '0.75rem',
-            color: 'var(--color-text-secondary)',
-            fontStyle: 'italic',
-            margin: 0,
-          }}
-        >
-          rate {isInferred ? '~' : ''}
-          {baseline.toLocaleString()}, {Math.round(promo.intel_discount_percent)}% off
-        </p>
-      )}
-    </article>
-  )
-}
-
-/**
- * Regional bucket — collapsed by default. Shows region name + count +
- * "from Xk miles" stat in the summary; expands to a two-column compact
- * list of all routes in the region.
- */
-function RegionBucket({
+function FilterBar({
+  availableRegions,
+  availableCabins,
   region,
-  promos,
+  cabin,
+  sort,
+  buildHref,
 }: {
-  region: PromoRegion
-  promos: PromoReward[]
+  availableRegions: PromoRegion[]
+  availableCabins: string[]
+  region: PromoRegion | 'all'
+  cabin: string | 'all'
+  sort: PromoSort
+  buildHref: (
+    overrides: Partial<{ region: string; cabin: string; sort: PromoSort }>,
+  ) => string
 }) {
-  const sorted = [...promos].sort((a, b) => {
-    return (a.points_required ?? Infinity) - (b.points_required ?? Infinity)
-  })
-  const minPoints = Math.min(...sorted.map((p) => p.points_required ?? Infinity))
-  const cabins = Array.from(
-    new Set(sorted.map((p) => p.cabin).filter(Boolean)),
-  ) as string[]
-  const validThroughs = Array.from(
-    new Set(sorted.map((p) => p.valid_to).filter(Boolean)),
-  ) as string[]
-
-  return (
-    <details
-      style={{
-        background: '#FFFFFF',
-        border: '1px solid var(--color-border-soft)',
-        borderRadius: 'var(--radius-card)',
-        padding: 0,
-        boxShadow: 'var(--shadow-soft)',
-      }}
-    >
-      <summary
-        style={{
-          listStyle: 'none',
-          cursor: 'pointer',
-          padding: '1.25rem 1.5rem',
-          display: 'flex',
-          alignItems: 'baseline',
-          justifyContent: 'space-between',
-          gap: '1rem',
-          flexWrap: 'wrap',
-        }}
-      >
-        <div style={{ minWidth: 0 }}>
-          <h3
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: '1.375rem',
-              fontWeight: 700,
-              color: 'var(--color-primary)',
-              margin: 0,
-              lineHeight: 1.2,
-            }}
-          >
-            {REGION_LABEL[region]}
-          </h3>
-          {(cabins.length > 0 || validThroughs.length > 0) && (
-            <p
-              style={{
-                fontFamily: 'var(--font-body)',
-                fontSize: '0.8125rem',
-                color: 'var(--color-text-secondary)',
-                fontStyle: 'italic',
-                margin: '0.25rem 0 0',
-              }}
-            >
-              {cabins.join(' + ').toLowerCase()}
-              {validThroughs.length === 1 && (
-                <>
-                  {cabins.length > 0 && ' · '}
-                  through {formatValidThrough(validThroughs[0])}
-                </>
-              )}
-            </p>
-          )}
-        </div>
-        <div
-          style={{
-            fontFamily: 'var(--font-ui)',
-            fontSize: '0.75rem',
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            color: 'var(--color-text-secondary)',
-            fontWeight: 600,
-            textAlign: 'right',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {sorted.length} route{sorted.length === 1 ? '' : 's'} · from{' '}
-          <span style={{ color: 'var(--color-primary)', fontVariantNumeric: 'tabular-nums' }}>
-            {minPoints >= 1000
-              ? `${(minPoints / 1000).toFixed(minPoints % 1000 === 0 ? 0 : 1)}k`
-              : minPoints.toLocaleString()}
-          </span>
-        </div>
-      </summary>
-
-      <div
-        style={{
-          borderTop: '1px solid var(--color-border-soft)',
-          padding: '1.25rem 1.5rem',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(20rem, 1fr))',
-          gap: '0.5rem 2rem',
-        }}
-      >
-        {sorted.map((p) => (
-          <PromoLine key={p.id} promo={p} />
-        ))}
-      </div>
-    </details>
-  )
-}
-
-function PromoLine({ promo }: { promo: PromoReward }) {
-  const baseline = promo.points_baseline ?? promo.intel_inferred_baseline
-  const isInferred =
-    promo.points_baseline == null && promo.intel_inferred_baseline != null
-  const route =
-    promo.origin_label && promo.dest_label
-      ? `${promo.origin_label} → ${promo.dest_label}`
-      : promo.dest_label ?? 'Route'
-
   return (
     <div
       style={{
         display: 'flex',
-        alignItems: 'baseline',
-        justifyContent: 'space-between',
-        gap: '0.75rem',
-        padding: '0.375rem 0',
-        borderBottom: '1px dotted var(--color-border-soft)',
-        fontFamily: 'var(--font-body)',
-        fontSize: '0.9375rem',
-        lineHeight: 1.4,
         flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: '0.75rem 1rem',
+        paddingBottom: '1rem',
+        borderBottom: '1px solid var(--color-border-soft)',
       }}
     >
-      <span style={{ color: 'var(--color-text-primary)', minWidth: 0 }}>
-        {route}
-        {promo.cabin && (
-          <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.8125rem' }}>
-            {' · '}
-            {promo.cabin}
-          </span>
-        )}
-      </span>
-      <span
+      {/* Region chips */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
+        <Chip label="All regions" active={region === 'all'} href={buildHref({ region: 'all' })} />
+        {availableRegions.map((r) => (
+          <Chip
+            key={r}
+            label={REGION_LABEL[r]}
+            active={region === r}
+            href={buildHref({ region: r })}
+          />
+        ))}
+      </div>
+
+      {/* Cabin chips */}
+      {availableCabins.length > 1 && (
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '0.375rem',
+            paddingLeft: '0.75rem',
+            borderLeft: '1px solid var(--color-border-soft)',
+          }}
+        >
+          <Chip label="All cabins" active={cabin === 'all'} href={buildHref({ cabin: 'all' })} />
+          {availableCabins.map((c) => (
+            <Chip
+              key={c}
+              label={c}
+              active={cabin === c}
+              href={buildHref({ cabin: c })}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Sort */}
+      <div
         style={{
-          display: 'inline-flex',
+          marginLeft: 'auto',
+          display: 'flex',
           alignItems: 'baseline',
           gap: '0.5rem',
-          whiteSpace: 'nowrap',
         }}
       >
         <span
           style={{
             fontFamily: 'var(--font-ui)',
-            fontVariantNumeric: 'tabular-nums',
-            fontWeight: 600,
-            color: 'var(--color-primary)',
+            fontSize: '0.625rem',
+            letterSpacing: '0.18em',
+            textTransform: 'uppercase',
+            color: 'var(--color-accent)',
+            fontWeight: 700,
           }}
         >
-          {promo.points_required?.toLocaleString() ?? '—'}
+          Sort by
         </span>
-        {baseline != null && promo.intel_discount_percent != null && (
-          <span
-            style={{
-              fontSize: '0.75rem',
-              color: 'var(--color-text-secondary)',
-              fontStyle: 'italic',
-            }}
-          >
-            (rate {isInferred ? '~' : ''}
-            {baseline.toLocaleString()})
-          </span>
-        )}
-      </span>
+        <SortLink label="Cheapest" value="cheapest" active={sort === 'cheapest'} buildHref={buildHref} />
+        <SortLink label="Biggest discount" value="biggest_discount" active={sort === 'biggest_discount'} buildHref={buildHref} />
+        <SortLink label="Soonest expiry" value="soonest_expiry" active={sort === 'soonest_expiry'} buildHref={buildHref} />
+        <SortLink label="By region" value="region" active={sort === 'region'} buildHref={buildHref} />
+      </div>
     </div>
   )
 }
 
-function formatValidThrough(iso: string): string {
+function Chip({
+  label,
+  active,
+  href,
+}: {
+  label: string
+  active: boolean
+  href: string
+}) {
+  return (
+    <Link
+      href={href}
+      scroll={false}
+      style={{
+        display: 'inline-block',
+        padding: '0.4375rem 0.875rem',
+        fontFamily: 'var(--font-ui)',
+        fontSize: '0.6875rem',
+        fontWeight: active ? 700 : 600,
+        letterSpacing: '0.1em',
+        textTransform: 'uppercase',
+        background: active ? 'var(--color-primary)' : 'transparent',
+        color: active ? '#FFFFFF' : 'var(--color-text-secondary)',
+        border: `1px solid ${active ? 'var(--color-primary)' : 'var(--color-border-soft)'}`,
+        borderRadius: '999px',
+        textDecoration: 'none',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {label}
+    </Link>
+  )
+}
+
+function SortLink({
+  label,
+  value,
+  active,
+  buildHref,
+}: {
+  label: string
+  value: PromoSort
+  active: boolean
+  buildHref: (
+    overrides: Partial<{ region: string; cabin: string; sort: PromoSort }>,
+  ) => string
+}) {
+  return (
+    <Link
+      href={buildHref({ sort: value })}
+      scroll={false}
+      style={{
+        fontFamily: 'var(--font-ui)',
+        fontSize: '0.75rem',
+        fontWeight: active ? 700 : 500,
+        color: active ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+        textDecoration: active ? 'underline' : 'none',
+        textUnderlineOffset: '0.25em',
+        textDecorationColor: 'var(--color-accent)',
+        textDecorationThickness: '2px',
+      }}
+    >
+      {label}
+    </Link>
+  )
+}
+
+// ── Table ──────────────────────────────────────────────────────────
+
+function PromosTable({
+  promos,
+  sort,
+  buildHref,
+}: {
+  promos: PromoReward[]
+  sort: PromoSort
+  buildHref: (
+    overrides: Partial<{ region: string; cabin: string; sort: PromoSort }>,
+  ) => string
+}) {
+  return (
+    <table
+      className="rg-promos-table"
+      style={{
+        width: '100%',
+        borderCollapse: 'collapse',
+        fontVariantNumeric: 'tabular-nums',
+        marginTop: '0.5rem',
+      }}
+    >
+      <thead>
+        <tr>
+          <Th label="Route" sortValue="region" sort={sort} buildHref={buildHref} align="left" width="40%" />
+          <Th label="Cabin" align="left" width="14%" />
+          <Th label="Miles" sortValue="cheapest" sort={sort} buildHref={buildHref} align="right" width="16%" />
+          <Th label="Off" sortValue="biggest_discount" sort={sort} buildHref={buildHref} align="right" width="10%" />
+          <Th label="Valid" sortValue="soonest_expiry" sort={sort} buildHref={buildHref} align="left" width="20%" />
+        </tr>
+      </thead>
+      <tbody>
+        {promos.map((p) => (
+          <Row key={p.id} promo={p} />
+        ))}
+      </tbody>
+    </table>
+  )
+}
+
+function Th({
+  label,
+  sortValue,
+  sort,
+  buildHref,
+  align,
+  width,
+}: {
+  label: string
+  sortValue?: PromoSort
+  sort?: PromoSort
+  buildHref?: (
+    overrides: Partial<{ region: string; cabin: string; sort: PromoSort }>,
+  ) => string
+  align: 'left' | 'right'
+  width: string
+}) {
+  const isActive = sortValue != null && sort === sortValue
+  return (
+    <th
+      style={{
+        textAlign: align,
+        padding: '0.875rem 1rem',
+        fontFamily: 'var(--font-ui)',
+        fontSize: '0.6875rem',
+        fontWeight: 600,
+        letterSpacing: '0.16em',
+        textTransform: 'uppercase',
+        color: isActive ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+        borderBottom: '2px solid #1A1A1A',
+        width,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {sortValue && buildHref ? (
+        <Link
+          href={buildHref({ sort: sortValue })}
+          scroll={false}
+          style={{ color: 'inherit', textDecoration: 'none' }}
+        >
+          {label}
+          {isActive && <span style={{ marginLeft: '0.25em' }}>↑</span>}
+        </Link>
+      ) : (
+        label
+      )}
+    </th>
+  )
+}
+
+function Row({ promo }: { promo: PromoReward }) {
+  const origin = promo.origin_label ?? promo.origin_iata ?? '—'
+  const dest = promo.dest_label ?? promo.dest_iata ?? '—'
+  const discount = promo.intel_discount_percent
+  const isHighDiscount = discount != null && discount >= 30
+
+  const daysToExpiry = promo.valid_to
+    ? Math.ceil((new Date(promo.valid_to).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    : null
+  const isUrgent = daysToExpiry != null && daysToExpiry > 0 && daysToExpiry <= 14
+
+  return (
+    <tr
+      className="rg-promos-row"
+      style={{
+        borderBottom: '1px solid #F0EAF5',
+      }}
+    >
+      <td
+        style={{
+          padding: '1rem',
+          fontFamily: 'var(--font-body)',
+          fontSize: '0.9375rem',
+          color: 'var(--color-text-primary)',
+          borderLeft: isUrgent ? '2px solid var(--color-accent)' : '2px solid transparent',
+          paddingLeft: isUrgent ? 'calc(1rem - 2px)' : '1rem',
+        }}
+      >
+        {origin}
+        {' '}
+        <span style={{ color: 'var(--color-accent)', fontWeight: 600 }}>→</span>
+        {' '}
+        {dest}
+      </td>
+      <td
+        style={{
+          padding: '1rem',
+          fontFamily: 'var(--font-ui)',
+          fontSize: '0.6875rem',
+          letterSpacing: '0.1em',
+          textTransform: 'uppercase',
+          color: 'var(--color-text-secondary)',
+          fontWeight: 600,
+        }}
+      >
+        {promo.cabin ?? '—'}
+      </td>
+      <td
+        style={{
+          padding: '1rem',
+          textAlign: 'right',
+          fontFamily: 'var(--font-display)',
+          fontSize: '1.0625rem',
+          fontWeight: 600,
+          color: 'var(--color-primary)',
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        {promo.points_required?.toLocaleString() ?? '—'}
+      </td>
+      <td
+        style={{
+          padding: '1rem',
+          textAlign: 'right',
+          fontFamily: 'var(--font-body)',
+          fontSize: '0.875rem',
+          color: isHighDiscount ? 'var(--color-accent-hover)' : 'var(--color-text-secondary)',
+          fontWeight: isHighDiscount ? 700 : 500,
+        }}
+      >
+        {discount != null ? `${Math.round(discount)}%` : '—'}
+      </td>
+      <td
+        style={{
+          padding: '1rem',
+          fontFamily: 'var(--font-body)',
+          fontSize: '0.875rem',
+          color: isUrgent ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+          fontWeight: isUrgent ? 600 : 400,
+        }}
+      >
+        {promo.valid_to ? formatValid(promo.valid_to) : '—'}
+      </td>
+    </tr>
+  )
+}
+
+function EmptyState({
+  regionLabel,
+  clearHref,
+}: {
+  regionLabel: string | null
+  clearHref: string
+}) {
+  return (
+    <div style={{ padding: '4rem 1rem', textAlign: 'center' }}>
+      <p
+        style={{
+          fontFamily: 'var(--font-display)',
+          fontStyle: 'italic',
+          fontSize: '1.375rem',
+          color: 'var(--color-text-secondary)',
+          margin: '0 0 0.5rem',
+        }}
+      >
+        No routes match those filters.
+      </p>
+      <p
+        style={{
+          fontFamily: 'var(--font-body)',
+          fontSize: '0.875rem',
+          color: 'var(--color-text-secondary)',
+          margin: 0,
+        }}
+      >
+        {regionLabel
+          ? `No active promos to ${regionLabel.toLowerCase()} right now. `
+          : ''}
+        <Link
+          href={clearHref}
+          style={{
+            color: 'var(--color-primary)',
+            fontWeight: 600,
+            textDecoration: 'underline',
+            textDecorationColor: 'var(--color-accent)',
+          }}
+        >
+          Clear filters
+        </Link>
+      </p>
+    </div>
+  )
+}
+
+// ── Helpers ────────────────────────────────────────────────────────
+
+function sortPromos(promos: PromoReward[], sort: PromoSort): PromoReward[] {
+  const sorted = [...promos]
+  switch (sort) {
+    case 'cheapest':
+      return sorted.sort(
+        (a, b) => (a.points_required ?? Infinity) - (b.points_required ?? Infinity),
+      )
+    case 'biggest_discount':
+      return sorted.sort(
+        (a, b) => (b.intel_discount_percent ?? 0) - (a.intel_discount_percent ?? 0),
+      )
+    case 'soonest_expiry':
+      return sorted.sort((a, b) => {
+        const at = a.valid_to ? new Date(a.valid_to).getTime() : Infinity
+        const bt = b.valid_to ? new Date(b.valid_to).getTime() : Infinity
+        return at - bt
+      })
+    case 'region':
+      return sorted.sort((a, b) => {
+        const ra = REGION_ORDER.indexOf(getRegionForCity(a.dest_label ?? a.dest_iata))
+        const rb = REGION_ORDER.indexOf(getRegionForCity(b.dest_label ?? b.dest_iata))
+        if (ra !== rb) return ra - rb
+        return (a.points_required ?? Infinity) - (b.points_required ?? Infinity)
+      })
+  }
+}
+
+function cabinSortOrder(a: string, b: string): number {
+  const order = ['Economy', 'Premium', 'Premium Economy', 'Business', 'First']
+  const ia = order.indexOf(a)
+  const ib = order.indexOf(b)
+  return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib)
+}
+
+function formatValid(iso: string): string {
   try {
     return new Date(iso).toLocaleDateString('en-US', {
       month: 'short',
