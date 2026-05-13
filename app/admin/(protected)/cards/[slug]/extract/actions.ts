@@ -126,9 +126,15 @@ export async function resaveExtraction(formData: FormData): Promise<void> {
       })
       .eq('id', extractionId)
   } else {
+    // Clear any stale error_message from a prior failed attempt — otherwise
+    // the review UI shows the old red banner alongside the saved status.
     await supabase
       .from('credit_card_extractions')
-      .update({ status: 'saved', saved_at: new Date().toISOString() })
+      .update({
+        status: 'saved',
+        saved_at: new Date().toISOString(),
+        error_message: null,
+      })
       .eq('id', extractionId)
   }
 
