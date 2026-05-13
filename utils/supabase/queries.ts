@@ -2031,7 +2031,16 @@ export type PartnerRedemptionInsert = Omit<
 
 /** Joined shape used by admin list and public surfaces. */
 export interface PartnerRedemptionWithPrograms extends PartnerRedemption {
-  currency_program: { slug: string; name: string; alliance: Alliance | null } | null
+  currency_program: {
+    slug: string
+    name: string
+    alliance: Alliance | null
+    /** Optional — official program chart URL. When populated, surfaces
+     *  as a "View official chart →" link on the SweetSpotCard so readers
+     *  can verify the rate at the source. Curator policy: official
+     *  program page only — no blogs or aggregators. */
+    partner_chart_url?: string | null
+  } | null
   operating_carrier: { slug: string; name: string; alliance: Alliance | null } | null
 }
 

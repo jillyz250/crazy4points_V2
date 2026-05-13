@@ -40,7 +40,7 @@ export async function getDontSleepSweetSpots(
     .from('partner_redemptions')
     .select(`
       *,
-      currency_program:programs!partner_redemptions_currency_program_id_fkey(slug, name, alliance),
+      currency_program:programs!partner_redemptions_currency_program_id_fkey(slug, name, alliance, partner_chart_url),
       operating_carrier:programs!partner_redemptions_operating_carrier_id_fkey(slug, name, alliance)
     `)
     .eq('is_active', true)

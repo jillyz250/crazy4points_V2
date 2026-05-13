@@ -152,6 +152,26 @@ export default function SweetSpotCard({
           'Unknown'
         )}{' '}
         · {r.region_or_route}
+        {r.currency_program?.partner_chart_url && (
+          <>
+            {' · '}
+            <a
+              href={r.currency_program.partner_chart_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                fontFamily: 'var(--font-ui)',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                color: 'var(--color-primary)',
+                textDecoration: 'none',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Official chart ↗
+            </a>
+          </>
+        )}
       </div>
 
       <div
