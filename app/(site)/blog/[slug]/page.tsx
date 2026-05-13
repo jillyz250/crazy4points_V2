@@ -9,7 +9,8 @@ import HeroImageOrFallback from '@/components/blog/HeroImageOrFallback';
 import ArticleRelated from '@/components/blog/ArticleRelated';
 import NewsletterSignup from '@/components/home/NewsletterSignup';
 
-export const revalidate = 60;
+// Editorial post; stable after publish.
+export const revalidate = 3600;
 
 type Props = { params: Promise<{ slug: string }> };
 

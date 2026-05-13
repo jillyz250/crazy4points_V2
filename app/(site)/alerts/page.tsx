@@ -6,7 +6,8 @@ import AlertsGridSB from '@/components/alerts/AlertsGridSB'
 import AlertsTieredSB from '@/components/alerts/AlertsTieredSB'
 import AlertsFiltersSB from '@/components/alerts/AlertsFiltersSB'
 
-export const revalidate = 60
+// Alerts index; new alerts publish throughout the day. 5 min is responsive enough.
+export const revalidate = 300
 
 export const metadata: Metadata = {
   title: 'Alerts',

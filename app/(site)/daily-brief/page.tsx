@@ -5,7 +5,8 @@ import { getActiveAlerts } from '@/utils/supabase/queries'
 import type { AlertWithPrograms } from '@/utils/supabase/queries'
 import AlertsGridSB from '@/components/alerts/AlertsGridSB'
 
-export const revalidate = 60
+// Daily brief; cron rebuilds once/day, no need to revalidate often.
+export const revalidate = 1800
 
 export const metadata: Metadata = {
   title: 'Daily Brief',

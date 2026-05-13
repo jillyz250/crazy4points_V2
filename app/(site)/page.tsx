@@ -9,7 +9,8 @@ import type { Metadata } from "next";
 // being statically rendered at build time and served from CDN until the
 // next deploy — meaning expired alerts kept showing in the hot bar with
 // 404'ing links.
-export const revalidate = 60;
+// Homepage surfaces alerts; new ones publish throughout the day.
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: "crazy4points — Travel Smarter. Earn More. Go Farther.",

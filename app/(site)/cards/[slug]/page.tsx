@@ -5,7 +5,8 @@ import { createAdminClient } from '@/utils/supabase/server'
 import { getCardDetailBySlug } from '@/utils/supabase/queries'
 import type { CreditCardBenefit } from '@/utils/supabase/queries'
 
-export const revalidate = 60
+// Card editorial; stable after publish.
+export const revalidate = 3600
 
 export async function generateMetadata({
   params,
