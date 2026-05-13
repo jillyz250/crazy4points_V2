@@ -46,6 +46,59 @@ function normalizeCategory(raw: string): string {
   return 'other'
 }
 
+// Must match the full CHECK constraint on credit_card_benefits.benefit_type
+// after migration 257. Update both if a new enum value is added.
+const VALID_BENEFIT_TYPES = new Set([
+  // Lounge
+  'lounge_priority_pass','lounge_centurion','lounge_admirals_club',
+  'lounge_skyclub','lounge_united_club','lounge_polaris','lounge_other',
+  // Insurance
+  'trip_delay_insurance','trip_cancellation_insurance','trip_interruption_insurance',
+  'baggage_delay_insurance','lost_luggage_insurance',
+  'rental_car_cdw_primary','rental_car_cdw_secondary',
+  'travel_accident_insurance','emergency_evacuation_insurance',
+  // Credits
+  'travel_credit_annual','doordash_credit','dining_credit',
+  'streaming_credit','wireless_credit','walmart_credit','saks_credit',
+  'global_entry_credit','tsa_precheck_credit','clear_credit',
+  'hotel_credit','airline_credit','flight_credit',
+  'lyft_credit','uber_credit','equinox_credit','peloton_credit',
+  // Hotel
+  'free_night_award','free_night_after_spend',
+  // Status
+  'status_hyatt_discoverist','status_hyatt_explorist','status_hyatt_globalist',
+  'status_marriott_silver','status_marriott_gold','status_marriott_platinum',
+  'status_hilton_silver','status_hilton_gold','status_hilton_diamond',
+  'status_hertz_gold','status_avis_preferred','status_national_emerald',
+  'status_ihg_silver','status_ihg_gold','status_ihg_platinum','status_ihg_diamond',
+  'status_southwest_a_list','status_southwest_a_list_preferred',
+  'status_southwest_companion_pass',
+  'status_alaska_mvp','status_alaska_mvp_gold','status_alaska_mvp_gold_75k',
+  'status_other',
+  // Protection
+  'purchase_protection','extended_warranty','return_protection','cellphone_protection',
+  // Travel perks + catch-alls
+  'companion_pass','free_checked_bag','priority_boarding',
+  'concierge','prepaid_extra_value',
+  'transfer_partner_access','portal_redemption_bonus','spend_unlock_perk',
+  'other',
+])
+
+/**
+ * Coerces a Claude-returned benefit_type to a valid enum value. Falls back to
+ * 'other' (or a category-appropriate _other variant) if unknown. Keeps the
+ * save step from failing on schema drift while the row's `name` and
+ * `description` still carry the human-readable benefit name.
+ */
+function normalizeBenefitType(raw: string, category: string): string {
+  const v = raw.toLowerCase().trim().replace(/\s+/g, '_')
+  if (VALID_BENEFIT_TYPES.has(v)) return v
+  // Pick a category-appropriate fallback so the data stays queryable
+  if (category === 'lounge_access') return 'lounge_other'
+  if (category === 'status_conferred') return 'status_other'
+  return 'other'
+}
+
 export async function saveExtractedBenefits({
   cardId,
   extractionId,
@@ -120,10 +173,12 @@ export async function saveExtractedBenefits({
 
   // ── 3. Replace structured benefits ─────────────────────────────────────
   await supabase.from('credit_card_benefits').delete().eq('card_id', cardId)
-  const benefitRows = extraction.benefits.map((b, i) => ({
+  const benefitRows = extraction.benefits.map((b, i) => {
+    const category = normalizeCategory(b.category)
+    return {
     card_id: cardId,
-    category: normalizeCategory(b.category),
-    benefit_type: b.benefit_type,
+    category,
+    benefit_type: normalizeBenefitType(b.benefit_type, category),
     name: b.name,
     value_amount: b.value_amount,
     value_unit: b.value_unit,
@@ -135,7 +190,8 @@ export async function saveExtractedBenefits({
     sort_order: i,
     source_url: sourceUrl,
     verified_at: now,
-  }))
+    }
+  })
   if (benefitRows.length > 0) {
     const { error: benErr } = await supabase.from('credit_card_benefits').insert(benefitRows)
     if (benErr) return { ok: false, error: `credit_card_benefits insert failed: ${benErr.message}` }
