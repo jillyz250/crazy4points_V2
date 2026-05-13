@@ -70,6 +70,25 @@ EARN RATE NUANCES (use earn_rates[].notes for):
     do not reduce points." This is the most-misunderstood Chase Reserve detail.
 20. Brand-specific earn rates with end dates → include "Through M/D/YYYY" in notes.
 
+VALUE AMOUNT vs. ESTIMATED VALUE (critical for comparison accuracy):
+A. value_amount represents a GUARANTEED dollar amount the cardholder actually pockets:
+     - Statement credits ($300 travel, $250 Edit hotel)
+     - Insurance reimbursements ($10,000 trip cancellation)
+     - Application fee credits ($120 Global Entry)
+B. If the source uses MARKETING-VALUATION language like:
+     - "valued at up to $X"
+     - "average total value of $X per stay"
+     - "estimated worth $X"
+     - "$X value"
+     - "personalized service is valued at up to $X"
+   Still set value_amount=X for sortability, BUT ALSO set:
+     metadata.value_is_estimated = true
+     metadata.value_basis = "<short quote of the valuation language from the page>"
+C. For service perks where the page gives no dollar value at all (concierge, transfer access,
+   points boost), leave value_amount=null. Don't fabricate.
+D. Apple TV+ ($288), DashPass ($120), Lyft ($120), Peloton ($120), StubHub ($300) — these
+   are all GUARANTEED amounts (you get the value as long as you use the benefit). NOT estimated.
+
 LOUNGE ACCESS CONDITIONS (capture in benefits[].description and metadata):
 21. When a lounge benefit has carrier restrictions, ALWAYS capture them. Examples:
       - Air Canada Maple Leaf Lounge access "with eligible boarding pass on Air Canada or Star Alliance flights"
