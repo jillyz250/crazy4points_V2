@@ -3,7 +3,8 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import { createAdminClient } from '@/utils/supabase/server'
 import { getCardDetailBySlug } from '@/utils/supabase/queries'
-import type { CreditCardBenefit } from '@/utils/supabase/queries'
+import type { CreditCardBenefit, TransferPartnerRow } from '@/utils/supabase/queries'
+import TransferPartnersTable from '@/components/programs/TransferPartnersTable'
 
 // Card editorial; stable after publish.
 export const revalidate = 3600
@@ -113,11 +114,38 @@ export default async function CardPage({
   const orderedCategories = BENEFIT_CATEGORY_ORDER.filter((c) => benefitGroups.has(c))
   const applyUrl = card.affiliate_url ?? card.official_url
 
+  // Transfer partners: properly live on the currency program (chase-ultimate-rewards,
+  // amex-membership-rewards, etc.) — every card that earns into the same currency
+  // shares the same partner list. We surface them here so users see "transferring
+  // is a benefit of THIS card" without bouncing to the currency program page.
+  let transferPartners: TransferPartnerRow[] = []
+  let programNameBySlug = new Map<string, string>()
+  if (currency_program?.slug) {
+    const { data: currencyRow } = await supabase
+      .from('programs')
+      .select('transfer_partners')
+      .eq('slug', currency_program.slug)
+      .maybeSingle()
+    transferPartners = (currencyRow?.transfer_partners as TransferPartnerRow[] | null) ?? []
+
+    if (transferPartners.length > 0) {
+      // Look up partner names for any slug referenced in the partners list,
+      // so the table renders "United MileagePlus" instead of just "united".
+      const partnerSlugs = transferPartners.map((r) => r.from_slug)
+      const { data: namedPrograms } = await supabase
+        .from('programs')
+        .select('slug, name')
+        .in('slug', partnerSlugs)
+      programNameBySlug = new Map((namedPrograms ?? []).map((p) => [p.slug, p.name]))
+    }
+  }
+
   // TOC entries — auto-generated from sections that actually have content.
   // Required on every card detail page per plans/credit-cards-architecture.md.
   const tocSections: Array<{ id: string; label: string }> = [
     ...(sub ? [{ id: 'welcome-bonus', label: 'Welcome bonus' }] : []),
     ...(earn_rates.length > 0 ? [{ id: 'earn-rates', label: 'Earn rates' }] : []),
+    ...(transferPartners.length > 0 ? [{ id: 'transfer-partners', label: 'Transfer partners' }] : []),
     ...orderedCategories.map((cat) => ({
       id: `benefit-${cat}`,
       label: BENEFIT_CATEGORY_LABELS[cat] ?? cat.replace(/_/g, ' '),
@@ -470,6 +498,26 @@ export default async function CardPage({
         </section>
         )
       })()}
+
+      {/* Transfer partners — sourced from the card's currency program.
+          Sapphire Reserve, Sapphire Preferred, Freedom, and every other UR-earning
+          card all surface the same ~14 Chase partners; the data lives once on
+          chase-ultimate-rewards and is joined here. Skips render when the card's
+          currency doesn't transfer to partners (co-brands, BofA Premium Rewards, etc.). */}
+      {transferPartners.length > 0 && currency_program ? (
+        <section id="transfer-partners" style={{ marginBottom: '2.5rem', scrollMarginTop: '2rem' }}>
+          <h2>Transfer to airline & hotel partners</h2>
+          <p style={{ marginTop: '0.25rem', marginBottom: '1rem', color: 'var(--color-text-secondary)', fontSize: '0.9375rem' }}>
+            Points earned with this card transfer to {transferPartners.length} partner program
+            {transferPartners.length === 1 ? '' : 's'} via{' '}
+            <Link href={`/programs/${currency_program.slug}`} style={{ color: 'var(--color-primary)' }}>
+              {currency_program.name}
+            </Link>
+            {transferPartners.some((p) => p.bonus_active) ? ' — bonuses live now flagged below.' : '.'}
+          </p>
+          <TransferPartnersTable rows={transferPartners} programNameBySlug={programNameBySlug} />
+        </section>
+      ) : null}
 
       {/* Benefits, grouped by category */}
       {orderedCategories.map((cat) => (
