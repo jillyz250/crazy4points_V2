@@ -94,10 +94,13 @@ export async function fetchFirecrawl(
 
 /**
  * Standard "expand-everything" action set for issuer product pages.
- * - Opens all <details> elements
- * - Clicks buttons/links labeled Show more / View all / See all / Expand
- * - Toggles aria-expanded=false elements
- * - Then waits 2s for any expansions to render
+ *
+ * SAFE MODE: only opens native <details> and clicks <button> elements that
+ * are clearly expand-toggles (not submit/reset buttons). Does NOT click:
+ *   - <a> anchors (they navigate to other pages — broke Citi extraction
+ *     by navigating to the cards listing page)
+ *   - [role="button"] on non-button elements (often hidden navigation)
+ *   - aria-expanded=false on anything that isn't a <button> (the same)
  *
  * Run after a 1.5s initial wait to let dynamic content load first.
  */
@@ -107,19 +110,27 @@ export const EXPAND_EVERYTHING_ACTIONS: FirecrawlAction[] = [
     type: 'executeJavascript',
     script: `
       (() => {
-        // Open all native <details>
+        // 1. Open all native <details> — safe, no navigation possible
         document.querySelectorAll('details').forEach((d) => { d.open = true });
-        // Click reveal buttons by text
+
+        // 2. Click <button> elements ONLY (never anchors).
+        //    Exclude submit/reset/navigation buttons.
         const revealRegex = /show\\s*more|view\\s*all|see\\s*all|expand|read\\s*more|view\\s*details|more\\s*info/i;
-        document.querySelectorAll('button, a, [role="button"]').forEach((el) => {
+        document.querySelectorAll('button').forEach((el) => {
           try {
+            const type = el.getAttribute('type');
+            if (type === 'submit' || type === 'reset') return;
+            // Skip buttons with navigation-y data attributes / hrefs
+            if (el.dataset.navigate) return;
             const txt = (el.textContent || '').trim();
-            if (revealRegex.test(txt) && el.click) el.click();
+            if (revealRegex.test(txt)) el.click();
           } catch (e) {}
         });
-        // Toggle aria-expanded=false elements
-        document.querySelectorAll('[aria-expanded="false"]').forEach((el) => {
-          try { if (el.click) el.click(); } catch (e) {}
+
+        // 3. Toggle aria-expanded=false ONLY on <button> elements
+        //    (Anchors with role="button" are often nav links in disguise.)
+        document.querySelectorAll('button[aria-expanded="false"]').forEach((el) => {
+          try { el.click(); } catch (e) {}
         });
       })();
     `,
