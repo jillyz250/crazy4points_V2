@@ -24,13 +24,23 @@ export async function runExtractionAndSave(formData: FormData): Promise<void> {
   const supabase = createAdminClient()
   const { data: card, error } = await supabase
     .from('credit_cards')
-    .select('id, name')
+    .select('id, name, official_url')
     .eq('slug', slug)
     .single()
 
   if (error || !card) {
     console.error(`[card-extract] card not found: ${slug}`)
     return
+  }
+
+  // Persist the URL on the card row the first time the editor types one in
+  // (or whenever they switch to a different source URL). Means the editor
+  // never has to copy/paste it again — pre-fills on every future extraction.
+  if (sourceUrl !== card.official_url) {
+    await supabase
+      .from('credit_cards')
+      .update({ official_url: sourceUrl })
+      .eq('id', card.id)
   }
 
   // 1. Extract
