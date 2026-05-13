@@ -150,7 +150,7 @@ export default function ExtractionReview({
           <tbody>
             {(extraction.earn_rates ?? []).map((r, i) => (
               <tr key={i} className="border-b border-[var(--color-border-soft)] align-top">
-                <td className="py-2 pr-3 font-medium">{r.category}</td>
+                <td className="py-2 pr-3 font-medium">{formatEarnCategory(r.category)}</td>
                 <td className="py-2 pr-3">{r.multiplier}x</td>
                 <td className="py-2 pr-3">{r.booking_channel}</td>
                 <td className="py-2 pr-3">{r.cap_amount_usd != null ? `$${r.cap_amount_usd.toLocaleString()}/${r.cap_period}` : '—'}</td>
@@ -237,6 +237,32 @@ function SourceQuote({ quote }: { quote: string }) {
       &ldquo;{quote}&rdquo;
     </p>
   )
+}
+
+// Earn rate categories are stored as lowercase slugs ('flights', 'hotels_through_portal',
+// 'peloton'). The source quote next to them is title-cased marketing copy from the
+// scraped page, which makes the admin display look inconsistent. This formatter
+// title-cases the slug for visual parity with the source quote.
+const CATEGORY_DISPLAY_OVERRIDES: Record<string, string> = {
+  travel_through_portal: 'Travel (via portal)',
+  flights_through_portal: 'Flights (via portal)',
+  hotels_through_portal: 'Hotels (via portal)',
+  ev_charging: 'EV Charging',
+  car_rentals_through_portal: 'Car Rentals (via portal)',
+  online_grocery: 'Online Grocery',
+  wholesale_clubs: 'Wholesale Clubs',
+  office_supplies: 'Office Supplies',
+  drug_stores: 'Drug Stores',
+  internet_phone_tv: 'Internet / Phone / TV',
+}
+
+function formatEarnCategory(raw: string): string {
+  if (!raw) return '—'
+  if (CATEGORY_DISPLAY_OVERRIDES[raw]) return CATEGORY_DISPLAY_OVERRIDES[raw]
+  // Default: underscore → space + title-case
+  return raw
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
 function fmtTimestamp(iso: string): string {
