@@ -10,6 +10,8 @@ import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Card } from '@/components/admin/ui/Card'
 import { EmptyState } from '@/components/admin/ui/EmptyState'
 import { Badge } from '@/components/admin/ui/Badge'
+import RunPromoScrapersButton from '@/components/admin/RunPromoScrapersButton'
+import { runScrapersNowAction } from './actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -44,6 +46,14 @@ export default async function PromosAdminPage() {
         title="Promo Queue"
         description="Scraped promo deals awaiting review. Nothing renders on the public site until approved + published."
       />
+
+      <div style={{ marginBottom: '1.5rem' }}>
+        <RunPromoScrapersButton action={runScrapersNowAction} />
+        <p style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--admin-text-muted)' }}>
+          Runs every scraper config in <code>lib/scrapers/</code> immediately. The
+          daily cron still runs at 11:00 UTC — this button is for ad-hoc runs.
+        </p>
+      </div>
 
       {loadError && (
         <Card>
