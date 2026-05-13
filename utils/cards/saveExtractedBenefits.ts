@@ -58,6 +58,7 @@ const VALID_BENEFIT_TYPES = new Set([
   'rental_car_cdw_primary','rental_car_cdw_secondary',
   'travel_accident_insurance','emergency_evacuation_insurance',
   'roadside_assistance','emergency_medical_dental_insurance',
+  'travel_emergency_assistance',
   // Credits
   'travel_credit_annual','doordash_credit','dining_credit',
   'streaming_credit','wireless_credit','walmart_credit','saks_credit',
