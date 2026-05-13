@@ -84,16 +84,51 @@ CATEGORY ENUM (must use EXACTLY one of these strings for benefits[].category —
   - other                  (companion pass, concierge, free checked bag, etc. — anything that doesn't fit above)
 
 BENEFIT_TYPE ENUM (must use EXACTLY one of these for benefits[].benefit_type):
-  Lounge category:        lounge_priority_pass, lounge_centurion, lounge_admirals_club, lounge_skyclub, lounge_united_club, lounge_polaris, lounge_other
-  Insurance category:     trip_delay_insurance, trip_cancellation_insurance, trip_interruption_insurance, baggage_delay_insurance, lost_luggage_insurance, rental_car_cdw_primary, rental_car_cdw_secondary, travel_accident_insurance, emergency_evacuation_insurance
-  statement_credit / travel_credit categories:
-                          travel_credit_annual, doordash_credit, dining_credit, streaming_credit, wireless_credit, walmart_credit, saks_credit, global_entry_credit, tsa_precheck_credit, clear_credit, hotel_credit, airline_credit, flight_credit, lyft_credit, uber_credit, equinox_credit, peloton_credit
-  free_night category:    free_night_award, free_night_after_spend
-  status_conferred:       status_hyatt_discoverist, status_hyatt_explorist, status_hyatt_globalist, status_marriott_silver, status_marriott_gold, status_marriott_platinum, status_hilton_silver, status_hilton_gold, status_hilton_diamond, status_hertz_gold, status_avis_preferred, status_national_emerald
-  protection:             purchase_protection, extended_warranty, return_protection, cellphone_protection
-  other:                  companion_pass, free_checked_bag, priority_boarding, concierge, prepaid_extra_value, transfer_partner_access, portal_redemption_bonus, spend_unlock_perk
+  Lounge category:
+    lounge_priority_pass, lounge_centurion, lounge_admirals_club,
+    lounge_skyclub, lounge_united_club, lounge_polaris, lounge_other
 
-CRITICAL: The CATEGORY value MUST be one of the 11 enum strings listed above (lowercase, underscore-separated). Do NOT use display labels like "Credits" or "Lounge" or "Travel perks" — use the enum strings exactly. If a benefit doesn't cleanly fit any benefit_type, use one from the "other" group above and set category to 'other'.
+  Insurance category:
+    trip_delay_insurance, trip_cancellation_insurance, trip_interruption_insurance,
+    baggage_delay_insurance, lost_luggage_insurance,
+    rental_car_cdw_primary, rental_car_cdw_secondary,
+    travel_accident_insurance, emergency_evacuation_insurance,
+    emergency_medical_dental_insurance, roadside_assistance
+
+  statement_credit / travel_credit categories:
+    travel_credit_annual, doordash_credit, dining_credit,
+    streaming_credit, wireless_credit, walmart_credit, saks_credit,
+    global_entry_credit, tsa_precheck_credit, clear_credit,
+    hotel_credit, airline_credit, flight_credit,
+    lyft_credit, uber_credit, equinox_credit, peloton_credit,
+    entertainment_credit  (use for StubHub, Vivid Seats, viagogo, ticketing, events)
+
+  free_night category:
+    free_night_award, free_night_after_spend
+
+  status_conferred — Hyatt:    status_hyatt_discoverist, status_hyatt_explorist, status_hyatt_globalist
+  status_conferred — Marriott: status_marriott_silver, status_marriott_gold, status_marriott_platinum
+  status_conferred — Hilton:   status_hilton_silver, status_hilton_gold, status_hilton_diamond
+  status_conferred — IHG:      status_ihg_silver, status_ihg_gold, status_ihg_platinum, status_ihg_diamond
+  status_conferred — Southwest: status_southwest_a_list, status_southwest_a_list_preferred, status_southwest_companion_pass
+  status_conferred — Alaska:   status_alaska_mvp, status_alaska_mvp_gold, status_alaska_mvp_gold_75k
+  status_conferred — Car rental: status_hertz_gold, status_avis_preferred, status_national_emerald
+  status_conferred — fallback: status_other (use for ANY brand/program status not listed above — DO NOT map to a different brand's status just because it's the closest enum)
+
+  protection:
+    purchase_protection, extended_warranty, return_protection, cellphone_protection
+
+  other (catch-all for benefits that don't fit above):
+    companion_pass, free_checked_bag, priority_boarding,
+    concierge, prepaid_extra_value,
+    transfer_partner_access, portal_redemption_bonus, spend_unlock_perk,
+    other
+
+ANTI-MAPPING RULE (critical):
+- If a status, lounge, or credit doesn't have an exact match above, use the category's *_other variant (status_other, lounge_other, 'other').
+- NEVER map a value to a different brand's enum just because it's "closest" — that creates incorrect data. IHG Platinum is NOT status_marriott_gold. Use status_ihg_platinum (which exists) or status_other if the brand has no specific value.
+
+CATEGORY value MUST be one of the 11 enum strings listed above (lowercase, underscore-separated). Do NOT use display labels like "Credits" or "Lounge" or "Travel perks" — use the enum strings exactly.
 
 EARN RATE CATEGORIES (use these strings for earn_rates[].category):
   Standard:    base, dining, dining_through_portal, groceries, groceries_us_supermarkets, gas, gas_stations,

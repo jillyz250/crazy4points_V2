@@ -57,12 +57,14 @@ const VALID_BENEFIT_TYPES = new Set([
   'baggage_delay_insurance','lost_luggage_insurance',
   'rental_car_cdw_primary','rental_car_cdw_secondary',
   'travel_accident_insurance','emergency_evacuation_insurance',
+  'roadside_assistance','emergency_medical_dental_insurance',
   // Credits
   'travel_credit_annual','doordash_credit','dining_credit',
   'streaming_credit','wireless_credit','walmart_credit','saks_credit',
   'global_entry_credit','tsa_precheck_credit','clear_credit',
   'hotel_credit','airline_credit','flight_credit',
   'lyft_credit','uber_credit','equinox_credit','peloton_credit',
+  'entertainment_credit',
   // Hotel
   'free_night_award','free_night_after_spend',
   // Status
