@@ -38,6 +38,7 @@ export interface EnrichedFields {
   intel_type: IntelType
   intel_discount_percent: number | null
   intel_value_score: number | null
+  intel_inferred_baseline: number | null
   intel_affects_redemption_ids: string[] | null
   intel_affects_alert_ids: string[] | null
   intel_match_confidence: 'high' | 'medium' | 'low' | 'unmatched'
@@ -45,7 +46,21 @@ export interface EnrichedFields {
 
 export function enrichPromoRow(row: PreEnrichmentRow): EnrichedFields {
   const intel_type = classifyType(row)
-  const intel_discount_percent = computeDiscountPercent(row)
+
+  // Read scraper-extracted discount % from raw_payload if present.
+  const displayedDiscount = readDisplayedDiscount(row.raw_payload)
+  const intel_discount_percent =
+    displayedDiscount ?? computeDiscountPercent(row)
+
+  // Back-calculate baseline when we have an actual promo cost + a
+  // discount % but no explicit baseline. This is the chart-derivation
+  // foundation (plans/promo-scraper.md Phase 7).
+  const intel_inferred_baseline = computeInferredBaseline(
+    row.points_required,
+    intel_discount_percent,
+    row.points_baseline,
+  )
+
   const intel_value_score = computeValueScore({ ...row, intel_discount_percent })
 
   // Phase 1: no route matching yet. Phase 6 fills these.
@@ -53,10 +68,46 @@ export function enrichPromoRow(row: PreEnrichmentRow): EnrichedFields {
     intel_type,
     intel_discount_percent,
     intel_value_score,
+    intel_inferred_baseline,
     intel_affects_redemption_ids: null,
     intel_affects_alert_ids: null,
     intel_match_confidence: 'unmatched',
   }
+}
+
+/** Read the displayed discount % from the scraper's raw payload, if any. */
+function readDisplayedDiscount(
+  payload: Record<string, unknown> | null,
+): number | null {
+  if (!payload) return null
+  const candidates = [
+    'discount_percent_displayed',
+    'discount_percent',
+    'discount',
+  ]
+  for (const key of candidates) {
+    const v = payload[key]
+    if (typeof v === 'number' && v > 0 && v < 100) return v
+    if (typeof v === 'string') {
+      const n = parseFloat(v.replace('%', '').trim())
+      if (!isNaN(n) && n > 0 && n < 100) return n
+    }
+  }
+  return null
+}
+
+/** Back-calculate the baseline points cost from promo + discount %. */
+function computeInferredBaseline(
+  pointsRequired: number | null,
+  discountPercent: number | null,
+  explicitBaseline: number | null,
+): number | null {
+  // When we already have an explicit baseline, no need to infer.
+  if (explicitBaseline != null) return null
+  if (!pointsRequired || !discountPercent) return null
+  if (discountPercent <= 0 || discountPercent >= 100) return null
+  const baseline = pointsRequired / (1 - discountPercent / 100)
+  return Math.round(baseline)
 }
 
 /**

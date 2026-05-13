@@ -81,14 +81,46 @@ function computeValueScore(row) {
   return Math.max(0, Math.min(100, Math.round(score * 10) / 10))
 }
 
+function readDisplayedDiscount(payload) {
+  if (!payload) return null
+  const candidates = ['discount_percent_displayed', 'discount_percent', 'discount']
+  for (const key of candidates) {
+    const v = payload[key]
+    if (typeof v === 'number' && v > 0 && v < 100) return v
+    if (typeof v === 'string') {
+      const n = parseFloat(v.replace('%', '').trim())
+      if (!isNaN(n) && n > 0 && n < 100) return n
+    }
+  }
+  return null
+}
+
+function computeInferredBaseline(pointsRequired, discountPercent, explicitBaseline) {
+  if (explicitBaseline != null) return null
+  if (!pointsRequired || !discountPercent) return null
+  if (discountPercent <= 0 || discountPercent >= 100) return null
+  return Math.round(pointsRequired / (1 - discountPercent / 100))
+}
+
 export function enrichPromoRow(row) {
   const intel_type = classifyType(row)
-  const intel_discount_percent = computeDiscountPercent(row)
+
+  const displayedDiscount = readDisplayedDiscount(row.raw_payload)
+  const intel_discount_percent = displayedDiscount ?? computeDiscountPercent(row)
+
+  const intel_inferred_baseline = computeInferredBaseline(
+    row.points_required,
+    intel_discount_percent,
+    row.points_baseline,
+  )
+
   const intel_value_score = computeValueScore({ ...row, intel_discount_percent })
+
   return {
     intel_type,
     intel_discount_percent,
     intel_value_score,
+    intel_inferred_baseline,
     intel_affects_redemption_ids: null,
     intel_affects_alert_ids: null,
     intel_match_confidence: 'unmatched',
@@ -207,6 +239,10 @@ export async function persistPromoBatch(supabase, parsedRows, opts, runId) {
       if (error) throw error
       items_updated++
     } else {
+      // Note: ...enriched spreads include intel_inferred_baseline,
+      // intel_type, intel_discount_percent, intel_value_score, and the
+      // match_confidence + affects_* fields. Spreading after the raw
+      // columns lets the enrichment overwrite if needed.
       const { error } = await supabase.from('promo_rewards').insert({
         program_id: opts.programId,
         source_url: parsed.source_url,

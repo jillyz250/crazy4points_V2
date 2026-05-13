@@ -387,7 +387,41 @@ When a scraper run no longer sees a row (`last_seen_active = false` for > 24 hrs
 - Add `intel_match_confidence` classification
 - Admin queue surfaces match suggestions; curator confirms ambiguous ones
 
-### Phase 7 — Expand program coverage (~3 hrs per program)
+### Phase 7 — Chart Derivation Engine (3-4 days)
+
+> **Conceived 2026-05-13** after the Flying Blue scraper went live and
+> we realized every promo with a stated discount % is a data point
+> about the unpublished chart.
+
+Every promo with `discount_percent_displayed` gives us:
+  `inferred_baseline = points_required / (1 - discount/100)`
+
+Example: Flying Blue Business at 63,500 with -25% → baseline ~84,667.
+
+Aggregate across many promos for the same `(origin_region, dest_region, cabin)`
+tuple and the inferences converge to the actual chart cell. **This is
+the chart-derivation feature.** No competitor can do this because nobody
+else captures the data automatically with timestamps.
+
+Implementation:
+- Migration 252 (shipped early): `intel_inferred_baseline` column.
+  Enrichment computes when scraper extracts the discount %.
+- New `derived_chart_cells` table aggregating inferences by
+  `(currency_program_id, origin_region, dest_region, cabin)`:
+  - `inferred_baseline_p25 / p50 / p75 / p95` (percentiles over time)
+  - `sample_count` — how many observations contributed
+  - `confidence` — derived from sample count + variance
+  - `last_observed_at` — most recent observation
+- Cron job: aggregate `promo_rewards` into `derived_chart_cells` daily.
+- Surface on `/programs/[slug]` as a "Derived chart" section when the
+  program lacks an official published chart. Heavy caveat: "Derived
+  from N observations between [date] and [date]. Use as estimate only
+  — confirm in the program's award engine before transferring."
+- Devaluation alarm: if a freshly-observed promo's inferred baseline
+  is meaningfully higher than the rolling p50, auto-create a draft
+  alert (`intel_type='chart_change'`).
+
+### Phase 8 — Expand program coverage (~3 hrs per program)
 
 - KrisFlyer Spontaneous Escapes
 - Aeroplan Bonus
@@ -396,13 +430,13 @@ When a scraper run no longer sees a row (`last_seen_active = false` for > 24 hrs
 - Air France/KLM (variant of Flying Blue)
 - Add programs as time permits
 
-### Phase 8 — Availability probes (DEFERRED, 2 days)
+### Phase 9 — Availability probes (DEFERRED, 2 days)
 
 - Higher legal/ToS risk than chart scraping
 - Build only after Phases 0-7 prove the architecture
 - Probes a few known routes per program to detect saver-space trends
 
-### Phase 9 — Adjacent intel (1-2 days each)
+### Phase 10 — Adjacent intel (1-2 days each)
 
 - Status promos (fast-tracks, challenges)
 - Card-offer changes (welcome bonus refreshes)
