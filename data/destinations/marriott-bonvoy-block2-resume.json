@@ -1,0 +1,44 @@
+{
+  "_comment": "Block 2 resume config - Indiana onward. The original Block 2 run (in marriott-bonvoy.json) failed on Indiana due to the hotel_properties_program_name_uniq constraint catching duplicate-name properties across states (e.g. Columbus IN + Columbus GA both have 'Residence Inn by Marriott Columbus'). Mig 129 drops that constraint; this config resumes from Indiana to avoid re-scraping the 11 states already written.",
+  "blocks": [
+    {
+      "label": "Block 2 resume - Indiana onward",
+      "destinations": [
+        { "url_path": "united-states/indiana",        "country": "US", "region": "Indiana" },
+        { "url_path": "united-states/iowa",           "country": "US", "region": "Iowa" },
+        { "url_path": "united-states/kansas",         "country": "US", "region": "Kansas" },
+        { "url_path": "united-states/kentucky",       "country": "US", "region": "Kentucky" },
+        { "url_path": "united-states/louisiana",      "country": "US", "region": "Louisiana" },
+        { "url_path": "united-states/maine",          "country": "US", "region": "Maine" },
+        { "url_path": "united-states/maryland",       "country": "US", "region": "Maryland" },
+        { "url_path": "united-states/massachusetts",  "country": "US", "region": "Massachusetts" },
+        { "url_path": "united-states/michigan",       "country": "US", "region": "Michigan" },
+        { "url_path": "united-states/minnesota",      "country": "US", "region": "Minnesota" },
+        { "url_path": "united-states/mississippi",    "country": "US", "region": "Mississippi" },
+        { "url_path": "united-states/missouri",       "country": "US", "region": "Missouri" },
+        { "url_path": "united-states/montana",        "country": "US", "region": "Montana" },
+        { "url_path": "united-states/nebraska",       "country": "US", "region": "Nebraska" },
+        { "url_path": "united-states/new-hampshire",  "country": "US", "region": "New Hampshire" },
+        { "url_path": "united-states/new-jersey",     "country": "US", "region": "New Jersey" },
+        { "url_path": "united-states/new-mexico",     "country": "US", "region": "New Mexico" },
+        { "url_path": "united-states/north-carolina", "country": "US", "region": "North Carolina" },
+        { "url_path": "united-states/north-dakota",   "country": "US", "region": "North Dakota" },
+        { "url_path": "united-states/ohio",           "country": "US", "region": "Ohio" },
+        { "url_path": "united-states/oklahoma",       "country": "US", "region": "Oklahoma" },
+        { "url_path": "united-states/oregon",         "country": "US", "region": "Oregon" },
+        { "url_path": "united-states/pennsylvania",   "country": "US", "region": "Pennsylvania" },
+        { "url_path": "united-states/rhode-island",   "country": "US", "region": "Rhode Island" },
+        { "url_path": "united-states/south-carolina", "country": "US", "region": "South Carolina" },
+        { "url_path": "united-states/south-dakota",   "country": "US", "region": "South Dakota" },
+        { "url_path": "united-states/tennessee",      "country": "US", "region": "Tennessee" },
+        { "url_path": "united-states/utah",           "country": "US", "region": "Utah" },
+        { "url_path": "united-states/vermont",        "country": "US", "region": "Vermont" },
+        { "url_path": "united-states/virginia",       "country": "US", "region": "Virginia" },
+        { "url_path": "united-states/washington",     "country": "US", "region": "Washington" },
+        { "url_path": "united-states/west-virginia",  "country": "US", "region": "West Virginia" },
+        { "url_path": "united-states/wisconsin",      "country": "US", "region": "Wisconsin" },
+        { "url_path": "united-states/wyoming",        "country": "US", "region": "Wyoming" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1345 @@
+[
+  {
+    "fields": [
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "title",
+        "type": "string"
+      },
+      {
+        "options": {
+          "source": "title"
+        },
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "custom"
+              },
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "slug",
+        "type": "slug"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "summary",
+        "type": "text"
+      },
+      {
+        "of": [
+          {
+            "marks": {
+              "annotations": [
+                {
+                  "i18nTitleKey": "inputs.portable-text.annotation.link",
+                  "options": {
+                    "modal": {
+                      "type": "popover"
+                    }
+                  },
+                  "fields": [
+                    {
+                      "validation": [
+                        {
+                          "rules": [
+                            {
+                              "flag": "uri",
+                              "constraint": {
+                                "options": {
+                                  "scheme": [
+                                    "/^http$/",
+                                    "/^https$/",
+                                    "/^tel$/",
+                                    "/^mailto$/"
+                                  ],
+                                  "allowRelative": true,
+                                  "relativeOnly": false,
+                                  "allowCredentials": false
+                                }
+                              }
+                            }
+                          ],
+                          "level": "error"
+                        }
+                      ],
+                      "description": "A valid web, email, phone, or relative link.",
+                      "name": "href",
+                      "type": "url",
+                      "title": "Link"
+                    }
+                  ],
+                  "name": "link",
+                  "type": "object"
+                }
+              ],
+              "decorators": [
+                {
+                  "value": "strong",
+                  "title": "Strong"
+                },
+                {
+                  "value": "em",
+                  "title": "Italic"
+                },
+                {
+                  "value": "code",
+                  "title": "Code"
+                },
+                {
+                  "value": "underline",
+                  "title": "Underline"
+                },
+                {
+                  "value": "strike-through",
+                  "title": "Strike"
+                }
+              ]
+            },
+            "lists": [
+              {
+                "value": "bullet",
+                "title": "Bulleted list"
+              },
+              {
+                "value": "number",
+                "title": "Numbered list"
+              }
+            ],
+            "styles": [
+              {
+                "value": "normal",
+                "title": "Normal"
+              },
+              {
+                "value": "h1",
+                "title": "Heading 1"
+              },
+              {
+                "value": "h2",
+                "title": "Heading 2"
+              },
+              {
+                "value": "h3",
+                "title": "Heading 3"
+              },
+              {
+                "value": "h4",
+                "title": "Heading 4"
+              },
+              {
+                "value": "h5",
+                "title": "Heading 5"
+              },
+              {
+                "value": "h6",
+                "title": "Heading 6"
+              },
+              {
+                "value": "blockquote",
+                "title": "Quote"
+              }
+            ],
+            "of": [],
+            "type": "block"
+          }
+        ],
+        "name": "description",
+        "type": "array"
+      },
+      {
+        "options": {
+          "list": [
+            {
+              "title": "[Time-Sensitive] Transfer Bonus",
+              "value": "transfer_bonus"
+            },
+            {
+              "title": "[Time-Sensitive] Limited Time Offer",
+              "value": "limited_time_offer"
+            },
+            {
+              "title": "[Time-Sensitive] Award Availability",
+              "value": "award_availability"
+            },
+            {
+              "title": "[Time-Sensitive] Status Promo",
+              "value": "status_promo"
+            },
+            {
+              "title": "[Time-Sensitive] Glitch",
+              "value": "glitch"
+            },
+            {
+              "title": "[Structural] Devaluation",
+              "value": "devaluation"
+            },
+            {
+              "title": "[Structural] Program Change",
+              "value": "program_change"
+            },
+            {
+              "title": "[Structural] Partner Change",
+              "value": "partner_change"
+            },
+            {
+              "title": "[Structural] Category Change",
+              "value": "category_change"
+            },
+            {
+              "title": "[Structural] Earn Rate Change",
+              "value": "earn_rate_change"
+            },
+            {
+              "title": "[Structural] Status Change",
+              "value": "status_change"
+            },
+            {
+              "title": "[Structural] Policy Change",
+              "value": "policy_change"
+            },
+            {
+              "title": "[Evergreen] Sweet Spot",
+              "value": "sweet_spot"
+            },
+            {
+              "title": "[Evergreen] Industry News",
+              "value": "industry_news"
+            }
+          ]
+        },
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "valid",
+                "constraint": [
+                  "transfer_bonus",
+                  "limited_time_offer",
+                  "award_availability",
+                  "status_promo",
+                  "glitch",
+                  "devaluation",
+                  "program_change",
+                  "partner_change",
+                  "category_change",
+                  "earn_rate_change",
+                  "status_change",
+                  "policy_change",
+                  "sweet_spot",
+                  "industry_news"
+                ]
+              },
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "type",
+        "type": "string"
+      },
+      {
+        "options": {
+          "list": [
+            {
+              "title": "Chase Ultimate Rewards",
+              "value": "chase"
+            },
+            {
+              "title": "Amex Membership Rewards",
+              "value": "amex"
+            },
+            {
+              "title": "Citi ThankYou",
+              "value": "citi"
+            },
+            {
+              "title": "Citibank",
+              "value": "citibank"
+            },
+            {
+              "title": "Capital One Venture",
+              "value": "capital_one"
+            },
+            {
+              "title": "World of Hyatt",
+              "value": "hyatt"
+            },
+            {
+              "title": "Marriott Bonvoy",
+              "value": "marriott"
+            },
+            {
+              "title": "Hilton Honors",
+              "value": "hilton"
+            },
+            {
+              "title": "IHG One Rewards",
+              "value": "ihg"
+            },
+            {
+              "title": "United MileagePlus",
+              "value": "united"
+            },
+            {
+              "title": "Delta SkyMiles",
+              "value": "delta"
+            },
+            {
+              "title": "American AAdvantage",
+              "value": "aa"
+            },
+            {
+              "title": "Southwest Rapid Rewards",
+              "value": "southwest"
+            },
+            {
+              "title": "Air France/KLM Flying Blue",
+              "value": "flying_blue"
+            },
+            {
+              "title": "Virgin Atlantic Flying Club",
+              "value": "virgin_atlantic"
+            },
+            {
+              "title": "Avianca LifeMiles",
+              "value": "avianca"
+            },
+            {
+              "title": "Choice Privileges",
+              "value": "choice"
+            },
+            {
+              "title": "Bilt Rewards",
+              "value": "bilt"
+            },
+            {
+              "title": "Wells Fargo Rewards",
+              "value": "wells_fargo"
+            },
+            {
+              "title": "US Bank Altitude",
+              "value": "us_bank"
+            },
+            {
+              "title": "Alaska Airlines Mileage Plan",
+              "value": "alaska"
+            },
+            {
+              "title": "British Airways Executive Club",
+              "value": "british_airways"
+            },
+            {
+              "title": "Air Canada Aeroplan",
+              "value": "aeroplan"
+            },
+            {
+              "title": "Singapore Airlines KrisFlyer",
+              "value": "krisflyer"
+            },
+            {
+              "title": "Cathay Pacific Asia Miles",
+              "value": "asia_miles"
+            },
+            {
+              "title": "Emirates Skywards",
+              "value": "emirates"
+            },
+            {
+              "title": "Etihad Guest",
+              "value": "etihad"
+            },
+            {
+              "title": "Japan Airlines JAL Mileage Bank",
+              "value": "jal"
+            },
+            {
+              "title": "Turkish Airlines Miles&Smiles",
+              "value": "turkish"
+            },
+            {
+              "title": "Aeromexico Club Premier",
+              "value": "aeromexico"
+            },
+            {
+              "title": "EVA Air Infinity MileageLands",
+              "value": "eva_air"
+            },
+            {
+              "title": "JetBlue TrueBlue",
+              "value": "jetblue"
+            },
+            {
+              "title": "Qatar Airways Privilege Club",
+              "value": "qatar"
+            },
+            {
+              "title": "Wyndham Rewards",
+              "value": "wyndham"
+            },
+            {
+              "title": "Radisson Rewards",
+              "value": "radisson"
+            },
+            {
+              "title": "Best Western Rewards",
+              "value": "best_western"
+            },
+            {
+              "title": "Accor Live Limitless",
+              "value": "accor"
+            }
+          ]
+        },
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "valid",
+                "constraint": [
+                  "chase",
+                  "amex",
+                  "citi",
+                  "citibank",
+                  "capital_one",
+                  "hyatt",
+                  "marriott",
+                  "hilton",
+                  "ihg",
+                  "united",
+                  "delta",
+                  "aa",
+                  "southwest",
+                  "flying_blue",
+                  "virgin_atlantic",
+                  "avianca",
+                  "choice",
+                  "bilt",
+                  "wells_fargo",
+                  "us_bank",
+                  "alaska",
+                  "british_airways",
+                  "aeroplan",
+                  "krisflyer",
+                  "asia_miles",
+                  "emirates",
+                  "etihad",
+                  "jal",
+                  "turkish",
+                  "aeromexico",
+                  "eva_air",
+                  "jetblue",
+                  "qatar",
+                  "wyndham",
+                  "radisson",
+                  "best_western",
+                  "accor"
+                ]
+              },
+              {
+                "flag": "presence",
+                "constraint": "required"
+              },
+              {
+                "flag": "min",
+                "constraint": 1
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "of": [
+          {
+            "type": "string"
+          }
+        ],
+        "name": "programs",
+        "type": "array"
+      },
+      {
+        "of": [
+          {
+            "to": [
+              {
+                "type": "alert"
+              }
+            ],
+            "type": "reference",
+            "title": "Reference to alert"
+          }
+        ],
+        "name": "relatedAlerts",
+        "type": "array"
+      },
+      {
+        "options": {
+          "list": [
+            {
+              "title": "Book",
+              "value": "book"
+            },
+            {
+              "title": "Transfer",
+              "value": "transfer"
+            },
+            {
+              "title": "Apply",
+              "value": "apply"
+            },
+            {
+              "title": "Monitor",
+              "value": "monitor"
+            },
+            {
+              "title": "Learn",
+              "value": "learn"
+            }
+          ]
+        },
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "valid",
+                "constraint": [
+                  "book",
+                  "transfer",
+                  "apply",
+                  "monitor",
+                  "learn"
+                ]
+              },
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "actionType",
+        "type": "string"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "startDate",
+        "type": "date"
+      },
+      {
+        "name": "endDate",
+        "type": "date"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "publishedAt",
+        "type": "datetime"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              },
+              {
+                "flag": "min",
+                "constraint": 1
+              },
+              {
+                "flag": "max",
+                "constraint": 5
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "impactScore",
+        "type": "number"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "description": "1 sentence explaining impact score",
+        "name": "impactJustification",
+        "type": "string"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              },
+              {
+                "flag": "min",
+                "constraint": 1
+              },
+              {
+                "flag": "max",
+                "constraint": 5
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "valueScore",
+        "type": "number"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "min",
+                "constraint": 1
+              },
+              {
+                "flag": "max",
+                "constraint": 5
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "rarityScore",
+        "type": "number"
+      },
+      {
+        "initialValue": "high",
+        "options": {
+          "list": [
+            {
+              "title": "Low",
+              "value": "low"
+            },
+            {
+              "title": "Medium",
+              "value": "medium"
+            },
+            {
+              "title": "High",
+              "value": "high"
+            }
+          ]
+        },
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "valid",
+                "constraint": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              },
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "confidenceLevel",
+        "type": "string"
+      },
+      {
+        "name": "source",
+        "type": "string"
+      },
+      {
+        "initialValue": false,
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "isApproved",
+        "type": "boolean"
+      },
+      {
+        "readOnly": true,
+        "name": "approvedAt",
+        "type": "datetime"
+      },
+      {
+        "description": "Required if rejected (1–2 sentences)",
+        "name": "rejectedReason",
+        "type": "string"
+      }
+    ],
+    "name": "alert",
+    "type": "document"
+  },
+  {
+    "fields": [
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              },
+              {
+                "flag": "min",
+                "constraint": 1
+              },
+              {
+                "flag": "max",
+                "constraint": 4
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "slotNumber",
+        "type": "number"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "to": [
+          {
+            "type": "alert"
+          }
+        ],
+        "name": "alert",
+        "type": "reference"
+      },
+      {
+        "initialValue": false,
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "isPinned",
+        "type": "boolean"
+      },
+      {
+        "readOnly": true,
+        "name": "pinnedAt",
+        "type": "datetime"
+      }
+    ],
+    "name": "homepageSlot",
+    "type": "document"
+  },
+  {
+    "fields": [
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "title",
+        "type": "string"
+      },
+      {
+        "options": {
+          "source": "title",
+          "maxLength": 96
+        },
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "custom"
+              },
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "slug",
+        "type": "slug"
+      },
+      {
+        "options": {
+          "list": [
+            {
+              "title": "Caribbean",
+              "value": "caribbean"
+            },
+            {
+              "title": "North America",
+              "value": "north_america"
+            },
+            {
+              "title": "Central America",
+              "value": "central_america"
+            },
+            {
+              "title": "South America",
+              "value": "south_america"
+            },
+            {
+              "title": "Europe",
+              "value": "europe"
+            },
+            {
+              "title": "Asia",
+              "value": "asia"
+            },
+            {
+              "title": "Middle East",
+              "value": "middle_east"
+            },
+            {
+              "title": "Africa",
+              "value": "africa"
+            },
+            {
+              "title": "South Pacific",
+              "value": "south_pacific"
+            }
+          ],
+          "layout": "dropdown"
+        },
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "valid",
+                "constraint": [
+                  "caribbean",
+                  "north_america",
+                  "central_america",
+                  "south_america",
+                  "europe",
+                  "asia",
+                  "middle_east",
+                  "africa",
+                  "south_pacific"
+                ]
+              },
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "continent",
+        "type": "string",
+        "title": "Continent / Region"
+      },
+      {
+        "name": "country",
+        "type": "string"
+      },
+      {
+        "name": "region",
+        "type": "string",
+        "title": "Region / Area"
+      },
+      {
+        "options": {
+          "list": [
+            {
+              "title": "Beach",
+              "value": "beach"
+            },
+            {
+              "title": "City",
+              "value": "city"
+            },
+            {
+              "title": "History",
+              "value": "history"
+            },
+            {
+              "title": "Nature",
+              "value": "nature"
+            },
+            {
+              "title": "Adventure",
+              "value": "adventure"
+            },
+            {
+              "title": "Luxury",
+              "value": "luxury"
+            },
+            {
+              "title": "Family",
+              "value": "family"
+            }
+          ],
+          "layout": "grid"
+        },
+        "of": [
+          {
+            "type": "string"
+          }
+        ],
+        "name": "vibe",
+        "type": "array"
+      },
+      {
+        "fields": [
+          {
+            "options": {
+              "list": [
+                {
+                  "title": "Great",
+                  "value": "great"
+                },
+                {
+                  "title": "Good",
+                  "value": "good"
+                },
+                {
+                  "title": "Mixed",
+                  "value": "mixed"
+                },
+                {
+                  "title": "Poor",
+                  "value": "poor"
+                }
+              ],
+              "layout": "radio"
+            },
+            "name": "jan",
+            "type": "string"
+          },
+          {
+            "options": {
+              "list": [
+                {
+                  "title": "Great",
+                  "value": "great"
+                },
+                {
+                  "title": "Good",
+                  "value": "good"
+                },
+                {
+                  "title": "Mixed",
+                  "value": "mixed"
+                },
+                {
+                  "title": "Poor",
+                  "value": "poor"
+                }
+              ],
+              "layout": "radio"
+            },
+            "name": "feb",
+            "type": "string"
+          },
+          {
+            "options": {
+              "list": [
+                {
+                  "title": "Great",
+                  "value": "great"
+                },
+                {
+                  "title": "Good",
+                  "value": "good"
+                },
+                {
+                  "title": "Mixed",
+                  "value": "mixed"
+                },
+                {
+                  "title": "Poor",
+                  "value": "poor"
+                }
+              ],
+              "layout": "radio"
+            },
+            "name": "mar",
+            "type": "string"
+          },
+          {
+            "options": {
+              "list": [
+                {
+                  "title": "Great",
+                  "value": "great"
+                },
+                {
+                  "title": "Good",
+                  "value": "good"
+                },
+                {
+                  "title": "Mixed",
+                  "value": "mixed"
+                },
+                {
+                  "title": "Poor",
+                  "value": "poor"
+                }
+              ],
+              "layout": "radio"
+            },
+            "name": "apr",
+            "type": "string"
+          },
+          {
+            "options": {
+              "list": [
+                {
+                  "title": "Great",
+                  "value": "great"
+                },
+                {
+                  "title": "Good",
+                  "value": "good"
+                },
+                {
+                  "title": "Mixed",
+                  "value": "mixed"
+                },
+                {
+                  "title": "Poor",
+                  "value": "poor"
+                }
+              ],
+              "layout": "radio"
+            },
+            "name": "may",
+            "type": "string"
+          },
+          {
+            "options": {
+              "list": [
+                {
+                  "title": "Great",
+                  "value": "great"
+                },
+                {
+                  "title": "Good",
+                  "value": "good"
+                },
+                {
+                  "title": "Mixed",
+                  "value": "mixed"
+                },
+                {
+                  "title": "Poor",
+                  "value": "poor"
+                }
+              ],
+              "layout": "radio"
+            },
+            "name": "jun",
+            "type": "string"
+          },
+          {
+            "options": {
+              "list": [
+                {
+                  "title": "Great",
+                  "value": "great"
+                },
+                {
+                  "title": "Good",
+                  "value": "good"
+                },
+                {
+                  "title": "Mixed",
+                  "value": "mixed"
+                },
+                {
+                  "title": "Poor",
+                  "value": "poor"
+                }
+              ],
+              "layout": "radio"
+            },
+            "name": "jul",
+            "type": "string"
+          },
+          {
+            "options": {
+              "list": [
+                {
+                  "title": "Great",
+                  "value": "great"
+                },
+                {
+                  "title": "Good",
+                  "value": "good"
+                },
+                {
+                  "title": "Mixed",
+                  "value": "mixed"
+                },
+                {
+                  "title": "Poor",
+                  "value": "poor"
+                }
+              ],
+              "layout": "radio"
+            },
+            "name": "aug",
+            "type": "string"
+          },
+          {
+            "options": {
+              "list": [
+                {
+                  "title": "Great",
+                  "value": "great"
+                },
+                {
+                  "title": "Good",
+                  "value": "good"
+                },
+                {
+                  "title": "Mixed",
+                  "value": "mixed"
+                },
+                {
+                  "title": "Poor",
+                  "value": "poor"
+                }
+              ],
+              "layout": "radio"
+            },
+            "name": "sep",
+            "type": "string"
+          },
+          {
+            "options": {
+              "list": [
+                {
+                  "title": "Great",
+                  "value": "great"
+                },
+                {
+                  "title": "Good",
+                  "value": "good"
+                },
+                {
+                  "title": "Mixed",
+                  "value": "mixed"
+                },
+                {
+                  "title": "Poor",
+                  "value": "poor"
+                }
+              ],
+              "layout": "radio"
+            },
+            "name": "oct",
+            "type": "string"
+          },
+          {
+            "options": {
+              "list": [
+                {
+                  "title": "Great",
+                  "value": "great"
+                },
+                {
+                  "title": "Good",
+                  "value": "good"
+                },
+                {
+                  "title": "Mixed",
+                  "value": "mixed"
+                },
+                {
+                  "title": "Poor",
+                  "value": "poor"
+                }
+              ],
+              "layout": "radio"
+            },
+            "name": "nov",
+            "type": "string"
+          },
+          {
+            "options": {
+              "list": [
+                {
+                  "title": "Great",
+                  "value": "great"
+                },
+                {
+                  "title": "Good",
+                  "value": "good"
+                },
+                {
+                  "title": "Mixed",
+                  "value": "mixed"
+                },
+                {
+                  "title": "Poor",
+                  "value": "poor"
+                }
+              ],
+              "layout": "radio"
+            },
+            "name": "dec",
+            "type": "string"
+          }
+        ],
+        "name": "weatherByMonth",
+        "type": "object",
+        "title": "Weather by Month"
+      },
+      {
+        "options": {
+          "list": [
+            {
+              "title": "Short (2–4 days)",
+              "value": "short"
+            },
+            {
+              "title": "Medium (5–7 days)",
+              "value": "medium"
+            },
+            {
+              "title": "Long (8+ days)",
+              "value": "long"
+            }
+          ],
+          "layout": "grid"
+        },
+        "of": [
+          {
+            "type": "string"
+          }
+        ],
+        "name": "tripLength",
+        "type": "array",
+        "title": "Ideal Trip Length"
+      },
+      {
+        "options": {
+          "list": [
+            {
+              "title": "Solo",
+              "value": "solo"
+            },
+            {
+              "title": "Couple",
+              "value": "couple"
+            },
+            {
+              "title": "Family",
+              "value": "family"
+            },
+            {
+              "title": "Group",
+              "value": "group"
+            }
+          ],
+          "layout": "grid"
+        },
+        "of": [
+          {
+            "type": "string"
+          }
+        ],
+        "name": "whoIsGoing",
+        "type": "array"
+      },
+      {
+        "rows": 3,
+        "name": "summary",
+        "type": "text"
+      }
+    ],
+    "name": "destination",
+    "type": "document"
+  }
+]
