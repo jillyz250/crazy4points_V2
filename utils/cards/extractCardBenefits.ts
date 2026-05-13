@@ -121,6 +121,21 @@ export async function extractCardBenefits({
   try {
     // Strip code fences in case the model wraps anyway despite the instruction.
     const cleaned = rawText.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim()
+
+    // Prose detection: if the response doesn't start with `{`, Sonnet bailed
+    // and wrote prose instead of JSON. Usually means the page Firecrawl
+    // returned wasn't the product page (interactive mode navigation, redirect,
+    // wrong URL, blocked content). Surface a clear error rather than a
+    // confusing "Unexpected character" JSON parser error.
+    if (!cleaned.startsWith('{')) {
+      const proseSnippet = cleaned.slice(0, 220).replace(/\n/g, ' ')
+      throw new Error(
+        `Claude returned prose, not JSON. Often means the scraped page wasn't the card product page. ` +
+        `${interactive ? 'Try disabling Interactive mode — it may have navigated the browser away from the product page. ' : ''}` +
+        `Claude said: "${proseSnippet}..."`,
+      )
+    }
+
     try {
       extraction = JSON.parse(cleaned) as CardExtraction
     } catch {
@@ -149,13 +164,13 @@ export async function extractCardBenefits({
       status: 'failed',
       error_message: truncated
         ? `Claude hit max_tokens cap (output truncated). Increase max_tokens above ${response.usage?.output_tokens ?? '?'}.`
-        : `JSON parse failed: ${message}`,
+        : message,
     })
     return {
       ok: false,
       error: truncated
         ? 'Claude ran out of output tokens before finishing the JSON. The max_tokens limit needs to be raised.'
-        : `Claude returned invalid JSON: ${message}`,
+        : message,
     }
   }
 
