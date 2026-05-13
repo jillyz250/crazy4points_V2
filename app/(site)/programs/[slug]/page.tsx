@@ -12,10 +12,9 @@ import ProgramPageHero from '@/components/programs/ProgramPageHero'
 import PropertiesTable from '@/components/programs/PropertiesTable'
 import PartnerRedemptionsSection from '@/components/programs/PartnerRedemptionsSection'
 import CardsThatEarnIntoProgram from '@/components/cards/CardsThatEarnIntoProgram'
-import ActivePromosSection, { type PromoSort } from '@/components/programs/ActivePromosSection'
+import ActivePromosSection from '@/components/programs/ActivePromosSection'
 import LiveNowSection from '@/components/programs/LiveNowSection'
 import { getActivePromosForProgram, type PromoReward } from '@/utils/supabase/promoQueries'
-import { REGION_ORDER, type PromoRegion } from '@/lib/cityRegions'
 
 export const revalidate = 60
 
@@ -75,20 +74,10 @@ export default async function ProgramPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>
-  searchParams: Promise<{
-    q?: string
-    show?: string
-    region?: string
-    cabin?: string
-    sort?: string
-  }>
+  searchParams: Promise<{ q?: string; show?: string }>
 }) {
   const { slug } = await params
-  const sp = await searchParams
-  const { q = '', show = 'active' } = sp
-  const promoRegion = parsePromoRegion(sp.region)
-  const promoCabin = sp.cabin && sp.cabin !== 'all' ? sp.cabin : 'all'
-  const promoSort = parsePromoSort(sp.sort)
+  const { q = '', show = 'active' } = await searchParams
 
   const supabase = createAdminClient()
 
@@ -320,10 +309,6 @@ export default async function ProgramPage({
           promos={activePromos}
           programName={program.name}
           programChartUrl={program.partner_chart_url}
-          programSlug={program.slug}
-          region={promoRegion}
-          cabin={promoCabin}
-          sort={promoSort}
         />
 
         {/* Editorial content (intro / transfer partners / sweet spots / quirks) */}
@@ -515,17 +500,6 @@ export default async function ProgramPage({
       </div>
     </section>
   )
-}
-
-function parsePromoRegion(v: string | undefined): PromoRegion | 'all' {
-  if (!v || v === 'all') return 'all'
-  return (REGION_ORDER as readonly string[]).includes(v) ? (v as PromoRegion) : 'all'
-}
-
-function parsePromoSort(v: string | undefined): PromoSort {
-  const allowed: PromoSort[] = ['cheapest', 'biggest_discount', 'soonest_expiry', 'region']
-  if (v && (allowed as string[]).includes(v)) return v as PromoSort
-  return 'cheapest'
 }
 
 /**
