@@ -70,6 +70,56 @@ EARN RATE NUANCES (use earn_rates[].notes for):
     do not reduce points." This is the most-misunderstood Chase Reserve detail.
 20. Brand-specific earn rates with end dates → include "Through M/D/YYYY" in notes.
 
+LOUNGE ACCESS CONDITIONS (capture in benefits[].description and metadata):
+21. When a lounge benefit has carrier restrictions, ALWAYS capture them. Examples:
+      - Air Canada Maple Leaf Lounge access "with eligible boarding pass on Air Canada or Star Alliance flights"
+      - Delta Sky Club access "when flying same-day Delta-operated, -marketed, or -ticketed flights"
+      - Admirals Club access "with same-day American Airlines or oneworld boarding pass"
+    Put the carrier condition in metadata.access_conditions (free text). Don't omit it just because the
+    lounge benefit is mentioned — the conditions are often a separate sentence further down the page.
+
+FORCED BENEFITS CHECKLIST — search the source markdown EXPLICITLY for each item below.
+If found, include it as a benefits[] row. If you searched but couldn't find it, add a one-line entry
+to extraction_warnings: "Checklist: <item> — not found on this page". Do NOT silently omit checklist
+items — the warning is the signal that you looked.
+
+  Travel coordination + insurance:
+    - Travel and Emergency Assistance Services / Travel Emergency Hotline (coordination/referral
+      service, NOT reimbursement — distinct from emergency_medical_dental_insurance)
+      → benefit_type: travel_emergency_assistance
+    - Cell phone protection (covers damaged/stolen phones when paying carrier bill with the card)
+      → benefit_type: cellphone_protection
+    - Roadside assistance / dispatch
+    - Travel accident insurance (AD&D)
+
+  Lounge access details (often in fine print):
+    - Priority Pass restaurant credits (some issuers exclude restaurants — note inclusion/exclusion)
+    - Lounge guest policy (how many free guests, fee per additional guest)
+    - Conferred status that comes with lounge access (e.g., Centurion = no guest restrictions)
+
+  Hotel-stay specific:
+    - Free night certificate (category cap, brand)
+    - Status conferred via card (Hyatt Discoverist, Hilton Gold, Marriott Silver/Gold, IHG)
+    - Property credit programs (Luxury Hotel & Resort Collection / The Edit / Fine Hotels & Resorts)
+      — these are property booking perks, not statement credits
+
+  Concierge + service:
+    - Visa Infinite / Mastercard World Elite / Amex Concierge (usually 24/7 phone service)
+    - Travel planning / Travel Designers / Travel Insider service
+
+  Spend unlocks:
+    - Anniversary point bonuses
+    - Spend-tier perks (Hyatt Globalist Companion Award at $50K Hyatt spend, $30K Hilton free night, etc.)
+    - Companion ticket / Companion Pass
+
+  Authorized user benefits:
+    - AU fee per user OR free up to N users
+    - AU bonus points after spend threshold
+    - AU receives full benefits OR limited benefits
+
+The checklist is a SANITY CHECK against missing fine-print perks. If the page is silent on an item,
+acknowledge it in extraction_warnings — never invent a benefit that's not on the page.
+
 CATEGORY ENUM (must use EXACTLY one of these strings for benefits[].category — NOT the display label):
   - statement_credit       (recurring monthly/annual credits, e.g., DoorDash $5/mo, Uber $15/mo)
   - travel_credit          (broad travel statement credits, e.g., "$300 annual travel credit")
