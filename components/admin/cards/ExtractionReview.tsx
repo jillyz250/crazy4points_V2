@@ -166,21 +166,34 @@ export default function ExtractionReview({
         Benefits ({extraction.benefits?.length ?? 0})
       </h3>
       <div className="mt-2 grid gap-3">
-        {(extraction.benefits ?? []).map((b, i) => (
+        {(extraction.benefits ?? []).map((b, i) => {
+          const isEstimated = b.metadata && (b.metadata as Record<string, unknown>).value_is_estimated === true
+          const valueBasis = b.metadata && (b.metadata as Record<string, unknown>).value_basis as string | undefined
+          return (
           <div key={i} className="rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] p-3">
             <div className="flex items-baseline justify-between gap-2">
               <p className="font-body text-base">
                 <strong>{b.name}</strong>
-                {b.value_amount != null ? <span className="ml-2 text-[var(--color-text-secondary)]">{fmtBenefitValue(b)}</span> : null}
+                {b.value_amount != null ? (
+                  <span className={`ml-2 ${isEstimated ? 'text-amber-700 italic' : 'text-[var(--color-text-secondary)]'}`}>
+                    {fmtBenefitValue(b)}
+                    {isEstimated ? ' ≈est' : ''}
+                  </span>
+                ) : null}
               </p>
               <p className="font-ui text-xs uppercase tracking-wide text-[var(--color-text-secondary)]">
                 {b.category} · {b.benefit_type} · {b.confidence}
               </p>
             </div>
             {b.description ? <p className="mt-1 font-body text-sm text-[var(--color-text-secondary)]">{b.description}</p> : null}
+            {isEstimated && valueBasis ? (
+              <p className="mt-1 font-body text-xs text-amber-700">
+                ⚠ Estimated value — not a guaranteed credit. Basis: &ldquo;{valueBasis}&rdquo;
+              </p>
+            ) : null}
             <SourceQuote quote={b.source_quote} />
           </div>
-        ))}
+        )})}
       </div>
     </section>
   )
