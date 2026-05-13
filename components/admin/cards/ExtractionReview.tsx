@@ -104,6 +104,16 @@ export default function ExtractionReview({
             {' '}after spending <strong>${wb.main.spend_required_usd?.toLocaleString()}</strong>
             {' '}in <strong>{wb.main.spend_window_months}</strong> months
           </p>
+          {wb.is_elevated && wb.baseline_bonus_amount ? (
+            <p className="mt-1 font-body text-sm text-[var(--color-accent-hover)]">
+              ⬆ <strong>Elevated offer</strong> — baseline is {wb.baseline_bonus_amount.toLocaleString()} {wb.main.bonus_currency}
+              {' '}({((wb.main.bonus_amount / wb.baseline_bonus_amount - 1) * 100).toFixed(0)}% above standard)
+            </p>
+          ) : wb.baseline_bonus_amount && wb.baseline_bonus_amount === wb.main.bonus_amount ? (
+            <p className="mt-1 font-body text-xs text-[var(--color-text-secondary)]">
+              Standard offer (baseline matches current — no elevation)
+            </p>
+          ) : null}
           {wb.tiered && wb.tiered.length > 0 ? (
             <ul className="mt-2 list-disc pl-5 font-body text-sm">
               {wb.tiered.map((t, i) => (

@@ -33,6 +33,12 @@ export type WelcomeBonusExtraction = {
     spend_required_usd: number | null
     spend_window_months: number | null
   }
+  // The card's STANDARD welcome offer when no limited-time elevation is active.
+  // Detected from strike-through patterns: "125,000 [strike] 150,000" — 125K
+  // is baseline, 150K is current main.bonus_amount. When only one offer is
+  // visible on the page, baseline equals main.bonus_amount.
+  baseline_bonus_amount: number | null
+  is_elevated: boolean  // computed: main.bonus_amount > baseline_bonus_amount
   tiered: TieredBonus[]  // empty array if no tiered offer
   extras: string | null   // free text for non-numeric extras ("plus a free night cert", "transfer bonus during first year")
   source_quote: string | null

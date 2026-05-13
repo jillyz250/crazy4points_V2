@@ -30,6 +30,46 @@ SOURCE_QUOTE RULES (CRITICAL FOR JSON VALIDITY):
 9. Inside a source_quote, every backslash MUST be doubled to \\\\.
 10. If a source quote would require complex escaping, choose a shorter snippet that captures the key fact without the problematic characters.
 
+WELCOME BONUS — STRIKE-THROUGH / ELEVATED OFFER DETECTION:
+11. Issuer pages often show baseline vs. elevated offers using strike-through formatting. Examples:
+      "125,000 [strikethrough] 150,000 points after you spend $5,000"
+      Markdown: "~~125,000~~ 150,000 points" OR "<s>125,000</s> 150,000 points"
+    When you see this pattern:
+      - baseline_bonus_amount = the STRUCK value (125,000)
+      - main.bonus_amount = the CURRENT/elevated value (150,000)
+      - is_elevated = true (since current > baseline)
+12. When only ONE welcome bonus value is shown (no strike-through pattern):
+      - baseline_bonus_amount = main.bonus_amount (same value)
+      - is_elevated = false
+
+METADATA POPULATION (use the benefits[].metadata jsonb to capture):
+13. Time-limited benefits → metadata.expires_at = "YYYY-MM-DD" if the page shows an explicit end date.
+14. Benefits requiring activation (DashPass enrollment, Peloton activation, StubHub activation) →
+    metadata.requires_activation = true
+15. Statement credits with distribution patterns:
+      - metadata.distribution = "monthly"   if doled out month-by-month (Apple credits, $10/mo Lyft)
+      - metadata.distribution = "annual"    if lump-sum once per year ($300 travel credit)
+      - metadata.distribution = "per_use"   if applied per qualifying purchase (Global Entry)
+      - metadata.distribution = "biannual"  if split Jan-Jun / Jul-Dec ($150+$150 dining credit)
+16. Spend-unlock benefits (perks triggered by hitting a $ spend in the year):
+      Set spend_threshold_usd to the spend trigger (e.g., 75000) AND
+      Set metadata.stack_group = "<threshold>_annual_spend" (e.g., "75000_annual_spend")
+      so the UI can visually group all perks unlocked at the same tier.
+17. Lounge access:
+      metadata.lounge_network = "Priority Pass Select" | "Centurion" | "Admirals Club" | etc.
+      metadata.lounge_guests_included = <number>
+      metadata.lounge_extra_guest_fee_usd = <number, if applicable>
+18. Free-night certificates:
+      metadata.free_night_max_category = <number, e.g., 7 for Hyatt>
+      metadata.free_night_max_points = <number, e.g., 50000>
+      metadata.free_night_brand = "Hyatt" | "Marriott" | "Hilton" | "IHG"
+
+EARN RATE NUANCES (use earn_rates[].notes for):
+19. When a credit category overlaps with an earn category (e.g., "8x on Chase Travel" + "$250 Chase Travel
+    hotel credit"), note in the earn rate's notes: "Points earned on gross transaction; statement credits
+    do not reduce points." This is the most-misunderstood Chase Reserve detail.
+20. Brand-specific earn rates with end dates → include "Through M/D/YYYY" in notes.
+
 CATEGORY ENUM (must use EXACTLY one of these strings for benefits[].category — NOT the display label):
   - statement_credit       (recurring monthly/annual credits, e.g., DoorDash $5/mo, Uber $15/mo)
   - travel_credit          (broad travel statement credits, e.g., "$300 annual travel credit")
@@ -56,12 +96,24 @@ BENEFIT_TYPE ENUM (must use EXACTLY one of these for benefits[].benefit_type):
 CRITICAL: The CATEGORY value MUST be one of the 11 enum strings listed above (lowercase, underscore-separated). Do NOT use display labels like "Credits" or "Lounge" or "Travel perks" — use the enum strings exactly. If a benefit doesn't cleanly fit any benefit_type, use one from the "other" group above and set category to 'other'.
 
 EARN RATE CATEGORIES (use these strings for earn_rates[].category):
-  base, dining, dining_through_portal, groceries, groceries_us_supermarkets, gas, gas_stations,
-  travel, travel_through_portal, flights, flights_through_portal, hotels, hotels_through_portal,
-  streaming, transit, drug_stores, online_grocery, takeout, wholesale_clubs, office_supplies,
-  internet_phone_tv, advertising, shipping, ev_charging, car_rentals_through_portal
+  Standard:    base, dining, dining_through_portal, groceries, groceries_us_supermarkets, gas, gas_stations,
+               travel, travel_through_portal, flights, flights_through_portal, hotels, hotels_through_portal,
+               streaming, transit, drug_stores, online_grocery, takeout, wholesale_clubs, office_supplies,
+               internet_phone_tv, advertising, shipping, ev_charging, car_rentals_through_portal
 
-If a benefit type or earn category genuinely doesn't fit, use 'other' (benefits) or pick the closest match (earn rates) and add a clarifying note in the field's description/notes.
+For BRAND-SPECIFIC promotional earn bonuses (e.g., "10x on Peloton equipment", "5x Lyft rides through 9/30"),
+use the BRAND NAME as the category string — lowercase, no spaces. Examples:
+  peloton, lyft, doordash, uber, stubhub, walmart, apple, equinox, instacart, hilton, marriott, hyatt
+
+NEVER use 'other' as the earn category. If you cannot match a standard category, use the most descriptive
+slug you can construct (e.g., 'apple_subscriptions', 'travel_designers'). The category field is the
+search key — descriptive matters.
+
+For brand-specific earn bonuses, include the expiry date in the earn_rate.notes field if time-limited
+("Through 9/30/2027" — keep concise).
+
+If a benefit type genuinely doesn't fit, use 'other' as benefit_type and 'other' as category — that's
+the catch-all enum pair. Earn rate categories should NEVER be 'other'.
 
 WHAT TO IGNORE:
 - Marketing fluff ("the rewards you deserve")
@@ -98,6 +150,8 @@ Return ONE JSON object with this exact top-level shape:
       "spend_required_usd": <number|null>,
       "spend_window_months": <number|null>
     },
+    "baseline_bonus_amount": <number|null>,
+    "is_elevated": <boolean>,
     "tiered": [ { "spend_usd": <number>, "bonus_amount": <number>, "timeline_months": <number|null>, "note": <string|null> } ],
     "extras": <string|null>,
     "source_quote": <string|null>,
