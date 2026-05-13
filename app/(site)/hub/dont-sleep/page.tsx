@@ -1,12 +1,16 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { createAdminClient } from '@/utils/supabase/server'
-import { getDontSleepSweetSpots, groupByRouteBucket } from '@/utils/supabase/dontSleepQueries'
+import { getDontSleepSweetSpots } from '@/utils/supabase/dontSleepQueries'
 import type { EnrichedSweetSpot } from '@/utils/supabase/dontSleepQueries'
-import { ROUTE_BUCKET_LABELS } from '@/lib/airports'
-import type { RouteBucket } from '@/lib/airports'
-import SweetSpotCard from '@/components/hub/SweetSpotCard'
+import { buildTransferGraph } from '@/utils/supabase/whereCanIGoQueries'
+import {
+  SOURCE_FAMILY_SLUGS,
+  type SourceCurrency,
+} from '@/utils/supabase/transferBonusQueries'
 import ChartDisclaimer from '@/components/hub/ChartDisclaimer'
+import DontSleepClient from '@/components/hub/DontSleepClient'
+import type { DestinationsBySource } from '@/components/hub/DontSleepClient'
 
 export const metadata: Metadata = {
   title: "Don't Sleep On These — The Points Hub — crazy4points",
@@ -17,31 +21,31 @@ export const metadata: Metadata = {
 
 export const revalidate = 300
 
-const BUCKET_ORDER: RouteBucket[] = [
-  'us-short',
-  'us-medium',
-  'us-long',
-  'us-eu-east',
-  'us-eu-west',
-  'us-japan',
-  'us-se-asia',
-  'us-me-india',
-  'us-pacific',
-  'us-africa',
-  'us-samerica',
-]
-
 export default async function Page() {
   const supabase = createAdminClient()
   let rows: EnrichedSweetSpot[] = []
+  // Pre-compute which destination program slugs each source-currency family
+  // can transfer to. The client filter then uses these maps to scope rows
+  // by selected source. Built once per render (ISR-cached for 5min).
+  const destinationsBySource = {} as DestinationsBySource
+  for (const src of Object.keys(SOURCE_FAMILY_SLUGS) as SourceCurrency[]) {
+    destinationsBySource[src] = []
+  }
   try {
     rows = await getDontSleepSweetSpots(supabase)
+    const { graph } = await buildTransferGraph(supabase)
+    for (const src of Object.keys(SOURCE_FAMILY_SLUGS) as SourceCurrency[]) {
+      const reachable = new Set<string>()
+      for (const sourceSlug of SOURCE_FAMILY_SLUGS[src]) {
+        const edges = graph[sourceSlug] ?? []
+        for (const edge of edges) reachable.add(edge.to)
+      }
+      destinationsBySource[src] = Array.from(reachable)
+    }
   } catch (err) {
     console.error('[hub/dont-sleep] failed:', err)
     rows = []
   }
-
-  const groups = groupByRouteBucket(rows)
 
   return (
     <main className="rg-major-section">
@@ -140,58 +144,10 @@ export default async function Page() {
             </p>
           </div>
         ) : (
-          <div style={{ display: 'grid', gap: '2rem' }}>
-            {BUCKET_ORDER.filter((b) => groups.has(b)).map((b) => (
-              <section key={b}>
-                <h2
-                  style={{
-                    fontFamily: 'var(--font-display)',
-                    fontSize: '1.25rem',
-                    color: 'var(--color-primary)',
-                    margin: '0 0 0.75rem',
-                  }}
-                >
-                  {ROUTE_BUCKET_LABELS[b]}
-                </h2>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(20rem, 1fr))',
-                    gap: '0.75rem',
-                  }}
-                >
-                  {groups.get(b)!.map((r) => (
-                    <SweetSpotCard key={r.id} r={r} />
-                  ))}
-                </div>
-              </section>
-            ))}
-            {groups.has('other') && (
-              <section>
-                <h2
-                  style={{
-                    fontFamily: 'var(--font-display)',
-                    fontSize: '1.25rem',
-                    color: 'var(--color-primary)',
-                    margin: '0 0 0.75rem',
-                  }}
-                >
-                  Other regions
-                </h2>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(20rem, 1fr))',
-                    gap: '0.75rem',
-                  }}
-                >
-                  {groups.get('other')!.map((r) => (
-                    <SweetSpotCard key={r.id} r={r} />
-                  ))}
-                </div>
-              </section>
-            )}
-          </div>
+          <DontSleepClient
+            rows={rows}
+            destinationsBySource={destinationsBySource}
+          />
         )}
 
         <div
