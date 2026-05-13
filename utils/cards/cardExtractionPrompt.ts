@@ -108,6 +108,17 @@ C. For service perks where the page gives no dollar value at all (concierge, tra
 D. Apple TV+ ($288), DashPass ($120), Lyft ($120), Peloton ($120), StubHub ($300) — these
    are all GUARANTEED amounts (you get the value as long as you use the benefit). NOT estimated.
 
+PREMIUM CARD ALIASES — known names for common benefits:
+- "Premium Global Assist Hotline" (Amex) → benefit_type='travel_emergency_assistance'
+- "Travel and Emergency Assistance Services" (Chase) → benefit_type='travel_emergency_assistance'
+- "Travel Emergency Assistance" (Visa) → benefit_type='travel_emergency_assistance'
+
+ENROLLMENT-REQUIRED BENEFITS — do NOT skip them:
+Many premium-card benefits require activation/enrollment (DashPass, Peloton credits, StubHub credits,
+Equinox, Resy, Hilton Gold status, Marriott Gold status, car rental statuses, Amex Venue Collection).
+ALWAYS extract them as full benefit rows. Set metadata.requires_activation=true. Enrollment is a
+metadata flag, NOT a reason to omit the benefit.
+
 LOUNGE ACCESS CONDITIONS (capture in benefits[].description and metadata):
 21. When a lounge benefit has carrier restrictions, ALWAYS capture them. Examples:
       - Air Canada Maple Leaf Lounge access "with eligible boarding pass on Air Canada or Star Alliance flights"
@@ -115,6 +126,33 @@ LOUNGE ACCESS CONDITIONS (capture in benefits[].description and metadata):
       - Admirals Club access "with same-day American Airlines or oneworld boarding pass"
     Put the carrier condition in metadata.access_conditions (free text). Don't omit it just because the
     lounge benefit is mentioned — the conditions are often a separate sentence further down the page.
+
+22. Guest policy for lounges — capture in metadata.guest_policy when stated. Schema:
+      metadata.guest_policy = {
+        complimentary_guests: <number>,                      // free guests
+        extra_guest_fee_usd: <number>,                       // fee per additional guest
+        spend_unlocks_complimentary_guests: <number|null>,   // some Centurion: 2 free guests after $75K spend
+        spend_threshold_usd: <number|null>,                  // matching the above
+        child_fee_usd: <number|null>                         // separate fee for children if stated
+      }
+    Example (Centurion Lounges in 2025+):
+      Cardholder spends $75,000+ in prior calendar year → 2 complimentary guests
+      Otherwise → $50 per adult guest, $30 per child guest
+
+23. Restaurant inclusion — Priority Pass varies by issuer. Capture in metadata.includes_restaurants:
+      Chase Sapphire Reserve PP → includes_restaurants: true
+      Amex Platinum PP → includes_restaurants: false
+    If the page is silent, don't guess — leave metadata.includes_restaurants unset.
+
+24. Visit limits — capture in metadata.visit_count (number) and metadata.visit_count_period
+    ("annual", "monthly"). Amex Plat Delta Sky Club = 10 visits per year, etc.
+
+TOP-LEVEL CARD FEATURE FLAGS (set on the extraction root, not in benefits):
+25. If the page states "No Preset Spending Limit" or "no spending limit" or describes the card as a
+    charge card with dynamic spend capacity, capture this. (The save layer will write it to
+    credit_cards.no_preset_spending_limit.) Reference in extraction_warnings if you detect NPSL.
+26. If the page describes the card as a metal card (Amex Plat, CSR, Venture X, Bilt), note in
+    extraction_warnings. (Save layer writes to credit_cards.is_metal_card.)
 
 FORCED BENEFITS CHECKLIST — search the source markdown EXPLICITLY for each item below.
 If found, include it as a benefits[] row. If you searched but couldn't find it, add a one-line entry
@@ -200,7 +238,8 @@ BENEFIT_TYPE ENUM (must use EXACTLY one of these for benefits[].benefit_type):
   status_conferred — IHG:      status_ihg_silver, status_ihg_gold, status_ihg_platinum, status_ihg_diamond
   status_conferred — Southwest: status_southwest_a_list, status_southwest_a_list_preferred, status_southwest_companion_pass
   status_conferred — Alaska:   status_alaska_mvp, status_alaska_mvp_gold, status_alaska_mvp_gold_75k
-  status_conferred — Car rental: status_hertz_gold, status_avis_preferred, status_national_emerald
+  status_conferred — Car rental (entry-level): status_hertz_gold, status_avis_preferred, status_national_emerald
+  status_conferred — Car rental (premium elite, for Amex Plat / similar): status_hertz_presidents_circle, status_avis_preferred_plus, status_national_executive_elite
   status_conferred — fallback: status_other (use for ANY brand/program status not listed above — DO NOT map to a different brand's status just because it's the closest enum)
 
   protection:
@@ -322,6 +361,8 @@ Return ONE JSON object with this exact top-level shape:
   "authorized_user_fee_structure": { "value": <string|null>, "source_quote": <string|null>, "confidence": "high"|"medium"|"low" },
   "authorized_user_bonus_points": { "value": <number|null>, "source_quote": <string|null>, "confidence": "high"|"medium"|"low" },
   "intro": { "value": <string|null>, "source_quote": <string|null>, "confidence": "high"|"medium"|"low" },
+  "no_preset_spending_limit": { "value": <true|false|null>, "source_quote": <string|null>, "confidence": "high"|"medium"|"low" },
+  "is_metal_card": { "value": <true|false|null>, "source_quote": <string|null>, "confidence": "high"|"medium"|"low" },
   "extraction_warnings": [ <string> ]
 }
 
