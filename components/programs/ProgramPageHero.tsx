@@ -215,61 +215,8 @@ export default function ProgramPageHero({
         </div>
       )}
 
-      {/* Active offer callout banner.
-          Per 2026-05-13 audit:
-            - Drop flame icon (locked no-icons rule)
-            - Replace yellow tint with solid antique gold (brand fit)
-            - Entire banner is the click target (already a <Link>)  */}
-      {activeAlertCount > 0 && (
-        <Link
-          href="#alerts"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.75rem',
-            padding: '0.875rem 1.125rem',
-            background: 'rgba(212, 175, 55, 0.18)',
-            border: '1px solid var(--color-accent)',
-            borderLeft: '4px solid var(--color-accent)',
-            borderRadius: 'var(--radius-card)',
-            color: 'var(--color-text-primary)',
-            textDecoration: 'none',
-            marginBottom: '1.25rem',
-          }}
-        >
-          <span
-            style={{
-              fontFamily: 'var(--font-ui)',
-              fontSize: '0.625rem',
-              fontWeight: 700,
-              letterSpacing: '0.16em',
-              textTransform: 'uppercase',
-              color: '#8A6D1F',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            Live
-          </span>
-          <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.9375rem' }}>
-            <strong style={{ color: 'var(--color-text-primary)' }}>
-              {activeAlertCount} active offer{activeAlertCount === 1 ? '' : 's'}
-            </strong>{' '}
-            for {program.name} — see what&apos;s live
-          </span>
-          <span
-            style={{
-              marginLeft: 'auto',
-              fontFamily: 'var(--font-ui)',
-              fontSize: '0.75rem',
-              fontWeight: 700,
-              color: 'var(--color-primary)',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            View →
-          </span>
-        </Link>
-      )}
+      {/* Old active offer banner removed — LiveBarsHero now renders
+          the LIVE TRANSFER BONUS / PROMO REWARDS bars at top of page. */}
 
       {/* Section TOC */}
       {sections.length > 0 && (

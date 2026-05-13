@@ -64,7 +64,9 @@ export default async function SimpleTileGrid({
       {awardChartHtml && (
         <SimpleTile
           title="Award chart"
-          description={`Official redemption costs from ${program.name}.`}
+          description="The actual numbers. Get your nerd on, memorize the cheap ones."
+          cta="See the rates"
+          preview="The cheat sheet."
         >
           <div className="rg-prose" dangerouslySetInnerHTML={{ __html: awardChartHtml }} />
         </SimpleTile>
@@ -73,7 +75,9 @@ export default async function SimpleTileGrid({
       {sweetSpotsHtml && (
         <SimpleTile
           title="Sweet spots"
-          description="Routes worth pricing right now, hand-curated."
+          description="The redemptions worth their weight. Hand-picked, not algorithm-picked."
+          cta="Show me the picks"
+          preview="Where this currency genuinely shines."
         >
           <div className="rg-prose" dangerouslySetInnerHTML={{ __html: sweetSpotsHtml }} />
         </SimpleTile>
@@ -82,7 +86,9 @@ export default async function SimpleTileGrid({
       {hasPartners && (
         <SimpleTile
           title="Transfer partners"
-          description={`${partnerCount} currenc${partnerCount === 1 ? 'y' : 'ies'} transfer into this program.`}
+          description={`${partnerCount} ways to feed this currency. Friends with benefits.`}
+          cta="Meet the partners"
+          preview={`${partnerCount} cards + currencies that transfer in.`}
         >
           <TransferPartnersTable rows={program.transfer_partners ?? []} programNameBySlug={programNameBySlug} />
         </SimpleTile>
@@ -91,7 +97,9 @@ export default async function SimpleTileGrid({
       {hasMembers && (
         <SimpleTile
           title="Member airlines"
-          description={`${memberCount} carriers in the alliance, with status crossover.`}
+          description={`${memberCount} carriers in the alliance. Status follows you across all of them.`}
+          cta="Browse the roster"
+          preview={`${memberCount} carriers + status crossover.`}
         >
           <MemberProgramsTable rows={program.member_programs ?? []} programNameBySlug={programNameBySlug} />
         </SimpleTile>
@@ -100,7 +108,9 @@ export default async function SimpleTileGrid({
       {hasTiers && (
         <SimpleTile
           title="Tier benefits"
-          description={`${tierCount} status level${tierCount === 1 ? '' : 's'}, qualification rules, and what each unlocks.`}
+          description={`The status ladder. ${tierCount} rung${tierCount === 1 ? '' : 's'}, each unlocking better lounges, bags, and bragging rights.`}
+          cta="Climb the ladder"
+          preview={`${tierCount} status level${tierCount === 1 ? '' : 's'}.`}
         >
           <TierBenefitsTable rows={program.tier_benefits ?? []} />
         </SimpleTile>
@@ -109,7 +119,9 @@ export default async function SimpleTileGrid({
       {loungeAccessHtml && (
         <SimpleTile
           title="Lounge access"
-          description="Which lounges your status or ticket gets you into."
+          description="Where to vanish before takeoff. Your status (or ticket) opens which doors."
+          cta="Find the lounges"
+          preview="The lounge map for this program."
         >
           <div className="rg-prose" dangerouslySetInnerHTML={{ __html: loungeAccessHtml }} />
         </SimpleTile>
@@ -118,7 +130,9 @@ export default async function SimpleTileGrid({
       {howToSpendHtml && (
         <SimpleTile
           title="How to spend"
-          description="Where this currency punches above its weight."
+          description="The high-leverage moves. Read this before you transfer a single mile."
+          cta="Get the playbook"
+          preview="The smart-money plays."
         >
           <div className="rg-prose" dangerouslySetInnerHTML={{ __html: howToSpendHtml }} />
         </SimpleTile>
@@ -127,7 +141,9 @@ export default async function SimpleTileGrid({
       {quirksHtml && (
         <SimpleTile
           title="Tips & quirks"
-          description="Stopover rules, taxes, gotchas — the stuff that bites you."
+          description="Stopover rules, surcharges, the stuff nobody tells you until you've been burned once."
+          cta="Spill the gotchas"
+          preview="The fine print, decoded."
         >
           <div className="rg-prose" dangerouslySetInnerHTML={{ __html: quirksHtml }} />
         </SimpleTile>
