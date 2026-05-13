@@ -348,3 +348,20 @@ export const SOURCE_CURRENCIES: { id: SourceCurrency; label: string; short: stri
   { id: 'marriott', label: 'Marriott Bonvoy', short: 'Marriott' },
   { id: 'hyatt', label: 'World of Hyatt', short: 'Hyatt' },
 ]
+
+/**
+ * Source-family → program slugs that ACT AS that family in the transfer
+ * graph. Curators sometimes used short slugs ('amex', 'chase') and
+ * sometimes long ('amex-membership-rewards', 'chase-ultimate-rewards')
+ * — we check both. Used by Don't Sleep to filter sweet spots by which
+ * source currencies can reach each row's destination program.
+ */
+export const SOURCE_FAMILY_SLUGS: Record<SourceCurrency, string[]> = {
+  amex: ['amex', 'amex-membership-rewards'],
+  chase: ['chase', 'chase-ultimate-rewards'],
+  citi: ['citi', 'citi-thankyou', 'citi-thank-you'],
+  capital_one: ['capital-one', 'capital-one-miles'],
+  bilt: ['bilt', 'bilt-rewards'],
+  marriott: ['marriott', 'marriott-bonvoy'],
+  hyatt: ['hyatt', 'world-of-hyatt'],
+}
