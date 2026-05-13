@@ -1,4 +1,5 @@
 import type { CardExtraction } from '@/utils/cards/cardExtractionSchema'
+import ExtractionActionButton from './ExtractionActionButton'
 
 /**
  * Server component that renders an extracted card payload in a scannable
@@ -14,6 +15,7 @@ export default function ExtractionReview({
   extraction,
   createdAt,
   savedAt,
+  errorMessage,
   resaveAction,
   rejectAction,
 }: {
@@ -23,6 +25,7 @@ export default function ExtractionReview({
   extraction: CardExtraction
   createdAt: string
   savedAt: string | null
+  errorMessage: string | null
   resaveAction: (formData: FormData) => Promise<void>
   rejectAction: (formData: FormData) => Promise<void>
 }) {
@@ -47,16 +50,22 @@ export default function ExtractionReview({
         <div className="flex gap-2">
           <form action={resaveAction}>
             <input type="hidden" name="extraction_id" value={extractionId} />
-            <button type="submit" className="rg-btn-secondary text-xs">Re-save</button>
+            <ExtractionActionButton variant="secondary" label="Re-save" pendingLabel="Saving…" />
           </form>
           <form action={rejectAction}>
             <input type="hidden" name="extraction_id" value={extractionId} />
-            <button type="submit" className="rounded-[var(--radius-ui)] border border-red-200 px-3 py-2 font-ui text-xs uppercase tracking-wide text-red-600 hover:bg-red-50">
-              Reject
-            </button>
+            <ExtractionActionButton variant="danger" label="Reject" pendingLabel="Rejecting…" />
           </form>
         </div>
       </header>
+
+      {/* Save error (if any) */}
+      {errorMessage ? (
+        <div className="mb-4 rounded-[var(--radius-ui)] border border-red-300 bg-red-50 p-3">
+          <p className="font-ui text-xs uppercase tracking-wide text-red-800">Error</p>
+          <p className="mt-1 font-body text-sm text-red-900">{errorMessage}</p>
+        </div>
+      ) : null}
 
       {/* Warnings */}
       {extraction.extraction_warnings && extraction.extraction_warnings.length > 0 ? (

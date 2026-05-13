@@ -22,6 +22,30 @@ export type SaveResult =
   | { ok: true; benefitsSaved: number; earnRatesSaved: number; welcomeBonusSaved: boolean; newHistoricalHigh: boolean }
   | { ok: false; error: string }
 
+// Must match the CHECK constraint on credit_card_benefits.category in migration 044.
+const VALID_CATEGORIES = new Set([
+  'statement_credit', 'travel_credit', 'lounge_access', 'insurance',
+  'free_night', 'status_conferred', 'protection', 'spend_unlock',
+  'portal_redemption', 'transfer_partner_unlock', 'other',
+])
+
+/**
+ * Coerces a Claude-returned category to a valid enum value. Sonnet sometimes
+ * returns display labels ("Credits", "Lounge") instead of enum strings; this
+ * maps the most common mistakes back to the canonical value. Anything unknown
+ * falls through to 'other' — the catch-all enum value.
+ */
+function normalizeCategory(raw: string): string {
+  const v = raw.toLowerCase().trim().replace(/\s+/g, '_')
+  if (VALID_CATEGORIES.has(v)) return v
+  // Common display-label drift
+  if (v === 'credits' || v === 'credit') return 'statement_credit'
+  if (v === 'lounge') return 'lounge_access'
+  if (v === 'status') return 'status_conferred'
+  if (v === 'travel_perks' || v === 'travel_perk') return 'other'
+  return 'other'
+}
+
 export async function saveExtractedBenefits({
   cardId,
   extractionId,
@@ -98,7 +122,7 @@ export async function saveExtractedBenefits({
   await supabase.from('credit_card_benefits').delete().eq('card_id', cardId)
   const benefitRows = extraction.benefits.map((b, i) => ({
     card_id: cardId,
-    category: b.category,
+    category: normalizeCategory(b.category),
     benefit_type: b.benefit_type,
     name: b.name,
     value_amount: b.value_amount,

@@ -30,15 +30,30 @@ SOURCE_QUOTE RULES (CRITICAL FOR JSON VALIDITY):
 9. Inside a source_quote, every backslash MUST be doubled to \\\\.
 10. If a source quote would require complex escaping, choose a shorter snippet that captures the key fact without the problematic characters.
 
-BENEFIT TYPE ENUM (must use one of these for benefits[].benefit_type):
-  Lounge:   lounge_priority_pass, lounge_centurion, lounge_admirals_club, lounge_skyclub, lounge_united_club, lounge_polaris, lounge_other
-  Insurance: trip_delay_insurance, trip_cancellation_insurance, trip_interruption_insurance, baggage_delay_insurance, lost_luggage_insurance, rental_car_cdw_primary, rental_car_cdw_secondary, travel_accident_insurance, emergency_evacuation_insurance
-  Credits:   travel_credit_annual, doordash_credit, dining_credit, streaming_credit, wireless_credit, walmart_credit, saks_credit, global_entry_credit, tsa_precheck_credit, clear_credit, hotel_credit, airline_credit, flight_credit, lyft_credit, uber_credit, equinox_credit, peloton_credit
-  Hotel:     free_night_award, free_night_after_spend
-  Status:    status_hyatt_discoverist, status_hyatt_explorist, status_hyatt_globalist, status_marriott_silver, status_marriott_gold, status_marriott_platinum, status_hilton_silver, status_hilton_gold, status_hilton_diamond, status_hertz_gold, status_avis_preferred, status_national_emerald
-  Protection: purchase_protection, extended_warranty, return_protection, cellphone_protection
-  Travel perks: companion_pass, free_checked_bag, priority_boarding
-  Other:     concierge, prepaid_extra_value, transfer_partner_access, portal_redemption_bonus, spend_unlock_perk
+CATEGORY ENUM (must use EXACTLY one of these strings for benefits[].category — NOT the display label):
+  - statement_credit       (recurring monthly/annual credits, e.g., DoorDash $5/mo, Uber $15/mo)
+  - travel_credit          (broad travel statement credits, e.g., "$300 annual travel credit")
+  - lounge_access          (any airport-lounge benefit)
+  - insurance              (trip/baggage/car/medical/accident insurance)
+  - free_night             (hotel free-night certificates)
+  - status_conferred       (elite-status benefits granted by the card)
+  - protection             (purchase / return / extended warranty / cellphone protection)
+  - spend_unlock           (perks that require hitting a spend threshold)
+  - portal_redemption      (redemption-portal-specific perks)
+  - transfer_partner_unlock (access to issuer transfer partners)
+  - other                  (companion pass, concierge, free checked bag, etc. — anything that doesn't fit above)
+
+BENEFIT_TYPE ENUM (must use EXACTLY one of these for benefits[].benefit_type):
+  Lounge category:        lounge_priority_pass, lounge_centurion, lounge_admirals_club, lounge_skyclub, lounge_united_club, lounge_polaris, lounge_other
+  Insurance category:     trip_delay_insurance, trip_cancellation_insurance, trip_interruption_insurance, baggage_delay_insurance, lost_luggage_insurance, rental_car_cdw_primary, rental_car_cdw_secondary, travel_accident_insurance, emergency_evacuation_insurance
+  statement_credit / travel_credit categories:
+                          travel_credit_annual, doordash_credit, dining_credit, streaming_credit, wireless_credit, walmart_credit, saks_credit, global_entry_credit, tsa_precheck_credit, clear_credit, hotel_credit, airline_credit, flight_credit, lyft_credit, uber_credit, equinox_credit, peloton_credit
+  free_night category:    free_night_award, free_night_after_spend
+  status_conferred:       status_hyatt_discoverist, status_hyatt_explorist, status_hyatt_globalist, status_marriott_silver, status_marriott_gold, status_marriott_platinum, status_hilton_silver, status_hilton_gold, status_hilton_diamond, status_hertz_gold, status_avis_preferred, status_national_emerald
+  protection:             purchase_protection, extended_warranty, return_protection, cellphone_protection
+  other:                  companion_pass, free_checked_bag, priority_boarding, concierge, prepaid_extra_value, transfer_partner_access, portal_redemption_bonus, spend_unlock_perk
+
+CRITICAL: The CATEGORY value MUST be one of the 11 enum strings listed above (lowercase, underscore-separated). Do NOT use display labels like "Credits" or "Lounge" or "Travel perks" — use the enum strings exactly. If a benefit doesn't cleanly fit any benefit_type, use one from the "other" group above and set category to 'other'.
 
 EARN RATE CATEGORIES (use these strings for earn_rates[].category):
   base, dining, dining_through_portal, groceries, groceries_us_supermarkets, gas, gas_stations,
