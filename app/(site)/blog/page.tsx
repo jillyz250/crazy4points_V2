@@ -4,7 +4,8 @@ import { createClient } from '@/utils/supabase/server';
 import { BLOG_CATEGORIES, isBlogCategorySlug, getBlogCategoryLabel } from '@/lib/blog/categories';
 import HeroImageOrFallback from '@/components/blog/HeroImageOrFallback';
 
-export const revalidate = 60;
+// Blog index; only changes when a new post publishes.
+export const revalidate = 3600;
 
 /**
  * Phase 2 — type/program/card filter taxonomy.

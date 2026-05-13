@@ -10,7 +10,8 @@ import { notFound } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import { programToMarkdown } from '@/lib/programs/programToMarkdown'
 
-export const revalidate = 60
+// Markdown export of program content; stable with the page itself.
+export const revalidate = 3600
 
 interface RouteParams {
   params: Promise<{ slug: string }>

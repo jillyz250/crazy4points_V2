@@ -6,7 +6,8 @@ import { createClient } from '@/utils/supabase/server'
 import { getAlertBySlug } from '@/utils/supabase/queries'
 import { daysUntilEndOfDay } from '@/lib/alertExpiry'
 
-export const revalidate = 60
+// Published alert content; stable after publish.
+export const revalidate = 3600
 
 type Props = { params: Promise<{ slug: string }> }
 

@@ -5,7 +5,8 @@ import { createClient } from '@/utils/supabase/server'
 import { getAlertsByPublishDate } from '@/utils/supabase/queries'
 import AlertsGridSB from '@/components/alerts/AlertsGridSB'
 
-export const revalidate = 60
+// Historical daily brief; immutable once the date has passed.
+export const revalidate = 3600
 
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/
 

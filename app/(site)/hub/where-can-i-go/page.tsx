@@ -19,7 +19,8 @@ export const metadata: Metadata = {
   alternates: { canonical: 'https://www.crazy4points.com/hub/where-can-i-go' },
 }
 
-export const revalidate = 60
+// Hub tool shell; underlying form/queries are dynamic on submit.
+export const revalidate = 3600
 
 export default async function Page({
   searchParams,

@@ -17,7 +17,9 @@ import SimpleTileGrid from '@/components/programs/SimpleTileGrid'
 import IntroBlock from '@/components/programs/IntroBlock'
 import { getActivePromosForProgram, type PromoReward } from '@/utils/supabase/promoQueries'
 
-export const revalidate = 60
+// Editorial content; rarely changes intra-day. Admin publish flow can call
+// revalidatePath() to bust this cache on demand, so 1 hour is safe.
+export const revalidate = 3600
 
 export async function generateMetadata({
   params,
