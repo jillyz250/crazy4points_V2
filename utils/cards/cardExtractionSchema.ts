@@ -106,6 +106,10 @@ export type CardExtraction = {
   // Editorial intro (Claude writes 1-2 sentences summarizing the card)
   intro: Extracted<string>
 
+  // Top-level card features (drawn from page text, not benefits[])
+  no_preset_spending_limit: Extracted<boolean>
+  is_metal_card: Extracted<boolean>
+
   // Warnings (things Claude tried to extract but couldn't, or fields with low confidence)
   extraction_warnings: string[]
 }

@@ -73,6 +73,7 @@ const VALID_BENEFIT_TYPES = new Set([
   'status_marriott_silver','status_marriott_gold','status_marriott_platinum',
   'status_hilton_silver','status_hilton_gold','status_hilton_diamond',
   'status_hertz_gold','status_avis_preferred','status_national_emerald',
+  'status_hertz_presidents_circle','status_avis_preferred_plus','status_national_executive_elite',
   'status_ihg_silver','status_ihg_gold','status_ihg_platinum','status_ihg_diamond',
   'status_southwest_a_list','status_southwest_a_list_preferred',
   'status_southwest_companion_pass',
@@ -172,6 +173,16 @@ export async function saveExtractedBenefits({
   }
   if (extraction.authorized_user_bonus_points?.value !== null && extraction.authorized_user_bonus_points?.value !== undefined) {
     cardUpdate.authorized_user_bonus_points = extraction.authorized_user_bonus_points.value
+  }
+  if (extraction.no_preset_spending_limit?.value === true) {
+    cardUpdate.no_preset_spending_limit = true
+  } else if (extraction.no_preset_spending_limit?.value === false) {
+    cardUpdate.no_preset_spending_limit = false
+  }
+  if (extraction.is_metal_card?.value === true) {
+    cardUpdate.is_metal_card = true
+  } else if (extraction.is_metal_card?.value === false) {
+    cardUpdate.is_metal_card = false
   }
 
   const { error: cardErr } = await supabase
