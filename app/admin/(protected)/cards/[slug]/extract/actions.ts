@@ -57,6 +57,16 @@ export async function runExtractionAndSave(formData: FormData): Promise<void> {
 
   if (!saveResult.ok) {
     console.error(`[card-extract] save failed: ${saveResult.error}`)
+    // Surface the error to the editor by marking the extraction failed.
+    // Without this the row stays 'extracted' even though no data landed in
+    // credit_card_benefits / earn_rates / welcome_bonuses — silent failure.
+    await supabase
+      .from('credit_card_extractions')
+      .update({
+        status: 'failed',
+        error_message: `Save failed after extraction: ${saveResult.error}`,
+      })
+      .eq('id', extractionResult.extractionId)
   } else {
     console.log(`[card-extract] saved card=${slug} benefits=${saveResult.benefitsSaved} earn=${saveResult.earnRatesSaved} wb=${saveResult.welcomeBonusSaved} historical_high=${saveResult.newHistoricalHigh}`)
   }
@@ -96,6 +106,18 @@ export async function resaveExtraction(formData: FormData): Promise<void> {
 
   if (!result.ok) {
     console.error(`[card-extract] resave failed: ${result.error}`)
+    await supabase
+      .from('credit_card_extractions')
+      .update({
+        status: 'failed',
+        error_message: `Re-save failed: ${result.error}`,
+      })
+      .eq('id', extractionId)
+  } else {
+    await supabase
+      .from('credit_card_extractions')
+      .update({ status: 'saved', saved_at: new Date().toISOString() })
+      .eq('id', extractionId)
   }
 
   const slug = (data as unknown as { credit_cards: { slug: string } }).credit_cards?.slug
