@@ -33,6 +33,7 @@ export default async function CardExtractPage({
     .select(`
       id, slug, name, card_type, card_tier, status,
       annual_fee_usd, foreign_transaction_fee_pct,
+      official_url,
       intro, last_verified,
       issuer:issuers(slug, name, website_url)
     `)
@@ -58,9 +59,12 @@ export default async function CardExtractPage({
     .limit(1)
     .maybeSingle()
 
-  // Default source URL: param > issuer website > empty.
+  // Default source URL precedence: query param > stored official_url > empty.
+  // The card's official_url is the source of truth — once set, the editor never
+  // has to type it again. If the issuer page moves, update it on the card row
+  // (admin → cards → edit) and every future extraction picks up the new URL.
   const issuerSite = Array.isArray(card.issuer) ? card.issuer[0]?.website_url : (card.issuer as { website_url?: string } | null)?.website_url
-  const defaultSourceUrl = sourceUrlParam || ''
+  const defaultSourceUrl = sourceUrlParam || card.official_url || ''
 
   return (
     <div className="rg-container px-6 py-10">
@@ -81,6 +85,16 @@ export default async function CardExtractPage({
             </>
           ) : null}
         </p>
+        {card.official_url ? (
+          <p className="mt-1 font-body text-xs text-[var(--color-text-secondary)]">
+            <span className="font-ui uppercase tracking-wide">Stored product URL:</span>{' '}
+            <a className="text-[var(--color-primary)] underline" href={card.official_url} target="_blank" rel="noreferrer">{card.official_url}</a>
+          </p>
+        ) : (
+          <p className="mt-1 font-body text-xs text-amber-700">
+            No product URL stored for this card yet. Paste one in the form below — it will pre-fill on every future extraction once saved by the action.
+          </p>
+        )}
       </header>
 
       {/* Run extraction form */}
