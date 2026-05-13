@@ -12,6 +12,8 @@ export default function ExtractionReview({
   sourceUrl,
   status,
   extraction,
+  createdAt,
+  savedAt,
   resaveAction,
   rejectAction,
 }: {
@@ -19,6 +21,8 @@ export default function ExtractionReview({
   sourceUrl: string
   status: string
   extraction: CardExtraction
+  createdAt: string
+  savedAt: string | null
   resaveAction: (formData: FormData) => Promise<void>
   rejectAction: (formData: FormData) => Promise<void>
 }) {
@@ -32,7 +36,12 @@ export default function ExtractionReview({
             Latest extraction
           </h2>
           <p className="font-body text-xs text-[var(--color-text-secondary)]">
-            Status: <strong>{status}</strong> · <a href={sourceUrl} target="_blank" rel="noreferrer" className="underline">{sourceUrl}</a>
+            Status: <strong>{status}</strong>
+            {' · '}Extracted: <strong>{fmtTimestamp(createdAt)}</strong>
+            {savedAt ? <> · Saved: <strong>{fmtTimestamp(savedAt)}</strong></> : null}
+          </p>
+          <p className="mt-0.5 font-body text-xs text-[var(--color-text-secondary)]">
+            Source: <a href={sourceUrl} target="_blank" rel="noreferrer" className="underline">{sourceUrl}</a>
           </p>
         </div>
         <div className="flex gap-2">
@@ -190,6 +199,19 @@ function SourceQuote({ quote }: { quote: string }) {
       &ldquo;{quote}&rdquo;
     </p>
   )
+}
+
+function fmtTimestamp(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  return d.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  })
 }
 
 function fmtUsd(v: number | null | undefined): string {
