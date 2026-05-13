@@ -10,6 +10,7 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk'
+import { jsonrepair } from 'jsonrepair'
 import { fetchFirecrawl } from '@/utils/ai/firecrawl'
 import { logUsage } from '@/utils/ai/logUsage'
 import { createAdminClient } from '@/utils/supabase/server'
@@ -104,10 +105,21 @@ export async function extractCardBenefits({
   const rawText = textBlock.text.trim()
 
   let extraction: CardExtraction
+  let repaired = false
   try {
     // Strip code fences in case the model wraps anyway despite the instruction.
     const cleaned = rawText.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim()
-    extraction = JSON.parse(cleaned) as CardExtraction
+    try {
+      extraction = JSON.parse(cleaned) as CardExtraction
+    } catch {
+      // Sonnet sometimes returns JSON with unescaped quotes inside long
+      // source_quote strings, or trailing commas. jsonrepair is a small
+      // library that fixes the most common LLM-output JSON quirks without
+      // hallucinating new structure. Last-resort fallback before failing.
+      console.warn('[card-extract] strict JSON.parse failed, trying jsonrepair')
+      extraction = JSON.parse(jsonrepair(cleaned)) as CardExtraction
+      repaired = true
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     const stopReason = response.stop_reason
@@ -132,6 +144,15 @@ export async function extractCardBenefits({
         ? 'Claude ran out of output tokens before finishing the JSON. The max_tokens limit needs to be raised.'
         : `Claude returned invalid JSON: ${message}`,
     }
+  }
+
+  // If jsonrepair fired, append a warning so the editor knows the model's
+  // raw output was slightly malformed and was auto-repaired.
+  if (repaired) {
+    extraction.extraction_warnings = [
+      ...(extraction.extraction_warnings ?? []),
+      'Claude JSON output required auto-repair (escaping fix). Spot-check source quotes for accuracy.',
+    ]
   }
 
   // 4. Persist the extraction (status='extracted', not yet saved to card tables)
