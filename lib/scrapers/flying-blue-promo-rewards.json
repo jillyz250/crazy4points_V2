@@ -1,0 +1,69 @@
+{
+  "slug": "flying-blue-promo-rewards",
+  "program_slug": "flying-blue",
+  "source_url": "https://www.flyingblue.com/en/spend/flights/rewards",
+  "default_intel_type": "monthly_promo",
+  "firecrawl_options": {
+    "waitFor": 5000,
+    "onlyMainContent": true
+  },
+  "extraction_strategy": "schema",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "promos": {
+        "type": "array",
+        "description": "Each promo reward card on the page. Each card represents a single discounted route + cabin combination.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "carrier": {
+              "type": "string",
+              "description": "Operating carrier shown on the card — typically 'Air France' or 'KLM'."
+            },
+            "origin_label": {
+              "type": "string",
+              "description": "Origin city or region label, e.g. 'Paris', 'Amsterdam', 'Europe'."
+            },
+            "dest_label": {
+              "type": "string",
+              "description": "Destination city or region label, e.g. 'Geneva', 'New York', 'Mexico City'."
+            },
+            "cabin": {
+              "type": "string",
+              "description": "Cabin class — Economy, Premium, Business, or First."
+            },
+            "points_required": {
+              "type": "integer",
+              "description": "Starting miles required, e.g. 7500 or 18750."
+            },
+            "discount_percent_displayed": {
+              "type": "integer",
+              "description": "Discount percent shown on the card (e.g. 25 for '-25%'). Null if not displayed."
+            },
+            "extra_exclusive": {
+              "type": "boolean",
+              "description": "True if the card is labeled 'Extra Exclusive' (Flying Blue Extra subscribers only)."
+            }
+          },
+          "required": ["dest_label", "points_required", "cabin"]
+        }
+      },
+      "valid_through": {
+        "type": "string",
+        "description": "When the promo window closes, e.g. 'October 31, 2026'. Look for text like 'travel through' or 'until'."
+      }
+    },
+    "required": ["promos"]
+  },
+  "items_path": "promos",
+  "field_mapping": {
+    "promo_label": "promo_label",
+    "origin_label": "origin_label",
+    "dest_label": "dest_label",
+    "cabin": "cabin",
+    "points_required": "points_required",
+    "points_baseline": "points_baseline",
+    "carrier_slug": "carrier_slug"
+  }
+}
