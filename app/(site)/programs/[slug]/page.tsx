@@ -250,7 +250,25 @@ export default async function ProgramPage({
       />
       <div className="rg-container">
 
-        {/* Hero header (badges + active alerts banner + section TOC) */}
+        {/* LIVE bars render ABOVE the hero so the first thing readers
+            see is what's hot RIGHT NOW. Bars auto-hide when no signals. */}
+        <LiveBarsHero
+          programName={program.name}
+          transferBonus={liveTransferBonuses[0] ?? null}
+          promosCount={activePromos.length}
+          promosDiscountPercent={promosDiscountPercent}
+          promosChildren={
+            activePromos.length > 0 ? (
+              <ActivePromosSection
+                promos={activePromos}
+                programName={program.name}
+                programChartUrl={program.partner_chart_url}
+              />
+            ) : null
+          }
+        />
+
+        {/* Hero header (badges + section TOC) — sits below LIVE bars. */}
         {/* `partners` prop derives distinct operating-carrier programs from */}
         {/* redemptionsAsCurrency (no extra query) so the hero can render */}
         {/* bilateral-partnership pills (e.g. JetBlue → United Blue Sky). */}
@@ -283,30 +301,6 @@ export default async function ProgramPage({
             ...(earnIntoCards.length > 0 ? [{ id: 'earn-into', label: 'Cards' }] : []),
             ...(allAlerts.length > 0 ? [{ id: 'alerts', label: 'Alerts' }] : []),
           ]}
-        />
-
-        {/* LIVE NOW hero — surfaces time-sensitive signals:
-            active transfer bonuses, scraped promos, and the
-            auto-detected stack when both are live. Renders
-            nothing when no signals are live.
-
-            Two stacked LIVE bars. Bar 1 = transfer bonus → alert detail.
-            Bar 2 = promo rewards → expands inline to show the full table.
-            Both bars hide when no live signals exist. */}
-        <LiveBarsHero
-          programName={program.name}
-          transferBonus={liveTransferBonuses[0] ?? null}
-          promosCount={activePromos.length}
-          promosDiscountPercent={promosDiscountPercent}
-          promosChildren={
-            activePromos.length > 0 ? (
-              <ActivePromosSection
-                promos={activePromos}
-                programName={program.name}
-                programChartUrl={program.partner_chart_url}
-              />
-            ) : null
-          }
         />
 
         {/* Intro paragraph stays visible — it's the on-ramp. */}

@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "createdAt": "2026-04-04T15:15:48.008Z",
+  "workspaces": [
+    {
+      "name": "default",
+      "title": "crazy4points",
+      "basePath": "/",
+      "projectId": "dpsyv6ox",
+      "dataset": "production",
+      "icon": "<style data-styled=\"true\" data-styled-version=\"6.3.12\">.doGNCu{font-family:Inter,-apple-system,BlinkMacSystemFont,\"Segoe UI\",Roboto,\"Helvetica Neue\",\"Liberation Sans\",Helvetica,Arial,system-ui,sans-serif;font-weight:500;font-size:13px;transform:translateY(1px);}/*!sc*/\ndata-styled.g106[id=\"sc-dkiZCX\"]{content:\"doGNCu,\"}/*!sc*/\n</style><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 32 32\"><rect width=\"32\" height=\"32\" rx=\"2\" fill=\"#f7d455\"></rect><text x=\"50%\" y=\"50%\" text-anchor=\"middle\" alignment-baseline=\"middle\" fill=\"hsla(47, 91%, 25%, 1)\" class=\"sc-dkiZCX doGNCu\">C</text></svg>",
+      "mediaLibrary": {
+        "enabled": false
+      },
+      "schema": "85bf3c05.create-schema.json",
+      "tools": "b3b146a5.create-tools.json"
+    }
+  ]
+}

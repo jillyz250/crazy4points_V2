@@ -1,0 +1,27 @@
+{
+  "type": "object",
+  "description": "Schema for extracting a list of hotel properties from a chain's search-results or directory page. Each property has core identification + categorization fields. Used to seed hotel_properties for Decision Engine.",
+  "properties": {
+    "properties": {
+      "type": "array",
+      "description": "All hotel property entries visible on this page. Include every hotel mentioned, even if some fields are unknown.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "description": "Full property name as displayed (e.g. 'JW Marriott Hotel Tokyo')." },
+          "brand": { "type": "string", "description": "Marriott brand (e.g. 'JW Marriott', 'Westin', 'Courtyard', 'Sheraton', 'Ritz-Carlton', 'St. Regis', 'EDITION', 'Aloft', 'Autograph Collection', 'Bvlgari', etc.)." },
+          "city": { "type": "string", "description": "City. From the property name or page context." },
+          "country": { "type": "string", "description": "Country code (ISO 3166-1 alpha-2 like 'JP', 'US') or country name." },
+          "region": { "type": "string", "description": "State/province/region. Optional." },
+          "hotel_url": { "type": "string", "description": "Canonical marriott.com URL for this property if visible." },
+          "property_code": { "type": "string", "description": "Marriott's 5-letter internal property code (e.g. 'TYOAR'). Found in the hotel_url as the leading slug component." },
+          "all_inclusive": { "type": "boolean", "description": "Whether the property is an all-inclusive resort. Default false." },
+          "review_count": { "type": "integer", "description": "Review count if shown. Optional." },
+          "category": { "type": "integer", "description": "Award category 1-8 if shown. Most search-results pages don't display this; leave 0 if unknown." }
+        }
+      }
+    },
+    "total_results_visible": { "type": "integer", "description": "Number of properties visible on this specific page (not total in city)." },
+    "total_results_in_city": { "type": "integer", "description": "Total hotels matching the search if the page indicates it (e.g. 'Showing 20 of 47'). 0 if not shown." }
+  }
+}
