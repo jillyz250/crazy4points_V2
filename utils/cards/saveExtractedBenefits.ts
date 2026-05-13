@@ -197,7 +197,7 @@ export async function saveExtractedBenefits({
     if (benErr) return { ok: false, error: `credit_card_benefits insert failed: ${benErr.message}` }
   }
 
-  // ── 4. Welcome bonus: upsert is_current + flip historical_high ─────────
+  // ── 4. Welcome bonus: upsert is_current + flip historical_high + elevated ─
   let welcomeBonusSaved = false
   let newHistoricalHigh = false
 
@@ -225,6 +225,12 @@ export async function saveExtractedBenefits({
     // If it ties or beats previous max AND there was a previous max, this is a new high.
     // First-ever offer is NOT marked historical_high (no comparison baseline yet).
 
+    // Baseline + elevated: if Sonnet didn't extract a baseline, default it to
+    // the current bonus_amount (no elevation detected). Recompute is_elevated
+    // defensively from baseline rather than trusting Sonnet's boolean.
+    const baseline = extraction.welcome_bonus.baseline_bonus_amount ?? wbMain.bonus_amount
+    const isElevated = wbMain.bonus_amount > baseline
+
     const { error: wbErr } = await supabase.from('credit_card_welcome_bonuses').insert({
       card_id: cardId,
       bonus_amount: wbMain.bonus_amount,
@@ -233,6 +239,8 @@ export async function saveExtractedBenefits({
       spend_window_months: wbMain.spend_window_months,
       tiered_bonuses: extraction.welcome_bonus.tiered ?? [],
       extras: extraction.welcome_bonus.extras,
+      baseline_bonus_amount: baseline,
+      is_elevated: isElevated,
       is_current: true,
       is_historical_high: newHistoricalHigh,
       source_url: sourceUrl,
