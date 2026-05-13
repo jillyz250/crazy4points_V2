@@ -87,6 +87,29 @@ const VALID_BENEFIT_TYPES = new Set([
   'other',
 ])
 
+// Must match CHECK constraint on credit_card_benefits.frequency after migration 261.
+const VALID_FREQUENCIES = new Set([
+  'per_trip','per_use','annual','biannual','semiannual','quarterly',
+  'monthly','anniversary','one_time','lifetime',
+])
+
+/**
+ * Coerces a Claude-returned frequency to a valid enum value. Common Sonnet
+ * mistakes mapped to the closest valid value; anything unknown falls through
+ * to null (frequency is nullable on the column).
+ */
+function normalizeFrequency(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  const v = raw.toLowerCase().trim().replace(/[-\s]/g, '_')
+  if (VALID_FREQUENCIES.has(v)) return v
+  // Common drift
+  if (v === 'each_use' || v === 'per_qualifying_use') return 'per_use'
+  if (v === 'twice_a_year' || v === 'half_yearly' || v === 'half_year') return 'biannual'
+  if (v === 'yearly') return 'annual'
+  if (v === 'every_4_years' || v === 'every_four_years') return 'lifetime'  // Global Entry pattern
+  return null  // Unknown — drop frequency rather than fail CHECK
+}
+
 /**
  * Coerces a Claude-returned benefit_type to a valid enum value. Falls back to
  * 'other' (or a category-appropriate _other variant) if unknown. Keeps the
@@ -186,7 +209,7 @@ export async function saveExtractedBenefits({
     value_amount: b.value_amount,
     value_unit: b.value_unit,
     coverage_amount: b.coverage_amount,
-    frequency: b.frequency,
+    frequency: normalizeFrequency(b.frequency),
     spend_threshold_usd: b.spend_threshold_usd,
     description: b.description,
     metadata: b.metadata ?? {},

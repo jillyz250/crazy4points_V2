@@ -70,6 +70,25 @@ EARN RATE NUANCES (use earn_rates[].notes for):
     do not reduce points." This is the most-misunderstood Chase Reserve detail.
 20. Brand-specific earn rates with end dates → include "Through M/D/YYYY" in notes.
 
+FREQUENCY VALUES (must use one of these for benefits[].frequency):
+  per_trip       — paid out per qualifying trip (most insurance benefits)
+  per_use        — per qualifying transaction (Global Entry credit once every 4 years
+                   per application; cell phone protection per claim with limits)
+  annual         — one annual total (e.g., $300 travel credit per anniversary year)
+  biannual       — split Jan-Jun + Jul-Dec (Sapphire Reserve dining, StubHub, Resy quarterly twins
+                   — note quarterly is also valid if split into 4 quarters)
+  semiannual     — alias for biannual
+  quarterly      — split into 4 quarters
+  monthly        — credited each month (Apple TV+/Music = $24/mo monthly, Lyft $10/mo)
+  anniversary    — paid out on card anniversary, not calendar year
+  one_time       — single payout (welcome bonuses use the separate welcome_bonus shape, not here)
+  lifetime       — once per cardholder lifetime (also use for Global Entry "every 4 years"
+                   since it's effectively per-lifetime renewal)
+
+For "every X years" patterns (Global Entry, NEXUS), use frequency='lifetime' (the user gets it
+once, renews every 4 years). Don't use frequency='per_use' for application fee credits — they're
+tied to your cardmember lifetime, not transactions.
+
 VALUE AMOUNT vs. ESTIMATED VALUE (critical for comparison accuracy):
 A. value_amount represents a GUARANTEED dollar amount the cardholder actually pockets:
      - Statement credits ($300 travel, $250 Edit hotel)
@@ -288,7 +307,7 @@ Return ONE JSON object with this exact top-level shape:
       "value_amount": <number|null>,
       "value_unit": "USD"|"nights"|"pct"|"points"|"miles"|"points_per_dollar"|null,
       "coverage_amount": <number|null>,
-      "frequency": "per_trip"|"annual"|"anniversary"|"monthly"|"lifetime"|"one_time"|"quarterly"|null,
+      "frequency": "per_trip"|"per_use"|"annual"|"biannual"|"semiannual"|"quarterly"|"monthly"|"anniversary"|"one_time"|"lifetime"|null,
       "spend_threshold_usd": <number|null>,
       "description": <string|null>,
       "metadata": {},

@@ -53,7 +53,7 @@ export default async function CardExtractPage({
   // Most recent extraction's full JSON (for inline review).
   const { data: latest } = await supabase
     .from('credit_card_extractions')
-    .select('id, source_url, extraction, status, created_at, saved_at, error_message')
+    .select('id, source_url, extraction, status, created_at, saved_at, error_message, raw_markdown, markdown_chars')
     .eq('card_id', card.id)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -136,17 +136,40 @@ export default async function CardExtractPage({
 
       {/* Latest extraction review */}
       {latest ? (
-        <ExtractionReview
-          extractionId={latest.id}
-          sourceUrl={latest.source_url}
-          status={latest.status}
-          extraction={latest.extraction}
-          createdAt={latest.created_at}
-          savedAt={latest.saved_at}
-          errorMessage={latest.error_message}
-          resaveAction={resaveExtraction}
-          rejectAction={rejectExtraction}
-        />
+        <>
+          <ExtractionReview
+            extractionId={latest.id}
+            sourceUrl={latest.source_url}
+            status={latest.status}
+            extraction={latest.extraction}
+            createdAt={latest.created_at}
+            savedAt={latest.saved_at}
+            errorMessage={latest.error_message}
+            resaveAction={resaveExtraction}
+            rejectAction={rejectExtraction}
+          />
+
+          {/* Raw scraped markdown — collapsed by default to keep the page lean.
+              Useful when an extraction is wrong and you want to confirm whether
+              Firecrawl actually saw the content, or when Sonnet missed something
+              and you want to verify it was on the page. */}
+          {latest.raw_markdown ? (
+            <details className="mt-6 rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-white p-4">
+              <summary className="cursor-pointer font-ui text-sm font-medium text-[var(--color-primary)]">
+                View raw scraped markdown ({latest.markdown_chars?.toLocaleString() ?? '?'} chars)
+              </summary>
+              <p className="mt-2 font-body text-xs text-[var(--color-text-secondary)]">
+                This is the exact markdown Firecrawl pulled from the source URL and passed to Claude.
+                If a benefit is missing from the extraction but appears here, the prompt needs tightening.
+                If it's missing here, Firecrawl didn&rsquo;t see it — the page may have JS-rendered content
+                or the URL is wrong.
+              </p>
+              <pre className="mt-3 max-h-[600px] overflow-auto whitespace-pre-wrap rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] p-3 font-mono text-xs text-[var(--color-text-primary)]">
+                {latest.raw_markdown}
+              </pre>
+            </details>
+          ) : null}
+        </>
       ) : (
         <p className="font-body text-sm text-[var(--color-text-secondary)]">
           No extractions yet for this card.
