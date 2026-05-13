@@ -22,6 +22,12 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createHash } from 'node:crypto'
+import {
+  startScrapeRun,
+  closeScrapeRun,
+  persistPromoBatch,
+} from './lib/promo-persist.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(__dirname, '..')
@@ -177,18 +183,66 @@ async function runOne(config, { dryRun }) {
     return { slug: config.slug, status: 'failed', error: 'program not found' }
   }
 
-  // Import persist module — note this needs TS-aware loader; using tsx/ts-node if available
-  // For Phase 0 we keep this script JS-only and call into the compiled JS at runtime;
-  // until then, we just log the parsed rows. Persisting will be wired in once we add
-  // a ts-runner (Phase 1).
-  console.log('  [Phase 0] persist layer not yet wired — would have persisted', parsed.length, 'rows')
-  console.log('  See utils/scraper/persist.ts for the persistence logic — wire up in Phase 1.')
+  const runId = await startScrapeRun(supabase, {
+    programId,
+    scraperSlug: config.slug,
+    sourceUrl: config.source_url,
+  })
+
+  let persistResult
+  try {
+    persistResult = await persistPromoBatch(
+      supabase,
+      parsed,
+      {
+        programId,
+        scraperSlug: config.slug,
+        sourceUrl: config.source_url,
+        defaultIntelType: config.default_intel_type,
+      },
+      runId,
+    )
+  } catch (err) {
+    await closeScrapeRun(supabase, runId, {
+      status: 'failed',
+      duration_ms: Date.now() - started,
+      firecrawl_credits_used: credits,
+      error_log: String(err).slice(0, 2000),
+    })
+    console.error('  persist FAILED:', err.message)
+    return { slug: config.slug, status: 'failed', error: err.message }
+  }
+
+  // Phase 3 prep: snapshot the raw response hash for chart-delta detection.
+  // The detection logic is Phase 3; for now we just record the hash so we
+  // have history when Phase 3 lands.
+  const rawResponseHash = createHash('sha256')
+    .update(JSON.stringify(firecrawlResult.json))
+    .digest('hex')
 
   const duration = Date.now() - started
+  await closeScrapeRun(supabase, runId, {
+    status: 'success',
+    duration_ms: duration,
+    items_seen: persistResult.items_seen,
+    items_new: persistResult.items_new,
+    items_updated: persistResult.items_updated,
+    items_disappeared: persistResult.items_disappeared,
+    firecrawl_credits_used: credits,
+    raw_response_hash: rawResponseHash,
+  })
+
+  console.log(
+    `  persisted: ${persistResult.items_new} new, ${persistResult.items_updated} updated, ${persistResult.items_disappeared} disappeared`,
+  )
+
   return {
     slug: config.slug,
     status: 'success',
-    items_seen: parsed.length,
+    items_seen: persistResult.items_seen,
+    items_new: persistResult.items_new,
+    items_updated: persistResult.items_updated,
+    items_disappeared: persistResult.items_disappeared,
     duration_ms: duration,
     credits,
   }
