@@ -7,7 +7,8 @@ import type { AlertWithPrograms, HotelProperty, CardThatEarnsIn, PartnerRedempti
 import AlertsGridSB from '@/components/alerts/AlertsGridSB'
 import ExpiredAlertsList from '@/components/alerts/ExpiredAlertsList'
 import { isAlertActive } from '@/lib/alertExpiry'
-import ProgramPageContent from '@/components/programs/ProgramPageContent'
+import ProgramTilesGrid from '@/components/programs/ProgramTilesGrid'
+import IntroBlock from '@/components/programs/IntroBlock'
 import ProgramPageHero from '@/components/programs/ProgramPageHero'
 import PropertiesTable from '@/components/programs/PropertiesTable'
 import PartnerRedemptionsSection from '@/components/programs/PartnerRedemptionsSection'
@@ -326,8 +327,16 @@ export default async function ProgramPage({
           sort={promoSort}
         />
 
-        {/* Editorial content (intro / transfer partners / sweet spots / quirks) */}
-        <ProgramPageContent program={program} programNameBySlug={programNameBySlug} />
+        {/* Intro block (soft-purple, left-bordered) — stays visible
+            above the tile grid since it's the on-ramp paragraph. */}
+        <IntroBlock intro={program.intro} />
+
+        {/* Asymmetric 12-col tile grid for reference + opinion sections
+            (award chart, sweet spots, transfer partners, tier benefits,
+            lounges, how to spend, tips & quirks). Each tile is a
+            <details> element — click to expand inline. Server-rendered,
+            AI-citable when collapsed. */}
+        <ProgramTilesGrid program={program} programNameBySlug={programNameBySlug} />
 
         {/* Per-property table — hotels only. */}
         {properties.length > 0 && (
