@@ -18,6 +18,7 @@ import {
   CARD_EXTRACTION_SYSTEM_PROMPT,
   buildCardExtractionUserPrompt,
 } from '@/utils/cards/cardExtractionPrompt'
+import { reviewExtraction } from '@/utils/cards/reviewExtraction'
 import type { CardExtraction } from '@/utils/cards/cardExtractionSchema'
 
 const MODEL = 'claude-sonnet-4-6'
@@ -182,6 +183,24 @@ export async function extractCardBenefits({
       'Claude JSON output required auto-repair (escaping fix). Spot-check source quotes for accuracy.',
     ]
   }
+
+  // 3b. Review pass — second Sonnet call that re-reads the markdown and looks
+  // for anything pass 1 missed. Conservative; only adds, never modifies.
+  // Failures are non-fatal — pass 1's output is used as-is if review errors.
+  const review = await reviewExtraction({
+    cardName,
+    markdown,
+    cardId,
+    extraction,
+  })
+  if (review.ran) {
+    console.log(
+      `[card-extract] review pass added ${review.addedBenefits} benefits + ` +
+      `${review.addedEarnRates} earn rates (input=${review.inputTokens}, output=${review.outputTokens})`,
+    )
+  }
+  // Use the merged extraction going forward.
+  extraction = review.extraction
 
   // 4. Persist the extraction (status='extracted', not yet saved to card tables)
   const { data: inserted, error: insertErr } = await supabase
