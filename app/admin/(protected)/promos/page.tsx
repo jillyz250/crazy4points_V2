@@ -11,7 +11,17 @@ import { Card } from '@/components/admin/ui/Card'
 import { EmptyState } from '@/components/admin/ui/EmptyState'
 import { Badge } from '@/components/admin/ui/Badge'
 import RunPromoScrapersButton from '@/components/admin/RunPromoScrapersButton'
-import { runScrapersNowAction } from './actions'
+import BulkApprovePromosButton from '@/components/admin/BulkApprovePromosButton'
+import {
+  runScrapersNowAction,
+  approveAndPublishAction,
+  approveHoldAction,
+  publishApprovedAction,
+  unpublishAction,
+  rejectAction,
+  ignoreAction,
+  bulkApproveAndPublishAction,
+} from './actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -69,9 +79,17 @@ export default async function PromosAdminPage() {
       )}
 
       <section style={{ marginTop: '1.5rem' }}>
-        <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>
-          Pending review ({pending.length})
-        </h2>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.5rem' }}>
+          <h2 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>
+            Pending review ({pending.length})
+          </h2>
+          {pending.length > 0 && (
+            <BulkApprovePromosButton
+              ids={pending.map((p) => p.id)}
+              action={bulkApproveAndPublishAction}
+            />
+          )}
+        </div>
         {pending.length === 0 ? (
           <EmptyState
             title="Nothing pending"
@@ -223,6 +241,69 @@ function PromoRow({ promo, compact = false }: { promo: PromoReward; compact?: bo
           {promo.valid_to && ` · Valid through ${promo.valid_to}`}
         </p>
       )}
+
+      {!compact && <PromoActions promo={promo} />}
     </Card>
   )
+}
+
+function PromoActions({ promo }: { promo: PromoReward }) {
+  if (promo.admin_status === 'pending') {
+    return (
+      <div style={{ marginTop: '0.625rem', display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+        <form action={approveAndPublishAction.bind(null, promo.id)}>
+          <button type="submit" className="admin-btn admin-btn-primary admin-btn-sm">
+            Approve &amp; publish
+          </button>
+        </form>
+        <form action={approveHoldAction.bind(null, promo.id)}>
+          <button type="submit" className="admin-btn admin-btn-secondary admin-btn-sm">
+            Approve, hold
+          </button>
+        </form>
+        <form action={rejectAction.bind(null, promo.id, undefined)}>
+          <button type="submit" className="admin-btn admin-btn-danger admin-btn-sm">
+            Reject
+          </button>
+        </form>
+        <form action={ignoreAction.bind(null, promo.id)}>
+          <button type="submit" className="admin-btn admin-btn-ghost admin-btn-sm">
+            Ignore
+          </button>
+        </form>
+      </div>
+    )
+  }
+
+  if (promo.admin_status === 'approved') {
+    return (
+      <div style={{ marginTop: '0.625rem', display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+        <form action={publishApprovedAction.bind(null, promo.id)}>
+          <button type="submit" className="admin-btn admin-btn-primary admin-btn-sm">
+            Publish
+          </button>
+        </form>
+        <form action={rejectAction.bind(null, promo.id, undefined)}>
+          <button type="submit" className="admin-btn admin-btn-danger admin-btn-sm">
+            Reject
+          </button>
+        </form>
+      </div>
+    )
+  }
+
+  if (promo.admin_status === 'published') {
+    return (
+      <div style={{ marginTop: '0.625rem', display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+        <form action={unpublishAction.bind(null, promo.id)}>
+          <button type="submit" className="admin-btn admin-btn-secondary admin-btn-sm">
+            Unpublish
+          </button>
+        </form>
+      </div>
+    )
+  }
+
+  // rejected / ignored — terminal, no actions
+  return null
 }
