@@ -279,11 +279,26 @@ export default async function ProgramPage({
         {/* LIVE NOW hero — surfaces time-sensitive signals:
             active transfer bonuses, scraped promos, and the
             auto-detected stack when both are live. Renders
-            nothing when no signals are live. */}
+            nothing when no signals are live.
+
+            Visual treatment: editorial "dateline frame" with
+            cream→lavender gradient + Playfair italic pull quote.
+            See LiveNowSection.tsx for full design context. */}
         <LiveNowSection
+          programName={program.name}
           transferBonuses={liveTransferBonuses}
           promosCount={activePromos.length}
           promosDiscountPercent={promosDiscountPercent}
+          newestScrapeAt={
+            activePromos.length > 0
+              ? new Date(
+                  activePromos.reduce((max, p) => {
+                    const d = new Date(p.last_scraped_at).getTime()
+                    return d > max ? d : max
+                  }, 0),
+                )
+              : null
+          }
           stackNoteOverride={program.stack_note_override}
         />
 

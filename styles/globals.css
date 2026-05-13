@@ -164,6 +164,15 @@ button {
   justify-content: center;
 }
 
+/* LiveNowSection vertical hairline between Transfer Bonus + Promo
+   Rewards data cells. Only renders at >=640px where the two cells sit
+   side-by-side. */
+@media (min-width: 640px) {
+  .rg-live-now-divider {
+    display: block !important;
+  }
+}
+
 /* Reusable: wraps a wide non-prose block (custom tables, ladder grids,
    horizontal scrollers) so it never breaks the viewport. Pair with
    `white-space: nowrap` on inner cells if needed. */
