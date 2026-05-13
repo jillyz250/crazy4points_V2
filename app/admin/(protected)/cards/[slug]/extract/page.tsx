@@ -65,6 +65,48 @@ export default async function CardExtractPage({
     .limit(1)
     .maybeSingle()
 
+  // Current welcome bonus from the live table — may differ from extraction.welcome_bonus
+  // if the editor entered it manually (Sonnet missed it on the page).
+  // The displayed welcome bonus should always reflect what's actually saved
+  // in credit_card_welcome_bonuses, not what was returned in the extraction JSONB.
+  const { data: currentWelcomeBonus } = await supabase
+    .from('credit_card_welcome_bonuses')
+    .select('bonus_amount, bonus_currency, spend_required_usd, spend_window_months, baseline_bonus_amount, is_elevated, tiered_bonuses, extras')
+    .eq('card_id', card.id)
+    .eq('is_current', true)
+    .maybeSingle()
+
+  // If we have a saved welcome bonus (manual or auto-saved), merge it into the
+  // extraction view so ExtractionReview renders the truth.
+  type Wb = {
+    main: { bonus_amount: number | null; bonus_currency: string | null; spend_required_usd: number | null; spend_window_months: number | null }
+    baseline_bonus_amount: number | null
+    is_elevated: boolean
+    tiered: unknown[]
+    extras: string | null
+    source_quote: string | null
+    confidence: 'high' | 'medium' | 'low'
+  }
+  const mergedExtraction = latest && currentWelcomeBonus
+    ? {
+        ...(latest.extraction as Record<string, unknown>),
+        welcome_bonus: {
+          main: {
+            bonus_amount: currentWelcomeBonus.bonus_amount,
+            bonus_currency: currentWelcomeBonus.bonus_currency,
+            spend_required_usd: currentWelcomeBonus.spend_required_usd,
+            spend_window_months: currentWelcomeBonus.spend_window_months,
+          },
+          baseline_bonus_amount: currentWelcomeBonus.baseline_bonus_amount,
+          is_elevated: currentWelcomeBonus.is_elevated,
+          tiered: currentWelcomeBonus.tiered_bonuses ?? [],
+          extras: currentWelcomeBonus.extras,
+          source_quote: null,
+          confidence: 'high',
+        } as Wb,
+      }
+    : latest?.extraction
+
   // Default source URL precedence: query param > stored official_url > empty.
   // The card's official_url is the source of truth — once set, the editor never
   // has to type it again. If the issuer page moves, update it on the card row
@@ -155,7 +197,7 @@ export default async function CardExtractPage({
             extractionId={latest.id}
             sourceUrl={latest.source_url}
             status={latest.status}
-            extraction={latest.extraction}
+            extraction={mergedExtraction}
             createdAt={latest.created_at}
             savedAt={latest.saved_at}
             errorMessage={latest.error_message}
@@ -163,13 +205,15 @@ export default async function CardExtractPage({
             rejectAction={rejectExtraction}
           />
 
-          {/* Manual welcome bonus entry — shown when extraction returned
-              null bonus_amount (issuer hides points behind apply flow).
-              Editor looks up the public offer (TPG, NerdWallet) and enters it. */}
+          {/* Manual welcome bonus entry — shown only when NO welcome bonus
+              exists yet (neither from Sonnet's extraction nor from a prior
+              manual entry). Once a welcome bonus is saved to the welcome_bonuses
+              table, this form is hidden. */}
           {(() => {
             const wb = (latest.extraction as { welcome_bonus?: { main?: { bonus_amount?: number | null; bonus_currency?: string | null; spend_required_usd?: number | null; spend_window_months?: number | null } } } | null)?.welcome_bonus
-            const hasIncompleteWelcomeBonus = !wb?.main?.bonus_amount
-            if (!hasIncompleteWelcomeBonus) return null
+            const hasExtractedWelcomeBonus = wb?.main?.bonus_amount != null
+            const hasSavedWelcomeBonus = currentWelcomeBonus?.bonus_amount != null
+            if (hasExtractedWelcomeBonus || hasSavedWelcomeBonus) return null
             return (
               <ManualWelcomeBonusForm
                 cardSlug={card.slug}
