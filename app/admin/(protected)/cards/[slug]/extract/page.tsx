@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { createAdminClient } from '@/utils/supabase/server'
 import ExtractionReview from '@/components/admin/cards/ExtractionReview'
+import RunExtractionButton from '@/components/admin/cards/RunExtractionButton'
 import { runExtractionAndSave, resaveExtraction, rejectExtraction } from './actions'
 
 export const dynamic = 'force-dynamic'
@@ -106,12 +107,7 @@ export default async function CardExtractPage({
               className="mt-1 w-full rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-white px-3 py-2 font-body text-base"
             />
           </label>
-          <button
-            type="submit"
-            className="rg-btn-primary"
-          >
-            Run extraction
-          </button>
+          <RunExtractionButton />
         </form>
       </section>
 
