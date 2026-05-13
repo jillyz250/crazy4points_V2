@@ -193,6 +193,13 @@ BENEFIT_TYPE ENUM (must use EXACTLY one of these for benefits[].benefit_type):
     transfer_partner_access, portal_redemption_bonus, spend_unlock_perk,
     other
 
+CATEGORY × BENEFIT_TYPE ARE INDEPENDENT AXES (read this carefully):
+- benefit_type values are valid regardless of which category you choose.
+- A spend-unlocked Hyatt Explorist status is BOTH category='spend_unlock' AND benefit_type='status_hyatt_explorist'. Both fields apply independently.
+- A spend-unlocked $500 Southwest credit is category='spend_unlock' + benefit_type='flight_credit'.
+- A spend-unlocked $250 Shops at Chase credit is category='spend_unlock' + benefit_type='spend_unlock_perk' (because no specific Shops-at-Chase benefit_type exists).
+- DO NOT downgrade a specific benefit_type to spend_unlock_perk or status_other just because the category is spend_unlock. Always pick the most specific benefit_type that matches the underlying perk, then choose category based on what gates the benefit (free, spend-tier, status, time-limited, etc.).
+
 ANTI-MAPPING RULE (critical):
 - If a status, lounge, or credit doesn't have an exact match above, use the category's *_other variant (status_other, lounge_other, 'other').
 - NEVER map a value to a different brand's enum just because it's "closest" — that creates incorrect data. IHG Platinum is NOT status_marriott_gold. Use status_ihg_platinum (which exists) or status_other if the brand has no specific value.
