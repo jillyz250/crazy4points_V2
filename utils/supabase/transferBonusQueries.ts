@@ -65,6 +65,14 @@ export interface ActiveTransferBonus {
   destinationProgram: Program | null
   warnings: string[]
   examples: SweetSpotExample[]
+  /**
+   * Count of partner_redemptions rows for this destination program that
+   * have curator-authored `what_breaks_this` notes. Used by the verdict
+   * chip to avoid green-by-default ("Worth it") on programs where the
+   * absence of warnings just means we haven't authored coverage yet
+   * vs. having actually verified the deal is clean.
+   */
+  enrichedRowCount: number
 }
 
 /**
@@ -97,6 +105,7 @@ export async function getActiveTransferBonuses(
   for (const a of (alerts ?? []) as Alert[]) {
     let destinationProgram: Program | null = null
     const warnings: string[] = []
+    let enrichedRowCount = 0
 
     if (a.primary_program_id) {
       const { data: prog } = await supabase
@@ -123,6 +132,17 @@ export async function getActiveTransferBonuses(
           warnings.push(r.what_breaks_this)
         }
       }
+
+      // Total count of enriched rows (any row with what_breaks_this set)
+      // — surfaces editorial coverage depth for the verdict-chip gate.
+      const { count: enrichedCount } = await supabase
+        .from('partner_redemptions')
+        .select('*', { count: 'exact', head: true })
+        .eq('currency_program_id', a.primary_program_id)
+        .eq('is_active', true)
+        .not('what_breaks_this', 'is', null)
+
+      enrichedRowCount = enrichedCount ?? 0
 
       // Plus a fuel-surcharge red flag if the destination has high
       // surcharge rows on any cabin.
@@ -306,6 +326,7 @@ export async function getActiveTransferBonuses(
       destinationProgram,
       warnings: warnings.slice(0, 4),
       examples,
+      enrichedRowCount,
     })
   }
 
