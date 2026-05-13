@@ -2,7 +2,13 @@ import { notFound } from 'next/navigation'
 import { createAdminClient } from '@/utils/supabase/server'
 import ExtractionReview from '@/components/admin/cards/ExtractionReview'
 import RunExtractionButton from '@/components/admin/cards/RunExtractionButton'
-import { runExtractionAndSave, resaveExtraction, rejectExtraction } from './actions'
+import ManualWelcomeBonusForm from '@/components/admin/cards/ManualWelcomeBonusForm'
+import {
+  runExtractionAndSave,
+  resaveExtraction,
+  rejectExtraction,
+  saveManualWelcomeBonus,
+} from './actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -115,22 +121,30 @@ export default async function CardExtractPage({
           Paste the issuer product page URL. Auto-approve mode: Firecrawl + Claude Sonnet run, results save immediately.
         </p>
 
-        <form action={runExtractionAndSave} className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+        <form action={runExtractionAndSave} className="mt-4 flex flex-col gap-3">
           <input type="hidden" name="slug" value={card.slug} />
-          <label className="flex-1">
-            <span className="block font-ui text-xs uppercase tracking-wide text-[var(--color-text-secondary)]">
-              Source URL
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <label className="flex-1">
+              <span className="block font-ui text-xs uppercase tracking-wide text-[var(--color-text-secondary)]">
+                Source URL
+              </span>
+              <input
+                name="source_url"
+                type="url"
+                required
+                defaultValue={defaultSourceUrl}
+                placeholder="https://creditcards.chase.com/rewards-credit-cards/sapphire/reserve"
+                className="mt-1 w-full rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-white px-3 py-2 font-body text-base"
+              />
+            </label>
+            <RunExtractionButton />
+          </div>
+          <label className="inline-flex items-center gap-2 font-body text-sm text-[var(--color-text-secondary)]">
+            <input type="checkbox" name="interactive" value="on" className="h-4 w-4 rounded border-[var(--color-border-soft)]" />
+            <span>
+              <strong className="text-[var(--color-text-primary)]">Interactive mode</strong> — expand accordions, click &ldquo;Show more&rdquo;, open all <code className="font-mono text-xs">{`<details>`}</code>. Adds ~5 sec. Use for Citi, US Bank, Wells Fargo pages that hide benefits behind accordions.
             </span>
-            <input
-              name="source_url"
-              type="url"
-              required
-              defaultValue={defaultSourceUrl}
-              placeholder="https://creditcards.chase.com/rewards-credit-cards/sapphire/reserve"
-              className="mt-1 w-full rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-white px-3 py-2 font-body text-base"
-            />
           </label>
-          <RunExtractionButton />
         </form>
       </section>
 
@@ -148,6 +162,25 @@ export default async function CardExtractPage({
             resaveAction={resaveExtraction}
             rejectAction={rejectExtraction}
           />
+
+          {/* Manual welcome bonus entry — shown when extraction returned
+              null bonus_amount (issuer hides points behind apply flow).
+              Editor looks up the public offer (TPG, NerdWallet) and enters it. */}
+          {(() => {
+            const wb = (latest.extraction as { welcome_bonus?: { main?: { bonus_amount?: number | null; bonus_currency?: string | null; spend_required_usd?: number | null; spend_window_months?: number | null } } } | null)?.welcome_bonus
+            const hasIncompleteWelcomeBonus = !wb?.main?.bonus_amount
+            if (!hasIncompleteWelcomeBonus) return null
+            return (
+              <ManualWelcomeBonusForm
+                cardSlug={card.slug}
+                sourceUrl={latest.source_url}
+                saveAction={saveManualWelcomeBonus}
+                defaultCurrency={wb?.main?.bonus_currency ?? ''}
+                defaultSpendUsd={wb?.main?.spend_required_usd ?? null}
+                defaultWindowMonths={wb?.main?.spend_window_months ?? null}
+              />
+            )
+          })()}
 
           {/* Raw scraped markdown — collapsed by default to keep the page lean.
               Useful when an extraction is wrong and you want to confirm whether

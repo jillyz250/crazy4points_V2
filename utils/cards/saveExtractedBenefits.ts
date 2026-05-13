@@ -287,10 +287,10 @@ export async function saveExtractedBenefits({
     welcomeBonusSaved = true
   }
 
-  // ── 5. Mark extraction row as saved ────────────────────────────────────
+  // ── 5. Mark extraction row as saved (clear any stale error_message) ────
   await supabase
     .from('credit_card_extractions')
-    .update({ status: 'saved', saved_at: now })
+    .update({ status: 'saved', saved_at: now, error_message: null })
     .eq('id', extractionId)
 
   return {

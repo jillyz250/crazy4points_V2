@@ -193,6 +193,18 @@ items — the warning is the signal that you looked.
     - AU bonus points after spend threshold
     - AU receives full benefits OR limited benefits
 
+  Network + issuer features (real benefits, often overlooked):
+    - Mastercard ID Theft Protection (MC cards) → benefit_type='other', category='protection'
+    - Visa Signature benefits (rental car privileges, hotel collection)
+    - Visa Infinite benefits (concierge, luxury hotel collection, rental privileges)
+    - World Elite Mastercard benefits (lounges, status, fuel rebate on some cards)
+    - Amex Offers (targeted card-linked deals)
+    - Citi Entertainment / Mastercard Priceless (event presale access)
+    - Citi Flex Pay / Plan It (Amex) / My Chase Plan (Chase) — BNPL features → benefit_type='other'
+    - FICO Score / Credit Journey free access → benefit_type='other'
+    - Card-linked digital wallet provisioning (Apple Pay, Google Pay, Samsung Pay)
+    - Contactless / chip / metal-card construction (note in extraction_warnings if seen)
+
 The checklist is a SANITY CHECK against missing fine-print perks. If the page is silent on an item,
 acknowledge it in extraction_warnings — never invent a benefit that's not on the page.
 
