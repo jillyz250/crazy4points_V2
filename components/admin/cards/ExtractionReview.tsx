@@ -169,8 +169,9 @@ export default function ExtractionReview({
         {(extraction.benefits ?? []).map((b, i) => {
           const isEstimated = b.metadata && (b.metadata as Record<string, unknown>).value_is_estimated === true
           const valueBasis = b.metadata && (b.metadata as Record<string, unknown>).value_basis as string | undefined
+          const fromReview = b.metadata && (b.metadata as Record<string, unknown>).from_review_pass === true
           return (
-          <div key={i} className="rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] p-3">
+          <div key={i} className={`rounded-[var(--radius-ui)] border p-3 ${fromReview ? 'border-emerald-300 bg-emerald-50/30' : 'border-[var(--color-border-soft)]'}`}>
             <div className="flex items-baseline justify-between gap-2">
               <p className="font-body text-base">
                 <strong>{b.name}</strong>
@@ -178,6 +179,11 @@ export default function ExtractionReview({
                   <span className={`ml-2 ${isEstimated ? 'text-amber-700 italic' : 'text-[var(--color-text-secondary)]'}`}>
                     {fmtBenefitValue(b)}
                     {isEstimated ? ' ≈est' : ''}
+                  </span>
+                ) : null}
+                {fromReview ? (
+                  <span className="ml-2 font-ui text-[10px] uppercase tracking-wide text-emerald-700">
+                    + review pass
                   </span>
                 ) : null}
               </p>
