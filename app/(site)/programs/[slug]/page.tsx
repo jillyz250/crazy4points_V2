@@ -13,6 +13,7 @@ import PropertiesTable from '@/components/programs/PropertiesTable'
 import PartnerRedemptionsSection from '@/components/programs/PartnerRedemptionsSection'
 import CardsThatEarnIntoProgram from '@/components/cards/CardsThatEarnIntoProgram'
 import ActivePromosSection from '@/components/programs/ActivePromosSection'
+import LiveNowSection from '@/components/programs/LiveNowSection'
 import { getActivePromosForProgram, type PromoReward } from '@/utils/supabase/promoQueries'
 
 export const revalidate = 60
@@ -156,6 +157,14 @@ export default async function ProgramPage({
   const active = allAlerts.filter((a) => isAlertActive(a.end_date, nowMs))
   const expired = allAlerts.filter((a) => a.end_date && !isAlertActive(a.end_date, nowMs))
 
+  // LiveNow hero inputs — active transfer bonuses targeting THIS program
+  // as destination (used for the stack auto-detection). The most-common
+  // discount % across active promos drives the auto-stack math.
+  const liveTransferBonuses = active.filter(
+    (a) => a.type === 'transfer_bonus' && a.primary_program_id === program.id,
+  )
+  const promosDiscountPercent = mostCommonDiscountPercent(activePromos)
+
   const activeFiltered = q ? active.filter((a) => matchesSearch(a, q)) : active
   const expiredFiltered = q ? expired.filter((a) => matchesSearch(a, q)) : expired
   const filteredCount =
@@ -265,6 +274,17 @@ export default async function ProgramPage({
             ...(earnIntoCards.length > 0 ? [{ id: 'earn-into', label: 'Cards' }] : []),
             ...(allAlerts.length > 0 ? [{ id: 'alerts', label: 'Alerts' }] : []),
           ]}
+        />
+
+        {/* LIVE NOW hero — surfaces time-sensitive signals:
+            active transfer bonuses, scraped promos, and the
+            auto-detected stack when both are live. Renders
+            nothing when no signals are live. */}
+        <LiveNowSection
+          transferBonuses={liveTransferBonuses}
+          promosCount={activePromos.length}
+          promosDiscountPercent={promosDiscountPercent}
+          stackNoteOverride={program.stack_note_override}
         />
 
         {/* Active scraped promos — Phase 2 of Promo Intelligence Engine.
@@ -465,4 +485,30 @@ export default async function ProgramPage({
       </div>
     </section>
   )
+}
+
+/**
+ * Most-common discount % across an array of active promos. Used by the
+ * LiveNow auto-stack math (a program with all-25%-off promos drives a
+ * 25% input to the stack calc).
+ */
+function mostCommonDiscountPercent(promos: PromoReward[]): number | null {
+  if (promos.length === 0) return null
+  const counts = new Map<number, number>()
+  for (const p of promos) {
+    const d = p.intel_discount_percent
+    if (d == null) continue
+    const rounded = Math.round(d)
+    counts.set(rounded, (counts.get(rounded) ?? 0) + 1)
+  }
+  if (counts.size === 0) return null
+  let best: number | null = null
+  let bestCount = 0
+  for (const [pct, n] of counts) {
+    if (n > bestCount) {
+      bestCount = n
+      best = pct
+    }
+  }
+  return best
 }
