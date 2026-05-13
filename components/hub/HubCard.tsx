@@ -24,53 +24,69 @@ const cardBaseStyle: React.CSSProperties = {
   transition: 'box-shadow 0.2s ease, transform 0.15s ease, border-color 0.2s ease',
 }
 
-export default function HubCard({
+function CardInner({
   title,
   description,
-  href,
-  status,
-}: HubCardProps) {
-  const isLive = status === 'live'
-
+  isLive,
+}: {
+  title: string
+  description: string
+  isLive: boolean
+}) {
   return (
-    <Link
-      href={href}
-      className="rg-hub-card"
-      style={{
-        ...cardBaseStyle,
-        opacity: isLive ? 1 : 0.72,
-      }}
-      aria-disabled={!isLive ? true : undefined}
-    >
-      {/* Tiny status indicator — top right, no shouting */}
-      <span
-        style={{
-          position: 'absolute',
-          top: '1rem',
-          right: '1.25rem',
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '0.375rem',
-          fontFamily: 'var(--font-ui)',
-          fontSize: '0.625rem',
-          fontWeight: 600,
-          letterSpacing: '0.1em',
-          textTransform: 'uppercase',
-          color: isLive ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-        }}
-      >
+    <>
+      {/* Status indicator — top right. Coming-soon variant is more
+          prominent now (gold pill instead of grey dot) since the
+          previous version was too subtle for readers to register. */}
+      {isLive ? (
         <span
-          aria-hidden
           style={{
-            width: '0.4375rem',
-            height: '0.4375rem',
-            borderRadius: '999px',
-            background: isLive ? 'var(--color-accent)' : 'var(--color-border-soft)',
-            display: 'inline-block',
+            position: 'absolute',
+            top: '1rem',
+            right: '1.25rem',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.375rem',
+            fontFamily: 'var(--font-ui)',
+            fontSize: '0.625rem',
+            fontWeight: 600,
+            letterSpacing: '0.1em',
+            textTransform: 'uppercase',
+            color: 'var(--color-primary)',
           }}
-        />
-        {isLive ? 'Live' : 'Soon'}
-      </span>
+        >
+          <span
+            aria-hidden
+            style={{
+              width: '0.4375rem',
+              height: '0.4375rem',
+              borderRadius: '999px',
+              background: 'var(--color-accent)',
+              display: 'inline-block',
+            }}
+          />
+          Live
+        </span>
+      ) : (
+        <span
+          style={{
+            position: 'absolute',
+            top: '0.875rem',
+            right: '1rem',
+            padding: '0.25rem 0.625rem',
+            background: 'var(--color-accent)',
+            color: '#3D2A00',
+            fontFamily: 'var(--font-ui)',
+            fontSize: '0.625rem',
+            fontWeight: 700,
+            letterSpacing: '0.1em',
+            textTransform: 'uppercase',
+            borderRadius: '999px',
+          }}
+        >
+          Coming Soon
+        </span>
+      )}
 
       <h3
         style={{
@@ -80,7 +96,7 @@ export default function HubCard({
           color: 'var(--color-primary)',
           margin: '0 0 0.625rem',
           lineHeight: 1.15,
-          paddingRight: '3.5rem', // clear the status indicator
+          paddingRight: '6rem', // clear the status indicator
         }}
       >
         {title}
@@ -126,6 +142,45 @@ export default function HubCard({
       >
         {isLive ? 'Open tool →' : 'In the works'}
       </div>
+    </>
+  )
+}
+
+export default function HubCard({
+  title,
+  description,
+  href,
+  status,
+}: HubCardProps) {
+  const isLive = status === 'live'
+
+  // Coming-soon cards render as non-clickable divs. Previously they were
+  // <Link>s with aria-disabled, which screen readers respected but mouse
+  // clicks still navigated to the (broken) page. Cleaner: no link at all
+  // until the tool ships.
+  if (!isLive) {
+    return (
+      <div
+        className="rg-hub-card"
+        style={{
+          ...cardBaseStyle,
+          opacity: 0.78,
+          cursor: 'not-allowed',
+        }}
+        aria-disabled
+      >
+        <CardInner title={title} description={description} isLive={false} />
+      </div>
+    )
+  }
+
+  return (
+    <Link
+      href={href}
+      className="rg-hub-card"
+      style={cardBaseStyle}
+    >
+      <CardInner title={title} description={description} isLive={true} />
     </Link>
   )
 }
