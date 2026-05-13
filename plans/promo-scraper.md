@@ -354,8 +354,19 @@ When a scraper run no longer sees a row (`last_seen_active = false` for > 24 hrs
 ### Phase 2 — Surface on program page (½ day)
 
 - `/programs/flying-blue` "Active Promos" section
-- Renders approved+published rows
+- Renders approved + published rows
 - Verified timestamp + staleness amber chip when > 48 hrs old
+- **Per-row baseline display (Option B, locked 2026-05-13):** when the
+  source page shows a discount %, also surface the back-calculated
+  rate. Copy pattern: "18,750 miles *(rate ~25,000, currently 25% off)*"
+  — uses the word "rate," not "rack rate," and frames the baseline as
+  observed from the program's site rather than as our chart claim.
+  - Inferred baselines render with the `~` symbol so readers see
+    they're approximate, not a precise chart number.
+  - Only shown when `intel_inferred_baseline` is set (i.e. the
+    program's site labeled the promo with a discount %).
+  - For programs that scrape an EXPLICIT baseline (e.g. "Normal:
+    25,000"), drop the `~` and use the exact number.
 
 ### Phase 3 — Chart delta detection (1 day)
 
@@ -387,11 +398,20 @@ When a scraper run no longer sees a row (`last_seen_active = false` for > 24 hrs
 - Add `intel_match_confidence` classification
 - Admin queue surfaces match suggestions; curator confirms ambiguous ones
 
-### Phase 7 — Chart Derivation Engine (3-4 days)
+### Phase 7 — Chart Derivation Engine (Option C, 3-4 days)
 
 > **Conceived 2026-05-13** after the Flying Blue scraper went live and
 > we realized every promo with a stated discount % is a data point
 > about the unpublished chart.
+>
+> Phase 2 already surfaces inferred baselines on a per-promo basis
+> (Option B — "currently 25% off Flying Blue's rate of ~25,000").
+> Phase 7 is the AGGREGATION evolution: instead of trusting a single
+> promo's inferred number, collect dozens of observations per route
+> bucket and surface a statistical distribution with sample size.
+>
+> **Locked: do not ship public-facing aggregated charts until
+> sample_count >= 30 per cell AND curator approves the copy.**
 
 Every promo with `discount_percent_displayed` gives us:
   `inferred_baseline = points_required / (1 - discount/100)`
@@ -412,14 +432,27 @@ Implementation:
   - `sample_count` — how many observations contributed
   - `confidence` — derived from sample count + variance
   - `last_observed_at` — most recent observation
+  - `curator_approved_for_public boolean default false` — gate
+    against accidentally surfacing thin or noisy cells
 - Cron job: aggregate `promo_rewards` into `derived_chart_cells` daily.
-- Surface on `/programs/[slug]` as a "Derived chart" section when the
-  program lacks an official published chart. Heavy caveat: "Derived
-  from N observations between [date] and [date]. Use as estimate only
-  — confirm in the program's award engine before transferring."
+- Surface on `/programs/[slug]` as a "Derived chart" section ONLY when:
+  1. The program lacks an official published chart
+  2. The cell has `sample_count >= 30`
+  3. Curator has flipped `curator_approved_for_public = true`
+- Public copy framing (curator-locked):
+  "Derived rate: ~25,000 miles (47 observations over 6 months,
+   p25–p75: 22,500–28,000). This is crazy4points' estimate — not the
+   program's published rate. Confirm in the booking engine before
+   transferring."
 - Devaluation alarm: if a freshly-observed promo's inferred baseline
   is meaningfully higher than the rolling p50, auto-create a draft
   alert (`intel_type='chart_change'`).
+
+Relationship to Option B (Phase 2):
+- Phase 2 shows ONE promo's inferred number with hedging
+- Phase 7 shows the AGGREGATE across many promos with explicit
+  sample size + percentiles
+- Both are honest; Phase 7 is just stronger evidence
 
 ### Phase 8 — Expand program coverage (~3 hrs per program)
 
@@ -511,6 +544,12 @@ Total operating cost increase: **$0** with current subscriptions.
 - ✅ **Single table model** (`promo_rewards` with embedded intel fields) — splits later only if needed
 - ✅ **Firecrawl 5000 credits/mo** subscription already in place — sufficient for full build
 - ✅ **Admin queue, no auto-publish** — curator is always the publisher
+- ✅ **Phase 2 public baseline display (Option B)** — show per-promo
+  inferred baseline as "rate ~X, currently N% off" when the source
+  labels a discount. Use the word "rate," not "rack rate."
+- ✅ **Phase 7 aggregated chart (Option C)** — derived chart cells with
+  sample size + percentiles, gated on `sample_count >= 30` AND curator
+  approval before any public surface.
 - ⏳ **Chart delta detection in Phase 3** — pending curator confirmation
 
 ---
