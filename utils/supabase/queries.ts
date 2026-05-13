@@ -254,6 +254,10 @@ export interface Program {
    *  official rates" link on the public ActivePromosSection. NULL for
    *  programs with no public chart (dynamic pricing). */
   partner_chart_url: string | null
+  /** Curator-authored override for the auto-generated "stack" callout on
+   *  /programs/[slug] Live Now hero (Migration 253). When set, replaces
+   *  the auto-computed text. NULL = use auto-generated. */
+  stack_note_override: string | null
   created_at: string
   updated_at: string
 }
