@@ -173,6 +173,169 @@ button {
   }
 }
 
+/* ── Program page tile grid ───────────────────────────────────────────
+   12-col asymmetric grid. Each tile is a <details> element; click the
+   summary to expand the body inline. Server-rendered, AI-citable.
+
+   The "pop" levers (no icons):
+     - Oversized Playfair tabular numeral bottom-left per tile (each
+       has a different number → different visual fingerprint)
+     - Index numerals top-right in gold (01, 02, ...)
+     - 24px hairline under the eyebrow encodes section type:
+         .rg-tile-eyebrow-reference  gold
+         .rg-tile-eyebrow-live       purple
+         .rg-tile-eyebrow-opinion    black
+*/
+.rg-tile-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 1.25rem;
+  margin: 0 0 4rem;
+}
+@media (max-width: 640px) {
+  .rg-tile-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+@media (min-width: 641px) and (max-width: 1024px) {
+  .rg-tile-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+  .rg-tile { grid-column: span 6 !important; }
+}
+
+.rg-tile {
+  position: relative;
+  background: #FFFFFF;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 0.75rem;
+  padding: 1.75rem 1.75rem 1.5rem;
+  min-height: clamp(180px, 22vw, 240px);
+  transition: border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+  display: flex;
+  flex-direction: column;
+}
+.rg-tile:hover {
+  border-color: var(--color-accent);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px -12px rgba(107, 45, 143, 0.15);
+}
+.rg-tile > summary {
+  list-style: none;
+  cursor: pointer;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  outline: none;
+}
+.rg-tile > summary::-webkit-details-marker {
+  display: none;
+}
+
+.rg-tile-index {
+  position: absolute;
+  top: 1rem;
+  right: 1.25rem;
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  letter-spacing: 0.18em;
+  color: var(--color-accent);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.rg-tile-eyebrow {
+  font-family: var(--font-ui);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  padding-bottom: 0.5rem;
+  width: 24px;
+  border-bottom: 1px solid var(--color-accent);
+  margin-bottom: 0.875rem;
+  white-space: nowrap;
+  overflow: visible;
+}
+.rg-tile-eyebrow-reference { border-bottom-color: var(--color-accent); }
+.rg-tile-eyebrow-live { border-bottom-color: var(--color-primary); }
+.rg-tile-eyebrow-opinion { border-bottom-color: #1A1A1A; }
+
+.rg-tile-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.375rem, 2.4vw, 1.75rem);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1.15;
+  margin: 0;
+}
+
+.rg-tile-teaser {
+  font-family: var(--font-body);
+  font-style: italic;
+  font-size: 0.9375rem;
+  color: var(--color-text-secondary);
+  line-height: 1.45;
+  margin: 0.5rem 0 0;
+  max-width: 28ch;
+}
+
+.rg-tile-stat-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-top: auto;
+  padding-top: 1rem;
+}
+.rg-tile-stat {
+  font-family: var(--font-display);
+  font-size: clamp(2.25rem, 4.5vw, 3.5rem);
+  font-weight: 700;
+  color: var(--color-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.rg-tile-stat-label {
+  font-family: var(--font-ui);
+  font-size: 0.6875rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+
+.rg-tile-toggle {
+  position: absolute;
+  bottom: 1rem;
+  right: 1.25rem;
+  font-family: var(--font-ui);
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--color-primary);
+  transition: transform 180ms ease;
+  font-weight: 300;
+}
+.rg-tile[open] .rg-tile-toggle {
+  transform: rotate(45deg);
+}
+
+.rg-tile-body {
+  border-top: 1px solid var(--color-border-soft);
+  padding-top: 1.25rem;
+  margin-top: 1.25rem;
+  background: var(--color-background-soft);
+  margin-left: -1.75rem;
+  margin-right: -1.75rem;
+  margin-bottom: -1.5rem;
+  padding-left: 1.75rem;
+  padding-right: 1.75rem;
+  padding-bottom: 1.5rem;
+  border-radius: 0 0 0.75rem 0.75rem;
+}
+
 /* Active Promos table — soft purple hover, no zebra striping
    (the Playfair miles column gives every row its own rhythm; striping
    would compete). */
