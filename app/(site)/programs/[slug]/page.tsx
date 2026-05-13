@@ -84,6 +84,7 @@ export default async function ProgramPage({
   let program
   let allAlerts: AlertWithPrograms[]
   let programNameBySlug = new Map<string, string>()
+  let homeCarrierSlugs: string[] = []
 
   try {
     const [result, allPrograms] = await Promise.all([
@@ -93,6 +94,12 @@ export default async function ProgramPage({
     program = result.program
     allAlerts = result.alerts
     programNameBySlug = new Map(allPrograms.map((p) => [p.slug, p.name]))
+    // Home carriers = programs that name THIS program as their parent
+    // (Air France / KLM → Flying Blue; BA / Iberia → BA Avios). Used by
+    // ProgramPageHero to emphasize the operator pills.
+    homeCarrierSlugs = allPrograms
+      .filter((p) => p.parent_program_slug === slug)
+      .map((p) => p.slug)
     // Hide skeleton-only rows (seeded for slug-resolution but no editorial
     // authored). The moment any field is saved in admin, content_updated_at
     // is set and the page becomes publicly accessible automatically.
@@ -257,6 +264,7 @@ export default async function ProgramPage({
                 .map((r) => [r.operating_carrier!.slug, { slug: r.operating_carrier!.slug, name: r.operating_carrier!.name }])
             ).values()
           ).sort((a, b) => a.name.localeCompare(b.name))}
+          homeCarrierSlugs={homeCarrierSlugs}
           sections={[
             ...(activePromos.length > 0 ? [{ id: 'active-promos', label: 'Active promos' }] : []),
             ...(program.intro ? [{ id: 'intro', label: 'Intro' }] : []),

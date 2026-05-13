@@ -14,6 +14,7 @@ export default function ProgramPageHero({
   activeAlertCount,
   totalAlertCount,
   partners = [],
+  homeCarrierSlugs = [],
   sections,
 }: {
   program: Program
@@ -23,6 +24,11 @@ export default function ProgramPageHero({
    *  Renders as clickable partner pills next to the alliance/hubs row.
    *  Empty array hides the partners row entirely. */
   partners?: Array<{ slug: string; name: string }>
+  /** Slugs of programs whose parent_program_slug === this program — i.e.
+   *  the "home carriers" (Air France + KLM for Flying Blue; BA + Iberia
+   *  for Avios; Alaska + Hawaiian for Atmos). Pills matching these get
+   *  a bolder treatment so the eye lands on the operator first. */
+  homeCarrierSlugs?: string[]
   sections: Array<{ id: string; label: string }>
 }) {
   const alliance = program.alliance as Alliance | null
@@ -36,15 +42,16 @@ export default function ProgramPageHero({
 
   return (
     <header style={{ marginBottom: '2rem' }}>
-      {/* Type label */}
+      {/* Type label — small, light. Tones down per 2026-05-13 audit
+          so it doesn't compete with the Playfair title below. */}
       <p
         style={{
           fontFamily: 'var(--font-ui)',
-          fontSize: '0.6875rem',
-          fontWeight: 700,
-          letterSpacing: '0.12em',
+          fontSize: '0.625rem',
+          fontWeight: 500,
+          letterSpacing: '0.14em',
           textTransform: 'uppercase',
-          color: 'var(--color-text-secondary)',
+          color: '#9CA3AF',
           marginBottom: '0.375rem',
         }}
       >
@@ -174,8 +181,8 @@ export default function ProgramPageHero({
             flexWrap: 'wrap',
             gap: '0.4rem',
             alignItems: 'center',
-            marginBottom: '1rem',
-            paddingBottom: '0.875rem',
+            marginBottom: '0.75rem',
+            paddingBottom: '0.5rem',
             borderBottom: '1px dashed var(--color-border-soft)',
           }}
         >
@@ -187,55 +194,80 @@ export default function ProgramPageHero({
               letterSpacing: '0.08em',
               textTransform: 'uppercase',
               color: 'var(--color-text-secondary)',
-              marginRight: '0.25rem',
+              marginRight: '0.125rem',
             }}
           >
             Redeems on:
           </span>
-          {partners.map((p) => (
-            <Link
-              key={p.slug}
-              href={`/programs/${p.slug}`}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                padding: '0.25rem 0.6rem',
-                fontFamily: 'var(--font-ui)',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                color: 'var(--color-text-primary)',
-                background: 'var(--color-background-soft)',
-                border: '1px solid var(--color-border-soft)',
-                borderRadius: '9999px',
-                textDecoration: 'none',
-              }}
-            >
-              {p.name}
-            </Link>
-          ))}
+          {partners.map((p) => {
+            const isHome = homeCarrierSlugs.includes(p.slug)
+            return (
+              <Link
+                key={p.slug}
+                href={`/programs/${p.slug}`}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  padding: '0.25rem 0.65rem',
+                  fontFamily: 'var(--font-ui)',
+                  fontSize: '0.75rem',
+                  fontWeight: isHome ? 700 : 600,
+                  color: isHome ? 'var(--color-primary)' : 'var(--color-text-primary)',
+                  background: isHome ? 'var(--color-background-soft)' : 'var(--color-background-soft)',
+                  border: isHome
+                    ? '1.5px solid var(--color-primary)'
+                    : '1px solid var(--color-border-soft)',
+                  borderRadius: '9999px',
+                  textDecoration: 'none',
+                }}
+              >
+                {p.name}
+              </Link>
+            )
+          })}
         </div>
       )}
 
-      {/* Active offer callout banner */}
+      {/* Active offer callout banner.
+          Per 2026-05-13 audit:
+            - Drop flame icon (locked no-icons rule)
+            - Replace yellow tint with solid antique gold (brand fit)
+            - Entire banner is the click target (already a <Link>)  */}
       {activeAlertCount > 0 && (
         <Link
           href="#alerts"
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '0.625rem',
-            padding: '0.75rem 1rem',
-            background: 'rgba(212, 175, 55, 0.12)',
+            gap: '0.75rem',
+            padding: '0.875rem 1.125rem',
+            background: 'rgba(212, 175, 55, 0.18)',
             border: '1px solid var(--color-accent)',
+            borderLeft: '4px solid var(--color-accent)',
             borderRadius: 'var(--radius-card)',
             color: 'var(--color-text-primary)',
             textDecoration: 'none',
             marginBottom: '1.25rem',
           }}
         >
-          <span style={{ fontSize: '1.125rem' }} aria-hidden="true">🔥</span>
+          <span
+            style={{
+              fontFamily: 'var(--font-ui)',
+              fontSize: '0.625rem',
+              fontWeight: 700,
+              letterSpacing: '0.16em',
+              textTransform: 'uppercase',
+              color: '#8A6D1F',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Live
+          </span>
           <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.9375rem' }}>
-            <strong>{activeAlertCount} active offer{activeAlertCount === 1 ? '' : 's'}</strong> for {program.name} — see what's live
+            <strong style={{ color: 'var(--color-text-primary)' }}>
+              {activeAlertCount} active offer{activeAlertCount === 1 ? '' : 's'}
+            </strong>{' '}
+            for {program.name} — see what&apos;s live
           </span>
           <span
             style={{
@@ -244,6 +276,7 @@ export default function ProgramPageHero({
               fontSize: '0.75rem',
               fontWeight: 700,
               color: 'var(--color-primary)',
+              whiteSpace: 'nowrap',
             }}
           >
             View →
