@@ -15,6 +15,7 @@ import type { CardExtraction } from '@/utils/cards/cardExtractionSchema'
 export async function runExtractionAndSave(formData: FormData): Promise<void> {
   const slug = String(formData.get('slug') ?? '').trim()
   const sourceUrl = String(formData.get('source_url') ?? '').trim()
+  const guideToBenefitsUrl = String(formData.get('guide_to_benefits_url') ?? '').trim() || null
   const interactive = formData.get('interactive') === 'on'
 
   if (!slug || !sourceUrl) {
@@ -25,7 +26,7 @@ export async function runExtractionAndSave(formData: FormData): Promise<void> {
   const supabase = createAdminClient()
   const { data: card, error } = await supabase
     .from('credit_cards')
-    .select('id, name, official_url')
+    .select('id, name, official_url, guide_to_benefits_url')
     .eq('slug', slug)
     .single()
 
@@ -34,21 +35,21 @@ export async function runExtractionAndSave(formData: FormData): Promise<void> {
     return
   }
 
-  // Persist the URL on the card row the first time the editor types one in
-  // (or whenever they switch to a different source URL). Means the editor
-  // never has to copy/paste it again — pre-fills on every future extraction.
-  if (sourceUrl !== card.official_url) {
-    await supabase
-      .from('credit_cards')
-      .update({ official_url: sourceUrl })
-      .eq('id', card.id)
+  // Persist the URLs on the card row the first time the editor types them
+  // in (or whenever they change). The next extraction pre-fills both fields.
+  const cardUrlUpdate: Record<string, string | null> = {}
+  if (sourceUrl !== card.official_url) cardUrlUpdate.official_url = sourceUrl
+  if (guideToBenefitsUrl !== card.guide_to_benefits_url) cardUrlUpdate.guide_to_benefits_url = guideToBenefitsUrl
+  if (Object.keys(cardUrlUpdate).length > 0) {
+    await supabase.from('credit_cards').update(cardUrlUpdate).eq('id', card.id)
   }
 
-  // 1. Extract
+  // 1. Extract — pass GoB URL when set so Sonnet sees both sources
   const extractionResult = await extractCardBenefits({
     cardId: card.id,
     cardName: card.name,
     sourceUrl,
+    guideToBenefitsUrl,
     interactive,
   })
 

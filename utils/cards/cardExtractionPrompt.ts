@@ -306,14 +306,47 @@ WHAT TO IGNORE:
  * Builds the user-message prompt for a specific card.
  *
  * @param cardName Human name ("Chase Sapphire Reserve")
- * @param sourceUrl The page being extracted (for context only)
- * @param markdown The Firecrawl markdown payload
+ * @param sourceUrl The product page being extracted
+ * @param markdown The Firecrawl markdown payload for the product page
+ * @param gob Optional Guide to Benefits PDF — provides coverage amounts and
+ *   fine print not on the product page. When present, primary source
+ *   remains the product page; GoB is secondary/supplemental.
  */
 export function buildCardExtractionUserPrompt(
   cardName: string,
   sourceUrl: string,
   markdown: string,
+  gob?: { guideToBenefitsUrl?: string | null; gobMarkdown: string },
 ): string {
+  const gobSection = gob?.gobMarkdown
+    ? `
+
+SECONDARY SOURCE — GUIDE TO BENEFITS PDF:
+The issuer publishes a Guide to Benefits document with coverage amounts and fine print not on the
+product page above. Treat this as a FALLBACK source for:
+  - Specific dollar coverage limits on insurance benefits (trip cancellation, baggage, rental car CDW)
+  - Fine print on enrollment requirements, exclusions, claim windows
+  - Coverage triggers (e.g., "trip delay > 6 hours" requirement specifics)
+
+RULES when using the GoB PDF:
+  - PRIMARY source for the benefit's EXISTENCE remains the product page above. If a benefit appears
+    in the GoB but not on the product page, only include it if the GoB explicitly attributes it to
+    THIS card (most GoBs cover multiple card types — read carefully).
+  - When you populate coverage_amount, source_quote can come from EITHER source. Quote whichever
+    source gives the clearest verbatim citation.
+  - Set metadata.coverage_source = 'product_page' or 'guide_to_benefits' so the editor can audit.
+  - If the GoB says a benefit is "secondary" coverage but the product page says "primary", trust
+    the more-specific source (usually the GoB) and note the discrepancy in extraction_warnings.
+
+GoB URL: ${gob.guideToBenefitsUrl ?? '(local document)'}
+
+GUIDE TO BENEFITS MARKDOWN:
+---
+${gob.gobMarkdown}
+---`
+    : ''
+
+
   return `Extract the credit card facts from the page below into the strict JSON schema.
 
 Card: ${cardName}
@@ -380,10 +413,10 @@ Return ONE JSON object with this exact top-level shape:
 
 For "intro": write a 1-2 sentence editorial summary of the card based on what you extracted. Sassy, points-and-miles audience voice; never robotic. source_quote can be null since this is editorial.
 
-MARKDOWN:
+PRIMARY SOURCE — PRODUCT PAGE MARKDOWN:
 ---
 ${markdown}
----
+---${gobSection}
 
 Return the JSON object now.`
 }

@@ -39,7 +39,7 @@ export default async function CardExtractPage({
     .select(`
       id, slug, name, card_type, card_tier, status,
       annual_fee_usd, foreign_transaction_fee_pct,
-      official_url,
+      official_url, guide_to_benefits_url,
       intro, last_verified,
       issuer:issuers(slug, name, website_url)
     `)
@@ -59,7 +59,7 @@ export default async function CardExtractPage({
   // Most recent extraction's full JSON (for inline review).
   const { data: latest } = await supabase
     .from('credit_card_extractions')
-    .select('id, source_url, extraction, status, created_at, saved_at, error_message, raw_markdown, markdown_chars')
+    .select('id, source_url, extraction, status, created_at, saved_at, error_message, raw_markdown, markdown_chars, gob_markdown, gob_chars')
     .eq('card_id', card.id)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -110,6 +110,12 @@ export default async function CardExtractPage({
             No product URL stored for this card yet. Paste one in the form below — it will pre-fill on every future extraction once saved by the action.
           </p>
         )}
+        {card.guide_to_benefits_url ? (
+          <p className="mt-1 font-body text-xs text-[var(--color-text-secondary)]">
+            <span className="font-ui uppercase tracking-wide">Stored Guide to Benefits PDF:</span>{' '}
+            <a className="text-[var(--color-primary)] underline" href={card.guide_to_benefits_url} target="_blank" rel="noreferrer">{card.guide_to_benefits_url}</a>
+          </p>
+        ) : null}
       </header>
 
       {/* Run extraction form */}
@@ -144,6 +150,19 @@ export default async function CardExtractPage({
             <span>
               <strong className="text-[var(--color-text-primary)]">Interactive mode</strong> — expand accordions, click &ldquo;Show more&rdquo;, open all <code className="font-mono text-xs">{`<details>`}</code>. Adds ~5 sec. Use for Citi, US Bank, Wells Fargo pages that hide benefits behind accordions.
             </span>
+          </label>
+          <label className="flex flex-col">
+            <span className="block font-ui text-xs uppercase tracking-wide text-[var(--color-text-secondary)]">
+              Guide to Benefits PDF URL <span className="normal-case text-[var(--color-text-secondary)]">(optional — surfaces coverage amounts & fine print)</span>
+            </span>
+            <input
+              name="guide_to_benefits_url"
+              type="url"
+              defaultValue={card.guide_to_benefits_url ?? ''}
+              placeholder="https://static.chasecdn.com/content/services/structured-document/...BGC11388.pdf"
+              className="mt-1 w-full rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-white px-3 py-2 font-body text-base"
+              style={{ fontSize: '1rem' }}
+            />
           </label>
         </form>
       </section>
@@ -199,6 +218,21 @@ export default async function CardExtractPage({
               </p>
               <pre className="mt-3 max-h-[600px] overflow-auto whitespace-pre-wrap rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] p-3 font-mono text-xs text-[var(--color-text-primary)]">
                 {latest.raw_markdown}
+              </pre>
+            </details>
+          ) : null}
+
+          {latest.gob_markdown ? (
+            <details className="mt-3 rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-white p-4">
+              <summary className="cursor-pointer font-ui text-sm font-medium text-[var(--color-primary)]">
+                View raw Guide to Benefits PDF markdown ({latest.gob_chars?.toLocaleString() ?? '?'} chars)
+              </summary>
+              <p className="mt-2 font-body text-xs text-[var(--color-text-secondary)]">
+                Firecrawl auto-detects PDFs and returns clean markdown. This is the supplemental
+                source Sonnet uses to surface coverage amounts and fine print not on the product page.
+              </p>
+              <pre className="mt-3 max-h-[600px] overflow-auto whitespace-pre-wrap rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] p-3 font-mono text-xs text-[var(--color-text-primary)]">
+                {latest.gob_markdown}
               </pre>
             </details>
           ) : null}

@@ -26,6 +26,11 @@ const MODEL = 'claude-sonnet-4-6'
 // Sonnet handles up to 200K context; cost is what matters.
 const MARKDOWN_CHAR_LIMIT = 40_000
 
+// Separate limit for the Guide to Benefits PDF — they tend to be much longer
+// (50K+ chars) and contain detailed insurance fine print. Cap higher because
+// the GoB is the source of truth for coverage amounts.
+const GOB_MARKDOWN_CHAR_LIMIT = 80_000
+
 export type ExtractionResult =
   | { ok: true; extractionId: string; extraction: CardExtraction }
   | { ok: false; error: string }
@@ -34,11 +39,19 @@ export async function extractCardBenefits({
   cardId,
   cardName,
   sourceUrl,
+  guideToBenefitsUrl,
   interactive = false,
 }: {
   cardId: string
   cardName: string
   sourceUrl: string
+  /**
+   * Optional secondary source — issuer's Guide to Benefits PDF. When set,
+   * Firecrawl scrapes the PDF (it auto-detects and returns clean markdown)
+   * and the combined product-page + GoB markdown is passed to Sonnet.
+   * Surfaces coverage amounts and fine print not on the marketing page.
+   */
+  guideToBenefitsUrl?: string | null
   /**
    * When true, runs Firecrawl with EXPAND_EVERYTHING_ACTIONS — opens all
    * <details>, clicks Show more/View all/Expand buttons, toggles aria-expanded
@@ -54,6 +67,22 @@ export async function extractCardBenefits({
   const markdown = interactive
     ? await fetchFirecrawlInteractive(sourceUrl, { maxChars: MARKDOWN_CHAR_LIMIT })
     : await fetchFirecrawl(sourceUrl, { maxChars: MARKDOWN_CHAR_LIMIT })
+
+  // 1b. If a Guide to Benefits PDF is configured, scrape it in parallel.
+  // Firecrawl auto-detects PDFs and returns markdown — no special endpoint
+  // needed, just pass the PDF URL to /scrape. We don't block on failure —
+  // GoB is supplemental, primary source is the product page.
+  let gobMarkdown = ''
+  if (guideToBenefitsUrl) {
+    gobMarkdown = await fetchFirecrawl(guideToBenefitsUrl, {
+      maxChars: GOB_MARKDOWN_CHAR_LIMIT,
+      // PDFs sometimes take longer to parse than regular HTML pages
+      timeoutMs: 60_000,
+    })
+    if (!gobMarkdown) {
+      console.warn('[card-extract] Guide to Benefits PDF scrape returned empty:', guideToBenefitsUrl)
+    }
+  }
   if (!markdown) {
     await supabase.from('credit_card_extractions').insert({
       card_id: cardId,
@@ -74,6 +103,15 @@ export async function extractCardBenefits({
 
   const client = new Anthropic({ apiKey })
 
+  // Build the user prompt — appends GoB PDF markdown as supplemental source
+  // when present. Primary source remains the product page.
+  const userPrompt = buildCardExtractionUserPrompt(
+    cardName,
+    sourceUrl,
+    markdown,
+    gobMarkdown ? { guideToBenefitsUrl, gobMarkdown } : undefined,
+  )
+
   let response
   try {
     response = await client.messages.create({
@@ -86,7 +124,7 @@ export async function extractCardBenefits({
       messages: [
         {
           role: 'user',
-          content: buildCardExtractionUserPrompt(cardName, sourceUrl, markdown),
+          content: userPrompt,
         },
       ],
     })
@@ -97,6 +135,8 @@ export async function extractCardBenefits({
       source_url: sourceUrl,
       raw_markdown: markdown,
       markdown_chars: markdown.length,
+      gob_markdown: gobMarkdown || null,
+      gob_chars: gobMarkdown ? gobMarkdown.length : null,
       used_interactive: interactive,
       extraction: {},
       model: MODEL,
@@ -141,6 +181,8 @@ export async function extractCardBenefits({
       source_url: sourceUrl,
       raw_markdown: markdown,
       markdown_chars: markdown.length,
+      gob_markdown: gobMarkdown || null,
+      gob_chars: gobMarkdown ? gobMarkdown.length : null,
       used_interactive: interactive,
       extraction: { raw: rawText, stop_reason: stopReason },
       model: MODEL,
@@ -176,6 +218,8 @@ export async function extractCardBenefits({
       source_url: sourceUrl,
       raw_markdown: markdown,
       markdown_chars: markdown.length,
+      gob_markdown: gobMarkdown || null,
+      gob_chars: gobMarkdown ? gobMarkdown.length : null,
       used_interactive: interactive,
       extraction,
       model: MODEL,
