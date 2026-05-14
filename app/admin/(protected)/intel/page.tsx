@@ -273,11 +273,6 @@ function IntelCard({ item }: { item: IntelItem }) {
           )}
           {!staged && !rejected && (
             <>
-              <form action={promoteIntelAction.bind(null, item.id)}>
-                <button type="submit" className="admin-btn admin-btn-primary admin-btn-sm">
-                  Promote to alert
-                </button>
-              </form>
               <form action={rejectIntelAction.bind(null, item.id)}>
                 <button type="submit" className="admin-btn admin-btn-ghost admin-btn-sm">Reject</button>
               </form>
@@ -328,6 +323,79 @@ function IntelCard({ item }: { item: IntelItem }) {
             {item.raw_text}
           </div>
         </details>
+      )}
+
+      {/* Writer redesign — promote-with-T&Cs form. Pasting verified terms
+          (or supplying a waiver reason) up front means the writer sees them
+          on the very first draft, not after a regenerate. */}
+      {!staged && !rejected && (
+        <form
+          action={promoteIntelAction.bind(null, item.id)}
+          style={{
+            marginTop: '0.75rem',
+            padding: '0.75rem',
+            background: 'var(--admin-surface-alt)',
+            borderRadius: 'var(--admin-radius)',
+            display: 'grid',
+            gap: '0.625rem',
+          }}
+        >
+          <div
+            style={{
+              fontFamily: 'var(--font-ui)',
+              fontSize: '0.6875rem',
+              fontWeight: 700,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              color: 'var(--admin-text-muted)',
+            }}
+          >
+            Promote to alert
+          </div>
+          <label style={{ display: 'block' }}>
+            <span
+              style={{
+                display: 'block',
+                fontSize: '0.75rem',
+                color: 'var(--admin-text-muted)',
+                marginBottom: '0.25rem',
+              }}
+            >
+              Verified T&Cs (paste full official terms — writer treats as ground truth)
+            </span>
+            <textarea
+              name="verified_terms"
+              rows={3}
+              placeholder="Paste official program T&Cs / press release here, or leave blank and supply a waiver reason below."
+              className="admin-input"
+              style={{ width: '100%', fontFamily: 'var(--font-body)', fontSize: '0.8125rem' }}
+            />
+          </label>
+          <label style={{ display: 'block' }}>
+            <span
+              style={{
+                display: 'block',
+                fontSize: '0.75rem',
+                color: 'var(--admin-text-muted)',
+                marginBottom: '0.25rem',
+              }}
+            >
+              OR waiver reason (only if shipping without verified terms)
+            </span>
+            <textarea
+              name="terms_waived_reason"
+              rows={2}
+              placeholder="e.g. Developing — terms not yet public. Surfaces 'terms unverified' on the public alert."
+              className="admin-input"
+              style={{ width: '100%', fontFamily: 'var(--font-body)', fontSize: '0.8125rem' }}
+            />
+          </label>
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button type="submit" className="admin-btn admin-btn-primary admin-btn-sm">
+              Promote to alert
+            </button>
+          </div>
+        </form>
       )}
     </div>
   )
