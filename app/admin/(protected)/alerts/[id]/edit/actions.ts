@@ -59,6 +59,8 @@ export async function updateAlertAction(
     const history_note = (formData.get('history_note') as string) || null
     const verified_terms_raw = (formData.get('verified_terms') as string)?.trim() || ''
     const verified_terms = verified_terms_raw.length > 0 ? verified_terms_raw : null
+    const terms_waived_reason_raw = (formData.get('terms_waived_reason') as string)?.trim() || ''
+    const terms_waived_reason = terms_waived_reason_raw.length > 0 ? terms_waived_reason_raw : null
     const why_this_matters = (formData.get('why_this_matters') as string)?.trim() || null
     const override_reason = (formData.get('override_reason') as string)?.trim() || null
     const confidence_level = formData.get('confidence_level') as ConfidenceLevel
@@ -115,6 +117,7 @@ export async function updateAlertAction(
       is_hot,
       gaps: mergedGaps,
       verified_terms,
+      terms_waived_reason,
     }
     const alert = await updateAlert(supabase, id, alertData)
 

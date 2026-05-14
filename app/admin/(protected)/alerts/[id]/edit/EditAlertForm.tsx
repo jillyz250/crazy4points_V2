@@ -1,12 +1,18 @@
 'use client'
 
 import { updateAlertAction } from './actions'
+import { overrideAndPublishAlertAction } from '../../actions'
 import type { Alert, Program } from '@/utils/supabase/queries'
+import type { GateReport } from '@/utils/alerts/publishGates'
+import type { AlertOverrideRow } from '@/utils/supabase/alertOverrides'
 import FactCheckWarnings from '@/components/admin/FactCheckWarnings'
 import AlertGapsBanner from '@/components/admin/AlertGapsBanner'
 import QuickFixVoiceButton from '@/components/admin/QuickFixVoiceButton'
 import RunAllChecksAlertButton from '@/components/admin/RunAllChecksAlertButton'
 import ShortUrlCopy from '@/components/admin/ShortUrlCopy'
+import PublishGatesBanner from '@/components/admin/PublishGatesBanner'
+import OverridePublishButton from '@/components/admin/OverridePublishButton'
+import AlertOverridesLog from '@/components/admin/AlertOverridesLog'
 import { Badge } from '@/components/admin/ui/Badge'
 import { ALERT_TYPES, ACTION_TYPES } from '@/lib/admin/alertTypes'
 import TextField from '@/components/admin/form/TextField'
@@ -40,9 +46,17 @@ interface Props {
   alert: Alert
   programs: Pick<Program, 'id' | 'name' | 'type'>[]
   taggedProgramIds: string[]
+  gates: GateReport
+  overrides: AlertOverrideRow[]
 }
 
-export default function EditAlertForm({ alert, programs, taggedProgramIds }: Props) {
+export default function EditAlertForm({
+  alert,
+  programs,
+  taggedProgramIds,
+  gates,
+  overrides,
+}: Props) {
   const { error, submitting, handleSubmit } = useActionForm({
     action: (fd) => updateAlertAction(alert.id, fd),
     redirectOnSuccess: '/admin/alerts',
@@ -58,6 +72,19 @@ export default function EditAlertForm({ alert, programs, taggedProgramIds }: Pro
       {/* Shareable short URL for social posts (only when published + slug set). */}
       {alert.status === 'published' && alert.short_slug && (
         <ShortUrlCopy shortSlug={alert.short_slug} />
+      )}
+
+      {/* Writer-redesign — publish gates (T&Cs · Fact-check · Voice) + audit log. */}
+      <PublishGatesBanner gates={gates} />
+      <AlertOverridesLog overrides={overrides} />
+      {(alert.status === 'draft' || alert.status === 'pending_review') && !gates.canPublish && (
+        <div style={{ marginBottom: '1.25rem' }}>
+          <OverridePublishButton
+            alertId={alert.id}
+            gates={gates}
+            action={overrideAndPublishAlertAction}
+          />
+        </div>
       )}
 
       {/* Phase 5b — verification pills + one-click pipeline. Mirrors the blog
@@ -217,6 +244,13 @@ export default function EditAlertForm({ alert, programs, taggedProgramIds }: Pro
         rows={6}
         placeholder="Paste full T&Cs, press release, or official FAQ here. The writer treats this as ground truth on regenerate and extracts every promo-term field as a real bullet — overrides raw_text on conflict. Cuts the per-field gap-fill workflow."
         defaultValue={alert.verified_terms ?? ''}
+      />
+      <TextAreaField
+        name="terms_waived_reason"
+        label="T&Cs Waiver Reason (only if shipping without verified terms)"
+        rows={2}
+        placeholder="e.g. Developing — terms not yet public, sourced from carrier press release. Surfaces a 'terms unverified' badge on the public alert."
+        defaultValue={alert.terms_waived_reason ?? ''}
       />
       <AlertGapsBanner gaps={alert.gaps} />
       <TextAreaField name="description" label="Description" rows={4} defaultValue={alert.description ?? ''} />
