@@ -187,28 +187,14 @@ export async function GET(req: NextRequest) {
     // "Historical Context" box on the public alert page. Filtered to alerts
     // whose end_date is in the future (or null = evergreen) so we don't show
     // expired deals as "context" and mislead the reader. Sorted newest-first.
-    let historyNote: string | null = null
-    if (primaryProgramId) {
-      const today = new Date().toISOString()
-      const { data: recent } = await supabase
-        .from('alerts')
-        .select('title, published_at, type, end_date')
-        .eq('status', 'published')
-        .eq('primary_program_id', primaryProgramId)
-        .or(`end_date.gte.${today},end_date.is.null`)
-        .order('published_at', { ascending: false })
-        .limit(3)
-
-      if (recent && recent.length > 0) {
-        const lines = recent.map((a) => {
-          const date = a.published_at
-            ? new Date(a.published_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-            : 'unknown date'
-          return `• ${a.title} (${date})`
-        })
-        historyNote = `Recent alerts for this program:\n${lines.join('\n')}`
-      }
-    }
+    // history_note is reserved for editorial historical context — short
+    // human-written notes like "Last sale was 50% in November 2025". It
+    // surfaces on the public alert page as "Historical Context". Scout
+    // used to auto-fill this with cross-promo ("Recent alerts for this
+    // program: …") which (a) duplicated the active-alerts surfaces on
+    // the program page and (b) misnamed the data as history. Field now
+    // starts null and is admin-editable only.
+    const historyNote: string | null = null
 
     const slug = `intel-${item.id.slice(0, 8)}-${Date.now()}`
     const { data: alert, error: alertError } = await supabase
