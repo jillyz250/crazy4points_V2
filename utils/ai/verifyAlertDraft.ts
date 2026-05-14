@@ -434,6 +434,42 @@ When extra_context is absent, empty, or whitespace-only, ignore this
 section.
 
 ═══════════════════════════════════════════════════════════
+MATH CONSISTENCY (constraint reasoning on derived numbers)
+═══════════════════════════════════════════════════════════
+
+Single-claim grounding is not enough for derived numbers. When the
+draft states a TOTAL, MAX, CAP, EFFECTIVE-RATE, or any number that
+combines two or more source figures, you MUST:
+
+1. Identify the source figures the claim combines.
+2. Identify EVERY constraint clause in SOURCE_TEXT / verified_terms
+   that limits how those figures interact. Specifically watch for:
+   • "X counts toward Y" / "X applies to Y" / "X is included in Y"
+   • "subject to" + a limit
+   • "Combined", "aggregate", "total", "rolling" + a limit
+3. Check whether the draft's derived number respects ALL constraints.
+4. If the constraint clause is ignored, the claim is supported=false,
+   severity="high", source_excerpt = the clause being violated.
+
+Specific failure pattern to flag:
+Source: "50,000-mile 90-day cap. Bonus miles count toward this cap.
+Up to 100% bonus available."
+
+WRONG derived claim: "50,000 base + 100% bonus = 100,000 total miles
+in 90 days."
+
+Why it's wrong: the source's "bonus counts toward the 50K cap" clause
+says the 50K IS the total. At 100% bonus, max purchase is 25,000 base
++ 25,000 bonus = 50,000 total — not 100,000. Mark this kind of claim
+supported=false, severity=high, source_excerpt = "Bonus miles count
+toward the 50,000-mile rolling 90-day limit."
+
+This applies anywhere the draft does arithmetic: max purchase totals,
+effective cost-per-mile calculations, cap interactions, stacking math.
+Single facts can be correct individually but derived from them
+incorrectly. Catch the derivation, not just the facts.
+
+═══════════════════════════════════════════════════════════
 SEVERITY
 ═══════════════════════════════════════════════════════════
 
