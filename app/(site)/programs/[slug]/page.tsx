@@ -267,6 +267,7 @@ export default async function ProgramPage({
             see is what's hot RIGHT NOW. Bars auto-hide when no signals. */}
         <LiveBarsHero
           programName={program.name}
+          programType={program.type}
           transferBonus={liveTransferBonuses[0] ?? null}
           otherAlerts={liveOtherAlerts}
           promosCount={activePromos.length}

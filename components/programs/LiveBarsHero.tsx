@@ -26,9 +26,21 @@ export const OTHER_LIVE_TYPES: AlertType[] = [
   'devaluation',
 ]
 
-const OTHER_TYPE_LABEL: Record<string, string> = {
+/**
+ * Label for the live-bar category eyebrow. `point_purchase` swaps between
+ * "Buy Miles" (airline / loyalty_program) and "Buy Points" (hotel + others)
+ * since the currency word is reader-facing and program-specific.
+ */
+function liveBarLabel(alertType: string, programType: string | null): string {
+  if (alertType === 'point_purchase') {
+    const isAirline = programType === 'airline' || programType === 'loyalty_program'
+    return isAirline ? 'Buy Miles' : 'Buy Points'
+  }
+  return STATIC_LABEL[alertType] ?? alertType
+}
+
+const STATIC_LABEL: Record<string, string> = {
   limited_time_offer: 'Limited Offer',
-  point_purchase: 'Buy Points',
   award_availability: 'Award Availability',
   award_sale: 'Award Sale',
   status_promo: 'Status Promo',
@@ -37,6 +49,7 @@ const OTHER_TYPE_LABEL: Record<string, string> = {
 
 export default function LiveBarsHero({
   programName,
+  programType,
   transferBonus,
   otherAlerts = [],
   promosCount,
@@ -44,6 +57,8 @@ export default function LiveBarsHero({
   promosChildren,
 }: {
   programName: string
+  /** Program.type — drives the "Buy Miles" vs "Buy Points" label swap. */
+  programType: string | null
   /** Single active transfer_bonus alert targeting this program, if any. */
   transferBonus: AlertWithPrograms | null
   /** Other urgent alerts where this program is primary. Limit handled by caller. */
@@ -92,7 +107,7 @@ export default function LiveBarsHero({
         >
           <span className="rg-live-bar-tag">Live</span>
           <span className="rg-live-bar-category">
-            {OTHER_TYPE_LABEL[alert.type] ?? alert.type}
+            {liveBarLabel(alert.type, programType)}
           </span>
           <span className="rg-live-bar-content">
             <strong>{alert.title}</strong>
