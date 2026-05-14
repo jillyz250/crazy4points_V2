@@ -17,6 +17,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { writeAlertDraft } from '@/utils/ai/writeAlertDraft'
 import { editAlertDraft } from '@/utils/ai/editAlertDraft'
 import { writeEditCheck } from '@/utils/ai/writeEditCheck'
+import { buildExtraContext } from '@/utils/ai/buildExtraContext'
 import { verifyAlertDraft, webVerifyClaims, type VerifyClaim } from '@/utils/ai/verifyAlertDraft'
 import { isSupported } from '@/utils/ai/claimStatus'
 import { buildProgramReferenceForDraft } from '@/utils/ai/programReferenceData'
@@ -388,188 +389,33 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
     summary: (r.summary as string) ?? '',
   }))
 
-  // Build extra_context from public Page content on each tagged program
-  // (intro / transfer partners / how to spend / sweet spots / tiers /
-  // lounge access / quirks). The writer treats this as authoritative —
-  // more trustworthy than raw_text. Programs without Page content
-  // contribute nothing; the writer falls back to raw_text for them.
+  // Resolve the intel-tagged programs (kept for downstream use in primary/
+  // secondary ID lookup, alliance context, etc.). The actual extra_context
+  // construction is delegated to buildExtraContext below — same util used
+  // by build-brief on first drafts, so regenerate and first-draft stay in
+  // sync.
   const intelProgramSlugs = (intel.programs as string[] | null) ?? []
   const intelPrograms = intelProgramSlugs
     .map((slug) => programBySlug.get(slug))
     .filter((p): p is typeof allPrograms[number] => !!p)
 
-  function buildProgramContext(p: typeof allPrograms[number]): string | null {
-    const parts: string[] = []
-    if (p.intro?.trim()) parts.push(`#### About\n${p.intro.trim()}`)
-    if ((p.transfer_partners?.length ?? 0) > 0) {
-      const lines = p.transfer_partners!
-        .map((row) => {
-          const r = row as Record<string, unknown>
-          const slug = typeof r.from_slug === 'string' ? r.from_slug : '?'
-          const ratio = typeof r.ratio === 'string' ? r.ratio : '?'
-          const notes = typeof r.notes === 'string' ? ` — ${r.notes}` : ''
-          const bonus = r.bonus_active === true ? '  🔥 BONUS ACTIVE' : ''
-          return `- ${slug} → ${ratio}${notes}${bonus}`
-        })
-        .join('\n')
-      parts.push(`#### Transfer partners (inbound to ${p.name})\n${lines}`)
-    }
-    if (p.how_to_spend?.trim()) parts.push(`#### How to spend miles\n${p.how_to_spend.trim()}`)
-    if (p.sweet_spots?.trim()) parts.push(`#### Sweet spots\n${p.sweet_spots.trim()}`)
-    if ((p.tier_benefits?.length ?? 0) > 0) {
-      const lines = p.tier_benefits!
-        .map((row) => {
-          const r = row as Record<string, unknown>
-          const name = typeof r.name === 'string' ? r.name : '?'
-          const qual = typeof r.qualification === 'string' ? r.qualification : ''
-          const benefits = Array.isArray(r.benefits)
-            ? (r.benefits as unknown[]).filter((b): b is string => typeof b === 'string')
-            : []
-          const qualPart = qual ? ` (${qual})` : ''
-          const bensPart = benefits.length ? `: ${benefits.join('; ')}` : ''
-          return `- ${name}${qualPart}${bensPart}`
-        })
-        .join('\n')
-      parts.push(`#### Elite tiers & benefits\n${lines}`)
-    }
-    if (p.lounge_access?.trim()) parts.push(`#### Lounge access\n${p.lounge_access.trim()}`)
-    if (p.quirks?.trim()) parts.push(`#### Tips & quirks\n${p.quirks.trim()}`)
-    return parts.length > 0 ? parts.join('\n\n') : null
-  }
-
-  const programSections = intelPrograms
-    .map((p) => {
-      const ctx = buildProgramContext(p)
-      return ctx ? `### ${p.name}\n\n${ctx}` : null
-    })
-    .filter((s): s is string => !!s)
-
-  // Phase 6a — surface currently-active alerts that involve any of the tagged
-  // programs, split into two blocks:
-  //   1. Active transfer bonuses (highest stack value — readers can use the
-  //      bonus to amplify any other play)
-  //   2. Other active offers — LTO / award_availability / status_promo /
-  //      point_purchase / award_sale (the "kick-ass alert combine" path —
-  //      e.g. Flying Blue 10K bonus + Chase→FB 20% transfer bonus stacks)
-  //
-  // The split lets the writer prompt give clear guidance: lead with the
-  // transfer bonus when present, weave the other active offer as a stack
-  // opportunity. Excludes the current alert under regeneration so the writer
-  // doesn't try to reference itself.
-  let activeBonusBlock = ''
-  if (intelPrograms.length > 0) {
-    const programIds = intelPrograms.map((p) => p.id)
-    const today = new Date().toISOString()
-
-    // Common selector — same shape used by both queries.
-    const SELECT_COLS = 'id, slug, title, end_date, type, primary_program_id, alert_programs!inner(program_id)'
-    const byId = new Map(intelPrograms.map((p) => [p.id, p.name]))
-    const formatRow = (row: Record<string, unknown>): string => {
-      const programName = (row.primary_program_id && byId.get(row.primary_program_id as string)) ?? '?'
-      const ends = row.end_date
-        ? ` (ends ${new Date(row.end_date as string).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})`
-        : ''
-      const slug = (row.slug as string | null) ?? null
-      const slugRef = slug ? ` [/alerts/${slug}]` : ''
-      const typeTag = row.type ? ` — ${row.type}` : ''
-      return `- ${row.title}${ends} — primary program: ${programName}${typeTag}${slugRef}`
-    }
-
-    // Block 1 — active transfer bonuses
-    const { data: bonusAlertRows } = await supabase
-      .from('alerts')
-      .select(SELECT_COLS)
-      .eq('type', 'transfer_bonus')
-      .eq('status', 'published')
-      .neq('id', alertId)
-      .or(`end_date.gte.${today},end_date.is.null`)
-      .in('alert_programs.program_id', programIds)
-      .order('end_date', { ascending: true, nullsFirst: false })
-      .limit(8)
-    const bonusLines = (bonusAlertRows ?? []).map((r) => formatRow(r as Record<string, unknown>))
-
-    // Block 2 — other active stack-eligible offers
-    const STACKABLE_TYPES = [
-      'limited_time_offer',
-      'award_availability',
-      'status_promo',
-      'point_purchase',
-      'award_sale',
-    ]
-    const { data: otherAlertRows } = await supabase
-      .from('alerts')
-      .select(SELECT_COLS)
-      .in('type', STACKABLE_TYPES)
-      .eq('status', 'published')
-      .neq('id', alertId)
-      .or(`end_date.gte.${today},end_date.is.null`)
-      .in('alert_programs.program_id', programIds)
-      .order('end_date', { ascending: true, nullsFirst: false })
-      .limit(6)
-    const otherLines = (otherAlertRows ?? []).map((r) => formatRow(r as Record<string, unknown>))
-
-    const blocks: string[] = []
-    if (bonusLines.length > 0) {
-      blocks.push(
-        `### Active transfer bonuses involving these programs\n\n` +
-          bonusLines.join('\n') +
-          `\n\n_When relevant, lead the call-to-action with one of these (link the slug)._`
-      )
-    }
-    if (otherLines.length > 0) {
-      blocks.push(
-        `### Other active offers for these programs (stack or alternative-path candidates)\n\n` +
-          otherLines.join('\n') +
-          `\n\n_REDEEM-SIDE alerts (transfer_bonus, award_availability, award_sale, sweet_spot, companion_pass): if one of these naturally complements this alert, weave the stack play into paragraph 2 or 3 — name it, link the slug, and quantify the combined value when you can. Don't force it if the connection is weak._` +
-          `\n\n_EARN-SIDE alerts (paid-fare bonus, dining, portal, status promo, signup, point_purchase): do NOT frame these as stacks — earn and redeem paths are mutually exclusive for one trip. Instead follow the ALTERNATIVE PATH CLOSE rule in the system prompt (one italicized line at the end of the description)._`
-      )
-    }
-    if (blocks.length > 0) activeBonusBlock = blocks.join('\n\n')
-  }
-
-  // Verified gap fields — admin-supplied values for fields the writer
-  // previously flagged as unknown. Feeds back to the writer so it can
-  // surface them as real bullets in the new draft. Unfilled gaps stay
-  // out of the body entirely (only-verified-ships rule).
+  // Preserve existing gaps for the merge logic later in this function.
   const existingGaps: AlertGap[] = Array.isArray(alert.gaps)
     ? (alert.gaps as AlertGap[]).filter(
         (g) => g && typeof g === 'object' && typeof g.field === 'string'
       )
     : []
-  const filledGaps = existingGaps.filter(
-    (g) => typeof g.filled === 'string' && g.filled.trim().length > 0
-  )
-  let verifiedGapBlock = ''
-  if (filledGaps.length > 0) {
-    const lines = filledGaps.map((g) => `- **${g.field}:** ${g.filled!.trim()}`)
-    verifiedGapBlock =
-      `### Verified gap fields (admin-supplied — include as bullets)\n\n` +
-      lines.join('\n') +
-      `\n\n_These were flagged as unknown on a prior draft; admin filled them in. Surface each as a real bullet in the "What qualifies" block. Remove from gaps_acknowledged in your output._`
-  }
 
-  // Verified official terms — admin-pasted authoritative source text.
-  // Highest authority in extra_context: writer treats as ground truth and
-  // extracts every applicable promo term as a real bullet, overriding
-  // raw_text on conflict. Goes FIRST so the writer reads it before any
-  // other context.
+  // Build the writer payload: program Page content + concurrent active
+  // offers + verified T&Cs + admin-filled gap values. Shared with first-
+  // draft path in app/api/build-brief.
   const verifiedTermsRaw = (alert.verified_terms as string | null) ?? null
-  const verifiedTermsBlock =
-    verifiedTermsRaw && verifiedTermsRaw.trim().length > 0
-      ? `### VERIFIED OFFICIAL TERMS (authoritative — overrides raw_text on conflict)\n\n` +
-        verifiedTermsRaw.trim() +
-        `\n\n_The text above is the program's own published terms. Treat as ground truth. Extract every applicable promo-term field (booking window, travel window, eligibility, exclusions, routing, registration, etc.) as a real bullet in the description. Only list a field in gaps_acknowledged if it is genuinely absent from BOTH this block AND the source article._`
-      : ''
-
-  const ctxParts: string[] = []
-  if (verifiedTermsBlock) ctxParts.push(verifiedTermsBlock)
-  if (programSections.length) ctxParts.push(programSections.join('\n\n---\n\n'))
-  if (activeBonusBlock) ctxParts.push(activeBonusBlock)
-  if (verifiedGapBlock) ctxParts.push(verifiedGapBlock)
-  const extra_context = ctxParts.length > 0 ? ctxParts.join('\n\n---\n\n') : null
-  const faq_program_slugs = intelPrograms
-    .filter((p) => buildProgramContext(p) !== null)
-    .map((p) => p.slug)
+  const { extra_context, faq_program_slugs } = await buildExtraContext(supabase, {
+    programSlugs: intelProgramSlugs,
+    verifiedTerms: verifiedTermsRaw,
+    filledGaps: existingGaps,
+    excludeAlertId: alertId,
+  })
 
   // Fetch alliance context once for both writer + fact-checker passes.
   // Reads programs.alliance for each tagged program; if any belong to
