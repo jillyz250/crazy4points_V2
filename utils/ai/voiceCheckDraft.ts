@@ -15,12 +15,8 @@
  * again; cap at 1 retry).
  */
 import Anthropic from '@anthropic-ai/sdk'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { logUsage } from './logUsage'
-
-const PERSONA_PATH = join(process.cwd(), 'utils/ai/personas/c4p-writer.md')
-const C4P_WRITER_PERSONA = readFileSync(PERSONA_PATH, 'utf8')
+import { C4P_WRITER_PERSONA } from './personas/c4pWriter'
 
 export interface VoiceCheckInput {
   title: string
