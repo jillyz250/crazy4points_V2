@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import {
   saveAndRunAllChecksAction,
   saveTermsAndRegenerateAction,
+  factCheckAlertAction,
   voiceCheckAlertAction,
   originalityCheckAlertAction,
   type AlertPipelineResult,
@@ -38,7 +39,7 @@ type Status = { kind: 'ok' | 'err'; text: string } | null
  */
 export default function PipelineActionsPanel({ alertId }: Props) {
   const router = useRouter()
-  const [busy, setBusy] = useState<'full' | 'regen' | 'voice' | 'orig' | null>(null)
+  const [busy, setBusy] = useState<'full' | 'regen' | 'facts' | 'voice' | 'orig' | null>(null)
   const [status, setStatus] = useState<Status>(null)
   const [, startTransition] = useTransition()
 
@@ -105,6 +106,25 @@ export default function PipelineActionsPanel({ alertId }: Props) {
       const { verifiedTerms, waiverReason } = readTermsFromForm()
       const res = await saveTermsAndRegenerateAction(alertId, verifiedTerms, waiverReason)
       setStatus(res.ok ? { kind: 'ok', text: 'Regenerated ✓' } : { kind: 'err', text: res.error ?? 'failed' })
+      setBusy(null)
+      if (res.ok) reloadAfterMutation()
+    })
+  }
+
+  function runFactCheck() {
+    setStatus(null)
+    setBusy('facts')
+    startTransition(async () => {
+      const res = await factCheckAlertAction(alertId)
+      if (!res.ok) setStatus({ kind: 'err', text: res.error })
+      else {
+        setStatus({
+          kind: res.flagged === 0 ? 'ok' : 'err',
+          text: res.flagged === 0
+            ? 'Fact-check ✓'
+            : `${res.flagged} flagged of ${res.total}`,
+        })
+      }
       setBusy(null)
       if (res.ok) reloadAfterMutation()
     })
@@ -203,6 +223,15 @@ export default function PipelineActionsPanel({ alertId }: Props) {
             className="admin-btn admin-btn-ghost admin-btn-sm"
           >
             {busy === 'regen' ? 'Regenerating…' : '↻ Save & regenerate'}
+          </button>
+          <button
+            type="button"
+            onClick={runFactCheck}
+            disabled={anyBusy}
+            title="Re-verify the current saved draft against raw_text + verified_terms + extra_context. Use after hand-editing description."
+            className="admin-btn admin-btn-ghost admin-btn-sm"
+          >
+            {busy === 'facts' ? 'Fact-checking…' : '✓ Fact-check'}
           </button>
           <button
             type="button"
