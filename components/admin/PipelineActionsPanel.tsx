@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   saveAndRunAllChecksAction,
   saveTermsAndRegenerateAction,
@@ -36,9 +37,22 @@ type Status = { kind: 'ok' | 'err'; text: string } | null
  * dropped on the floor.
  */
 export default function PipelineActionsPanel({ alertId }: Props) {
+  const router = useRouter()
   const [busy, setBusy] = useState<'full' | 'regen' | 'voice' | 'orig' | null>(null)
   const [status, setStatus] = useState<Status>(null)
   const [, startTransition] = useTransition()
+
+  // After any pipeline action that mutates the alert, the form fields would
+  // show stale values until the user manually refreshes. The edit form uses
+  // uncontrolled inputs (defaultValue), so router.refresh() alone re-fetches
+  // server data but the form fields don't pick it up. A full page reload is
+  // the simplest fix that does what users expect: action completes → page
+  // shows the new draft.
+  function reloadAfterMutation() {
+    router.refresh()
+    // Brief delay so the success toast text renders before the reload kicks in
+    setTimeout(() => window.location.reload(), 300)
+  }
 
   function readTermsFromForm(): { verifiedTerms: string; waiverReason: string } {
     const vt = document.querySelector<HTMLTextAreaElement>(
@@ -77,6 +91,7 @@ export default function PipelineActionsPanel({ alertId }: Props) {
       const res = await saveAndRunAllChecksAction(alertId, verifiedTerms, waiverReason)
       setStatus(summarisePipeline(res))
       setBusy(null)
+      if (res.ok) reloadAfterMutation()
     })
   }
 
@@ -91,6 +106,7 @@ export default function PipelineActionsPanel({ alertId }: Props) {
       const res = await saveTermsAndRegenerateAction(alertId, verifiedTerms, waiverReason)
       setStatus(res.ok ? { kind: 'ok', text: 'Regenerated ✓' } : { kind: 'err', text: res.error ?? 'failed' })
       setBusy(null)
+      if (res.ok) reloadAfterMutation()
     })
   }
 
@@ -102,6 +118,7 @@ export default function PipelineActionsPanel({ alertId }: Props) {
       if (!res.ok) setStatus({ kind: 'err', text: res.error })
       else setStatus({ kind: res.pass ? 'ok' : 'err', text: res.pass ? 'Voice ✓' : 'Voice ✗' })
       setBusy(null)
+      if (res.ok) reloadAfterMutation()
     })
   }
 
@@ -113,6 +130,7 @@ export default function PipelineActionsPanel({ alertId }: Props) {
       if (!res.ok) setStatus({ kind: 'err', text: res.error })
       else setStatus({ kind: res.pass ? 'ok' : 'err', text: res.pass ? 'Original ✓' : 'Originality ✗' })
       setBusy(null)
+      if (res.ok) reloadAfterMutation()
     })
   }
 
