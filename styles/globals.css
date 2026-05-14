@@ -298,6 +298,22 @@ button {
   border-top: 0;
 }
 
+/* End-date pill — sits next to the alert title in a LIVE bar. Red so the
+   deadline catches the eye independent of bar color. Always uses the year
+   so two bars side by side don't have mixed formatting (no "May 31" vs
+   "May 27, 2026" inconsistency — the alert title strips its baked-in date
+   suffix and this pill renders the canonical version). */
+.rg-live-bar-end-date {
+  display: inline-block;
+  margin-left: 0.5rem;
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #B91C1C;
+  white-space: nowrap;
+}
+
 /* Gold variant — Promo Rewards bar. Visually distinct from red urgency
    bars to signal a different interaction (expand to browse routes, not
    click out to an alert page). Mirrors Royal Glow accent palette. */

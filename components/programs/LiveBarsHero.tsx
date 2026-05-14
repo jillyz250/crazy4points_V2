@@ -47,6 +47,33 @@ const STATIC_LABEL: Record<string, string> = {
   devaluation: 'Devaluation',
 }
 
+/**
+ * Strip the editor-typed "— Ends May 31" / "— Through June 2" suffix from
+ * an alert title, and format a consistent end-date label from the alert's
+ * structured end_date. Always includes the year so bars rendered side by
+ * side don't have mixed formatting ("May 27, 2026" vs "May 31").
+ */
+function splitTitleAndDate(
+  title: string,
+  endDate: string | null
+): { baseTitle: string; endLabel: string | null } {
+  const SUFFIX = /\s*[—–\-]\s+(Ends?|Through|Until|Expires?)\s+.+$/i
+  const baseTitle = title.replace(SUFFIX, '').trim() || title
+  let endLabel: string | null = null
+  if (endDate) {
+    try {
+      endLabel = `Ends ${new Date(endDate).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      })}`
+    } catch {
+      endLabel = null
+    }
+  }
+  return { baseTitle, endLabel }
+}
+
 export default function LiveBarsHero({
   programName,
   programType,
@@ -85,36 +112,44 @@ export default function LiveBarsHero({
         marginBottom: '2.5rem',
       }}
     >
-      {hasTransferBonus && transferBonus && (
-        <Link
-          href={`/alerts/${transferBonus.short_slug ?? transferBonus.slug}`}
-          className="rg-live-bar"
-        >
-          <span className="rg-live-bar-tag">Live</span>
-          <span className="rg-live-bar-category">Transfer Bonus</span>
-          <span className="rg-live-bar-content">
-            <strong>{transferBonus.title}</strong>
-          </span>
-          <span className="rg-live-bar-cta">View →</span>
-        </Link>
-      )}
+      {hasTransferBonus && transferBonus && (() => {
+        const { baseTitle, endLabel } = splitTitleAndDate(transferBonus.title, transferBonus.end_date)
+        return (
+          <Link
+            href={`/alerts/${transferBonus.short_slug ?? transferBonus.slug}`}
+            className="rg-live-bar"
+          >
+            <span className="rg-live-bar-tag">Live</span>
+            <span className="rg-live-bar-category">Transfer Bonus</span>
+            <span className="rg-live-bar-content">
+              <strong>{baseTitle}</strong>
+              {endLabel && <span className="rg-live-bar-end-date">{endLabel}</span>}
+            </span>
+            <span className="rg-live-bar-cta">View →</span>
+          </Link>
+        )
+      })()}
 
-      {otherAlerts.map((alert) => (
-        <Link
-          key={alert.id}
-          href={`/alerts/${alert.short_slug ?? alert.slug}`}
-          className="rg-live-bar"
-        >
-          <span className="rg-live-bar-tag">Live</span>
-          <span className="rg-live-bar-category">
-            {liveBarLabel(alert.type, programType)}
-          </span>
-          <span className="rg-live-bar-content">
-            <strong>{alert.title}</strong>
-          </span>
-          <span className="rg-live-bar-cta">View →</span>
-        </Link>
-      ))}
+      {otherAlerts.map((alert) => {
+        const { baseTitle, endLabel } = splitTitleAndDate(alert.title, alert.end_date)
+        return (
+          <Link
+            key={alert.id}
+            href={`/alerts/${alert.short_slug ?? alert.slug}`}
+            className="rg-live-bar"
+          >
+            <span className="rg-live-bar-tag">Live</span>
+            <span className="rg-live-bar-category">
+              {liveBarLabel(alert.type, programType)}
+            </span>
+            <span className="rg-live-bar-content">
+              <strong>{baseTitle}</strong>
+              {endLabel && <span className="rg-live-bar-end-date">{endLabel}</span>}
+            </span>
+            <span className="rg-live-bar-cta">View →</span>
+          </Link>
+        )
+      })}
 
       {hasPromos && (
         <details className="rg-live-bar-details">
