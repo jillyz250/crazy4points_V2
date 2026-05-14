@@ -408,6 +408,7 @@ export async function GET(req: NextRequest) {
           alert_type: intel.alert_type,
           program_reference: initialProgramReference,
           alliance_context,
+          extra_context,
         })
         if (verify) {
           fact_checks_run++
@@ -495,6 +496,7 @@ export async function GET(req: NextRequest) {
                   alert_type: intel.alert_type,
                   program_reference: reverifyProgramReference,
                   alliance_context,
+                  extra_context,
                 })
                 if (!reverify) break
                 let reverified = reverify.claims

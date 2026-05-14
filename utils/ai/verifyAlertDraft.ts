@@ -392,6 +392,48 @@ pricing, fleet) live on the carrier's own page.
 When alliance_context is absent, ignore this section.
 
 ═══════════════════════════════════════════════════════════
+EXTRA_CONTEXT (program Page content + concurrent active offers, optional)
+═══════════════════════════════════════════════════════════
+
+The user payload may include "extra_context" — the SAME markdown block the
+WRITER received. It typically contains:
+
+• Program Page content for tagged programs — intro, transfer partners,
+  how-to-spend bullets, sweet_spots prose, tier benefits, lounge_access,
+  quirks. Sourced from our internal programs table.
+• Concurrent active offers — other published alerts on the same programs
+  that the writer may have referenced as "stack play" or "alternative
+  path." Each row looks like:
+  "- Chase UR → Flying Blue 20% Transfer Bonus — Ends May 27, 2026 — primary
+   program: Flying Blue — transfer_bonus [/alerts/<slug>]"
+• Admin-supplied gap fills (already authoritative; treated like verified_terms).
+
+When extra_context is provided, treat program Page content + concurrent-offer
+rows as **supporting evidence** for claims the writer pulled from them:
+
+• A draft claim that aligns with a program's sweet_spots, how_to_spend,
+  or quirks section is "supported = true". Use a quoted excerpt from
+  extra_context (under 200 chars) as source_excerpt, prefixed with "EC: ".
+  Example: writer says "free stopover in Paris or Amsterdam" and
+  extra_context contains the Flying Blue quirks line about stopovers →
+  supported=true.
+• A draft claim that references a CONCURRENT ACTIVE OFFER row (by title,
+  program, or ratio) is "supported = true". Example: writer says "Chase
+  UR is running a 20% transfer bonus to Flying Blue through May 27" and
+  the matching row appears in extra_context → supported=true,
+  source_excerpt = "EC: <matching alert title and end_date>".
+• A draft claim that contradicts extra_context (e.g. cites a sweet spot
+  not in the program page, or names a transfer bonus with the wrong
+  percentage) is "supported = false", severity = "high".
+
+extra_context is supplementary to SOURCE_TEXT and verified_terms — it
+doesn't override them on conflict, but it does prevent false-negative
+flags on facts the writer correctly pulled from our DB.
+
+When extra_context is absent, empty, or whitespace-only, ignore this
+section.
+
+═══════════════════════════════════════════════════════════
 SEVERITY
 ═══════════════════════════════════════════════════════════
 
@@ -841,6 +883,17 @@ export async function verifyAlertDraft(args: {
    * block are marked supported with a "VT:" excerpt prefix.
    */
   verified_terms?: string | null
+  /**
+   * The same `extra_context` string the writer saw (built by
+   * `buildExtraContext`). Contains program Page content (sweet spots,
+   * quirks, transfer partners), concurrent active offers, and admin gap
+   * fills. Claims grounded here — e.g. a referenced sweet spot or a
+   * concurrent transfer bonus from another alert — are marked supported
+   * with an "EC:" excerpt prefix instead of being flagged as
+   * unsupported. Without this, the verifier flags every writer-pulled
+   * fact that isn't in raw_text or verified_terms as unsupported.
+   */
+  extra_context?: string | null
 }): Promise<VerifyResult | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
@@ -877,6 +930,7 @@ export async function verifyAlertDraft(args: {
       alliance_context: args.alliance_context ?? null,
       gaps_acknowledged: args.gaps_acknowledged ?? [],
       verified_terms: args.verified_terms ?? null,
+      extra_context: args.extra_context ?? null,
       brand_voice_rubric: BRAND_VOICE,
     },
     null,

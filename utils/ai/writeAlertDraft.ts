@@ -720,6 +720,21 @@ When this block is present:
    window, then routing, then exclusions.
 5. If the verified terms contradict raw_text, the verified terms WIN.
    Silently use the verified version; don't flag the conflict.
+6. VERBATIM NUMERIC EXTRACTION (hard rule, no exceptions):
+   For every number that appears in VERIFIED OFFICIAL TERMS — tier
+   thresholds, discount percentages, mile amounts, caps, dates, ratios,
+   prices, posting timelines — you MUST quote that exact number. Do NOT
+   round. Do NOT "smooth" bands so they look tidier. Do NOT shift a
+   threshold by 2,000 to make ranges contiguous. If the terms say
+   "24,000 Miles = 45% off", you write 24,000. If they say "12,000 -
+   22,000 Miles = 40% off", you write 12,000 to 22,000. Period.
+
+   This rule also applies to downstream prose that REFERENCES those
+   numbers. Example: if the 45% tier is 24,000 miles per the terms, you
+   cannot later say "30,000 discounted miles is a reasonable top-off."
+   Use the same 24,000 figure. Pulling a number from your training data
+   or "tidying" the bands is a fact-check failure, not a stylistic
+   choice.
 
 ═══════════════════════════════════════════════════════════
 OFFICIAL CONTEXT (when present)
