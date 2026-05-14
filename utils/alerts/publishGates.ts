@@ -89,8 +89,16 @@ export async function checkAlertGates(
     const claims: Partial<VerifyClaim>[] = Array.isArray(alert.fact_check_claims)
       ? (alert.fact_check_claims as Partial<VerifyClaim>[])
       : []
+    // Match the FactCheckWarnings UI: only count unresolved unsupported claims.
+    // An admin who's clicked "Mark verified" on a chip has reviewed it; the
+    // gate shouldn't keep blocking on that same claim.
     const highUnsupported = claims.filter(
-      (c) => c && typeof c === 'object' && c.severity === 'high' && !isSupported(c)
+      (c) =>
+        c &&
+        typeof c === 'object' &&
+        c.severity === 'high' &&
+        !isSupported(c) &&
+        c.acknowledged !== true
     )
     if (highUnsupported.length === 0) {
       factcheck = 'pass'

@@ -5,9 +5,13 @@ import { acknowledgeFactCheckClaimAction } from '@/app/admin/(protected)/alerts/
 
 // Mirrors VerifyClaim from utils/ai/verifyAlertDraft.ts. Duplicated here so
 // this client component doesn't pull the server-only Anthropic SDK import.
+// `supported` is the three-state model from the verifier:
+//   true          — source explicitly confirms
+//   false         — source explicitly contradicts
+//   'unsupported' — source is silent / can't verify
 interface Claim {
   claim: string
-  supported: boolean
+  supported: boolean | 'unsupported'
   severity: string
   source_excerpt: string | null
   web_verdict?: 'likely_correct' | 'likely_wrong' | 'unverifiable' | null
@@ -129,8 +133,12 @@ export default function FactCheckWarnings({
   const claims: Claim[] = Array.isArray(rawClaims) ? (rawClaims as Claim[]) : []
   // Each claim keeps its original index so the server action can target it
   // even after we filter out acknowledged ones.
+  // "Unsupported" here = anything that isn't positively confirmed. The
+  // verifier uses a three-state truth model (true | false | 'unsupported'),
+  // so a naive `!claim.supported` filter misses the 'unsupported' string
+  // (which is truthy) and silently hides the whole chip list.
   const indexed = claims.map((c, i) => ({ claim: c, originalIndex: i }))
-  const unsupported = indexed.filter(({ claim }) => !claim.supported)
+  const unsupported = indexed.filter(({ claim }) => claim.supported !== true)
   const active = unsupported.filter(({ claim }) => !claim.acknowledged)
   const dismissed = unsupported.filter(({ claim }) => claim.acknowledged).length
 
