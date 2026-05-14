@@ -103,7 +103,7 @@ export default function LiveBarsHero({
 
       {hasPromos && (
         <details className="rg-live-bar-details">
-          <summary className="rg-live-bar rg-live-bar-summary">
+          <summary className="rg-live-bar rg-live-bar-summary rg-live-bar-gold">
             <span className="rg-live-bar-tag">Live</span>
             <span className="rg-live-bar-category">Promo Rewards</span>
             <span className="rg-live-bar-content">

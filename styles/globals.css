@@ -298,6 +298,25 @@ button {
   border-top: 0;
 }
 
+/* Gold variant — Promo Rewards bar. Visually distinct from red urgency
+   bars to signal a different interaction (expand to browse routes, not
+   click out to an alert page). Mirrors Royal Glow accent palette. */
+.rg-live-bar-gold {
+  background: #FFFAEB;
+  border: 1px solid #F3D77F;
+  border-left: 4px solid var(--color-accent);
+}
+.rg-live-bar-gold:hover {
+  background: #FEF3C7;
+  box-shadow: 0 6px 18px -10px rgba(212, 175, 55, 0.45);
+}
+.rg-live-bar-gold .rg-live-bar-tag {
+  color: #92740C;
+}
+.rg-live-bar-gold .rg-live-bar-tag::before {
+  background: var(--color-accent);
+}
+
 /* ── SimpleTileGrid (uniform 2-col cards for reference sections) ─────
    Matches the admin-dashboard tile pattern: white card, bold title,
    gray description, "Open →" CTA. Click expands inline. */
