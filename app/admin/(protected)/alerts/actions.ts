@@ -16,12 +16,15 @@ import type { Alert, AlertStatus, AlertGap } from '@/utils/supabase/queries'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { writeAlertDraft } from '@/utils/ai/writeAlertDraft'
 import { editAlertDraft } from '@/utils/ai/editAlertDraft'
+import { writeEditCheck } from '@/utils/ai/writeEditCheck'
 import { verifyAlertDraft, webVerifyClaims, type VerifyClaim } from '@/utils/ai/verifyAlertDraft'
 import { isSupported } from '@/utils/ai/claimStatus'
 import { buildProgramReferenceForDraft } from '@/utils/ai/programReferenceData'
 import { reviseAlertDraft, type RevisionLogEntry } from '@/utils/ai/reviseAlertDraft'
 import { voiceCheckArticle } from '@/utils/ai/voiceCheckArticle'
 import { originalityCheck } from '@/utils/ai/originalityCheck'
+import { checkAlertGates } from '@/utils/alerts/publishGates'
+import { logAlertOverride, type OverrideGate } from '@/utils/supabase/alertOverrides'
 
 function errMessage(err: unknown): string {
   if (err instanceof Error) return err.message
@@ -107,14 +110,67 @@ export async function acknowledgeFactCheckClaimAction(alertId: string, claimInde
   revalidatePath(`/admin/alerts/${alertId}/edit`)
 }
 
-export async function publishAlertAction(id: string) {
+export async function publishAlertAction(id: string): Promise<void> {
   const supabase = createAdminClient()
   const prev = await getAlertById(supabase, id)
+
+  // Writer redesign — gate check before publish. Overrides logged in
+  // alert_overrides count as pass. If a gate fails, throw — the form will
+  // surface the error via Next's error boundary, and admin can use
+  // overrideAndPublishAlertAction to bypass with a reason.
+  const gates = await checkAlertGates(supabase, prev)
+  if (!gates.canPublish) {
+    throw new Error(
+      `Publish blocked by gates: ${gates.failures.join(' · ')}. ` +
+        `Use Override & Publish (with a reason) to bypass.`
+    )
+  }
+
   const now = new Date().toISOString()
-
-  // Generate a short_slug if missing (for shareable URLs at /a/<short>).
   const shortSlug = await ensureShortSlug(supabase, prev as { id: string; title: string; short_slug?: string | null })
+  await updateAlert(supabase, id, {
+    status: 'published',
+    published_at: now,
+    decided_at: now,
+    ...(shortSlug ? { short_slug: shortSlug } : {}),
+  })
+  await trackSourceApprovalIfNeeded(supabase, prev, 'published')
+  await revalidateAlertPaths(supabase, id, prev.slug)
+  redirect('/admin/alerts')
+}
 
+/**
+ * Override one or more publish gates with a written reason, then publish.
+ * Each override is logged in alert_overrides for audit. The reason field
+ * must be a non-empty string — UI surfaces a textarea for it.
+ */
+export async function overrideAndPublishAlertAction(
+  id: string,
+  overrides: Array<{ gate: OverrideGate; reason: string }>
+) {
+  const supabase = createAdminClient()
+  for (const o of overrides) {
+    const res = await logAlertOverride(supabase, {
+      alertId: id,
+      gate: o.gate,
+      reason: o.reason,
+    })
+    if (!res.ok) {
+      return { ok: false as const, error: res.error }
+    }
+  }
+  // Now check gates again — overrides should make canPublish=true.
+  const prev = await getAlertById(supabase, id)
+  const gates = await checkAlertGates(supabase, prev)
+  if (!gates.canPublish) {
+    return {
+      ok: false as const,
+      error: 'gates_still_blocked_after_override',
+      failures: gates.failures,
+    }
+  }
+  const now = new Date().toISOString()
+  const shortSlug = await ensureShortSlug(supabase, prev as { id: string; title: string; short_slug?: string | null })
   await updateAlert(supabase, id, {
     status: 'published',
     published_at: now,
@@ -480,9 +536,13 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
     intelPrograms.map((p) => p.id)
   )
 
-  let draft
+  // Write → edit → voice-check with one retry on voice failure. The voice
+  // check scores the post-edit draft against the c4p-writer persona; if it
+  // fails (score < 4, banned phrases, hyphen-pause, or sounds_like_ai),
+  // re-runs the writer with the specific issues fed back. Cap at 1 retry.
+  let wec
   try {
-    draft = await writeAlertDraft({
+    wec = await writeEditCheck({
       intel: {
         intel_id: intel.id as string,
         headline: intel.headline as string,
@@ -501,18 +561,15 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
     await logSystemError(supabase, 'alerts:regenerate:writeDraft', err, { alert_id: alertId })
     return { ok: false, error: errMessage(err) }
   }
+  const draft = wec.draft
   if (!draft) return { ok: false, error: 'writeAlertDraft returned null' }
-
-  // Editor pass (Phase 1, polish-only) — strip AI-tells, tighten voice.
-  // Falls back to writer draft on failure so regenerate still produces output.
-  const edited = await editAlertDraft({
-    title: draft.title,
-    summary: draft.summary,
-    description: draft.description,
-  })
-  if (edited) {
-    draft.summary = edited.summary
-    draft.description = edited.description
+  if (wec.voice && !wec.voice.passed) {
+    console.warn('[alerts:regenerate] voice gate failed after retry', {
+      alert_id: alertId,
+      score: wec.voice.score,
+      issues: wec.voice.issues,
+      banned: wec.voice.banned_phrases_found,
+    })
   }
 
   const primaryId = draft.primary_program_slug
@@ -553,6 +610,16 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
   }))
 
   try {
+    const voiceNotesPayload = wec.voice
+      ? JSON.stringify({
+          banned_phrases_found: wec.voice.banned_phrases_found,
+          em_dash_count: wec.voice.em_dash_count,
+          hyphen_pause_count: wec.voice.hyphen_pause_count,
+          sounds_like_ai: wec.voice.sounds_like_ai,
+          issues: wec.voice.issues,
+          retried: wec.retried,
+        })
+      : null
     await updateAlert(supabase, alertId, {
       title: draft.title,
       summary: draft.summary,
@@ -563,6 +630,13 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
       end_date: draft.end_date,
       revision_log: [...existingLog, regenEntry],
       gaps: mergedGaps,
+      // Writer redesign — voice gate result + context-load timestamp.
+      voice_pass: wec.voice?.passed ?? null,
+      voice_score: wec.voice?.score ?? null,
+      voice_lead_mode: wec.voice?.lead_mode_detected ?? null,
+      voice_notes: voiceNotesPayload,
+      voice_checked_at: wec.voice ? new Date().toISOString() : null,
+      context_loaded_at: new Date().toISOString(),
     })
     await setAlertPrograms(supabase, alertId, secondaryIds)
   } catch (err) {
