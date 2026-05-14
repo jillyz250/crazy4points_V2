@@ -5,9 +5,16 @@
  * review page is pre-filled in the site's voice.
  */
 import Anthropic from '@anthropic-ai/sdk'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { logUsage } from './logUsage'
 import { BRAND_VOICE, FACTUAL_TRAPS } from './editorialRules'
 import type { AlertType, AlertActionType } from '@/utils/supabase/queries'
+
+// Persona file is the authoritative voice spec. Loaded once at module init —
+// edit the markdown source to update the writer's character.
+const PERSONA_PATH = join(process.cwd(), 'utils/ai/personas/c4p-writer.md')
+const C4P_WRITER_PERSONA = readFileSync(PERSONA_PATH, 'utf8')
 
 export interface WriteDraftIntel {
   intel_id: string
@@ -55,8 +62,20 @@ export interface AlertDraft {
   gaps_acknowledged: string[]
 }
 
-const SYSTEM_PROMPT = `You are the staff writer for crazy4points, a premium award travel intelligence site.
-Your voice is ${BRAND_VOICE}
+const SYSTEM_PROMPT = `You are the writer described in the PERSONA below. Embody this persona for every piece of output. The persona is the authoritative voice — if any rule later in this prompt conflicts with it, the persona wins.
+
+═══════════════════════════════════════════════════════════
+WRITER PERSONA (read first, embody throughout)
+═══════════════════════════════════════════════════════════
+
+${C4P_WRITER_PERSONA}
+
+═══════════════════════════════════════════════════════════
+ASSIGNMENT
+═══════════════════════════════════════════════════════════
+
+You are the staff writer for crazy4points, a premium award travel intelligence site.
+Supplementary voice notes: ${BRAND_VOICE}
 
 You turn a single raw intel finding into a clean, publish-ready alert draft. A human editor will review
 and publish it. Write like the final product — no hedging, no "according to sources," no filler.
@@ -936,6 +955,12 @@ export async function writeAlertDraft(args: {
    * Build via `loadAllianceContextForPrograms(supabase, programIds)`.
    */
   alliance_context?: string | null
+  /**
+   * Voice-check feedback from a prior failed attempt. When present, the
+   * writer reads this BEFORE everything else and must address each issue
+   * in the new draft. Generate via `formatVoiceFeedback(voiceResult)`.
+   */
+  voice_revise_notes?: string | null
 }): Promise<AlertDraft | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
@@ -945,7 +970,7 @@ export async function writeAlertDraft(args: {
 
   const programList = args.programs.map((p) => ({ slug: p.slug, name: p.name, type: p.type }))
 
-  const userContent = JSON.stringify(
+  const payloadJson = JSON.stringify(
     {
       intel: args.intel,
       program_list: programList,
@@ -956,6 +981,24 @@ export async function writeAlertDraft(args: {
     null,
     2
   )
+
+  // When a prior draft failed the voice gate, surface the feedback as a
+  // top-level instruction block before the payload. The writer must address
+  // every issue in the new draft.
+  const reviseHeader = args.voice_revise_notes
+    ? `═══════════════════════════════════════════════════════════
+REVISE INSTRUCTIONS (prior draft failed voice gate — address each)
+═══════════════════════════════════════════════════════════
+
+${args.voice_revise_notes}
+
+═══════════════════════════════════════════════════════════
+PAYLOAD
+═══════════════════════════════════════════════════════════
+
+`
+    : ''
+  const userContent = reviseHeader + payloadJson
 
   try {
     const client = new Anthropic({ apiKey })

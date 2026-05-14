@@ -9,12 +9,14 @@ import {
 } from '@/utils/ai/generateEditorialPlan'
 import { writeAlertDraft, type WriteDraftProgram } from '@/utils/ai/writeAlertDraft'
 import { editAlertDraft } from '@/utils/ai/editAlertDraft'
+import { writeEditCheck } from '@/utils/ai/writeEditCheck'
 import { verifyAlertDraft, webVerifyClaims, highSeverityUnsupported } from '@/utils/ai/verifyAlertDraft'
 import { buildProgramReferenceForDraft } from '@/utils/ai/programReferenceData'
 import { detectConflict } from '@/utils/ai/detectConflict'
 import { reviseAlertDraft, type RevisionLogEntry } from '@/utils/ai/reviseAlertDraft'
 import type { ApproveMeta } from '@/utils/ai/briefEmail'
 import { updateAlert, setAlertPrograms, logSystemError, loadAllianceContextForPrograms } from '@/utils/supabase/queries'
+import { buildExtraContext } from '@/utils/ai/buildExtraContext'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -294,7 +296,19 @@ export async function GET(req: NextRequest) {
         intelProgramIds
       )
 
-      const draft = await writeAlertDraft({
+      // Load program Page content + concurrent active offers so the first
+      // draft has the same context the regenerate path gets. Without this,
+      // the writer sees only raw_text and produces flavorless boilerplate.
+      const { extra_context } = await buildExtraContext(supabase, {
+        programSlugs: (intel.programs as string[] | null) ?? [],
+      })
+
+      // Write → edit → voice-check with one retry on voice failure. The
+      // voice check scores the post-edit draft against the c4p-writer
+      // persona; if score < 4 or banned phrases / hyphen-pause / sounds_like_ai,
+      // re-runs the writer with the specific issues fed back. Cap at 1 retry.
+      editor_run++
+      const wec = await writeEditCheck({
         intel: {
           intel_id: intel.id as string,
           headline: intel.headline as string,
@@ -306,27 +320,22 @@ export async function GET(req: NextRequest) {
         },
         programs: allPrograms,
         recent_samples: recentSamples,
+        extra_context,
         alliance_context,
       })
+      const draft = wec.draft
       if (!draft) {
         writer_null_drafts++
         continue
       }
-
-      // Editor pass (Phase 1, polish-only) — remove AI-tells, tighten voice.
-      // Does not change source facts. Never proposes value-add in this phase.
-      // Falls back to Writer draft on failure so the pipeline keeps moving.
-      editor_run++
-      const edited = await editAlertDraft({
-        title: draft.title,
-        summary: draft.summary,
-        description: draft.description,
-      })
-      if (!edited) {
-        editor_null++
-      } else {
-        draft.summary = edited.summary
-        draft.description = edited.description
+      if (!wec.edited) editor_null++
+      if (wec.voice && !wec.voice.passed) {
+        console.warn('[build-brief] voice gate failed after retry', {
+          intel_id: intel.id,
+          score: wec.voice.score,
+          issues: wec.voice.issues,
+          banned: wec.voice.banned_phrases_found,
+        })
       }
 
       const { data: pending } = await supabase
@@ -350,6 +359,16 @@ export async function GET(req: NextRequest) {
         .filter((x): x is string => typeof x === 'string')
 
       try {
+        const voiceNotesPayload = wec.voice
+          ? JSON.stringify({
+              banned_phrases_found: wec.voice.banned_phrases_found,
+              em_dash_count: wec.voice.em_dash_count,
+              hyphen_pause_count: wec.voice.hyphen_pause_count,
+              sounds_like_ai: wec.voice.sounds_like_ai,
+              issues: wec.voice.issues,
+              retried: wec.retried,
+            })
+          : null
         await updateAlert(supabase, alertId, {
           title: draft.title,
           summary: draft.summary,
@@ -362,6 +381,13 @@ export async function GET(req: NextRequest) {
           // public page, the newsletter blurb, and Decision Engine context
           // all draw from one editable source.
           why_this_matters: a.why_publish ?? null,
+          // Writer redesign — voice gate result + context-load timestamp.
+          voice_pass: wec.voice?.passed ?? null,
+          voice_score: wec.voice?.score ?? null,
+          voice_lead_mode: wec.voice?.lead_mode_detected ?? null,
+          voice_notes: voiceNotesPayload,
+          voice_checked_at: wec.voice ? new Date().toISOString() : null,
+          context_loaded_at: new Date().toISOString(),
         })
         await setAlertPrograms(supabase, alertId, { primaryId, secondaryIds })
         drafts_written++
