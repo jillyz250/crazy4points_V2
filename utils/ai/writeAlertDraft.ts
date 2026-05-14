@@ -5,16 +5,10 @@
  * review page is pre-filled in the site's voice.
  */
 import Anthropic from '@anthropic-ai/sdk'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { logUsage } from './logUsage'
 import { BRAND_VOICE, FACTUAL_TRAPS } from './editorialRules'
+import { C4P_WRITER_PERSONA } from './personas/c4pWriter'
 import type { AlertType, AlertActionType } from '@/utils/supabase/queries'
-
-// Persona file is the authoritative voice spec. Loaded once at module init —
-// edit the markdown source to update the writer's character.
-const PERSONA_PATH = join(process.cwd(), 'utils/ai/personas/c4p-writer.md')
-const C4P_WRITER_PERSONA = readFileSync(PERSONA_PATH, 'utf8')
 
 export interface WriteDraftIntel {
   intel_id: string
