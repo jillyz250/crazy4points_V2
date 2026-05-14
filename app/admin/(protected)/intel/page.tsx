@@ -122,8 +122,8 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
   return (
     <div>
       <PageHeader
-        title="Intel Items"
-        description="Raw findings from Claude Scout. High-confidence items auto-promote to pending_review alerts."
+        title="Triage"
+        description="Raw findings from Claude Scout. Paste verified T&Cs (or a waiver reason) on the inbox cards, then promote to alert."
         actions={
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             {countPills.map((p) => {

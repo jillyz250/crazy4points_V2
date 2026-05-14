@@ -22,7 +22,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Pipeline',
     items: [
       { href: '/admin/sources', label: 'Sources', abbr: 'So' },
-      { href: '/admin/intel', label: 'Intel', abbr: 'In' },
+      { href: '/admin/intel', label: 'Triage', abbr: 'Tr' },
     ],
   },
   {
