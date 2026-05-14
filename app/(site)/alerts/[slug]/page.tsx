@@ -51,12 +51,6 @@ const ACTION_LABELS: Record<string, string> = {
   learn: 'Learn More',
 }
 
-const CONFIDENCE_LABELS: Record<string, string> = {
-  high: 'High — Confirmed',
-  medium: 'Medium — Probable',
-  low: 'Low — Rumored',
-}
-
 function formatDate(iso: string | null): string {
   if (!iso) return '—'
   return new Date(iso).toLocaleDateString('en-US', {
@@ -250,10 +244,6 @@ export default async function AlertDetailPage({ params }: Props) {
               <dd className="font-body text-sm text-[var(--color-text-primary)]">{formatDate(alert.end_date)}</dd>
             </div>
           )}
-          <div>
-            <dt className="mb-0.5 font-ui text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">Confidence</dt>
-            <dd className="font-body text-sm text-[var(--color-text-primary)]">{CONFIDENCE_LABELS[alert.confidence_level] ?? alert.confidence_level}</dd>
-          </div>
           <div>
             <dt className="mb-0.5 font-ui text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">Action</dt>
             <dd className="font-body text-sm text-[var(--color-text-primary)]">{ACTION_LABELS[alert.action_type] ?? alert.action_type}</dd>
