@@ -39,7 +39,7 @@ export async function rejectPromotedIntelAction(id: string) {
   revalidatePath('/admin/alerts')
 }
 
-export async function promoteIntelAction(id: string) {
+export async function promoteIntelAction(id: string, formData?: FormData) {
   const supabase = createAdminClient()
 
   const { data: item, error: fetchError } = await supabase
@@ -55,6 +55,14 @@ export async function promoteIntelAction(id: string) {
   if (item.processed && item.alert_id) {
     redirect(`/admin/alerts/${item.alert_id}/edit`)
   }
+
+  // Writer redesign — optional T&Cs / waiver collected at promotion time.
+  // When pasted before promote, the writer sees them on the very first
+  // draft instead of needing a manual regenerate after the fact.
+  const verifiedTermsRaw = (formData?.get('verified_terms') as string | null)?.trim() ?? ''
+  const waiverReasonRaw = (formData?.get('terms_waived_reason') as string | null)?.trim() ?? ''
+  const verified_terms = verifiedTermsRaw.length > 0 ? verifiedTermsRaw : null
+  const terms_waived_reason = waiverReasonRaw.length > 0 ? waiverReasonRaw : null
 
   const slug = `intel-${item.id.slice(0, 8)}-${Date.now()}`
   const { data: alert, error: alertError } = await supabase
@@ -76,6 +84,8 @@ export async function promoteIntelAction(id: string) {
       impact_justification: 'Manually promoted from intel',
       action_type: 'monitor',
       registration_required: false,
+      verified_terms,
+      terms_waived_reason,
     })
     .select('id')
     .single()
