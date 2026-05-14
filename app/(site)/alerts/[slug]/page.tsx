@@ -207,6 +207,24 @@ export default async function AlertDetailPage({ params }: Props) {
           </p>
         )}
 
+        {/* "Terms still developing" notice — set when admin shipped without
+            verified T&Cs (e.g. press release only, official page not yet
+            published). Signals to readers that specifics could shift. */}
+        {alert.terms_waived_reason && (
+          <div
+            className="mb-8 rounded-[var(--radius-card)] border-l-4 border-amber-500 bg-amber-50 p-4"
+            role="note"
+          >
+            <p className="mb-1 font-ui text-[11px] font-semibold uppercase tracking-[0.08em] text-amber-900">
+              Terms still developing
+            </p>
+            <p className="font-body text-sm text-amber-900">
+              Official program terms weren&apos;t public when this alert went live.
+              Confirm details on the program&apos;s site before booking.
+            </p>
+          </div>
+        )}
+
         {/* Description — rendered as markdown so promo alerts can use the
             hybrid voicey-prose + "What qualifies" bullet block format. */}
         {descriptionHtml && (
