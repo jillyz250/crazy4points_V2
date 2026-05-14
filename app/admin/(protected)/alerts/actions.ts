@@ -550,6 +550,7 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
       alliance_context,
       gaps_acknowledged: draft.gaps_acknowledged,
       verified_terms: verifiedTermsRaw,
+      extra_context,
     })
     if (verify) {
       finalClaims = verify.claims
@@ -614,6 +615,8 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
             program_reference: reverifyProgramReference,
             alliance_context,
             gaps_acknowledged: draft.gaps_acknowledged,
+            verified_terms: verifiedTermsRaw,
+            extra_context,
           })
           if (!reverify) break
           let reverified = reverify.claims
