@@ -18,7 +18,7 @@ import { writeAlertDraft } from '@/utils/ai/writeAlertDraft'
 import { editAlertDraft } from '@/utils/ai/editAlertDraft'
 import { writeEditCheck } from '@/utils/ai/writeEditCheck'
 import { buildExtraContext } from '@/utils/ai/buildExtraContext'
-import { verifyAlertDraft, webVerifyClaims, type VerifyClaim } from '@/utils/ai/verifyAlertDraft'
+import { verifyAlertDraft, webVerifyClaims, highSeverityUnsupported, type VerifyClaim } from '@/utils/ai/verifyAlertDraft'
 import { isSupported } from '@/utils/ai/claimStatus'
 import { buildProgramReferenceForDraft } from '@/utils/ai/programReferenceData'
 import { reviseAlertDraft, type RevisionLogEntry } from '@/utils/ai/reviseAlertDraft'
@@ -763,6 +763,108 @@ export async function quickFixVoiceAlertAction(id: string): Promise<AlertQuickFi
 
   revalidatePath(`/admin/alerts/${id}/edit`)
   return { ok: true, pass: recheck.pass }
+}
+
+export type AlertFactCheckResult =
+  | { ok: true; flagged: number; total: number }
+  | { ok: false; error: string }
+
+/**
+ * Run only the fact-checker on the alert's CURRENT persisted draft. Does
+ * NOT touch the writer — admin edits to title/summary/description are
+ * preserved. Used by the "Fact-check" button on the Pipeline Actions
+ * panel after the admin hand-edits a draft and wants to re-verify
+ * without losing their edits to a fresh regenerate.
+ *
+ * Same verification surface as regenerate: raw_text + verified_terms +
+ * extra_context + program_reference + alliance_context.
+ */
+export async function factCheckAlertAction(id: string): Promise<AlertFactCheckResult> {
+  const supabase = createAdminClient()
+
+  const { data: alert, error: alertErr } = await supabase
+    .from('alerts')
+    .select('id, title, summary, description, source_url, source_intel_id, verified_terms, primary_program_id')
+    .eq('id', id)
+    .maybeSingle()
+  if (alertErr || !alert) return { ok: false, error: alertErr?.message ?? 'alert not found' }
+  if (!alert.source_intel_id) return { ok: false, error: 'alert has no source_intel_id — cannot fact-check' }
+
+  const { data: intel, error: intelErr } = await supabase
+    .from('intel_items')
+    .select('raw_text, source_url, alert_type, programs')
+    .eq('id', alert.source_intel_id as string)
+    .maybeSingle()
+  if (intelErr || !intel) return { ok: false, error: intelErr?.message ?? 'intel_item not found' }
+
+  const programSlugs = (intel.programs as string[] | null) ?? []
+  const { extra_context } = await buildExtraContext(supabase, {
+    programSlugs,
+    verifiedTerms: (alert.verified_terms as string | null) ?? null,
+    excludeAlertId: id,
+  })
+
+  const draftText = `${alert.title}\n${alert.summary}\n${alert.description ?? ''}`
+  const programReference = await buildProgramReferenceForDraft(
+    supabase,
+    alert.primary_program_id as string | null,
+    draftText
+  )
+
+  // Look up tagged program IDs for alliance context lookup.
+  const { data: taggedRows } = await supabase
+    .from('alert_programs')
+    .select('program_id')
+    .eq('alert_id', id)
+  const programIds = (taggedRows ?? [])
+    .map((r) => (r as { program_id: string }).program_id)
+    .filter(Boolean)
+  const alliance_context = await loadAllianceContextForPrograms(supabase, programIds)
+
+  let verify
+  try {
+    verify = await verifyAlertDraft({
+      draft: { title: alert.title, summary: alert.summary, description: alert.description },
+      raw_text: (intel.raw_text as string | null) ?? null,
+      source_url: (intel.source_url as string | null) ?? null,
+      alert_type: intel.alert_type,
+      program_reference: programReference,
+      alliance_context,
+      verified_terms: (alert.verified_terms as string | null) ?? null,
+      extra_context,
+    })
+  } catch (err) {
+    await logSystemError(supabase, 'alerts:factCheck:verify', err, { alert_id: id })
+    return { ok: false, error: errMessage(err) }
+  }
+  if (!verify) return { ok: false, error: 'verifyAlertDraft returned null' }
+
+  let finalClaims = verify.claims
+  if (finalClaims.some((c) => !isSupported(c))) {
+    try {
+      finalClaims = await webVerifyClaims({
+        claims: finalClaims,
+        context: { title: alert.title, source_url: (intel.source_url as string | null) ?? null },
+      })
+    } catch (err) {
+      await logSystemError(supabase, 'alerts:factCheck:webVerify', err, { alert_id: id })
+      finalClaims = finalClaims.map((c) =>
+        isSupported(c) ? c : { ...c, web_verdict: 'unverifiable' as const, web_evidence: null, web_url: null }
+      )
+    }
+  }
+
+  await updateAlert(supabase, id, {
+    fact_check_claims: finalClaims,
+    fact_check_at: verify.checked_at,
+  })
+
+  revalidatePath('/admin/alerts')
+  revalidatePath(`/admin/alerts/${id}/edit`)
+
+  const total = finalClaims.length
+  const flagged = highSeverityUnsupported(finalClaims).length
+  return { ok: true, flagged, total }
 }
 
 export async function voiceCheckAlertAction(id: string): Promise<AlertVoiceCheckResult> {
