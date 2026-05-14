@@ -1054,23 +1054,19 @@ a.admin-btn-primary:hover:not(:disabled) {
   }
 }
 
-/* On-this-page TOC links — pill style; hover surfaces an underline only */
+/* On-this-page TOC — quiet text links separated by mid-dots (·). Lives
+   below the "REDEEMS ON" content pills; rendered as text not pills so the
+   nav doesn't compete visually with the content pills above. */
 .program-toc-link {
-  display: inline-flex;
-  align-items: center;
   font-family: var(--font-ui);
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-weight: 500;
   color: var(--color-text-secondary);
   text-decoration: none;
-  padding: 0.3rem 0.7rem;
-  border-radius: 9999px;
-  background: var(--color-background-soft);
-  transition: color 0.12s ease, background-color 0.12s ease;
+  transition: color 0.12s ease;
 }
 .program-toc-link:hover {
   color: var(--color-primary);
-  background: var(--color-border-soft);
   text-decoration: underline;
   text-underline-offset: 0.2em;
   text-decoration-thickness: 1.5px;
@@ -1078,14 +1074,25 @@ a.admin-btn-primary:hover:not(:disabled) {
 .program-toc-link:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
+  border-radius: 2px;
+}
+.program-toc-sep {
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  color: var(--color-border-soft);
+  user-select: none;
+  margin: 0 0.125rem;
 }
 
-/* Bump the TOC pill height on mobile so the touch target clears 40px.
-   Stays visually tight on desktop where mouse precision is fine. */
+/* Slightly larger tap target on mobile — text links can still be hit but
+   they're tight; nudging the line-height + font-size keeps it usable. */
 @media (max-width: 640px) {
   .program-toc-link {
-    padding: 0.5rem 0.85rem;
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
+    line-height: 2;
+  }
+  .program-toc-sep {
+    font-size: 0.8125rem;
   }
 }
 
