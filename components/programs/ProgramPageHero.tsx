@@ -218,15 +218,17 @@ export default function ProgramPageHero({
       {/* Old active offer banner removed — LiveBarsHero now renders
           the LIVE TRANSFER BONUS / PROMO REWARDS bars at top of page. */}
 
-      {/* Section TOC */}
+      {/* Section TOC — quiet text links separated by mid-dots so the nav
+          doesn't visually compete with content pills above. */}
       {sections.length > 0 && (
         <nav
           aria-label="On this page"
           style={{
             display: 'flex',
             flexWrap: 'wrap',
-            gap: '0.4rem',
-            alignItems: 'center',
+            alignItems: 'baseline',
+            columnGap: '0.125rem',
+            rowGap: '0.25rem',
             paddingBottom: '0.875rem',
             borderBottom: '1px solid var(--color-border-soft)',
           }}
@@ -239,15 +241,18 @@ export default function ProgramPageHero({
               letterSpacing: '0.08em',
               textTransform: 'uppercase',
               color: 'var(--color-text-secondary)',
-              marginRight: '0.25rem',
+              marginRight: '0.5rem',
             }}
           >
             Jump to:
           </span>
-          {sections.map((s) => (
-            <Link key={s.id} href={`#${s.id}`} className="program-toc-link">
-              {s.label}
-            </Link>
+          {sections.map((s, i) => (
+            <span key={s.id} style={{ display: 'inline-flex', alignItems: 'baseline' }}>
+              {i > 0 && <span className="program-toc-sep" aria-hidden="true">·</span>}
+              <Link href={`#${s.id}`} className="program-toc-link">
+                {s.label}
+              </Link>
+            </span>
           ))}
         </nav>
       )}
