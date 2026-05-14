@@ -8,7 +8,7 @@ import type { AlertOverrideRow } from '@/utils/supabase/alertOverrides'
 import FactCheckWarnings from '@/components/admin/FactCheckWarnings'
 import AlertGapsBanner from '@/components/admin/AlertGapsBanner'
 import QuickFixVoiceButton from '@/components/admin/QuickFixVoiceButton'
-import RunAllChecksAlertButton from '@/components/admin/RunAllChecksAlertButton'
+import PipelineActionsPanel from '@/components/admin/PipelineActionsPanel'
 import ShortUrlCopy from '@/components/admin/ShortUrlCopy'
 import PublishGatesBanner from '@/components/admin/PublishGatesBanner'
 import OverridePublishButton from '@/components/admin/OverridePublishButton'
@@ -160,9 +160,7 @@ export default function EditAlertForm({
                 </span>
               ))}
             </div>
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-              <RunAllChecksAlertButton alertId={alert.id} />
-            </div>
+            <PipelineActionsPanel alertId={alert.id} />
             {failureNotes.length > 0 && (
               <div
                 style={{

@@ -873,20 +873,53 @@ export type AlertPipelineResult =
 export async function saveAndRunAllChecksAction(
   id: string,
   verifiedTerms: string,
+  termsWaivedReason?: string,
 ): Promise<AlertPipelineResult> {
-  // Save verified_terms first (lightweight: just this one field).
   const supabase = createAdminClient()
-  const trimmed = verifiedTerms.trim()
-  const value = trimmed.length > 0 ? trimmed : null
-  const { error } = await supabase
-    .from('alerts')
-    .update({ verified_terms: value })
-    .eq('id', id)
-  if (error) {
-    return { ok: false, error: `save verified_terms failed — ${error.message}` }
-  }
+  const persistRes = await persistTermsFields(supabase, id, verifiedTerms, termsWaivedReason)
+  if (!persistRes.ok) return persistRes
   // Then run the full pipeline as usual.
   return runAllChecksAlertAction(id)
+}
+
+/**
+ * Save the verified_terms + terms_waived_reason fields, then regenerate
+ * the writer only (no voice / originality / extra-checks pass). The
+ * regenerate path internally runs writer + edit + voice-check + fact-check,
+ * but skips the standalone voiceCheckArticle + originalityCheck steps.
+ *
+ * Pairs with the "Save & regenerate" button on the alert edit page —
+ * useful when admin wants a fresh draft after pasting/tweaking T&Cs
+ * without paying for the full pipeline.
+ */
+export async function saveTermsAndRegenerateAction(
+  id: string,
+  verifiedTerms: string,
+  termsWaivedReason?: string,
+): Promise<RegenerateResult> {
+  const supabase = createAdminClient()
+  const persistRes = await persistTermsFields(supabase, id, verifiedTerms, termsWaivedReason)
+  if (!persistRes.ok) return { ok: false, error: persistRes.error }
+  return regenerateAlertDraftAction(id)
+}
+
+async function persistTermsFields(
+  supabase: SupabaseClient,
+  id: string,
+  verifiedTerms: string,
+  termsWaivedReason: string | undefined,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const v = verifiedTerms.trim()
+  const w = (termsWaivedReason ?? '').trim()
+  const { error } = await supabase
+    .from('alerts')
+    .update({
+      verified_terms: v.length > 0 ? v : null,
+      terms_waived_reason: w.length > 0 ? w : null,
+    })
+    .eq('id', id)
+  if (error) return { ok: false, error: `save terms failed — ${error.message}` }
+  return { ok: true }
 }
 
 export async function runAllChecksAlertAction(id: string): Promise<AlertPipelineResult> {
