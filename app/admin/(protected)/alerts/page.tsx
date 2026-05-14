@@ -4,6 +4,7 @@ import { getAllAlerts, getPendingReviewAlerts } from '@/utils/supabase/queries'
 import type { AlertStatus } from '@/utils/supabase/queries'
 import { publishAlertAction, expireAlertAction } from './actions'
 import PendingReviewBulk from '@/components/admin/PendingReviewBulk'
+import BulkRegenerateButton from '@/components/admin/BulkRegenerateButton'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { LinkButton } from '@/components/admin/ui/Button'
 import { Badge } from '@/components/admin/ui/Badge'
@@ -104,7 +105,14 @@ export default async function AdminAlertsPage({
       <PageHeader
         title="Alerts"
         description="Review pending drafts, publish, and manage the live catalog."
-        actions={<LinkButton href="/admin/alerts/new" variant="primary">+ New Alert</LinkButton>}
+        actions={
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <BulkRegenerateButton pendingCount={pendingAlerts.length} />
+            <LinkButton href="/admin/alerts/new" variant="primary">
+              + New Alert
+            </LinkButton>
+          </div>
+        }
       />
 
       {pendingAlerts.length > 0 && (

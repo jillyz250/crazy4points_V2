@@ -147,7 +147,7 @@ export async function publishAlertAction(id: string): Promise<void> {
 export async function overrideAndPublishAlertAction(
   id: string,
   overrides: Array<{ gate: OverrideGate; reason: string }>
-) {
+): Promise<void> {
   const supabase = createAdminClient()
   for (const o of overrides) {
     const res = await logAlertOverride(supabase, {
@@ -156,18 +156,16 @@ export async function overrideAndPublishAlertAction(
       reason: o.reason,
     })
     if (!res.ok) {
-      return { ok: false as const, error: res.error }
+      throw new Error(`Override logging failed: ${res.error}`)
     }
   }
   // Now check gates again — overrides should make canPublish=true.
   const prev = await getAlertById(supabase, id)
   const gates = await checkAlertGates(supabase, prev)
   if (!gates.canPublish) {
-    return {
-      ok: false as const,
-      error: 'gates_still_blocked_after_override',
-      failures: gates.failures,
-    }
+    throw new Error(
+      `Gates still blocked after override: ${gates.failures.join(' · ')}`
+    )
   }
   const now = new Date().toISOString()
   const shortSlug = await ensureShortSlug(supabase, prev as { id: string; title: string; short_slug?: string | null })
@@ -198,6 +196,53 @@ async function ensureShortSlug(
     console.error('[ensureShortSlug] failed:', err)
     return null
   }
+}
+
+/**
+ * Bulk-regenerate every pending_review alert from the last `daysWindow` days
+ * through the new writer pipeline (persona + context + voice gate). Used to
+ * backfill alerts written under the old system after the writer redesign
+ * shipped. Runs serially with a 250ms gap to stay under Anthropic rate
+ * limits and the Resend-tier 4/sec ceiling.
+ *
+ * No-op when zero matches. Returns a count summary the UI can surface.
+ */
+export async function bulkRegeneratePendingAlertsAction(
+  daysWindow = 30,
+  maxAlerts = 25
+): Promise<{ ok: true; processed: number; failed: number; skipped: number } | { ok: false; error: string }> {
+  const supabase = createAdminClient()
+  const since = new Date(Date.now() - daysWindow * 24 * 60 * 60 * 1000).toISOString()
+  const { data: targets, error } = await supabase
+    .from('alerts')
+    .select('id, source_intel_id')
+    .eq('status', 'pending_review')
+    .gte('updated_at', since)
+    .order('updated_at', { ascending: false })
+    .limit(maxAlerts)
+  if (error) return { ok: false, error: error.message }
+
+  let processed = 0
+  let failed = 0
+  let skipped = 0
+  for (const row of targets ?? []) {
+    if (!row.source_intel_id) {
+      skipped++
+      continue
+    }
+    try {
+      const res = await regenerateAlertDraftAction(row.id as string)
+      if (res.ok) processed++
+      else failed++
+    } catch (err) {
+      console.error('[bulkRegenerate] failed for', row.id, err)
+      failed++
+    }
+    // Small delay between calls to avoid hammering the Anthropic API.
+    await new Promise((r) => setTimeout(r, 250))
+  }
+  revalidatePath('/admin/alerts')
+  return { ok: true, processed, failed, skipped }
 }
 
 export async function approveIntelAlertAction(id: string) {
