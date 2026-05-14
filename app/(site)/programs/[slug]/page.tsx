@@ -12,7 +12,7 @@ import PropertiesTable from '@/components/programs/PropertiesTable'
 import PartnerRedemptionsSection from '@/components/programs/PartnerRedemptionsSection'
 import CardsThatEarnIntoProgram from '@/components/cards/CardsThatEarnIntoProgram'
 import ActivePromosSection from '@/components/programs/ActivePromosSection'
-import LiveBarsHero from '@/components/programs/LiveBarsHero'
+import LiveBarsHero, { OTHER_LIVE_TYPES } from '@/components/programs/LiveBarsHero'
 import SimpleTileGrid from '@/components/programs/SimpleTileGrid'
 import IntroBlock from '@/components/programs/IntroBlock'
 import { getActivePromosForProgram, type PromoReward } from '@/utils/supabase/promoQueries'
@@ -173,6 +173,20 @@ export default async function ProgramPage({
   const liveTransferBonuses = active.filter(
     (a) => a.type === 'transfer_bonus' && a.primary_program_id === program.id,
   )
+  // Other urgent live alerts for the hero — surfaces buy-miles sales, LTOs,
+  // status promos, etc. where this program is the primary subject. Capped
+  // to avoid hero overflow; sorted by end_date proximity (urgency first).
+  const liveOtherAlerts = active
+    .filter(
+      (a) =>
+        OTHER_LIVE_TYPES.includes(a.type) && a.primary_program_id === program.id,
+    )
+    .sort((a, b) => {
+      const ae = a.end_date ? new Date(a.end_date).getTime() : Number.POSITIVE_INFINITY
+      const be = b.end_date ? new Date(b.end_date).getTime() : Number.POSITIVE_INFINITY
+      return ae - be
+    })
+    .slice(0, 3)
   const promosDiscountPercent = mostCommonDiscountPercent(activePromos)
 
   const activeFiltered = q ? active.filter((a) => matchesSearch(a, q)) : active
@@ -257,6 +271,7 @@ export default async function ProgramPage({
         <LiveBarsHero
           programName={program.name}
           transferBonus={liveTransferBonuses[0] ?? null}
+          otherAlerts={liveOtherAlerts}
           promosCount={activePromos.length}
           promosDiscountPercent={promosDiscountPercent}
           promosChildren={
