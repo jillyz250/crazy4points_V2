@@ -63,7 +63,11 @@ export async function fetchFirecrawl(
     const body: Record<string, unknown> = {
       url,
       formats: ['markdown'],
-      onlyMainContent: true,
+      // onlyMainContent: true was triggering Delta's bot detection
+      // (playground default is false; playground works on Delta). Default
+      // off; opt back in via options.onlyMainContent if a caller wants
+      // a tighter dump.
+      onlyMainContent: false,
       timeout: firecrawlTimeout,
     }
     if (hasActions) {
