@@ -20,8 +20,17 @@ export const PROGRAM_EXTRACTION_SYSTEM_PROMPT = `You are a frequent flyer / loya
 CORE RULES:
 1. NEVER hallucinate a value. If a field is not present in the source, return null.
 2. EVERY value field includes a source_quote — the EXACT verbatim snippet from the markdown the value came from. Trim to the relevant sentence; do not paraphrase. If you cannot quote the source verbatim, the value is wrong — return null.
-3. confidence: 'high' = directly stated; 'medium' = inferable from clear context; 'low' = guessed from partial info (flag in extraction_warnings).
+3. confidence levels:
+     'high'   = directly stated, with a verbatim source_quote
+     'medium' = inferable from clear context, partial source_quote
+     'low'    = inferred from generic context without specific quote
+   CRITICAL: confidence='high' REQUIRES a non-null source_quote. If you cannot
+   provide a source_quote, confidence MUST be 'low'. This is not optional.
 4. Return ONE valid JSON object matching the schema. No prose before or after. No markdown fences.
+5. ANTI-HALLUCINATION GUARD: Before returning a value with confidence='high',
+   verify that the source_quote actually appears in the provided markdown.
+   If it doesn't, downgrade to 'low' or null. The verified-math rule is what
+   makes our extraction trustworthy — preserve it.
 
 SOURCE_QUOTE RULES (CRITICAL FOR JSON VALIDITY):
 5. Keep every source_quote under 150 characters. Trim to the most relevant fragment.
@@ -77,6 +86,31 @@ tier_benefits:
     qualification: "25,000 PQM or 30 PQF" or "$5,000 PQD" — verbatim if possible
     benefits: array of short benefit strings ("Priority boarding", "1 free checked bag", "25% award discount")
   Empty rows array if the page doesn't list tier benefits.
+
+  TIER QUALIFICATION RULES (READ CAREFULLY):
+  Alliances (oneworld, SkyTeam, Star Alliance) almost NEVER publish specific
+  numeric qualification thresholds per tier — each member airline sets its own.
+  The alliance page typically says something like "Top-tier members of member
+  airlines become Emerald" without specifying SQM/PQF amounts.
+
+  When the page does NOT state a specific numeric/qualification threshold for
+  a tier, use a TIER-POSITION-APPROPRIATE generic label:
+    - Highest tier (Emerald / Diamond / Platinum / Globalist):
+        qualification: "Top-tier status on a member airline frequent flyer programme
+                        (exact thresholds set by individual airlines)"
+    - Middle tier (Sapphire / Gold / Explorist):
+        qualification: "Mid-tier status on a member airline frequent flyer programme
+                        (exact thresholds set by individual airlines)"
+    - Entry tier (Ruby / Silver / Discoverist):
+        qualification: "Entry-tier status on a member airline frequent flyer programme
+                        (exact thresholds set by individual airlines)"
+
+  CRITICAL ANTI-PATTERN: Never set the SAME qualification text for multiple tiers.
+  If Emerald, Sapphire, and Ruby all return "Top-tier status...", that's a
+  copy-paste error — fix it to use the tier-position-appropriate labels above.
+
+  For airline programs (not alliances), qualification IS usually published with
+  specific PQM/PQF/PQD amounts. Use the verbatim text from the page.
 
 alliance:
   One of: 'oneworld', 'skyteam', 'star_alliance', 'none', 'other'.
