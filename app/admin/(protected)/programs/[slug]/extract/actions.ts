@@ -42,6 +42,10 @@ export async function runProgramExtraction(formData: FormData): Promise<void> {
   // Legacy "single URL" mode — optional fallback when no per-field URLs
   const legacySourceUrl = String(formData.get('source_url') ?? '').trim() || undefined
 
+  // Manual markdown paste — bypasses Firecrawl entirely. For hostile sites
+  // (delta.com, marriott.com) where Firecrawl returns sorry-server.
+  const manualMarkdown = String(formData.get('manual_markdown') ?? '').trim() || undefined
+
   const supabase = createAdminClient()
   const { data: program, error } = await supabase
     .from('programs')
@@ -79,6 +83,7 @@ export async function runProgramExtraction(formData: FormData): Promise<void> {
     fieldSourceUrls,
     legacySourceUrl,
     interactive,
+    manualMarkdown,
   })
 
   if (!result.ok) {
