@@ -58,23 +58,55 @@ const BENEFIT_CATEGORY_ORDER = [
 
 const EARN_CATEGORY_LABELS: Record<string, string> = {
   hyatt_purchases: 'Hyatt purchases',
-  dining: 'Dining / restaurants',
+  dining: 'Dining',
+  dining_through_portal: 'Dining (through portal)',
   airline_tickets: 'Airline tickets',
   local_transit: 'Local transit & commuting',
   fitness_gym: 'Fitness clubs & gyms',
   travel: 'Travel',
   travel_through_portal: 'Travel (through portal)',
+  flights: 'Flights',
   flights_through_portal: 'Flights (through portal)',
+  hotels: 'Hotels',
   hotels_through_portal: 'Hotels (through portal)',
   groceries: 'Groceries',
+  groceries_us_supermarkets: 'Groceries (US supermarkets)',
   gas: 'Gas',
+  gas_stations: 'Gas stations',
   streaming: 'Streaming',
   rotating_quarterly: 'Rotating quarterly',
   everything_else: 'Everything else',
+  base: 'All other purchases',
+  ev_charging: 'EV charging',
+  transit: 'Transit',
+  takeout: 'Takeout',
+  drug_stores: 'Drug stores',
+  online_grocery: 'Online grocery',
+  wholesale_clubs: 'Wholesale clubs',
+  office_supplies: 'Office supplies',
+  internet_phone_tv: 'Internet, phone & TV',
+  advertising: 'Advertising',
+  shipping: 'Shipping',
+  car_rentals_through_portal: 'Car rentals (through portal)',
+  // Brand-specific earn bonuses (some cards have these)
+  peloton: 'Peloton',
+  lyft: 'Lyft',
+  doordash: 'DoorDash',
+  uber: 'Uber',
+  stubhub: 'StubHub',
+  apple: 'Apple subscriptions',
+  walmart: 'Walmart',
+  instacart: 'Instacart',
+  equinox: 'Equinox',
 }
 
+// Fallback when the slug isn't in the override map — title-cases the raw
+// slug. Ensures "flights" → "Flights", "ev_charging" → "Ev Charging".
 function formatEarnCategory(c: string): string {
-  return EARN_CATEGORY_LABELS[c] ?? c.replace(/_/g, ' ')
+  if (EARN_CATEGORY_LABELS[c]) return EARN_CATEGORY_LABELS[c]
+  return c
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (ch) => ch.toUpperCase())
 }
 
 function formatDate(iso: string | null): string {

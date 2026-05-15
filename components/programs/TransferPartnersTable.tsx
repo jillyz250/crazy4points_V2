@@ -6,6 +6,32 @@ import type { TransferPartnerRow } from '@/utils/supabase/queries'
  * Falls back to slug if the from_slug isn't in the lookup map (e.g. partner
  * exists but program row not seeded).
  */
+// Fallback when programNameBySlug lookup fails — converts the slug to
+// human-readable title case. Special-cases known multi-part program slugs
+// where simple title-casing isn't enough.
+const SLUG_OVERRIDES: Record<string, string> = {
+  ba_avios: 'British Airways Avios',
+  aa: 'American Airlines AAdvantage',
+  flying_blue: 'Flying Blue (Air France/KLM)',
+  miles_and_more: 'Lufthansa Miles & More',
+  air_france: 'Air France',
+  ihg_one_rewards: 'IHG One Rewards',
+  'ihg-one-rewards': 'IHG One Rewards',
+  wyndham_rewards: 'Wyndham Rewards',
+  'wyndham-rewards': 'Wyndham Rewards',
+  eva_air: 'EVA Air',
+  ana: 'ANA Mileage Club',
+  jal: 'JAL Mileage Bank',
+  tap: 'TAP Miles&Go',
+}
+
+function titleCaseSlug(slug: string): string {
+  if (SLUG_OVERRIDES[slug]) return SLUG_OVERRIDES[slug]
+  return slug
+    .replace(/[-_]/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
 export default function TransferPartnersTable({
   rows,
   programNameBySlug,
@@ -46,7 +72,7 @@ export default function TransferPartnersTable({
         </thead>
         <tbody>
           {rows.map((row, i) => {
-            const name = programNameBySlug.get(row.from_slug) ?? row.from_slug
+            const name = programNameBySlug.get(row.from_slug) ?? titleCaseSlug(row.from_slug)
             return (
               <tr
                 key={`${row.from_slug}-${i}`}
