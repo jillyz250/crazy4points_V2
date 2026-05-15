@@ -200,7 +200,16 @@ export default function ProgramPageHero({
             Redeems on:
           </span>
           {partners.map((p) => {
-            const isHome = homeCarrierSlugs.includes(p.slug)
+            // "Home" highlight applies to:
+            //  - Member airlines whose parent_program_slug points back to
+            //    this program (Air France/KLM on Flying Blue, Lufthansa/
+            //    SWISS/Austrian on Miles & More, etc.)
+            //  - The program ITSELF when it appears in its own partner
+            //    list — i.e. the program also operates flights it sells
+            //    via its own currency (Air NZ Koru showing in Air NZ
+            //    Koru's REDEEMS ON list).
+            const isHome =
+              homeCarrierSlugs.includes(p.slug) || p.slug === program.slug
             return (
               <Link
                 key={p.slug}
