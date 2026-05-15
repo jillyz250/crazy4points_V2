@@ -306,12 +306,16 @@ export async function extractProgramContent({
 
   // Review pass on the merged extraction — runs against the COMBINED markdown
   // from all URLs, looking for fields the per-URL passes missed.
+  // CRUCIAL: pass skipFields (fields with no source URL) so review doesn't
+  // override the editor's "keep manual" intent.
+  const skipFields = ALL_EXTRACTABLE_FIELDS.filter((f) => !fieldToUrls.has(f))
   const combinedMarkdown = combinedMarkdownParts.join('\n\n')
   const review = await reviewProgramExtraction({
     programName,
     markdown: combinedMarkdown,
     programId,
     extraction: merged,
+    skipFields,
   })
 
   const finalExtraction = review.extraction
