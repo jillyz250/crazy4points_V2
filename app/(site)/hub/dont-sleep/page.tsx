@@ -179,8 +179,8 @@ export default async function Page() {
             }}
           >
             A redemption that&apos;s both cheap on miles AND has decent
-            availability. We don&apos;t care about theoretical 9.4 CPP if you
-            can&apos;t book the seat. &ldquo;Stable&rdquo; means it&apos;s
+            availability. We don&apos;t care about a theoretical 9.4¢ per point
+            if you can&apos;t book the seat. &ldquo;Stable&rdquo; means it&apos;s
             holding for now; &ldquo;At risk&rdquo; means we&apos;re watching it
             for a devaluation or partner shift.
           </p>
