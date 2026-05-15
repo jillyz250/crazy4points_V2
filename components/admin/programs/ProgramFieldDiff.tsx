@@ -220,26 +220,28 @@ export default function ProgramFieldDiff({
         </div>
       ) : null}
 
-      {/* Step 4: Manual override — paste Claude's verified/corrected text */}
+      {/* Advanced: hand-edited override. Hidden behind a small link by default —
+          the normal flow is Verify -> Apply. Use this only when you want to
+          paste a totally hand-written final, or hand-tweak after verification. */}
       {MERGEABLE_FIELDS.has(field) && appliedStatus !== 'applied' ? (
-        <details className="mt-3 rounded-[var(--radius-ui)] border border-amber-200 bg-amber-50/40 p-2">
-          <summary className="cursor-pointer font-ui text-xs font-semibold uppercase tracking-wide text-amber-900">
-            📝 Step 4: Paste Claude&apos;s verified / edited text
+        <details className="mt-3 rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] p-2">
+          <summary className="cursor-pointer font-ui text-[10px] uppercase tracking-wide text-[var(--color-text-secondary)]">
+            Advanced — paste hand-edited final (rare; overrides verify)
           </summary>
           <form action={saveManualOverrideAction} className="mt-2 flex flex-col gap-2">
             <input type="hidden" name="slug" value={programSlug} />
             <input type="hidden" name="field" value={field} />
             <input type="hidden" name="extraction_id" value={extractionId} />
-            <p className="font-body text-[11px] text-amber-900">
-              After Claude verifies a flagged claim or returns a corrected version, paste the final text here and save.
-              This becomes the value Apply will write — overrides both Extracted and any auto-Merged result.
+            <p className="font-body text-[11px] text-[var(--color-text-secondary)]">
+              For edge cases: paste a totally hand-written final, or a hand-tweaked verification result.
+              Becomes the value Apply will write — overrides Extracted and Verified.
             </p>
             <textarea
               name="value"
-              rows={8}
+              rows={6}
               defaultValue={mergedSource === 'manual_edit' && typeof mergedValue === 'string' ? mergedValue : ''}
-              placeholder="Paste the Claude-verified final text for this field..."
-              className="rounded-[var(--radius-ui)] border border-amber-300 bg-white px-3 py-1.5 font-mono text-xs"
+              placeholder="Hand-edited final text..."
+              className="rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-white px-3 py-1.5 font-mono text-xs"
               style={{ resize: 'vertical' }}
             />
             <ExtractionActionButton
@@ -254,7 +256,9 @@ export default function ProgramFieldDiff({
       {/* Actions */}
       {hasExtractedContent && !sameValue && appliedStatus !== 'applied' ? (
         <div className="mt-3 flex flex-wrap gap-2">
-          {/* Verify against source — text fields with both current + extracted */}
+          {/* Verify & merge against source — text fields with both current + extracted.
+              Replaces the standalone Merge button. Verify does the merge AND fact-checks
+              against the scraped markdown in one pass. */}
           {MERGEABLE_FIELDS.has(field) && hasCurrentContent && hasExtractedContent ? (
             <form action={verifyAction} className="inline">
               <input type="hidden" name="slug" value={programSlug} />
@@ -262,19 +266,9 @@ export default function ProgramFieldDiff({
               <input type="hidden" name="extraction_id" value={extractionId} />
               <ExtractionActionButton
                 variant="secondary"
-                label={verification ? '🔍 Re-verify against source' : '🔍 Verify against source'}
+                label={verification ? '🔍 Re-verify & merge' : '🔍 Verify & merge with source'}
                 pendingLabel="Verifying…"
               />
-            </form>
-          ) : null}
-
-          {/* Merge button — only when not already verified (verify supersedes merge) */}
-          {MERGEABLE_FIELDS.has(field) && hasCurrentContent && hasExtractedContent && !mergedValue && !verification ? (
-            <form action={mergeAction} className="inline">
-              <input type="hidden" name="slug" value={programSlug} />
-              <input type="hidden" name="field" value={field} />
-              <input type="hidden" name="extraction_id" value={extractionId} />
-              <ExtractionActionButton variant="secondary" label="✨ Merge with current" pendingLabel="Merging…" />
             </form>
           ) : null}
 
