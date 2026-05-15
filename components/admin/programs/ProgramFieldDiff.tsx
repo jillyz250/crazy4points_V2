@@ -40,7 +40,6 @@ export default function ProgramFieldDiff({
   skipAction,
   mergeAction,
   verifyAction,
-  saveManualOverrideAction,
 }: {
   field: string
   label: string
@@ -69,7 +68,6 @@ export default function ProgramFieldDiff({
   skipAction: (formData: FormData) => Promise<void>
   mergeAction: (formData: FormData) => Promise<void>
   verifyAction: (formData: FormData) => Promise<void>
-  saveManualOverrideAction: (formData: FormData) => Promise<void>
 }) {
   const extracted = extractedField as ExtractedField
   // Pull extracted value — tier_benefits uses rows[], everything else uses value
@@ -218,39 +216,6 @@ export default function ProgramFieldDiff({
             </div>
           </details>
         </div>
-      ) : null}
-
-      {/* Advanced: hand-edited override. Hidden behind a small link by default —
-          the normal flow is Verify -> Apply. Use this only when you want to
-          paste a totally hand-written final, or hand-tweak after verification. */}
-      {MERGEABLE_FIELDS.has(field) && appliedStatus !== 'applied' ? (
-        <details className="mt-3 rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] p-2">
-          <summary className="cursor-pointer font-ui text-[10px] uppercase tracking-wide text-[var(--color-text-secondary)]">
-            Advanced — paste hand-edited final (rare; overrides verify)
-          </summary>
-          <form action={saveManualOverrideAction} className="mt-2 flex flex-col gap-2">
-            <input type="hidden" name="slug" value={programSlug} />
-            <input type="hidden" name="field" value={field} />
-            <input type="hidden" name="extraction_id" value={extractionId} />
-            <p className="font-body text-[11px] text-[var(--color-text-secondary)]">
-              For edge cases: paste a totally hand-written final, or a hand-tweaked verification result.
-              Becomes the value Apply will write — overrides Extracted and Verified.
-            </p>
-            <textarea
-              name="value"
-              rows={6}
-              defaultValue={mergedSource === 'manual_edit' && typeof mergedValue === 'string' ? mergedValue : ''}
-              placeholder="Hand-edited final text..."
-              className="rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-white px-3 py-1.5 font-mono text-xs"
-              style={{ resize: 'vertical' }}
-            />
-            <ExtractionActionButton
-              variant="secondary"
-              label={mergedSource === 'manual_edit' ? 'Update override' : 'Save override'}
-              pendingLabel="Saving…"
-            />
-          </form>
-        </details>
       ) : null}
 
       {/* Actions */}
