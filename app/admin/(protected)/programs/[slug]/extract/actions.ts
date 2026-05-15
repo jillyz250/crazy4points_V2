@@ -263,6 +263,46 @@ export async function discoverProgramSourceUrls(formData: FormData): Promise<voi
 }
 
 /**
+ * One-click register a Scout source from the discovery panel.
+ * Used for time-sensitive content (promos, newsroom) that doesn't belong in
+ * the static program page but DOES belong in the alerts pipeline.
+ */
+export async function registerScoutSource(formData: FormData): Promise<void> {
+  const slug = String(formData.get('slug') ?? '').trim()
+  const url = String(formData.get('url') ?? '').trim()
+  const programName = String(formData.get('program_name') ?? '').trim()
+  const kind = String(formData.get('kind') ?? '').trim()  // 'promo' | 'newsroom'
+
+  if (!slug || !url || !programName || !kind) return
+
+  const supabase = createAdminClient()
+
+  const sourceName = kind === 'promo'
+    ? `${programName} — Current Offers`
+    : `${programName} Newsroom`
+  const scrapeFrequency = kind === 'promo' ? 'daily' : 'daily'
+  const notes = kind === 'promo'
+    ? `Auto-registered from /admin/programs/${slug}/extract discovery panel. Time-sensitive promo bonuses; expect frequent additions/expirations.`
+    : `Auto-registered from /admin/programs/${slug}/extract discovery panel. Press releases / official announcements.`
+
+  await supabase
+    .from('sources')
+    .upsert({
+      name: sourceName,
+      url,
+      type: 'official_partner',
+      tier: 1,
+      is_active: true,
+      use_firecrawl: true,
+      scrape_frequency: scrapeFrequency,
+      notes,
+    }, { onConflict: 'url', ignoreDuplicates: false })
+
+  revalidatePath(`/admin/programs/${slug}/extract`)
+  revalidatePath('/admin/sources')
+}
+
+/**
  * Apply discovered URL suggestions to programs.field_source_urls in bulk.
  * Overwrites any existing per-field URLs with the suggestions. Skips fields
  * where the suggestion is null.
