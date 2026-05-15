@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { createAdminClient } from '@/utils/supabase/server'
 import RunExtractionButton from '@/components/admin/cards/RunExtractionButton'
 import ProgramFieldDiff from '@/components/admin/programs/ProgramFieldDiff'
+import ExtractionCopyButtons from '@/components/admin/programs/ExtractionCopyButtons'
 import {
   runProgramExtraction,
   applyExtractedField,
@@ -265,6 +266,27 @@ export default async function ProgramExtractPage({
               {latest.review_pass_added_count > 0 ? ` · review pass added ${latest.review_pass_added_count}` : ''}
             </p>
           </header>
+
+          <ExtractionCopyButtons
+            programName={program.name}
+            programType={program.type}
+            programSlug={program.slug}
+            currentValues={{
+              intro: program.intro,
+              sweet_spots: program.sweet_spots,
+              lounge_access: program.lounge_access,
+              tier_benefits: program.tier_benefits,
+              quirks: program.quirks,
+              award_chart: program.award_chart,
+              alliance: program.alliance,
+              hubs: program.hubs,
+              parent_program_slug: program.parent_program_slug,
+            }}
+            extraction={extraction as Record<string, unknown>}
+            appliedFields={appliedFields}
+            mergedFields={mergedFields}
+            fieldSourceUrls={storedFieldUrls as Record<string, string | string[] | null>}
+          />
 
           <div className="space-y-4">
             {FIELDS.map((f) => {
