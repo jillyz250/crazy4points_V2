@@ -120,8 +120,8 @@ export default async function SimpleTileGrid({
         <SimpleTile
           title="Lounge access"
           description="Where to vanish before takeoff. Your status (or ticket) opens which doors."
-          cta="Find the lounges"
-          preview="The lounge map for this program."
+          cta="See the rules"
+          preview="Who gets in, who doesn't, and the carve-outs."
         >
           <div className="rg-prose" dangerouslySetInnerHTML={{ __html: loungeAccessHtml }} />
         </SimpleTile>
