@@ -172,15 +172,42 @@ export async function extractProgramContent({
     return { ok: false, error: 'All URLs failed pre-flight verification.' }
   }
 
+  // Domains known to redirect Firecrawl to anti-bot "sorry" pages.
+  // For these, automatically use Firecrawl stealth proxy (residential IP +
+  // fingerprint randomization). Slower + costs more but actually returns
+  // real markdown instead of an error page.
+  const HOSTILE_DOMAINS = [
+    'delta.com',
+    'aa.com',
+    'jetblue.com',
+    'lufthansa.com',
+    'swiss.com',
+    'austrian.com',
+    'singaporeair.com',
+    'cathaypacific.com',
+    'qatarairways.com',
+    'emirates.com',
+  ]
+  function isHostile(u: string): boolean {
+    try {
+      const host = new URL(u).hostname.toLowerCase()
+      return HOSTILE_DOMAINS.some((d) => host === d || host.endsWith('.' + d))
+    } catch {
+      return false
+    }
+  }
+
   // Pre-scrape each unique verified URL exactly ONCE — no matter how many
   // fields reference it. Stored in markdownByUrl for per-field combination.
   const markdownByUrl = new Map<string, string>()
   await Promise.all(
     Array.from(verifiedMap.entries()).map(async ([originalUrl, finalUrl]) => {
+      const stealth = isHostile(finalUrl)
       const md = interactive
-        ? await fetchFirecrawlInteractive(finalUrl, { maxChars: PER_URL_MARKDOWN_LIMIT })
-        : await fetchFirecrawl(finalUrl, { maxChars: PER_URL_MARKDOWN_LIMIT })
+        ? await fetchFirecrawlInteractive(finalUrl, { maxChars: PER_URL_MARKDOWN_LIMIT, stealth })
+        : await fetchFirecrawl(finalUrl, { maxChars: PER_URL_MARKDOWN_LIMIT, stealth })
       if (md) markdownByUrl.set(originalUrl, md)
+      if (stealth) console.log(`[extract] used stealth proxy for ${finalUrl}`)
     }),
   )
 
