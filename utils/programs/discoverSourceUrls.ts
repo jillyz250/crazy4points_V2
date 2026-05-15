@@ -135,7 +135,7 @@ EXTRACTION FIELDS (static program-page content):
 
 SCOUT SOURCES (time-sensitive content for the alerts pipeline — NOT for static program-page content):
 - promo_source: the program's "Current Offers" / "Promotions" / "Bonus Miles" page. Examples: united.com/.../mp-offers.html, delta.com/.../skymiles-offers.html, marriott.com/.../current-promotions.mi. Time-sensitive content; bonuses change weekly.
-- newsroom_source: the airline/program's press releases / newsroom. Examples: newsroom.united.com, newsroom.delta.com, news.marriott.com. Program changes, route launches, partner news.
+- newsroom_source: the airline/program's CONSUMER newsroom or press-release hub. Examples: hub.united.com/newsroom, news.delta.com, newsroom.marriott.com, news.flyfrontier.com. AVOID investor-relations subdomains like ir.united.com or investor.delta.com — those are SEC filings + earnings, NOT consumer-facing program news. If only an IR URL is in candidates, return null for newsroom_source.
 
 RULES:
 1. Return ONLY URLs that you saw in the candidate list. Don't invent URLs.
@@ -209,10 +209,41 @@ export async function discoverSourceUrls({
   let url = startingUrl.trim()
   if (!url.startsWith('http')) url = `https://${url}`
 
-  // 1. Get site map. limit=500 catches deep pages on big airline domains
-  //    (united.com has thousands of pages — destinations, help, etc. — but
-  //    only ~10-20 of them are loyalty/lounge/promo content).
-  const allUrls = await mapFirecrawl(url, { limit: 500 })
+  // 1. Get site map. Two-pass:
+  //    a) Map the user's starting URL (typically the homepage).
+  //    b) Identify the most loyalty-relevant deep URL in the results
+  //       (e.g. /en/us/fly/mileageplus.html on united.com) and map THAT
+  //       too. Combine + dedupe. Catches deep pages (tier_benefits,
+  //       lounge_access) the homepage crawl misses on big-brand domains.
+  const primaryUrls = await mapFirecrawl(url, { limit: 500 })
+
+  // Find the strongest loyalty-program landing-page candidate to deep-crawl
+  const LOYALTY_HUB_PATTERNS = [
+    /\/mileageplus[^\/]*$/i,
+    /\/mileageplus\.html?$/i,
+    /\/skymiles[^\/]*$/i,
+    /\/aadvantage[^\/]*$/i,
+    /\/aeroplan[^\/]*$/i,
+    /\/flying-?blue[^\/]*$/i,
+    /\/krisflyer[^\/]*$/i,
+    /\/bonvoy[^\/]*$/i,
+    /\/honors[^\/]*$/i,
+    /\/one-?rewards[^\/]*$/i,
+    /\/world-?of-?hyatt[^\/]*$/i,
+    /\/wyndham-?rewards[^\/]*$/i,
+    /\/(loyalty|rewards|frequent[-_]?flyer|members?)[^\/]*\.(html?|aspx?)?$/i,
+  ]
+  const deepStarter = primaryUrls.find((u) =>
+    LOYALTY_HUB_PATTERNS.some((p) => p.test(u)),
+  )
+
+  let secondaryUrls: string[] = []
+  if (deepStarter && deepStarter !== url) {
+    secondaryUrls = await mapFirecrawl(deepStarter, { limit: 500 })
+  }
+
+  // Dedupe combined list
+  const allUrls = Array.from(new Set([...primaryUrls, ...secondaryUrls]))
   if (allUrls.length === 0) {
     return { ok: false, error: `Firecrawl /map returned no URLs for ${url} — check the starting URL or domain reachability` }
   }
