@@ -39,6 +39,7 @@ export async function extractProgramContent({
   programSlug,
   programType,
   sourceUrl,
+  additionalUrls = [],
   interactive = false,
 }: {
   programId: string
@@ -46,17 +47,23 @@ export async function extractProgramContent({
   programSlug: string
   programType: string
   sourceUrl: string
+  /**
+   * Optional supplemental URLs. All scraped in parallel and concatenated
+   * with section headers before being passed to Sonnet. Useful for alliances
+   * and large programs that split content across pages.
+   * Each adds ~1 Firecrawl credit (~$0.001) and ~$0.06 in Sonnet input tokens.
+   */
+  additionalUrls?: string[]
   interactive?: boolean
 }): Promise<ProgramExtractionResult> {
   const supabase = createAdminClient()
 
-  // Pre-flight: verify URL is live before spending Firecrawl + Sonnet credits.
-  // Catches stale URLs, 404s, auth walls. ~1 second cost vs ~$0.12 saved.
+  // Pre-flight: verify all URLs are live before spending Firecrawl + Sonnet credits.
   const verify = await verifySourceUrl(sourceUrl)
   if (!verify.ok) {
     await supabase.from('program_extractions').insert({
       program_id: programId,
-      source_url: sourceUrl, // pre-flight failed; store what the editor requested
+      source_url: sourceUrl,
       raw_markdown: null,
       markdown_chars: 0,
       used_interactive: interactive,
@@ -68,9 +75,6 @@ export async function extractProgramContent({
     return { ok: false, error: verify.error }
   }
 
-  // If the URL redirected to a different canonical, use the final URL for
-  // Firecrawl AND update programs.extraction_source_url so the next run
-  // pre-fills with the canonical (no more chasing redirects).
   let finalUrl = verify.finalUrl
   if (verify.redirected) {
     console.log(`[program-extract] URL redirected: ${sourceUrl} -> ${finalUrl}`)
@@ -80,9 +84,43 @@ export async function extractProgramContent({
       .eq('id', programId)
   }
 
-  const markdown = interactive
-    ? await fetchFirecrawlInteractive(finalUrl, { maxChars: MARKDOWN_CHAR_LIMIT })
-    : await fetchFirecrawl(finalUrl, { maxChars: MARKDOWN_CHAR_LIMIT })
+  // Verify additional URLs in parallel (non-blocking on failure — invalid
+  // supplemental URLs are skipped with a warning, primary URL still proceeds).
+  const verifiedAdditional: string[] = []
+  if (additionalUrls.length > 0) {
+    const verifications = await Promise.all(
+      additionalUrls.filter((u) => u && u.trim()).map(async (u) => ({ url: u, result: await verifySourceUrl(u) })),
+    )
+    for (const v of verifications) {
+      if (v.result.ok) {
+        verifiedAdditional.push(v.result.finalUrl)
+      } else {
+        console.warn(`[program-extract] supplemental URL skipped: ${v.url} - ${v.result.error}`)
+      }
+    }
+  }
+
+  // Scrape primary + all supplemental URLs in parallel. Each gets up to
+  // 1/N of the markdown budget so the combined output fits within Sonnet's
+  // input context comfortably.
+  const allUrls = [finalUrl, ...verifiedAdditional]
+  const perUrlLimit = Math.floor(MARKDOWN_CHAR_LIMIT / Math.max(allUrls.length, 1))
+
+  const scrapes = await Promise.all(
+    allUrls.map(async (url) => {
+      const md = interactive
+        ? await fetchFirecrawlInteractive(url, { maxChars: perUrlLimit })
+        : await fetchFirecrawl(url, { maxChars: perUrlLimit })
+      return { url, markdown: md }
+    }),
+  )
+
+  // Concatenate with section headers so Sonnet knows which source each
+  // segment came from.
+  const validScrapes = scrapes.filter((s) => s.markdown && s.markdown.length > 0)
+  const markdown = validScrapes
+    .map((s, i) => `=== SOURCE ${i + 1}: ${s.url} ===\n\n${s.markdown}`)
+    .join('\n\n')
 
   if (!markdown) {
     await supabase.from('program_extractions').insert({

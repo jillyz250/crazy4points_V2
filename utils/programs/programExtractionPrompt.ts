@@ -30,6 +30,11 @@ SOURCE_QUOTE RULES (CRITICAL FOR JSON VALIDITY):
 8. Inside a source_quote, every backslash MUST be doubled to \\\\.
 9. Avoid em-dashes (—) — use regular hyphens. Avoid smart quotes — use straight quotes.
 
+MULTI-SOURCE INPUT:
+The markdown below may contain MULTIPLE sources separated by:
+  === SOURCE N: <url> ===
+These are different pages from the same program (e.g., /travel-benefits, /airport-lounges, /about). Treat them as ONE combined source — extract from any/all sections. When source_quote applies, the quote can come from any section. If the same fact appears in multiple sections, pick the most authoritative or specific version.
+
 FIELD GUIDANCE:
 
 intro:

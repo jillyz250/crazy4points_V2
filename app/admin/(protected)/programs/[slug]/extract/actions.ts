@@ -12,7 +12,16 @@ import { applyProgramField, skipProgramField, isApplyableField } from '@/utils/p
 export async function runProgramExtraction(formData: FormData): Promise<void> {
   const slug = String(formData.get('slug') ?? '').trim()
   const sourceUrl = String(formData.get('source_url') ?? '').trim()
+  const additionalUrlsRaw = String(formData.get('additional_urls') ?? '').trim()
   const interactive = formData.get('interactive') === 'on'
+
+  // Split additional URLs by newline; trim + filter empties
+  const additionalUrls = additionalUrlsRaw
+    ? additionalUrlsRaw
+        .split('\n')
+        .map((u) => u.trim())
+        .filter((u) => u.length > 0)
+    : []
 
   if (!slug || !sourceUrl) {
     console.error('[program-extract] missing slug or source_url')
@@ -22,7 +31,7 @@ export async function runProgramExtraction(formData: FormData): Promise<void> {
   const supabase = createAdminClient()
   const { data: program, error } = await supabase
     .from('programs')
-    .select('id, name, slug, type, extraction_source_url')
+    .select('id, name, slug, type, extraction_source_url, additional_source_urls')
     .eq('slug', slug)
     .single()
 
@@ -31,12 +40,19 @@ export async function runProgramExtraction(formData: FormData): Promise<void> {
     return
   }
 
-  // Persist the URL on the program row first time it's typed in.
+  // Persist URLs on the program row so they pre-fill on every future extraction.
+  const urlUpdate: Record<string, unknown> = {}
   if (sourceUrl !== program.extraction_source_url) {
-    await supabase
-      .from('programs')
-      .update({ extraction_source_url: sourceUrl })
-      .eq('id', program.id)
+    urlUpdate.extraction_source_url = sourceUrl
+  }
+  // Only update additional URLs if they changed (avoid unnecessary writes)
+  const existingAdditional = (program.additional_source_urls as string[] | null) ?? []
+  const additionalChanged = JSON.stringify(additionalUrls) !== JSON.stringify(existingAdditional)
+  if (additionalChanged) {
+    urlUpdate.additional_source_urls = additionalUrls.length > 0 ? additionalUrls : null
+  }
+  if (Object.keys(urlUpdate).length > 0) {
+    await supabase.from('programs').update(urlUpdate).eq('id', program.id)
   }
 
   const result = await extractProgramContent({
@@ -45,6 +61,7 @@ export async function runProgramExtraction(formData: FormData): Promise<void> {
     programSlug: program.slug,
     programType: program.type ?? 'airline',
     sourceUrl,
+    additionalUrls,
     interactive,
   })
 
