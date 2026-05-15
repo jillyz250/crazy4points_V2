@@ -140,13 +140,13 @@ export default function ProgramFieldDiff({
           </div>
         </div>
 
-        {/* Merged value (only shown when present) */}
-        {mergedValue ? (
+        {/* Sonnet-processed value (legacy merged-only; verifications get their
+            own panel below). Only shown when no verification ran but a legacy
+            merge result exists. */}
+        {mergedValue && !verification ? (
           <div>
             <p className="mb-1 font-ui text-[10px] uppercase tracking-wide text-emerald-700">
-              {mergedSource === 'manual_edit'
-                ? '📝 Manual override (Claude-verified text)'
-                : '✨ Merged (current voice + extracted facts)'}
+              ✨ Sonnet-processed version
             </p>
             <div className="rounded-[var(--radius-ui)] border-2 border-emerald-400 bg-emerald-50/30 p-2 font-body text-sm">
               {renderValue(mergedValue)}
@@ -255,10 +255,14 @@ export default function ProgramFieldDiff({
               variant="primary"
               label={
                 verification
-                  ? `✅ Use verified ${label} (replace current)`
+                  ? verification.verdict === 'corrected'
+                    ? `✅ Use the fact-checked version`
+                    : verification.verdict === 'confirmed'
+                      ? `✅ Use this (source confirmed)`
+                      : `✅ Use this (source couldn't verify — review the diff first)`
                   : mergedValue
-                    ? `✅ Use merged ${label} (replace current)`
-                    : `✅ Replace current ${label} with extracted`
+                    ? `✅ Use this version`
+                    : `✅ Replace current with extracted (no fact-check ran)`
               }
               pendingLabel="Saving…"
             />
