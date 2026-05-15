@@ -77,6 +77,12 @@ const KEEP_PATTERNS = [
   /sweet/i,
   /promo/i,
   /offer/i,
+  /bonus/i,
+  /deal/i,
+  /sale/i,
+  /newsroom/i,
+  /press[-_/]?release/i,
+  /news[-_/]?center/i,
   /about/i,
   /program/i,
   /flying-blue/i,
@@ -96,13 +102,13 @@ function shouldKeep(url: string): boolean {
   return false  // Strict: must match a KEEP pattern
 }
 
-const DISCOVERY_SYSTEM_PROMPT = `You are mapping discovered URLs on a points-and-miles program's marketing site to specific content fields on a reference page.
+const DISCOVERY_SYSTEM_PROMPT = `You are mapping discovered URLs on a points-and-miles program's marketing site to specific content fields on a reference page AND identifying time-sensitive Scout-source pages for the alerts pipeline.
 
 You receive: program name, program type (airline/hotel/alliance/credit_card), and a shortlist of candidate URLs from the program's official site.
 
-You return: a JSON map of which URL best supports each extraction field.
+You return: a JSON map of which URL best supports each extraction field, plus Scout-source recommendations.
 
-EXTRACTION FIELDS:
+EXTRACTION FIELDS (static program-page content):
 - intro: short narrative paragraph. Usually skipped (editorial). Return null unless the page is a clear program-overview.
 - sweet_spots: redemption highlights. Usually skipped (editorial). Return null unless the page is a clear "best redemptions" or "deals" page.
 - lounge_access: airport lounge access rules (alliance/cabin/status-based). Look for "Lounge", "Club", "Polaris", "Admirals", "Sky Club", "Centurion", etc.
@@ -113,9 +119,13 @@ EXTRACTION FIELDS:
 - parent_program_slug: only relevant for sub-programs (e.g. KLM under Flying Blue, Iberia under Avios). Return null for standalone programs.
 - tier_benefits: status tier benefits per level (Silver/Gold/Premier 1K/Platinum/etc). Look for "Elite Status", "Premier", "Medallion", "Loyalty Tiers", "Status Benefits".
 
+SCOUT SOURCES (time-sensitive content for the alerts pipeline — NOT for static program-page content):
+- promo_source: the program's "Current Offers" / "Promotions" / "Bonus Miles" page. Examples: united.com/.../mp-offers.html, delta.com/.../skymiles-offers.html, marriott.com/.../current-promotions.mi. Time-sensitive content; bonuses change weekly.
+- newsroom_source: the airline/program's press releases / newsroom. Examples: newsroom.united.com, newsroom.delta.com, news.marriott.com. Program changes, route launches, partner news.
+
 RULES:
 1. Return ONLY URLs that you saw in the candidate list. Don't invent URLs.
-2. Up to 2 URLs per field if multiple pages cover the topic (e.g. tier_benefits often spans /benefits and /qualify pages).
+2. Up to 2 URLs per field if multiple pages cover the topic.
 3. Confidence levels: "high" (URL clearly matches), "medium" (URL probably matches), "low" (URL might match but unsure).
 4. Skip fields where no candidate URL is a good match — return null for that field.
 5. For SKIP-by-default fields (intro, sweet_spots, award_chart on dynamic-pricing programs), return null unless an obviously-perfect URL exists.
@@ -131,7 +141,9 @@ OUTPUT FORMAT — return ONLY valid JSON, no prose:
   "hubs": { ... } | null,
   "parent_program_slug": { ... } | null,
   "intro": { ... } | null,
-  "sweet_spots": { ... } | null
+  "sweet_spots": { ... } | null,
+  "promo_source": { "urls": ["..."], "reason": "...", "confidence": "high" } | null,
+  "newsroom_source": { "urls": ["..."], "reason": "...", "confidence": "high" } | null
 }`
 
 function buildUserPrompt(

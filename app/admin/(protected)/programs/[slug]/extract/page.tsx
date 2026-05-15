@@ -12,6 +12,7 @@ import {
   verifyProgramField,
   discoverProgramSourceUrls,
   applyDiscoveredUrls,
+  registerScoutSource,
 } from './actions'
 
 export const dynamic = 'force-dynamic'
@@ -198,12 +199,17 @@ export default async function ProgramExtractPage({
           if (!suggRaw || !suggRaw.generated_at) return null
           type FieldSug = { urls?: string[]; reason?: string; confidence?: string }
           const metaKeys = new Set(['generated_at', 'starting_url', 'total_urls_seen', 'candidates_sent'])
+          const scoutKeys = new Set(['promo_source', 'newsroom_source'])
           const populated: Array<[string, FieldSug]> = []
+          const scoutSources: Array<[string, FieldSug]> = []
           for (const [k, v] of Object.entries(suggRaw)) {
             if (metaKeys.has(k)) continue
             if (v && typeof v === 'object' && !Array.isArray(v)) {
               const fs = v as FieldSug
-              if (Array.isArray(fs.urls) && fs.urls.length > 0) populated.push([k, fs])
+              if (Array.isArray(fs.urls) && fs.urls.length > 0) {
+                if (scoutKeys.has(k)) scoutSources.push([k, fs])
+                else populated.push([k, fs])
+              }
             }
           }
           const totalUrlsSeen = typeof suggRaw.total_urls_seen === 'number' ? suggRaw.total_urls_seen : null
@@ -263,6 +269,53 @@ export default async function ProgramExtractPage({
                   </form>
                 </>
               )}
+
+              {scoutSources.length > 0 ? (
+                <div className="mt-4 rounded-[var(--radius-ui)] border border-blue-300 bg-blue-50/40 p-2">
+                  <p className="mb-1 font-ui text-[11px] font-bold uppercase tracking-wide text-blue-900">
+                    🔔 Scout source candidates (alerts pipeline, NOT this page)
+                  </p>
+                  <p className="mb-2 font-body text-[11px] text-blue-900">
+                    Time-sensitive content — register as a Scout source so alerts get auto-generated when promos/news drop.
+                  </p>
+                  <table className="w-full font-body text-xs">
+                    <tbody>
+                      {scoutSources.map(([kind, s]) => (
+                        <tr key={kind} className="border-b border-blue-100 align-top">
+                          <td className="py-1 pr-2 font-semibold text-blue-900">
+                            {kind === 'promo_source' ? '🎁 Promos' : '📰 Newsroom'}
+                          </td>
+                          <td className="py-1 pr-2">
+                            {(s.urls ?? []).map((u: string, i: number) => (
+                              <div key={i}>
+                                <a className="text-blue-900 underline" href={u} target="_blank" rel="noreferrer">{u}</a>
+                              </div>
+                            ))}
+                            <p className="mt-0.5 text-[11px] text-blue-700">{s.reason}</p>
+                          </td>
+                          <td className="py-1 pr-2">
+                            {(s.urls ?? []).slice(0, 1).map((u: string) => (
+                              <form key={u} action={registerScoutSource} className="inline">
+                                <input type="hidden" name="slug" value={program.slug} />
+                                <input type="hidden" name="url" value={u} />
+                                <input type="hidden" name="program_name" value={program.name} />
+                                <input type="hidden" name="kind" value={kind === 'promo_source' ? 'promo' : 'newsroom'} />
+                                <button
+                                  type="submit"
+                                  className="rg-btn-secondary"
+                                  style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                                >
+                                  + Register as Scout source
+                                </button>
+                              </form>
+                            ))}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
             </div>
           )
         })()}
