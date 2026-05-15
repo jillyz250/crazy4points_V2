@@ -29,7 +29,7 @@ const LABEL: Record<GateStatus, string> = {
   pass: 'Pass',
   overridden: 'Overridden',
   fail: 'Blocked',
-  'not-applicable': 'Skipped',
+  'not-applicable': 'Not required',
 }
 
 export default function PublishGatesBanner({ gates }: Props) {
