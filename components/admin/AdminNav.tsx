@@ -58,11 +58,10 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Ops',
     items: [
-      { href: '/admin/refresh-queue', label: 'Refresh queue', abbr: 'Rq', badgeKey: 'refreshQueue' },
+      { href: '/admin/extractions', label: 'Extractions', abbr: 'Ex', badgeKey: 'refreshQueue' },
       { href: '/admin/jobs', label: 'Jobs', abbr: 'Jo' },
       { href: '/admin/briefs', label: 'Briefs', abbr: 'Br' },
       { href: '/admin/fact-checks', label: 'Fact Checks', abbr: 'Fc' },
-      { href: '/admin/card-extractions', label: 'Card extractions', abbr: 'Cx' },
       { href: '/admin/errors', label: 'Errors', abbr: 'Er' },
       { href: '/admin/ai-usage', label: 'AI Usage', abbr: 'Ai' },
     ],
