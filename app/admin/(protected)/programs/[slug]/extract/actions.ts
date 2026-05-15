@@ -217,6 +217,54 @@ export async function mergeProgramField(formData: FormData): Promise<void> {
 }
 
 /**
+ * Save a manually-edited override for a field. Editor paste-target:
+ *   "Copy review prompt" -> Claude reviews + edits/verifies -> paste back here.
+ *
+ * Writes to program_extractions.merged_fields[field] with source='manual_edit'
+ * so the Apply button picks it up the same way it picks up auto-merge results.
+ * The original extracted value stays untouched in extraction.<field>.
+ *
+ * Only allowed for mergeable (text) fields. Structured fields (tier_benefits,
+ * hubs, alliance) should be edited via /admin/programs/[slug]/edit instead.
+ */
+export async function saveManualOverride(formData: FormData): Promise<void> {
+  const slug = String(formData.get('slug') ?? '').trim()
+  const field = String(formData.get('field') ?? '').trim()
+  const extractionId = String(formData.get('extraction_id') ?? '').trim()
+  const value = String(formData.get('value') ?? '').trim()
+
+  if (!slug || !extractionId || !isMergeableField(field)) {
+    console.error(`[program-extract] invalid manual override: slug=${slug} field=${field}`)
+    return
+  }
+  if (!value) {
+    console.error(`[program-extract] manual override is empty for ${field}`)
+    return
+  }
+
+  const supabase = createAdminClient()
+  const { data: extractionRow } = await supabase
+    .from('program_extractions')
+    .select('merged_fields')
+    .eq('id', extractionId)
+    .single()
+
+  const mergedFields = ((extractionRow?.merged_fields as Record<string, { value: string; generated_at: string; source?: string }> | null) ?? {})
+  mergedFields[field] = {
+    value,
+    generated_at: new Date().toISOString(),
+    source: 'manual_edit',
+  }
+
+  await supabase
+    .from('program_extractions')
+    .update({ merged_fields: mergedFields })
+    .eq('id', extractionId)
+
+  revalidatePath(`/admin/programs/${slug}/extract`)
+}
+
+/**
  * Mark the entire extraction as completed (editor done reviewing).
  */
 export async function completeExtraction(formData: FormData): Promise<void> {

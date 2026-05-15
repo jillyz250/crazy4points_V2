@@ -314,7 +314,7 @@ export default function ExtractionCopyButtons({
         className="rg-btn-primary"
         style={{ fontSize: '0.8125rem', padding: '0.375rem 0.75rem' }}
       >
-        📋 Copy review prompt for Claude
+        📋 Step 2: Copy review prompt for Claude
       </button>
       <button
         type="button"
@@ -322,7 +322,7 @@ export default function ExtractionCopyButtons({
         className="rg-btn-secondary"
         style={{ fontSize: '0.8125rem', padding: '0.375rem 0.75rem' }}
       >
-        📋 Copy publish review
+        📋 Final: Copy publish review
       </button>
       <span
         style={{
@@ -332,7 +332,7 @@ export default function ExtractionCopyButtons({
           minWidth: '10rem',
         }}
       >
-        {status ?? 'Two-paste workflow: review → merge/apply → publish review'}
+        {status ?? 'Step 4 override boxes live on each field card below.'}
       </span>
     </div>
   )
