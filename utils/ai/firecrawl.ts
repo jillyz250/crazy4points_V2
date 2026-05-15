@@ -28,6 +28,13 @@ export type FirecrawlOptions = {
   actions?: FirecrawlAction[]
   /** Custom timeout override (default 30s plain, 60s with actions) */
   timeoutMs?: number
+  /**
+   * Stealth mode bypasses common anti-bot redirects (e.g. Delta's
+   * "sorry-server" trap). Uses Firecrawl's residential proxy + fingerprint
+   * randomization. Slower (~2-3x) + paid feature; only enable for known
+   * hostile domains.
+   */
+  stealth?: boolean
 }
 
 export async function fetchFirecrawl(
@@ -61,6 +68,10 @@ export async function fetchFirecrawl(
     }
     if (hasActions) {
       body.actions = options.actions
+    }
+    if (options.stealth) {
+      // Firecrawl's stealth proxy (residential IP + fingerprint randomization)
+      body.proxy = 'stealth'
     }
 
     const res = await fetch('https://api.firecrawl.dev/v1/scrape', {
@@ -149,6 +160,7 @@ export async function fetchFirecrawlInteractive(
   return fetchFirecrawl(url, {
     ...options,
     actions: EXPAND_EVERYTHING_ACTIONS,
+    // stealth pass-through is handled by FirecrawlOptions spread
   })
 }
 
