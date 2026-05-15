@@ -158,12 +158,59 @@ export async function verifyExtractedField({
 
   const client = new Anthropic({ apiKey })
 
+  // Use Anthropic tool_use with a strict JSON schema. The SDK guarantees the
+  // tool input matches the schema, eliminating "malformed JSON in raw text"
+  // failures that occur when long markdown strings contain unescaped
+  // newlines / quotes inside the corrected_value field.
+  const verifyTool = {
+    name: 'submit_verification',
+    description: 'Submit the field verification verdict and corrected text',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        verdict: {
+          type: 'string',
+          enum: ['confirmed', 'corrected', 'unverifiable'],
+          description: 'confirmed = current matches source; corrected = source caused at least one fact change; unverifiable = source too thin to verify.',
+        },
+        discrepancies: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              claim: { type: 'string' },
+              current_says: { type: 'string' },
+              extracted_says: { type: 'string' },
+              source_says: { type: 'string' },
+              resolution: {
+                type: 'string',
+                enum: ['kept_current', 'used_extracted', 'corrected', 'dropped', 'flagged_for_human'],
+              },
+            },
+            required: ['claim', 'current_says', 'extracted_says', 'source_says', 'resolution'],
+          },
+        },
+        corrected_value: {
+          type: 'string',
+          description: 'The final merged markdown text in current\'s voice with verified facts swapped in.',
+        },
+        notes: {
+          type: 'string',
+          description: 'One-paragraph narrative for the editor explaining the verdict.',
+        },
+      },
+      required: ['verdict', 'discrepancies', 'corrected_value', 'notes'],
+    },
+  }
+
   let response
   try {
     response = await client.messages.create({
       model: MODEL,
       max_tokens: 8000,
       system: VERIFY_SYSTEM_PROMPT,
+      tools: [verifyTool],
+      tool_choice: { type: 'tool', name: 'submit_verification' },
       messages: [
         { role: 'user', content: buildVerifyUserPrompt(field, currentValue, extractedValue, markdown) },
       ],
@@ -176,28 +223,21 @@ export async function verifyExtractedField({
 
   await logUsage(response, 'program_field_verify', { program_id: programId, field })
 
-  const textBlock = response.content.find((c) => c.type === 'text')
-  if (!textBlock || textBlock.type !== 'text') {
-    await persistVerifyError(extractionId, field, 'Sonnet returned no text content')
-    return { ok: false, error: 'Sonnet returned no text content' }
+  // Tool-use response: the verification data is in tool_use.input (already
+  // a typed JS object, no JSON parsing required).
+  const toolUseBlock = response.content.find(
+    (c): c is Extract<typeof c, { type: 'tool_use' }> => c.type === 'tool_use',
+  )
+  if (!toolUseBlock) {
+    await persistVerifyError(extractionId, field, `Sonnet did not call submit_verification tool (got ${response.stop_reason})`)
+    return { ok: false, error: 'Sonnet did not call submit_verification tool' }
   }
 
-  // Strip any accidental code fences
-  let raw = textBlock.text.trim()
-  raw = raw.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim()
-
-  let parsed: {
+  const parsed = toolUseBlock.input as {
     verdict?: string
     discrepancies?: Array<Record<string, string>>
     corrected_value?: string
     notes?: string
-  }
-  try {
-    parsed = JSON.parse(raw)
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    await persistVerifyError(extractionId, field, `Could not parse Sonnet JSON: ${msg}. First 500 chars: ${raw.slice(0, 500)}`)
-    return { ok: false, error: `Could not parse Sonnet JSON: ${msg}` }
   }
 
   const verdict = parsed.verdict as 'confirmed' | 'corrected' | 'unverifiable' | undefined
