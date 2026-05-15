@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { createAdminClient } from '@/utils/supabase/server'
 import RunExtractionButton from '@/components/admin/cards/RunExtractionButton'
+import ExtractionActionButton from '@/components/admin/cards/ExtractionActionButton'
 import ProgramFieldDiff from '@/components/admin/programs/ProgramFieldDiff'
 import ExtractionCopyButtons from '@/components/admin/programs/ExtractionCopyButtons'
 import {
@@ -189,9 +190,11 @@ export default async function ProgramExtractPage({
               style={{ fontSize: '0.875rem' }}
             />
           </label>
-          <button type="submit" className="rg-btn-primary" style={{ fontSize: '0.8125rem', padding: '0.375rem 0.75rem' }}>
-            🔍 Discover URLs
-          </button>
+          <ExtractionActionButton
+            variant="primary"
+            label="🔍 Discover URLs"
+            pendingLabel="Mapping site & classifying… (20–40s)"
+          />
         </form>
 
         {(() => {
@@ -260,9 +263,11 @@ export default async function ProgramExtractPage({
                   </table>
                   <form action={applyDiscoveredUrls} className="mt-3">
                     <input type="hidden" name="slug" value={program.slug} />
-                    <button type="submit" className="rg-btn-primary" style={{ fontSize: '0.8125rem', padding: '0.375rem 0.75rem' }}>
-                      ⬇ Apply suggestions to field URLs below
-                    </button>
+                    <ExtractionActionButton
+                      variant="primary"
+                      label="⬇ Apply suggestions to field URLs below"
+                      pendingLabel="Applying…"
+                    />
                     <span className="ml-2 font-body text-[11px] text-amber-700">
                       Overwrites the per-field textareas — review them after.
                     </span>
@@ -300,13 +305,12 @@ export default async function ProgramExtractPage({
                                 <input type="hidden" name="url" value={u} />
                                 <input type="hidden" name="program_name" value={program.name} />
                                 <input type="hidden" name="kind" value={kind === 'promo_source' ? 'promo' : 'newsroom'} />
-                                <button
-                                  type="submit"
-                                  className="rg-btn-secondary"
-                                  style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
-                                >
-                                  + Register as Scout source
-                                </button>
+                                <ExtractionActionButton
+                                  variant="secondary"
+                                  size="sm"
+                                  label="+ Register as Scout source"
+                                  pendingLabel="Registering…"
+                                />
                               </form>
                             ))}
                           </td>
