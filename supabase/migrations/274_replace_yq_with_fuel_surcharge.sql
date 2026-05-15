@@ -46,9 +46,8 @@ update partner_redemptions set
 where notes like '%(YQ)%' or routing_rules like '%(YQ)%' or availability_reality like '%(YQ)%';
 
 update alerts set
-  summary = replace(replace(coalesce(summary, ''), 'fuel surcharges (YQ)', 'fuel surcharges'), 'fuel surcharge (YQ)', 'fuel surcharge'),
-  ai_summary = replace(replace(coalesce(ai_summary, ''), 'fuel surcharges (YQ)', 'fuel surcharges'), 'fuel surcharge (YQ)', 'fuel surcharge')
-where summary like '%(YQ)%' or ai_summary like '%(YQ)%';
+  summary = replace(replace(coalesce(summary, ''), 'fuel surcharges (YQ)', 'fuel surcharges'), 'fuel surcharge (YQ)', 'fuel surcharge')
+where summary like '%(YQ)%';
 
 -- ── Phase 2: standalone YQ → fuel surcharges (word-boundary safe) ─────
 -- regexp_replace with \mYQ\M only matches YQ as its own word. Safe vs
@@ -73,9 +72,8 @@ update partner_redemptions set
 where notes ~ '\mYQ\M' or routing_rules ~ '\mYQ\M' or availability_reality ~ '\mYQ\M';
 
 update alerts set
-  summary = regexp_replace(coalesce(summary, ''), '\mYQ\M', 'fuel surcharges', 'g'),
-  ai_summary = regexp_replace(coalesce(ai_summary, ''), '\mYQ\M', 'fuel surcharges', 'g')
-where summary ~ '\mYQ\M' or ai_summary ~ '\mYQ\M';
+  summary = regexp_replace(coalesce(summary, ''), '\mYQ\M', 'fuel surcharges', 'g')
+where summary ~ '\mYQ\M';
 
 -- ── Verification queries (run after migration) ─────────────────────────
 -- 1. Should return 0 — confirms no standalone YQ remains in content:

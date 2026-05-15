@@ -40,9 +40,8 @@ update partner_redemptions set
 where notes ~ '\mRTW\M' or routing_rules ~ '\mRTW\M' or availability_reality ~ '\mRTW\M';
 
 update alerts set
-  summary = regexp_replace(coalesce(summary, ''), '\mRTW\M', 'round-the-world (RTW)'),
-  ai_summary = regexp_replace(coalesce(ai_summary, ''), '\mRTW\M', 'round-the-world (RTW)')
-where summary ~ '\mRTW\M' or ai_summary ~ '\mRTW\M';
+  summary = regexp_replace(coalesce(summary, ''), '\mRTW\M', 'round-the-world (RTW)')
+where summary ~ '\mRTW\M';
 
 -- ── TQP / TQPs → tier-qualifying points (American AAdvantage + Southwest) ──
 update programs set
