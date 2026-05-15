@@ -209,13 +209,20 @@ export async function discoverSourceUrls({
   let url = startingUrl.trim()
   if (!url.startsWith('http')) url = `https://${url}`
 
-  // 1. Get site map. Two-pass:
-  //    a) Map the user's starting URL (typically the homepage).
-  //    b) Identify the most loyalty-relevant deep URL in the results
-  //       (e.g. /en/us/fly/mileageplus.html on united.com) and map THAT
-  //       too. Combine + dedupe. Catches deep pages (tier_benefits,
-  //       lounge_access) the homepage crawl misses on big-brand domains.
-  const primaryUrls = await mapFirecrawl(url, { limit: 500 })
+  // 1. Get site map. Three-pass:
+  //    a) Plain /map on starting URL (catches general structure).
+  //    b) /map with search="elite tier lounge benefits" — Firecrawl filters
+  //       returned URLs by content-relevance to the search query.
+  //    c) After identifying the loyalty-hub URL in the combined results,
+  //       /map that hub deeply too.
+  //    Combine + dedupe across all three.
+  const [primaryUrls, searchedUrls] = await Promise.all([
+    mapFirecrawl(url, { limit: 500 }),
+    mapFirecrawl(url, {
+      search: 'elite tier status benefits lounge club award redemption',
+      limit: 200,
+    }),
+  ])
 
   // Find the strongest loyalty-program landing-page candidate to deep-crawl
   const LOYALTY_HUB_PATTERNS = [
@@ -233,17 +240,27 @@ export async function discoverSourceUrls({
     /\/wyndham-?rewards[^\/]*$/i,
     /\/(loyalty|rewards|frequent[-_]?flyer|members?)[^\/]*\.(html?|aspx?)?$/i,
   ]
-  const deepStarter = primaryUrls.find((u) =>
+  const combinedPrimary = Array.from(new Set([...primaryUrls, ...searchedUrls]))
+  const deepStarter = combinedPrimary.find((u) =>
     LOYALTY_HUB_PATTERNS.some((p) => p.test(u)),
   )
 
   let secondaryUrls: string[] = []
+  let secondarySearched: string[] = []
   if (deepStarter && deepStarter !== url) {
-    secondaryUrls = await mapFirecrawl(deepStarter, { limit: 500 })
+    ;[secondaryUrls, secondarySearched] = await Promise.all([
+      mapFirecrawl(deepStarter, { limit: 500 }),
+      mapFirecrawl(deepStarter, {
+        search: 'premier elite tier lounge club benefits qualify award',
+        limit: 200,
+      }),
+    ])
   }
 
-  // Dedupe combined list
-  const allUrls = Array.from(new Set([...primaryUrls, ...secondaryUrls]))
+  // Dedupe combined list across all four passes
+  const allUrls = Array.from(
+    new Set([...combinedPrimary, ...secondaryUrls, ...secondarySearched]),
+  )
   if (allUrls.length === 0) {
     return { ok: false, error: `Firecrawl /map returned no URLs for ${url} — check the starting URL or domain reachability` }
   }
