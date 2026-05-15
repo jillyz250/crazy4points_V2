@@ -117,18 +117,37 @@ export default async function ProgramExtractPage({
             view public page →
           </a>
         </p>
-        {program.extraction_source_url ? (
-          <p className="mt-1 font-body text-xs text-[var(--color-text-secondary)]">
-            <span className="font-ui uppercase tracking-wide">Stored source URL:</span>{' '}
-            <a className="text-[var(--color-primary)] underline" href={program.extraction_source_url} target="_blank" rel="noreferrer">
-              {program.extraction_source_url}
-            </a>
-          </p>
-        ) : (
-          <p className="mt-1 font-body text-xs text-amber-700">
-            No source URL stored yet. Paste below — it pre-fills on every future extraction.
-          </p>
-        )}
+        {(() => {
+          // Show all unique URLs across configured fields (multi-URL aware).
+          const allUrls = new Set<string>()
+          for (const val of Object.values(storedFieldUrls)) {
+            if (Array.isArray(val)) val.forEach((u) => u && allUrls.add(u))
+            else if (typeof val === 'string' && val) allUrls.add(val)
+          }
+          if (program.extraction_source_url) allUrls.add(program.extraction_source_url)
+          if (allUrls.size === 0) {
+            return (
+              <p className="mt-1 font-body text-xs text-amber-700">
+                No URLs configured yet. Set per-field URLs below — they pre-fill on every future extraction.
+              </p>
+            )
+          }
+          return (
+            <details className="mt-1">
+              <summary className="cursor-pointer font-body text-xs text-[var(--color-text-secondary)]">
+                <span className="font-ui uppercase tracking-wide">Configured URLs ({allUrls.size}):</span>{' '}
+                click to expand
+              </summary>
+              <ul className="mt-1 ml-4 list-disc font-body text-xs text-[var(--color-text-secondary)]">
+                {Array.from(allUrls).map((u) => (
+                  <li key={u}>
+                    <a className="text-[var(--color-primary)] underline" href={u} target="_blank" rel="noreferrer">{u}</a>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )
+        })()}
       </header>
 
       {/* Run extraction form */}

@@ -95,11 +95,19 @@ export async function reviewProgramExtraction({
   markdown,
   programId,
   extraction,
+  skipFields = [],
 }: {
   programName: string
   markdown: string
   programId: string
   extraction: ProgramExtraction
+  /**
+   * Fields the editor deliberately left without a source URL. The review
+   * pass MUST NOT fill these — they represent an explicit "keep manual"
+   * decision. Without this, review pass scans combined markdown and fills
+   * any null field, overriding the editor's skip intent.
+   */
+  skipFields?: string[]
 }): Promise<ReviewResult> {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
@@ -145,19 +153,35 @@ export async function reviewProgramExtraction({
     return { extraction, addedFields: 0, ran: false }
   }
 
-  // Merge: only apply additions to currently-null fields.
+  // Merge: only apply additions to currently-null fields AND only if the
+  // editor didn't explicitly skip that field. Skipped fields = no source URL
+  // was assigned, signaling "keep manual content, do not extract."
   const additions = parsed.additions ?? {}
   const merged: ProgramExtraction = { ...extraction }
+  const skipSet = new Set(skipFields)
   let addedFields = 0
+  const ignoredSkipped: string[] = []
 
   for (const [field, addition] of Object.entries(additions)) {
     if (!addition) continue
+    if (skipSet.has(field)) {
+      // Editor said skip this field. Review pass MUST NOT add it.
+      ignoredSkipped.push(field)
+      continue
+    }
     const currentValue = (extraction as unknown as Record<string, { value?: unknown }>)[field]?.value
     if (currentValue == null) {
-      // Safe to add - the field was empty
+      // Safe to add - the field was empty AND not skipped
       ;(merged as unknown as Record<string, unknown>)[field] = addition
       addedFields++
     }
+  }
+
+  if (ignoredSkipped.length > 0) {
+    merged.extraction_warnings = [
+      ...(merged.extraction_warnings ?? []),
+      `Review pass attempted to fill ${ignoredSkipped.length} skipped field(s) (${ignoredSkipped.join(', ')}) — ignored, editor designated as "keep manual".`,
+    ]
   }
 
   if (parsed.review_notes && parsed.review_notes.length > 0) {
