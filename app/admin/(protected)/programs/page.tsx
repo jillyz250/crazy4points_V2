@@ -8,7 +8,7 @@ import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Badge } from '@/components/admin/ui/Badge'
 
 const TYPE_LABEL: Record<ProgramType, string> = {
-  credit_card:     'Credit Cards',
+  credit_card:     'Currencies',  // points currencies (Chase UR, Amex MR, etc.) — actual cards live in /admin/cards
   airline:         'Airlines',
   hotel:           'Hotels',
   loyalty_program: 'Loyalty Programs',
@@ -63,9 +63,21 @@ export default async function AdminProgramsPage(props: {
   const grouped = groupByType(programs)
 
   // Tabs render in TYPE_ORDER, but include any unexpected types found in DB at the end.
+  // Hide types with zero rows so the strip stays tidy (Car Rentals 0, Cruises 0, etc.
+  // clutter the UI when nothing's been authored yet).
   const tabTypes: ProgramType[] = [...TYPE_ORDER]
   for (const t of grouped.keys()) {
     if (!tabTypes.includes(t)) tabTypes.push(t)
+  }
+  const visibleTabs = tabTypes.filter((t) => (grouped.get(t)?.length ?? 0) > 0 || t === activeType)
+
+  // Per-tab counts: "authored / total" where authored = is_active AND not
+  // a reference stub. Surfaces the data state at a glance: e.g. Airlines
+  // shows 78 / 98 (78 page-worthy, 98 in DB including stubs + inactive).
+  function countsFor(type: ProgramType): { authored: number; total: number } {
+    const rows = grouped.get(type) ?? []
+    const authored = rows.filter((p) => p.is_active && !p.is_reference_stub).length
+    return { authored, total: rows.length }
   }
 
   const visibleRows = grouped.get(activeType) ?? []
@@ -74,7 +86,11 @@ export default async function AdminProgramsPage(props: {
     <div>
       <PageHeader
         title="Programs"
-        description="Loyalty programs (airlines, hotels, cards, portals) that alerts can be tagged against."
+        description={
+          'Loyalty programs (airlines, hotels, currencies, portals) that alerts can be tagged against. ' +
+          'Tab counts show "authored / total" — authored = page-worthy (active + non-stub); total includes inactive + FK-only reference stubs. ' +
+          'Note: the Currencies tab holds points currencies (Chase UR, Amex MR, etc.); actual credit cards live under /admin/cards.'
+        }
         actions={
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <Badge tone="neutral">{programs.length} total</Badge>
@@ -95,15 +111,20 @@ export default async function AdminProgramsPage(props: {
           paddingBottom: '0.25rem',
         }}
       >
-        {tabTypes.map((type) => {
-          const count = grouped.get(type)?.length ?? 0
+        {visibleTabs.map((type) => {
+          const { authored, total } = countsFor(type)
           const active = type === activeType
+          const countLabel = authored === total ? `${total}` : `${authored} / ${total}`
+          const titleHint = authored === total
+            ? `${total} ${type}`
+            : `${authored} authored (active + non-stub) of ${total} total`
           return (
             <Link
               key={type}
               href={`/admin/programs?type=${type}`}
               role="tab"
               aria-selected={active}
+              title={titleHint}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -135,9 +156,10 @@ export default async function AdminProgramsPage(props: {
                     ? 'var(--admin-primary, #6B2D8F)'
                     : 'var(--admin-bg-subtle, #e5e7eb)',
                   color: active ? '#fff' : 'var(--admin-text-muted)',
+                  whiteSpace: 'nowrap',
                 }}
               >
-                {count}
+                {countLabel}
               </span>
             </Link>
           )
