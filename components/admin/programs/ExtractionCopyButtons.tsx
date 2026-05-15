@@ -103,7 +103,21 @@ function buildReviewMarkdown({
   lines.push(`Program: \`/programs/${programSlug}\``)
   lines.push('')
   lines.push(
-    'For each field below: tell me **merge** (and produce the merge prompt I should paste back), **skip** (keep current), or **apply as-is** (overwrite with extracted). Watch for: duplicate qualification text, source quotes missing from page, confidence=high without quote, anything that smells off.',
+    'For each field below: tell me **merge**, **skip** (keep current), or **apply as-is** (overwrite with extracted). Watch for: duplicate qualification text, source quotes missing from page, confidence=high without quote, anything that smells off.',
+  )
+  lines.push('')
+  lines.push(
+    '**Verification protocol:** For ANY specific claim where current and extracted disagree, or where a count/date/fact looks possibly stale or surprising, include a fenced 🔍 Verify block at the end of that field with this format:',
+  )
+  lines.push('')
+  lines.push('```')
+  lines.push('🔍 Verify: <one-sentence question>')
+  lines.push('URL(s): <https://… one or more>')
+  lines.push('Check: <exactly what to look for on the page>')
+  lines.push('```')
+  lines.push('')
+  lines.push(
+    "I'll copy any of those blocks back to you verbatim and you'll run WebFetch / WebSearch to resolve them before I publish. Don't skip flagging just because you're \"mostly sure\" — surface the doubt and let me decide whether to verify.",
   )
   lines.push('')
 
