@@ -439,13 +439,18 @@ button {
 .rg-simple-tile:hover .rg-simple-tile-cta {
   border-bottom-color: var(--color-primary);
 }
-.rg-simple-tile[open] .rg-simple-tile-cta::before {
-  content: 'Close · ';
-  color: var(--color-text-secondary);
-}
+/* When expanded, hide the contextual verb ("Find the lounges →") and show
+   a universal "Show less ↑" instead. Original "Close · <verb>" was
+   confusing ("Close lounges" read like there was a list to close). */
 .rg-simple-tile[open] .rg-simple-tile-cta {
+  font-size: 0;
   color: var(--color-text-secondary);
   border-bottom-color: var(--color-text-secondary);
+}
+.rg-simple-tile[open] .rg-simple-tile-cta::before {
+  content: 'Show less ↑';
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
 }
 .rg-simple-tile-content {
   border-top: 1px solid var(--color-border-soft);
