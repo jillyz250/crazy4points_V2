@@ -83,11 +83,100 @@ export async function runProgramExtraction(formData: FormData): Promise<void> {
 
   if (!result.ok) {
     console.error(`[program-extract] failed: ${result.error}`)
-  } else {
-    console.log(`[program-extract] extraction ${result.extractionId} ready for review`)
+    revalidatePath(`/admin/programs/${slug}/extract`)
+    return
   }
+  console.log(`[program-extract] extraction ${result.extractionId} ready — auto-verifying eligible fields`)
+
+  // ── Auto-verify all eligible text fields in parallel ───────────────────
+  // Verify = merge + fact-check against scraped markdown. Saves the editor
+  // from clicking Verify per field; results land in the review UI ready
+  // for one-click Apply. Skips fields where current OR extracted is empty
+  // OR field is structured (tier_benefits, hubs, alliance).
+  await autoVerifyAllFields(program.id, result.extractionId, slug)
 
   revalidatePath(`/admin/programs/${slug}/extract`)
+}
+
+/**
+ * Auto-verify every mergeable text field that has both current + extracted
+ * content. Runs in parallel after extraction completes so the review UI
+ * lands fully reconciled — no per-field Verify clicks needed.
+ */
+async function autoVerifyAllFields(
+  programId: string,
+  extractionId: string,
+  slug: string,
+): Promise<void> {
+  const supabase = createAdminClient()
+
+  // Fetch current program values + latest extraction in one go
+  const [{ data: programRow }, { data: extractionRow }] = await Promise.all([
+    supabase
+      .from('programs')
+      .select('intro, sweet_spots, lounge_access, quirks, award_chart')
+      .eq('id', programId)
+      .single(),
+    supabase
+      .from('program_extractions')
+      .select('extraction, raw_markdown')
+      .eq('id', extractionId)
+      .single(),
+  ])
+
+  if (!programRow || !extractionRow) {
+    console.warn('[auto-verify] could not fetch program/extraction rows')
+    return
+  }
+
+  const extraction = (extractionRow.extraction as Record<string, unknown> | null) ?? {}
+  const markdown = (extractionRow.raw_markdown as string | null) ?? ''
+  if (!markdown) {
+    console.warn('[auto-verify] no raw_markdown — skipping verification')
+    return
+  }
+
+  const MERGEABLE = ['intro', 'sweet_spots', 'lounge_access', 'quirks', 'award_chart'] as const
+
+  const verifyTasks: Promise<void>[] = []
+  for (const field of MERGEABLE) {
+    if (!isVerifiableField(field)) continue
+    const currentValue = ((programRow as unknown as Record<string, unknown>)[field] as string | null) ?? ''
+    const extractedField = extraction[field] as { value?: string } | null | undefined
+    const extractedValue = extractedField?.value ?? ''
+
+    if (!currentValue?.trim() || !extractedValue?.trim()) continue  // need both
+
+    verifyTasks.push(
+      verifyExtractedField({
+        programId,
+        field,
+        currentValue,
+        extractedValue,
+        markdown,
+        extractionId,
+      })
+        .then((r) => {
+          if (!r.ok) {
+            console.error(`[auto-verify] ${field} failed: ${r.error}`)
+          } else {
+            console.log(`[auto-verify] ${field} → ${r.verdict}`)
+          }
+        })
+        .catch((err) => {
+          console.error(`[auto-verify] ${field} threw:`, err)
+        }),
+    )
+  }
+
+  if (verifyTasks.length === 0) {
+    console.log('[auto-verify] no eligible fields')
+    return
+  }
+
+  console.log(`[auto-verify] verifying ${verifyTasks.length} fields in parallel for slug=${slug}`)
+  await Promise.all(verifyTasks)
+  console.log(`[auto-verify] complete for slug=${slug}`)
 }
 
 /**
