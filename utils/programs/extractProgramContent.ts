@@ -97,25 +97,23 @@ export async function extractProgramContent({
   fieldSourceUrls,
   legacySourceUrl,
   interactive = false,
+  manualMarkdown,
 }: {
   programId: string
   programName: string
   programSlug: string
   programType: string
-  /**
-   * Per-field URL map. Each field is either:
-   *   - Has a URL → extract from that URL
-   *   - Has null → explicitly skip extraction; keep current value
-   *   - Missing key → treated same as null (skip)
-   */
   fieldSourceUrls: FieldSourceUrls
-  /**
-   * Legacy single-URL mode fallback. Used when fieldSourceUrls is empty
-   * (no per-field config). Scrapes this one URL and extracts ALL fields.
-   * Maintained for backward compat with the original pipeline (migration 266).
-   */
   legacySourceUrl?: string
   interactive?: boolean
+  /**
+   * Manual markdown paste — bypasses Firecrawl entirely. When provided,
+   * the pipeline skips URL verification + pre-scrape and uses this string
+   * as raw_markdown for every configured field. Use for sites with hostile
+   * bot detection (delta.com, marriott.com, etc.) — editor scrapes via
+   * Firecrawl playground (or any other means) and pastes the markdown.
+   */
+  manualMarkdown?: string
 }): Promise<ProgramExtractionResult> {
   const supabase = createAdminClient()
 
@@ -138,6 +136,17 @@ export async function extractProgramContent({
     for (const f of ALL_EXTRACTABLE_FIELDS) fieldToUrls.set(f, [legacySourceUrl])
   }
 
+  // Manual-markdown mode: paste-only, no Firecrawl. Pipeline:
+  //   - Skip URL pre-flight + scrape
+  //   - Use the paste as the single markdown source for every configured field
+  //   - Save raw_markdown = paste (auto-verify will reconcile against the same)
+  const hasManualMarkdown = manualMarkdown && manualMarkdown.trim().length > 100
+  if (hasManualMarkdown && fieldToUrls.size === 0) {
+    // Editor pasted markdown but configured no fields — default to extracting
+    // every supported field from the paste.
+    for (const f of ALL_EXTRACTABLE_FIELDS) fieldToUrls.set(f, ['manual-paste://'])
+  }
+
   if (fieldToUrls.size === 0) {
     return { ok: false, error: 'No source URLs configured. Assign a URL to at least one field before running extraction.' }
   }
@@ -147,14 +156,19 @@ export async function extractProgramContent({
   for (const urls of fieldToUrls.values()) urls.forEach((u) => allUrls.add(u))
 
   // Pre-flight verify every unique URL in parallel.
-  const verifications = await Promise.all(
-    Array.from(allUrls).map(async (u) => ({ url: u, result: await verifySourceUrl(u) })),
-  )
-  const verifiedMap = new Map<string, string>()  // original URL → final URL after redirect
-  const failedUrls: { url: string; error: string }[] = []
-  for (const v of verifications) {
-    if (v.result.ok) verifiedMap.set(v.url, v.result.finalUrl)
-    else failedUrls.push({ url: v.url, error: v.result.error })
+  // Manual-markdown mode skips verification (pseudo-URL "manual-paste://").
+  let verifiedMap = new Map<string, string>()  // original URL → final URL after redirect
+  let failedUrls: { url: string; error: string }[] = []
+  if (hasManualMarkdown) {
+    for (const u of allUrls) verifiedMap.set(u, u)
+  } else {
+    const verifications = await Promise.all(
+      Array.from(allUrls).map(async (u) => ({ url: u, result: await verifySourceUrl(u) })),
+    )
+    for (const v of verifications) {
+      if (v.result.ok) verifiedMap.set(v.url, v.result.finalUrl)
+      else failedUrls.push({ url: v.url, error: v.result.error })
+    }
   }
 
   if (verifiedMap.size === 0) {
@@ -200,16 +214,23 @@ export async function extractProgramContent({
   // Pre-scrape each unique verified URL exactly ONCE — no matter how many
   // fields reference it. Stored in markdownByUrl for per-field combination.
   const markdownByUrl = new Map<string, string>()
-  await Promise.all(
-    Array.from(verifiedMap.entries()).map(async ([originalUrl, finalUrl]) => {
-      const stealth = isHostile(finalUrl)
-      const md = interactive
-        ? await fetchFirecrawlInteractive(finalUrl, { maxChars: PER_URL_MARKDOWN_LIMIT, stealth })
-        : await fetchFirecrawl(finalUrl, { maxChars: PER_URL_MARKDOWN_LIMIT, stealth })
-      if (md) markdownByUrl.set(originalUrl, md)
-      if (stealth) console.log(`[extract] used stealth proxy for ${finalUrl}`)
-    }),
-  )
+  if (hasManualMarkdown) {
+    // Manual paste mode: every URL maps to the same pasted markdown.
+    // Sonnet extracts each configured field from the same blob.
+    for (const u of verifiedMap.keys()) markdownByUrl.set(u, manualMarkdown!.slice(0, PER_URL_MARKDOWN_LIMIT))
+    console.log(`[extract] using manual-paste markdown (${manualMarkdown!.length} chars) for ${verifiedMap.size} field-URLs`)
+  } else {
+    await Promise.all(
+      Array.from(verifiedMap.entries()).map(async ([originalUrl, finalUrl]) => {
+        const stealth = isHostile(finalUrl)
+        const md = interactive
+          ? await fetchFirecrawlInteractive(finalUrl, { maxChars: PER_URL_MARKDOWN_LIMIT, stealth })
+          : await fetchFirecrawl(finalUrl, { maxChars: PER_URL_MARKDOWN_LIMIT, stealth })
+        if (md) markdownByUrl.set(originalUrl, md)
+        if (stealth) console.log(`[extract] used stealth proxy for ${finalUrl}`)
+      }),
+    )
+  }
 
   // Group fields by URL SET (fields with the same set of URLs share a
   // Sonnet call). Group key = sorted comma-joined URLs.
