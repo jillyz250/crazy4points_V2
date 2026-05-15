@@ -20,6 +20,10 @@ type ExtractedField =
   | null
   | undefined
 
+// Fields where merging makes sense (long-form editorial text).
+// Must match MERGEABLE_FIELDS in utils/programs/mergeExtractedField.ts
+const MERGEABLE_FIELDS = new Set(['intro', 'sweet_spots', 'lounge_access', 'quirks', 'award_chart'])
+
 export default function ProgramFieldDiff({
   field,
   label,
@@ -29,8 +33,10 @@ export default function ProgramFieldDiff({
   currentValue,
   extractedField,
   appliedStatus,
+  mergedValue,
   applyAction,
   skipAction,
+  mergeAction,
 }: {
   field: string
   label: string
@@ -40,8 +46,10 @@ export default function ProgramFieldDiff({
   currentValue: unknown
   extractedField: unknown
   appliedStatus: string | null
+  mergedValue: string | null
   applyAction: (formData: FormData) => Promise<void>
   skipAction: (formData: FormData) => Promise<void>
+  mergeAction: (formData: FormData) => Promise<void>
 }) {
   const extracted = extractedField as ExtractedField
   // Pull extracted value — tier_benefits uses rows[], everything else uses value
@@ -96,7 +104,7 @@ export default function ProgramFieldDiff({
         </p>
       ) : null}
 
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className={`grid gap-3 ${mergedValue ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
         {/* Current value */}
         <div>
           <p className="mb-1 font-ui text-[10px] uppercase tracking-wide text-[var(--color-text-secondary)]">
@@ -116,6 +124,18 @@ export default function ProgramFieldDiff({
             {renderValue(extractedValue)}
           </div>
         </div>
+
+        {/* Merged value (only shown when present) */}
+        {mergedValue ? (
+          <div>
+            <p className="mb-1 font-ui text-[10px] uppercase tracking-wide text-emerald-700">
+              ✨ Merged (current voice + extracted facts)
+            </p>
+            <div className="rounded-[var(--radius-ui)] border-2 border-emerald-400 bg-emerald-50/30 p-2 font-body text-sm">
+              {renderValue(mergedValue)}
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {sourceQuote ? (
@@ -126,14 +146,35 @@ export default function ProgramFieldDiff({
 
       {/* Actions */}
       {hasExtractedContent && !sameValue && appliedStatus !== 'applied' ? (
-        <div className="mt-3 flex gap-2">
+        <div className="mt-3 flex flex-wrap gap-2">
+          {/* Merge button — only for text fields with both current + extracted content */}
+          {MERGEABLE_FIELDS.has(field) && hasCurrentContent && hasExtractedContent && !mergedValue ? (
+            <form action={mergeAction} className="inline">
+              <input type="hidden" name="slug" value={programSlug} />
+              <input type="hidden" name="field" value={field} />
+              <input type="hidden" name="extraction_id" value={extractionId} />
+              <ExtractionActionButton variant="secondary" label="✨ Merge with current" pendingLabel="Merging…" />
+            </form>
+          ) : null}
+
+          {/* Apply button — uses MERGED value when present, else EXTRACTED */}
           <form action={applyAction} className="inline">
             <input type="hidden" name="slug" value={programSlug} />
             <input type="hidden" name="field" value={field} />
             <input type="hidden" name="extraction_id" value={extractionId} />
-            <input type="hidden" name="new_value_json" value={JSON.stringify(extractedValue)} />
-            <ExtractionActionButton variant="secondary" label={`Apply ${label}`} pendingLabel="Applying…" />
+            <input
+              type="hidden"
+              name="new_value_json"
+              value={JSON.stringify(mergedValue ?? extractedValue)}
+            />
+            <ExtractionActionButton
+              variant="secondary"
+              label={mergedValue ? `Apply merged ${label}` : `Apply ${label}`}
+              pendingLabel="Applying…"
+            />
           </form>
+
+          {/* Skip */}
           <form action={skipAction} className="inline">
             <input type="hidden" name="slug" value={programSlug} />
             <input type="hidden" name="field" value={field} />

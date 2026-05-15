@@ -7,6 +7,7 @@ import {
   applyExtractedField,
   skipExtractedField,
   completeExtraction,
+  mergeProgramField,
 } from './actions'
 
 export const dynamic = 'force-dynamic'
@@ -48,7 +49,7 @@ export default async function ProgramExtractPage({
   // Latest extraction
   const { data: latest } = await supabase
     .from('program_extractions')
-    .select('id, source_url, extraction, status, created_at, completed_at, applied_fields, used_interactive, raw_markdown, markdown_chars, review_pass_added_count, error_message')
+    .select('id, source_url, extraction, status, created_at, completed_at, applied_fields, merged_fields, used_interactive, raw_markdown, markdown_chars, review_pass_added_count, error_message')
     .eq('program_id', program.id)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -87,6 +88,7 @@ export default async function ProgramExtractPage({
   ]
   const extraction = (latest?.extraction as Record<string, unknown> | undefined) ?? null
   const appliedFields = ((latest?.applied_fields as Record<string, string> | null) ?? {})
+  const mergedFields = ((latest?.merged_fields as Record<string, { value: string; generated_at: string }> | null) ?? {})
 
   // The fields we extract, in display order
   const FIELDS: { key: 'intro' | 'sweet_spots' | 'lounge_access' | 'quirks' | 'award_chart' | 'tier_benefits' | 'alliance' | 'hubs' | 'parent_program_slug'; label: string; description: string }[] = [
@@ -279,8 +281,10 @@ export default async function ProgramExtractPage({
                   currentValue={currentValue}
                   extractedField={extractedField}
                   appliedStatus={appliedFields[f.key] ?? null}
+                  mergedValue={mergedFields[f.key]?.value ?? null}
                   applyAction={applyExtractedField}
                   skipAction={skipExtractedField}
+                  mergeAction={mergeProgramField}
                 />
               )
             })}

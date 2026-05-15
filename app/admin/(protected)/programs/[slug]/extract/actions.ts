@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/utils/supabase/server'
 import { extractProgramContent } from '@/utils/programs/extractProgramContent'
 import { applyProgramField, skipProgramField, isApplyableField } from '@/utils/programs/applyProgramField'
+import { mergeExtractedField, isMergeableField } from '@/utils/programs/mergeExtractedField'
 
 /**
  * Run extraction on a program. Writes to program_extractions cache only —
@@ -150,6 +151,67 @@ export async function skipExtractedField(formData: FormData): Promise<void> {
   if (!slug || !extractionId || !isApplyableField(field)) return
 
   await skipProgramField({ field, extractionId })
+
+  revalidatePath(`/admin/programs/${slug}/extract`)
+}
+
+/**
+ * Merge the current and extracted versions of a field using Sonnet.
+ * Result is stored in program_extractions.merged_fields[<field>]; Apply
+ * uses the merged value when present.
+ */
+export async function mergeProgramField(formData: FormData): Promise<void> {
+  const slug = String(formData.get('slug') ?? '').trim()
+  const field = String(formData.get('field') ?? '').trim()
+  const extractionId = String(formData.get('extraction_id') ?? '').trim()
+
+  if (!slug || !extractionId || !isMergeableField(field)) {
+    console.error(`[program-extract] invalid merge request: slug=${slug} field=${field}`)
+    return
+  }
+
+  const supabase = createAdminClient()
+  // Use any-cast on the select since we're passing a dynamic field name.
+  // Safety: isMergeableField() above whitelisted `field` to a known small set.
+  const { data: program } = (await supabase
+    .from('programs')
+    .select(`id, ${field}`)
+    .eq('slug', slug)
+    .single()) as unknown as { data: Record<string, unknown> | null }
+
+  if (!program) return
+
+  const { data: extraction } = await supabase
+    .from('program_extractions')
+    .select('extraction')
+    .eq('id', extractionId)
+    .single()
+
+  if (!extraction) return
+
+  // Current value from programs.<field> — text fields are strings
+  const currentValue = program[field] as string | null
+
+  // Extracted value from the extraction jsonb — text fields use { value, source_quote, confidence }
+  const extractedField = (extraction.extraction as Record<string, unknown> | null)?.[field]
+  const extractedValue = (extractedField as { value?: string } | null)?.value ?? null
+
+  if (!currentValue || !extractedValue) {
+    console.error(`[program-extract] merge skipped — current or extracted is empty for ${field}`)
+    return
+  }
+
+  const result = await mergeExtractedField({
+    programId: program.id as string,
+    field,
+    currentValue,
+    extractedValue,
+    extractionId,
+  })
+
+  if (!result.ok) {
+    console.error(`[program-extract] merge failed for ${field}: ${result.error}`)
+  }
 
   revalidatePath(`/admin/programs/${slug}/extract`)
 }
