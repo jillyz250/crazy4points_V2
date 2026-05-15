@@ -52,6 +52,12 @@ FACTS ARE THE PRIORITY:
 - Specific dollar amounts, point amounts, dates, exception clauses, named exclusions are HIGH-VALUE — add them.
 - Generic restatements of the current are LOW-VALUE — skip them.
 
+PLAIN-ENGLISH JARGON RULES (always apply):
+- Use "fuel surcharge" / "fuel surcharges". NEVER use "YQ" or "YR" (those are IATA fare codes; civilians don't know them).
+- Use "round-the-world" (RTW is fine on second mention if already introduced).
+- Spell out tier-status abbreviations on first mention: TQP → "tier-qualifying points", MQD → "medallion qualification dollars", PQP → "premier qualifying points", CPQP → "Companion Pass qualifying points".
+- If current already uses an abbreviation on first mention, expand it in the merge.
+
 If the extracted version has NOTHING new to add, return the current verbatim.
 
 Return ONLY the merged markdown text. No prefix, no suffix, no code fences.`

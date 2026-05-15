@@ -68,6 +68,15 @@ VERDICT:
 - "corrected": source caused at least one change to current's facts.
 - "unverifiable": source markdown is too sparse / not the right page to verify most claims. Keep current as-is.
 
+PLAIN-ENGLISH JARGON RULES (always apply to corrected_value):
+- Use "fuel surcharge" / "fuel surcharges". NEVER use "YQ" or "YR" (those are IATA fare codes; civilians don't know them).
+- Use "round-the-world" (RTW is fine on second mention if introduced).
+- Use "tier-qualifying points" instead of bare "TQP" / "TQPs" on first mention.
+- Use "medallion qualification dollars" instead of bare "MQD" on first mention.
+- Use "premier qualifying points" instead of bare "PQP" on first mention.
+- Use "Companion Pass qualifying points" instead of bare "CPQP" on first mention.
+- If current text already uses an abbreviation on first mention, expand it; preserve the rest of the sentence verbatim.
+
 OUTPUT FORMAT — return ONLY valid JSON, no prose, no markdown fence:
 {
   "verdict": "confirmed" | "corrected" | "unverifiable",

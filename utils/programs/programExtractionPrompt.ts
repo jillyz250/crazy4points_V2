@@ -39,6 +39,16 @@ SOURCE_QUOTE RULES (CRITICAL FOR JSON VALIDITY):
 8. Inside a source_quote, every backslash MUST be doubled to \\\\.
 9. Avoid em-dashes (—) — use regular hyphens. Avoid smart quotes — use straight quotes.
 
+PLAIN-ENGLISH JARGON RULES (apply to ALL extracted value fields, not source_quote):
+- Use "fuel surcharge" / "fuel surcharges". NEVER "YQ" or "YR" (those are IATA fare codes; civilians don't know them).
+- Use "round-the-world" on first mention (RTW abbreviation fine on later mentions).
+- Spell out tier-status abbreviations on first mention:
+    TQP   → "tier-qualifying points"
+    MQD   → "medallion qualification dollars"
+    PQP   → "premier qualifying points"
+    CPQP  → "Companion Pass qualifying points"
+- source_quote stays verbatim from the page (do NOT rewrite — it's a citation).
+
 MULTI-SOURCE INPUT:
 The markdown below may contain MULTIPLE sources separated by:
   === SOURCE N: <url> ===
