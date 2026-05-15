@@ -98,8 +98,22 @@ const KEEP_PATTERNS = [
 
 function shouldKeep(url: string): boolean {
   if (SKIP_PATTERNS.some((p) => p.test(url))) return false
-  if (KEEP_PATTERNS.some((p) => p.test(url))) return true
-  return false  // Strict: must match a KEEP pattern
+  // Only enforce SKIP. Keep everything else and let Sonnet sort it out —
+  // big airline domains are mostly /destinations/<city> pages that don't
+  // match KEEP regex but also aren't worth filtering at this stage.
+  return true
+}
+
+// Re-rank URLs: pages matching KEEP_PATTERNS go to top of the list so Sonnet
+// sees them first when the candidate count is capped.
+function rankUrls(urls: string[]): string[] {
+  const keepUrls: string[] = []
+  const otherUrls: string[] = []
+  for (const u of urls) {
+    if (KEEP_PATTERNS.some((p) => p.test(u))) keepUrls.push(u)
+    else otherUrls.push(u)
+  }
+  return [...keepUrls, ...otherUrls]
 }
 
 const DISCOVERY_SYSTEM_PROMPT = `You are mapping discovered URLs on a points-and-miles program's marketing site to specific content fields on a reference page AND identifying time-sensitive Scout-source pages for the alerts pipeline.
@@ -195,14 +209,17 @@ export async function discoverSourceUrls({
   let url = startingUrl.trim()
   if (!url.startsWith('http')) url = `https://${url}`
 
-  // 1. Get site map
-  const allUrls = await mapFirecrawl(url, { limit: 200 })
+  // 1. Get site map. limit=500 catches deep pages on big airline domains
+  //    (united.com has thousands of pages — destinations, help, etc. — but
+  //    only ~10-20 of them are loyalty/lounge/promo content).
+  const allUrls = await mapFirecrawl(url, { limit: 500 })
   if (allUrls.length === 0) {
     return { ok: false, error: `Firecrawl /map returned no URLs for ${url} — check the starting URL or domain reachability` }
   }
 
-  // 2. Filter to relevance shortlist (max ~80 for Sonnet context)
-  const filtered = allUrls.filter(shouldKeep).slice(0, 80)
+  // 2. Drop obviously-irrelevant URLs (careers, privacy, etc.), then rank
+  //    KEEP-pattern URLs to the top, then cap at 100 for Sonnet's context.
+  const filtered = rankUrls(allUrls.filter(shouldKeep)).slice(0, 100)
   if (filtered.length === 0) {
     return {
       ok: false,

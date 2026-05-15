@@ -186,7 +186,7 @@ export async function mapFirecrawl(
       body: JSON.stringify({
         url,
         search: options.search,
-        limit: options.limit ?? 100,
+        limit: options.limit ?? 500,
       }),
     })
     clearTimeout(timer)
