@@ -9,7 +9,6 @@ import {
   skipExtractedField,
   completeExtraction,
   mergeProgramField,
-  saveManualOverride,
   verifyProgramField,
 } from './actions'
 
@@ -343,7 +342,6 @@ export default async function ProgramExtractPage({
                   skipAction={skipExtractedField}
                   mergeAction={mergeProgramField}
                   verifyAction={verifyProgramField}
-                  saveManualOverrideAction={saveManualOverride}
                 />
               )
             })}
