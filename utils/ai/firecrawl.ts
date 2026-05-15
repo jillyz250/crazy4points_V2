@@ -63,11 +63,17 @@ export async function fetchFirecrawl(
     const body: Record<string, unknown> = {
       url,
       formats: ['markdown'],
-      // onlyMainContent: true was triggering Delta's bot detection
-      // (playground default is false; playground works on Delta). Default
-      // off; opt back in via options.onlyMainContent if a caller wants
-      // a tighter dump.
-      onlyMainContent: false,
+      onlyMainContent: true,
+      // waitFor 3s: many big-brand sites (delta.com, marriott.com) render
+      // hero content via JS post-load. Without a wait, Firecrawl captures
+      // the skeleton + bot-detection redirect script before content lands.
+      // Firecrawl's own debug AI recommended this for delta.com.
+      waitFor: 3000,
+      // maxAge 0: bypass Firecrawl's response cache. Without this, an
+      // earlier sorry-server response can get served as the "cached"
+      // answer for the same URL on subsequent calls — extraction would
+      // never recover from a single bot redirect.
+      maxAge: 0,
       timeout: firecrawlTimeout,
     }
     if (hasActions) {
