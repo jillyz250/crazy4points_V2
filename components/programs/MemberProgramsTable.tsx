@@ -12,6 +12,54 @@ function ordinal(n: number): string {
   return n + (s[(v - 20) % 10] || s[v] || s[0])
 }
 
+// Fallback when programNameBySlug lookup fails — renders the slug as
+// human-readable title case. Special-cases known multi-part program
+// slugs where simple title-casing isn't enough. Same pattern as
+// components/programs/TransferPartnersTable.tsx.
+const SLUG_OVERRIDES: Record<string, string> = {
+  ba_avios: 'British Airways Avios',
+  'ba-avios': 'Avios',
+  aa: 'American AAdvantage',
+  flying_blue: 'Flying Blue',
+  'flying-blue': 'Flying Blue',
+  miles_and_more: 'Lufthansa Miles & More',
+  'miles-and-more': 'Lufthansa Miles & More',
+  air_france: 'Air France',
+  'air-france': 'Air France',
+  ihg_one_rewards: 'IHG One Rewards',
+  'ihg-one-rewards': 'IHG One Rewards',
+  wyndham_rewards: 'Wyndham Rewards',
+  'wyndham-rewards': 'Wyndham Rewards',
+  eva_air: 'EVA Air',
+  'eva-air': 'EVA Air',
+  ana: 'ANA Mileage Club',
+  jal: 'Japan Airlines Mileage Bank',
+  japan_airlines: 'Japan Airlines',
+  'japan-airlines': 'Japan Airlines',
+  british_airways: 'British Airways',
+  cathay_pacific: 'Cathay Pacific',
+  'cathay-pacific': 'Cathay Pacific',
+  cathay: 'Cathay Pacific Asia Miles',
+  qatar_airways: 'Qatar Airways',
+  'qatar-airways': 'Qatar Airways',
+  qatar: 'Qatar Privilege Club',
+  fiji: 'Fiji Airways',
+  fiji_airways: 'Fiji Airways',
+  'fiji-airways': 'Fiji Airways',
+  royal_air_maroc: 'Royal Air Maroc',
+  'royal-air-maroc': 'Royal Air Maroc',
+  royal_jordanian: 'Royal Jordanian',
+  'royal-jordanian': 'Royal Jordanian',
+  tap: 'TAP Miles&Go',
+}
+
+function titleCaseSlug(slug: string): string {
+  if (SLUG_OVERRIDES[slug]) return SLUG_OVERRIDES[slug]
+  return slug
+    .replace(/[-_]/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
 function formatJoinedDate(iso: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso.trim())
   if (!m) return iso
@@ -69,10 +117,10 @@ export default function MemberProgramsTable({
         </thead>
         <tbody>
           {rows.map((row, i) => {
-            const name = programNameBySlug.get(row.program_slug) ?? row.program_slug
+            const name = programNameBySlug.get(row.program_slug) ?? titleCaseSlug(row.program_slug)
             const carriers = (row.carrier_slugs ?? []).map((s) => ({
               slug: s,
-              name: programNameBySlug.get(s) ?? s,
+              name: programNameBySlug.get(s) ?? titleCaseSlug(s),
             }))
             const grouped = new Map<string, string[]>()
             for (const tc of row.tier_crossover ?? []) {
