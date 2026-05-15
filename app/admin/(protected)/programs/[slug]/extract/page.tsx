@@ -10,6 +10,8 @@ import {
   completeExtraction,
   mergeProgramField,
   verifyProgramField,
+  discoverProgramSourceUrls,
+  applyDiscoveredUrls,
 } from './actions'
 
 export const dynamic = 'force-dynamic'
@@ -40,7 +42,7 @@ export default async function ProgramExtractPage({
       id, slug, name, type,
       intro, sweet_spots, lounge_access, quirks, award_chart,
       tier_benefits, alliance, hubs, parent_program_slug,
-      extraction_source_url, field_source_urls,
+      extraction_source_url, field_source_urls, suggested_field_urls,
       content_updated_at, last_verified
     `)
     .eq('slug', slug)
@@ -161,6 +163,110 @@ export default async function ProgramExtractPage({
           )
         })()}
       </header>
+
+      {/* 🔍 Discover source URLs — Sonnet recommends URLs per field */}
+      <section className="mb-8 rounded-[var(--radius-card)] border border-amber-200 bg-amber-50/40 p-5">
+        <h2 className="font-display text-lg font-semibold text-amber-900">
+          🔍 Don&apos;t know the URLs? Discover them.
+        </h2>
+        <p className="mt-1 font-body text-sm text-amber-900">
+          Paste the program&apos;s main marketing site (e.g. <code>https://www.united.com</code>) and Sonnet will map the site,
+          identify candidate pages, and recommend a URL for each extraction field. Review the suggestions,
+          then click Apply to populate the per-field textareas below.
+        </p>
+
+        <form action={discoverProgramSourceUrls} className="mt-3 flex flex-wrap items-end gap-2">
+          <input type="hidden" name="slug" value={program.slug} />
+          <label className="flex flex-1 flex-col gap-1 min-w-[20rem]">
+            <span className="font-ui text-[11px] uppercase tracking-wide text-amber-900">Starting URL</span>
+            <input
+              type="url"
+              name="starting_url"
+              defaultValue={(program.suggested_field_urls as { starting_url?: string } | null)?.starting_url ?? ''}
+              placeholder="https://www.united.com"
+              className="rounded-[var(--radius-ui)] border border-amber-300 bg-white px-3 py-1.5 font-mono text-sm"
+              style={{ fontSize: '0.875rem' }}
+            />
+          </label>
+          <button type="submit" className="rg-btn-primary" style={{ fontSize: '0.8125rem', padding: '0.375rem 0.75rem' }}>
+            🔍 Discover URLs
+          </button>
+        </form>
+
+        {(() => {
+          const suggRaw = program.suggested_field_urls as Record<string, unknown> | null
+          if (!suggRaw || !suggRaw.generated_at) return null
+          type FieldSug = { urls?: string[]; reason?: string; confidence?: string }
+          const metaKeys = new Set(['generated_at', 'starting_url', 'total_urls_seen', 'candidates_sent'])
+          const populated: Array<[string, FieldSug]> = []
+          for (const [k, v] of Object.entries(suggRaw)) {
+            if (metaKeys.has(k)) continue
+            if (v && typeof v === 'object' && !Array.isArray(v)) {
+              const fs = v as FieldSug
+              if (Array.isArray(fs.urls) && fs.urls.length > 0) populated.push([k, fs])
+            }
+          }
+          const totalUrlsSeen = typeof suggRaw.total_urls_seen === 'number' ? suggRaw.total_urls_seen : null
+          const candidatesSent = typeof suggRaw.candidates_sent === 'number' ? suggRaw.candidates_sent : null
+          const generatedAt = typeof suggRaw.generated_at === 'string' ? suggRaw.generated_at : null
+          return (
+            <div className="mt-4 rounded-[var(--radius-ui)] border border-amber-300 bg-white p-3">
+              <div className="mb-2 flex items-baseline justify-between gap-2">
+                <p className="font-ui text-xs font-bold uppercase tracking-wide text-amber-900">
+                  Suggestions — {populated.length} field{populated.length === 1 ? '' : 's'} matched
+                </p>
+                <p className="font-ui text-[10px] text-amber-700">
+                  Mapped {totalUrlsSeen ?? '?'} URLs · sent {candidatesSent ?? '?'} to Sonnet ·{' '}
+                  {generatedAt ? new Date(generatedAt).toLocaleString() : ''}
+                </p>
+              </div>
+              {populated.length === 0 ? (
+                <p className="font-body text-xs text-amber-900">
+                  No fields matched. Try a more specific starting URL (e.g. the loyalty program&apos;s landing page).
+                </p>
+              ) : (
+                <>
+                  <table className="w-full font-body text-xs">
+                    <thead className="border-b border-amber-200 font-ui text-[10px] uppercase tracking-wide text-amber-900">
+                      <tr>
+                        <th className="py-1 pr-2 text-left">Field</th>
+                        <th className="py-1 pr-2 text-left">Suggested URL(s)</th>
+                        <th className="py-1 pr-2 text-left">Reason</th>
+                        <th className="py-1 pr-2 text-left">Confidence</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {populated.map(([field, s]) => (
+                        <tr key={field} className="border-b border-amber-100 align-top">
+                          <td className="py-1 pr-2 font-semibold">{field}</td>
+                          <td className="py-1 pr-2">
+                            {(s.urls ?? []).map((u: string, i: number) => (
+                              <div key={i}>
+                                <a className="text-amber-900 underline" href={u} target="_blank" rel="noreferrer">{u}</a>
+                              </div>
+                            ))}
+                          </td>
+                          <td className="py-1 pr-2 text-amber-900">{s.reason}</td>
+                          <td className="py-1 pr-2 uppercase">{s.confidence}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <form action={applyDiscoveredUrls} className="mt-3">
+                    <input type="hidden" name="slug" value={program.slug} />
+                    <button type="submit" className="rg-btn-primary" style={{ fontSize: '0.8125rem', padding: '0.375rem 0.75rem' }}>
+                      ⬇ Apply suggestions to field URLs below
+                    </button>
+                    <span className="ml-2 font-body text-[11px] text-amber-700">
+                      Overwrites the per-field textareas — review them after.
+                    </span>
+                  </form>
+                </>
+              )}
+            </div>
+          )
+        })()}
+      </section>
 
       {/* Run extraction form */}
       <section className="mb-8 rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] p-5">

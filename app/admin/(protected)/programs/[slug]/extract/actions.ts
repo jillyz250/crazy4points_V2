@@ -6,6 +6,7 @@ import { extractProgramContent } from '@/utils/programs/extractProgramContent'
 import { applyProgramField, skipProgramField, isApplyableField } from '@/utils/programs/applyProgramField'
 import { mergeExtractedField, isMergeableField } from '@/utils/programs/mergeExtractedField'
 import { verifyExtractedField, isVerifiableField } from '@/utils/programs/verifyExtractedField'
+import { discoverSourceUrls } from '@/utils/programs/discoverSourceUrls'
 
 /**
  * Run extraction on a program. Writes to program_extractions cache only —
@@ -213,6 +214,88 @@ export async function mergeProgramField(formData: FormData): Promise<void> {
   if (!result.ok) {
     console.error(`[program-extract] merge failed for ${field}: ${result.error}`)
   }
+
+  revalidatePath(`/admin/programs/${slug}/extract`)
+}
+
+/**
+ * Discover candidate source URLs for each extraction field by mapping a
+ * starting domain and asking Sonnet to classify the results. Persists to
+ * programs.suggested_field_urls so the editor can review and apply.
+ */
+export async function discoverProgramSourceUrls(formData: FormData): Promise<void> {
+  const slug = String(formData.get('slug') ?? '').trim()
+  const startingUrl = String(formData.get('starting_url') ?? '').trim()
+
+  if (!slug || !startingUrl) {
+    console.error(`[program-discover] missing slug or starting URL`)
+    return
+  }
+
+  const supabase = createAdminClient()
+  const { data: program } = await supabase
+    .from('programs')
+    .select('id, name, type')
+    .eq('slug', slug)
+    .single()
+
+  if (!program) {
+    console.error(`[program-discover] program not found: ${slug}`)
+    return
+  }
+
+  const result = await discoverSourceUrls({
+    programId: program.id,
+    programName: program.name,
+    programType: program.type ?? 'airline',
+    startingUrl,
+  })
+
+  if (!result.ok) {
+    console.error(`[program-discover] failed: ${result.error}`)
+  } else {
+    console.log(
+      `[program-discover] mapped ${result.total_urls_seen} urls -> ${result.candidates_sent_to_sonnet} candidates -> ${Object.values(result.suggestions).filter((v) => v != null).length} field matches`,
+    )
+  }
+
+  revalidatePath(`/admin/programs/${slug}/extract`)
+}
+
+/**
+ * Apply discovered URL suggestions to programs.field_source_urls in bulk.
+ * Overwrites any existing per-field URLs with the suggestions. Skips fields
+ * where the suggestion is null.
+ */
+export async function applyDiscoveredUrls(formData: FormData): Promise<void> {
+  const slug = String(formData.get('slug') ?? '').trim()
+  if (!slug) return
+
+  const supabase = createAdminClient()
+  const { data: program } = await supabase
+    .from('programs')
+    .select('id, suggested_field_urls')
+    .eq('slug', slug)
+    .single()
+
+  if (!program) return
+
+  const suggestions =
+    (program.suggested_field_urls as Record<string, { urls?: string[] } | null> | null) ?? {}
+
+  const newFieldUrls: Record<string, string[]> = {}
+  for (const [field, s] of Object.entries(suggestions)) {
+    // Skip metadata keys
+    if (['generated_at', 'starting_url', 'total_urls_seen', 'candidates_sent'].includes(field)) continue
+    if (s && Array.isArray(s.urls) && s.urls.length > 0) {
+      newFieldUrls[field] = s.urls
+    }
+  }
+
+  await supabase
+    .from('programs')
+    .update({ field_source_urls: newFieldUrls })
+    .eq('id', program.id)
 
   revalidatePath(`/admin/programs/${slug}/extract`)
 }
