@@ -277,27 +277,26 @@ export default async function ProgramExtractPage({
             </p>
           </header>
 
-          {/* 4-step workflow callout */}
+          {/* Workflow callout — simpler flow now that auto-verify ships */}
           <div className="mb-4 rounded-[var(--radius-card)] border border-[var(--color-primary)] bg-[var(--color-background-soft)] p-4">
             <p className="font-ui text-xs font-bold uppercase tracking-wide text-[var(--color-primary)]">
-              4-step extraction workflow
+              How to review an extraction (3 steps per field)
             </p>
             <ol className="mt-2 ml-4 list-decimal space-y-1 font-body text-sm text-[var(--color-text-primary)]">
               <li>
-                <strong>Extract</strong> — runs Firecrawl + Sonnet (already done above ↑).
+                <strong>🔍 Verify &amp; merge with source</strong> — Sonnet reads the scraped page, reconciles every disputed fact, and produces a final version that keeps the current voice with verified facts swapped in. Returns a discrepancy log so you can see exactly what changed and why.
               </li>
               <li>
-                <strong>🔍 Verify against source</strong> per field (button on each card) — Sonnet auto-reconciles current vs extracted against the scraped markdown and produces a verified corrected final version. <em>This is the new automatic loop.</em>
+                <strong>Apply verified [field]</strong> — writes the verified text to the live program page. The prior value is snapshotted to <code>program_field_history</code> first; any field can be rolled back later.
               </li>
               <li>
-                Click <strong>Apply verified</strong> (or Apply merged / Apply / Skip) on each field. Verified always wins over merged or raw extracted.
-              </li>
-              <li>
-                Optional fallback: paste Claude-edited text into the amber <strong>📝 Step 4 override</strong> on a field if you want a hand-tuned final. Overrides verification.
+                <strong>Skip</strong> — if the field doesn&apos;t need updating, mark it reviewed and move on.
               </li>
             </ol>
             <p className="mt-2 font-body text-xs text-[var(--color-text-secondary)]">
-              <strong>Copy review prompt</strong> still works for cases where you want my eye on the whole extraction at once. After all fields are Applied or Skipped, click <strong>Mark review complete</strong>.
+              When every field is Applied or Skipped, click <strong>Mark review complete</strong> at the bottom.
+              Structured fields (tier_benefits, hubs, alliance) use Apply / Skip directly (no Verify — they&apos;re JSON shape, not narrative text).
+              The <strong>📋 Copy review prompt</strong> button is now a manual fallback for cases where you want Claude&apos;s eye on the whole extraction at once instead of per-field auto-verify.
             </p>
           </div>
 
