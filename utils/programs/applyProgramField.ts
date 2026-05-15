@@ -76,7 +76,19 @@ export async function applyProgramField({
   }
 
   // 3. Update programs.<field>
-  const updatePayload = { [field]: newValue, content_updated_at: new Date().toISOString() } as Record<string, unknown>
+  // Apply also resets BOTH freshness columns:
+  //   content_updated_at (timestamptz) — last edit timestamp
+  //   last_verified (date)             — last time content was verified
+  //                                       against source. Driving the
+  //                                       refresh-queue staleness flag.
+  // Since extraction is a verification against the live source page,
+  // applying that data IS a verification act — last_verified resets.
+  const now = new Date()
+  const updatePayload = {
+    [field]: newValue,
+    content_updated_at: now.toISOString(),
+    last_verified: now.toISOString().slice(0, 10),  // YYYY-MM-DD
+  } as Record<string, unknown>
   const { error: updateErr } = await supabase
     .from('programs')
     .update(updatePayload)
