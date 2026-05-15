@@ -4,6 +4,7 @@ import RunExtractionButton from '@/components/admin/cards/RunExtractionButton'
 import ExtractionActionButton from '@/components/admin/cards/ExtractionActionButton'
 import ProgramFieldDiff from '@/components/admin/programs/ProgramFieldDiff'
 import ExtractionCopyButtons from '@/components/admin/programs/ExtractionCopyButtons'
+import ManualMarkdownInput from '@/components/admin/programs/ManualMarkdownInput'
 import {
   runProgramExtraction,
   applyExtractedField,
@@ -387,32 +388,26 @@ export default async function ProgramExtractPage({
             })}
           </div>
 
-          {/* Manual markdown paste — for hostile-bot sites (delta.com, marriott.com) */}
+          {/* Manual markdown upload / paste — for hostile-bot sites (delta.com, marriott.com) */}
           <details className="rounded-[var(--radius-card)] border-2 border-red-200 bg-red-50/30 p-3">
             <summary className="cursor-pointer font-ui text-xs font-bold uppercase tracking-wide text-red-900">
-              📋 Manual markdown paste — bypass Firecrawl (for hostile sites)
+              📋 Manual markdown upload / paste — bypass Firecrawl (for hostile sites)
             </summary>
-            <div className="mt-3 flex flex-col gap-2">
+            <div className="mt-3 flex flex-col gap-3">
               <p className="font-body text-xs text-red-900">
                 If Firecrawl can&apos;t reach the program&apos;s site (e.g. Delta&apos;s anti-bot redirects to a sorry page),
-                paste the page markdown here. Steps:
+                use this fallback. Steps:
               </p>
               <ol className="ml-4 list-decimal font-body text-xs text-red-900 space-y-1">
                 <li>Open <a className="underline" href="https://www.firecrawl.dev/playground" target="_blank" rel="noreferrer">Firecrawl playground</a> in a new tab</li>
-                <li>Paste each program URL one at a time, click Scrape, copy the returned markdown</li>
-                <li>Combine the markdown from all URLs into the textarea below (separate sections with <code>---</code> if you want)</li>
-                <li>Click Run extraction — the pipeline skips Firecrawl + uses your paste directly</li>
+                <li>Paste each program URL one at a time, click Scrape, then click <strong>Markdown</strong> (or <strong>JSON</strong>) to download the file</li>
+                <li>Click <strong>Upload markdown files</strong> below and select all the downloaded files at once (multi-select)</li>
+                <li>Click <strong>Run extraction</strong> — the pipeline skips Firecrawl + uses your uploads directly</li>
               </ol>
-              <textarea
-                name="manual_markdown"
-                rows={8}
-                placeholder="Paste combined markdown here. Pipeline will skip Firecrawl when this field is filled."
-                className="rounded-[var(--radius-ui)] border border-red-300 bg-white px-3 py-1.5 font-mono"
-                style={{ fontSize: '0.75rem', resize: 'vertical' }}
-              />
+              <ManualMarkdownInput />
               <p className="font-body text-[11px] text-red-800">
-                When this textarea is filled, the per-field URLs above are ignored for scraping (URLs still inform which fields get extracted).
-                Auto-verify still runs against the paste.
+                When this is filled, per-field URLs above are ignored for scraping (they still inform which fields get extracted).
+                Auto-verify reconciles against the same uploaded markdown.
               </p>
             </div>
           </details>
