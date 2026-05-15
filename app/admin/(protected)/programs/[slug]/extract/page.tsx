@@ -37,7 +37,7 @@ export default async function ProgramExtractPage({
       id, slug, name, type,
       intro, sweet_spots, lounge_access, quirks, award_chart,
       tier_benefits, alliance, hubs, parent_program_slug,
-      extraction_source_url,
+      extraction_source_url, additional_source_urls,
       content_updated_at, last_verified
     `)
     .eq('slug', slug)
@@ -63,6 +63,7 @@ export default async function ProgramExtractPage({
     .limit(10)
 
   const defaultSourceUrl = program.extraction_source_url ?? ''
+  const defaultAdditionalUrls = ((program.additional_source_urls as string[] | null) ?? []).join('\n')
   const extraction = (latest?.extraction as Record<string, unknown> | undefined) ?? null
   const appliedFields = ((latest?.applied_fields as Record<string, string> | null) ?? {})
 
@@ -138,6 +139,26 @@ export default async function ProgramExtractPage({
             </label>
             <RunExtractionButton />
           </div>
+          <label className="flex flex-col">
+            <span className="block font-ui text-xs uppercase tracking-wide text-[var(--color-text-secondary)]">
+              Additional URLs (optional, one per line)
+            </span>
+            <span className="mt-0.5 block font-body text-xs text-[var(--color-text-secondary)]">
+              Supplemental pages scraped alongside the primary URL and merged into one extraction.
+              Useful for alliances: e.g., add /airport-lounges, /round-the-world, /about pages.
+              Each adds ~$0.001 in Firecrawl + ~$0.06 in Sonnet input tokens.
+            </span>
+            <textarea
+              name="additional_urls"
+              rows={4}
+              defaultValue={defaultAdditionalUrls}
+              placeholder="https://www.oneworld.com/airport-lounges
+https://www.oneworld.com/round-the-world
+https://www.oneworld.com/about-the-oneworld-alliance"
+              className="mt-1 w-full rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-white px-3 py-2 font-mono text-xs"
+              style={{ fontSize: '0.875rem' }}
+            />
+          </label>
           <label className="inline-flex items-center gap-2 font-body text-sm text-[var(--color-text-secondary)]">
             <input type="checkbox" name="interactive" value="on" className="h-4 w-4 rounded border-[var(--color-border-soft)]" />
             <span>
