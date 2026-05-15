@@ -37,7 +37,7 @@ export default async function ProgramExtractPage({
       id, slug, name, type,
       intro, sweet_spots, lounge_access, quirks, award_chart,
       tier_benefits, alliance, hubs, parent_program_slug,
-      extraction_source_url, additional_source_urls,
+      extraction_source_url, field_source_urls,
       content_updated_at, last_verified
     `)
     .eq('slug', slug)
@@ -63,7 +63,28 @@ export default async function ProgramExtractPage({
     .limit(10)
 
   const defaultSourceUrl = program.extraction_source_url ?? ''
-  const defaultAdditionalUrls = ((program.additional_source_urls as string[] | null) ?? []).join('\n')
+  const storedFieldUrls = ((program.field_source_urls as Record<string, string | null> | null) ?? {})
+
+  // Field metadata for the per-field URL inputs.
+  // recommended=true means we suggest extraction; default URL hint shows
+  // where this field typically lives.
+  type FieldConfig = {
+    key: string
+    label: string
+    hint: string
+    recommended: boolean  // false for editorial fields (intro, sweet_spots)
+  }
+  const FIELD_CONFIGS: FieldConfig[] = [
+    { key: 'intro', label: 'Intro', hint: 'Editorial — usually keep manual. Add URL only if you want a fresh extract.', recommended: false },
+    { key: 'sweet_spots', label: 'Sweet spots', hint: 'Curated picks — usually keep manual.', recommended: false },
+    { key: 'tier_benefits', label: 'Tier benefits', hint: 'Status tier table (Emerald/Sapphire/Ruby; Silver/Gold/Platinum).', recommended: true },
+    { key: 'lounge_access', label: 'Lounge access', hint: 'Lounge access page — alliance rules, fees, exclusions.', recommended: true },
+    { key: 'quirks', label: 'Quirks', hint: 'Fine print — RTW rules, surcharges, stopovers.', recommended: true },
+    { key: 'award_chart', label: 'Award chart', hint: 'Award chart page with point amounts per region/cabin.', recommended: true },
+    { key: 'alliance', label: 'Alliance', hint: 'About page or any page that names the alliance.', recommended: true },
+    { key: 'hubs', label: 'Hubs', hint: 'About page or route map listing hub airports.', recommended: true },
+    { key: 'parent_program_slug', label: 'Parent program', hint: 'Only for sub-programs (e.g., KLM under Flying Blue).', recommended: false },
+  ]
   const extraction = (latest?.extraction as Record<string, unknown> | undefined) ?? null
   const appliedFields = ((latest?.applied_fields as Record<string, string> | null) ?? {})
 
@@ -120,51 +141,73 @@ export default async function ProgramExtractPage({
           Nothing is saved to the live program row until you Apply per field below.
         </p>
 
-        <form action={runProgramExtraction} className="mt-4 flex flex-col gap-3">
+        <form action={runProgramExtraction} className="mt-4 flex flex-col gap-4">
           <input type="hidden" name="slug" value={program.slug} />
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <label className="flex-1">
-              <span className="block font-ui text-xs uppercase tracking-wide text-[var(--color-text-secondary)]">
-                Source URL
-              </span>
+
+          <p className="font-body text-sm text-[var(--color-text-secondary)]">
+            Assign a URL to each field you want extracted. Leave a field blank to skip extraction
+            and keep the current manually-authored value. Each unique URL is scraped once and
+            extracted with a focused Sonnet call for its mapped fields only.
+          </p>
+
+          <div className="grid gap-3">
+            {FIELD_CONFIGS.map((f) => {
+              const currentUrl = storedFieldUrls[f.key] ?? ''
+              return (
+                <label key={f.key} className="grid grid-cols-1 gap-1 sm:grid-cols-[10rem_1fr] sm:items-center">
+                  <span className="font-ui text-xs">
+                    <strong className="text-[var(--color-text-primary)]">{f.label}</strong>
+                    {!f.recommended ? (
+                      <span className="ml-1 font-normal italic text-[var(--color-text-secondary)]">(editorial)</span>
+                    ) : null}
+                  </span>
+                  <div className="flex flex-col gap-0.5">
+                    <input
+                      name={`field_url_${f.key}`}
+                      type="url"
+                      defaultValue={currentUrl}
+                      placeholder={f.recommended ? 'Source URL for this field' : '(leave blank to keep manual)'}
+                      className="rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-white px-3 py-1.5 font-mono text-sm"
+                      style={{ fontSize: '0.875rem' }}
+                    />
+                    <span className="font-body text-[11px] text-[var(--color-text-secondary)]">{f.hint}</span>
+                  </div>
+                </label>
+              )
+            })}
+          </div>
+
+          {/* Legacy single-URL fallback (only used if no per-field URLs configured) */}
+          <details className="rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] p-2">
+            <summary className="cursor-pointer font-ui text-xs uppercase tracking-wide text-[var(--color-text-secondary)]">
+              Legacy single-URL fallback (advanced)
+            </summary>
+            <div className="mt-2">
               <input
                 name="source_url"
                 type="url"
-                required
                 defaultValue={defaultSourceUrl}
-                placeholder="https://www.united.com/en/us/fly/mileageplus.html"
-                className="mt-1 w-full rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-white px-3 py-2 font-body text-base"
-                style={{ fontSize: '1rem' }}
+                placeholder="One URL to extract everything from (used only if no per-field URLs above)"
+                className="w-full rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-white px-3 py-1.5 font-mono text-sm"
+                style={{ fontSize: '0.875rem' }}
               />
-            </label>
-            <RunExtractionButton />
-          </div>
-          <label className="flex flex-col">
-            <span className="block font-ui text-xs uppercase tracking-wide text-[var(--color-text-secondary)]">
-              Additional URLs (optional, one per line)
-            </span>
-            <span className="mt-0.5 block font-body text-xs text-[var(--color-text-secondary)]">
-              Supplemental pages scraped alongside the primary URL and merged into one extraction.
-              Useful for alliances: e.g., add /airport-lounges, /round-the-world, /about pages.
-              Each adds ~$0.001 in Firecrawl + ~$0.06 in Sonnet input tokens.
-            </span>
-            <textarea
-              name="additional_urls"
-              rows={4}
-              defaultValue={defaultAdditionalUrls}
-              placeholder="https://www.oneworld.com/airport-lounges
-https://www.oneworld.com/round-the-world
-https://www.oneworld.com/about-the-oneworld-alliance"
-              className="mt-1 w-full rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-white px-3 py-2 font-mono text-xs"
-              style={{ fontSize: '0.875rem' }}
-            />
-          </label>
+              <p className="mt-1 font-body text-[11px] text-[var(--color-text-secondary)]">
+                Used only when no per-field URLs are set. Backward-compat with the original
+                single-URL pipeline.
+              </p>
+            </div>
+          </details>
+
           <label className="inline-flex items-center gap-2 font-body text-sm text-[var(--color-text-secondary)]">
             <input type="checkbox" name="interactive" value="on" className="h-4 w-4 rounded border-[var(--color-border-soft)]" />
             <span>
-              <strong className="text-[var(--color-text-primary)]">Interactive mode</strong> — expand accordions. Adds ~5 sec. Use for JS-heavy pages.
+              <strong className="text-[var(--color-text-primary)]">Interactive mode</strong> — expand accordions. Adds ~5 sec per URL.
             </span>
           </label>
+
+          <div>
+            <RunExtractionButton />
+          </div>
         </form>
       </section>
 

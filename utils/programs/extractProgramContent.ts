@@ -1,16 +1,19 @@
 /**
- * Program extraction pipeline.
+ * Program extraction pipeline — per-field source URL mode.
  *
- *   1. Firecrawl scrape → markdown
- *   2. Claude Sonnet pass 1 → structured ProgramExtraction JSON
- *   3. Sonnet pass 2 (review) → finds anything pass 1 missed
- *   4. Merge + persist to program_extractions (status='extracted')
- *
- * Returns the extraction row id so the admin review screen can render the
- * diff against current programs.<field> values.
+ *   1. Read field_source_urls from programs row
+ *   2. Group fields by URL (so each unique URL is scraped exactly once)
+ *   3. For each group: Firecrawl scrape + focused Sonnet call extracting
+ *      ONLY the fields mapped to that URL
+ *   4. Merge all per-URL extractions into a single ProgramExtraction
+ *   5. Run review pass on the merged result
+ *   6. Persist to program_extractions (status='extracted')
  *
  * NO direct writes to programs.* — that's per-field, editor-driven, via
  * the apply action.
+ *
+ * Legacy fallback: when field_source_urls is empty {} but extraction_source_url
+ * is set, use the old "scrape one page, extract everything" mode.
  */
 
 import Anthropic from '@anthropic-ai/sdk'
@@ -27,229 +30,268 @@ import { verifySourceUrl } from '@/utils/programs/verifySourceUrl'
 import type { ProgramExtraction } from '@/utils/programs/programExtractionSchema'
 
 const MODEL = 'claude-sonnet-4-6'
-const MARKDOWN_CHAR_LIMIT = 60_000  // Program pages tend longer than card pages
+const PER_URL_MARKDOWN_LIMIT = 40_000
+
+export type ProgramExtractableField =
+  | 'intro'
+  | 'sweet_spots'
+  | 'lounge_access'
+  | 'quirks'
+  | 'award_chart'
+  | 'tier_benefits'
+  | 'alliance'
+  | 'hubs'
+  | 'parent_program_slug'
+
+export const ALL_EXTRACTABLE_FIELDS: ProgramExtractableField[] = [
+  'intro',
+  'sweet_spots',
+  'lounge_access',
+  'quirks',
+  'award_chart',
+  'tier_benefits',
+  'alliance',
+  'hubs',
+  'parent_program_slug',
+]
+
+export type FieldSourceUrls = Partial<Record<ProgramExtractableField, string | null>>
 
 export type ProgramExtractionResult =
   | { ok: true; extractionId: string; extraction: ProgramExtraction }
   | { ok: false; error: string }
+
+/**
+ * Empty ProgramExtraction template — every field nulled with low confidence.
+ * Per-URL extractions overwrite the fields they're responsible for.
+ */
+function emptyExtraction(): ProgramExtraction {
+  const nullField = { value: null, source_quote: null, confidence: 'low' as const }
+  return {
+    intro: nullField,
+    sweet_spots: nullField,
+    lounge_access: nullField,
+    quirks: nullField,
+    award_chart: nullField,
+    tier_benefits: { rows: [], source_quote: null, confidence: 'low' },
+    alliance: nullField,
+    hubs: nullField,
+    parent_program_slug: nullField,
+    extraction_warnings: [],
+  }
+}
 
 export async function extractProgramContent({
   programId,
   programName,
   programSlug,
   programType,
-  sourceUrl,
-  additionalUrls = [],
+  fieldSourceUrls,
+  legacySourceUrl,
   interactive = false,
 }: {
   programId: string
   programName: string
   programSlug: string
   programType: string
-  sourceUrl: string
   /**
-   * Optional supplemental URLs. All scraped in parallel and concatenated
-   * with section headers before being passed to Sonnet. Useful for alliances
-   * and large programs that split content across pages.
-   * Each adds ~1 Firecrawl credit (~$0.001) and ~$0.06 in Sonnet input tokens.
+   * Per-field URL map. Each field is either:
+   *   - Has a URL → extract from that URL
+   *   - Has null → explicitly skip extraction; keep current value
+   *   - Missing key → treated same as null (skip)
    */
-  additionalUrls?: string[]
+  fieldSourceUrls: FieldSourceUrls
+  /**
+   * Legacy single-URL mode fallback. Used when fieldSourceUrls is empty
+   * (no per-field config). Scrapes this one URL and extracts ALL fields.
+   * Maintained for backward compat with the original pipeline (migration 266).
+   */
+  legacySourceUrl?: string
   interactive?: boolean
 }): Promise<ProgramExtractionResult> {
   const supabase = createAdminClient()
 
-  // Pre-flight: verify all URLs are live before spending Firecrawl + Sonnet credits.
-  const verify = await verifySourceUrl(sourceUrl)
-  if (!verify.ok) {
-    await supabase.from('program_extractions').insert({
-      program_id: programId,
-      source_url: sourceUrl,
-      raw_markdown: null,
-      markdown_chars: 0,
-      used_interactive: interactive,
-      extraction: {},
-      model: MODEL,
-      status: 'failed',
-      error_message: `URL pre-flight failed: ${verify.error}`,
-    })
-    return { ok: false, error: verify.error }
-  }
+  // Build the URL→fields map. If no per-field URLs configured, fall back to
+  // legacy single-URL mode (all fields from one page).
+  const urlToFields = new Map<string, ProgramExtractableField[]>()
 
-  let finalUrl = verify.finalUrl
-  if (verify.redirected) {
-    console.log(`[program-extract] URL redirected: ${sourceUrl} -> ${finalUrl}`)
-    await supabase
-      .from('programs')
-      .update({ extraction_source_url: finalUrl })
-      .eq('id', programId)
-  }
+  const fieldsWithUrls = Object.entries(fieldSourceUrls).filter(([, url]) => typeof url === 'string' && url.trim().length > 0)
 
-  // Verify additional URLs in parallel (non-blocking on failure — invalid
-  // supplemental URLs are skipped with a warning, primary URL still proceeds).
-  const verifiedAdditional: string[] = []
-  if (additionalUrls.length > 0) {
-    const verifications = await Promise.all(
-      additionalUrls.filter((u) => u && u.trim()).map(async (u) => ({ url: u, result: await verifySourceUrl(u) })),
-    )
-    for (const v of verifications) {
-      if (v.result.ok) {
-        verifiedAdditional.push(v.result.finalUrl)
-      } else {
-        console.warn(`[program-extract] supplemental URL skipped: ${v.url} - ${v.result.error}`)
-      }
+  if (fieldsWithUrls.length === 0 && legacySourceUrl) {
+    // Legacy mode: one URL, all fields
+    urlToFields.set(legacySourceUrl, [...ALL_EXTRACTABLE_FIELDS])
+  } else {
+    for (const [field, url] of fieldsWithUrls) {
+      if (!isExtractableField(field)) continue
+      const u = (url as string).trim()
+      const existing = urlToFields.get(u) ?? []
+      existing.push(field)
+      urlToFields.set(u, existing)
     }
   }
 
-  // Scrape primary + all supplemental URLs in parallel. Each gets up to
-  // 1/N of the markdown budget so the combined output fits within Sonnet's
-  // input context comfortably.
-  const allUrls = [finalUrl, ...verifiedAdditional]
-  const perUrlLimit = Math.floor(MARKDOWN_CHAR_LIMIT / Math.max(allUrls.length, 1))
+  if (urlToFields.size === 0) {
+    return { ok: false, error: 'No source URLs configured. Assign a URL to at least one field before running extraction.' }
+  }
 
-  const scrapes = await Promise.all(
-    allUrls.map(async (url) => {
-      const md = interactive
-        ? await fetchFirecrawlInteractive(url, { maxChars: perUrlLimit })
-        : await fetchFirecrawl(url, { maxChars: perUrlLimit })
-      return { url, markdown: md }
-    }),
-  )
+  // Pre-flight verify every URL. Collect any that fail.
+  const uniqueUrls = Array.from(urlToFields.keys())
+  const verifications = await Promise.all(uniqueUrls.map(async (u) => ({ url: u, result: await verifySourceUrl(u) })))
+  const verifiedMap = new Map<string, string>()  // original URL → final URL after redirect
+  const failedUrls: { url: string; error: string }[] = []
+  for (const v of verifications) {
+    if (v.result.ok) {
+      verifiedMap.set(v.url, v.result.finalUrl)
+    } else {
+      failedUrls.push({ url: v.url, error: v.result.error })
+    }
+  }
 
-  // Concatenate with section headers so Sonnet knows which source each
-  // segment came from.
-  const validScrapes = scrapes.filter((s) => s.markdown && s.markdown.length > 0)
-  const markdown = validScrapes
-    .map((s, i) => `=== SOURCE ${i + 1}: ${s.url} ===\n\n${s.markdown}`)
-    .join('\n\n')
-
-  if (!markdown) {
+  if (verifiedMap.size === 0) {
+    // All URLs failed
     await supabase.from('program_extractions').insert({
       program_id: programId,
-      source_url: finalUrl,
+      source_url: uniqueUrls[0] ?? '',
       raw_markdown: null,
       markdown_chars: 0,
       used_interactive: interactive,
       extraction: {},
       model: MODEL,
       status: 'failed',
-      error_message: 'Firecrawl returned empty markdown',
+      error_message: `All URLs failed pre-flight: ${failedUrls.map((f) => `${f.url}: ${f.error}`).join('; ')}`,
     })
-    return { ok: false, error: 'Firecrawl returned no markdown for this URL' }
+    return { ok: false, error: 'All URLs failed pre-flight verification.' }
   }
 
+  // Per-URL extraction: for each verified URL, scrape and run a focused
+  // Sonnet call extracting ONLY the mapped fields.
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) return { ok: false, error: 'ANTHROPIC_API_KEY not set' }
-
   const client = new Anthropic({ apiKey })
 
-  let response
-  try {
-    response = await client.messages.create({
-      model: MODEL,
-      max_tokens: 16000,
-      system: PROGRAM_EXTRACTION_SYSTEM_PROMPT,
-      messages: [{
-        role: 'user',
-        content: buildProgramExtractionUserPrompt(programName, programSlug, programType, finalUrl, markdown),
-      }],
-    })
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
-    await supabase.from('program_extractions').insert({
-      program_id: programId,
-      source_url: finalUrl,
-      raw_markdown: markdown,
-      markdown_chars: markdown.length,
-      used_interactive: interactive,
-      extraction: {},
-      model: MODEL,
-      status: 'failed',
-      error_message: `Anthropic error: ${message}`,
-    })
-    return { ok: false, error: `Claude error: ${message}` }
-  }
+  const merged: ProgramExtraction = emptyExtraction()
+  let totalInputTokens = 0
+  let totalOutputTokens = 0
+  const combinedMarkdownParts: string[] = []
+  let primaryUrlForRecord = ''
 
-  await logUsage(response, 'extract_program_content', { program_id: programId, source_url: finalUrl })
-
-  const textBlock = response.content.find((c) => c.type === 'text')
-  if (!textBlock || textBlock.type !== 'text') {
-    return { ok: false, error: 'Claude returned no text content' }
-  }
-  const rawText = textBlock.text.trim()
-
-  let extraction: ProgramExtraction
-  let repaired = false
-  try {
-    const cleaned = rawText.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim()
-
-    if (!cleaned.startsWith('{')) {
-      const proseSnippet = cleaned.slice(0, 220).replace(/\n/g, ' ')
-      throw new Error(
-        `Claude returned prose, not JSON. Page may not be a program landing page. ` +
-        `${interactive ? 'Try disabling Interactive mode. ' : ''}` +
-        `Claude said: "${proseSnippet}..."`,
+  for (const [originalUrl, fields] of urlToFields.entries()) {
+    const finalUrl = verifiedMap.get(originalUrl)
+    if (!finalUrl) {
+      // Pre-flight failed for this URL; skip its mapped fields
+      merged.extraction_warnings.push(
+        `Skipped fields (${fields.join(', ')}) — pre-flight failed for ${originalUrl}: ${failedUrls.find((f) => f.url === originalUrl)?.error ?? 'unknown'}`,
       )
+      continue
     }
 
+    primaryUrlForRecord = primaryUrlForRecord || finalUrl
+
+    const markdown = interactive
+      ? await fetchFirecrawlInteractive(finalUrl, { maxChars: PER_URL_MARKDOWN_LIMIT })
+      : await fetchFirecrawl(finalUrl, { maxChars: PER_URL_MARKDOWN_LIMIT })
+
+    if (!markdown) {
+      merged.extraction_warnings.push(
+        `Skipped fields (${fields.join(', ')}) — Firecrawl returned empty markdown for ${finalUrl}`,
+      )
+      continue
+    }
+
+    combinedMarkdownParts.push(`=== SOURCE: ${finalUrl} (fields: ${fields.join(', ')}) ===\n\n${markdown}`)
+
+    // Focused Sonnet call: extract ONLY these fields from this markdown.
+    const fieldList = fields.join(', ')
+    let response
     try {
-      extraction = JSON.parse(cleaned) as ProgramExtraction
-    } catch {
-      extraction = JSON.parse(jsonrepair(cleaned)) as ProgramExtraction
-      repaired = true
+      response = await client.messages.create({
+        model: MODEL,
+        max_tokens: 12000,
+        system: PROGRAM_EXTRACTION_SYSTEM_PROMPT,
+        messages: [{
+          role: 'user',
+          content: buildProgramExtractionUserPrompt(
+            programName,
+            programSlug,
+            programType,
+            finalUrl,
+            markdown,
+            { extractOnlyFields: fields, fieldList },
+          ),
+        }],
+      })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      merged.extraction_warnings.push(`Sonnet failed for ${finalUrl} (fields: ${fieldList}): ${message}`)
+      continue
     }
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
-    const stopReason = response.stop_reason
-    const truncated = stopReason === 'max_tokens'
-    await supabase.from('program_extractions').insert({
-      program_id: programId,
-      source_url: finalUrl,
-      raw_markdown: markdown,
-      markdown_chars: markdown.length,
-      used_interactive: interactive,
-      extraction: { raw: rawText, stop_reason: stopReason },
-      model: MODEL,
-      input_tokens: response.usage?.input_tokens ?? null,
-      output_tokens: response.usage?.output_tokens ?? null,
-      status: 'failed',
-      error_message: truncated
-        ? `Claude hit max_tokens cap. Increase above ${response.usage?.output_tokens ?? '?'}.`
-        : message,
-    })
-    return { ok: false, error: message }
+
+    await logUsage(response, 'extract_program_content_per_field', { program_id: programId, source_url: finalUrl })
+    totalInputTokens += response.usage?.input_tokens ?? 0
+    totalOutputTokens += response.usage?.output_tokens ?? 0
+
+    const textBlock = response.content.find((c) => c.type === 'text')
+    if (!textBlock || textBlock.type !== 'text') continue
+    const rawText = textBlock.text.trim()
+
+    let parsed: ProgramExtraction
+    try {
+      const cleaned = rawText.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim()
+      if (!cleaned.startsWith('{')) {
+        merged.extraction_warnings.push(
+          `Sonnet returned prose (not JSON) for ${finalUrl}. First 100 chars: "${cleaned.slice(0, 100)}..."`,
+        )
+        continue
+      }
+      try {
+        parsed = JSON.parse(cleaned) as ProgramExtraction
+      } catch {
+        parsed = JSON.parse(jsonrepair(cleaned)) as ProgramExtraction
+      }
+    } catch (err) {
+      merged.extraction_warnings.push(
+        `JSON parse failed for ${finalUrl}: ${err instanceof Error ? err.message : String(err)}`,
+      )
+      continue
+    }
+
+    // Merge ONLY the fields this URL was responsible for — ignore everything else
+    for (const field of fields) {
+      const extracted = (parsed as unknown as Record<string, unknown>)[field]
+      if (extracted) {
+        ;(merged as unknown as Record<string, unknown>)[field] = extracted
+      }
+    }
+    if (parsed.extraction_warnings && parsed.extraction_warnings.length > 0) {
+      merged.extraction_warnings.push(...parsed.extraction_warnings.map((w) => `[${finalUrl}]: ${w}`))
+    }
   }
 
-  if (repaired) {
-    extraction.extraction_warnings = [
-      ...(extraction.extraction_warnings ?? []),
-      'Claude JSON output required auto-repair. Spot-check source quotes.',
-    ]
-  }
-
-  // Two-pass review — Sonnet re-reads to catch missed fields
+  // Review pass on the merged extraction — runs against the COMBINED markdown
+  // from all URLs, looking for fields the per-URL passes missed.
+  const combinedMarkdown = combinedMarkdownParts.join('\n\n')
   const review = await reviewProgramExtraction({
     programName,
-    markdown,
+    markdown: combinedMarkdown,
     programId,
-    extraction,
+    extraction: merged,
   })
-  if (review.ran) {
-    console.log(`[program-extract] review pass added ${review.addedFields} fields`)
-  }
-  extraction = review.extraction
 
+  const finalExtraction = review.extraction
+
+  // Persist
   const { data: inserted, error: insertErr } = await supabase
     .from('program_extractions')
     .insert({
       program_id: programId,
-      source_url: finalUrl,
-      raw_markdown: markdown,
-      markdown_chars: markdown.length,
+      source_url: primaryUrlForRecord,
+      raw_markdown: combinedMarkdown.slice(0, 80_000),
+      markdown_chars: combinedMarkdown.length,
       used_interactive: interactive,
-      extraction,
+      extraction: finalExtraction,
       model: MODEL,
-      input_tokens: response.usage?.input_tokens ?? null,
-      output_tokens: response.usage?.output_tokens ?? null,
+      input_tokens: totalInputTokens || null,
+      output_tokens: totalOutputTokens || null,
       review_pass_ran: review.ran,
       review_pass_added_count: review.addedFields,
       status: 'extracted',
@@ -261,5 +303,9 @@ export async function extractProgramContent({
     return { ok: false, error: `DB insert failed: ${insertErr?.message ?? 'unknown'}` }
   }
 
-  return { ok: true, extractionId: inserted.id, extraction }
+  return { ok: true, extractionId: inserted.id, extraction: finalExtraction }
+}
+
+function isExtractableField(s: string): s is ProgramExtractableField {
+  return (ALL_EXTRACTABLE_FIELDS as readonly string[]).includes(s)
 }

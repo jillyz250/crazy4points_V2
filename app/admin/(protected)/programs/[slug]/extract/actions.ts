@@ -11,27 +11,28 @@ import { applyProgramField, skipProgramField, isApplyableField } from '@/utils/p
  */
 export async function runProgramExtraction(formData: FormData): Promise<void> {
   const slug = String(formData.get('slug') ?? '').trim()
-  const sourceUrl = String(formData.get('source_url') ?? '').trim()
-  const additionalUrlsRaw = String(formData.get('additional_urls') ?? '').trim()
   const interactive = formData.get('interactive') === 'on'
 
-  // Split additional URLs by newline; trim + filter empties
-  const additionalUrls = additionalUrlsRaw
-    ? additionalUrlsRaw
-        .split('\n')
-        .map((u) => u.trim())
-        .filter((u) => u.length > 0)
-    : []
-
-  if (!slug || !sourceUrl) {
-    console.error('[program-extract] missing slug or source_url')
+  if (!slug) {
+    console.error('[program-extract] missing slug')
     return
   }
+
+  // Per-field URLs come in as form fields named "field_url_<fieldname>"
+  const fieldSourceUrls: Record<string, string | null> = {}
+  const fieldNames = ['intro', 'sweet_spots', 'lounge_access', 'quirks', 'award_chart', 'tier_benefits', 'alliance', 'hubs', 'parent_program_slug']
+  for (const field of fieldNames) {
+    const url = String(formData.get(`field_url_${field}`) ?? '').trim()
+    fieldSourceUrls[field] = url || null
+  }
+
+  // Legacy "single URL" mode — optional fallback when no per-field URLs
+  const legacySourceUrl = String(formData.get('source_url') ?? '').trim() || undefined
 
   const supabase = createAdminClient()
   const { data: program, error } = await supabase
     .from('programs')
-    .select('id, name, slug, type, extraction_source_url, additional_source_urls')
+    .select('id, name, slug, type, extraction_source_url, field_source_urls')
     .eq('slug', slug)
     .single()
 
@@ -40,16 +41,18 @@ export async function runProgramExtraction(formData: FormData): Promise<void> {
     return
   }
 
-  // Persist URLs on the program row so they pre-fill on every future extraction.
+  // Persist field URLs + primary URL on the program row so they pre-fill next time.
   const urlUpdate: Record<string, unknown> = {}
-  if (sourceUrl !== program.extraction_source_url) {
-    urlUpdate.extraction_source_url = sourceUrl
+  if (legacySourceUrl && legacySourceUrl !== program.extraction_source_url) {
+    urlUpdate.extraction_source_url = legacySourceUrl
   }
-  // Only update additional URLs if they changed (avoid unnecessary writes)
-  const existingAdditional = (program.additional_source_urls as string[] | null) ?? []
-  const additionalChanged = JSON.stringify(additionalUrls) !== JSON.stringify(existingAdditional)
-  if (additionalChanged) {
-    urlUpdate.additional_source_urls = additionalUrls.length > 0 ? additionalUrls : null
+  // Only store non-null entries in jsonb
+  const sourceUrlsToStore = Object.fromEntries(
+    Object.entries(fieldSourceUrls).filter(([, v]) => v !== null),
+  )
+  const existingFieldUrls = (program.field_source_urls as Record<string, string | null> | null) ?? {}
+  if (JSON.stringify(sourceUrlsToStore) !== JSON.stringify(existingFieldUrls)) {
+    urlUpdate.field_source_urls = sourceUrlsToStore
   }
   if (Object.keys(urlUpdate).length > 0) {
     await supabase.from('programs').update(urlUpdate).eq('id', program.id)
@@ -60,8 +63,8 @@ export async function runProgramExtraction(formData: FormData): Promise<void> {
     programName: program.name,
     programSlug: program.slug,
     programType: program.type ?? 'airline',
-    sourceUrl,
-    additionalUrls,
+    fieldSourceUrls,
+    legacySourceUrl,
     interactive,
   })
 

@@ -106,13 +106,34 @@ export function buildProgramExtractionUserPrompt(
   programType: string,
   sourceUrl: string,
   markdown: string,
+  options?: { extractOnlyFields?: string[]; fieldList?: string },
 ): string {
+  const focusedExtraction = options?.extractOnlyFields && options.extractOnlyFields.length > 0
+  const focusSection = focusedExtraction
+    ? `
+
+FOCUSED EXTRACTION — IMPORTANT:
+This page has been designated as the authoritative source for SPECIFIC fields only:
+  ${options.fieldList}
+
+Extract ONLY these fields. For all OTHER fields in the schema, return null with confidence='low'.
+Do not extract content for non-target fields even if it appears on the page — another page is the
+canonical source for those.
+
+For example, if this page is designated for "lounge_access" only, and the page also contains tier
+benefit information, you DO NOT populate tier_benefits — leave it null. A separate extraction
+pass on the tier benefits page will fill that field.
+
+This prevents cross-contamination across pages and lets the editor designate the canonical source
+per field.`
+    : ''
+
   return `Extract the program facts from the page below into the strict JSON schema.
 
 Program: ${programName}
 Slug: ${programSlug}
 Type: ${programType}
-Source URL: ${sourceUrl}
+Source URL: ${sourceUrl}${focusSection}
 
 Return ONE JSON object with this exact top-level shape:
 {
