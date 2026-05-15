@@ -107,13 +107,9 @@ export default function ProgramFieldDiff({
           <h3 className="font-display text-lg font-semibold text-[var(--color-primary)]">{label}</h3>
           <p className="font-body text-xs text-[var(--color-text-secondary)]">{description}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col items-end gap-1">
           {statusBadge}
-          {confidence ? (
-            <span className="font-ui text-[10px] uppercase tracking-wide text-[var(--color-text-secondary)]">
-              [{confidence}]
-            </span>
-          ) : null}
+          <TrustBadge confidence={confidence} hasSourceQuote={!!sourceQuote} />
         </div>
       </header>
 
@@ -231,8 +227,7 @@ export default function ProgramFieldDiff({
       {hasExtractedContent && !sameValue && appliedStatus !== 'applied' ? (
         <div className="mt-3 flex flex-wrap gap-2">
           {/* Verify & merge against source — text fields with both current + extracted.
-              Replaces the standalone Merge button. Verify does the merge AND fact-checks
-              against the scraped markdown in one pass. */}
+              Verify does the merge AND fact-checks against the scraped markdown in one pass. */}
           {MERGEABLE_FIELDS.has(field) && hasCurrentContent && hasExtractedContent ? (
             <form action={verifyAction} className="inline">
               <input type="hidden" name="slug" value={programSlug} />
@@ -240,8 +235,8 @@ export default function ProgramFieldDiff({
               <input type="hidden" name="extraction_id" value={extractionId} />
               <ExtractionActionButton
                 variant="secondary"
-                label={verification ? '🔍 Re-verify & merge' : '🔍 Verify & merge with source'}
-                pendingLabel="Verifying…"
+                label={verification ? '🔍 Re-check against source' : '🔍 Fact-check against source'}
+                pendingLabel="Checking…"
               />
             </form>
           ) : null}
@@ -257,28 +252,71 @@ export default function ProgramFieldDiff({
               value={JSON.stringify(verification?.corrected_value ?? mergedValue ?? extractedValue)}
             />
             <ExtractionActionButton
-              variant="secondary"
+              variant="primary"
               label={
                 verification
-                  ? `Apply verified ${label}`
+                  ? `✅ Use verified ${label} (replace current)`
                   : mergedValue
-                    ? `Apply merged ${label}`
-                    : `Apply ${label}`
+                    ? `✅ Use merged ${label} (replace current)`
+                    : `✅ Replace current ${label} with extracted`
               }
-              pendingLabel="Applying…"
+              pendingLabel="Saving…"
             />
           </form>
 
-          {/* Skip */}
+          {/* Skip / keep current */}
           <form action={skipAction} className="inline">
             <input type="hidden" name="slug" value={programSlug} />
             <input type="hidden" name="field" value={field} />
             <input type="hidden" name="extraction_id" value={extractionId} />
-            <ExtractionActionButton variant="danger" label="Skip" pendingLabel="Skipping…" />
+            <ExtractionActionButton variant="ghost" label="⏭ Keep current (skip)" pendingLabel="Skipping…" />
           </form>
         </div>
       ) : null}
     </article>
+  )
+}
+
+/**
+ * Trust signal for the extracted value, shown in the card header.
+ *   green  = high confidence + source quote available → trust the extraction
+ *   yellow = medium confidence OR no quote → look at the diff yourself
+ *   red    = low confidence AND no quote → current is probably better; Skip
+ */
+function TrustBadge({
+  confidence,
+  hasSourceQuote,
+}: {
+  confidence: string | null
+  hasSourceQuote: boolean
+}) {
+  if (!confidence) return null
+  const isHigh = confidence === 'high' && hasSourceQuote
+  const isLow = confidence === 'low' || !hasSourceQuote
+  const tone = isHigh ? 'high' : isLow ? 'low' : 'medium'
+  const styles = {
+    high: { bg: 'rgba(16,185,129,0.12)', fg: '#047857', label: '🟢 trust extracted' },
+    medium: { bg: 'rgba(217,119,6,0.12)', fg: '#92400e', label: '🟡 review diff' },
+    low: { bg: 'rgba(220,38,38,0.12)', fg: '#991b1b', label: '🔴 current probably better' },
+  }[tone]
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '0.25rem',
+        padding: '0.125rem 0.5rem',
+        borderRadius: '9999px',
+        fontFamily: 'var(--font-ui)',
+        fontSize: '0.6875rem',
+        fontWeight: 600,
+        background: styles.bg,
+        color: styles.fg,
+      }}
+      title={`Sonnet confidence: ${confidence}. ${hasSourceQuote ? 'Source quote available below.' : 'No source quote — Sonnet inferred from context.'}`}
+    >
+      {styles.label}
+    </span>
   )
 }
 
