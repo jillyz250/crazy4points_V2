@@ -18,12 +18,23 @@ import type { ReactNode } from 'react'
  */
 
 export const OTHER_LIVE_TYPES: AlertType[] = [
+  // Promo-style — end_date enforced via fact-check gate
   'limited_time_offer',
   'point_purchase',
   'award_availability',
   'award_sale',
   'status_promo',
+  // News-style — usually no end_date; freshness window enforced by
+  // isAlertFresh() in lib/alertExpiry.ts so they stop surfacing at the
+  // top of program pages after their per-type window elapses.
   'devaluation',
+  'program_change',
+  'partner_change',
+  'category_change',
+  'earn_rate_change',
+  'policy_change',
+  'fee_change',
+  'industry_news',
 ]
 
 /**
@@ -45,6 +56,13 @@ const STATIC_LABEL: Record<string, string> = {
   award_sale: 'Award Sale',
   status_promo: 'Status Promo',
   devaluation: 'Devaluation',
+  program_change: 'Program Change',
+  partner_change: 'Partner Change',
+  category_change: 'Category Change',
+  earn_rate_change: 'Earn Rate Change',
+  policy_change: 'Policy Change',
+  fee_change: 'Fee Change',
+  industry_news: 'Industry News',
 }
 
 /**

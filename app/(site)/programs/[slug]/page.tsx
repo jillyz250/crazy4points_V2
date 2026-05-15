@@ -6,7 +6,7 @@ import { getAlertsByProgramSlug, getAllPrograms, getPropertiesForProgram, getCar
 import type { AlertWithPrograms, HotelProperty, CardThatEarnsIn, PartnerRedemptionWithPrograms } from '@/utils/supabase/queries'
 import AlertsGridSB from '@/components/alerts/AlertsGridSB'
 import ExpiredAlertsList from '@/components/alerts/ExpiredAlertsList'
-import { isAlertActive } from '@/lib/alertExpiry'
+import { isAlertActive, isAlertFresh } from '@/lib/alertExpiry'
 import ProgramPageHero from '@/components/programs/ProgramPageHero'
 import PropertiesTable from '@/components/programs/PropertiesTable'
 import CardsThatEarnIntoProgram from '@/components/cards/CardsThatEarnIntoProgram'
@@ -170,13 +170,24 @@ export default async function ProgramPage({
   const liveTransferBonuses = active.filter(
     (a) => a.type === 'transfer_bonus' && a.primary_program_id === program.id,
   )
-  // Other urgent live alerts for the hero — surfaces buy-miles sales, LTOs,
-  // status promos, etc. where this program is the primary subject. Capped
-  // to avoid hero overflow; sorted by end_date proximity (urgency first).
-  const liveOtherAlerts = active
+  // Other urgent / recent live alerts for the hero — surfaces buy-miles
+  // sales, LTOs, status promos, and news-style changes (program_change,
+  // devaluation, etc.) where this program is the primary subject.
+  //
+  // Freshness model:
+  //  - Promo types with end_date: surface until end_date end-of-day
+  //  - News types without end_date: surface for a per-type window after
+  //    published_at (see FRESHNESS_WINDOW_DAYS in lib/alertExpiry.ts —
+  //    program_change = 365d, devaluation = 90d, industry_news = 30d, etc.)
+  //
+  // Sorted by effective expiry proximity (most-urgent first). Capped to
+  // avoid hero overflow.
+  const liveOtherAlerts = allAlerts
     .filter(
       (a) =>
-        OTHER_LIVE_TYPES.includes(a.type) && a.primary_program_id === program.id,
+        OTHER_LIVE_TYPES.includes(a.type) &&
+        a.primary_program_id === program.id &&
+        isAlertFresh({ end_date: a.end_date, type: a.type, published_at: a.published_at }, nowMs),
     )
     .sort((a, b) => {
       const ae = a.end_date ? new Date(a.end_date).getTime() : Number.POSITIVE_INFINITY
