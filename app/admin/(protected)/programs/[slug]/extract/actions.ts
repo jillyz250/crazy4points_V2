@@ -138,17 +138,28 @@ async function autoVerifyAllFields(
 
   const MERGEABLE = ['intro', 'sweet_spots', 'lounge_access', 'quirks', 'award_chart'] as const
 
-  const verifyTasks: Promise<void>[] = []
+  // Build the list of fields to verify, but DON'T start the work yet.
+  // verifyExtractedField does read-modify-write on the same verifications
+  // jsonb column, so parallel firing would race and lose all-but-one result.
+  const fieldsToVerify: Array<{ field: string; currentValue: string; extractedValue: string }> = []
   for (const field of MERGEABLE) {
     if (!isVerifiableField(field)) continue
     const currentValue = ((programRow as unknown as Record<string, unknown>)[field] as string | null) ?? ''
     const extractedField = extraction[field] as { value?: string } | null | undefined
     const extractedValue = extractedField?.value ?? ''
+    if (!currentValue?.trim() || !extractedValue?.trim()) continue
+    fieldsToVerify.push({ field, currentValue, extractedValue })
+  }
 
-    if (!currentValue?.trim() || !extractedValue?.trim()) continue  // need both
+  if (fieldsToVerify.length === 0) {
+    console.log('[auto-verify] no eligible fields')
+    return
+  }
 
-    verifyTasks.push(
-      verifyExtractedField({
+  console.log(`[auto-verify] verifying ${fieldsToVerify.length} fields sequentially for slug=${slug}`)
+  for (const { field, currentValue, extractedValue } of fieldsToVerify) {
+    try {
+      const r = await verifyExtractedField({
         programId,
         field,
         currentValue,
@@ -156,26 +167,15 @@ async function autoVerifyAllFields(
         markdown,
         extractionId,
       })
-        .then((r) => {
-          if (!r.ok) {
-            console.error(`[auto-verify] ${field} failed: ${r.error}`)
-          } else {
-            console.log(`[auto-verify] ${field} → ${r.verdict}`)
-          }
-        })
-        .catch((err) => {
-          console.error(`[auto-verify] ${field} threw:`, err)
-        }),
-    )
+      if (!r.ok) {
+        console.error(`[auto-verify] ${field} failed: ${r.error}`)
+      } else {
+        console.log(`[auto-verify] ${field} → ${r.verdict}`)
+      }
+    } catch (err) {
+      console.error(`[auto-verify] ${field} threw:`, err)
+    }
   }
-
-  if (verifyTasks.length === 0) {
-    console.log('[auto-verify] no eligible fields')
-    return
-  }
-
-  console.log(`[auto-verify] verifying ${verifyTasks.length} fields in parallel for slug=${slug}`)
-  await Promise.all(verifyTasks)
   console.log(`[auto-verify] complete for slug=${slug}`)
 }
 

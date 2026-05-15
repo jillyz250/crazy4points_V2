@@ -138,17 +138,23 @@ export async function verifyExtractedField({
   extractionId: string
 }): Promise<VerificationResult> {
   if (!isVerifiableField(field)) {
+    await persistVerifyError(extractionId, field, `Field "${field}" is not verifiable (text fields only)`)
     return { ok: false, error: `Field "${field}" is not verifiable (text fields only)` }
   }
   if (!currentValue?.trim() || !extractedValue?.trim()) {
+    await persistVerifyError(extractionId, field, 'Current or extracted value is empty — nothing to verify')
     return { ok: false, error: 'Current or extracted value is empty — nothing to verify' }
   }
   if (!markdown?.trim()) {
+    await persistVerifyError(extractionId, field, 'No source markdown available — cannot verify')
     return { ok: false, error: 'No source markdown available — cannot verify' }
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY
-  if (!apiKey) return { ok: false, error: 'ANTHROPIC_API_KEY not set' }
+  if (!apiKey) {
+    await persistVerifyError(extractionId, field, 'ANTHROPIC_API_KEY not set')
+    return { ok: false, error: 'ANTHROPIC_API_KEY not set' }
+  }
 
   const client = new Anthropic({ apiKey })
 
@@ -164,6 +170,7 @@ export async function verifyExtractedField({
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
+    await persistVerifyError(extractionId, field, `Sonnet error: ${message}`)
     return { ok: false, error: `Sonnet error: ${message}` }
   }
 
@@ -171,6 +178,7 @@ export async function verifyExtractedField({
 
   const textBlock = response.content.find((c) => c.type === 'text')
   if (!textBlock || textBlock.type !== 'text') {
+    await persistVerifyError(extractionId, field, 'Sonnet returned no text content')
     return { ok: false, error: 'Sonnet returned no text content' }
   }
 
@@ -188,14 +196,17 @@ export async function verifyExtractedField({
     parsed = JSON.parse(raw)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
+    await persistVerifyError(extractionId, field, `Could not parse Sonnet JSON: ${msg}. First 500 chars: ${raw.slice(0, 500)}`)
     return { ok: false, error: `Could not parse Sonnet JSON: ${msg}` }
   }
 
   const verdict = parsed.verdict as 'confirmed' | 'corrected' | 'unverifiable' | undefined
   if (!verdict || !['confirmed', 'corrected', 'unverifiable'].includes(verdict)) {
+    await persistVerifyError(extractionId, field, `Invalid verdict: ${verdict}`)
     return { ok: false, error: `Invalid verdict: ${verdict}` }
   }
   if (!parsed.corrected_value || typeof parsed.corrected_value !== 'string') {
+    await persistVerifyError(extractionId, field, 'Sonnet did not return corrected_value')
     return { ok: false, error: 'Sonnet did not return corrected_value' }
   }
 
@@ -235,8 +246,45 @@ export async function verifyExtractedField({
     .eq('id', extractionId)
 
   if (updateErr) {
+    await persistVerifyError(extractionId, field, `Persist failed: ${updateErr.message}`)
     return { ok: false, error: `Persist failed: ${updateErr.message}` }
   }
 
   return { ok: true, ...result }
+}
+
+/**
+ * Write an error into verifications[field] so the UI surfaces what went wrong
+ * instead of silently returning nothing on the page. Survives concurrent
+ * writes for non-overlapping field keys.
+ */
+async function persistVerifyError(
+  extractionId: string,
+  field: string,
+  errorMessage: string,
+): Promise<void> {
+  try {
+    const supabase = createAdminClient()
+    const { data: row } = await supabase
+      .from('program_extractions')
+      .select('verifications')
+      .eq('id', extractionId)
+      .single()
+    const verifications = (row?.verifications as Record<string, unknown> | null) ?? {}
+    verifications[field] = {
+      verdict: 'error',
+      error: errorMessage,
+      generated_at: new Date().toISOString(),
+      discrepancies: [],
+      corrected_value: '',
+      notes: errorMessage,
+    }
+    await supabase
+      .from('program_extractions')
+      .update({ verifications })
+      .eq('id', extractionId)
+  } catch (e) {
+    // Last-resort logging — we already returned the error to the caller
+    console.error('[verify] persistVerifyError itself failed:', e)
+  }
 }

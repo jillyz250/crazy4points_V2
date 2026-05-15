@@ -52,7 +52,7 @@ export default function ProgramFieldDiff({
   mergedValue: string | null
   mergedSource?: string | null
   verification?: {
-    verdict: 'confirmed' | 'corrected' | 'unverifiable'
+    verdict: 'confirmed' | 'corrected' | 'unverifiable' | 'error'
     discrepancies: Array<{
       claim: string
       current_says: string
@@ -63,6 +63,7 @@ export default function ProgramFieldDiff({
     corrected_value: string
     notes: string
     generated_at: string
+    error?: string
   } | null
   applyAction: (formData: FormData) => Promise<void>
   skipAction: (formData: FormData) => Promise<void>
@@ -166,17 +167,25 @@ export default function ProgramFieldDiff({
 
       {/* Verification result */}
       {verification ? (
-        <div className="mt-3 rounded-[var(--radius-ui)] border-2 border-blue-300 bg-blue-50/40 p-3">
+        <div className={`mt-3 rounded-[var(--radius-ui)] border-2 p-3 ${
+          verification.verdict === 'error'
+            ? 'border-red-300 bg-red-50/40'
+            : 'border-blue-300 bg-blue-50/40'
+        }`}>
           <div className="mb-2 flex items-center justify-between gap-2">
-            <p className="font-ui text-[11px] font-bold uppercase tracking-wide text-blue-900">
+            <p className={`font-ui text-[11px] font-bold uppercase tracking-wide ${
+              verification.verdict === 'error' ? 'text-red-900' : 'text-blue-900'
+            }`}>
               🔍 Verification — verdict:{' '}
               <span
                 className={
-                  verification.verdict === 'corrected'
-                    ? 'text-amber-700'
-                    : verification.verdict === 'confirmed'
-                      ? 'text-emerald-700'
-                      : 'text-gray-700'
+                  verification.verdict === 'error'
+                    ? 'text-red-700'
+                    : verification.verdict === 'corrected'
+                      ? 'text-amber-700'
+                      : verification.verdict === 'confirmed'
+                        ? 'text-emerald-700'
+                        : 'text-gray-700'
                 }
               >
                 {verification.verdict}
