@@ -151,3 +151,56 @@ export async function fetchFirecrawlInteractive(
     actions: EXPAND_EVERYTHING_ACTIONS,
   })
 }
+
+/**
+ * Firecrawl /v1/map — returns a list of URLs reachable from a starting page.
+ * Used for source-URL discovery before running a program extraction. Sonnet
+ * then classifies which URLs map to which extraction fields.
+ *
+ * Docs: https://docs.firecrawl.dev/api-reference/endpoint/map
+ *
+ * Returns [] on missing key, timeout, or non-OK response.
+ */
+export async function mapFirecrawl(
+  url: string,
+  options: { search?: string; limit?: number; timeoutMs?: number } = {},
+): Promise<string[]> {
+  const apiKey = process.env.FIRECRAWL_API_KEY
+  if (!apiKey) {
+    console.warn('[firecrawl] FIRECRAWL_API_KEY not set — skipping map fetch')
+    return []
+  }
+
+  const timeoutMs = options.timeoutMs ?? 30000
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+
+  try {
+    const res = await fetch('https://api.firecrawl.dev/v1/map', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        url,
+        search: options.search,
+        limit: options.limit ?? 100,
+      }),
+    })
+    clearTimeout(timer)
+
+    if (!res.ok) {
+      console.warn(`[firecrawl /map] non-OK status ${res.status} for ${url}`)
+      return []
+    }
+
+    const json = (await res.json()) as { links?: string[]; success?: boolean }
+    return Array.isArray(json.links) ? json.links : []
+  } catch (err) {
+    clearTimeout(timer)
+    console.warn(`[firecrawl /map] error for ${url}:`, err)
+    return []
+  }
+}
