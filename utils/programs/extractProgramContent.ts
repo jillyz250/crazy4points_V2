@@ -23,6 +23,7 @@ import {
   buildProgramExtractionUserPrompt,
 } from '@/utils/programs/programExtractionPrompt'
 import { reviewProgramExtraction } from '@/utils/programs/reviewProgramExtraction'
+import { verifySourceUrl } from '@/utils/programs/verifySourceUrl'
 import type { ProgramExtraction } from '@/utils/programs/programExtractionSchema'
 
 const MODEL = 'claude-sonnet-4-6'
@@ -49,14 +50,44 @@ export async function extractProgramContent({
 }): Promise<ProgramExtractionResult> {
   const supabase = createAdminClient()
 
+  // Pre-flight: verify URL is live before spending Firecrawl + Sonnet credits.
+  // Catches stale URLs, 404s, auth walls. ~1 second cost vs ~$0.12 saved.
+  const verify = await verifySourceUrl(sourceUrl)
+  if (!verify.ok) {
+    await supabase.from('program_extractions').insert({
+      program_id: programId,
+      source_url: sourceUrl, // pre-flight failed; store what the editor requested
+      raw_markdown: null,
+      markdown_chars: 0,
+      used_interactive: interactive,
+      extraction: {},
+      model: MODEL,
+      status: 'failed',
+      error_message: `URL pre-flight failed: ${verify.error}`,
+    })
+    return { ok: false, error: verify.error }
+  }
+
+  // If the URL redirected to a different canonical, use the final URL for
+  // Firecrawl AND update programs.extraction_source_url so the next run
+  // pre-fills with the canonical (no more chasing redirects).
+  let finalUrl = verify.finalUrl
+  if (verify.redirected) {
+    console.log(`[program-extract] URL redirected: ${sourceUrl} -> ${finalUrl}`)
+    await supabase
+      .from('programs')
+      .update({ extraction_source_url: finalUrl })
+      .eq('id', programId)
+  }
+
   const markdown = interactive
-    ? await fetchFirecrawlInteractive(sourceUrl, { maxChars: MARKDOWN_CHAR_LIMIT })
-    : await fetchFirecrawl(sourceUrl, { maxChars: MARKDOWN_CHAR_LIMIT })
+    ? await fetchFirecrawlInteractive(finalUrl, { maxChars: MARKDOWN_CHAR_LIMIT })
+    : await fetchFirecrawl(finalUrl, { maxChars: MARKDOWN_CHAR_LIMIT })
 
   if (!markdown) {
     await supabase.from('program_extractions').insert({
       program_id: programId,
-      source_url: sourceUrl,
+      source_url: finalUrl,
       raw_markdown: null,
       markdown_chars: 0,
       used_interactive: interactive,
@@ -81,14 +112,14 @@ export async function extractProgramContent({
       system: PROGRAM_EXTRACTION_SYSTEM_PROMPT,
       messages: [{
         role: 'user',
-        content: buildProgramExtractionUserPrompt(programName, programSlug, programType, sourceUrl, markdown),
+        content: buildProgramExtractionUserPrompt(programName, programSlug, programType, finalUrl, markdown),
       }],
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     await supabase.from('program_extractions').insert({
       program_id: programId,
-      source_url: sourceUrl,
+      source_url: finalUrl,
       raw_markdown: markdown,
       markdown_chars: markdown.length,
       used_interactive: interactive,
@@ -100,7 +131,7 @@ export async function extractProgramContent({
     return { ok: false, error: `Claude error: ${message}` }
   }
 
-  await logUsage(response, 'extract_program_content', { program_id: programId, source_url: sourceUrl })
+  await logUsage(response, 'extract_program_content', { program_id: programId, source_url: finalUrl })
 
   const textBlock = response.content.find((c) => c.type === 'text')
   if (!textBlock || textBlock.type !== 'text') {
@@ -134,7 +165,7 @@ export async function extractProgramContent({
     const truncated = stopReason === 'max_tokens'
     await supabase.from('program_extractions').insert({
       program_id: programId,
-      source_url: sourceUrl,
+      source_url: finalUrl,
       raw_markdown: markdown,
       markdown_chars: markdown.length,
       used_interactive: interactive,
@@ -173,7 +204,7 @@ export async function extractProgramContent({
     .from('program_extractions')
     .insert({
       program_id: programId,
-      source_url: sourceUrl,
+      source_url: finalUrl,
       raw_markdown: markdown,
       markdown_chars: markdown.length,
       used_interactive: interactive,
