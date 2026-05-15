@@ -34,9 +34,11 @@ export default function ProgramFieldDiff({
   extractedField,
   appliedStatus,
   mergedValue,
+  mergedSource,
   applyAction,
   skipAction,
   mergeAction,
+  saveManualOverrideAction,
 }: {
   field: string
   label: string
@@ -47,9 +49,11 @@ export default function ProgramFieldDiff({
   extractedField: unknown
   appliedStatus: string | null
   mergedValue: string | null
+  mergedSource?: string | null
   applyAction: (formData: FormData) => Promise<void>
   skipAction: (formData: FormData) => Promise<void>
   mergeAction: (formData: FormData) => Promise<void>
+  saveManualOverrideAction: (formData: FormData) => Promise<void>
 }) {
   const extracted = extractedField as ExtractedField
   // Pull extracted value — tier_benefits uses rows[], everything else uses value
@@ -129,7 +133,9 @@ export default function ProgramFieldDiff({
         {mergedValue ? (
           <div>
             <p className="mb-1 font-ui text-[10px] uppercase tracking-wide text-emerald-700">
-              ✨ Merged (current voice + extracted facts)
+              {mergedSource === 'manual_edit'
+                ? '📝 Manual override (Claude-verified text)'
+                : '✨ Merged (current voice + extracted facts)'}
             </p>
             <div className="rounded-[var(--radius-ui)] border-2 border-emerald-400 bg-emerald-50/30 p-2 font-body text-sm">
               {renderValue(mergedValue)}
@@ -142,6 +148,37 @@ export default function ProgramFieldDiff({
         <p className="mt-2 border-l-2 border-[var(--color-border-soft)] pl-2 font-body text-xs italic text-[var(--color-text-secondary)]">
           Source: &ldquo;{sourceQuote}&rdquo;
         </p>
+      ) : null}
+
+      {/* Step 4: Manual override — paste Claude's verified/corrected text */}
+      {MERGEABLE_FIELDS.has(field) && appliedStatus !== 'applied' ? (
+        <details className="mt-3 rounded-[var(--radius-ui)] border border-amber-200 bg-amber-50/40 p-2">
+          <summary className="cursor-pointer font-ui text-xs font-semibold uppercase tracking-wide text-amber-900">
+            📝 Step 4: Paste Claude&apos;s verified / edited text
+          </summary>
+          <form action={saveManualOverrideAction} className="mt-2 flex flex-col gap-2">
+            <input type="hidden" name="slug" value={programSlug} />
+            <input type="hidden" name="field" value={field} />
+            <input type="hidden" name="extraction_id" value={extractionId} />
+            <p className="font-body text-[11px] text-amber-900">
+              After Claude verifies a flagged claim or returns a corrected version, paste the final text here and save.
+              This becomes the value Apply will write — overrides both Extracted and any auto-Merged result.
+            </p>
+            <textarea
+              name="value"
+              rows={8}
+              defaultValue={mergedSource === 'manual_edit' && typeof mergedValue === 'string' ? mergedValue : ''}
+              placeholder="Paste the Claude-verified final text for this field..."
+              className="rounded-[var(--radius-ui)] border border-amber-300 bg-white px-3 py-1.5 font-mono text-xs"
+              style={{ resize: 'vertical' }}
+            />
+            <ExtractionActionButton
+              variant="secondary"
+              label={mergedSource === 'manual_edit' ? 'Update override' : 'Save override'}
+              pendingLabel="Saving…"
+            />
+          </form>
+        </details>
       ) : null}
 
       {/* Actions */}

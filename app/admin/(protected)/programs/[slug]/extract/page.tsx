@@ -9,6 +9,7 @@ import {
   skipExtractedField,
   completeExtraction,
   mergeProgramField,
+  saveManualOverride,
 } from './actions'
 
 export const dynamic = 'force-dynamic'
@@ -89,7 +90,7 @@ export default async function ProgramExtractPage({
   ]
   const extraction = (latest?.extraction as Record<string, unknown> | undefined) ?? null
   const appliedFields = ((latest?.applied_fields as Record<string, string> | null) ?? {})
-  const mergedFields = ((latest?.merged_fields as Record<string, { value: string; generated_at: string }> | null) ?? {})
+  const mergedFields = ((latest?.merged_fields as Record<string, { value: string; generated_at: string; source?: string }> | null) ?? {})
 
   // The fields we extract, in display order
   const FIELDS: { key: 'intro' | 'sweet_spots' | 'lounge_access' | 'quirks' | 'award_chart' | 'tier_benefits' | 'alliance' | 'hubs' | 'parent_program_slug'; label: string; description: string }[] = [
@@ -267,6 +268,34 @@ export default async function ProgramExtractPage({
             </p>
           </header>
 
+          {/* 4-step workflow callout */}
+          <div className="mb-4 rounded-[var(--radius-card)] border border-[var(--color-primary)] bg-[var(--color-background-soft)] p-4">
+            <p className="font-ui text-xs font-bold uppercase tracking-wide text-[var(--color-primary)]">
+              4-step extraction workflow
+            </p>
+            <ol className="mt-2 ml-4 list-decimal space-y-1 font-body text-sm text-[var(--color-text-primary)]">
+              <li>
+                <strong>Extract</strong> — runs Firecrawl + Sonnet (already done above ↑).
+              </li>
+              <li>
+                <strong>Copy review prompt for Claude</strong> → paste in Claude → Claude returns
+                <em> merge / skip / apply</em> per field, plus 🔍 Verify blocks for anything uncertain.
+              </li>
+              <li>
+                Execute per field: click <strong>✨ Merge</strong>, <strong>Apply</strong>, or <strong>Skip</strong> as Claude advised.
+                For 🔍 Verify blocks, paste the block back to Claude to run WebFetch verification.
+              </li>
+              <li>
+                <strong>Paste Claude&apos;s verified or edited text</strong> into Step 4 override on each field
+                (expandable section below each field card) → click Save override → click Apply.
+                Use this when verification produced a corrected final version.
+              </li>
+            </ol>
+            <p className="mt-2 font-body text-xs text-[var(--color-text-secondary)]">
+              After all fields are Applied or Skipped, use <strong>Copy publish review</strong> for a final sanity check, then click <strong>Mark review complete</strong>.
+            </p>
+          </div>
+
           <ExtractionCopyButtons
             programName={program.name}
             programType={program.type}
@@ -304,9 +333,11 @@ export default async function ProgramExtractPage({
                   extractedField={extractedField}
                   appliedStatus={appliedFields[f.key] ?? null}
                   mergedValue={mergedFields[f.key]?.value ?? null}
+                  mergedSource={mergedFields[f.key]?.source ?? null}
                   applyAction={applyExtractedField}
                   skipAction={skipExtractedField}
                   mergeAction={mergeProgramField}
+                  saveManualOverrideAction={saveManualOverride}
                 />
               )
             })}
