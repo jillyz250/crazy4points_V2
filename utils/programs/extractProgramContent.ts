@@ -26,6 +26,7 @@ import {
   buildProgramExtractionUserPrompt,
 } from '@/utils/programs/programExtractionPrompt'
 import { reviewProgramExtraction } from '@/utils/programs/reviewProgramExtraction'
+import { validateProgramExtraction } from '@/utils/programs/validateProgramExtraction'
 import { verifySourceUrl } from '@/utils/programs/verifySourceUrl'
 import type { ProgramExtraction } from '@/utils/programs/programExtractionSchema'
 
@@ -318,7 +319,11 @@ export async function extractProgramContent({
     skipFields,
   })
 
-  const finalExtraction = review.extraction
+  // Post-extraction validation — catches known Sonnet failure patterns
+  // (duplicate tier quals, missing source quotes, hallucinated quotes).
+  // Adds warnings; does NOT modify field values.
+  const validated = validateProgramExtraction(review.extraction, combinedMarkdown)
+  const finalExtraction = validated
 
   // Persist
   const { data: inserted, error: insertErr } = await supabase
