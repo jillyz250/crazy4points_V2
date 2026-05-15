@@ -404,21 +404,49 @@ async function upsertScoutSource({
       ? `Auto-registered from /admin/programs/${slug}/extract discovery. Time-sensitive promo bonuses; expect frequent additions/expirations.`
       : `Auto-registered from /admin/programs/${slug}/extract discovery. Press releases / official announcements.`
 
-  await supabase
+  // Explicit select-then-insert-or-update rather than upsert. Avoids
+  // dependency on a unique constraint that may not exist on sources.url,
+  // and surfaces any actual insert/update error to the server logs.
+  const { data: existing, error: selectErr } = await supabase
     .from('sources')
-    .upsert(
-      {
-        name,
-        url,
-        type: 'official_partner',
-        tier: 1,
-        is_active: true,
-        use_firecrawl: true,
-        scrape_frequency: 'daily',
-        notes,
-      },
-      { onConflict: 'url', ignoreDuplicates: false },
-    )
+    .select('id')
+    .eq('url', url)
+    .maybeSingle()
+
+  if (selectErr) {
+    console.error(`[scout-source] select failed for url=${url}: ${selectErr.message}`)
+    return
+  }
+
+  if (existing) {
+    const { error: updateErr } = await supabase
+      .from('sources')
+      .update({ name, is_active: true, scrape_frequency: 'daily', notes })
+      .eq('id', existing.id)
+    if (updateErr) {
+      console.error(`[scout-source] update failed for id=${existing.id} url=${url}: ${updateErr.message}`)
+    } else {
+      console.log(`[scout-source] updated existing source id=${existing.id} url=${url}`)
+    }
+    return
+  }
+
+  const { error: insertErr } = await supabase.from('sources').insert({
+    name,
+    url,
+    type: 'official_partner',
+    tier: 1,
+    is_active: true,
+    use_firecrawl: true,
+    scrape_frequency: 'daily',
+    notes,
+  })
+
+  if (insertErr) {
+    console.error(`[scout-source] insert failed for url=${url}: ${insertErr.message}`)
+  } else {
+    console.log(`[scout-source] inserted new source url=${url}`)
+  }
 }
 
 /**
