@@ -123,8 +123,7 @@ You receive: program name, program type (airline/hotel/alliance/credit_card), an
 You return: a JSON map of which URL best supports each extraction field, plus Scout-source recommendations.
 
 EXTRACTION FIELDS (static program-page content):
-- intro: short narrative paragraph. Usually skipped (editorial). Return null unless the page is a clear program-overview.
-- sweet_spots: redemption highlights. Usually skipped (editorial). Return null unless the page is a clear "best redemptions" or "deals" page.
+NOTE: intro and sweet_spots are EDITORIAL-ONLY fields handled by the human editor. DO NOT return URLs for them. The schema below omits them.
 - lounge_access: airport lounge access rules (alliance/cabin/status-based). Look for "Lounge", "Club", "Polaris", "Admirals", "Sky Club", "Centurion", etc.
 - quirks: program quirks, recent changes, fine print, what's new. Look for "What's New", "About [program]", "Program Updates", "Recent changes".
 - award_chart: redemption costs by region/cabin. SKIP if program is dynamic-pricing (United, Delta, JetBlue, Southwest, AA, Air Canada Aeroplan partial, Hilton). For chart programs (Avianca, ANA, Singapore, Air France/KLM Flying Blue partial, Hyatt), find the "Award Chart" or "Redemption Calculator" page.
@@ -145,7 +144,7 @@ RULES:
 5. For SKIP-by-default fields (intro, sweet_spots, award_chart on dynamic-pricing programs), return null unless an obviously-perfect URL exists.
 6. Reason should be 1 sentence: what about the URL/path made you pick it.
 
-OUTPUT FORMAT — return ONLY valid JSON, no prose:
+OUTPUT FORMAT — return ONLY valid JSON, no prose. DO NOT include intro or sweet_spots (editorial-only):
 {
   "tier_benefits": { "urls": ["..."], "reason": "...", "confidence": "high" } | null,
   "lounge_access": { ... } | null,
@@ -154,8 +153,6 @@ OUTPUT FORMAT — return ONLY valid JSON, no prose:
   "alliance": { ... } | null,
   "hubs": { ... } | null,
   "parent_program_slug": { ... } | null,
-  "intro": { ... } | null,
-  "sweet_spots": { ... } | null,
   "promo_source": { "urls": ["..."], "reason": "...", "confidence": "high" } | null,
   "newsroom_source": { "urls": ["..."], "reason": "...", "confidence": "high" } | null
 }`

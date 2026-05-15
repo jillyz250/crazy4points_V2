@@ -342,13 +342,83 @@ export async function discoverProgramSourceUrls(formData: FormData): Promise<voi
 
   if (!result.ok) {
     console.error(`[program-discover] failed: ${result.error}`)
-  } else {
-    console.log(
-      `[program-discover] mapped ${result.total_urls_seen} urls -> ${result.candidates_sent_to_sonnet} candidates -> ${Object.values(result.suggestions).filter((v) => v != null).length} field matches`,
-    )
+    revalidatePath(`/admin/programs/${slug}/extract`)
+    return
+  }
+  console.log(
+    `[program-discover] mapped ${result.total_urls_seen} urls -> ${result.candidates_sent_to_sonnet} candidates -> ${Object.values(result.suggestions).filter((v) => v != null).length} field matches`,
+  )
+
+  // Auto-register Scout sources for promo + newsroom URLs Sonnet identified.
+  // Upsert on URL — re-running discovery on the same program won't create
+  // duplicates. Editor doesn't have to click "+ Register" for these
+  // common-case sources.
+  const promoSugg = result.suggestions.promo_source
+  const newsSugg = result.suggestions.newsroom_source
+  const autoRegistered: string[] = []
+
+  if (promoSugg?.urls?.[0]) {
+    await upsertScoutSource({
+      url: promoSugg.urls[0],
+      name: `${program.name} — Current Offers`,
+      kind: 'promo',
+      slug,
+    })
+    autoRegistered.push(`promo: ${promoSugg.urls[0]}`)
+  }
+  if (newsSugg?.urls?.[0]) {
+    await upsertScoutSource({
+      url: newsSugg.urls[0],
+      name: `${program.name} Newsroom`,
+      kind: 'newsroom',
+      slug,
+    })
+    autoRegistered.push(`newsroom: ${newsSugg.urls[0]}`)
+  }
+  if (autoRegistered.length > 0) {
+    console.log(`[program-discover] auto-registered Scout sources: ${autoRegistered.join('; ')}`)
   }
 
   revalidatePath(`/admin/programs/${slug}/extract`)
+  revalidatePath('/admin/sources')
+}
+
+/**
+ * Shared upsert used by both auto-registration (during discovery) and the
+ * manual "+ Register as Scout source" button. Idempotent on URL.
+ */
+async function upsertScoutSource({
+  url,
+  name,
+  kind,
+  slug,
+}: {
+  url: string
+  name: string
+  kind: 'promo' | 'newsroom'
+  slug: string
+}): Promise<void> {
+  const supabase = createAdminClient()
+  const notes =
+    kind === 'promo'
+      ? `Auto-registered from /admin/programs/${slug}/extract discovery. Time-sensitive promo bonuses; expect frequent additions/expirations.`
+      : `Auto-registered from /admin/programs/${slug}/extract discovery. Press releases / official announcements.`
+
+  await supabase
+    .from('sources')
+    .upsert(
+      {
+        name,
+        url,
+        type: 'official_partner',
+        tier: 1,
+        is_active: true,
+        use_firecrawl: true,
+        scrape_frequency: 'daily',
+        notes,
+      },
+      { onConflict: 'url', ignoreDuplicates: false },
+    )
 }
 
 /**
@@ -362,30 +432,10 @@ export async function registerScoutSource(formData: FormData): Promise<void> {
   const programName = String(formData.get('program_name') ?? '').trim()
   const kind = String(formData.get('kind') ?? '').trim()  // 'promo' | 'newsroom'
 
-  if (!slug || !url || !programName || !kind) return
+  if (!slug || !url || !programName || (kind !== 'promo' && kind !== 'newsroom')) return
 
-  const supabase = createAdminClient()
-
-  const sourceName = kind === 'promo'
-    ? `${programName} — Current Offers`
-    : `${programName} Newsroom`
-  const scrapeFrequency = kind === 'promo' ? 'daily' : 'daily'
-  const notes = kind === 'promo'
-    ? `Auto-registered from /admin/programs/${slug}/extract discovery panel. Time-sensitive promo bonuses; expect frequent additions/expirations.`
-    : `Auto-registered from /admin/programs/${slug}/extract discovery panel. Press releases / official announcements.`
-
-  await supabase
-    .from('sources')
-    .upsert({
-      name: sourceName,
-      url,
-      type: 'official_partner',
-      tier: 1,
-      is_active: true,
-      use_firecrawl: true,
-      scrape_frequency: scrapeFrequency,
-      notes,
-    }, { onConflict: 'url', ignoreDuplicates: false })
+  const name = kind === 'promo' ? `${programName} — Current Offers` : `${programName} Newsroom`
+  await upsertScoutSource({ url, name, kind, slug })
 
   revalidatePath(`/admin/programs/${slug}/extract`)
   revalidatePath('/admin/sources')
@@ -412,10 +462,15 @@ export async function applyDiscoveredUrls(formData: FormData): Promise<void> {
   const suggestions =
     (program.suggested_field_urls as Record<string, { urls?: string[] } | null> | null) ?? {}
 
+  // Editorial fields (intro, sweet_spots) are never auto-populated even
+  // if discovery accidentally returns them. They stay manual.
+  const EDITORIAL_FIELDS = new Set(['intro', 'sweet_spots'])
+
   const newFieldUrls: Record<string, string[]> = {}
   for (const [field, s] of Object.entries(suggestions)) {
-    // Skip metadata keys
-    if (['generated_at', 'starting_url', 'total_urls_seen', 'candidates_sent'].includes(field)) continue
+    // Skip metadata keys + Scout-source keys (those go to /admin/sources, not field_source_urls)
+    if (['generated_at', 'starting_url', 'total_urls_seen', 'candidates_sent', 'promo_source', 'newsroom_source'].includes(field)) continue
+    if (EDITORIAL_FIELDS.has(field)) continue
     if (s && Array.isArray(s.urls) && s.urls.length > 0) {
       newFieldUrls[field] = s.urls
     }

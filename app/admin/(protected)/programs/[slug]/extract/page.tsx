@@ -278,10 +278,11 @@ export default async function ProgramExtractPage({
               {scoutSources.length > 0 ? (
                 <div className="mt-4 rounded-[var(--radius-ui)] border border-blue-300 bg-blue-50/40 p-2">
                   <p className="mb-1 font-ui text-[11px] font-bold uppercase tracking-wide text-blue-900">
-                    🔔 Scout source candidates (alerts pipeline, NOT this page)
+                    🔔 Scout sources — auto-registered ✓
                   </p>
                   <p className="mb-2 font-body text-[11px] text-blue-900">
-                    Time-sensitive content — register as a Scout source so alerts get auto-generated when promos/news drop.
+                    These URLs were automatically added to <a className="underline" href="/admin/sources" target="_blank">Scout sources</a>{' '}
+                    so the alerts pipeline starts watching them. Re-run discovery to re-classify if you change the starting URL.
                   </p>
                   <table className="w-full font-body text-xs">
                     <tbody>
@@ -299,20 +300,22 @@ export default async function ProgramExtractPage({
                             <p className="mt-0.5 text-[11px] text-blue-700">{s.reason}</p>
                           </td>
                           <td className="py-1 pr-2">
-                            {(s.urls ?? []).slice(0, 1).map((u: string) => (
-                              <form key={u} action={registerScoutSource} className="inline">
-                                <input type="hidden" name="slug" value={program.slug} />
-                                <input type="hidden" name="url" value={u} />
-                                <input type="hidden" name="program_name" value={program.name} />
-                                <input type="hidden" name="kind" value={kind === 'promo_source' ? 'promo' : 'newsroom'} />
-                                <ExtractionActionButton
-                                  variant="secondary"
-                                  size="sm"
-                                  label="+ Register as Scout source"
-                                  pendingLabel="Registering…"
-                                />
-                              </form>
-                            ))}
+                            <span className="font-ui text-[10px] uppercase tracking-wide text-emerald-700">
+                              ✓ Registered
+                            </span>
+                            {' '}
+                            <form action={registerScoutSource} className="inline">
+                              <input type="hidden" name="slug" value={program.slug} />
+                              <input type="hidden" name="url" value={s.urls?.[0] ?? ''} />
+                              <input type="hidden" name="program_name" value={program.name} />
+                              <input type="hidden" name="kind" value={kind === 'promo_source' ? 'promo' : 'newsroom'} />
+                              <ExtractionActionButton
+                                variant="ghost"
+                                size="sm"
+                                label="Re-register"
+                                pendingLabel="…"
+                              />
+                            </form>
                           </td>
                         </tr>
                       ))}
