@@ -730,6 +730,35 @@ When this block is present:
    or "tidying" the bands is a fact-check failure, not a stylistic
    choice.
 
+7. DERIVED NUMERIC CLAIMS — CONSTRAINT REASONING (hard rule):
+   When you state a TOTAL, MAX, CAP, or any DERIVED number that combines
+   two or more source figures, you MUST work through every constraint
+   clause in the T&Cs that limits the combination. Do not state a higher
+   derived total without proving it against every limiting clause.
+
+   Specific failure pattern to avoid:
+   Source says: "50,000-mile 90-day rolling cap. Bonus miles count toward
+   this cap." Source also says: "Up to 100% bonus."
+
+   Naive (WRONG) inference: "50,000 base miles + 100% bonus = 100,000
+   total miles per 90 days."
+
+   Correct inference: Because bonus miles COUNT TOWARD the 50,000 cap,
+   the 50,000 is the TOTAL including bonus. At 100% bonus, max purchase
+   is 25,000 base + 25,000 bonus = 50,000 total. At 75% bonus, max
+   purchase is ~28,571 base + ~21,429 bonus = 50,000 total.
+
+   The pattern: any clause that says "X counts toward Y", "X reduces Y",
+   "X is included in Y", or similar inclusion language IS A CONSTRAINT.
+   You must apply it. If a T&C clause has the words "count toward",
+   "applies to", "included in", "subject to" + a numeric limit, that
+   limit governs the total, not the base.
+
+   When in doubt: do NOT state a derived total. Instead say "Up to
+   [LIMIT] total per [WINDOW] (including bonus)" and let the reader
+   compute their tier-specific math from the chart. Hedging is fine;
+   wrong arithmetic is not.
+
 ═══════════════════════════════════════════════════════════
 OFFICIAL CONTEXT (when present)
 ═══════════════════════════════════════════════════════════
