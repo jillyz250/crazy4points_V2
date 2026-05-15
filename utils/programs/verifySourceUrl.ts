@@ -52,7 +52,15 @@ export async function verifySourceUrl(url: string): Promise<VerifyResult> {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     if (message.includes('AbortError') || message.includes('timeout')) {
-      return { ok: false, error: 'URL verification timed out (8s). Site may be slow or blocking.' }
+      // Many big airline / hotel sites (united.com, marriott.com) block
+      // direct HEAD requests but ARE reachable through Firecrawl. Don't
+      // hard-fail on timeout — let Firecrawl be the source of truth.
+      return {
+        ok: true,
+        finalUrl: url,
+        status: 0,
+        redirected: false,
+      }
     }
     // Network error — fall through to GET fallback before giving up
   }
@@ -86,6 +94,15 @@ export async function verifySourceUrl(url: string): Promise<VerifyResult> {
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
+    if (message.includes('AbortError') || message.includes('timeout')) {
+      // Same soft-pass on GET timeout — let Firecrawl decide.
+      return {
+        ok: true,
+        finalUrl: url,
+        status: 0,
+        redirected: false,
+      }
+    }
     return { ok: false, error: `Could not verify URL: ${message}` }
   }
 }
