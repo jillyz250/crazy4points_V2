@@ -18,12 +18,22 @@ export async function runProgramExtraction(formData: FormData): Promise<void> {
     return
   }
 
-  // Per-field URLs come in as form fields named "field_url_<fieldname>"
-  const fieldSourceUrls: Record<string, string | null> = {}
+  // Per-field URLs come in as form fields named "field_url_<fieldname>".
+  // Each field's value is a textarea — one URL per line. Trim, filter empties.
+  // Store as array (single URL = single-item array; empty = null).
+  const fieldSourceUrls: Record<string, string[] | null> = {}
   const fieldNames = ['intro', 'sweet_spots', 'lounge_access', 'quirks', 'award_chart', 'tier_benefits', 'alliance', 'hubs', 'parent_program_slug']
   for (const field of fieldNames) {
-    const url = String(formData.get(`field_url_${field}`) ?? '').trim()
-    fieldSourceUrls[field] = url || null
+    const raw = String(formData.get(`field_url_${field}`) ?? '').trim()
+    if (!raw) {
+      fieldSourceUrls[field] = null
+      continue
+    }
+    const urls = raw
+      .split('\n')
+      .map((u) => u.trim())
+      .filter((u) => u.length > 0)
+    fieldSourceUrls[field] = urls.length > 0 ? urls : null
   }
 
   // Legacy "single URL" mode — optional fallback when no per-field URLs

@@ -55,7 +55,14 @@ export const ALL_EXTRACTABLE_FIELDS: ProgramExtractableField[] = [
   'parent_program_slug',
 ]
 
-export type FieldSourceUrls = Partial<Record<ProgramExtractableField, string | null>>
+/**
+ * Per-field URL configuration. Each field can map to:
+ *   - A single string URL (legacy / convenience)
+ *   - An array of URLs (multi-source — markdown from all URLs combined,
+ *     focused Sonnet call extracts the field from the combined input)
+ *   - null or missing key (skip extraction for that field)
+ */
+export type FieldSourceUrls = Partial<Record<ProgramExtractableField, string | string[] | null>>
 
 export type ProgramExtractionResult =
   | { ok: true; extractionId: string; extraction: ProgramExtraction }
@@ -111,47 +118,48 @@ export async function extractProgramContent({
 }): Promise<ProgramExtractionResult> {
   const supabase = createAdminClient()
 
-  // Build the URL→fields map. If no per-field URLs configured, fall back to
-  // legacy single-URL mode (all fields from one page).
-  const urlToFields = new Map<string, ProgramExtractableField[]>()
-
-  const fieldsWithUrls = Object.entries(fieldSourceUrls).filter(([, url]) => typeof url === 'string' && url.trim().length > 0)
-
-  if (fieldsWithUrls.length === 0 && legacySourceUrl) {
-    // Legacy mode: one URL, all fields
-    urlToFields.set(legacySourceUrl, [...ALL_EXTRACTABLE_FIELDS])
-  } else {
-    for (const [field, url] of fieldsWithUrls) {
-      if (!isExtractableField(field)) continue
-      const u = (url as string).trim()
-      const existing = urlToFields.get(u) ?? []
-      existing.push(field)
-      urlToFields.set(u, existing)
-    }
+  // Normalize each field's URL config to an array of URLs (single string
+  // becomes a single-item array; null/missing stays empty).
+  const fieldToUrls = new Map<ProgramExtractableField, string[]>()
+  for (const field of ALL_EXTRACTABLE_FIELDS) {
+    const raw = fieldSourceUrls[field]
+    if (raw == null) continue
+    const list = Array.isArray(raw) ? raw : [raw]
+    const cleaned = list
+      .map((u) => (typeof u === 'string' ? u.trim() : ''))
+      .filter((u) => u.length > 0)
+    if (cleaned.length > 0) fieldToUrls.set(field, cleaned)
   }
 
-  if (urlToFields.size === 0) {
+  // Legacy fallback: if NO per-field URLs configured and a legacySourceUrl
+  // is provided, use it for every field (original migration 266 behavior).
+  if (fieldToUrls.size === 0 && legacySourceUrl) {
+    for (const f of ALL_EXTRACTABLE_FIELDS) fieldToUrls.set(f, [legacySourceUrl])
+  }
+
+  if (fieldToUrls.size === 0) {
     return { ok: false, error: 'No source URLs configured. Assign a URL to at least one field before running extraction.' }
   }
 
-  // Pre-flight verify every URL. Collect any that fail.
-  const uniqueUrls = Array.from(urlToFields.keys())
-  const verifications = await Promise.all(uniqueUrls.map(async (u) => ({ url: u, result: await verifySourceUrl(u) })))
+  // Collect all unique URLs across all fields.
+  const allUrls = new Set<string>()
+  for (const urls of fieldToUrls.values()) urls.forEach((u) => allUrls.add(u))
+
+  // Pre-flight verify every unique URL in parallel.
+  const verifications = await Promise.all(
+    Array.from(allUrls).map(async (u) => ({ url: u, result: await verifySourceUrl(u) })),
+  )
   const verifiedMap = new Map<string, string>()  // original URL → final URL after redirect
   const failedUrls: { url: string; error: string }[] = []
   for (const v of verifications) {
-    if (v.result.ok) {
-      verifiedMap.set(v.url, v.result.finalUrl)
-    } else {
-      failedUrls.push({ url: v.url, error: v.result.error })
-    }
+    if (v.result.ok) verifiedMap.set(v.url, v.result.finalUrl)
+    else failedUrls.push({ url: v.url, error: v.result.error })
   }
 
   if (verifiedMap.size === 0) {
-    // All URLs failed
     await supabase.from('program_extractions').insert({
       program_id: programId,
-      source_url: uniqueUrls[0] ?? '',
+      source_url: Array.from(allUrls)[0] ?? '',
       raw_markdown: null,
       markdown_chars: 0,
       used_interactive: interactive,
@@ -163,8 +171,34 @@ export async function extractProgramContent({
     return { ok: false, error: 'All URLs failed pre-flight verification.' }
   }
 
-  // Per-URL extraction: for each verified URL, scrape and run a focused
-  // Sonnet call extracting ONLY the mapped fields.
+  // Pre-scrape each unique verified URL exactly ONCE — no matter how many
+  // fields reference it. Stored in markdownByUrl for per-field combination.
+  const markdownByUrl = new Map<string, string>()
+  await Promise.all(
+    Array.from(verifiedMap.entries()).map(async ([originalUrl, finalUrl]) => {
+      const md = interactive
+        ? await fetchFirecrawlInteractive(finalUrl, { maxChars: PER_URL_MARKDOWN_LIMIT })
+        : await fetchFirecrawl(finalUrl, { maxChars: PER_URL_MARKDOWN_LIMIT })
+      if (md) markdownByUrl.set(originalUrl, md)
+    }),
+  )
+
+  // Group fields by URL SET (fields with the same set of URLs share a
+  // Sonnet call). Group key = sorted comma-joined URLs.
+  const groups = new Map<string, { urls: string[]; fields: ProgramExtractableField[] }>()
+  for (const [field, urls] of fieldToUrls.entries()) {
+    const validUrls = urls.filter((u) => verifiedMap.has(u) && markdownByUrl.has(u))
+    if (validUrls.length === 0) continue
+    const key = [...validUrls].sort().join('|')
+    const existing = groups.get(key)
+    if (existing) existing.fields.push(field)
+    else groups.set(key, { urls: validUrls, fields: [field] })
+  }
+
+  if (groups.size === 0) {
+    return { ok: false, error: 'All field URLs failed scrape; nothing to extract.' }
+  }
+
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) return { ok: false, error: 'ANTHROPIC_API_KEY not set' }
   const client = new Anthropic({ apiKey })
@@ -175,32 +209,31 @@ export async function extractProgramContent({
   const combinedMarkdownParts: string[] = []
   let primaryUrlForRecord = ''
 
-  for (const [originalUrl, fields] of urlToFields.entries()) {
-    const finalUrl = verifiedMap.get(originalUrl)
-    if (!finalUrl) {
-      // Pre-flight failed for this URL; skip its mapped fields
+  // Track skipped fields (URLs failed pre-flight or scrape)
+  for (const [field, urls] of fieldToUrls.entries()) {
+    const allFailed = urls.every((u) => !markdownByUrl.has(u))
+    if (allFailed) {
+      const failedDetails = urls
+        .map((u) => failedUrls.find((f) => f.url === u)?.error ?? 'no markdown')
+        .join('; ')
       merged.extraction_warnings.push(
-        `Skipped fields (${fields.join(', ')}) — pre-flight failed for ${originalUrl}: ${failedUrls.find((f) => f.url === originalUrl)?.error ?? 'unknown'}`,
+        `Skipped field "${field}" — all URLs failed: ${failedDetails}`,
       )
-      continue
     }
+  }
 
-    primaryUrlForRecord = primaryUrlForRecord || finalUrl
+  for (const { urls, fields } of groups.values()) {
+    // Combine markdown from this group's URLs with section headers
+    const groupMarkdown = urls
+      .map((u) => {
+        const finalUrl = verifiedMap.get(u) ?? u
+        return `=== SOURCE: ${finalUrl} ===\n\n${markdownByUrl.get(u) ?? ''}`
+      })
+      .join('\n\n')
 
-    const markdown = interactive
-      ? await fetchFirecrawlInteractive(finalUrl, { maxChars: PER_URL_MARKDOWN_LIMIT })
-      : await fetchFirecrawl(finalUrl, { maxChars: PER_URL_MARKDOWN_LIMIT })
+    primaryUrlForRecord = primaryUrlForRecord || (verifiedMap.get(urls[0]) ?? urls[0])
+    combinedMarkdownParts.push(`=== GROUP fields(${fields.join(',')}) ===\n${groupMarkdown}`)
 
-    if (!markdown) {
-      merged.extraction_warnings.push(
-        `Skipped fields (${fields.join(', ')}) — Firecrawl returned empty markdown for ${finalUrl}`,
-      )
-      continue
-    }
-
-    combinedMarkdownParts.push(`=== SOURCE: ${finalUrl} (fields: ${fields.join(', ')}) ===\n\n${markdown}`)
-
-    // Focused Sonnet call: extract ONLY these fields from this markdown.
     const fieldList = fields.join(', ')
     let response
     try {
@@ -214,19 +247,23 @@ export async function extractProgramContent({
             programName,
             programSlug,
             programType,
-            finalUrl,
-            markdown,
+            urls.join(', '),  // composite URL string for prompt context
+            groupMarkdown,
             { extractOnlyFields: fields, fieldList },
           ),
         }],
       })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
-      merged.extraction_warnings.push(`Sonnet failed for ${finalUrl} (fields: ${fieldList}): ${message}`)
+      merged.extraction_warnings.push(`Sonnet failed for group (fields: ${fieldList}): ${message}`)
       continue
     }
 
-    await logUsage(response, 'extract_program_content_per_field', { program_id: programId, source_url: finalUrl })
+    await logUsage(response, 'extract_program_content_per_field', {
+      program_id: programId,
+      url_count: urls.length,
+      fields: fields.join(','),
+    })
     totalInputTokens += response.usage?.input_tokens ?? 0
     totalOutputTokens += response.usage?.output_tokens ?? 0
 
@@ -239,7 +276,7 @@ export async function extractProgramContent({
       const cleaned = rawText.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim()
       if (!cleaned.startsWith('{')) {
         merged.extraction_warnings.push(
-          `Sonnet returned prose (not JSON) for ${finalUrl}. First 100 chars: "${cleaned.slice(0, 100)}..."`,
+          `Sonnet returned prose (not JSON) for group (fields: ${fieldList}). First 100 chars: "${cleaned.slice(0, 100)}..."`,
         )
         continue
       }
@@ -250,12 +287,12 @@ export async function extractProgramContent({
       }
     } catch (err) {
       merged.extraction_warnings.push(
-        `JSON parse failed for ${finalUrl}: ${err instanceof Error ? err.message : String(err)}`,
+        `JSON parse failed for group (fields: ${fieldList}): ${err instanceof Error ? err.message : String(err)}`,
       )
       continue
     }
 
-    // Merge ONLY the fields this URL was responsible for — ignore everything else
+    // Merge ONLY the fields this group was responsible for
     for (const field of fields) {
       const extracted = (parsed as unknown as Record<string, unknown>)[field]
       if (extracted) {
@@ -263,7 +300,7 @@ export async function extractProgramContent({
       }
     }
     if (parsed.extraction_warnings && parsed.extraction_warnings.length > 0) {
-      merged.extraction_warnings.push(...parsed.extraction_warnings.map((w) => `[${finalUrl}]: ${w}`))
+      merged.extraction_warnings.push(...parsed.extraction_warnings.map((w) => `[fields: ${fieldList}]: ${w}`))
     }
   }
 
