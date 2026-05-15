@@ -1831,6 +1831,167 @@ export async function getRefreshQueueByType(
   return counts
 }
 
+// ─── Unified Extractions Hub ─────────────────────────────────────────────
+// Backed by admin_extractions_browse view (migration 272). Lists every
+// extractable entity in the system, not just stale ones.
+
+export interface ExtractionsBrowseItem {
+  entity_type: string
+  entity_id: string
+  entity_slug: string
+  entity_name: string
+  last_verified: string | null
+  cadence_days: number
+  age_days: number
+  edit_url: string
+  extract_url: string | null
+}
+
+/**
+ * Fetch every extractable entity (cards, programs, issuers, welcome bonuses,
+ * hotel-property rollups). Sorted by age_days desc (oldest first), then name.
+ */
+export async function getExtractionsBrowse(
+  supabase: SupabaseClient,
+  options: { entityType?: string } = {},
+): Promise<ExtractionsBrowseItem[]> {
+  let query = supabase
+    .from('admin_extractions_browse')
+    .select('*')
+    .order('age_days', { ascending: false })
+    .order('entity_name', { ascending: true })
+
+  if (options.entityType) {
+    query = query.eq('entity_type', options.entityType)
+  }
+
+  const { data, error } = await query
+  if (error) throw error
+  return (data ?? []) as ExtractionsBrowseItem[]
+}
+
+export interface RecentExtractionItem {
+  id: string
+  kind: 'program' | 'card'
+  entity_slug: string
+  entity_name: string
+  status: string
+  model: string | null
+  input_tokens: number | null
+  output_tokens: number | null
+  cost_usd: number | null
+  error_message: string | null
+  created_at: string
+  applied_count: number
+  skipped_count: number
+  extract_url: string
+}
+
+/**
+ * Recent extraction history (last N), merging program_extractions +
+ * credit_card_extractions. Used in the bottom section of /admin/extractions.
+ */
+export async function getRecentExtractions(
+  supabase: SupabaseClient,
+  limit = 50,
+): Promise<RecentExtractionItem[]> {
+  const [progRes, cardRes] = await Promise.all([
+    supabase
+      .from('program_extractions')
+      .select(`
+        id, status, model, input_tokens, output_tokens, cost_usd,
+        error_message, created_at, applied_fields,
+        program:programs!inner(slug, name)
+      `)
+      .order('created_at', { ascending: false })
+      .limit(limit),
+    supabase
+      .from('credit_card_extractions')
+      .select(`
+        id, status, model, input_tokens, output_tokens, cost_usd,
+        error_message, created_at,
+        card:credit_cards!inner(slug, name)
+      `)
+      .order('created_at', { ascending: false })
+      .limit(limit),
+  ])
+
+  type ProgRow = {
+    id: string
+    status: string
+    model: string | null
+    input_tokens: number | null
+    output_tokens: number | null
+    cost_usd: number | null
+    error_message: string | null
+    created_at: string
+    applied_fields: Record<string, string> | null
+    program: { slug: string; name: string } | { slug: string; name: string }[] | null
+  }
+  type CardRow = {
+    id: string
+    status: string
+    model: string | null
+    input_tokens: number | null
+    output_tokens: number | null
+    cost_usd: number | null
+    error_message: string | null
+    created_at: string
+    card: { slug: string; name: string } | { slug: string; name: string }[] | null
+  }
+
+  const progRows: RecentExtractionItem[] = ((progRes.data ?? []) as ProgRow[]).map((r) => {
+    const prog = Array.isArray(r.program) ? r.program[0] : r.program
+    const applied = r.applied_fields ?? {}
+    let appliedCount = 0
+    let skippedCount = 0
+    for (const v of Object.values(applied)) {
+      if (v === 'applied' || v === 'edited') appliedCount++
+      else if (v === 'skipped') skippedCount++
+    }
+    return {
+      id: r.id,
+      kind: 'program',
+      entity_slug: prog?.slug ?? '',
+      entity_name: prog?.name ?? '—',
+      status: r.status,
+      model: r.model,
+      input_tokens: r.input_tokens,
+      output_tokens: r.output_tokens,
+      cost_usd: r.cost_usd,
+      error_message: r.error_message,
+      created_at: r.created_at,
+      applied_count: appliedCount,
+      skipped_count: skippedCount,
+      extract_url: `/admin/programs/${prog?.slug}/extract`,
+    }
+  })
+
+  const cardRows: RecentExtractionItem[] = ((cardRes.data ?? []) as CardRow[]).map((r) => {
+    const card = Array.isArray(r.card) ? r.card[0] : r.card
+    return {
+      id: r.id,
+      kind: 'card',
+      entity_slug: card?.slug ?? '',
+      entity_name: card?.name ?? '—',
+      status: r.status,
+      model: r.model,
+      input_tokens: r.input_tokens,
+      output_tokens: r.output_tokens,
+      cost_usd: r.cost_usd,
+      error_message: r.error_message,
+      created_at: r.created_at,
+      applied_count: 0,
+      skipped_count: 0,
+      extract_url: `/admin/cards/${card?.slug}/extract`,
+    }
+  })
+
+  return [...progRows, ...cardRows]
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))
+    .slice(0, limit)
+}
+
 /**
  * "Cards that earn into me" — given a program (e.g. Hyatt), returns:
  *   1. Direct co-brand cards (where co_brand_program_id = this program)
