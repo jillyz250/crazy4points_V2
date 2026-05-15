@@ -150,25 +150,38 @@ export default async function ProgramExtractPage({
             extracted with a focused Sonnet call for its mapped fields only.
           </p>
 
+          <p className="font-body text-xs text-[var(--color-text-secondary)]">
+            <strong>Multi-URL per field:</strong> add multiple URLs (one per line) to combine content
+            from several pages for a single field. Useful for quirks (RTW + about page) and other
+            fields where the source spans multiple pages.
+          </p>
+
           <div className="grid gap-3">
             {FIELD_CONFIGS.map((f) => {
-              const currentUrl = storedFieldUrls[f.key] ?? ''
+              // storedFieldUrls value may be string OR string[] — normalize to one-per-line
+              const stored = storedFieldUrls[f.key as keyof typeof storedFieldUrls]
+              let storedAsText = ''
+              if (Array.isArray(stored)) {
+                storedAsText = stored.join('\n')
+              } else if (typeof stored === 'string') {
+                storedAsText = stored
+              }
               return (
-                <label key={f.key} className="grid grid-cols-1 gap-1 sm:grid-cols-[10rem_1fr] sm:items-center">
-                  <span className="font-ui text-xs">
+                <label key={f.key} className="grid grid-cols-1 gap-1 sm:grid-cols-[10rem_1fr] sm:items-start">
+                  <span className="font-ui text-xs sm:pt-2">
                     <strong className="text-[var(--color-text-primary)]">{f.label}</strong>
                     {!f.recommended ? (
                       <span className="ml-1 font-normal italic text-[var(--color-text-secondary)]">(editorial)</span>
                     ) : null}
                   </span>
                   <div className="flex flex-col gap-0.5">
-                    <input
+                    <textarea
                       name={`field_url_${f.key}`}
-                      type="url"
-                      defaultValue={currentUrl}
-                      placeholder={f.recommended ? 'Source URL for this field' : '(leave blank to keep manual)'}
+                      rows={2}
+                      defaultValue={storedAsText}
+                      placeholder={f.recommended ? 'Source URL(s) for this field — one per line' : '(leave blank to keep manual)'}
                       className="rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-white px-3 py-1.5 font-mono text-sm"
-                      style={{ fontSize: '0.875rem' }}
+                      style={{ fontSize: '0.875rem', resize: 'vertical' }}
                     />
                     <span className="font-body text-[11px] text-[var(--color-text-secondary)]">{f.hint}</span>
                   </div>
