@@ -35,9 +35,11 @@ export default function ProgramFieldDiff({
   appliedStatus,
   mergedValue,
   mergedSource,
+  verification,
   applyAction,
   skipAction,
   mergeAction,
+  verifyAction,
   saveManualOverrideAction,
 }: {
   field: string
@@ -50,9 +52,23 @@ export default function ProgramFieldDiff({
   appliedStatus: string | null
   mergedValue: string | null
   mergedSource?: string | null
+  verification?: {
+    verdict: 'confirmed' | 'corrected' | 'unverifiable'
+    discrepancies: Array<{
+      claim: string
+      current_says: string
+      extracted_says: string
+      source_says: string
+      resolution: string
+    }>
+    corrected_value: string
+    notes: string
+    generated_at: string
+  } | null
   applyAction: (formData: FormData) => Promise<void>
   skipAction: (formData: FormData) => Promise<void>
   mergeAction: (formData: FormData) => Promise<void>
+  verifyAction: (formData: FormData) => Promise<void>
   saveManualOverrideAction: (formData: FormData) => Promise<void>
 }) {
   const extracted = extractedField as ExtractedField
@@ -150,6 +166,60 @@ export default function ProgramFieldDiff({
         </p>
       ) : null}
 
+      {/* Verification result */}
+      {verification ? (
+        <div className="mt-3 rounded-[var(--radius-ui)] border-2 border-blue-300 bg-blue-50/40 p-3">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <p className="font-ui text-[11px] font-bold uppercase tracking-wide text-blue-900">
+              🔍 Verification — verdict:{' '}
+              <span
+                className={
+                  verification.verdict === 'corrected'
+                    ? 'text-amber-700'
+                    : verification.verdict === 'confirmed'
+                      ? 'text-emerald-700'
+                      : 'text-gray-700'
+                }
+              >
+                {verification.verdict}
+              </span>
+            </p>
+            <p className="font-ui text-[10px] text-[var(--color-text-secondary)]">
+              {new Date(verification.generated_at).toLocaleString()}
+            </p>
+          </div>
+          {verification.notes ? (
+            <p className="mb-2 font-body text-xs text-blue-900">{verification.notes}</p>
+          ) : null}
+          {verification.discrepancies.length > 0 ? (
+            <details className="mb-2">
+              <summary className="cursor-pointer font-ui text-[11px] font-semibold uppercase tracking-wide text-blue-900">
+                {verification.discrepancies.length} discrepancy resolution{verification.discrepancies.length === 1 ? '' : 's'}
+              </summary>
+              <ul className="mt-1 space-y-2">
+                {verification.discrepancies.map((d, i) => (
+                  <li key={i} className="rounded-[var(--radius-ui)] border border-blue-200 bg-white p-2 font-body text-xs">
+                    <p className="font-semibold text-blue-900">{d.claim}</p>
+                    <p className="mt-1 text-[var(--color-text-secondary)]"><strong>Current:</strong> {d.current_says || '(silent)'}</p>
+                    <p className="text-[var(--color-text-secondary)]"><strong>Extracted:</strong> {d.extracted_says || '(silent)'}</p>
+                    <p className="text-[var(--color-text-secondary)]"><strong>Source:</strong> {d.source_says || '(silent)'}</p>
+                    <p className="mt-1 text-blue-800"><strong>Resolution:</strong> {d.resolution}</p>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          ) : null}
+          <details>
+            <summary className="cursor-pointer font-ui text-[11px] font-semibold uppercase tracking-wide text-blue-900">
+              Final verified version (Apply will use this)
+            </summary>
+            <div className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap rounded-[var(--radius-ui)] border border-blue-200 bg-white p-2 font-body text-xs">
+              {verification.corrected_value}
+            </div>
+          </details>
+        </div>
+      ) : null}
+
       {/* Step 4: Manual override — paste Claude's verified/corrected text */}
       {MERGEABLE_FIELDS.has(field) && appliedStatus !== 'applied' ? (
         <details className="mt-3 rounded-[var(--radius-ui)] border border-amber-200 bg-amber-50/40 p-2">
@@ -184,8 +254,22 @@ export default function ProgramFieldDiff({
       {/* Actions */}
       {hasExtractedContent && !sameValue && appliedStatus !== 'applied' ? (
         <div className="mt-3 flex flex-wrap gap-2">
-          {/* Merge button — only for text fields with both current + extracted content */}
-          {MERGEABLE_FIELDS.has(field) && hasCurrentContent && hasExtractedContent && !mergedValue ? (
+          {/* Verify against source — text fields with both current + extracted */}
+          {MERGEABLE_FIELDS.has(field) && hasCurrentContent && hasExtractedContent ? (
+            <form action={verifyAction} className="inline">
+              <input type="hidden" name="slug" value={programSlug} />
+              <input type="hidden" name="field" value={field} />
+              <input type="hidden" name="extraction_id" value={extractionId} />
+              <ExtractionActionButton
+                variant="secondary"
+                label={verification ? '🔍 Re-verify against source' : '🔍 Verify against source'}
+                pendingLabel="Verifying…"
+              />
+            </form>
+          ) : null}
+
+          {/* Merge button — only when not already verified (verify supersedes merge) */}
+          {MERGEABLE_FIELDS.has(field) && hasCurrentContent && hasExtractedContent && !mergedValue && !verification ? (
             <form action={mergeAction} className="inline">
               <input type="hidden" name="slug" value={programSlug} />
               <input type="hidden" name="field" value={field} />
@@ -194,7 +278,7 @@ export default function ProgramFieldDiff({
             </form>
           ) : null}
 
-          {/* Apply button — uses MERGED value when present, else EXTRACTED */}
+          {/* Apply — priority: VERIFIED > MERGED > EXTRACTED */}
           <form action={applyAction} className="inline">
             <input type="hidden" name="slug" value={programSlug} />
             <input type="hidden" name="field" value={field} />
@@ -202,11 +286,17 @@ export default function ProgramFieldDiff({
             <input
               type="hidden"
               name="new_value_json"
-              value={JSON.stringify(mergedValue ?? extractedValue)}
+              value={JSON.stringify(verification?.corrected_value ?? mergedValue ?? extractedValue)}
             />
             <ExtractionActionButton
               variant="secondary"
-              label={mergedValue ? `Apply merged ${label}` : `Apply ${label}`}
+              label={
+                verification
+                  ? `Apply verified ${label}`
+                  : mergedValue
+                    ? `Apply merged ${label}`
+                    : `Apply ${label}`
+              }
               pendingLabel="Applying…"
             />
           </form>

@@ -5,6 +5,7 @@ import { createAdminClient } from '@/utils/supabase/server'
 import { extractProgramContent } from '@/utils/programs/extractProgramContent'
 import { applyProgramField, skipProgramField, isApplyableField } from '@/utils/programs/applyProgramField'
 import { mergeExtractedField, isMergeableField } from '@/utils/programs/mergeExtractedField'
+import { verifyExtractedField, isVerifiableField } from '@/utils/programs/verifyExtractedField'
 
 /**
  * Run extraction on a program. Writes to program_extractions cache only —
@@ -211,6 +212,65 @@ export async function mergeProgramField(formData: FormData): Promise<void> {
 
   if (!result.ok) {
     console.error(`[program-extract] merge failed for ${field}: ${result.error}`)
+  }
+
+  revalidatePath(`/admin/programs/${slug}/extract`)
+}
+
+/**
+ * Auto-verify an extracted field against the scraped source markdown.
+ * Calls Sonnet with current + extracted + raw markdown; stores a verdict
+ * and a corrected final version in program_extractions.verifications[field].
+ * Apply picks up corrected_value when present.
+ */
+export async function verifyProgramField(formData: FormData): Promise<void> {
+  const slug = String(formData.get('slug') ?? '').trim()
+  const field = String(formData.get('field') ?? '').trim()
+  const extractionId = String(formData.get('extraction_id') ?? '').trim()
+
+  if (!slug || !extractionId || !isVerifiableField(field)) {
+    console.error(`[program-extract] invalid verify request: slug=${slug} field=${field}`)
+    return
+  }
+
+  const supabase = createAdminClient()
+  const { data: program } = (await supabase
+    .from('programs')
+    .select(`id, ${field}`)
+    .eq('slug', slug)
+    .single()) as unknown as { data: Record<string, unknown> | null }
+
+  if (!program) return
+
+  const { data: extraction } = await supabase
+    .from('program_extractions')
+    .select('extraction, raw_markdown')
+    .eq('id', extractionId)
+    .single()
+
+  if (!extraction) return
+
+  const currentValue = (program[field] as string | null) ?? ''
+  const extractedField = (extraction.extraction as Record<string, unknown> | null)?.[field]
+  const extractedValue = (extractedField as { value?: string } | null)?.value ?? ''
+  const markdown = (extraction.raw_markdown as string | null) ?? ''
+
+  if (!currentValue || !extractedValue || !markdown) {
+    console.error(`[program-extract] verify skipped — missing current/extracted/markdown for ${field}`)
+    return
+  }
+
+  const result = await verifyExtractedField({
+    programId: program.id as string,
+    field,
+    currentValue,
+    extractedValue,
+    markdown,
+    extractionId,
+  })
+
+  if (!result.ok) {
+    console.error(`[program-extract] verify failed for ${field}: ${result.error}`)
   }
 
   revalidatePath(`/admin/programs/${slug}/extract`)

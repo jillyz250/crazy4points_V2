@@ -10,6 +10,7 @@ import {
   completeExtraction,
   mergeProgramField,
   saveManualOverride,
+  verifyProgramField,
 } from './actions'
 
 export const dynamic = 'force-dynamic'
@@ -51,7 +52,7 @@ export default async function ProgramExtractPage({
   // Latest extraction
   const { data: latest } = await supabase
     .from('program_extractions')
-    .select('id, source_url, extraction, status, created_at, completed_at, applied_fields, merged_fields, used_interactive, raw_markdown, markdown_chars, review_pass_added_count, error_message')
+    .select('id, source_url, extraction, status, created_at, completed_at, applied_fields, merged_fields, verifications, used_interactive, raw_markdown, markdown_chars, review_pass_added_count, error_message')
     .eq('program_id', program.id)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -91,6 +92,14 @@ export default async function ProgramExtractPage({
   const extraction = (latest?.extraction as Record<string, unknown> | undefined) ?? null
   const appliedFields = ((latest?.applied_fields as Record<string, string> | null) ?? {})
   const mergedFields = ((latest?.merged_fields as Record<string, { value: string; generated_at: string; source?: string }> | null) ?? {})
+  type VerificationRow = {
+    verdict: 'confirmed' | 'corrected' | 'unverifiable'
+    discrepancies: Array<{ claim: string; current_says: string; extracted_says: string; source_says: string; resolution: string }>
+    corrected_value: string
+    notes: string
+    generated_at: string
+  }
+  const verifications = ((latest?.verifications as Record<string, VerificationRow> | null) ?? {})
 
   // The fields we extract, in display order
   const FIELDS: { key: 'intro' | 'sweet_spots' | 'lounge_access' | 'quirks' | 'award_chart' | 'tier_benefits' | 'alliance' | 'hubs' | 'parent_program_slug'; label: string; description: string }[] = [
@@ -278,21 +287,17 @@ export default async function ProgramExtractPage({
                 <strong>Extract</strong> — runs Firecrawl + Sonnet (already done above ↑).
               </li>
               <li>
-                <strong>Copy review prompt for Claude</strong> → paste in Claude → Claude returns
-                <em> merge / skip / apply</em> per field, plus 🔍 Verify blocks for anything uncertain.
+                <strong>🔍 Verify against source</strong> per field (button on each card) — Sonnet auto-reconciles current vs extracted against the scraped markdown and produces a verified corrected final version. <em>This is the new automatic loop.</em>
               </li>
               <li>
-                Execute per field: click <strong>✨ Merge</strong>, <strong>Apply</strong>, or <strong>Skip</strong> as Claude advised.
-                For 🔍 Verify blocks, paste the block back to Claude to run WebFetch verification.
+                Click <strong>Apply verified</strong> (or Apply merged / Apply / Skip) on each field. Verified always wins over merged or raw extracted.
               </li>
               <li>
-                <strong>Paste Claude&apos;s verified or edited text</strong> into Step 4 override on each field
-                (expandable section below each field card) → click Save override → click Apply.
-                Use this when verification produced a corrected final version.
+                Optional fallback: paste Claude-edited text into the amber <strong>📝 Step 4 override</strong> on a field if you want a hand-tuned final. Overrides verification.
               </li>
             </ol>
             <p className="mt-2 font-body text-xs text-[var(--color-text-secondary)]">
-              After all fields are Applied or Skipped, use <strong>Copy publish review</strong> for a final sanity check, then click <strong>Mark review complete</strong>.
+              <strong>Copy review prompt</strong> still works for cases where you want my eye on the whole extraction at once. After all fields are Applied or Skipped, click <strong>Mark review complete</strong>.
             </p>
           </div>
 
@@ -334,9 +339,11 @@ export default async function ProgramExtractPage({
                   appliedStatus={appliedFields[f.key] ?? null}
                   mergedValue={mergedFields[f.key]?.value ?? null}
                   mergedSource={mergedFields[f.key]?.source ?? null}
+                  verification={verifications[f.key] ?? null}
                   applyAction={applyExtractedField}
                   skipAction={skipExtractedField}
                   mergeAction={mergeProgramField}
+                  verifyAction={verifyProgramField}
                   saveManualOverrideAction={saveManualOverride}
                 />
               )
