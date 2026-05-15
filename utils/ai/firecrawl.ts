@@ -70,8 +70,10 @@ export async function fetchFirecrawl(
       body.actions = options.actions
     }
     if (options.stealth) {
-      // Firecrawl's stealth proxy (residential IP + fingerprint randomization)
-      body.proxy = 'stealth'
+      // Firecrawl's stealth proxy (residential IP + fingerprint randomization).
+      // Use 'auto' so plans without dedicated stealth fall back gracefully
+      // to basic instead of erroring out.
+      body.proxy = 'auto'
     }
 
     const res = await fetch('https://api.firecrawl.dev/v1/scrape', {
@@ -90,9 +92,22 @@ export async function fetchFirecrawl(
       return ''
     }
 
-    const json = (await res.json()) as { success?: boolean; data?: { markdown?: string } }
+    const json = (await res.json()) as {
+      success?: boolean
+      data?: { markdown?: string; metadata?: { sourceURL?: string; url?: string; statusCode?: number } }
+    }
     if (!json.success || !json.data?.markdown) {
       console.warn(`[firecrawl] ${url} returned no markdown payload`)
+      return ''
+    }
+
+    // Detect anti-bot redirect traps. If the final URL contains marker tokens
+    // ("sorry", "blocked", "captcha", "access-denied"), treat as a scrape
+    // failure rather than letting the trap page's content flow downstream.
+    const finalUrl = json.data.metadata?.sourceURL || json.data.metadata?.url || ''
+    const TRAP_MARKERS = /sorry|blocked|captcha|access[-_]denied|bot[-_]check|incident/i
+    if (finalUrl && TRAP_MARKERS.test(finalUrl) && finalUrl !== url) {
+      console.warn(`[firecrawl] ${url} redirected to anti-bot trap: ${finalUrl} — returning empty`)
       return ''
     }
 
