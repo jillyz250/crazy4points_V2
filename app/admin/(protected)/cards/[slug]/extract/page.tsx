@@ -43,7 +43,7 @@ export default async function CardExtractPage({
     .select(`
       id, slug, name, card_type, card_tier, status,
       annual_fee_usd, foreign_transaction_fee_pct,
-      official_url, guide_to_benefits_url, pricing_terms_url,
+      official_url, guide_to_benefits_url, pricing_terms_url, rotating_categories_url,
       suggested_field_urls,
       intro, last_verified,
       issuer:issuers(slug, name, website_url)
@@ -163,6 +163,7 @@ export default async function CardExtractPage({
           officialUrl={card.official_url as string | null}
           guideUrl={card.guide_to_benefits_url as string | null}
           pricingUrl={card.pricing_terms_url as string | null}
+          rotatingCategoriesUrl={card.rotating_categories_url as string | null}
           scoutSources={scoutSourcesForCard}
         />
       </header>
@@ -455,14 +456,16 @@ function ConfiguredUrlsSummary({
   officialUrl,
   guideUrl,
   pricingUrl,
+  rotatingCategoriesUrl,
   scoutSources,
 }: {
   officialUrl: string | null
   guideUrl: string | null
   pricingUrl: string | null
+  rotatingCategoriesUrl: string | null
   scoutSources: Array<{ name: string; url: string; scrape_frequency: string; is_active: boolean }>
 }) {
-  const hasAny = officialUrl || guideUrl || pricingUrl || scoutSources.length > 0
+  const hasAny = officialUrl || guideUrl || pricingUrl || rotatingCategoriesUrl || scoutSources.length > 0
   if (!hasAny) {
     return (
       <p className="mt-2 font-body text-xs text-amber-700">
@@ -473,7 +476,7 @@ function ConfiguredUrlsSummary({
   return (
     <details className="mt-2 rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-white px-2 py-1">
       <summary className="cursor-pointer font-ui text-xs uppercase tracking-wide text-[var(--color-text-secondary)]">
-        ✓ Configured URLs ({(officialUrl ? 1 : 0) + (guideUrl ? 1 : 0) + (pricingUrl ? 1 : 0) + scoutSources.length}) — click to expand
+        ✓ Configured URLs ({(officialUrl ? 1 : 0) + (guideUrl ? 1 : 0) + (pricingUrl ? 1 : 0) + (rotatingCategoriesUrl ? 1 : 0) + scoutSources.length}) — click to expand
       </summary>
       <ul className="mt-2 ml-4 list-disc space-y-1 font-body text-xs">
         {officialUrl ? (
@@ -492,6 +495,13 @@ function ConfiguredUrlsSummary({
           <li>
             <span className="font-semibold">💲 Pricing &amp; Terms:</span>{' '}
             <a className="text-[var(--color-primary)] underline" href={pricingUrl} target="_blank" rel="noreferrer">{pricingUrl}</a>
+          </li>
+        ) : null}
+        {rotatingCategoriesUrl ? (
+          <li>
+            <span className="font-semibold">🔄 Rotating categories:</span>{' '}
+            <a className="text-[var(--color-primary)] underline" href={rotatingCategoriesUrl} target="_blank" rel="noreferrer">{rotatingCategoriesUrl}</a>{' '}
+            <span className="text-amber-700">(quarterly refresh)</span>
           </li>
         ) : null}
         {scoutSources.map((s) => (
