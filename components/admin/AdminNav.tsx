@@ -59,6 +59,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Ops',
     items: [
       { href: '/admin/extractions', label: 'Extractions', abbr: 'Ex', badgeKey: 'refreshQueue' },
+      { href: '/admin/manual-overrides', label: 'Manual overrides', abbr: 'Mo' },
       { href: '/admin/jobs', label: 'Jobs', abbr: 'Jo' },
       { href: '/admin/briefs', label: 'Briefs', abbr: 'Br' },
       { href: '/admin/fact-checks', label: 'Fact Checks', abbr: 'Fc' },
