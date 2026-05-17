@@ -15,6 +15,14 @@
     {
       "path": "/api/build-newsletter",
       "schedule": "0 22 * * 3"
+    },
+    {
+      "path": "/api/cron/quarterly-rotating-refresh",
+      "schedule": "0 14 15 3,6,9,12 *"
+    },
+    {
+      "path": "/api/cron/quarterly-rotating-refresh",
+      "schedule": "0 14 1 1,4,7,10 *"
     }
   ]
 }

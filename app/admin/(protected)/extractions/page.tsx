@@ -62,11 +62,42 @@ export default async function ExtractionsHubPage({
   }
   const totalCount = Object.values(countsByType).reduce((s, n) => s + n, 0)
 
+  // Fetch quarterly refresh status — last cron run + next scheduled date
+  const [{ data: lastRun }, { data: rotatingCards }] = await Promise.all([
+    supabase
+      .from('cron_runs')
+      .select('status, started_at, completed_at, cards_attempted, cards_succeeded, cards_failed, error_message')
+      .eq('job_name', 'quarterly-rotating-refresh')
+      .order('started_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from('credit_cards')
+      .select('name, slug')
+      .not('rotating_categories_url', 'is', null)
+      .eq('is_active', true),
+  ])
+  const quarterlyCards = (rotatingCards ?? []) as Array<{ name: string; slug: string }>
+
   return (
     <div>
       <PageHeader
         title="Extractions"
         description="One hub to run extractions, mark entities verified, and audit recent jobs. Replaces the standalone Refresh Queue and Card Extractions pages."
+      />
+
+      {/* Quarterly rotating-categories auto-refresh status */}
+      <QuarterlyRefreshWidget
+        lastRun={lastRun as {
+          status: string
+          started_at: string
+          completed_at: string | null
+          cards_attempted: number | null
+          cards_succeeded: number | null
+          cards_failed: number | null
+          error_message: string | null
+        } | null}
+        cards={quarterlyCards}
       />
 
       {/* Tabs */}
@@ -402,5 +433,141 @@ function RecentExtractionsTable({
         </table>
       </div>
     </Card>
+  )
+}
+
+/**
+ * Auto-refresh status widget for rotating-category cards. Shows the last cron
+ * run's outcome + the next scheduled run + the cards that will get refreshed.
+ *
+ * Cron schedule (from vercel.json):
+ *   - 14:00 UTC on the 15th of Mar/Jun/Sep/Dec (catches issuer announcements)
+ *   - 14:00 UTC on the 1st of Jan/Apr/Jul/Oct (catches quarter boundary)
+ */
+function QuarterlyRefreshWidget({
+  lastRun,
+  cards,
+}: {
+  lastRun:
+    | {
+        status: string
+        started_at: string
+        completed_at: string | null
+        cards_attempted: number | null
+        cards_succeeded: number | null
+        cards_failed: number | null
+        error_message: string | null
+      }
+    | null
+  cards: Array<{ name: string; slug: string }>
+}) {
+  if (cards.length === 0) return null  // No rotating cards configured yet
+
+  // Compute the next scheduled run (whichever is sooner: 15th of M-1 or 1st of M)
+  const now = new Date()
+  function nextOf(monthsZeroIdx: number[], day: number): Date {
+    const candidates = monthsZeroIdx.map((m) => {
+      const y = now.getFullYear()
+      const d = new Date(Date.UTC(y, m, day, 14, 0, 0))
+      if (d <= now) d.setUTCFullYear(y + 1)
+      return d
+    })
+    candidates.sort((a, b) => a.getTime() - b.getTime())
+    return candidates[0]
+  }
+  const next15 = nextOf([2, 5, 8, 11], 15)  // Mar/Jun/Sep/Dec 15
+  const next1 = nextOf([0, 3, 6, 9], 1)  // Jan/Apr/Jul/Oct 1
+  const nextRun = next15 < next1 ? next15 : next1
+  const daysUntil = Math.max(0, Math.ceil((nextRun.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
+
+  const statusEmoji =
+    lastRun?.status === 'success' ? '🟢'
+    : lastRun?.status === 'partial' ? '🟡'
+    : lastRun?.status === 'failed' ? '🔴'
+    : '⚪'
+  const statusLabel =
+    lastRun?.status === 'success' ? 'Last run succeeded'
+    : lastRun?.status === 'partial' ? 'Last run partial'
+    : lastRun?.status === 'failed' ? 'Last run failed'
+    : 'Never run yet'
+
+  return (
+    <section
+      style={{
+        marginBottom: '1.5rem',
+        padding: '1rem 1.25rem',
+        background: 'linear-gradient(135deg, #6B2D8F 0%, #4A1F66 100%)',
+        borderRadius: 'var(--radius-card)',
+        color: '#fff',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+        <div>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.125rem', fontWeight: 600, margin: '0 0 0.25rem', color: '#fff' }}>
+            🔄 Quarterly auto-refresh
+          </h2>
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.8125rem', color: 'rgba(255,255,255,0.85)', margin: 0 }}>
+            Rotating-category cards re-extract automatically on the 15th of Mar/Jun/Sep/Dec (catches issuer announcements) + the 1st of each new quarter (backup).
+          </p>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <p style={{ fontFamily: 'var(--font-ui)', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(212, 175, 55, 0.95)', margin: '0 0 0.25rem' }}>
+            Next run
+          </p>
+          <p style={{ fontFamily: 'var(--font-display)', fontSize: '1.125rem', fontWeight: 600, color: '#fff', margin: 0 }}>
+            {nextRun.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+          </p>
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem', color: 'rgba(255,255,255,0.7)', margin: 0 }}>
+            in {daysUntil} day{daysUntil === 1 ? '' : 's'} · 14:00 UTC
+          </p>
+        </div>
+      </div>
+
+      <div
+        style={{
+          marginTop: '0.75rem',
+          paddingTop: '0.75rem',
+          borderTop: '1px solid rgba(212, 175, 55, 0.3)',
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: '1.5rem',
+          fontFamily: 'var(--font-body)',
+          fontSize: '0.8125rem',
+        }}
+      >
+        <div>
+          <p style={{ color: 'rgba(255,255,255,0.7)', margin: '0 0 0.125rem', fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>
+            Last run
+          </p>
+          <p style={{ color: '#fff', margin: 0 }}>
+            {statusEmoji} {statusLabel}
+            {lastRun ? (
+              <>
+                {' · '}
+                <span style={{ color: 'rgba(255,255,255,0.7)' }}>
+                  {new Date(lastRun.started_at).toLocaleDateString()}
+                </span>
+                {lastRun.cards_succeeded != null && lastRun.cards_attempted != null ? (
+                  <>
+                    {' · '}
+                    <span style={{ color: 'rgba(255,255,255,0.85)' }}>
+                      {lastRun.cards_succeeded}/{lastRun.cards_attempted} cards
+                    </span>
+                  </>
+                ) : null}
+              </>
+            ) : null}
+          </p>
+        </div>
+        <div>
+          <p style={{ color: 'rgba(255,255,255,0.7)', margin: '0 0 0.125rem', fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>
+            Cards covered ({cards.length})
+          </p>
+          <p style={{ color: '#fff', margin: 0 }}>
+            {cards.map((c) => c.name).join(' · ')}
+          </p>
+        </div>
+      </div>
+    </section>
   )
 }
