@@ -120,6 +120,18 @@ export default function WalletClient({ bundle }: Props) {
         <EmptyState />
       ) : (
         <>
+          {/* Year overview — aggregates monthly / quarterly / semi credits into
+              annual totals with captured / lost / still-possible math. Monthly
+              credits like $10 Uber Cash don't roll over, so unused past months
+              are LOST. This view answers "how much value can I still capture
+              this year?" at a glance. */}
+          <YearOverview
+            benefits={myBenefits}
+            state={state}
+            today={today}
+            currentYear={years[0]}
+          />
+
           {/* Annual benefits — surfaced first since they only refresh once a year */}
           {benefitsByFreq.annual.length > 0 && (
             <AnnualBlock
@@ -1068,4 +1080,279 @@ function CertControls({
       )}
     </div>
   )
+}
+
+// ---------- Year Overview ----------
+//
+// Rolls every periodic benefit into a yearly total with captured / lost /
+// still-possible columns. Monthly credits like Uber Cash $10/mo don't carry
+// over — unused months are LOST. Showing the lost number creates urgency to
+// actually use them.
+
+function YearOverview({
+  benefits,
+  state,
+  today,
+  currentYear,
+}: {
+  benefits: WalletBenefit[]
+  state: WalletState
+  today: Date
+  currentYear: PeriodSlot
+}) {
+  const rows = useMemo(
+    () => benefits.map((b) => computeAnnualStats(b, state, today, currentYear)).sort((a, b) => b.annualPool - a.annualPool),
+    [benefits, state, today, currentYear],
+  )
+
+  const totals = useMemo(() => {
+    let pool = 0
+    let captured = 0
+    let lost = 0
+    let stillPossible = 0
+    for (const r of rows) {
+      pool += r.annualPool
+      captured += r.captured
+      lost += r.lost
+      stillPossible += r.stillPossible
+    }
+    return { pool, captured, lost, stillPossible }
+  }, [rows])
+
+  const [open, setOpen] = useState(true)
+
+  if (rows.length === 0) return null
+
+  return (
+    <section style={{ marginBottom: '1.5rem' }}>
+      <header
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          background: 'white',
+          border: '1px solid var(--color-border-soft)',
+          borderRadius: 'var(--radius-card)',
+          padding: '1.25rem 1.5rem',
+          cursor: 'pointer',
+          marginBottom: open ? '0.75rem' : 0,
+          boxShadow: 'var(--shadow-soft)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <h2 style={{ fontSize: '1.25rem', marginBottom: '0.125rem' }}>
+              Year overview — {currentYear.label} {open ? '▾' : '▸'}
+            </h2>
+            <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.8125rem', margin: 0 }}>
+              Roll-up across all your time-based credits this year.
+            </p>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, auto)', gap: '1.5rem', fontFamily: 'var(--font-ui)' }}>
+            <Mini label="Annual pool" value={formatUSD(totals.pool)} />
+            <Mini label="Captured" value={formatUSD(totals.captured)} tone="success" />
+            <Mini label="Lost" value={formatUSD(totals.lost)} tone="danger" />
+            <Mini label="Still possible" value={formatUSD(totals.stillPossible)} tone="primary" />
+          </div>
+        </div>
+      </header>
+
+      {open && (
+        <div
+          style={{
+            background: 'white',
+            border: '1px solid var(--color-border-soft)',
+            borderRadius: 'var(--radius-card)',
+            overflowX: 'auto',
+            boxShadow: 'var(--shadow-soft)',
+          }}
+        >
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+            <thead>
+              <tr style={{ background: 'var(--color-background-soft)' }}>
+                <Th align="left">Benefit</Th>
+                <Th align="left">Card</Th>
+                <Th align="left">Cadence</Th>
+                <Th>Annual</Th>
+                <Th>Captured</Th>
+                <Th>Lost</Th>
+                <Th>Still possible</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.benefit.id} style={{ borderTop: '1px solid var(--color-border-soft)' }}>
+                  <Td align="left">{r.benefit.name}</Td>
+                  <Td align="left" muted>{r.benefit.card_name}</Td>
+                  <Td align="left" muted>{cadenceLabel(r.benefit.frequency)}</Td>
+                  <Td>{formatUSD(r.annualPool)}</Td>
+                  <Td tone="success">{r.captured > 0 ? formatUSD(r.captured) : '—'}</Td>
+                  <Td tone="danger">{r.lost > 0 ? formatUSD(r.lost) : '—'}</Td>
+                  <Td tone="primary">{formatUSD(r.stillPossible)}</Td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  )
+}
+
+function Mini({ label, value, tone }: { label: string; value: string; tone?: 'success' | 'danger' | 'primary' }) {
+  const color =
+    tone === 'success' ? '#1f7a3b'
+    : tone === 'danger' ? '#b04545'
+    : tone === 'primary' ? 'var(--color-primary)'
+    : 'var(--color-text-primary)'
+  return (
+    <div style={{ textAlign: 'right' }}>
+      <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)', fontWeight: 600 }}>
+        {label}
+      </div>
+      <div style={{ fontSize: '1.1rem', fontWeight: 700, color, marginTop: '0.1rem' }}>{value}</div>
+    </div>
+  )
+}
+
+function Th({ children, align }: { children: React.ReactNode; align?: 'left' | 'right' }) {
+  return (
+    <th
+      style={{
+        padding: '0.65rem 1rem',
+        textAlign: align ?? 'right',
+        fontFamily: 'var(--font-ui)',
+        fontSize: '0.7rem',
+        textTransform: 'uppercase',
+        letterSpacing: '0.06em',
+        color: 'var(--color-text-secondary)',
+        fontWeight: 600,
+      }}
+    >
+      {children}
+    </th>
+  )
+}
+
+function Td({
+  children,
+  align,
+  tone,
+  muted,
+}: {
+  children: React.ReactNode
+  align?: 'left' | 'right'
+  tone?: 'success' | 'danger' | 'primary'
+  muted?: boolean
+}) {
+  const color =
+    tone === 'success' ? '#1f7a3b'
+    : tone === 'danger' ? '#b04545'
+    : tone === 'primary' ? 'var(--color-primary)'
+    : muted ? 'var(--color-text-secondary)'
+    : 'var(--color-text-primary)'
+  return (
+    <td
+      style={{
+        padding: '0.65rem 1rem',
+        textAlign: align ?? 'right',
+        color,
+        fontWeight: tone ? 600 : 400,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {children}
+    </td>
+  )
+}
+
+function cadenceLabel(frequency: WalletBenefit['frequency']): string {
+  switch (frequency) {
+    case 'monthly': return 'Monthly'
+    case 'quarterly': return 'Quarterly'
+    case 'semi_annual': return 'Twice/year'
+    case 'annual':
+    case 'anniversary': return 'Annual'
+    default: return '—'
+  }
+}
+
+interface AnnualStats {
+  benefit: WalletBenefit
+  /** Total annual pool ($10/mo Uber = $120/yr) */
+  annualPool: number
+  /** Sum of all uses across the current calendar year */
+  captured: number
+  /** Pool from past periods (this calendar year) minus past captured. Monthly
+   *  benefits decay — Jan goes by, $10 not used = $10 lost, can't be recovered. */
+  lost: number
+  /** Pool that's still capturable: remaining current-period pool + all future
+   *  periods in this year. Excludes annual benefits' remaining (already in pool). */
+  stillPossible: number
+}
+
+function computeAnnualStats(
+  benefit: WalletBenefit,
+  state: WalletState,
+  today: Date,
+  currentYear: PeriodSlot,
+): AnnualStats {
+  const pool = benefit.value_amount ?? 0
+  const year = currentYear.start.getFullYear()
+  const freq = benefit.frequency
+
+  // Total annual pool = per-period pool × periods/year
+  const periodsPerYear =
+    freq === 'monthly' ? 12
+    : freq === 'quarterly' ? 4
+    : freq === 'semi_annual' ? 2
+    : 1
+  const annualPool = pool * periodsPerYear
+
+  // Periods that have ENDED in the current calendar year.
+  // For monthly: months 0..(currentMonth-1) — current month is not yet past.
+  // For quarterly: 0..(currentQuarter-1)
+  // For semi: 0 if currently H1, 1 if currently H2
+  // For annual: 0
+  const currentMonth = today.getMonth()
+  const currentQuarter = Math.floor(currentMonth / 3)
+  const currentHalf = currentMonth < 6 ? 0 : 1
+
+  // Build keys for past periods + current period
+  const pastKeys: string[] = []
+  let currentKey = ''
+  if (freq === 'monthly') {
+    for (let m = 0; m < currentMonth; m++) {
+      pastKeys.push(`${year}-${String(m + 1).padStart(2, '0')}`)
+    }
+    currentKey = `${year}-${String(currentMonth + 1).padStart(2, '0')}`
+  } else if (freq === 'quarterly') {
+    for (let q = 0; q < currentQuarter; q++) pastKeys.push(`${year}-Q${q + 1}`)
+    currentKey = `${year}-Q${currentQuarter + 1}`
+  } else if (freq === 'semi_annual') {
+    if (currentHalf === 1) pastKeys.push(`${year}-H1`)
+    currentKey = `${year}-H${currentHalf + 1}`
+  } else if (freq === 'annual' || freq === 'anniversary') {
+    currentKey = `${year}`
+  }
+
+  const usesForKey = (key: string): number => sumUses(state.uses[benefit.id]?.[key])
+  const futurePeriodsCount = periodsPerYear - pastKeys.length - 1
+  const futurePoolValue = pool * Math.max(0, futurePeriodsCount)
+
+  const pastCapturedTotal = pastKeys.reduce((acc, k) => acc + usesForKey(k), 0)
+  const pastPoolTotal = pool * pastKeys.length
+  const pastLost = Math.max(0, pastPoolTotal - pastCapturedTotal)
+
+  const currentUsed = usesForKey(currentKey)
+  const currentLeft = Math.max(0, pool - currentUsed)
+
+  const captured = pastCapturedTotal + currentUsed
+  const stillPossible = currentLeft + futurePoolValue
+
+  return {
+    benefit,
+    annualPool,
+    captured,
+    lost: pastLost,
+    stillPossible,
+  }
 }
