@@ -41,12 +41,15 @@ function loadEnv() {
 }
 
 function parseArgs() {
-  const args = { slug: null, block: null, config: null, dryRun: false, waitMs: 12000, maxPages: 30 }
+  const args = { slug: null, block: null, config: null, dryRun: false, waitMs: 12000, maxPages: 30, stealth: false, destination: null, maxCredits: 0 }
   for (const a of process.argv.slice(2)) {
     if (a.startsWith('--slug=')) args.slug = a.split('=')[1]
     else if (a.startsWith('--block=')) args.block = parseInt(a.split('=')[1], 10)
     else if (a.startsWith('--config=')) args.config = a.split('=')[1]
     else if (a === '--dry-run') args.dryRun = true
+    else if (a === '--stealth') args.stealth = true
+    else if (a.startsWith('--destination=')) args.destination = a.split('=')[1]
+    else if (a.startsWith('--max-credits=')) args.maxCredits = parseInt(a.split('=')[1], 10)
     else if (a.startsWith('--wait=')) args.waitMs = parseInt(a.split('=')[1], 10)
     else if (a.startsWith('--max-pages=')) args.maxPages = parseInt(a.split('=')[1], 10)
   }
@@ -77,21 +80,30 @@ async function sb(path, options = {}) {
   return res.json()
 }
 
-async function firecrawlOnce(url, waitMs) {
+async function firecrawlOnce(url, waitMs, stealth) {
   try {
+    const body = {
+      url,
+      formats: ['markdown'],
+      onlyMainContent: false,
+      waitFor: waitMs,
+      timeout: Math.max(45000, waitMs + 15000),
+    }
+    if (stealth) {
+      // Firecrawl residential-proxy / fingerprint-randomization layer.
+      // Bypasses Akamai + Cloudflare bot blocks that flagged the prior
+      // Marriott property runs. Costs ~5x basic per scrape but only used
+      // when --stealth flag is passed. 'auto' falls back to basic if the
+      // plan doesn't include stealth.
+      body.proxy = 'auto'
+    }
     const res = await fetch('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${process.env.FIRECRAWL_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        url,
-        formats: ['markdown'],
-        onlyMainContent: false,
-        waitFor: waitMs,
-        timeout: Math.max(45000, waitMs + 15000),
-      }),
+      body: JSON.stringify(body),
       signal: AbortSignal.timeout(Math.max(60000, waitMs + 30000)),
     })
     if (!res.ok) {
@@ -114,12 +126,12 @@ async function firecrawlOnce(url, waitMs) {
   }
 }
 
-async function firecrawl(url, waitMs) {
+async function firecrawl(url, waitMs, stealth) {
   // Retry up to 2x on timeout (Firecrawl's edge sometimes flakes on
   // bigger pages). Subsequent attempts use a longer wait window.
   let lastErr = null
   for (let attempt = 1; attempt <= 3; attempt++) {
-    const r = await firecrawlOnce(url, attempt === 1 ? waitMs : waitMs + 5000)
+    const r = await firecrawlOnce(url, attempt === 1 ? waitMs : waitMs + 5000, stealth)
     if (r.ok) return r
     lastErr = r
     if (!r.retryable) return r
@@ -312,7 +324,7 @@ function inferBrand(name) {
  * mid-state — a single bad page won't lose all the work. onCheckpoint
  * may be undefined for dry-runs.
  */
-async function paginateDestination(baseUrl, urlContext, maxPages, waitMs, onCheckpoint) {
+async function paginateDestination(baseUrl, urlContext, maxPages, waitMs, onCheckpoint, stealth) {
   const all = new Map()
   let credits = 0
   let consecutiveEmpty = 0
@@ -320,7 +332,7 @@ async function paginateDestination(baseUrl, urlContext, maxPages, waitMs, onChec
   for (let pg = 1; pg <= maxPages; pg++) {
     const pageUrl = pg === 1 ? baseUrl : `${baseUrl}?pg=${pg}`
     process.stderr.write(`  pg ${pg} ... `)
-    const r = await firecrawl(pageUrl, waitMs)
+    const r = await firecrawl(pageUrl, waitMs, stealth)
     credits += r.credits || 0
     if (!r.ok) {
       process.stderr.write(`FAILED (${r.error})\n`)
@@ -380,9 +392,21 @@ async function main() {
     console.error(`No block ${args.block} defined in ${configPath}`)
     process.exit(1)
   }
+  // Optional single-destination filter for cheap stealth-mode tests
+  // (--destination=texas-united-states-of-america)
+  if (args.destination) {
+    block.destinations = block.destinations.filter((d) => d.url_path === args.destination)
+    if (block.destinations.length === 0) {
+      console.error(`No destination with url_path="${args.destination}" in block ${args.block}.`)
+      console.error(`Available: ${config.blocks[args.block - 1].destinations.map((d) => d.url_path).join(', ')}`)
+      process.exit(1)
+    }
+  }
   console.log(`# Block ${args.block}: ${block.label}`)
-  console.log(`# Destinations: ${block.destinations.length}`)
+  console.log(`# Destinations: ${block.destinations.length}${args.destination ? ` (filtered to "${args.destination}")` : ''}`)
   console.log(`# Dry run: ${args.dryRun}`)
+  console.log(`# Stealth proxy: ${args.stealth ? 'ON (Akamai-bypass; ~5x credits)' : 'off'}`)
+  if (args.maxCredits > 0) console.log(`# Credit cap: ${args.maxCredits} (abort early if exceeded)`)
 
   // Look up program_id
   const programs = await sb(`programs?slug=eq.${args.slug}&select=id,name`)
@@ -395,6 +419,10 @@ async function main() {
   let totalUpserts = 0
 
   for (const dest of block.destinations) {
+    if (args.maxCredits > 0 && totalCredits >= args.maxCredits) {
+      console.log(`# ABORT: hit credit cap (${totalCredits} >= ${args.maxCredits}) before "${dest.url_path}"`)
+      break
+    }
     console.log(`## ${dest.url_path} (${dest.country}/${dest.region || dest.city || ''})`)
     const baseUrl = `https://www.marriott.com/en-us/destinations/${dest.url_path}.mi`
     // dest.region is the state/province from config; map country to the
@@ -432,7 +460,7 @@ async function main() {
 
     const checkpoint = args.dryRun ? undefined : upsertBatch
 
-    const { hotels, credits, lastCheckpointSize } = await paginateDestination(baseUrl, urlContext, args.maxPages, args.waitMs, checkpoint)
+    const { hotels, credits, lastCheckpointSize } = await paginateDestination(baseUrl, urlContext, args.maxPages, args.waitMs, checkpoint, args.stealth)
     totalCredits += credits
     console.log(`  -> ${hotels.length} hotels, ${credits} credits`)
 
