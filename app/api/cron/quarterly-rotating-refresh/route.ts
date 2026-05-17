@@ -113,6 +113,7 @@ async function handleCron(request: Request) {
         sourceUrl: c.official_url as string,
         interactive: false,
         secondaryUrls: secondaryUrls.length > 0 ? secondaryUrls : undefined,
+        skipIfUnchanged: true,  // Cron-only: skip Sonnet if markdown matches last refresh
       })
 
       if (r.ok) {

@@ -11,6 +11,7 @@
 
 import Anthropic from '@anthropic-ai/sdk'
 import { jsonrepair } from 'jsonrepair'
+import { createHash } from 'node:crypto'
 import { fetchFirecrawl, fetchFirecrawlInteractive } from '@/utils/ai/firecrawl'
 import { logUsage } from '@/utils/ai/logUsage'
 import { createAdminClient } from '@/utils/supabase/server'
@@ -39,6 +40,7 @@ export async function extractCardBenefits({
   interactive = false,
   manualMarkdown,
   secondaryUrls,
+  skipIfUnchanged = false,
 }: {
   cardId: string
   cardName: string
@@ -52,6 +54,14 @@ export async function extractCardBenefits({
    * holds insurance/protection details missing from the main product page.
    */
   secondaryUrls?: string[]
+  /**
+   * Cost-reduction: when true, compute a SHA-256 of the scraped markdown
+   * and compare to the last 'saved' extraction's hash. If identical, skip
+   * the Sonnet extraction + verification calls entirely (just bump
+   * last_verified). Auto-refresh cron sets this. Manual extractions
+   * default to false so the editor always gets a fresh Sonnet pass.
+   */
+  skipIfUnchanged?: boolean
 }): Promise<ExtractionResult> {
   const supabase = createAdminClient()
 
@@ -93,6 +103,47 @@ export async function extractCardBenefits({
       error_message: 'Firecrawl returned empty markdown',
     })
     return { ok: false, error: 'Firecrawl returned no markdown for this URL' }
+  }
+
+  // Content fingerprint — skip Sonnet entirely if markdown hasn't changed
+  // since the last extraction. Saves ~$0.30 per refresh when nothing changed.
+  // Manual extractions always run because the editor explicitly clicked.
+  const markdownHash = createHash('sha256').update(markdown).digest('hex')
+  if (skipIfUnchanged) {
+    const { data: lastSavedExt } = await supabase
+      .from('credit_card_extractions')
+      .select('id, markdown_hash, extraction')
+      .eq('card_id', cardId)
+      .eq('status', 'saved')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (lastSavedExt?.markdown_hash === markdownHash) {
+      // No-op insert so the audit log shows a refresh attempt with reason
+      const { data: skipRow } = await supabase
+        .from('credit_card_extractions')
+        .insert({
+          card_id: cardId,
+          source_url: sourceUrl,
+          raw_markdown: markdown,
+          markdown_chars: markdown.length,
+          markdown_hash: markdownHash,
+          used_interactive: interactive,
+          extraction: lastSavedExt.extraction ?? {},
+          model: MODEL,
+          status: 'skipped_unchanged',
+          error_message: null,
+        })
+        .select('id')
+        .single()
+      // Bump last_verified on the card so refresh-queue treats it as fresh
+      await supabase
+        .from('credit_cards')
+        .update({ last_verified: new Date().toISOString().slice(0, 10) })
+        .eq('id', cardId)
+      console.log(`[card-extract] ${cardName} markdown unchanged (sha=${markdownHash.slice(0, 8)}) — skipped Sonnet`)
+      return { ok: true, extractionId: skipRow?.id ?? '', extraction: lastSavedExt.extraction as CardExtraction }
+    }
   }
 
   // 2. Claude Sonnet → structured JSON
@@ -252,6 +303,7 @@ export async function extractCardBenefits({
       source_url: sourceUrl,
       raw_markdown: markdown,
       markdown_chars: markdown.length,
+      markdown_hash: markdownHash,
       used_interactive: interactive,
       extraction,
       model: MODEL,
