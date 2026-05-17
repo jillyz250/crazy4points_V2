@@ -120,6 +120,41 @@ function formatDate(iso: string | null): string {
   })
 }
 
+/**
+ * Format a welcome bonus amount + currency for display.
+ *
+ * The DB stores currency as a free-form string the extractor wrote — usually
+ * 'points', 'miles', 'USD' for points/miles cards, or 'USD_cashback' for
+ * cash-back cards. For cash-back currencies, render as a $ amount with no
+ * suffix (since "$" already implies USD). For everything else, keep the
+ * "75,000 points" / "60,000 miles" formatting.
+ */
+function formatWelcomeBonus(amount: number, currency: string): {
+  short: string  // For tiles/previews: "$750" or "75,000 points"
+  amount: string  // Just the number: "$750" or "75,000"
+  unit: string  // Suffix unit: "" or "points" or "miles"
+} {
+  const lower = (currency ?? '').toLowerCase()
+  const isCashBack =
+    lower === 'usd' ||
+    lower === 'usd_cashback' ||
+    lower.includes('cash') ||
+    lower.includes('dollar') ||
+    lower === '$'
+  if (isCashBack) {
+    return {
+      short: `$${amount.toLocaleString()}`,
+      amount: `$${amount.toLocaleString()}`,
+      unit: '',
+    }
+  }
+  return {
+    short: `${amount.toLocaleString()} ${currency}`,
+    amount: amount.toLocaleString(),
+    unit: currency,
+  }
+}
+
 function groupBenefits(benefits: CreditCardBenefit[]): Map<string, CreditCardBenefit[]> {
   const groups = new Map<string, CreditCardBenefit[]>()
   for (const b of benefits) {
@@ -219,12 +254,15 @@ export default async function CardPage({
       url: issuer.website_url ?? undefined,
     },
     offers: sub
-      ? {
-          '@type': 'Offer',
-          description: sub.spend_required_usd
-            ? `Earn ${sub.bonus_amount.toLocaleString()} ${sub.bonus_currency} after spending $${sub.spend_required_usd.toLocaleString()} in the first ${sub.spend_window_months} months.`
-            : `Earn ${sub.bonus_amount.toLocaleString()} ${sub.bonus_currency}${sub.spend_window_months ? ` within the first ${sub.spend_window_months} months` : ''}.${sub.extras ? ' ' + sub.extras : ''}`,
-        }
+      ? (() => {
+          const wb = formatWelcomeBonus(sub.bonus_amount, sub.bonus_currency)
+          return {
+            '@type': 'Offer',
+            description: sub.spend_required_usd
+              ? `Earn ${wb.short} after spending $${sub.spend_required_usd.toLocaleString()} in the first ${sub.spend_window_months} months.`
+              : `Earn ${wb.short}${sub.spend_window_months ? ` within the first ${sub.spend_window_months} months` : ''}.${sub.extras ? ' ' + sub.extras : ''}`,
+          }
+        })()
       : undefined,
   }
 
@@ -292,14 +330,18 @@ export default async function CardPage({
             <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)' }}>Annual fee</div>
             <div style={{ fontSize: '1.5rem', fontWeight: 600 }}>${card.annual_fee_usd ?? '—'}</div>
           </div>
-          {sub && (
-            <div>
-              <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)' }}>Welcome bonus</div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 600 }}>
-                {sub.bonus_amount.toLocaleString()} <span style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>{sub.bonus_currency}</span>
+          {sub && (() => {
+            const wb = formatWelcomeBonus(sub.bonus_amount, sub.bonus_currency)
+            return (
+              <div>
+                <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)' }}>Welcome bonus</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 600 }}>
+                  {wb.amount}
+                  {wb.unit && <span style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}> {wb.unit}</span>}
+                </div>
               </div>
-            </div>
-          )}
+            )
+          })()}
           <div>
             <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)' }}>Foreign txn fee</div>
             <div style={{ fontSize: '1.5rem', fontWeight: 600 }}>
@@ -504,9 +546,10 @@ export default async function CardPage({
             spend_required_usd is null and the trigger lives in `extras`. */}
       {sub && (() => {
         const hasSpendReq = typeof sub.spend_required_usd === 'number' && sub.spend_required_usd > 0
+        const wb = formatWelcomeBonus(sub.bonus_amount, sub.bonus_currency)
         const preview = hasSpendReq
-          ? `${sub.bonus_amount.toLocaleString()} ${sub.bonus_currency} · $${sub.spend_required_usd!.toLocaleString()} spend in ${sub.spend_window_months}mo`
-          : `${sub.bonus_amount.toLocaleString()} ${sub.bonus_currency}${sub.spend_window_months ? ` · within ${sub.spend_window_months}mo` : ''} · no min spend`
+          ? `${wb.short} · $${sub.spend_required_usd!.toLocaleString()} spend in ${sub.spend_window_months}mo`
+          : `${wb.short}${sub.spend_window_months ? ` · within ${sub.spend_window_months}mo` : ''} · no min spend`
         const description = hasSpendReq
           ? 'What you get for signing up and hitting the minimum spend.'
           : 'What you get for signing up — no minimum spend required.'
@@ -519,13 +562,13 @@ export default async function CardPage({
           >
             {hasSpendReq ? (
               <p style={{ marginBottom: '0.5rem' }}>
-                <strong>{sub.bonus_amount.toLocaleString()} {sub.bonus_currency}</strong> after spending{' '}
+                <strong>{wb.short}</strong> after spending{' '}
                 <strong>${sub.spend_required_usd!.toLocaleString()}</strong> in the first{' '}
                 <strong>{sub.spend_window_months} months</strong>.
               </p>
             ) : (
               <p style={{ marginBottom: '0.5rem' }}>
-                <strong>{sub.bonus_amount.toLocaleString()} {sub.bonus_currency}</strong>
+                <strong>{wb.short}</strong>
                 {sub.spend_window_months ? <> within the first <strong>{sub.spend_window_months} months</strong></> : null}
                 . No minimum spend required.
               </p>
@@ -628,9 +671,9 @@ export default async function CardPage({
       {!card.points_transferable_to_partners && siblingCards.length > 0 && currency_program ? (
         <SimpleTile
           title="Unlock transfers"
-          description={`This card's points become transferable when combined with a sibling card that supports direct transfers.`}
-          cta="See how"
-          preview={`Pair with ${siblingCards.length} card${siblingCards.length === 1 ? '' : 's'} to unlock partners`}
+          description={`Pair this card with a travel card in the ${currency_program.name} family to unlock transfers to airline + hotel partners.`}
+          cta="See your unlock cards"
+          preview={`Pair with a travel card to unlock partners`}
         >
           <div
             style={{
@@ -642,22 +685,29 @@ export default async function CardPage({
               fontSize: '0.9375rem',
             }}
           >
-            <strong>💡 Unlock airline + hotel transfers:</strong> Points earned on this card
-            cannot transfer directly to airline or hotel partners. Move them into a{' '}
-            {siblingCards.map((s, i) => (
-              <span key={s.slug}>
-                <Link href={`/cards/${s.slug}`} style={{ color: 'var(--color-primary)' }}>
-                  {s.name}
-                </Link>
-                {i < siblingCards.length - 2 ? ', ' : i === siblingCards.length - 2 ? (siblingCards.length === 2 ? ' or ' : ', or ') : ''}
-              </span>
-            ))}{' '}
-            account to access the full {currency_program.name} partner network.
+            <p style={{ marginBottom: '0.75rem' }}>
+              <strong>💡 Pair with another travel card to unlock transfer partners.</strong>{' '}
+              Points earned on this card become transferable to airline + hotel partners
+              when you combine them into one of these {currency_program.name} travel cards:
+            </p>
+            <ul style={{ margin: '0 0 0.75rem 0', paddingLeft: '1.25rem' }}>
+              {siblingCards.map((s) => (
+                <li key={s.slug} style={{ marginBottom: '0.25rem' }}>
+                  <Link href={`/cards/${s.slug}`} style={{ color: 'var(--color-primary)', fontWeight: 500 }}>
+                    {s.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', margin: 0 }}>
+              You can combine across your own personal + business cards from the same issuer (Chase
+              allows household-member pooling too with a one-time setup; Citi keeps it to your own
+              cards only). Check your issuer&apos;s rules for details.
+            </p>
           </div>
           <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
-            Without one of the sibling cards above, points on this card redeem at fixed
-            cash-back / portal value only — they cannot be moved to airline or hotel
-            loyalty programs.
+            Without one of the travel cards above, points on this card redeem at fixed
+            cash-back / portal value only.
           </p>
         </SimpleTile>
       ) : null}
