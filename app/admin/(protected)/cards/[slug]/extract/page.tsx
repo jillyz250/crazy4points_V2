@@ -43,7 +43,7 @@ export default async function CardExtractPage({
     .select(`
       id, slug, name, card_type, card_tier, status,
       annual_fee_usd, foreign_transaction_fee_pct,
-      official_url,
+      official_url, guide_to_benefits_url,
       suggested_field_urls,
       intro, last_verified,
       issuer:issuers(slug, name, website_url)
@@ -262,6 +262,12 @@ export default async function CardExtractPage({
             </label>
             <RunExtractionButton />
           </div>
+          {card.guide_to_benefits_url ? (
+            <p className="font-body text-xs text-[var(--color-text-secondary)]">
+              ✓ Will also scrape <a className="text-[var(--color-primary)] underline" href={card.guide_to_benefits_url} target="_blank" rel="noreferrer">guide_to_benefits</a> — combined markdown sent to Sonnet so insurance / protection details get captured alongside the product page.
+            </p>
+          ) : null}
+
           <label className="inline-flex items-center gap-2 font-body text-sm text-[var(--color-text-secondary)]">
             <input type="checkbox" name="interactive" value="on" className="h-4 w-4 rounded border-[var(--color-border-soft)]" />
             <span>

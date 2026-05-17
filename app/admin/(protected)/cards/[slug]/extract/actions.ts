@@ -27,7 +27,7 @@ export async function runExtractionAndSave(formData: FormData): Promise<void> {
   const supabase = createAdminClient()
   const { data: card, error } = await supabase
     .from('credit_cards')
-    .select('id, name, official_url')
+    .select('id, name, official_url, guide_to_benefits_url')
     .eq('slug', slug)
     .single()
 
@@ -46,13 +46,15 @@ export async function runExtractionAndSave(formData: FormData): Promise<void> {
       .eq('id', card.id)
   }
 
-  // 1. Extract
+  // 1. Extract — scrape both official + guide (if present) for comprehensive coverage
+  const secondaryUrls = card.guide_to_benefits_url ? [card.guide_to_benefits_url as string] : undefined
   const extractionResult = await extractCardBenefits({
     cardId: card.id,
     cardName: card.name,
     sourceUrl,
     interactive,
     manualMarkdown,
+    secondaryUrls,
   })
 
   if (!extractionResult.ok) {
@@ -301,11 +303,12 @@ export async function applyDiscoveredCardUrls(formData: FormData): Promise<void>
   const suggestions = (card.suggested_field_urls as Record<string, { url?: string } | null>) ?? {}
 
   // Apply source_url to credit_cards.official_url
-  if (suggestions.source_url?.url) {
-    await supabase
-      .from('credit_cards')
-      .update({ official_url: suggestions.source_url.url })
-      .eq('id', card.id)
+  // AND guide_to_benefits_url so the next extraction scrapes both.
+  const cardUpdate: Record<string, string | null> = {}
+  if (suggestions.source_url?.url) cardUpdate.official_url = suggestions.source_url.url
+  if (suggestions.guide_to_benefits_url?.url) cardUpdate.guide_to_benefits_url = suggestions.guide_to_benefits_url.url
+  if (Object.keys(cardUpdate).length > 0) {
+    await supabase.from('credit_cards').update(cardUpdate).eq('id', card.id)
   }
 
   // Auto-register Scout sources for promo + newsroom
