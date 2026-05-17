@@ -33,9 +33,13 @@ update credit_card_benefits
         or name = 'DoorDash Non-Restaurant Order Credit'
         or name = 'DashPass $10/Month Grocery & Retail Credit');
 
--- 3. Removed: the "Points Boost" insert that was here previously came from
---    a WebSearch summary of frequent-miler / nerdwallet articles, not from
---    a Chase-authoritative URL. Per the data-source policy in
+-- 3. Removed: the "25% travel uplift" / "Points Boost" inserts that were
+--    here in previous commits both came from third-party sources (Copilot
+--    audit + WebSearch summary of frequent-miler/nerdwallet articles), not
+--    from Chase-authoritative URLs. Per the data-source policy in
 --    plans/card-data-source-policy.md, third-party sources are not
---    acceptable for card facts. If Points Boost should be on the page,
---    re-add it via an extraction that scrapes a Chase URL describing it.
+--    acceptable for card facts. The flat 25% uplift was ALSO removed by
+--    Chase in 2025 and replaced with Points Boost — so even if it had been
+--    Chase-sourced, the legacy data would have been stale. To add the
+--    current redemption mechanic to this card, re-run extraction against
+--    a Chase URL that describes Points Boost.
