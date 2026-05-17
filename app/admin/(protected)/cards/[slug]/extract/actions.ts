@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/utils/supabase/server'
 import { extractCardBenefits } from '@/utils/cards/extractCardBenefits'
 import { saveExtractedBenefits } from '@/utils/cards/saveExtractedBenefits'
+import { discoverCardSourceUrl } from '@/utils/cards/discoverCardSourceUrl'
 import type { CardExtraction } from '@/utils/cards/cardExtractionSchema'
 
 /**
@@ -231,4 +232,115 @@ export async function saveManualWelcomeBonus(formData: FormData): Promise<void> 
 
   revalidatePath(`/cards/${slug}`)
   revalidatePath(`/admin/cards/${slug}/extract`)
+}
+
+/**
+ * Discover the issuer URLs for a card via Firecrawl /map + Sonnet.
+ * Persists suggestions to credit_cards.suggested_field_urls so the
+ * extract page UI can show them with an "Apply" button.
+ */
+export async function discoverCardUrlsAction(formData: FormData): Promise<void> {
+  const slug = String(formData.get('slug') ?? '').trim()
+  const startingUrl = String(formData.get('starting_url') ?? '').trim()
+
+  if (!slug || !startingUrl) {
+    console.error('[card-discover] missing slug or starting URL')
+    return
+  }
+
+  const supabase = createAdminClient()
+  const { data: card } = await supabase
+    .from('credit_cards')
+    .select('id, name, issuer:issuers(name)')
+    .eq('slug', slug)
+    .single()
+
+  if (!card) {
+    console.error(`[card-discover] card not found: ${slug}`)
+    return
+  }
+
+  const issuerName = Array.isArray(card.issuer)
+    ? (card.issuer[0] as { name?: string } | undefined)?.name ?? ''
+    : (card.issuer as { name?: string } | null)?.name ?? ''
+
+  const result = await discoverCardSourceUrl({
+    cardId: card.id,
+    cardName: card.name,
+    issuerName,
+    startingUrl,
+  })
+
+  if (!result.ok) {
+    console.error(`[card-discover] failed: ${result.error}`)
+  }
+
+  revalidatePath(`/admin/cards/${slug}/extract`)
+}
+
+/**
+ * Apply Sonnet's discovered source_url to credit_cards.official_url so the
+ * extract form pre-fills it. Plus auto-register any promo / newsroom
+ * suggestions to the sources table for the alerts pipeline.
+ */
+export async function applyDiscoveredCardUrls(formData: FormData): Promise<void> {
+  const slug = String(formData.get('slug') ?? '').trim()
+  if (!slug) return
+
+  const supabase = createAdminClient()
+  const { data: card } = await supabase
+    .from('credit_cards')
+    .select('id, name, suggested_field_urls')
+    .eq('slug', slug)
+    .single()
+
+  if (!card) return
+
+  const suggestions = (card.suggested_field_urls as Record<string, { url?: string } | null>) ?? {}
+
+  // Apply source_url to credit_cards.official_url
+  if (suggestions.source_url?.url) {
+    await supabase
+      .from('credit_cards')
+      .update({ official_url: suggestions.source_url.url })
+      .eq('id', card.id)
+  }
+
+  // Auto-register Scout sources for promo + newsroom
+  for (const kind of ['promo_source', 'newsroom_source'] as const) {
+    const url = suggestions[kind]?.url
+    if (!url) continue
+    const name = kind === 'promo_source'
+      ? `${card.name} — Current Offers`
+      : `${card.name} — Newsroom`
+    const notes = kind === 'promo_source'
+      ? `Auto-registered from /admin/cards/${slug}/extract discovery. Time-sensitive issuer promos.`
+      : `Auto-registered from /admin/cards/${slug}/extract discovery. Press releases / announcements.`
+    // Idempotent select-then-insert/update
+    const { data: existing } = await supabase
+      .from('sources')
+      .select('id')
+      .eq('url', url)
+      .maybeSingle()
+    if (existing) {
+      await supabase
+        .from('sources')
+        .update({ name, is_active: true, scrape_frequency: 'daily', notes })
+        .eq('id', existing.id)
+    } else {
+      await supabase.from('sources').insert({
+        name,
+        url,
+        type: 'official_partner',
+        tier: 1,
+        is_active: true,
+        use_firecrawl: true,
+        scrape_frequency: 'daily',
+        notes,
+      })
+    }
+  }
+
+  revalidatePath(`/admin/cards/${slug}/extract`)
+  revalidatePath('/admin/sources')
 }
