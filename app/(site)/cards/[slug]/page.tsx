@@ -6,6 +6,7 @@ import { getCardDetailBySlug } from '@/utils/supabase/queries'
 import type { CreditCardBenefit, TransferPartnerRow } from '@/utils/supabase/queries'
 import TransferPartnersTable from '@/components/programs/TransferPartnersTable'
 import RotatingCategoriesBanner from '@/components/cards/RotatingCategoriesBanner'
+import SimpleTile from '@/components/programs/SimpleTile'
 
 // Card editorial; stable after publish.
 export const revalidate = 3600
@@ -475,10 +476,17 @@ export default async function CardPage({
         </section>
       )}
 
-      {/* Welcome bonus details */}
+      {/* Tile grid — each major section becomes a clickable, expandable block */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(20rem, 1fr))', gap: '1rem', marginBottom: '2.5rem' }}>
+
+      {/* Welcome bonus tile */}
       {sub && (
-        <section id="welcome-bonus" style={{ marginBottom: '2.5rem', scrollMarginTop: '2rem' }}>
-          <h2>Welcome bonus details</h2>
+        <SimpleTile
+          title="Welcome bonus"
+          description="What you get for signing up and hitting the minimum spend."
+          cta="See the offer"
+          preview={`${sub.bonus_amount.toLocaleString()} ${sub.bonus_currency} · $${sub.spend_required_usd.toLocaleString()} spend in ${sub.spend_window_months}mo`}
+        >
           <p style={{ marginBottom: '0.5rem' }}>
             <strong>{sub.bonus_amount.toLocaleString()} {sub.bonus_currency}</strong> after spending{' '}
             <strong>${sub.spend_required_usd.toLocaleString()}</strong> in the first{' '}
@@ -492,7 +500,7 @@ export default async function CardPage({
               {sub.notes}
             </p>
           )}
-        </section>
+        </SimpleTile>
       )}
 
       {/* Earn rates — Channel column only renders when 2+ rows have non-default values
@@ -501,9 +509,14 @@ export default async function CardPage({
       {earn_rates.length > 0 && (() => {
         const channelRows = earn_rates.filter((r) => r.booking_channel && r.booking_channel !== 'any').length
         const showChannel = channelRows >= 2
+        const maxMultiplier = Math.max(...earn_rates.map((r) => Number(r.multiplier)))
         return (
-        <section id="earn-rates" style={{ marginBottom: '2.5rem', scrollMarginTop: '2rem' }}>
-          <h2>Earn rates</h2>
+        <SimpleTile
+          title="Earn rates"
+          description="How many points per dollar across categories."
+          cta="See the multipliers"
+          preview={`${earn_rates.length} categor${earn_rates.length === 1 ? 'y' : 'ies'} · top rate ${maxMultiplier}x`}
+        >
           <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', marginBottom: '0.75rem' }}>
             Card-level multipliers. {currency_program && (
               <>Earn currency: <Link href={`/programs/${currency_program.slug}`} style={{ color: 'var(--color-primary)' }}>{currency_program.name}</Link>.</>
@@ -537,7 +550,7 @@ export default async function CardPage({
               ))}
             </tbody>
           </table>
-        </section>
+        </SimpleTile>
         )
       })()}
 
@@ -547,8 +560,12 @@ export default async function CardPage({
           chase-ultimate-rewards and is joined here. Skips render when the card's
           currency doesn't transfer to partners (co-brands, BofA Premium Rewards, etc.). */}
       {transferPartners.length > 0 && currency_program ? (
-        <section id="transfer-partners" style={{ marginBottom: '2.5rem', scrollMarginTop: '2rem' }}>
-          <h2>Transfer to airline & hotel partners</h2>
+        <SimpleTile
+          title="Transfer partners"
+          description={`Where you can move your ${currency_program.name} to airline + hotel programs.`}
+          cta="Meet the partners"
+          preview={`${transferPartners.length} partner${transferPartners.length === 1 ? '' : 's'}${transferPartners.some((p) => p.bonus_active) ? ' · 🎁 bonus active' : ''}`}
+        >
           <p style={{ marginTop: '0.25rem', marginBottom: '1rem', color: 'var(--color-text-secondary)', fontSize: '0.9375rem' }}>
             Points earned with this card transfer to {transferPartners.length} partner program
             {transferPartners.length === 1 ? '' : 's'} via{' '}
@@ -558,40 +575,63 @@ export default async function CardPage({
             {transferPartners.some((p) => p.bonus_active) ? ' — bonuses live now flagged below.' : '.'}
           </p>
           <TransferPartnersTable rows={transferPartners} programNameBySlug={programNameBySlug} />
-        </section>
+        </SimpleTile>
       ) : null}
 
-      {/* Benefits, grouped by category */}
-      {orderedCategories.map((cat) => (
-        <section key={cat} id={`benefit-${cat}`} style={{ marginBottom: '2rem', scrollMarginTop: '2rem' }}>
-          <h2>{BENEFIT_CATEGORY_LABELS[cat] ?? cat.replace(/_/g, ' ')}</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {(benefitGroups.get(cat) ?? []).map((b) => (
-              <div
-                key={b.id}
-                style={{
-                  border: '1px solid var(--color-border-soft)',
-                  borderRadius: 'var(--radius-card)',
-                  padding: '1rem 1.25rem',
-                  background: 'var(--color-background)',
-                }}
-              >
-                <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>{b.name}</div>
-                {b.description && (
-                  <div style={{ fontSize: '0.9375rem', lineHeight: 1.55, color: 'var(--color-text-primary)' }}>
-                    {b.description}
-                  </div>
-                )}
-                {b.spend_threshold_usd && Number(b.spend_threshold_usd) > 0 && (
-                  <div style={{ marginTop: '0.5rem', fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
-                    Unlocks at ${Number(b.spend_threshold_usd).toLocaleString()} spend
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </section>
-      ))}
+      {/* Benefits, grouped by category — each category becomes its own tile */}
+      {orderedCategories.map((cat) => {
+        const benefitsInCat = benefitGroups.get(cat) ?? []
+        if (benefitsInCat.length === 0) return null
+        const label = BENEFIT_CATEGORY_LABELS[cat] ?? cat.replace(/_/g, ' ')
+        return (
+          <SimpleTile
+            key={cat}
+            title={label}
+            description={
+              cat === 'insurance' ? 'Trip protection, rental car coverage, baggage, accident coverage.'
+              : cat === 'statement_credit' ? 'Recurring $-back credits and partner perks.'
+              : cat === 'travel_credit' ? 'Annual travel-spend credits and portal incentives.'
+              : cat === 'protection' ? 'Purchase, extended warranty, cell phone, and fraud protections.'
+              : cat === 'lounge_access' ? 'Airport lounge access conferred by this card.'
+              : cat === 'free_night' ? 'Annual free night certificates and similar.'
+              : cat === 'status_conferred' ? 'Hotel / airline / partner status this card grants.'
+              : cat === 'spend_unlock' ? 'Perks that unlock at spending milestones.'
+              : cat === 'portal_redemption' ? 'Boosted point value when redeeming via the issuer portal.'
+              : cat === 'transfer_partner_unlock' ? 'Partners this card unlocks for point transfer.'
+              : 'Other perks on this card.'
+            }
+            cta="See the details"
+            preview={`${benefitsInCat.length} benefit${benefitsInCat.length === 1 ? '' : 's'}`}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {benefitsInCat.map((b) => (
+                <div
+                  key={b.id}
+                  style={{
+                    border: '1px solid var(--color-border-soft)',
+                    borderRadius: 'var(--radius-card)',
+                    padding: '1rem 1.25rem',
+                    background: 'var(--color-background)',
+                  }}
+                >
+                  <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>{b.name}</div>
+                  {b.description && (
+                    <div style={{ fontSize: '0.9375rem', lineHeight: 1.55, color: 'var(--color-text-primary)' }}>
+                      {b.description}
+                    </div>
+                  )}
+                  {b.spend_threshold_usd && Number(b.spend_threshold_usd) > 0 && (
+                    <div style={{ marginTop: '0.5rem', fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
+                      Unlocks at ${Number(b.spend_threshold_usd).toLocaleString()} spend
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </SimpleTile>
+        )
+      })}
+      </div>{/* end tile grid */}
 
       {/* Footer / verification */}
       <footer
