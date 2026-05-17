@@ -17,7 +17,7 @@ insert into experience_programs (slug, name, official_url, description, category
 ('amex-experiences', 'American Express Experiences',
  'https://www.americanexpress.com/us/entertainment/',
  'Amex''s entertainment portal — presales, preferred seating on concerts, sports, and Broadway. Available to U.S. Amex cardholders.',
- 'issuer_wide', 'american-express', current_date),
+ 'issuer_wide', 'amex', current_date),
 
 ('citi-entertainment', 'Citi Entertainment',
  'https://www.citientertainment.com/',
@@ -83,12 +83,12 @@ insert into experience_programs (slug, name, official_url, description, category
 ('amex-by-invitation-only', 'By Invitation Only',
  'https://www.americanexpress.com/us/benefits/events/by-invitation-only/',
  'Amex ultra-premium curated events portal: exclusive sports, fashion, cultural, and travel events. Available to Platinum, Business Platinum, and Centurion cardholders only.',
- 'card_specific', 'american-express', current_date),
+ 'card_specific', 'amex', current_date),
 
 ('amex-resy-global-dining-access', 'Global Dining Access by Resy',
  'https://www.resy.com/amex',
  'Amex × Resy partnership: priority reservations at sought-after restaurants and exclusive dining events. Available to Platinum, Business Platinum, and Centurion cardholders only.',
- 'card_specific', 'american-express', current_date),
+ 'card_specific', 'amex', current_date),
 
 ('capital-one-dining', 'Capital One Dining',
  'https://www.capitalone.com/dining/',
