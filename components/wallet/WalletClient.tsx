@@ -86,9 +86,17 @@ export default function WalletClient({ bundle }: Props) {
   }, [myBenefits])
 
   // Which period each section is "looking at"
-  const [activeMonthKey, setActiveMonthKey] = useState<string>(months[0].key)
-  const [activeQuarterKey, setActiveQuarterKey] = useState<string>(quarters[0].key)
-  const [activeHalfKey, setActiveHalfKey] = useState<string>(halves[0].key)
+  // Slots now span full current year + next year (so past months are clickable
+  // for backfill). Default active pill = the CURRENT period, not the first slot.
+  const [activeMonthKey, setActiveMonthKey] = useState<string>(
+    () => months.find((m) => m.isCurrent)?.key ?? months[0].key,
+  )
+  const [activeQuarterKey, setActiveQuarterKey] = useState<string>(
+    () => quarters.find((q) => q.isCurrent)?.key ?? quarters[0].key,
+  )
+  const [activeHalfKey, setActiveHalfKey] = useState<string>(
+    () => halves.find((h) => h.isCurrent)?.key ?? halves[0].key,
+  )
 
   if (!hydrated) {
     return (
@@ -698,6 +706,26 @@ function PeriodicSection({
       >
         {periods.map((p) => {
           const isActive = p.key === activeKey
+          // Visual treatment:
+          //  - active: filled purple
+          //  - current period (not active): outlined purple
+          //  - past period: muted gray (clickable for backfill)
+          //  - future period: subtle white
+          const bg = isActive
+            ? 'var(--color-primary)'
+            : p.isPast
+              ? 'var(--color-background-soft)'
+              : 'white'
+          const fg = isActive
+            ? 'white'
+            : p.isPast
+              ? 'var(--color-text-secondary)'
+              : 'var(--color-text-primary)'
+          const border = isActive
+            ? 'var(--color-primary)'
+            : p.isCurrent
+              ? 'var(--color-primary)'
+              : 'var(--color-border-soft)'
           return (
             <button
               key={p.key}
@@ -705,19 +733,21 @@ function PeriodicSection({
               style={{
                 padding: '0.4rem 0.85rem',
                 borderRadius: '999px',
-                border: `1px solid ${isActive ? 'var(--color-primary)' : 'var(--color-border-soft)'}`,
-                background: isActive ? 'var(--color-primary)' : 'white',
-                color: isActive ? 'white' : 'var(--color-text-primary)',
+                border: `1px solid ${border}`,
+                background: bg,
+                color: fg,
                 fontFamily: 'var(--font-ui)',
                 fontSize: '0.8125rem',
-                fontWeight: isActive ? 600 : 500,
+                fontWeight: isActive || p.isCurrent ? 600 : 500,
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
                 position: 'relative',
+                opacity: p.isPast && !isActive ? 0.7 : 1,
               }}
+              title={p.isPast ? `${p.label} — backfill past uses here` : p.label}
             >
               {p.shortLabel}
-              {p.isCurrent && (
+              {p.isCurrent && !isActive && (
                 <span
                   style={{
                     marginLeft: '0.4rem',
@@ -732,6 +762,19 @@ function PeriodicSection({
                   }}
                 >
                   Now
+                </span>
+              )}
+              {p.isPast && !isActive && (
+                <span
+                  style={{
+                    marginLeft: '0.35rem',
+                    fontSize: '0.55rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.08em',
+                    opacity: 0.7,
+                  }}
+                >
+                  past
                 </span>
               )}
             </button>

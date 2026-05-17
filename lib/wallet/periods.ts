@@ -83,59 +83,83 @@ function endOfYear(d: Date): Date {
   return new Date(d.getFullYear(), 11, 31, 23, 59, 59, 999)
 }
 
-/** 12 monthly slots starting from current month. */
+/**
+ * Slot generators now show the FULL current calendar year plus the next year
+ * so the user can backfill past months for retroactive tracking. The user is
+ * starting in May — Jan-Apr Uber Cash, Q1 StubHub, etc. need to be logged for
+ * the wallet to show accurate captured/lost stats.
+ *
+ * Past slots are flagged isPast so the UI can mute them; clicking them still
+ * works (logging a past use is the whole point of going back).
+ */
+
+/** Jan of current year through Dec of next year — 24 monthly slots. */
 export function monthlySlots(today: Date): PeriodSlot[] {
   const out: PeriodSlot[] = []
-  for (let i = 0; i < 12; i++) {
-    const d = new Date(today.getFullYear(), today.getMonth() + i, 1)
+  const startYear = today.getFullYear()
+  for (let i = 0; i < 24; i++) {
+    const d = new Date(startYear, i, 1)
+    const end = endOfMonth(d)
+    const isCurrent = d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear()
+    const yearSuffix = d.getFullYear() === today.getFullYear() ? '' : ` '${String(d.getFullYear()).slice(-2)}`
     out.push({
       key: periodKeyFor('monthly', d)!,
       label: `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`,
-      shortLabel: MONTH_SHORT[d.getMonth()],
+      shortLabel: `${MONTH_SHORT[d.getMonth()]}${yearSuffix}`,
       start: startOfMonth(d),
-      end: endOfMonth(d),
-      isCurrent: i === 0,
-      isPast: false,
+      end,
+      isCurrent,
+      isPast: end < today && !isCurrent,
     })
   }
   return out
 }
 
-/** 4 quarterly slots covering the next 12 months. */
+/** Q1-Q4 of current year + Q1-Q4 of next year (8 slots). */
 export function quarterlySlots(today: Date): PeriodSlot[] {
   const out: PeriodSlot[] = []
-  const start = startOfQuarter(today)
-  for (let i = 0; i < 4; i++) {
-    const d = new Date(start.getFullYear(), start.getMonth() + i * 3, 1)
-    const q = Math.floor(d.getMonth() / 3) + 1
+  const startYear = today.getFullYear()
+  const todayQ = Math.floor(today.getMonth() / 3)
+  for (let i = 0; i < 8; i++) {
+    const yr = startYear + Math.floor(i / 4)
+    const qIdx = i % 4
+    const d = new Date(yr, qIdx * 3, 1)
+    const end = endOfQuarter(d)
+    const q = qIdx + 1
+    const isCurrent = qIdx === todayQ && yr === today.getFullYear()
     out.push({
       key: periodKeyFor('quarterly', d)!,
-      label: `Q${q} ${d.getFullYear()}`,
-      shortLabel: `Q${q}`,
+      label: `Q${q} ${yr}`,
+      shortLabel: `Q${q}${yr === today.getFullYear() ? '' : ` '${String(yr).slice(-2)}`}`,
       start: startOfQuarter(d),
-      end: endOfQuarter(d),
-      isCurrent: i === 0,
-      isPast: false,
+      end,
+      isCurrent,
+      isPast: end < today && !isCurrent,
     })
   }
   return out
 }
 
-/** 2 semi-annual slots (H1 + H2) covering the next 12 months. */
+/** H1 + H2 of current year + next year (4 slots). */
 export function semiAnnualSlots(today: Date): PeriodSlot[] {
   const out: PeriodSlot[] = []
-  const start = startOfHalf(today)
-  for (let i = 0; i < 2; i++) {
-    const d = new Date(start.getFullYear(), start.getMonth() + i * 6, 1)
-    const h = d.getMonth() < 6 ? 1 : 2
+  const startYear = today.getFullYear()
+  const todayH = today.getMonth() < 6 ? 0 : 1
+  for (let i = 0; i < 4; i++) {
+    const yr = startYear + Math.floor(i / 2)
+    const hIdx = i % 2
+    const d = new Date(yr, hIdx * 6, 1)
+    const end = endOfHalf(d)
+    const h = hIdx + 1
+    const isCurrent = hIdx === todayH && yr === today.getFullYear()
     out.push({
       key: periodKeyFor('semi_annual', d)!,
-      label: `H${h} ${d.getFullYear()}`,
-      shortLabel: `H${h}`,
+      label: `H${h} ${yr}`,
+      shortLabel: `H${h}${yr === today.getFullYear() ? '' : ` '${String(yr).slice(-2)}`}`,
       start: startOfHalf(d),
-      end: endOfHalf(d),
-      isCurrent: i === 0,
-      isPast: false,
+      end,
+      isCurrent,
+      isPast: end < today && !isCurrent,
     })
   }
   return out
