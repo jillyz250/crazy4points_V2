@@ -1,11 +1,11 @@
 /**
  * Public-card-page banner that surfaces the CURRENT QUARTER's 5% rotating
- * categories prominently. Only renders when the card has a rotating_quarterly
- * earn rate row in credit_card_earn_rates.
+ * categories prominently AT THE TOP of the page. Only renders when the card
+ * has a rotating_quarterly earn rate row in credit_card_earn_rates.
  *
- * Computes which quarter is current from today's date, looks up that
- * quarter's parsed categories, and shows them with the activation deadline.
- * If the activation deadline is within 30 days, the deadline shows in red.
+ * Visual treatment: gold-on-purple gradient + animated "LIVE" pulse to grab
+ * attention. Designed to feel like a "live promo" indicator — the rotating
+ * categories ARE time-sensitive content and deserve prime placement.
  */
 
 import {
@@ -32,8 +32,6 @@ export default function RotatingCategoriesBanner({
   const parsed = parseRotatingCategories(notes)
   const currentQ = getCurrentQuarter()
   const current = parsed[currentQ]
-
-  // Nothing surfaced for this quarter — skip
   if (!current) return null
 
   const nextQ: Quarter =
@@ -46,48 +44,95 @@ export default function RotatingCategoriesBanner({
   return (
     <section
       style={{
-        margin: '0 0 1.5rem',
-        padding: '1rem 1.25rem',
-        background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
-        border: '1px solid #fbbf24',
+        margin: '0 0 2rem',
+        padding: '1.25rem 1.5rem',
+        background: 'linear-gradient(135deg, #6B2D8F 0%, #4A1F66 100%)',
         borderRadius: 'var(--radius-card)',
-        boxShadow: 'var(--shadow-soft)',
+        boxShadow: '0 4px 16px rgba(107, 45, 143, 0.25)',
+        color: '#fff',
+        position: 'relative',
+        overflow: 'hidden',
       }}
     >
+      {/* Decorative top-right gold accent */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '-30px',
+          right: '-30px',
+          width: '140px',
+          height: '140px',
+          background: 'radial-gradient(circle, rgba(212, 175, 55, 0.25) 0%, transparent 70%)',
+          pointerEvents: 'none',
+        }}
+        aria-hidden="true"
+      />
+
+      {/* LIVE pill + quarter label */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-        <span style={{ fontSize: '1.25rem' }}>🔄</span>
-        <h3
+        <span
           style={{
-            fontFamily: 'var(--font-display)',
-            fontSize: '1.125rem',
-            fontWeight: 600,
-            color: '#78350f',
-            margin: 0,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.3rem',
+            padding: '0.2rem 0.6rem',
+            borderRadius: '9999px',
+            background: '#D4AF37',
+            color: '#1A1A1A',
+            fontFamily: 'var(--font-ui)',
+            fontSize: '0.6875rem',
+            fontWeight: 800,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
           }}
         >
-          This quarter&apos;s 5% rotating categories
           <span
             style={{
-              marginLeft: '0.5rem',
-              fontFamily: 'var(--font-ui)',
-              fontSize: '0.75rem',
-              fontWeight: 500,
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              color: '#92400e',
+              display: 'inline-block',
+              width: '0.5rem',
+              height: '0.5rem',
+              background: '#dc2626',
+              borderRadius: '9999px',
+              boxShadow: '0 0 0 0 rgba(220, 38, 38, 0.7)',
+              animation: 'rcb-pulse 1.8s ease-in-out infinite',
             }}
-          >
-            {current.label} · {QUARTER_RANGE[currentQ]}
-          </span>
-        </h3>
+            aria-hidden="true"
+          />
+          Live this quarter
+        </span>
+        <span
+          style={{
+            fontFamily: 'var(--font-ui)',
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            color: 'rgba(255, 255, 255, 0.75)',
+          }}
+        >
+          {current.label} · {QUARTER_RANGE[currentQ]}
+        </span>
       </div>
+
+      <h2
+        style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: '1.5rem',
+          fontWeight: 600,
+          color: '#fff',
+          margin: '0 0 0.5rem',
+          lineHeight: 1.2,
+        }}
+      >
+        5x rotating category bonus
+      </h2>
 
       {current.comingSoon ? (
         <p
           style={{
             fontFamily: 'var(--font-body)',
             fontSize: '0.9375rem',
-            color: '#78350f',
+            color: 'rgba(255, 255, 255, 0.85)',
             margin: 0,
           }}
         >
@@ -97,56 +142,60 @@ export default function RotatingCategoriesBanner({
         <>
           <p
             style={{
-              fontFamily: 'var(--font-body)',
-              fontSize: '1rem',
+              fontFamily: 'var(--font-display)',
+              fontSize: '1.625rem',
               fontWeight: 600,
-              color: '#78350f',
+              color: '#D4AF37',
               margin: '0 0 0.5rem',
+              lineHeight: 1.25,
             }}
           >
             {current.categories.join(' · ')}
           </p>
-          {current.activateBy ? (
-            <p
-              style={{
-                fontFamily: 'var(--font-body)',
-                fontSize: '0.875rem',
-                color: '#92400e',
-                margin: 0,
-              }}
-            >
-              ⏰ Activate by <strong>{current.activateBy}</strong>. Earn 5% on up to $1,500 in combined purchases per quarter.
-            </p>
-          ) : (
-            <p
-              style={{
-                fontFamily: 'var(--font-body)',
-                fontSize: '0.875rem',
-                color: '#92400e',
-                margin: 0,
-              }}
-            >
-              Earn 5% on up to $1,500 in combined purchases per quarter. Activation required.
-            </p>
-          )}
+          <p
+            style={{
+              fontFamily: 'var(--font-body)',
+              fontSize: '0.9375rem',
+              color: 'rgba(255, 255, 255, 0.85)',
+              margin: 0,
+            }}
+          >
+            {current.activateBy ? (
+              <>
+                ⏰ <strong style={{ color: '#fff' }}>Activate by {current.activateBy}</strong>.{' '}
+              </>
+            ) : null}
+            Earn 5% on up to $1,500 in combined purchases each quarter (then 1%). Activation required.
+          </p>
         </>
       )}
 
       {next && (next.categories.length > 0 || next.comingSoon) ? (
         <p
           style={{
-            marginTop: '0.75rem',
-            paddingTop: '0.75rem',
-            borderTop: '1px solid #fbbf24',
+            marginTop: '0.875rem',
+            paddingTop: '0.875rem',
+            borderTop: '1px solid rgba(212, 175, 55, 0.3)',
             fontFamily: 'var(--font-body)',
             fontSize: '0.8125rem',
-            color: '#92400e',
+            color: 'rgba(255, 255, 255, 0.7)',
+            position: 'relative',
+            zIndex: 1,
           }}
         >
-          <strong>Next quarter ({QUARTER_RANGE[nextQ]}):</strong>{' '}
-          {next.comingSoon ? 'Coming soon' : next.categories.join(' · ')}
+          <strong style={{ color: 'rgba(212, 175, 55, 0.9)' }}>Next ({QUARTER_RANGE[nextQ]}):</strong>{' '}
+          {next.comingSoon ? 'Coming soon — Chase announces ~6 weeks ahead' : next.categories.join(' · ')}
         </p>
       ) : null}
+
+      {/* Pulse animation for the LIVE dot */}
+      <style>{`
+        @keyframes rcb-pulse {
+          0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7); }
+          70% { box-shadow: 0 0 0 6px rgba(220, 38, 38, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+        }
+      `}</style>
     </section>
   )
 }

@@ -216,6 +216,14 @@ export default async function CardPage({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
+
+      {/* Current quarter banner — at the top, attention-grabbing for rotating-category cards. */}
+      {(() => {
+        const rotatingRow = earn_rates.find((r) => r.category === 'rotating_quarterly')
+        if (!rotatingRow?.notes) return null
+        return <RotatingCategoriesBanner notes={rotatingRow.notes} cardName={card.name} />
+      })()}
+
       {/* Hero */}
       <section style={{ marginBottom: '2.5rem' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
@@ -232,20 +240,21 @@ export default async function CardPage({
           >
             {issuer.name}
           </Link>
-          {card.card_tier && (
+          {card.card_tier === 'premium' && (
             <span
               style={{
                 fontSize: '0.6875rem',
                 textTransform: 'uppercase',
                 letterSpacing: '0.06em',
-                fontWeight: 600,
-                background: 'var(--color-background-soft)',
-                color: 'var(--color-text-secondary)',
+                fontWeight: 700,
+                background: 'linear-gradient(135deg, #D4AF37 0%, #B8941F 100%)',
+                color: '#fff',
                 padding: '0.1875rem 0.5rem',
                 borderRadius: '9999px',
+                boxShadow: '0 1px 3px rgba(212, 175, 55, 0.35)',
               }}
             >
-              {card.card_tier.replace(/_/g, ' ')}
+              ✨ Luxury
             </span>
           )}
           {co_brand_program && (
@@ -485,15 +494,6 @@ export default async function CardPage({
           )}
         </section>
       )}
-
-      {/* Current quarter banner — for rotating-category cards only.
-          Picks the rotating_quarterly earn-rate notes (if any) and surfaces
-          THIS quarter's 5% categories prominently above the earn rates table. */}
-      {(() => {
-        const rotatingRow = earn_rates.find((r) => r.category === 'rotating_quarterly')
-        if (!rotatingRow?.notes) return null
-        return <RotatingCategoriesBanner notes={rotatingRow.notes} cardName={card.name} />
-      })()}
 
       {/* Earn rates — Channel column only renders when 2+ rows have non-default values
           (otherwise the column is mostly em-dashes and adds noise; the channel restriction
