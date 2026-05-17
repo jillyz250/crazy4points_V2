@@ -239,7 +239,10 @@ export async function saveExtractedBenefits({
   let newHistoricalHigh = false
 
   const wbMain = extraction.welcome_bonus?.main
-  if (wbMain?.bonus_amount && wbMain.bonus_currency && wbMain.spend_required_usd != null && wbMain.spend_window_months) {
+  // Insert if we have the basics (amount + currency + window). spend_required_usd
+  // is OPTIONAL — autopay-triggered bonuses like Freedom Rise's $25 autopay
+  // credit have no minimum-spend gate; the trigger condition lives in extras.
+  if (wbMain?.bonus_amount && wbMain.bonus_currency && wbMain.spend_window_months) {
     // Demote any existing current offer
     await supabase
       .from('credit_card_welcome_bonuses')
