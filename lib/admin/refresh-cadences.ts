@@ -9,7 +9,10 @@
  */
 
 export const REFRESH_CADENCE_DAYS = {
-  credit_card: 90,
+  // Bumped 90 → 180 in migration 291 — the static parts of a card change
+  // rarely; welcome-bonus changes (30-day cadence below) catch the fast-
+  // moving stuff. Keeps the stale-queue volume manageable.
+  credit_card: 180,
   credit_card_welcome_bonus: 30,
   issuer: 365,
   program_airline: 180,
