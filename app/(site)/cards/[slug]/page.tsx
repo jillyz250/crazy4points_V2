@@ -5,6 +5,7 @@ import { createAdminClient } from '@/utils/supabase/server'
 import { getCardDetailBySlug } from '@/utils/supabase/queries'
 import type { CreditCardBenefit, TransferPartnerRow } from '@/utils/supabase/queries'
 import TransferPartnersTable from '@/components/programs/TransferPartnersTable'
+import RotatingCategoriesBanner from '@/components/cards/RotatingCategoriesBanner'
 
 // Card editorial; stable after publish.
 export const revalidate = 3600
@@ -484,6 +485,15 @@ export default async function CardPage({
           )}
         </section>
       )}
+
+      {/* Current quarter banner — for rotating-category cards only.
+          Picks the rotating_quarterly earn-rate notes (if any) and surfaces
+          THIS quarter's 5% categories prominently above the earn rates table. */}
+      {(() => {
+        const rotatingRow = earn_rates.find((r) => r.category === 'rotating_quarterly')
+        if (!rotatingRow?.notes) return null
+        return <RotatingCategoriesBanner notes={rotatingRow.notes} cardName={card.name} />
+      })()}
 
       {/* Earn rates — Channel column only renders when 2+ rows have non-default values
           (otherwise the column is mostly em-dashes and adds noise; the channel restriction
