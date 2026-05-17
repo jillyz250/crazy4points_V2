@@ -206,7 +206,9 @@ export default async function CardPage({
     offers: sub
       ? {
           '@type': 'Offer',
-          description: `Earn ${sub.bonus_amount.toLocaleString()} ${sub.bonus_currency} after spending $${sub.spend_required_usd.toLocaleString()} in the first ${sub.spend_window_months} months.`,
+          description: sub.spend_required_usd
+            ? `Earn ${sub.bonus_amount.toLocaleString()} ${sub.bonus_currency} after spending $${sub.spend_required_usd.toLocaleString()} in the first ${sub.spend_window_months} months.`
+            : `Earn ${sub.bonus_amount.toLocaleString()} ${sub.bonus_currency}${sub.spend_window_months ? ` within the first ${sub.spend_window_months} months` : ''}.${sub.extras ? ' ' + sub.extras : ''}`,
         }
       : undefined,
   }
@@ -479,29 +481,51 @@ export default async function CardPage({
       {/* Tile grid — each major section becomes a clickable, expandable block */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(20rem, 1fr))', gap: '1rem', marginBottom: '2.5rem' }}>
 
-      {/* Welcome bonus tile */}
-      {sub && (
-        <SimpleTile
-          title="Welcome bonus"
-          description="What you get for signing up and hitting the minimum spend."
-          cta="See the offer"
-          preview={`${sub.bonus_amount.toLocaleString()} ${sub.bonus_currency} · $${sub.spend_required_usd.toLocaleString()} spend in ${sub.spend_window_months}mo`}
-        >
-          <p style={{ marginBottom: '0.5rem' }}>
-            <strong>{sub.bonus_amount.toLocaleString()} {sub.bonus_currency}</strong> after spending{' '}
-            <strong>${sub.spend_required_usd.toLocaleString()}</strong> in the first{' '}
-            <strong>{sub.spend_window_months} months</strong>.
-          </p>
-          {sub.extras && (
-            <p style={{ color: 'var(--color-text-secondary)' }}>{sub.extras}</p>
-          )}
-          {sub.notes && (
-            <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', marginTop: '0.75rem' }}>
-              {sub.notes}
-            </p>
-          )}
-        </SimpleTile>
-      )}
+      {/* Welcome bonus tile.
+          Two render modes:
+          - Traditional spend bonus (most cards): "X points after spending $Y in Zmo"
+          - Trigger-action bonus (Freedom Rise, some starter cards): no minimum spend —
+            bonus posts after autopay enrollment / first purchase / similar. In that case
+            spend_required_usd is null and the trigger lives in `extras`. */}
+      {sub && (() => {
+        const hasSpendReq = typeof sub.spend_required_usd === 'number' && sub.spend_required_usd > 0
+        const preview = hasSpendReq
+          ? `${sub.bonus_amount.toLocaleString()} ${sub.bonus_currency} · $${sub.spend_required_usd!.toLocaleString()} spend in ${sub.spend_window_months}mo`
+          : `${sub.bonus_amount.toLocaleString()} ${sub.bonus_currency}${sub.spend_window_months ? ` · within ${sub.spend_window_months}mo` : ''} · no min spend`
+        const description = hasSpendReq
+          ? 'What you get for signing up and hitting the minimum spend.'
+          : 'What you get for signing up — no minimum spend required.'
+        return (
+          <SimpleTile
+            title="Welcome bonus"
+            description={description}
+            cta="See the offer"
+            preview={preview}
+          >
+            {hasSpendReq ? (
+              <p style={{ marginBottom: '0.5rem' }}>
+                <strong>{sub.bonus_amount.toLocaleString()} {sub.bonus_currency}</strong> after spending{' '}
+                <strong>${sub.spend_required_usd!.toLocaleString()}</strong> in the first{' '}
+                <strong>{sub.spend_window_months} months</strong>.
+              </p>
+            ) : (
+              <p style={{ marginBottom: '0.5rem' }}>
+                <strong>{sub.bonus_amount.toLocaleString()} {sub.bonus_currency}</strong>
+                {sub.spend_window_months ? <> within the first <strong>{sub.spend_window_months} months</strong></> : null}
+                . No minimum spend required.
+              </p>
+            )}
+            {sub.extras && (
+              <p style={{ color: 'var(--color-text-secondary)' }}>{sub.extras}</p>
+            )}
+            {sub.notes && (
+              <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', marginTop: '0.75rem' }}>
+                {sub.notes}
+              </p>
+            )}
+          </SimpleTile>
+        )
+      })()}
 
       {/* Earn rates — Channel column only renders when 2+ rows have non-default values
           (otherwise the column is mostly em-dashes and adds noise; the channel restriction
