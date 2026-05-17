@@ -20,6 +20,7 @@ import {
 } from '@/utils/cards/cardExtractionPrompt'
 import { reviewExtraction } from '@/utils/cards/reviewExtraction'
 import type { CardExtraction } from '@/utils/cards/cardExtractionSchema'
+import { verifyCardExtraction } from '@/utils/cards/verifyCardExtraction'
 
 const MODEL = 'claude-sonnet-4-6'
 
@@ -222,6 +223,28 @@ export async function extractCardBenefits({
 
   if (insertErr || !inserted) {
     return { ok: false, error: `DB insert failed: ${insertErr?.message ?? 'unknown'}` }
+  }
+
+  // ── Auto-verify: reconcile extracted JSON against the raw markdown ──
+  // Fires immediately after extraction so the admin review UI lands with
+  // per-field verdicts populated. Errors are swallowed (verifyCardExtraction
+  // persists its own error verdict) so a verify failure never blocks the
+  // extraction itself from being saved.
+  try {
+    const verifyResult = await verifyCardExtraction({
+      cardId,
+      cardName,
+      extraction,
+      markdown,
+      extractionId: inserted.id,
+    })
+    if (verifyResult.ok) {
+      console.log(`[card-extract] verify ${verifyResult.verdict}: ${verifyResult.field_verdicts.length} field verdicts`)
+    } else {
+      console.error(`[card-extract] verify failed: ${verifyResult.error}`)
+    }
+  } catch (err) {
+    console.error('[card-extract] verifyCardExtraction threw:', err)
   }
 
   return { ok: true, extractionId: inserted.id, extraction }
