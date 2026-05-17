@@ -38,30 +38,49 @@ export async function extractCardBenefits({
   sourceUrl,
   interactive = false,
   manualMarkdown,
+  secondaryUrls,
 }: {
   cardId: string
   cardName: string
   sourceUrl: string
   interactive?: boolean
-  /**
-   * When provided (>100 chars), the pipeline SKIPS Firecrawl and uses this
-   * string as the source markdown. Use for issuers that block Firecrawl
-   * (rare among card issuers but possible) — editor scrapes via Firecrawl
-   * playground or any other means and pastes here. Mirror of the programs
-   * manual-paste fallback (PR #561).
-   */
   manualMarkdown?: string
+  /**
+   * Optional additional URLs to scrape alongside sourceUrl. Their markdown
+   * is concatenated (with === SOURCE N: <url> === separators) and sent to
+   * Sonnet as one combined input. Use for the Guide to Benefits page which
+   * holds insurance/protection details missing from the main product page.
+   */
+  secondaryUrls?: string[]
 }): Promise<ExtractionResult> {
   const supabase = createAdminClient()
 
-  // 1. Markdown — either manual paste or Firecrawl scrape
+  // 1. Markdown — manual paste OR Firecrawl scrape of source + secondary URLs.
   const hasManualPaste = manualMarkdown && manualMarkdown.trim().length > 100
-  const markdown = hasManualPaste
-    ? manualMarkdown!.slice(0, MARKDOWN_CHAR_LIMIT)
-    : interactive
-      ? await fetchFirecrawlInteractive(sourceUrl, { maxChars: MARKDOWN_CHAR_LIMIT })
-      : await fetchFirecrawl(sourceUrl, { maxChars: MARKDOWN_CHAR_LIMIT })
-  if (hasManualPaste) console.log(`[card-extract] using manual paste (${manualMarkdown!.length} chars), skipping Firecrawl`)
+  const PER_URL_LIMIT = Math.floor(MARKDOWN_CHAR_LIMIT / Math.max(1, 1 + (secondaryUrls?.length ?? 0)))
+
+  async function scrapeOne(url: string): Promise<string> {
+    const md = interactive
+      ? await fetchFirecrawlInteractive(url, { maxChars: PER_URL_LIMIT })
+      : await fetchFirecrawl(url, { maxChars: PER_URL_LIMIT })
+    return md ?? ''
+  }
+
+  let markdown: string
+  if (hasManualPaste) {
+    markdown = manualMarkdown!.slice(0, MARKDOWN_CHAR_LIMIT)
+    console.log(`[card-extract] using manual paste (${manualMarkdown!.length} chars), skipping Firecrawl`)
+  } else {
+    const allUrls = [sourceUrl, ...(secondaryUrls ?? [])].filter((u) => u && u.trim())
+    const scrapes = await Promise.all(allUrls.map(scrapeOne))
+    const labeled = scrapes
+      .map((md, i) => (md ? `=== SOURCE ${i + 1}: ${allUrls[i]} ===\n\n${md}` : null))
+      .filter((s): s is string => s !== null)
+    markdown = labeled.join('\n\n').slice(0, MARKDOWN_CHAR_LIMIT)
+    if (allUrls.length > 1) {
+      console.log(`[card-extract] combined ${labeled.length}/${allUrls.length} URLs into ${markdown.length} chars`)
+    }
+  }
   if (!markdown) {
     await supabase.from('credit_card_extractions').insert({
       card_id: cardId,
