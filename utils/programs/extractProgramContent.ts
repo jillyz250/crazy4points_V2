@@ -289,17 +289,32 @@ export async function extractProgramContent({
       response = await client.messages.create({
         model: MODEL,
         max_tokens: 12000,
-        system: PROGRAM_EXTRACTION_SYSTEM_PROMPT,
+        // Prompt caching: system prompt + markdown cached for 5 minutes.
+        // verifyExtractedField fires per-field afterward and reads the same
+        // markdown from cache at 10% input cost.
+        system: [
+          {
+            type: 'text',
+            text: PROGRAM_EXTRACTION_SYSTEM_PROMPT,
+            cache_control: { type: 'ephemeral' },
+          },
+        ],
         messages: [{
           role: 'user',
-          content: buildProgramExtractionUserPrompt(
-            programName,
-            programSlug,
-            programType,
-            urls.join(', '),  // composite URL string for prompt context
-            groupMarkdown,
-            { extractOnlyFields: fields, fieldList },
-          ),
+          content: [
+            {
+              type: 'text',
+              text: buildProgramExtractionUserPrompt(
+                programName,
+                programSlug,
+                programType,
+                urls.join(', '),
+                groupMarkdown,
+                { extractOnlyFields: fields, fieldList },
+              ),
+              cache_control: { type: 'ephemeral' },
+            },
+          ],
         }],
       })
     } catch (err) {

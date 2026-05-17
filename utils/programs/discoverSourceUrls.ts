@@ -17,7 +17,10 @@ import { mapFirecrawl } from '@/utils/ai/firecrawl'
 import { logUsage } from '@/utils/ai/logUsage'
 import { createAdminClient } from '@/utils/supabase/server'
 
-const MODEL = 'claude-sonnet-4-6'
+// URL classification is a simple categorization task — Haiku handles it well
+// at ~10% of Sonnet's cost. Switched from claude-sonnet-4-6 → claude-haiku-4-5
+// during the cost-reduction pass.
+const MODEL = 'claude-haiku-4-5-20251001'
 
 // URL patterns we always skip — common non-program pages on big-brand domains.
 const SKIP_PATTERNS = [

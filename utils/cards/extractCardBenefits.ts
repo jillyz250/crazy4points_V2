@@ -109,11 +109,27 @@ export async function extractCardBenefits({
       // earn rates + welcome bonus + top-level fields. 16K headroom keeps
       // benefit-rich cards from truncating mid-JSON. Sonnet supports up to 64K.
       max_tokens: 16000,
-      system: CARD_EXTRACTION_SYSTEM_PROMPT,
+      // Prompt caching: system prompt is stable across extractions; cache it.
+      // User-message markdown is cached too so the immediately-following
+      // verification call (verifyCardExtraction) reads from the same cache
+      // within the 5-minute ephemeral TTL — drops verify input cost ~10x.
+      system: [
+        {
+          type: 'text',
+          text: CARD_EXTRACTION_SYSTEM_PROMPT,
+          cache_control: { type: 'ephemeral' },
+        },
+      ],
       messages: [
         {
           role: 'user',
-          content: buildCardExtractionUserPrompt(cardName, sourceUrl, markdown),
+          content: [
+            {
+              type: 'text',
+              text: buildCardExtractionUserPrompt(cardName, sourceUrl, markdown),
+              cache_control: { type: 'ephemeral' },
+            },
+          ],
         },
       ],
     })
