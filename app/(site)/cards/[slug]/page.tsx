@@ -607,29 +607,9 @@ export default async function CardPage({
           cta="Meet the partners"
           preview={`${transferPartners.length} partner${transferPartners.length === 1 ? '' : 's'}${transferPartners.some((p) => p.bonus_active) ? ' · 🎁 bonus active' : ''}`}
         >
-          {siblingCards.length > 0 && (
-            <div
-              style={{
-                background: 'var(--color-background-soft)',
-                border: '1px solid var(--color-border-soft)',
-                borderRadius: 'var(--radius-card)',
-                padding: '1rem 1.25rem',
-                marginBottom: '1rem',
-                fontSize: '0.9375rem',
-              }}
-            >
-              <strong>💡 Maximize your points:</strong> Have a{' '}
-              {siblingCards.map((s, i) => (
-                <span key={s.slug}>
-                  <Link href={`/cards/${s.slug}`} style={{ color: 'var(--color-primary)' }}>
-                    {s.name}
-                  </Link>
-                  {i < siblingCards.length - 2 ? ', ' : i === siblingCards.length - 2 ? (siblingCards.length === 2 ? ' or ' : ', or ') : ''}
-                </span>
-              ))}
-              ? Pool their points into this card&apos;s {currency_program.name} account to unlock transfers to every partner below.
-            </div>
-          )}
+          {/* No "pool from siblings" alert here — this card already transfers
+              directly, so leading with a pooling note implied it was needed.
+              The unlock messaging lives on the non-transferable card instead. */}
           <p style={{ marginTop: '0.25rem', marginBottom: '1rem', color: 'var(--color-text-secondary)', fontSize: '0.9375rem' }}>
             Points earned with this card transfer to {transferPartners.length} partner program
             {transferPartners.length === 1 ? '' : 's'} via{' '}
@@ -693,7 +673,7 @@ export default async function CardPage({
             title={label}
             description={
               cat === 'insurance' ? 'Trip protection, rental car coverage, baggage, accident coverage.'
-              : cat === 'statement_credit' ? 'Recurring $-back credits and partner perks.'
+              : cat === 'statement_credit' ? 'Bill credits and recurring perks that offset annual fees.'
               : cat === 'travel_credit' ? 'Annual travel-spend credits and portal incentives.'
               : cat === 'protection' ? 'Purchase, extended warranty, cell phone, and fraud protections.'
               : cat === 'lounge_access' ? 'Airport lounge access conferred by this card.'
