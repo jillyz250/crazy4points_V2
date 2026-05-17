@@ -361,6 +361,38 @@ export async function applyDiscoveredCardUrls(formData: FormData): Promise<void>
 }
 
 /**
+ * Manually set any of the four URL columns on the card row. Used when
+ * Discover URLs missed a URL (e.g., the shared Chase Freedom benefits guide
+ * for Freedom Unlimited — Sonnet's classifier filtered it out as not
+ * card-specific). Editor pastes the URL directly; no Sonnet involved.
+ */
+export async function setCardUrlField(formData: FormData): Promise<void> {
+  const slug = String(formData.get('slug') ?? '').trim()
+  const field = String(formData.get('field') ?? '').trim()
+  const url = String(formData.get('url') ?? '').trim()
+
+  if (!slug || !field) return
+  const ALLOWED = new Set(['official_url', 'guide_to_benefits_url', 'pricing_terms_url', 'rotating_categories_url'])
+  if (!ALLOWED.has(field)) {
+    console.error(`[card-url-edit] disallowed field: ${field}`)
+    return
+  }
+
+  const supabase = createAdminClient()
+  // Empty string clears the field (set to null)
+  const value = url.length > 0 ? url : null
+  const { error: updateErr } = await supabase
+    .from('credit_cards')
+    .update({ [field]: value })
+    .eq('slug', slug)
+  if (updateErr) {
+    console.error(`[card-url-edit] update failed: ${updateErr.message}`)
+  }
+
+  revalidatePath(`/admin/cards/${slug}/extract`)
+}
+
+/**
  * Set a manually-overridden field on the card (e.g., foreign_transaction_fee_pct
  * for cards where the issuer doesn't publish a public Schumer-box).
  * Updates both the column value AND credit_cards.manual_overrides jsonb so the

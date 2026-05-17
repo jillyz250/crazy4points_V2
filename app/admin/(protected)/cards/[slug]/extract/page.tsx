@@ -13,6 +13,7 @@ import {
   discoverCardUrlsAction,
   applyDiscoveredCardUrls,
   setCardManualOverride,
+  setCardUrlField,
 } from './actions'
 
 export const dynamic = 'force-dynamic'
@@ -269,6 +270,18 @@ export default async function CardExtractPage({
           )
         })()}
       </section>
+
+      {/* Manual URL config — set/edit any URL field directly */}
+      <ManualUrlForm
+        slug={card.slug}
+        urls={{
+          official_url: card.official_url as string | null,
+          guide_to_benefits_url: card.guide_to_benefits_url as string | null,
+          pricing_terms_url: card.pricing_terms_url as string | null,
+          rotating_categories_url: card.rotating_categories_url as string | null,
+        }}
+        action={setCardUrlField}
+      />
 
       {/* Run extraction form */}
       <section className="mb-8 rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] p-5">
@@ -644,6 +657,71 @@ function ManualOverrideForm({
           )
         })}
       </div>
+    </section>
+  )
+}
+
+/**
+ * Manual URL config form — direct edit of the four URL columns on credit_cards.
+ * Use when Discover URLs missed something (e.g., the shared Chase Freedom
+ * benefits guide that covers both Freedom Flex and Freedom Unlimited but
+ * doesn't match the per-card discovery search). Editor pastes the URL,
+ * clicks Set, done.
+ */
+function ManualUrlForm({
+  slug,
+  urls,
+  action,
+}: {
+  slug: string
+  urls: {
+    official_url: string | null
+    guide_to_benefits_url: string | null
+    pricing_terms_url: string | null
+    rotating_categories_url: string | null
+  }
+  action: (formData: FormData) => Promise<void>
+}) {
+  const FIELDS: Array<{ key: keyof typeof urls; label: string; icon: string; hint: string }> = [
+    { key: 'official_url', label: 'Product page (source URL)', icon: '🎯', hint: 'The main marketing page for the card' },
+    { key: 'guide_to_benefits_url', label: 'Guide to Benefits', icon: '📘', hint: 'Issuer\'s benefits PDF/page — insurance, protections, fine print' },
+    { key: 'pricing_terms_url', label: 'Pricing & Terms', icon: '💲', hint: 'Schumer-box: FX fee, APR ranges, late fees. Often not publicly linked.' },
+    { key: 'rotating_categories_url', label: 'Rotating categories', icon: '🔄', hint: 'Only for cards with quarterly rotating bonuses (Freedom Flex, Discover It). Quarterly refresh.' },
+  ]
+
+  return (
+    <section className="mb-6 rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-white p-4">
+      <details>
+        <summary className="cursor-pointer font-display text-base font-semibold text-[var(--color-primary)]">
+          ✏️ Manual URL config (when Discover missed one)
+        </summary>
+        <p className="mt-2 font-body text-sm text-[var(--color-text-secondary)]">
+          Paste a URL into any field and click Set to override. Leave blank + Set to clear. Useful when Discover URLs missed a page
+          (e.g., Chase's shared Freedom benefits guide covers both Flex and Unlimited, but discovery searches per-card).
+        </p>
+        <div className="mt-3 grid gap-2">
+          {FIELDS.map((f) => (
+            <form key={f.key} action={action} className="flex flex-wrap items-end gap-2 rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] p-2">
+              <input type="hidden" name="slug" value={slug} />
+              <input type="hidden" name="field" value={f.key} />
+              <label className="flex flex-1 min-w-[20rem] flex-col gap-1">
+                <span className="font-ui text-[11px] uppercase tracking-wide text-[var(--color-text-secondary)]">
+                  {f.icon} {f.label}
+                </span>
+                <input
+                  type="url"
+                  name="url"
+                  defaultValue={urls[f.key] ?? ''}
+                  placeholder="https://..."
+                  className="rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-white px-2 py-1 font-mono text-sm"
+                />
+                <span className="font-body text-[11px] text-[var(--color-text-secondary)]">{f.hint}</span>
+              </label>
+              <ExtractionActionButton variant="secondary" size="sm" label="Set" pendingLabel="…" />
+            </form>
+          ))}
+        </div>
+      </details>
     </section>
   )
 }
