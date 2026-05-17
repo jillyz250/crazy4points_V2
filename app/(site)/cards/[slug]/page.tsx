@@ -4,6 +4,7 @@ import type { Metadata } from 'next'
 import { createAdminClient } from '@/utils/supabase/server'
 import { getCardDetailBySlug } from '@/utils/supabase/queries'
 import type { CreditCardBenefit, TransferPartnerRow } from '@/utils/supabase/queries'
+import { getExperienceProgramsForCard } from '@/utils/cards/getExperiencePrograms'
 import TransferPartnersTable from '@/components/programs/TransferPartnersTable'
 import RotatingCategoriesBanner from '@/components/cards/RotatingCategoriesBanner'
 import SimpleTile from '@/components/programs/SimpleTile'
@@ -218,6 +219,15 @@ export default async function CardPage({
     }
   }
 
+  // Cardholder-exclusive experience programs (Chase Experiences, United Card
+  // Events, Sapphire Reserved, Bonvoy Moments, etc.). Combines issuer-wide +
+  // loyalty + card-specific patterns. Empty array if the card qualifies for none.
+  const experiencePrograms = await getExperienceProgramsForCard(supabase, {
+    id: card.id,
+    issuer_slug: issuer.slug,
+    currency_program_slug: currency_program?.slug ?? null,
+  })
+
   // TOC entries — auto-generated from sections that actually have content.
   // Required on every card detail page per plans/credit-cards-architecture.md.
   const tocSections: Array<{ id: string; label: string }> = [
@@ -234,6 +244,9 @@ export default async function CardPage({
       id: `benefit-${cat}`,
       label: BENEFIT_CATEGORY_LABELS[cat] ?? cat.replace(/_/g, ' '),
     })),
+    ...(experiencePrograms.length > 0
+      ? [{ id: 'experiences', label: 'Cardholder experiences' }]
+      : []),
   ]
 
   // Schema.org structured data — CreditCard extends LoanOrCredit extends FinancialProduct.
@@ -711,6 +724,74 @@ export default async function CardPage({
           </p>
         </SimpleTile>
       ) : null}
+
+      {/* Cardholder experience programs — issuer-wide + loyalty + card-specific
+          access portals (Chase Experiences, United Card Events, Sapphire Reserved,
+          Marriott Bonvoy Moments, etc.). Each program is an external portal the
+          cardholder can browse for events / dining / access. */}
+      {experiencePrograms.length > 0 && (
+        <SimpleTile
+          title="Cardholder experiences"
+          description="Members-only events, dining access, and special experiences bundled with this card."
+          cta="Browse the portals"
+          preview={`${experiencePrograms.length} program${experiencePrograms.length === 1 ? '' : 's'}`}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {experiencePrograms.map((p) => (
+              <div
+                key={p.id}
+                style={{
+                  border: '1px solid var(--color-border-soft)',
+                  borderRadius: 'var(--radius-card)',
+                  padding: '1rem 1.25rem',
+                  background: 'var(--color-background)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '0.35rem' }}>
+                  <a
+                    href={p.official_url}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    style={{ fontWeight: 600, color: 'var(--color-primary)', textDecoration: 'none' }}
+                  >
+                    {p.name} →
+                  </a>
+                  {p.access_tier && (
+                    <span
+                      style={{
+                        fontFamily: 'var(--font-ui)',
+                        fontSize: '0.65rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.08em',
+                        background: p.access_tier === 'invite_only'
+                          ? 'var(--color-accent)'
+                          : p.access_tier === 'premium'
+                            ? 'var(--color-primary)'
+                            : 'var(--color-background-soft)',
+                        color: p.access_tier === 'invite_only'
+                          ? '#3a2b00'
+                          : p.access_tier === 'premium'
+                            ? 'white'
+                            : 'var(--color-text-secondary)',
+                        padding: '0.15rem 0.5rem',
+                        borderRadius: '999px',
+                        fontWeight: 600,
+                      }}
+                    >
+                      {p.access_tier === 'invite_only' ? 'Invite-only' : p.access_tier}
+                    </span>
+                  )}
+                </div>
+                {p.description && (
+                  <div style={{ fontSize: '0.9375rem', lineHeight: 1.55, color: 'var(--color-text-primary)' }}>
+                    {p.description}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </SimpleTile>
+      )}
 
       {/* Benefits, grouped by category — each category becomes its own tile */}
       {orderedCategories.map((cat) => {
