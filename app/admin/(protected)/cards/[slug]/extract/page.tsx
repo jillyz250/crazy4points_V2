@@ -311,17 +311,53 @@ export default async function CardExtractPage({
             <RunExtractionButton />
           </div>
           {(card.guide_to_benefits_url || card.pricing_terms_url) ? (
-            <p className="rounded-[var(--radius-ui)] border border-emerald-200 bg-emerald-50/40 px-2 py-1.5 font-body text-xs text-emerald-800">
-              <span className="font-semibold">✓ Multi-URL scrape active:</span> will also scrape{' '}
-              {card.guide_to_benefits_url ? (
-                <a className="text-emerald-900 underline" href={card.guide_to_benefits_url} target="_blank" rel="noreferrer">Guide to Benefits</a>
-              ) : null}
-              {card.guide_to_benefits_url && card.pricing_terms_url ? ' + ' : null}
-              {card.pricing_terms_url ? (
-                <a className="text-emerald-900 underline" href={card.pricing_terms_url} target="_blank" rel="noreferrer">Pricing &amp; Terms</a>
-              ) : null}
-              {' '}— combined markdown sent to Sonnet so insurance, FX fee, APR, and protection details all get captured.
-            </p>
+            <div className="rounded-[var(--radius-ui)] border border-emerald-200 bg-emerald-50/40 px-3 py-2 font-body text-xs text-emerald-800">
+              <p className="mb-1 font-semibold">
+                ✓ Multi-URL scrape active — exact URLs being sent to Sonnet:
+              </p>
+              <ul className="list-none space-y-1 pl-0">
+                <li>
+                  <span className="font-semibold">🎯 Product:</span>{' '}
+                  <a
+                    className="break-all text-emerald-900 underline"
+                    href={defaultSourceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {defaultSourceUrl}
+                  </a>
+                </li>
+                {card.guide_to_benefits_url ? (
+                  <li>
+                    <span className="font-semibold">📘 Guide to Benefits:</span>{' '}
+                    <a
+                      className="break-all text-emerald-900 underline"
+                      href={card.guide_to_benefits_url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {card.guide_to_benefits_url}
+                    </a>
+                  </li>
+                ) : null}
+                {card.pricing_terms_url ? (
+                  <li>
+                    <span className="font-semibold">$ Pricing &amp; Terms:</span>{' '}
+                    <a
+                      className="break-all text-emerald-900 underline"
+                      href={card.pricing_terms_url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {card.pricing_terms_url}
+                    </a>
+                  </li>
+                ) : null}
+              </ul>
+              <p className="mt-1.5 italic">
+                Combined markdown sent to Sonnet so insurance, FX fee, APR, and protection details all get captured.
+              </p>
+            </div>
           ) : null}
 
           <label className="inline-flex items-center gap-2 font-body text-sm text-[var(--color-text-secondary)]">
