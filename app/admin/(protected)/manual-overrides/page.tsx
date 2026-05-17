@@ -7,7 +7,7 @@ import { EmptyState } from '@/components/admin/ui/EmptyState'
 
 export const revalidate = 60
 
-const STALE_DAYS = 365  // overrides older than 1 year flag for re-verification
+const STALE_DAYS = 180  // overrides older than 6 months flag for re-verification
 
 /**
  * Stale manual-values report.
@@ -33,7 +33,7 @@ export default async function ManualOverridesAdmin() {
         title="Manual field overrides"
         description={
           `Fields manually set by editors (because the extraction pipeline couldn't reach them — e.g., issuers that don't publish a public Schumer-box). ` +
-          `Re-verify entries 12+ months old: the auto-extraction has no way to detect if the underlying value changed.`
+          `Re-verify entries 6+ months old: the auto-extraction has no way to detect if the underlying value changed.`
         }
       />
 
