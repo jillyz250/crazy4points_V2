@@ -41,13 +41,15 @@ function loadEnv() {
 }
 
 function parseArgs() {
-  const args = { slug: null, block: null, config: null, dryRun: false, waitMs: 12000, maxPages: 30, stealth: false }
+  const args = { slug: null, block: null, config: null, dryRun: false, waitMs: 12000, maxPages: 30, stealth: false, destination: null, maxCredits: 0 }
   for (const a of process.argv.slice(2)) {
     if (a.startsWith('--slug=')) args.slug = a.split('=')[1]
     else if (a.startsWith('--block=')) args.block = parseInt(a.split('=')[1], 10)
     else if (a.startsWith('--config=')) args.config = a.split('=')[1]
     else if (a === '--dry-run') args.dryRun = true
     else if (a === '--stealth') args.stealth = true
+    else if (a.startsWith('--destination=')) args.destination = a.split('=')[1]
+    else if (a.startsWith('--max-credits=')) args.maxCredits = parseInt(a.split('=')[1], 10)
     else if (a.startsWith('--wait=')) args.waitMs = parseInt(a.split('=')[1], 10)
     else if (a.startsWith('--max-pages=')) args.maxPages = parseInt(a.split('=')[1], 10)
   }
@@ -390,10 +392,21 @@ async function main() {
     console.error(`No block ${args.block} defined in ${configPath}`)
     process.exit(1)
   }
+  // Optional single-destination filter for cheap stealth-mode tests
+  // (--destination=texas-united-states-of-america)
+  if (args.destination) {
+    block.destinations = block.destinations.filter((d) => d.url_path === args.destination)
+    if (block.destinations.length === 0) {
+      console.error(`No destination with url_path="${args.destination}" in block ${args.block}.`)
+      console.error(`Available: ${config.blocks[args.block - 1].destinations.map((d) => d.url_path).join(', ')}`)
+      process.exit(1)
+    }
+  }
   console.log(`# Block ${args.block}: ${block.label}`)
-  console.log(`# Destinations: ${block.destinations.length}`)
+  console.log(`# Destinations: ${block.destinations.length}${args.destination ? ` (filtered to "${args.destination}")` : ''}`)
   console.log(`# Dry run: ${args.dryRun}`)
   console.log(`# Stealth proxy: ${args.stealth ? 'ON (Akamai-bypass; ~5x credits)' : 'off'}`)
+  if (args.maxCredits > 0) console.log(`# Credit cap: ${args.maxCredits} (abort early if exceeded)`)
 
   // Look up program_id
   const programs = await sb(`programs?slug=eq.${args.slug}&select=id,name`)
@@ -406,6 +419,10 @@ async function main() {
   let totalUpserts = 0
 
   for (const dest of block.destinations) {
+    if (args.maxCredits > 0 && totalCredits >= args.maxCredits) {
+      console.log(`# ABORT: hit credit cap (${totalCredits} >= ${args.maxCredits}) before "${dest.url_path}"`)
+      break
+    }
     console.log(`## ${dest.url_path} (${dest.country}/${dest.region || dest.city || ''})`)
     const baseUrl = `https://www.marriott.com/en-us/destinations/${dest.url_path}.mi`
     // dest.region is the state/province from config; map country to the
