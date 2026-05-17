@@ -5,6 +5,7 @@ import { createAdminClient } from '@/utils/supabase/server'
 import { extractCardBenefits } from '@/utils/cards/extractCardBenefits'
 import { saveExtractedBenefits } from '@/utils/cards/saveExtractedBenefits'
 import { discoverCardSourceUrl } from '@/utils/cards/discoverCardSourceUrl'
+import { setManualOverride } from '@/utils/admin/manualOverride'
 import type { CardExtraction } from '@/utils/cards/cardExtractionSchema'
 
 /**
@@ -357,4 +358,66 @@ export async function applyDiscoveredCardUrls(formData: FormData): Promise<void>
 
   revalidatePath(`/admin/cards/${slug}/extract`)
   revalidatePath('/admin/sources')
+}
+
+/**
+ * Set a manually-overridden field on the card (e.g., foreign_transaction_fee_pct
+ * for cards where the issuer doesn't publish a public Schumer-box).
+ * Updates both the column value AND credit_cards.manual_overrides jsonb so the
+ * /admin/manual-overrides stale-values report can surface it for periodic
+ * re-verification.
+ */
+export async function setCardManualOverride(formData: FormData): Promise<void> {
+  const slug = String(formData.get('slug') ?? '').trim()
+  const field = String(formData.get('field') ?? '').trim()
+  const rawValue = String(formData.get('value') ?? '').trim()
+  const note = String(formData.get('note') ?? '').trim()
+
+  if (!slug || !field || !rawValue) {
+    console.error('[manual-override] missing slug/field/value')
+    return
+  }
+
+  // Coerce value type based on field name. Keep this list tight — only fields
+  // the editor is actually expected to manually override get accepted.
+  const NUMERIC_FIELDS = new Set([
+    'foreign_transaction_fee_pct',
+    'annual_fee_usd',
+    'authorized_user_fee_usd',
+    'authorized_user_bonus_points',
+    'referral_bonus_amount',
+    'referral_cap_per_year',
+  ])
+  const ENUM_FIELDS = new Set(['credit_score_recommended'])
+
+  let value: unknown = rawValue
+  if (NUMERIC_FIELDS.has(field)) {
+    const n = parseFloat(rawValue)
+    if (!Number.isFinite(n)) {
+      console.error(`[manual-override] invalid numeric value for ${field}: ${rawValue}`)
+      return
+    }
+    value = n
+  } else if (ENUM_FIELDS.has(field)) {
+    if (!['fair', 'good', 'excellent'].includes(rawValue)) {
+      console.error(`[manual-override] invalid enum value for ${field}: ${rawValue}`)
+      return
+    }
+  }
+
+  const result = await setManualOverride({
+    table: 'credit_cards',
+    slug,
+    field,
+    value,
+    note,
+  })
+
+  if (!result.ok) {
+    console.error(`[manual-override] failed: ${result.error}`)
+  }
+
+  revalidatePath(`/admin/cards/${slug}/extract`)
+  revalidatePath(`/cards/${slug}`)
+  revalidatePath('/admin/manual-overrides')
 }

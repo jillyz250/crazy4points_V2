@@ -12,6 +12,7 @@ import {
   saveManualWelcomeBonus,
   discoverCardUrlsAction,
   applyDiscoveredCardUrls,
+  setCardManualOverride,
 } from './actions'
 
 export const dynamic = 'force-dynamic'
@@ -44,7 +45,7 @@ export default async function CardExtractPage({
       id, slug, name, card_type, card_tier, status,
       annual_fee_usd, foreign_transaction_fee_pct,
       official_url, guide_to_benefits_url, pricing_terms_url, rotating_categories_url,
-      suggested_field_urls,
+      suggested_field_urls, manual_overrides,
       intro, last_verified,
       issuer:issuers(slug, name, website_url)
     `)
@@ -342,6 +343,17 @@ export default async function CardExtractPage({
         </form>
       </section>
 
+      {/* Manual override form — for fields the extraction pipeline can't reach */}
+      <ManualOverrideForm
+        slug={card.slug}
+        currentValues={{
+          foreign_transaction_fee_pct: card.foreign_transaction_fee_pct as number | null,
+          credit_score_recommended: null,  // not stored on card row; lives in extractions
+        }}
+        manualOverrides={(card.manual_overrides as Record<string, { value: unknown; set_at: string; note: string }> | null) ?? {}}
+        action={setCardManualOverride}
+      />
+
       {/* Latest extraction review */}
       {latest ? (
         <>
@@ -515,5 +527,123 @@ function ConfiguredUrlsSummary({
         ))}
       </ul>
     </details>
+  )
+}
+
+/**
+ * Manual override form — surfaces the small set of fields the extraction
+ * pipeline can't reach (FX fee, credit_score_recommended, authorized_user
+ * fields, referral bonus). Setting any of these writes BOTH the column
+ * value AND the manual_overrides jsonb provenance entry so the staleness
+ * report (/admin/manual-overrides) can flag them later for re-verification.
+ */
+function ManualOverrideForm({
+  slug,
+  currentValues,
+  manualOverrides,
+  action,
+}: {
+  slug: string
+  currentValues: Record<string, unknown>
+  manualOverrides: Record<string, { value: unknown; set_at: string; note: string }>
+  action: (formData: FormData) => Promise<void>
+}) {
+  // Which fields support manual override + their display config
+  const FIELDS: Array<{ key: string; label: string; hint: string; type: 'number' | 'enum'; enumOptions?: string[] }> = [
+    {
+      key: 'foreign_transaction_fee_pct',
+      label: 'Foreign transaction fee (%)',
+      hint: 'e.g., 0 for Sapphire Preferred/Reserve, 3 for Freedom Flex/Unlimited',
+      type: 'number',
+    },
+    {
+      key: 'credit_score_recommended',
+      label: 'Credit score recommended',
+      hint: 'fair / good / excellent',
+      type: 'enum',
+      enumOptions: ['fair', 'good', 'excellent'],
+    },
+    {
+      key: 'annual_fee_usd',
+      label: 'Annual fee (USD)',
+      hint: 'Manually override if extraction missed it. e.g., 95 for Sapphire Preferred',
+      type: 'number',
+    },
+  ]
+
+  function ageDays(setAt: string): number {
+    return Math.round((Date.now() - new Date(setAt).getTime()) / (1000 * 60 * 60 * 24))
+  }
+
+  return (
+    <section className="mb-8 rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] p-5">
+      <h2 className="font-display text-xl font-semibold text-[var(--color-primary)]">
+        Manual field overrides
+      </h2>
+      <p className="mt-1 font-body text-sm text-[var(--color-text-secondary)]">
+        For fields the extraction pipeline can&apos;t reach (issuer doesn&apos;t publish a public Schumer-box, etc.).
+        Setting a value here tracks <em>when</em> you set it so the{' '}
+        <a className="underline text-[var(--color-primary)]" href="/admin/manual-overrides">stale manual values report</a>{' '}
+        can flag it for re-verification later.
+      </p>
+
+      <div className="mt-4 grid gap-3">
+        {FIELDS.map((f) => {
+          const current = currentValues[f.key]
+          const override = manualOverrides[f.key]
+          return (
+            <form key={f.key} action={action} className="rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-white p-3">
+              <input type="hidden" name="slug" value={slug} />
+              <input type="hidden" name="field" value={f.key} />
+              <div className="flex flex-wrap items-baseline gap-2">
+                <strong className="font-ui text-sm text-[var(--color-text-primary)]">{f.label}</strong>
+                <span className="font-body text-xs text-[var(--color-text-secondary)]">
+                  Current: <code className="font-mono">{current == null ? '—' : String(current)}</code>
+                </span>
+                {override ? (
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 font-ui text-[10px] uppercase tracking-wide text-amber-900">
+                    Manually set {ageDays(override.set_at)}d ago
+                  </span>
+                ) : null}
+              </div>
+              <div className="mt-2 flex flex-wrap items-end gap-2">
+                {f.type === 'enum' ? (
+                  <select
+                    name="value"
+                    defaultValue=""
+                    className="rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-white px-2 py-1 font-body text-sm"
+                  >
+                    <option value="" disabled>Pick a value…</option>
+                    {f.enumOptions!.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    name="value"
+                    type="number"
+                    step="0.01"
+                    placeholder="new value"
+                    className="rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-white px-2 py-1 font-mono text-sm"
+                    style={{ width: '8rem' }}
+                  />
+                )}
+                <input
+                  name="note"
+                  type="text"
+                  placeholder="optional note (e.g. 'Chase doesn't publish Schumer-box')"
+                  className="flex-1 min-w-[14rem] rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-white px-2 py-1 font-body text-xs"
+                />
+                <ExtractionActionButton variant="secondary" size="sm" label="Set override" pendingLabel="Saving…" />
+              </div>
+              <p className="mt-1 font-body text-[11px] text-[var(--color-text-secondary)]">{f.hint}</p>
+              {override?.note ? (
+                <p className="mt-1 font-body text-[11px] italic text-amber-800">Note: {override.note}</p>
+              ) : null}
+            </form>
+          )
+        })}
+      </div>
+    </section>
   )
 }
