@@ -33,20 +33,13 @@ update credit_card_benefits
         or name = 'DoorDash Non-Restaurant Order Credit'
         or name = 'DashPass $10/Month Grocery & Retail Credit');
 
--- 3. Add the missing 25% travel-redemption uplift.
-insert into credit_card_benefits (
-  card_id, category, benefit_type, name,
-  value_amount, value_unit, frequency,
-  description, sort_order, metadata,
-  verified_at, verified_source_url
-) values (
-  (select id from credit_cards where slug = 'chase-ink-business-preferred'),
-  'portal_redemption', 'portal_redemption_bonus',
-  '25% Travel Redemption Uplift via Chase Ultimate Rewards',
-  25, 'pct', 'lifetime',
-  'When you redeem Ultimate Rewards points for travel (flights, hotels, car rentals, cruises) through the Chase Ultimate Rewards portal, your points are worth 25% more — 1 point = 1.25 cents. This is an Ink Business Preferred-tier perk; Freedom and Ink Cash/Unlimited cards do NOT get the uplift. Most users get even more value by transferring points to airline/hotel partners instead, but the portal uplift is a useful baseline.',
-  5,
-  '{"redemption_value_cents":1.25,"category":"travel_portal","tier":"preferred"}'::jsonb,
-  now(),
-  'https://creditcards.chase.com/business-credit-cards/ink/business-preferred'
-);
+-- 3. Removed: the "25% travel uplift" / "Points Boost" inserts that were
+--    here in previous commits both came from third-party sources (Copilot
+--    audit + WebSearch summary of frequent-miler/nerdwallet articles), not
+--    from Chase-authoritative URLs. Per the data-source policy in
+--    plans/card-data-source-policy.md, third-party sources are not
+--    acceptable for card facts. The flat 25% uplift was ALSO removed by
+--    Chase in 2025 and replaced with Points Boost — so even if it had been
+--    Chase-sourced, the legacy data would have been stale. To add the
+--    current redemption mechanic to this card, re-run extraction against
+--    a Chase URL that describes Points Boost.
