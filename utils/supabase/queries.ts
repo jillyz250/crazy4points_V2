@@ -1704,7 +1704,7 @@ export type BenefitCategory =
   | 'free_night' | 'status_conferred' | 'protection' | 'spend_unlock'
   | 'portal_redemption' | 'transfer_partner_unlock' | 'other'
 
-export type BenefitFrequency = 'per_trip' | 'annual' | 'anniversary' | 'monthly' | 'lifetime' | 'one_time' | 'quarterly'
+export type BenefitFrequency = 'per_trip' | 'annual' | 'anniversary' | 'monthly' | 'lifetime' | 'one_time' | 'quarterly' | 'semi_annual'
 export type BenefitValueUnit = 'USD' | 'nights' | 'pct' | 'points' | 'miles' | 'points_per_dollar'
 
 export interface CreditCardBenefit {
