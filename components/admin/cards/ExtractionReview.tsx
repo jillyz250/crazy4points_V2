@@ -1,18 +1,37 @@
 import type { CardExtraction } from '@/utils/cards/cardExtractionSchema'
 import ExtractionActionButton from './ExtractionActionButton'
 
+type CardFieldVerdict = {
+  field: string
+  verdict: 'confirmed' | 'corrected' | 'unverifiable'
+  extracted_value: string
+  source_says: string
+  corrected_value: string
+  note: string
+}
+
+type CardVerification = {
+  verdict: 'confirmed' | 'corrected' | 'unverifiable' | 'error'
+  notes: string
+  field_verdicts: CardFieldVerdict[]
+  generated_at?: string
+  error?: string
+}
+
 /**
  * Server component that renders an extracted card payload in a scannable
  * format with source quotes inline, plus Re-save / Reject action buttons.
  *
- * In auto-approve mode the data is already in the DB; this view exists for
- * audit + manual recovery.
+ * Now also surfaces auto-verify results (added PR 2 of the cards port):
+ * top banner shows overall verdict; expandable section shows per-field
+ * verdicts with corrected values where applicable.
  */
 export default function ExtractionReview({
   extractionId,
   sourceUrl,
   status,
   extraction,
+  verification,
   createdAt,
   savedAt,
   errorMessage,
@@ -23,6 +42,7 @@ export default function ExtractionReview({
   sourceUrl: string
   status: string
   extraction: CardExtraction
+  verification?: CardVerification | null
   createdAt: string
   savedAt: string | null
   errorMessage: string | null
@@ -65,6 +85,11 @@ export default function ExtractionReview({
           <p className="font-ui text-xs uppercase tracking-wide text-red-800">Error</p>
           <p className="mt-1 font-body text-sm text-red-900">{errorMessage}</p>
         </div>
+      ) : null}
+
+      {/* Auto-verify verdict panel */}
+      {verification && verification.verdict ? (
+        <VerificationPanel verification={verification} />
       ) : null}
 
       {/* Warnings */}
@@ -276,6 +301,113 @@ function fmtTimestamp(iso: string): string {
     minute: '2-digit',
     timeZoneName: 'short',
   })
+}
+
+/**
+ * Auto-verify panel — Sonnet's reconciliation of the extraction against
+ * the scraped issuer page. Top-level verdict banner + collapsible
+ * per-field verdict table.
+ */
+function VerificationPanel({ verification }: { verification: CardVerification }) {
+  const verdict = verification.verdict
+  const corrections = verification.field_verdicts.filter((v) => v.verdict === 'corrected')
+  const unverifiable = verification.field_verdicts.filter((v) => v.verdict === 'unverifiable')
+  const confirmed = verification.field_verdicts.filter((v) => v.verdict === 'confirmed')
+
+  const styles = {
+    confirmed: {
+      bg: 'bg-emerald-50/50 border-emerald-300',
+      pill: 'bg-emerald-100 text-emerald-900',
+      label: '🟢 Confirmed',
+      desc: 'Every field Sonnet checked is supported by the source page. Safe to save as-is.',
+    },
+    corrected: {
+      bg: 'bg-amber-50/50 border-amber-300',
+      pill: 'bg-amber-100 text-amber-900',
+      label: '🟡 Corrected',
+      desc: 'Sonnet found at least one mismatch between the extraction and the source. Review the corrections below before saving.',
+    },
+    unverifiable: {
+      bg: 'bg-gray-50/50 border-gray-300',
+      pill: 'bg-gray-100 text-gray-800',
+      label: '⚪ Unverifiable',
+      desc: 'Source page was too thin to verify most claims. Treat extraction with skepticism — manual review recommended.',
+    },
+    error: {
+      bg: 'bg-red-50/50 border-red-300',
+      pill: 'bg-red-100 text-red-900',
+      label: '🔴 Verify error',
+      desc: 'Auto-verify failed. Extraction was saved but unchecked against the source.',
+    },
+  }[verdict] ?? {
+    bg: 'bg-gray-50 border-gray-300',
+    pill: 'bg-gray-100 text-gray-800',
+    label: verdict,
+    desc: '',
+  }
+
+  return (
+    <div className={`mb-4 rounded-[var(--radius-card)] border-2 p-3 ${styles.bg}`}>
+      <div className="mb-2 flex items-center gap-2">
+        <span className={`rounded-full px-2 py-0.5 font-ui text-xs font-semibold uppercase tracking-wide ${styles.pill}`}>
+          {styles.label}
+        </span>
+        <span className="font-ui text-[11px] text-[var(--color-text-secondary)]">
+          🔍 Auto-verified against source
+          {verification.generated_at ? ` · ${fmtTimestamp(verification.generated_at)}` : ''}
+        </span>
+      </div>
+      {verification.notes ? (
+        <p className="mb-2 font-body text-sm">{verification.notes}</p>
+      ) : (
+        <p className="mb-2 font-body text-sm text-[var(--color-text-secondary)]">{styles.desc}</p>
+      )}
+      {verification.error ? (
+        <p className="mb-2 font-body text-xs text-red-700">{verification.error}</p>
+      ) : null}
+      {verification.field_verdicts.length > 0 ? (
+        <details className="mt-2">
+          <summary className="cursor-pointer font-ui text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-primary)]">
+            {confirmed.length} confirmed · {corrections.length} corrected · {unverifiable.length} unverifiable
+            {' '}— click for details
+          </summary>
+          <table className="mt-2 w-full font-body text-xs">
+            <thead className="border-b border-[var(--color-border-soft)] font-ui text-[10px] uppercase tracking-wide text-[var(--color-text-secondary)]">
+              <tr>
+                <th className="py-1 pr-2 text-left">Field</th>
+                <th className="py-1 pr-2 text-left">Verdict</th>
+                <th className="py-1 pr-2 text-left">Extracted</th>
+                <th className="py-1 pr-2 text-left">Source says</th>
+                <th className="py-1 pr-2 text-left">Corrected</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...corrections, ...unverifiable, ...confirmed].map((v, i) => (
+                <tr key={i} className="border-b border-[var(--color-border-soft)] align-top">
+                  <td className="py-1 pr-2 font-mono text-[11px]">{v.field}</td>
+                  <td className="py-1 pr-2">
+                    <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                      v.verdict === 'corrected' ? 'bg-amber-100 text-amber-900'
+                      : v.verdict === 'unverifiable' ? 'bg-gray-100 text-gray-700'
+                      : 'bg-emerald-100 text-emerald-800'
+                    }`}>{v.verdict}</span>
+                  </td>
+                  <td className="py-1 pr-2 max-w-[12rem]">{v.extracted_value}</td>
+                  <td className="py-1 pr-2 max-w-[16rem] italic text-[var(--color-text-secondary)]">{v.source_says}</td>
+                  <td className="py-1 pr-2 max-w-[12rem]">{v.corrected_value !== v.extracted_value ? v.corrected_value : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="mt-2 font-body text-[11px] text-[var(--color-text-secondary)]">
+            <strong>Heads up:</strong> Corrections aren&apos;t auto-applied — they&apos;re flagged for editor review.
+            Use Re-save (top right) only if the extraction is correct as-is. To apply Sonnet&apos;s corrections,
+            edit the card row manually under <code>/admin/cards/[slug]/edit</code> for now (per-field Apply button coming next session).
+          </p>
+        </details>
+      ) : null}
+    </div>
+  )
 }
 
 function fmtUsd(v: number | null | undefined): string {

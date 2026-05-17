@@ -59,7 +59,7 @@ export default async function CardExtractPage({
   // Most recent extraction's full JSON (for inline review).
   const { data: latest } = await supabase
     .from('credit_card_extractions')
-    .select('id, source_url, extraction, status, created_at, saved_at, error_message, raw_markdown, markdown_chars')
+    .select('id, source_url, extraction, verifications, status, created_at, saved_at, error_message, raw_markdown, markdown_chars')
     .eq('card_id', card.id)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -198,6 +198,11 @@ export default async function CardExtractPage({
             sourceUrl={latest.source_url}
             status={latest.status}
             extraction={mergedExtraction}
+            verification={
+              latest.verifications && typeof latest.verifications === 'object' && Object.keys(latest.verifications).length > 0
+                ? (latest.verifications as Parameters<typeof ExtractionReview>[0]['verification'])
+                : null
+            }
             createdAt={latest.created_at}
             savedAt={latest.saved_at}
             errorMessage={latest.error_message}
