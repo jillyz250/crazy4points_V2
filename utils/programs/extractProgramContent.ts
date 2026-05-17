@@ -16,6 +16,7 @@
  * is set, use the old "scrape one page, extract everything" mode.
  */
 
+import { createHash } from 'node:crypto'
 import Anthropic from '@anthropic-ai/sdk'
 import { jsonrepair } from 'jsonrepair'
 import { fetchFirecrawl, fetchFirecrawlInteractive } from '@/utils/ai/firecrawl'
@@ -98,6 +99,7 @@ export async function extractProgramContent({
   legacySourceUrl,
   interactive = false,
   manualMarkdown,
+  skipIfUnchanged = false,
 }: {
   programId: string
   programName: string
@@ -114,6 +116,13 @@ export async function extractProgramContent({
    * Firecrawl playground (or any other means) and pastes the markdown.
    */
   manualMarkdown?: string
+  /**
+   * Cron-only: skip Sonnet entirely when the SHA-256 of the combined scraped
+   * markdown matches the most-recent extraction's hash for this program.
+   * Saves ~$0.20 per refresh on unchanged content. Editor-initiated runs
+   * never set this — they always re-verify.
+   */
+  skipIfUnchanged?: boolean
 }): Promise<ProgramExtractionResult> {
   const supabase = createAdminClient()
 
@@ -246,6 +255,53 @@ export async function extractProgramContent({
 
   if (groups.size === 0) {
     return { ok: false, error: 'All field URLs failed scrape; nothing to extract.' }
+  }
+
+  // Content fingerprint: hash the combined markdown across all scraped URLs
+  // (sorted-by-URL so ordering is stable across runs). If it matches the most
+  // recent extraction's hash, the page hasn't changed since last refresh —
+  // skip Sonnet entirely, save ~$0.20 per program.
+  const fingerprintInput = Array.from(markdownByUrl.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([u, md]) => `${u}\n${md}`)
+    .join('\n\n')
+  const markdownHash = createHash('sha256').update(fingerprintInput).digest('hex')
+
+  if (skipIfUnchanged) {
+    const { data: lastExt } = await supabase
+      .from('program_extractions')
+      .select('id, markdown_hash, extraction')
+      .eq('program_id', programId)
+      .in('status', ['extracted', 'completed'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (lastExt?.markdown_hash === markdownHash) {
+      const combinedForSkip = Array.from(markdownByUrl.values()).join('\n\n').slice(0, 80_000)
+      const primaryUrlForSkip = verifiedMap.values().next().value ?? ''
+      const { data: skipRow } = await supabase
+        .from('program_extractions')
+        .insert({
+          program_id: programId,
+          source_url: primaryUrlForSkip,
+          raw_markdown: combinedForSkip,
+          markdown_chars: fingerprintInput.length,
+          markdown_hash: markdownHash,
+          used_interactive: interactive,
+          extraction: lastExt.extraction ?? {},
+          model: MODEL,
+          status: 'skipped_unchanged',
+          error_message: null,
+        })
+        .select('id')
+        .single()
+      console.log(`[program-extract] ${programSlug} markdown unchanged (sha=${markdownHash.slice(0, 8)}) — skipped Sonnet`)
+      return {
+        ok: true,
+        extractionId: skipRow?.id ?? '',
+        extraction: (lastExt.extraction ?? emptyExtraction()) as ProgramExtraction,
+      }
+    }
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY
@@ -396,6 +452,7 @@ export async function extractProgramContent({
       source_url: primaryUrlForRecord,
       raw_markdown: combinedMarkdown.slice(0, 80_000),
       markdown_chars: combinedMarkdown.length,
+      markdown_hash: markdownHash,
       used_interactive: interactive,
       extraction: finalExtraction,
       model: MODEL,
