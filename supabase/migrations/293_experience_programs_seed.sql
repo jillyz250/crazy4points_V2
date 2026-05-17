@@ -15,7 +15,7 @@ insert into experience_programs (slug, name, official_url, description, category
  'issuer_wide', 'chase', current_date),
 
 ('amex-experiences', 'American Express Experiences',
- 'https://www.americanexpress.com/us/entertainment/',
+ 'https://www.americanexpress.com/en-us/benefits/entertainment/',
  'Amex''s entertainment portal - presales, preferred seating on concerts, sports, and Broadway. Available to U.S. Amex cardholders.',
  'issuer_wide', 'amex', current_date),
 
@@ -80,9 +80,9 @@ insert into experience_programs (slug, name, official_url, description, category
  'Sapphire-exclusive VIP access program: presales, festival lounges, dining series, curated weekends. Available to Chase Sapphire Preferred and Sapphire Reserve cardholders only.',
  'card_specific', 'chase', current_date),
 
-('amex-by-invitation-only', 'By Invitation Only',
- 'https://www.americanexpress.com/us/benefits/events/by-invitation-only/',
- 'Amex ultra-premium curated events portal: exclusive sports, fashion, cultural, and travel events. Available to Platinum, Business Platinum, and Centurion cardholders only.',
+('amex-by-invitation-only', 'Premium Events Collection (formerly By Invitation Only)',
+ 'https://www.americanexpress.com/en-us/benefits/entertainment/premium-events-collection/',
+ 'Amex ultra-premium curated events portal: exclusive sports, fashion, cultural, and travel events. Available to Platinum, Business Platinum, and Centurion cardholders only. (Previously branded as By Invitation Only.)',
  'card_specific', 'amex', current_date),
 
 ('amex-resy-global-dining-access', 'Global Dining Access by Resy',
