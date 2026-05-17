@@ -217,11 +217,28 @@ export async function verifyExtractedField({
     response = await client.messages.create({
       model: MODEL,
       max_tokens: 8000,
-      system: VERIFY_SYSTEM_PROMPT,
+      // Prompt caching: system + markdown cached. Markdown was cached during
+      // the preceding extract call; this verify reads from cache.
+      system: [
+        {
+          type: 'text',
+          text: VERIFY_SYSTEM_PROMPT,
+          cache_control: { type: 'ephemeral' },
+        },
+      ],
       tools: [verifyTool],
       tool_choice: { type: 'tool', name: 'submit_verification' },
       messages: [
-        { role: 'user', content: buildVerifyUserPrompt(field, currentValue, extractedValue, markdown) },
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: buildVerifyUserPrompt(field, currentValue, extractedValue, markdown),
+              cache_control: { type: 'ephemeral' },
+            },
+          ],
+        },
       ],
     })
   } catch (err) {

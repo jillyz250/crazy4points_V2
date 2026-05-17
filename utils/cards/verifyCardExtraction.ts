@@ -171,11 +171,29 @@ export async function verifyCardExtraction({
     response = await client.messages.create({
       model: MODEL,
       max_tokens: 8000,
-      system: VERIFY_SYSTEM_PROMPT,
+      // Prompt caching: system prompt + markdown cached. The markdown was
+      // ALSO cached during the immediately-preceding extraction call, so
+      // this verify reads from cache at 10% normal input cost.
+      system: [
+        {
+          type: 'text',
+          text: VERIFY_SYSTEM_PROMPT,
+          cache_control: { type: 'ephemeral' },
+        },
+      ],
       tools: [verifyTool],
       tool_choice: { type: 'tool', name: 'submit_verification' },
       messages: [
-        { role: 'user', content: buildVerifyUserPrompt(extraction, markdown, cardName) },
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: buildVerifyUserPrompt(extraction, markdown, cardName),
+              cache_control: { type: 'ephemeral' },
+            },
+          ],
+        },
       ],
     })
   } catch (err) {
