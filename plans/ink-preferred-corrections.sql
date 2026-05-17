@@ -33,26 +33,9 @@ update credit_card_benefits
         or name = 'DoorDash Non-Restaurant Order Credit'
         or name = 'DashPass $10/Month Grocery & Retail Credit');
 
--- 3. Add Chase Points Boost (the CURRENT redemption mechanic).
---    NOTE: The flat 25% portal uplift that Ink Preferred and Sapphire Preferred
---    historically offered was REMOVED in 2025 and replaced by Points Boost.
---    Existing cardholders / pre-June-23-2025 applications are grandfathered
---    at 1.25 cpp through Oct 26, 2027 — but new applicants get the baseline
---    1 cpp + opportunistic Points Boost uplift on select flights/hotels.
---    Do NOT re-add the flat 25% benefit; that's a regression.
-insert into credit_card_benefits (
-  card_id, category, benefit_type, name,
-  value_amount, value_unit, frequency,
-  description, sort_order, metadata,
-  verified_at, verified_source_url
-) values (
-  (select id from credit_cards where slug = 'chase-ink-business-preferred'),
-  'portal_redemption', 'portal_redemption_bonus',
-  'Chase Points Boost (Variable Travel Redemption Uplift)',
-  null, null, 'lifetime',
-  'When redeeming Ultimate Rewards points for travel through the Chase Travel portal, eligible Points Boost flights and hotels get a variable point-value uplift — up to 1.75 cents per point on premium airfare, up to 1.5 cents per point on hotels. Boost availability is selective (frequent-miler analysis found ~9% of flights eligible). All other portal redemptions are 1 cent per point baseline. NOTE: existing cardholders and applications before June 23, 2025 retain the legacy 1.25 cpp redemption on travel through October 26, 2027 — for those users, redemption value can be higher than the 1 cpp baseline shown to new applicants. Transferring points to airline/hotel partners remains the highest-value option for most travelers.',
-  5,
-  '{"baseline_cpp":1.0,"boost_cpp_max":1.75,"boost_availability_estimate_pct":9,"grandfathered_cpp":1.25,"grandfathered_cutoff_date":"2027-10-26"}'::jsonb,
-  now(),
-  'https://creditcards.chase.com/business-credit-cards/ink/business-preferred'
-);
+-- 3. Removed: the "Points Boost" insert that was here previously came from
+--    a WebSearch summary of frequent-miler / nerdwallet articles, not from
+--    a Chase-authoritative URL. Per the data-source policy in
+--    plans/card-data-source-policy.md, third-party sources are not
+--    acceptable for card facts. If Points Boost should be on the page,
+--    re-add it via an extraction that scrapes a Chase URL describing it.
