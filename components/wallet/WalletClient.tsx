@@ -1,17 +1,17 @@
 'use client'
 
 /**
- * Wallet — client-side state + UI for /wallet.
+ * Wallet — running-balance credit checklist.
  *
- * Two halves:
- *   1. Card picker — cascading "issuer → card_type → card" UX. Saves the
- *      selected card slugs to localStorage.
- *   2. Benefits calendar — monthly accordion (current month open by default,
- *      next 11 visible). For each benefit, a checkbox per period; toggling
- *      marks it used and adds a timestamp to localStorage. Quarterly +
- *      annual credits get their own dedicated sections above the months.
+ * Three views on top of the same data:
+ *   1. Card picker (cascading dropdowns)
+ *   2. Annual credits — clickable card showing pool + spent + remaining
+ *   3. Periodic credits (semi-annual / quarterly / monthly) — pill bar of
+ *      periods, click to switch, see remaining balance per credit, log uses
+ *      with date + note + amount
  *
- * No server writes. Everything user-specific is in localStorage.
+ * State lives in localStorage. Pool size for a benefit per period comes from
+ * the benefit row's `value_amount` × period (e.g. $10/mo on Lyft).
  */
 
 import { useEffect, useMemo, useState } from 'react'
@@ -20,17 +20,22 @@ import {
   loadWalletState,
   saveWalletState,
   setSelectedCards,
-  setCertExpiration,
-  toggleUsage,
+  logUse,
+  deleteUse,
+  setCert,
+  sumUses,
   emptyState,
   type WalletState,
+  type UseRecord,
+  type CertRecord,
 } from '@/lib/wallet/storage'
 import {
   monthlySlots,
   quarterlySlots,
+  semiAnnualSlots,
   annualSlots,
   daysUntil,
-  formatValue,
+  formatUSD,
   type PeriodSlot,
 } from '@/lib/wallet/periods'
 
@@ -42,13 +47,10 @@ export default function WalletClient({ bundle }: Props) {
   const [state, setState] = useState<WalletState>(emptyState())
   const [hydrated, setHydrated] = useState(false)
 
-  // Hydrate from localStorage on mount (avoid SSR mismatch)
   useEffect(() => {
     setState(loadWalletState())
     setHydrated(true)
   }, [])
-
-  // Persist on every state change
   useEffect(() => {
     if (hydrated) saveWalletState(state)
   }, [state, hydrated])
@@ -56,15 +58,14 @@ export default function WalletClient({ bundle }: Props) {
   const today = useMemo(() => new Date(), [])
   const months = useMemo(() => monthlySlots(today), [today])
   const quarters = useMemo(() => quarterlySlots(today), [today])
+  const halves = useMemo(() => semiAnnualSlots(today), [today])
   const years = useMemo(() => annualSlots(today), [today])
 
-  // Cards the user has chosen
+  // Selected cards + their benefits
   const selectedCards = useMemo(
     () => bundle.cards.filter((c) => state.selectedCards.includes(c.slug)),
     [bundle.cards, state.selectedCards],
   )
-
-  // Benefits for those cards, partitioned by frequency
   const myBenefits = useMemo(() => {
     const selectedIds = new Set(selectedCards.map((c) => c.id))
     return bundle.benefits.filter((b) => selectedIds.has(b.card_id))
@@ -73,17 +74,23 @@ export default function WalletClient({ bundle }: Props) {
   const benefitsByFreq = useMemo(() => {
     const monthly: WalletBenefit[] = []
     const quarterly: WalletBenefit[] = []
+    const semi: WalletBenefit[] = []
     const annual: WalletBenefit[] = []
     for (const b of myBenefits) {
       if (b.frequency === 'monthly') monthly.push(b)
       else if (b.frequency === 'quarterly') quarterly.push(b)
+      else if (b.frequency === 'semi_annual') semi.push(b)
       else if (b.frequency === 'annual' || b.frequency === 'anniversary') annual.push(b)
     }
-    return { monthly, quarterly, annual }
+    return { monthly, quarterly, semi, annual }
   }, [myBenefits])
 
+  // Which period each section is "looking at"
+  const [activeMonthKey, setActiveMonthKey] = useState<string>(months[0].key)
+  const [activeQuarterKey, setActiveQuarterKey] = useState<string>(quarters[0].key)
+  const [activeHalfKey, setActiveHalfKey] = useState<string>(halves[0].key)
+
   if (!hydrated) {
-    // Avoid SSR flash — render a quiet placeholder until localStorage loads
     return (
       <div style={{ padding: '4rem 0', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
         Loading your wallet…
@@ -93,17 +100,16 @@ export default function WalletClient({ bundle }: Props) {
 
   return (
     <div>
-      {/* Hero summary */}
       <WalletSummary
         cardCount={selectedCards.length}
         benefits={myBenefits}
         state={state}
         currentMonth={months[0]}
+        currentHalf={halves[0]}
         currentQuarter={quarters[0]}
         currentYear={years[0]}
       />
 
-      {/* Card picker */}
       <CardPickerSection
         allCards={bundle.cards}
         selectedSlugs={state.selectedCards}
@@ -114,39 +120,73 @@ export default function WalletClient({ bundle }: Props) {
         <EmptyState />
       ) : (
         <>
-          {/* Annual credits — surfaced at top because they only appear once a year */}
+          {/* Annual benefits — surfaced first since they only refresh once a year */}
           {benefitsByFreq.annual.length > 0 && (
-            <BenefitGroup
-              title={`Annual credits — ${years[0].label}`}
-              subtitle="Use these before December 31."
+            <AnnualBlock
               benefits={benefitsByFreq.annual}
               slot={years[0]}
               state={state}
-              onToggle={(bid) => setState((s) => toggleUsage(s, bid, years[0].key))}
-              onCertExpirationChange={(bid, exp) => setState((s) => setCertExpiration(s, bid, exp))}
+              onLog={(bid, amt, date, note) =>
+                setState((s) => logUse(s, bid, years[0].key, amt, date, note))
+              }
+              onDelete={(bid, useId) =>
+                setState((s) => deleteUse(s, bid, years[0].key, useId))
+              }
+              onCertChange={(bid, patch) => setState((s) => setCert(s, bid, patch))}
             />
           )}
 
-          {/* Quarterly credits — current quarter open */}
+          {/* Semi-annual (StubHub-style $150 H1 + $150 H2) */}
+          {benefitsByFreq.semi.length > 0 && (
+            <PeriodicSection
+              title="Semi-annual credits"
+              periods={halves}
+              activeKey={activeHalfKey}
+              onActiveKeyChange={setActiveHalfKey}
+              benefits={benefitsByFreq.semi}
+              state={state}
+              onLog={(bid, key, amt, date, note) =>
+                setState((s) => logUse(s, bid, key, amt, date, note))
+              }
+              onDelete={(bid, key, useId) =>
+                setState((s) => deleteUse(s, bid, key, useId))
+              }
+            />
+          )}
+
+          {/* Quarterly */}
           {benefitsByFreq.quarterly.length > 0 && (
-            <BenefitGroup
-              title={`This quarter — ${quarters[0].label}`}
-              subtitle={`Resets ${quarters[0].end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
+            <PeriodicSection
+              title="Quarterly credits"
+              periods={quarters}
+              activeKey={activeQuarterKey}
+              onActiveKeyChange={setActiveQuarterKey}
               benefits={benefitsByFreq.quarterly}
-              slot={quarters[0]}
               state={state}
-              onToggle={(bid) => setState((s) => toggleUsage(s, bid, quarters[0].key))}
-              onCertExpirationChange={(bid, exp) => setState((s) => setCertExpiration(s, bid, exp))}
+              onLog={(bid, key, amt, date, note) =>
+                setState((s) => logUse(s, bid, key, amt, date, note))
+              }
+              onDelete={(bid, key, useId) =>
+                setState((s) => deleteUse(s, bid, key, useId))
+              }
             />
           )}
 
-          {/* Monthly benefits — 12-month accordion, current open */}
+          {/* Monthly — pill bar of next 12 months */}
           {benefitsByFreq.monthly.length > 0 && (
-            <MonthlyCalendar
+            <PeriodicSection
+              title="Monthly credits"
+              periods={months}
+              activeKey={activeMonthKey}
+              onActiveKeyChange={setActiveMonthKey}
               benefits={benefitsByFreq.monthly}
-              slots={months}
               state={state}
-              onToggle={(bid, key) => setState((s) => toggleUsage(s, bid, key))}
+              onLog={(bid, key, amt, date, note) =>
+                setState((s) => logUse(s, bid, key, amt, date, note))
+              }
+              onDelete={(bid, key, useId) =>
+                setState((s) => deleteUse(s, bid, key, useId))
+              }
             />
           )}
         </>
@@ -162,6 +202,7 @@ function WalletSummary({
   benefits,
   state,
   currentMonth,
+  currentHalf,
   currentQuarter,
   currentYear,
 }: {
@@ -169,32 +210,45 @@ function WalletSummary({
   benefits: WalletBenefit[]
   state: WalletState
   currentMonth: PeriodSlot
+  currentHalf: PeriodSlot
   currentQuarter: PeriodSlot
   currentYear: PeriodSlot
 }) {
   const stats = useMemo(() => {
-    let monthlyDue = 0
-    let monthlyValue = 0
-    let monthlyUsed = 0
-    let quarterlyDue = 0
-    let annualDue = 0
+    let monthlyPool = 0
+    let monthlySpent = 0
+    let annualPool = 0
+    let annualSpent = 0
+    let quarterlyPool = 0
+    let quarterlySpent = 0
+    let semiPool = 0
+    let semiSpent = 0
     for (const b of benefits) {
-      const usedInPeriod = (key: string) => !!state.usage[b.id]?.[key]
-      const dollarValue = b.value_amount ?? 0
+      const pool = b.value_amount ?? 0
+      const spent = (key: string) => sumUses(state.uses[b.id]?.[key])
       if (b.frequency === 'monthly') {
-        if (usedInPeriod(currentMonth.key)) monthlyUsed += dollarValue
-        else {
-          monthlyDue += 1
-          monthlyValue += dollarValue
-        }
+        monthlyPool += pool
+        monthlySpent += spent(currentMonth.key)
       } else if (b.frequency === 'quarterly') {
-        if (!usedInPeriod(currentQuarter.key)) quarterlyDue += 1
+        quarterlyPool += pool
+        quarterlySpent += spent(currentQuarter.key)
+      } else if (b.frequency === 'semi_annual') {
+        semiPool += pool
+        semiSpent += spent(currentHalf.key)
       } else if (b.frequency === 'annual' || b.frequency === 'anniversary') {
-        if (!usedInPeriod(currentYear.key)) annualDue += 1
+        annualPool += pool
+        annualSpent += spent(currentYear.key)
       }
     }
-    return { monthlyDue, monthlyValue, monthlyUsed, quarterlyDue, annualDue }
-  }, [benefits, state, currentMonth.key, currentQuarter.key, currentYear.key])
+    return {
+      monthlyPool,
+      monthlySpent,
+      monthlyLeft: Math.max(0, monthlyPool - monthlySpent),
+      quarterlyLeft: Math.max(0, quarterlyPool - quarterlySpent),
+      semiLeft: Math.max(0, semiPool - semiSpent),
+      annualLeft: Math.max(0, annualPool - annualSpent),
+    }
+  }, [benefits, state, currentMonth.key, currentHalf.key, currentQuarter.key, currentYear.key])
 
   return (
     <div
@@ -207,15 +261,7 @@ function WalletSummary({
         boxShadow: '0 8px 24px rgba(107, 45, 143, 0.25)',
       }}
     >
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '2rem',
-          alignItems: 'baseline',
-          justifyContent: 'space-between',
-        }}
-      >
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem', alignItems: 'baseline', justifyContent: 'space-between' }}>
         <div>
           <div style={{ fontFamily: 'var(--font-ui)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', opacity: 0.85 }}>
             Your wallet
@@ -226,11 +272,17 @@ function WalletSummary({
         </div>
         {cardCount > 0 && (
           <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
-            <Stat label="This month — to use" value={`${stats.monthlyDue}`} sub={stats.monthlyValue > 0 ? `up to $${stats.monthlyValue}` : ''} />
-            <Stat label="This quarter" value={`${stats.quarterlyDue}`} />
-            <Stat label="This year" value={`${stats.annualDue}`} />
-            {stats.monthlyUsed > 0 && (
-              <Stat label="Used this month" value={`$${stats.monthlyUsed}`} sub="captured" tone="success" />
+            {stats.monthlyPool > 0 && (
+              <Stat label="This month left" value={formatUSD(stats.monthlyLeft)} sub={`of ${formatUSD(stats.monthlyPool)} pool`} />
+            )}
+            {stats.semiLeft > 0 && (
+              <Stat label="This half left" value={formatUSD(stats.semiLeft)} />
+            )}
+            {stats.quarterlyLeft > 0 && (
+              <Stat label="This quarter left" value={formatUSD(stats.quarterlyLeft)} />
+            )}
+            {stats.annualLeft > 0 && (
+              <Stat label="This year left" value={formatUSD(stats.annualLeft)} tone="accent" />
             )}
           </div>
         )}
@@ -239,7 +291,7 @@ function WalletSummary({
   )
 }
 
-function Stat({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: 'success' }) {
+function Stat({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: 'accent' }) {
   return (
     <div style={{ textAlign: 'right' }}>
       <div style={{ fontFamily: 'var(--font-ui)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.8 }}>
@@ -250,20 +302,20 @@ function Stat({ label, value, sub, tone }: { label: string; value: string; sub?:
           fontFamily: 'var(--font-display)',
           fontSize: '1.75rem',
           fontWeight: 600,
-          color: tone === 'success' ? '#D4AF37' : 'white',
+          color: tone === 'accent' ? '#D4AF37' : 'white',
           marginTop: '0.125rem',
         }}
       >
         {value}
       </div>
       {sub && (
-        <div style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: '0.125rem' }}>{sub}</div>
+        <div style={{ fontSize: '0.7rem', opacity: 0.8, marginTop: '0.125rem' }}>{sub}</div>
       )}
     </div>
   )
 }
 
-// ---------- Card picker (cascading) ----------
+// ---------- Card picker ----------
 
 function CardPickerSection({
   allCards,
@@ -277,7 +329,6 @@ function CardPickerSection({
   const [issuerSlug, setIssuerSlug] = useState<string>('')
   const [cardType, setCardType] = useState<string>('')
 
-  // Build issuer list from cards
   const issuers = useMemo(() => {
     const map = new Map<string, string>()
     for (const c of allCards) map.set(c.issuer_slug, c.issuer_name)
@@ -302,11 +353,8 @@ function CardPickerSection({
   const selectedCards = allCards.filter((c) => selectedSlugs.includes(c.slug))
 
   function toggleCard(slug: string) {
-    if (selectedSlugs.includes(slug)) {
-      onChange(selectedSlugs.filter((s) => s !== slug))
-    } else {
-      onChange([...selectedSlugs, slug])
-    }
+    if (selectedSlugs.includes(slug)) onChange(selectedSlugs.filter((s) => s !== slug))
+    else onChange([...selectedSlugs, slug])
   }
 
   return (
@@ -325,7 +373,6 @@ function CardPickerSection({
         Pick the cards you carry. Your wallet stays on this device — nothing is synced or shared.
       </p>
 
-      {/* Selected pills */}
       {selectedCards.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1.25rem' }}>
           {selectedCards.map((c) => (
@@ -354,15 +401,11 @@ function CardPickerSection({
         </div>
       )}
 
-      {/* Cascading dropdowns */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(11rem, 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
         <Dropdown
           label="Issuer"
           value={issuerSlug}
-          onChange={(v) => {
-            setIssuerSlug(v)
-            setCardType('')
-          }}
+          onChange={(v) => { setIssuerSlug(v); setCardType('') }}
           options={[{ value: '', label: 'All issuers' }, ...issuers.map(([slug, name]) => ({ value: slug, label: name }))]}
         />
         <Dropdown
@@ -377,7 +420,6 @@ function CardPickerSection({
         />
       </div>
 
-      {/* Card list */}
       <div
         style={{
           display: 'grid',
@@ -408,7 +450,6 @@ function CardPickerSection({
                   background: checked ? 'var(--color-background-soft)' : 'white',
                   cursor: 'pointer',
                   fontSize: '0.875rem',
-                  transition: 'border 0.15s, background 0.15s',
                 }}
               >
                 <input
@@ -489,157 +530,96 @@ function EmptyState() {
     >
       <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>👛</div>
       <p style={{ fontSize: '1rem', marginBottom: '0.25rem' }}>Your wallet is empty</p>
-      <p style={{ fontSize: '0.875rem' }}>Pick a card above to see your monthly credits.</p>
+      <p style={{ fontSize: '0.875rem' }}>Pick a card above to see your credits.</p>
     </div>
   )
 }
 
-// ---------- Benefit group (annual / quarterly) ----------
+// ---------- Annual block (clickable expandable, shows pool + spent + left) ----------
 
-function BenefitGroup({
-  title,
-  subtitle,
+function AnnualBlock({
   benefits,
   slot,
   state,
-  onToggle,
-  onCertExpirationChange,
+  onLog,
+  onDelete,
+  onCertChange,
 }: {
-  title: string
-  subtitle?: string
   benefits: WalletBenefit[]
   slot: PeriodSlot
   state: WalletState
-  onToggle: (benefitId: string) => void
-  onCertExpirationChange: (benefitId: string, expiration: string | null) => void
+  onLog: (bid: string, amt: number, date: string, note?: string) => void
+  onDelete: (bid: string, useId: string) => void
+  onCertChange: (bid: string, patch: Partial<CertRecord>) => void
 }) {
-  return (
-    <section
-      style={{
-        background: 'white',
-        border: '1px solid var(--color-border-soft)',
-        borderRadius: 'var(--radius-card)',
-        padding: '1.5rem',
-        marginBottom: '1.5rem',
-        boxShadow: 'var(--shadow-soft)',
-      }}
-    >
-      <header style={{ marginBottom: '1rem' }}>
-        <h2 style={{ fontSize: '1.25rem', marginBottom: '0.125rem' }}>{title}</h2>
-        {subtitle && <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>{subtitle}</p>}
-      </header>
-      <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-        {benefits.map((b) => (
-          <BenefitRow
-            key={b.id}
-            benefit={b}
-            checked={!!state.usage[b.id]?.[slot.key]}
-            onToggle={() => onToggle(b.id)}
-            certExpiration={state.certExpirations[b.id] ?? null}
-            onCertExpirationChange={(exp) => onCertExpirationChange(b.id, exp)}
-            disabled={false}
-          />
-        ))}
-      </ul>
-    </section>
-  )
-}
-
-// ---------- Monthly 12-month calendar ----------
-
-function MonthlyCalendar({
-  benefits,
-  slots,
-  state,
-  onToggle,
-}: {
-  benefits: WalletBenefit[]
-  slots: PeriodSlot[]
-  state: WalletState
-  onToggle: (benefitId: string, periodKey: string) => void
-}) {
-  // Current month is auto-open; future months collapsed by default
-  const [openKey, setOpenKey] = useState<string>(slots[0].key)
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
 
   return (
     <section style={{ marginBottom: '1.5rem' }}>
-      <h2 style={{ fontSize: '1.25rem', marginBottom: '0.75rem' }}>Monthly credits</h2>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-        {slots.map((slot) => {
-          const isOpen = openKey === slot.key
-          const totalDue = benefits.filter((b) => !state.usage[b.id]?.[slot.key]).length
-          const totalUsed = benefits.length - totalDue
+      <h2 style={{ fontSize: '1.25rem', marginBottom: '0.75rem' }}>Annual credits — {slot.label}</h2>
+      <div style={{ display: 'grid', gap: '0.75rem' }}>
+        {benefits.map((b) => {
+          const pool = b.value_amount ?? 0
+          const uses = state.uses[b.id]?.[slot.key] ?? []
+          const spent = sumUses(uses)
+          const left = Math.max(0, pool - spent)
+          const isOpen = !!expanded[b.id]
+          const isFreeNight = b.category === 'free_night'
+          const isPool = pool > 0
           return (
             <article
-              key={slot.key}
+              key={b.id}
               style={{
                 background: 'white',
-                border: `1px solid ${isOpen ? 'var(--color-primary)' : 'var(--color-border-soft)'}`,
+                border: `1px solid ${left === 0 && pool > 0 ? 'var(--color-border-soft)' : 'var(--color-primary)'}`,
                 borderRadius: 'var(--radius-card)',
+                padding: '1rem 1.25rem',
                 boxShadow: isOpen ? 'var(--shadow-soft)' : 'none',
-                overflow: 'hidden',
+                cursor: 'pointer',
+              }}
+              onClick={(e) => {
+                // Don't toggle if click came from a form control inside
+                const target = e.target as HTMLElement
+                if (target.closest('input, button, select, textarea, label')) return
+                setExpanded((s) => ({ ...s, [b.id]: !s[b.id] }))
               }}
             >
-              <button
-                onClick={() => setOpenKey(isOpen ? '' : slot.key)}
-                style={{
-                  display: 'flex',
-                  width: '100%',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '1rem',
-                  padding: '0.85rem 1.25rem',
-                  background: isOpen ? 'var(--color-background-soft)' : 'white',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontFamily: 'var(--font-ui)',
-                  textAlign: 'left',
-                }}
-              >
-                <span style={{ display: 'flex', alignItems: 'baseline', gap: '0.75rem' }}>
-                  <span style={{ fontWeight: 600, fontSize: '1rem', color: 'var(--color-primary)' }}>
-                    {slot.label}
-                  </span>
-                  {slot.isCurrent && (
-                    <span
-                      style={{
-                        background: 'var(--color-accent)',
-                        color: '#3a2b00',
-                        fontSize: '0.65rem',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.08em',
-                        padding: '0.15rem 0.5rem',
-                        borderRadius: '999px',
-                        fontWeight: 700,
-                      }}
-                    >
-                      This month
-                    </span>
-                  )}
-                </span>
-                <span style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
-                  {totalUsed > 0 && <span style={{ marginRight: '0.75rem' }}>{totalUsed} used</span>}
-                  {totalDue > 0
-                    ? `${totalDue} to use`
-                    : 'all done ✓'}
-                  <span style={{ marginLeft: '0.5rem' }}>{isOpen ? '▾' : '▸'}</span>
-                </span>
-              </button>
+              <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '1rem' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: '1rem' }}>{b.name}</div>
+                  <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>{b.card_name}</div>
+                </div>
+                {isPool ? (
+                  <PoolBadge pool={pool} spent={spent} left={left} />
+                ) : (
+                  <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>{isOpen ? '▾' : '▸'}</span>
+                )}
+              </header>
+
               {isOpen && (
-                <ul style={{ listStyle: 'none', padding: '0.5rem 1.25rem 1.25rem', margin: 0 }}>
-                  {benefits.map((b) => (
-                    <BenefitRow
-                      key={b.id}
-                      benefit={b}
-                      checked={!!state.usage[b.id]?.[slot.key]}
-                      onToggle={() => onToggle(b.id, slot.key)}
-                      certExpiration={null}
-                      onCertExpirationChange={() => {}}
-                      disabled={false}
-                      daysUntilEnd={daysUntil(slot.end)}
+                <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--color-border-soft)' }}>
+                  {b.description && (
+                    <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', marginBottom: '0.75rem' }}>{b.description}</p>
+                  )}
+
+                  {isFreeNight && (
+                    <CertControls
+                      cert={state.certs[b.id]}
+                      onChange={(patch) => onCertChange(b.id, patch)}
                     />
-                  ))}
-                </ul>
+                  )}
+
+                  {isPool && (
+                    <>
+                      <UsesList uses={uses} onDelete={(uid) => onDelete(b.id, uid)} />
+                      <LogUseForm
+                        pool={pool}
+                        left={left}
+                        onSubmit={(amt, date, note) => onLog(b.id, amt, date, note)}
+                      />
+                    </>
+                  )}
+                </div>
               )}
             </article>
           )
@@ -649,127 +629,443 @@ function MonthlyCalendar({
   )
 }
 
-// ---------- Individual benefit row ----------
-
-function BenefitRow({
-  benefit,
-  checked,
-  onToggle,
-  certExpiration,
-  onCertExpirationChange,
-  disabled,
-  daysUntilEnd,
-}: {
-  benefit: WalletBenefit
-  checked: boolean
-  onToggle: () => void
-  certExpiration: string | null
-  onCertExpirationChange: (exp: string | null) => void
-  disabled: boolean
-  daysUntilEnd?: number
-}) {
-  const isFreeNight = benefit.category === 'free_night'
-  const value = formatValue(benefit.value_amount, benefit.value_unit)
+function PoolBadge({ pool, spent, left }: { pool: number; spent: number; left: number }) {
+  const pct = pool > 0 ? Math.max(0, Math.min(1, left / pool)) : 0
+  const color = left === 0 ? 'var(--color-text-secondary)' : pct < 0.25 ? '#b04545' : 'var(--color-primary)'
   return (
-    <li
-      style={{
-        display: 'flex',
-        alignItems: 'flex-start',
-        gap: '0.75rem',
-        padding: '0.65rem 0',
-        borderBottom: '1px solid var(--color-border-soft)',
-      }}
-    >
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={onToggle}
-        disabled={disabled}
+    <div style={{ textAlign: 'right', minWidth: '8rem' }}>
+      <div style={{ fontFamily: 'var(--font-ui)', fontSize: '1.1rem', fontWeight: 700, color }}>
+        {formatUSD(left)} left
+      </div>
+      <div style={{ fontSize: '0.7rem', color: 'var(--color-text-secondary)' }}>
+        {formatUSD(spent)} of {formatUSD(pool)} used
+      </div>
+      <div style={{ height: '4px', background: 'var(--color-border-soft)', borderRadius: '999px', marginTop: '0.4rem', overflow: 'hidden' }}>
+        <div style={{ width: `${pct * 100}%`, height: '100%', background: color, transition: 'width 0.2s' }} />
+      </div>
+    </div>
+  )
+}
+
+// ---------- Periodic section (monthly / quarterly / semi-annual) ----------
+
+function PeriodicSection({
+  title,
+  periods,
+  activeKey,
+  onActiveKeyChange,
+  benefits,
+  state,
+  onLog,
+  onDelete,
+}: {
+  title: string
+  periods: PeriodSlot[]
+  activeKey: string
+  onActiveKeyChange: (k: string) => void
+  benefits: WalletBenefit[]
+  state: WalletState
+  onLog: (bid: string, key: string, amt: number, date: string, note?: string) => void
+  onDelete: (bid: string, key: string, useId: string) => void
+}) {
+  const active = periods.find((p) => p.key === activeKey) ?? periods[0]
+
+  return (
+    <section style={{ marginBottom: '1.5rem' }}>
+      <h2 style={{ fontSize: '1.25rem', marginBottom: '0.75rem' }}>{title}</h2>
+
+      {/* Period pills */}
+      <div
         style={{
-          accentColor: 'var(--color-primary)',
-          width: '1.15rem',
-          height: '1.15rem',
-          marginTop: '0.2rem',
-          cursor: disabled ? 'not-allowed' : 'pointer',
-          flexShrink: 0,
+          display: 'flex',
+          gap: '0.4rem',
+          flexWrap: 'wrap',
+          marginBottom: '1rem',
+          paddingBottom: '0.25rem',
         }}
-      />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            gap: '0.5rem',
-            alignItems: 'baseline',
-          }}
-        >
-          <div
-            style={{
-              fontWeight: 500,
-              fontSize: '0.95rem',
-              color: checked ? 'var(--color-text-secondary)' : 'var(--color-text-primary)',
-              textDecoration: checked ? 'line-through' : 'none',
-            }}
-          >
-            {benefit.name}
-          </div>
-          {value && (
-            <div
+      >
+        {periods.map((p) => {
+          const isActive = p.key === activeKey
+          return (
+            <button
+              key={p.key}
+              onClick={() => onActiveKeyChange(p.key)}
               style={{
+                padding: '0.4rem 0.85rem',
+                borderRadius: '999px',
+                border: `1px solid ${isActive ? 'var(--color-primary)' : 'var(--color-border-soft)'}`,
+                background: isActive ? 'var(--color-primary)' : 'white',
+                color: isActive ? 'white' : 'var(--color-text-primary)',
                 fontFamily: 'var(--font-ui)',
-                fontSize: '0.85rem',
-                color: 'var(--color-primary)',
-                fontWeight: 600,
+                fontSize: '0.8125rem',
+                fontWeight: isActive ? 600 : 500,
+                cursor: 'pointer',
                 whiteSpace: 'nowrap',
+                position: 'relative',
               }}
             >
-              {value}
-            </div>
-          )}
-        </div>
-        <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', marginTop: '0.15rem' }}>
-          {benefit.card_name}
-          {daysUntilEnd !== undefined && daysUntilEnd <= 31 && !checked && (
-            <span style={{ marginLeft: '0.5rem', color: daysUntilEnd <= 7 ? '#b04545' : 'var(--color-text-secondary)' }}>
-              · {daysUntilEnd === 0 ? 'ends today' : `${daysUntilEnd}d left`}
-            </span>
-          )}
-        </div>
-        {benefit.description && (
-          <p
-            style={{
-              fontSize: '0.8125rem',
-              color: 'var(--color-text-secondary)',
-              marginTop: '0.35rem',
-              lineHeight: 1.45,
-            }}
-          >
-            {benefit.description}
-          </p>
-        )}
-        {isFreeNight && (
-          <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8125rem' }}>
-            <label style={{ color: 'var(--color-text-secondary)' }}>Your cert expires:</label>
-            <input
-              type="date"
-              value={certExpiration ?? ''}
-              onChange={(e) => onCertExpirationChange(e.target.value || null)}
-              style={{
-                fontSize: '0.875rem',
-                padding: '0.25rem 0.4rem',
-                border: '1px solid var(--color-border-soft)',
-                borderRadius: 'var(--radius-ui)',
-                fontFamily: 'var(--font-body)',
-              }}
+              {p.shortLabel}
+              {p.isCurrent && (
+                <span
+                  style={{
+                    marginLeft: '0.4rem',
+                    background: 'var(--color-accent)',
+                    color: '#3a2b00',
+                    fontSize: '0.6rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.06em',
+                    padding: '0.1rem 0.4rem',
+                    borderRadius: '999px',
+                    fontWeight: 700,
+                  }}
+                >
+                  Now
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Benefit rows for the active period */}
+      <div style={{ display: 'grid', gap: '0.75rem' }}>
+        {benefits.map((b) => {
+          const pool = b.value_amount ?? 0
+          const uses = state.uses[b.id]?.[active.key] ?? []
+          const spent = sumUses(uses)
+          const left = Math.max(0, pool - spent)
+          return (
+            <PeriodicBenefitCard
+              key={b.id}
+              benefit={b}
+              pool={pool}
+              uses={uses}
+              spent={spent}
+              left={left}
+              periodLabel={active.label}
+              daysLeft={daysUntil(active.end)}
+              onLog={(amt, date, note) => onLog(b.id, active.key, amt, date, note)}
+              onDelete={(useId) => onDelete(b.id, active.key, useId)}
             />
-            {certExpiration && (
-              <span style={{ color: 'var(--color-text-secondary)' }}>
-                · {daysUntil(new Date(certExpiration))}d
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+function PeriodicBenefitCard({
+  benefit,
+  pool,
+  uses,
+  spent,
+  left,
+  periodLabel,
+  daysLeft,
+  onLog,
+  onDelete,
+}: {
+  benefit: WalletBenefit
+  pool: number
+  uses: UseRecord[]
+  spent: number
+  left: number
+  periodLabel: string
+  daysLeft: number
+  onLog: (amt: number, date: string, note?: string) => void
+  onDelete: (useId: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <article
+      style={{
+        background: 'white',
+        border: `1px solid ${left === 0 && pool > 0 ? 'var(--color-border-soft)' : 'var(--color-primary)'}`,
+        borderRadius: 'var(--radius-card)',
+        padding: '1rem 1.25rem',
+        boxShadow: open ? 'var(--shadow-soft)' : 'none',
+        cursor: 'pointer',
+      }}
+      onClick={(e) => {
+        const target = e.target as HTMLElement
+        if (target.closest('input, button, select, textarea, label')) return
+        setOpen((o) => !o)
+      }}
+    >
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '1rem' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 600, fontSize: '1rem' }}>{benefit.name}</div>
+          <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
+            {benefit.card_name}
+            {daysLeft <= 14 && left > 0 && (
+              <span style={{ marginLeft: '0.5rem', color: daysLeft <= 7 ? '#b04545' : 'var(--color-text-secondary)' }}>
+                · {daysLeft}d left in {periodLabel}
               </span>
             )}
           </div>
+        </div>
+        {pool > 0 ? (
+          <PoolBadge pool={pool} spent={spent} left={left} />
+        ) : (
+          <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>{open ? '▾' : '▸'}</span>
         )}
+      </header>
+
+      {open && (
+        <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--color-border-soft)' }}>
+          {benefit.description && (
+            <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', marginBottom: '0.75rem' }}>{benefit.description}</p>
+          )}
+          {pool > 0 && (
+            <>
+              <UsesList uses={uses} onDelete={onDelete} />
+              <LogUseForm pool={pool} left={left} onSubmit={onLog} />
+            </>
+          )}
+        </div>
+      )}
+    </article>
+  )
+}
+
+// ---------- Uses list (entries the user has logged this period) ----------
+
+function UsesList({ uses, onDelete }: { uses: UseRecord[]; onDelete: (id: string) => void }) {
+  if (uses.length === 0) {
+    return (
+      <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', margin: '0 0 0.75rem 0', fontStyle: 'italic' }}>
+        Nothing logged yet.
+      </p>
+    )
+  }
+  return (
+    <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 0.75rem 0' }}>
+      {uses.map((u) => (
+        <li
+          key={u.id}
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: '0.75rem',
+            padding: '0.45rem 0',
+            borderBottom: '1px solid var(--color-border-soft)',
+            fontSize: '0.875rem',
+          }}
+        >
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div>
+              <strong>{formatUSD(u.amount)}</strong>
+              <span style={{ color: 'var(--color-text-secondary)', marginLeft: '0.5rem' }}>
+                {new Date(`${u.date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </span>
+            </div>
+            {u.note && (
+              <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', marginTop: '0.15rem' }}>
+                {u.note}
+              </div>
+            )}
+          </div>
+          <button
+            onClick={() => onDelete(u.id)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--color-text-secondary)',
+              cursor: 'pointer',
+              fontSize: '0.75rem',
+              fontFamily: 'var(--font-ui)',
+              textDecoration: 'underline',
+            }}
+            title="Delete this entry"
+          >
+            remove
+          </button>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+// ---------- Log-use form ----------
+
+function LogUseForm({
+  pool,
+  left,
+  onSubmit,
+}: {
+  pool: number
+  left: number
+  onSubmit: (amt: number, date: string, note?: string) => void
+}) {
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const [amount, setAmount] = useState<string>('')
+  const [date, setDate] = useState<string>(todayStr)
+  const [note, setNote] = useState<string>('')
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const num = Number(amount)
+    if (!Number.isFinite(num) || num <= 0) return
+    onSubmit(num, date, note || undefined)
+    setAmount('')
+    setNote('')
+    setDate(todayStr)
+  }
+
+  if (left === 0 && pool > 0) {
+    return (
+      <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', fontStyle: 'italic', margin: 0 }}>
+        Pool used up for this period. Resets next period.
+      </p>
+    )
+  }
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'minmax(6rem, 1fr) minmax(8rem, 1fr) minmax(10rem, 2fr) auto',
+        gap: '0.5rem',
+        alignItems: 'end',
+      }}
+    >
+      <FormField label="Amount $">
+        <input
+          type="number"
+          inputMode="decimal"
+          step="0.01"
+          min="0"
+          max={pool > 0 ? left : undefined}
+          placeholder={left > 0 ? `up to ${formatUSD(left)}` : ''}
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          style={inputStyle}
+        />
+      </FormField>
+      <FormField label="Date">
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          style={inputStyle}
+        />
+      </FormField>
+      <FormField label="Note (what / where)">
+        <input
+          type="text"
+          placeholder="Optional"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          style={inputStyle}
+        />
+      </FormField>
+      <button
+        type="submit"
+        disabled={!amount || Number(amount) <= 0}
+        style={{
+          background: 'var(--color-primary)',
+          color: 'white',
+          border: 'none',
+          borderRadius: 'var(--radius-ui)',
+          padding: '0.55rem 1rem',
+          fontFamily: 'var(--font-ui)',
+          fontSize: '0.875rem',
+          fontWeight: 600,
+          cursor: amount && Number(amount) > 0 ? 'pointer' : 'not-allowed',
+          opacity: amount && Number(amount) > 0 ? 1 : 0.5,
+          whiteSpace: 'nowrap',
+        }}
+      >
+        Log
+      </button>
+    </form>
+  )
+}
+
+const inputStyle: React.CSSProperties = {
+  fontSize: '1rem',
+  padding: '0.5rem 0.65rem',
+  border: '1px solid var(--color-border-soft)',
+  borderRadius: 'var(--radius-ui)',
+  fontFamily: 'var(--font-body)',
+  width: '100%',
+}
+
+function FormField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.7rem', color: 'var(--color-text-secondary)', fontFamily: 'var(--font-ui)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+      {label}
+      {children}
+    </label>
+  )
+}
+
+// ---------- Cert controls (free night certs) ----------
+
+function CertControls({
+  cert,
+  onChange,
+}: {
+  cert: CertRecord | undefined
+  onChange: (patch: Partial<CertRecord>) => void
+}) {
+  const expiresAt = cert?.expiresAt
+  const daysLeft = expiresAt ? daysUntil(new Date(`${expiresAt}T00:00:00`)) : null
+
+  return (
+    <div
+      style={{
+        background: 'var(--color-background-soft)',
+        border: '1px solid var(--color-border-soft)',
+        borderRadius: 'var(--radius-ui)',
+        padding: '0.85rem 1rem',
+        marginBottom: '0.75rem',
+      }}
+    >
+      <div style={{ fontSize: '0.75rem', fontFamily: 'var(--font-ui)', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)', marginBottom: '0.5rem' }}>
+        Your certificate
       </div>
-    </li>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(10rem, 1fr))', gap: '0.5rem' }}>
+        <FormField label="Issued on">
+          <input
+            type="date"
+            value={cert?.issuedAt ?? ''}
+            onChange={(e) => onChange({ issuedAt: e.target.value || undefined })}
+            style={inputStyle}
+          />
+        </FormField>
+        <FormField label="Expires on">
+          <input
+            type="date"
+            value={cert?.expiresAt ?? ''}
+            onChange={(e) => onChange({ expiresAt: e.target.value || undefined })}
+            style={inputStyle}
+          />
+        </FormField>
+        <FormField label="Note (where you'll use it)">
+          <input
+            type="text"
+            value={cert?.note ?? ''}
+            placeholder="Optional"
+            onChange={(e) => onChange({ note: e.target.value || undefined })}
+            style={inputStyle}
+          />
+        </FormField>
+      </div>
+      {daysLeft !== null && (
+        <div
+          style={{
+            marginTop: '0.5rem',
+            fontSize: '0.8125rem',
+            color: daysLeft <= 30 ? '#b04545' : 'var(--color-text-secondary)',
+            fontWeight: daysLeft <= 30 ? 600 : 400,
+          }}
+        >
+          {daysLeft === 0 ? 'Expires today' : `Expires in ${daysLeft} day${daysLeft === 1 ? '' : 's'}`}
+        </div>
+      )}
+    </div>
   )
 }
