@@ -61,6 +61,17 @@ export default async function CardExtractPage({
     .order('created_at', { ascending: false })
     .limit(10)
 
+  // Scout sources currently registered for this card — used to show "✓ already
+  // registered" on Discover suggestions + in the Configured URLs summary.
+  const { data: scoutSourcesRaw } = await supabase
+    .from('sources')
+    .select('name, url, scrape_frequency, is_active')
+    .or(
+      `name.ilike.${card.name.replace(/'/g, "''")} —%,name.ilike.${card.name.replace(/'/g, "''")} Newsroom%`,
+    )
+    .order('created_at', { ascending: false })
+  const scoutSourcesForCard = (scoutSourcesRaw ?? []) as Array<{ name: string; url: string; scrape_frequency: string; is_active: boolean }>
+
   // Most recent extraction's full JSON (for inline review).
   const { data: latest } = await supabase
     .from('credit_card_extractions')
@@ -147,16 +158,12 @@ export default async function CardExtractPage({
             </>
           ) : null}
         </p>
-        {card.official_url ? (
-          <p className="mt-1 font-body text-xs text-[var(--color-text-secondary)]">
-            <span className="font-ui uppercase tracking-wide">Stored product URL:</span>{' '}
-            <a className="text-[var(--color-primary)] underline" href={card.official_url} target="_blank" rel="noreferrer">{card.official_url}</a>
-          </p>
-        ) : (
-          <p className="mt-1 font-body text-xs text-amber-700">
-            No product URL stored for this card yet. Paste one in the form below — it will pre-fill on every future extraction once saved by the action.
-          </p>
-        )}
+        {/* Configured URLs summary — what's currently in DB for this card */}
+        <ConfiguredUrlsSummary
+          officialUrl={card.official_url as string | null}
+          guideUrl={card.guide_to_benefits_url as string | null}
+          scoutSources={scoutSourcesForCard}
+        />
       </header>
 
       {/* 🔍 Discover issuer URLs (same flow as programs PR #543) */}
@@ -197,12 +204,27 @@ export default async function CardExtractPage({
             ['newsroom_source', '📰 Newsroom (Scout)'],
           ]
           const rows = slots
-            .map(([k, label]) => [label, sugg[k] as Pick | null] as const)
-            .filter(([, v]) => v && v.url)
+            .map(([k, label]) => [k as string, label, sugg[k] as Pick | null] as const)
+            .filter(([, , v]) => v && v.url)
+          // Compute which suggestions are already in the DB so we can show a
+          // "✓ already applied" badge per row.
+          const scoutUrls = new Set(scoutSourcesForCard.map((s) => s.url))
+          const currentOfficialUrl = card.official_url
+          const currentGuideUrl = card.guide_to_benefits_url
+          function isApplied(key: string, url: string): boolean {
+            if (key === 'source_url') return currentOfficialUrl === url
+            if (key === 'guide_to_benefits_url') return currentGuideUrl === url
+            if (key === 'promo_source' || key === 'newsroom_source') return scoutUrls.has(url)
+            return false
+          }
+          const allApplied = rows.length > 0 && rows.every(([k, , v]) => isApplied(k, v!.url!))
           return (
             <div className="mt-3 rounded-[var(--radius-ui)] border border-amber-300 bg-white p-3">
               <p className="mb-2 font-ui text-[11px] font-bold uppercase tracking-wide text-amber-900">
                 Suggestions ({rows.length} found) · {new Date(sugg.generated_at as string).toLocaleString()}
+                {allApplied ? (
+                  <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] text-emerald-900">✓ all applied</span>
+                ) : null}
               </p>
               {rows.length === 0 ? (
                 <p className="font-body text-xs text-amber-900">
@@ -212,7 +234,7 @@ export default async function CardExtractPage({
                 <>
                   <table className="w-full font-body text-xs">
                     <tbody>
-                      {rows.map(([label, v], i) => (
+                      {rows.map(([key, label, v], i) => (
                         <tr key={i} className="border-b border-amber-100 align-top">
                           <td className="py-1 pr-2 font-semibold whitespace-nowrap">{label}</td>
                           <td className="py-1 pr-2">
@@ -220,6 +242,13 @@ export default async function CardExtractPage({
                             <p className="mt-0.5 text-[11px] text-amber-700">{v!.reason}</p>
                           </td>
                           <td className="py-1 pr-2 uppercase font-ui text-[10px]">{v!.confidence}</td>
+                          <td className="py-1 pr-2 whitespace-nowrap">
+                            {isApplied(key, v!.url!) ? (
+                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-900">✓ applied</span>
+                            ) : (
+                              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-900">new</span>
+                            )}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -263,8 +292,8 @@ export default async function CardExtractPage({
             <RunExtractionButton />
           </div>
           {card.guide_to_benefits_url ? (
-            <p className="font-body text-xs text-[var(--color-text-secondary)]">
-              ✓ Will also scrape <a className="text-[var(--color-primary)] underline" href={card.guide_to_benefits_url} target="_blank" rel="noreferrer">guide_to_benefits</a> — combined markdown sent to Sonnet so insurance / protection details get captured alongside the product page.
+            <p className="rounded-[var(--radius-ui)] border border-emerald-200 bg-emerald-50/40 px-2 py-1.5 font-body text-xs text-emerald-800">
+              <span className="font-semibold">✓ Multi-URL scrape active:</span> will also scrape <a className="text-emerald-900 underline" href={card.guide_to_benefits_url} target="_blank" rel="noreferrer">Guide to Benefits</a> — combined markdown sent to Sonnet so insurance / protection details get captured alongside the product page.
             </p>
           ) : null}
 
@@ -401,5 +430,60 @@ export default async function CardExtractPage({
         </section>
       ) : null}
     </div>
+  )
+}
+
+/**
+ * Configured URLs summary — shows what's currently stored on the card row +
+ * which Scout sources are registered. Lives at the top of the extract page so
+ * the editor knows at a glance what extraction will use and what alerts will
+ * watch, without needing to click Discover or open the DB.
+ */
+function ConfiguredUrlsSummary({
+  officialUrl,
+  guideUrl,
+  scoutSources,
+}: {
+  officialUrl: string | null
+  guideUrl: string | null
+  scoutSources: Array<{ name: string; url: string; scrape_frequency: string; is_active: boolean }>
+}) {
+  const hasAny = officialUrl || guideUrl || scoutSources.length > 0
+  if (!hasAny) {
+    return (
+      <p className="mt-2 font-body text-xs text-amber-700">
+        No URLs configured yet. Use the Discover URLs panel below to find them automatically — Apply will set product URL + register Scout sources.
+      </p>
+    )
+  }
+  return (
+    <details className="mt-2 rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-white px-2 py-1">
+      <summary className="cursor-pointer font-ui text-xs uppercase tracking-wide text-[var(--color-text-secondary)]">
+        ✓ Configured URLs ({(officialUrl ? 1 : 0) + (guideUrl ? 1 : 0) + scoutSources.length}) — click to expand
+      </summary>
+      <ul className="mt-2 ml-4 list-disc space-y-1 font-body text-xs">
+        {officialUrl ? (
+          <li>
+            <span className="font-semibold">🎯 Product page:</span>{' '}
+            <a className="text-[var(--color-primary)] underline" href={officialUrl} target="_blank" rel="noreferrer">{officialUrl}</a>
+          </li>
+        ) : null}
+        {guideUrl ? (
+          <li>
+            <span className="font-semibold">📘 Guide to Benefits:</span>{' '}
+            <a className="text-[var(--color-primary)] underline" href={guideUrl} target="_blank" rel="noreferrer">{guideUrl}</a>
+          </li>
+        ) : null}
+        {scoutSources.map((s) => (
+          <li key={s.url}>
+            <span className="font-semibold">
+              {s.name.toLowerCase().includes('newsroom') ? '📰' : '🎁'} {s.name}:
+            </span>{' '}
+            <a className="text-[var(--color-primary)] underline" href={s.url} target="_blank" rel="noreferrer">{s.url}</a>{' '}
+            <span className="text-[var(--color-text-secondary)]">({s.scrape_frequency}{s.is_active ? '' : ', paused'})</span>
+          </li>
+        ))}
+      </ul>
+    </details>
   )
 }
