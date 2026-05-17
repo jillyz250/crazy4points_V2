@@ -27,7 +27,7 @@ export async function runExtractionAndSave(formData: FormData): Promise<void> {
   const supabase = createAdminClient()
   const { data: card, error } = await supabase
     .from('credit_cards')
-    .select('id, name, official_url, guide_to_benefits_url, pricing_terms_url')
+    .select('id, name, official_url, guide_to_benefits_url, pricing_terms_url, rotating_categories_url')
     .eq('slug', slug)
     .single()
 
@@ -46,10 +46,14 @@ export async function runExtractionAndSave(formData: FormData): Promise<void> {
       .eq('id', card.id)
   }
 
-  // 1. Extract — scrape official + guide + pricing terms (when present) for full coverage
+  // 1. Extract — scrape product + guide + pricing terms + rotating categories
+  // (all that are populated) for full coverage. The rotating_categories_url
+  // is critical for cards like Freedom Flex / Discover It / Cap One Savor One
+  // where the current quarter's 5x bonuses live on a separate page.
   const secondaryUrls = [
     card.guide_to_benefits_url as string | null,
     card.pricing_terms_url as string | null,
+    card.rotating_categories_url as string | null,
   ].filter((u): u is string => !!u && u.trim().length > 0)
   const finalSecondaryUrls = secondaryUrls.length > 0 ? secondaryUrls : undefined
   const extractionResult = await extractCardBenefits({
