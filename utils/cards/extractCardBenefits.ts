@@ -37,25 +37,31 @@ export async function extractCardBenefits({
   cardName,
   sourceUrl,
   interactive = false,
+  manualMarkdown,
 }: {
   cardId: string
   cardName: string
   sourceUrl: string
-  /**
-   * When true, runs Firecrawl with EXPAND_EVERYTHING_ACTIONS — opens all
-   * <details>, clicks Show more/View all/Expand buttons, toggles aria-expanded
-   * elements before extracting markdown. Use for JS-heavy issuer pages
-   * (Citi, US Bank, Wells Fargo) where benefits hide behind accordions.
-   * Adds ~5-10s to extraction time and ~$0.002 in Firecrawl cost.
-   */
   interactive?: boolean
+  /**
+   * When provided (>100 chars), the pipeline SKIPS Firecrawl and uses this
+   * string as the source markdown. Use for issuers that block Firecrawl
+   * (rare among card issuers but possible) — editor scrapes via Firecrawl
+   * playground or any other means and pastes here. Mirror of the programs
+   * manual-paste fallback (PR #561).
+   */
+  manualMarkdown?: string
 }): Promise<ExtractionResult> {
   const supabase = createAdminClient()
 
-  // 1. Firecrawl → markdown (optionally interactive)
-  const markdown = interactive
-    ? await fetchFirecrawlInteractive(sourceUrl, { maxChars: MARKDOWN_CHAR_LIMIT })
-    : await fetchFirecrawl(sourceUrl, { maxChars: MARKDOWN_CHAR_LIMIT })
+  // 1. Markdown — either manual paste or Firecrawl scrape
+  const hasManualPaste = manualMarkdown && manualMarkdown.trim().length > 100
+  const markdown = hasManualPaste
+    ? manualMarkdown!.slice(0, MARKDOWN_CHAR_LIMIT)
+    : interactive
+      ? await fetchFirecrawlInteractive(sourceUrl, { maxChars: MARKDOWN_CHAR_LIMIT })
+      : await fetchFirecrawl(sourceUrl, { maxChars: MARKDOWN_CHAR_LIMIT })
+  if (hasManualPaste) console.log(`[card-extract] using manual paste (${manualMarkdown!.length} chars), skipping Firecrawl`)
   if (!markdown) {
     await supabase.from('credit_card_extractions').insert({
       card_id: cardId,

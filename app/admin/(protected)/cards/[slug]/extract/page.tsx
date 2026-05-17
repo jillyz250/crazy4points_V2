@@ -4,6 +4,7 @@ import ExtractionReview from '@/components/admin/cards/ExtractionReview'
 import RunExtractionButton from '@/components/admin/cards/RunExtractionButton'
 import ManualWelcomeBonusForm from '@/components/admin/cards/ManualWelcomeBonusForm'
 import ExtractionActionButton from '@/components/admin/cards/ExtractionActionButton'
+import ManualMarkdownInput from '@/components/admin/programs/ManualMarkdownInput'
 import {
   runExtractionAndSave,
   resaveExtraction,
@@ -267,6 +268,29 @@ export default async function CardExtractPage({
               <strong className="text-[var(--color-text-primary)]">Interactive mode</strong> — expand accordions, click &ldquo;Show more&rdquo;, open all <code className="font-mono text-xs">{`<details>`}</code>. Adds ~5 sec. Use for Citi, US Bank, Wells Fargo pages that hide benefits behind accordions.
             </span>
           </label>
+
+          {/* Manual markdown upload / paste — for issuers Firecrawl can't reach */}
+          <details className="rounded-[var(--radius-card)] border-2 border-red-200 bg-red-50/30 p-3">
+            <summary className="cursor-pointer font-ui text-xs font-bold uppercase tracking-wide text-red-900">
+              📋 Manual markdown upload / paste — bypass Firecrawl (for hostile sites)
+            </summary>
+            <div className="mt-3 flex flex-col gap-3">
+              <p className="font-body text-xs text-red-900">
+                Rare for card issuers, but if Firecrawl returns the wrong page or a captcha, use this fallback:
+              </p>
+              <ol className="ml-4 list-decimal font-body text-xs text-red-900 space-y-1">
+                <li>Open <a className="underline" href="https://www.firecrawl.dev/playground" target="_blank" rel="noreferrer">Firecrawl playground</a> in a new tab</li>
+                <li>Scrape the card&apos;s product page, click <strong>Markdown</strong> (or <strong>JSON</strong>) to download</li>
+                <li>Click <strong>Upload markdown files</strong> below and select the downloaded file</li>
+                <li>Click <strong>Run extraction</strong> — pipeline skips Firecrawl + uses your upload</li>
+              </ol>
+              <ManualMarkdownInput />
+              <p className="font-body text-[11px] text-red-800">
+                When this is filled, the Source URL is still used as a stored reference (and links from the review page) but the actual scrape is skipped.
+                Auto-verify reconciles against the same uploaded markdown.
+              </p>
+            </div>
+          </details>
         </form>
       </section>
 

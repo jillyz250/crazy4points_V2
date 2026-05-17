@@ -17,6 +17,7 @@ export async function runExtractionAndSave(formData: FormData): Promise<void> {
   const slug = String(formData.get('slug') ?? '').trim()
   const sourceUrl = String(formData.get('source_url') ?? '').trim()
   const interactive = formData.get('interactive') === 'on'
+  const manualMarkdown = String(formData.get('manual_markdown') ?? '').trim() || undefined
 
   if (!slug || !sourceUrl) {
     console.error('[card-extract] missing slug or source_url')
@@ -51,6 +52,7 @@ export async function runExtractionAndSave(formData: FormData): Promise<void> {
     cardName: card.name,
     sourceUrl,
     interactive,
+    manualMarkdown,
   })
 
   if (!extractionResult.ok) {
