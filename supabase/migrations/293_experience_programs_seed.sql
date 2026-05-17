@@ -86,7 +86,7 @@ insert into experience_programs (slug, name, official_url, description, category
  'card_specific', 'amex', current_date),
 
 ('amex-resy-global-dining-access', 'Global Dining Access by Resy',
- 'https://www.resy.com/amex',
+ 'https://resy.com/global-dining-access/directory',
  'Amex x Resy partnership: priority reservations at sought-after restaurants and exclusive dining events. Available to Platinum, Business Platinum, and Centurion cardholders only.',
  'card_specific', 'amex', current_date),
 
