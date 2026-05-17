@@ -43,7 +43,7 @@ export default async function CardExtractPage({
     .select(`
       id, slug, name, card_type, card_tier, status,
       annual_fee_usd, foreign_transaction_fee_pct,
-      official_url, guide_to_benefits_url,
+      official_url, guide_to_benefits_url, pricing_terms_url,
       suggested_field_urls,
       intro, last_verified,
       issuer:issuers(slug, name, website_url)
@@ -162,6 +162,7 @@ export default async function CardExtractPage({
         <ConfiguredUrlsSummary
           officialUrl={card.official_url as string | null}
           guideUrl={card.guide_to_benefits_url as string | null}
+          pricingUrl={card.pricing_terms_url as string | null}
           scoutSources={scoutSourcesForCard}
         />
       </header>
@@ -200,6 +201,7 @@ export default async function CardExtractPage({
           const slots: Array<[string, string]> = [
             ['source_url', '🎯 Product page (source_url)'],
             ['guide_to_benefits_url', '📘 Guide to Benefits'],
+            ['pricing_terms_url', '💲 Pricing & Terms'],
             ['promo_source', '🎁 Issuer Offers (Scout)'],
             ['newsroom_source', '📰 Newsroom (Scout)'],
           ]
@@ -211,9 +213,11 @@ export default async function CardExtractPage({
           const scoutUrls = new Set(scoutSourcesForCard.map((s) => s.url))
           const currentOfficialUrl = card.official_url
           const currentGuideUrl = card.guide_to_benefits_url
+          const currentPricingUrl = card.pricing_terms_url
           function isApplied(key: string, url: string): boolean {
             if (key === 'source_url') return currentOfficialUrl === url
             if (key === 'guide_to_benefits_url') return currentGuideUrl === url
+            if (key === 'pricing_terms_url') return currentPricingUrl === url
             if (key === 'promo_source' || key === 'newsroom_source') return scoutUrls.has(url)
             return false
           }
@@ -291,9 +295,17 @@ export default async function CardExtractPage({
             </label>
             <RunExtractionButton />
           </div>
-          {card.guide_to_benefits_url ? (
+          {(card.guide_to_benefits_url || card.pricing_terms_url) ? (
             <p className="rounded-[var(--radius-ui)] border border-emerald-200 bg-emerald-50/40 px-2 py-1.5 font-body text-xs text-emerald-800">
-              <span className="font-semibold">✓ Multi-URL scrape active:</span> will also scrape <a className="text-emerald-900 underline" href={card.guide_to_benefits_url} target="_blank" rel="noreferrer">Guide to Benefits</a> — combined markdown sent to Sonnet so insurance / protection details get captured alongside the product page.
+              <span className="font-semibold">✓ Multi-URL scrape active:</span> will also scrape{' '}
+              {card.guide_to_benefits_url ? (
+                <a className="text-emerald-900 underline" href={card.guide_to_benefits_url} target="_blank" rel="noreferrer">Guide to Benefits</a>
+              ) : null}
+              {card.guide_to_benefits_url && card.pricing_terms_url ? ' + ' : null}
+              {card.pricing_terms_url ? (
+                <a className="text-emerald-900 underline" href={card.pricing_terms_url} target="_blank" rel="noreferrer">Pricing &amp; Terms</a>
+              ) : null}
+              {' '}— combined markdown sent to Sonnet so insurance, FX fee, APR, and protection details all get captured.
             </p>
           ) : null}
 
@@ -442,13 +454,15 @@ export default async function CardExtractPage({
 function ConfiguredUrlsSummary({
   officialUrl,
   guideUrl,
+  pricingUrl,
   scoutSources,
 }: {
   officialUrl: string | null
   guideUrl: string | null
+  pricingUrl: string | null
   scoutSources: Array<{ name: string; url: string; scrape_frequency: string; is_active: boolean }>
 }) {
-  const hasAny = officialUrl || guideUrl || scoutSources.length > 0
+  const hasAny = officialUrl || guideUrl || pricingUrl || scoutSources.length > 0
   if (!hasAny) {
     return (
       <p className="mt-2 font-body text-xs text-amber-700">
@@ -459,7 +473,7 @@ function ConfiguredUrlsSummary({
   return (
     <details className="mt-2 rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-white px-2 py-1">
       <summary className="cursor-pointer font-ui text-xs uppercase tracking-wide text-[var(--color-text-secondary)]">
-        ✓ Configured URLs ({(officialUrl ? 1 : 0) + (guideUrl ? 1 : 0) + scoutSources.length}) — click to expand
+        ✓ Configured URLs ({(officialUrl ? 1 : 0) + (guideUrl ? 1 : 0) + (pricingUrl ? 1 : 0) + scoutSources.length}) — click to expand
       </summary>
       <ul className="mt-2 ml-4 list-disc space-y-1 font-body text-xs">
         {officialUrl ? (
@@ -472,6 +486,12 @@ function ConfiguredUrlsSummary({
           <li>
             <span className="font-semibold">📘 Guide to Benefits:</span>{' '}
             <a className="text-[var(--color-primary)] underline" href={guideUrl} target="_blank" rel="noreferrer">{guideUrl}</a>
+          </li>
+        ) : null}
+        {pricingUrl ? (
+          <li>
+            <span className="font-semibold">💲 Pricing &amp; Terms:</span>{' '}
+            <a className="text-[var(--color-primary)] underline" href={pricingUrl} target="_blank" rel="noreferrer">{pricingUrl}</a>
           </li>
         ) : null}
         {scoutSources.map((s) => (

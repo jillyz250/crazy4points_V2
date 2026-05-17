@@ -70,11 +70,15 @@ export default function ExtractionReview({
         <div className="flex gap-2">
           <form action={resaveAction}>
             <input type="hidden" name="extraction_id" value={extractionId} />
-            <ExtractionActionButton variant="secondary" label="Re-save" pendingLabel="Saving…" />
+            <ExtractionActionButton
+              variant="ghost"
+              label="🔄 Re-apply to card row"
+              pendingLabel="Re-applying…"
+            />
           </form>
           <form action={rejectAction}>
             <input type="hidden" name="extraction_id" value={extractionId} />
-            <ExtractionActionButton variant="danger" label="Reject" pendingLabel="Rejecting…" />
+            <ExtractionActionButton variant="danger" label="Reject extraction" pendingLabel="Rejecting…" />
           </form>
         </div>
       </header>

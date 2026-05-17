@@ -102,6 +102,7 @@ You receive: card name, issuer name, and a shortlist of candidate URLs from the 
 You return:
 - source_url: the SINGLE best official product page for the card (where annual fee, welcome bonus, earn rates, and benefits are documented).
 - guide_to_benefits_url: optional secondary page with detailed benefits (often a PDF — return null if you don't see one).
+- pricing_terms_url: optional THIRD page with Schumer-box / pricing & terms info — FX fee, APR ranges, late fees, penalty APR, returned-payment fee. Often a separate "Pricing & Terms" or "Cardmember Agreement" page (e.g. creditcards.chase.com/.../<card>/pricing-and-terms or "rates and fees" link). Return null if you don't see one.
 - promo_source: the issuer's current offers / bonus miles / current promotions page (time-sensitive content for the alerts pipeline, NOT for the card page).
 - newsroom_source: the issuer's CONSUMER newsroom (e.g. news.americanexpress.com, hub.united.com/newsroom). AVOID investor-relations subdomains.
 
@@ -129,6 +130,7 @@ export type CardDiscoveryResult =
       suggestions: {
         source_url?: { url: string; reason: string; confidence: string } | null
         guide_to_benefits_url?: { url: string; reason: string; confidence: string } | null
+        pricing_terms_url?: { url: string; reason: string; confidence: string } | null
         promo_source?: { url: string; reason: string; confidence: string } | null
         newsroom_source?: { url: string; reason: string; confidence: string } | null
       }
@@ -214,6 +216,20 @@ export async function discoverCardSourceUrl({
             { type: 'null' },
           ],
         },
+        pricing_terms_url: {
+          anyOf: [
+            {
+              type: 'object',
+              properties: {
+                url: { type: 'string' },
+                reason: { type: 'string' },
+                confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+              },
+              required: ['url', 'reason', 'confidence'],
+            },
+            { type: 'null' },
+          ],
+        },
         promo_source: {
           anyOf: [
             {
@@ -273,6 +289,7 @@ export async function discoverCardSourceUrl({
   type Suggestions = {
     source_url?: { url: string; reason: string; confidence: string } | null
     guide_to_benefits_url?: { url: string; reason: string; confidence: string } | null
+    pricing_terms_url?: { url: string; reason: string; confidence: string } | null
     promo_source?: { url: string; reason: string; confidence: string } | null
     newsroom_source?: { url: string; reason: string; confidence: string } | null
   }
