@@ -1662,6 +1662,12 @@ export interface CreditCard {
   card_tier: CardTier | null
   currency_program_id: string | null
   co_brand_program_id: string | null
+  /** When true, the card transfers points directly to the airline/hotel
+   * partners of its currency_program. When false (Freedom family, Ink Cash,
+   * Citi Custom Cash, etc.), points must first be pooled into a higher-tier
+   * sibling card to unlock transfers; the card-detail page hides the partner
+   * table and shows a "pair with sibling" alert instead. */
+  points_transferable_to_partners: boolean
   foreign_transaction_fee_pct: number | null
   chase_5_24_subject: boolean
   credit_score_recommended: CreditScoreRecommended | null
@@ -2108,6 +2114,12 @@ export interface CardDetailBundle {
   earn_rates: CreditCardEarnRate[]
   benefits: CreditCardBenefit[]
   current_welcome_bonus: CreditCardWelcomeBonus | null
+  /** Other active cards on the same currency program with the OPPOSITE
+   * transferable flag. Used to render the family-pairing alert:
+   *   - On a transferable card: lists non-transferable siblings ("pool from these")
+   *   - On a non-transferable card: lists transferable siblings ("move points to one of these to unlock")
+   * Empty array when no siblings exist (or no currency program). */
+  sibling_cards_opposite_transfer: Array<{ slug: string; name: string; points_transferable_to_partners: boolean }>
 }
 
 export async function getCardDetailBySlug(
@@ -2141,6 +2153,27 @@ export async function getCardDetailBySlug(
   if (earnRatesRes.error) throw earnRatesRes.error
   if (benefitsRes.error) throw benefitsRes.error
 
+  // Sibling cards on the same currency program with the OPPOSITE transferable
+  // flag. Drives the family-pairing alert on the detail page (Freedom Rise →
+  // links to Sapphire/Ink Preferred; Sapphire Preferred → lists Freedom +
+  // Ink Cash/Unlimited as pool-from candidates).
+  let siblingCardsOppositeTransfer: Array<{ slug: string; name: string; points_transferable_to_partners: boolean }> = []
+  if (c.currency_program_id) {
+    const { data: siblings } = await supabase
+      .from('credit_cards')
+      .select('slug, name, points_transferable_to_partners')
+      .eq('currency_program_id', c.currency_program_id)
+      .eq('is_active', true)
+      .neq('id', c.id)
+      .eq('points_transferable_to_partners', !c.points_transferable_to_partners)
+      .order('annual_fee_usd', { ascending: true, nullsFirst: true })
+    siblingCardsOppositeTransfer = (siblings ?? []) as Array<{
+      slug: string
+      name: string
+      points_transferable_to_partners: boolean
+    }>
+  }
+
   return {
     card: c,
     issuer: issuerRes.data as Issuer,
@@ -2149,6 +2182,7 @@ export async function getCardDetailBySlug(
     earn_rates: (earnRatesRes.data ?? []) as CreditCardEarnRate[],
     benefits: (benefitsRes.data ?? []) as CreditCardBenefit[],
     current_welcome_bonus: subRes.data as CreditCardWelcomeBonus | null,
+    sibling_cards_opposite_transfer: siblingCardsOppositeTransfer,
   }
 }
 

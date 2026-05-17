@@ -143,7 +143,16 @@ export default async function CardPage({
   const bundle = await getCardDetailBySlug(supabase, slug)
   if (!bundle) notFound()
 
-  const { card, issuer, currency_program, co_brand_program, earn_rates, benefits, current_welcome_bonus: sub } = bundle
+  const {
+    card,
+    issuer,
+    currency_program,
+    co_brand_program,
+    earn_rates,
+    benefits,
+    current_welcome_bonus: sub,
+    sibling_cards_opposite_transfer: siblingCards,
+  } = bundle
   const benefitGroups = groupBenefits(benefits)
   const orderedCategories = BENEFIT_CATEGORY_ORDER.filter((c) => benefitGroups.has(c))
   const applyUrl = card.affiliate_url ?? card.official_url
@@ -179,7 +188,13 @@ export default async function CardPage({
   const tocSections: Array<{ id: string; label: string }> = [
     ...(sub ? [{ id: 'welcome-bonus', label: 'Welcome bonus' }] : []),
     ...(earn_rates.length > 0 ? [{ id: 'earn-rates', label: 'Earn rates' }] : []),
-    ...(transferPartners.length > 0 ? [{ id: 'transfer-partners', label: 'Transfer partners' }] : []),
+    // Transferable card with partners -> "Transfer partners" tile
+    // Non-transferable card with sibling unlock paths -> "Unlock transfers" tile
+    ...(card.points_transferable_to_partners && transferPartners.length > 0
+      ? [{ id: 'transfer-partners', label: 'Transfer partners' }]
+      : !card.points_transferable_to_partners && siblingCards.length > 0
+        ? [{ id: 'transfer-partners', label: 'Unlock transfers' }]
+        : []),
     ...orderedCategories.map((cat) => ({
       id: `benefit-${cat}`,
       label: BENEFIT_CATEGORY_LABELS[cat] ?? cat.replace(/_/g, ' '),
@@ -578,18 +593,43 @@ export default async function CardPage({
         )
       })()}
 
-      {/* Transfer partners — sourced from the card's currency program.
-          Sapphire Reserve, Sapphire Preferred, Freedom, and every other UR-earning
-          card all surface the same ~14 Chase partners; the data lives once on
-          chase-ultimate-rewards and is joined here. Skips render when the card's
-          currency doesn't transfer to partners (co-brands, BofA Premium Rewards, etc.). */}
-      {transferPartners.length > 0 && currency_program ? (
+      {/* Transfer partners — branched on the card's points_transferable_to_partners flag.
+          - Transferable card (Sapphire Preferred/Reserve, Ink Preferred/Premier, Amex MR
+            cards, Venture/Venture X, etc.): full partner table + "Pool from sibling cards"
+            alert when same-currency cash-earner siblings exist.
+          - Non-transferable card (Freedom Rise/Flex/Unlimited, Ink Cash/Unlimited, Citi
+            Custom Cash/Double Cash): partner table HIDDEN. Alert links to the premium
+            sibling cards that DO transfer. */}
+      {card.points_transferable_to_partners && transferPartners.length > 0 && currency_program ? (
         <SimpleTile
           title="Transfer partners"
           description={`Where you can move your ${currency_program.name} to airline + hotel programs.`}
           cta="Meet the partners"
           preview={`${transferPartners.length} partner${transferPartners.length === 1 ? '' : 's'}${transferPartners.some((p) => p.bonus_active) ? ' · 🎁 bonus active' : ''}`}
         >
+          {siblingCards.length > 0 && (
+            <div
+              style={{
+                background: 'var(--color-background-soft)',
+                border: '1px solid var(--color-border-soft)',
+                borderRadius: 'var(--radius-card)',
+                padding: '1rem 1.25rem',
+                marginBottom: '1rem',
+                fontSize: '0.9375rem',
+              }}
+            >
+              <strong>💡 Maximize your points:</strong> Have a{' '}
+              {siblingCards.map((s, i) => (
+                <span key={s.slug}>
+                  <Link href={`/cards/${s.slug}`} style={{ color: 'var(--color-primary)' }}>
+                    {s.name}
+                  </Link>
+                  {i < siblingCards.length - 2 ? ', ' : i === siblingCards.length - 2 ? (siblingCards.length === 2 ? ' or ' : ', or ') : ''}
+                </span>
+              ))}
+              ? Pool their points into this card&apos;s {currency_program.name} account to unlock transfers to every partner below.
+            </div>
+          )}
           <p style={{ marginTop: '0.25rem', marginBottom: '1rem', color: 'var(--color-text-secondary)', fontSize: '0.9375rem' }}>
             Points earned with this card transfer to {transferPartners.length} partner program
             {transferPartners.length === 1 ? '' : 's'} via{' '}
@@ -599,6 +639,46 @@ export default async function CardPage({
             {transferPartners.some((p) => p.bonus_active) ? ' — bonuses live now flagged below.' : '.'}
           </p>
           <TransferPartnersTable rows={transferPartners} programNameBySlug={programNameBySlug} />
+        </SimpleTile>
+      ) : null}
+
+      {/* Non-transferable card unlock tile — alert-only, no partner table.
+          Renders ONLY when the card itself can't transfer AND has at least one
+          sibling that can (so we have somewhere to send the user). */}
+      {!card.points_transferable_to_partners && siblingCards.length > 0 && currency_program ? (
+        <SimpleTile
+          title="Unlock transfers"
+          description={`This card's points become transferable when combined with a sibling card that supports direct transfers.`}
+          cta="See how"
+          preview={`Pair with ${siblingCards.length} card${siblingCards.length === 1 ? '' : 's'} to unlock partners`}
+        >
+          <div
+            style={{
+              background: 'var(--color-background-soft)',
+              border: '1px solid var(--color-border-soft)',
+              borderRadius: 'var(--radius-card)',
+              padding: '1rem 1.25rem',
+              marginBottom: '1rem',
+              fontSize: '0.9375rem',
+            }}
+          >
+            <strong>💡 Unlock airline + hotel transfers:</strong> Points earned on this card
+            cannot transfer directly to airline or hotel partners. Move them into a{' '}
+            {siblingCards.map((s, i) => (
+              <span key={s.slug}>
+                <Link href={`/cards/${s.slug}`} style={{ color: 'var(--color-primary)' }}>
+                  {s.name}
+                </Link>
+                {i < siblingCards.length - 2 ? ', ' : i === siblingCards.length - 2 ? (siblingCards.length === 2 ? ' or ' : ', or ') : ''}
+              </span>
+            ))}{' '}
+            account to access the full {currency_program.name} partner network.
+          </div>
+          <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
+            Without one of the sibling cards above, points on this card redeem at fixed
+            cash-back / portal value only — they cannot be moved to airline or hotel
+            loyalty programs.
+          </p>
         </SimpleTile>
       ) : null}
 
