@@ -3,11 +3,14 @@ import { createAdminClient } from '@/utils/supabase/server'
 import ExtractionReview from '@/components/admin/cards/ExtractionReview'
 import RunExtractionButton from '@/components/admin/cards/RunExtractionButton'
 import ManualWelcomeBonusForm from '@/components/admin/cards/ManualWelcomeBonusForm'
+import ExtractionActionButton from '@/components/admin/cards/ExtractionActionButton'
 import {
   runExtractionAndSave,
   resaveExtraction,
   rejectExtraction,
   saveManualWelcomeBonus,
+  discoverCardUrlsAction,
+  applyDiscoveredCardUrls,
 } from './actions'
 
 export const dynamic = 'force-dynamic'
@@ -40,6 +43,7 @@ export default async function CardExtractPage({
       id, slug, name, card_type, card_tier, status,
       annual_fee_usd, foreign_transaction_fee_pct,
       official_url,
+      suggested_field_urls,
       intro, last_verified,
       issuer:issuers(slug, name, website_url)
     `)
@@ -153,6 +157,82 @@ export default async function CardExtractPage({
           </p>
         )}
       </header>
+
+      {/* 🔍 Discover issuer URLs (same flow as programs PR #543) */}
+      <section className="mb-6 rounded-[var(--radius-card)] border border-amber-200 bg-amber-50/40 p-4">
+        <h2 className="font-display text-lg font-semibold text-amber-900">
+          🔍 Don&apos;t know the URLs? Discover them.
+        </h2>
+        <p className="mt-1 font-body text-sm text-amber-900">
+          Paste the issuer&apos;s main marketing site (e.g. <code>https://www.chase.com</code>). Sonnet maps the site,
+          identifies card-specific pages + the issuer&apos;s offers + newsroom, then recommends URLs.
+          Click Apply to populate the Source URL below + auto-register Scout sources.
+        </p>
+
+        <form action={discoverCardUrlsAction} className="mt-3 flex flex-wrap items-end gap-2">
+          <input type="hidden" name="slug" value={card.slug} />
+          <label className="flex flex-1 flex-col gap-1 min-w-[20rem]">
+            <span className="font-ui text-[11px] uppercase tracking-wide text-amber-900">Starting URL</span>
+            <input
+              type="url"
+              name="starting_url"
+              defaultValue={(card.suggested_field_urls as { starting_url?: string } | null)?.starting_url ?? ''}
+              placeholder="https://www.chase.com"
+              className="rounded-[var(--radius-ui)] border border-amber-300 bg-white px-3 py-1.5 font-mono"
+              style={{ fontSize: '0.875rem' }}
+            />
+          </label>
+          <ExtractionActionButton variant="secondary" label="🔍 Discover URLs" pendingLabel="Mapping & classifying…" />
+        </form>
+
+        {(() => {
+          const sugg = card.suggested_field_urls as Record<string, unknown> | null
+          if (!sugg || !sugg.generated_at) return null
+          type Pick = { url?: string; reason?: string; confidence?: string }
+          const slots: Array<[string, string]> = [
+            ['source_url', '🎯 Product page (source_url)'],
+            ['guide_to_benefits_url', '📘 Guide to Benefits'],
+            ['promo_source', '🎁 Issuer Offers (Scout)'],
+            ['newsroom_source', '📰 Newsroom (Scout)'],
+          ]
+          const rows = slots
+            .map(([k, label]) => [label, sugg[k] as Pick | null] as const)
+            .filter(([, v]) => v && v.url)
+          return (
+            <div className="mt-3 rounded-[var(--radius-ui)] border border-amber-300 bg-white p-3">
+              <p className="mb-2 font-ui text-[11px] font-bold uppercase tracking-wide text-amber-900">
+                Suggestions ({rows.length} found) · {new Date(sugg.generated_at as string).toLocaleString()}
+              </p>
+              {rows.length === 0 ? (
+                <p className="font-body text-xs text-amber-900">
+                  No matches. Try a more specific starting URL (e.g. the issuer&apos;s credit cards landing page).
+                </p>
+              ) : (
+                <>
+                  <table className="w-full font-body text-xs">
+                    <tbody>
+                      {rows.map(([label, v], i) => (
+                        <tr key={i} className="border-b border-amber-100 align-top">
+                          <td className="py-1 pr-2 font-semibold whitespace-nowrap">{label}</td>
+                          <td className="py-1 pr-2">
+                            <a className="text-amber-900 underline" href={v!.url} target="_blank" rel="noreferrer">{v!.url}</a>
+                            <p className="mt-0.5 text-[11px] text-amber-700">{v!.reason}</p>
+                          </td>
+                          <td className="py-1 pr-2 uppercase font-ui text-[10px]">{v!.confidence}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <form action={applyDiscoveredCardUrls} className="mt-3">
+                    <input type="hidden" name="slug" value={card.slug} />
+                    <ExtractionActionButton variant="primary" label="⬇ Apply: set product URL + register Scout sources" pendingLabel="Applying…" />
+                  </form>
+                </>
+              )}
+            </div>
+          )
+        })()}
+      </section>
 
       {/* Run extraction form */}
       <section className="mb-8 rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] p-5">
