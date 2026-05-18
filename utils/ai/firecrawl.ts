@@ -201,17 +201,129 @@ export const EXPAND_EVERYTHING_ACTIONS: FirecrawlAction[] = [
 ]
 
 /**
+ * AGGRESSIVE expand mode — used for hostile accordion patterns where the
+ * standard set misses content (Chase business product pages are the
+ * known offender — their "Travel & purchase coverage" section uses a
+ * lazy-rendered accordion that doesn't materialize until the user scrolls
+ * the section into view, AND the controls aren't <button> elements but
+ * `[aria-expanded]` on custom tags with `aria-controls`).
+ *
+ * Differences from EXPAND_EVERYTHING_ACTIONS:
+ *   1. Scrolls down 3x with waits in between to trigger lazy-load.
+ *   2. Multi-pass clicks — Chase's accordion re-renders new collapsed
+ *      children after the parent expands, so pass 1's button list isn't
+ *      the same as pass 3's.
+ *   3. Broader selectors: `[aria-expanded="false"]` across ALL non-anchor
+ *      tags (not just <button>), `[aria-controls]`, and Chase-y class
+ *      hints (`.accordion-trigger`, `.expand-collapse-link`,
+ *      `[data-expandable]`).
+ *   4. Scrolls back down after expansion in case more collapsed content
+ *      was newly rendered.
+ *
+ * Anti-navigation: the script DELIBERATELY skips <a> tags. Citi extraction
+ * broke before when interactive mode navigated the browser away from the
+ * product page mid-scrape.
+ *
+ * Used by the auto-retry in extractCardBenefits when a business card
+ * comes back with <3 insurance benefits. Slower (~10-12s vs. ~5s for
+ * EXPAND_EVERYTHING_ACTIONS) so it's not the default.
+ */
+export const AGGRESSIVE_EXPAND_ACTIONS: FirecrawlAction[] = [
+  { type: 'wait', milliseconds: 2500 },
+  // Pass 1: scroll down to trigger lazy-load
+  { type: 'scroll', direction: 'down' },
+  { type: 'wait', milliseconds: 1000 },
+  { type: 'scroll', direction: 'down' },
+  { type: 'wait', milliseconds: 1000 },
+  { type: 'scroll', direction: 'down' },
+  { type: 'wait', milliseconds: 1500 },
+  // Pass 2: aggressive expand on whatever is now in the DOM
+  {
+    type: 'executeJavascript',
+    script: `
+      (() => {
+        document.querySelectorAll('details').forEach((d) => { d.open = true });
+
+        const isAnchor = (el) => el && el.tagName === 'A';
+        const revealRegex = /show\\s*more|view\\s*all|see\\s*all|expand|read\\s*more|view\\s*details|more\\s*info|travel\\s*&?\\s*purchase\\s*coverage|benefits|insurance|protection/i;
+
+        // Expand-text triggers (skip anchors)
+        document.querySelectorAll('button, [role="button"]').forEach((el) => {
+          try {
+            if (isAnchor(el)) return;
+            const type = el.getAttribute && el.getAttribute('type');
+            if (type === 'submit' || type === 'reset') return;
+            if (el.dataset && el.dataset.navigate) return;
+            const txt = (el.textContent || '').trim();
+            if (revealRegex.test(txt)) el.click();
+          } catch (e) {}
+        });
+
+        // Any aria-expanded=false control (skip anchors — those navigate)
+        document.querySelectorAll('[aria-expanded="false"]').forEach((el) => {
+          try {
+            if (isAnchor(el)) return;
+            el.click();
+          } catch (e) {}
+        });
+
+        // Chase-y custom patterns
+        document.querySelectorAll('[aria-controls]:not(a)').forEach((el) => {
+          try {
+            const expanded = el.getAttribute('aria-expanded');
+            if (expanded === 'false') el.click();
+          } catch (e) {}
+        });
+        document.querySelectorAll('[data-expandable]:not(a), .accordion-trigger:not(a), .expand-collapse-link:not(a)').forEach((el) => {
+          try { el.click(); } catch (e) {}
+        });
+      })();
+    `,
+  },
+  { type: 'wait', milliseconds: 2000 },
+  // Pass 3: scroll + re-click, since Chase's accordion re-renders
+  // additional collapsed children after the parent expands.
+  { type: 'scroll', direction: 'down' },
+  { type: 'wait', milliseconds: 1000 },
+  {
+    type: 'executeJavascript',
+    script: `
+      (() => {
+        document.querySelectorAll('details').forEach((d) => { d.open = true });
+        document.querySelectorAll('[aria-expanded="false"]').forEach((el) => {
+          try {
+            if (el.tagName === 'A') return;
+            el.click();
+          } catch (e) {}
+        });
+      })();
+    `,
+  },
+  { type: 'wait', milliseconds: 2000 },
+]
+
+/**
  * Convenience: fetch with the default expand-everything action set.
  * Use for issuer pages that hide benefits behind accordions.
+ *
+ * @param aggressive  When true, uses AGGRESSIVE_EXPAND_ACTIONS (scroll +
+ *                    multi-pass clicks + broader selectors) instead of
+ *                    the standard set. Used on retry when a business
+ *                    card came back with thin insurance data.
  */
 export async function fetchFirecrawlInteractive(
   url: string,
-  options: Omit<FirecrawlOptions, 'actions'> = {},
+  options: Omit<FirecrawlOptions, 'actions'> & { aggressive?: boolean } = {},
 ): Promise<FirecrawlResult> {
+  const { aggressive, ...rest } = options
+  const actions = aggressive ? AGGRESSIVE_EXPAND_ACTIONS : EXPAND_EVERYTHING_ACTIONS
+  // Aggressive mode runs more actions, so bump the outer timeout to 90s.
+  // (Firecrawl's internal timeout is capped at outer - 5s by fetchFirecrawl.)
+  const timeoutMs = options.timeoutMs ?? (aggressive ? 90_000 : 60_000)
   return fetchFirecrawl(url, {
-    ...options,
-    actions: EXPAND_EVERYTHING_ACTIONS,
-    // stealth pass-through is handled by FirecrawlOptions spread
+    ...rest,
+    actions,
+    timeoutMs,
   })
 }
 
