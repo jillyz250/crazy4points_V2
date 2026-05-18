@@ -31,6 +31,7 @@ type ProgramSubset = Pick<
   | 'quirks'
   | 'lounge_access'
   | 'transfer_partners'
+  | 'transfer_partners_outbound'
   | 'tier_benefits'
   | 'member_programs'
   | 'alliance'
@@ -50,12 +51,17 @@ export function programSummaryLine(program: ProgramSubset): string {
   return `${program.name} program reference (${program.type}).`
 }
 
-function formatTransferPartners(rows: TransferPartnerRow[] | null, programSlug: string): string {
+function formatTransferPartners(
+  rows: TransferPartnerRow[] | null,
+  programSlug: string,
+  direction: 'inbound' | 'outbound' = 'inbound',
+): string {
   if (!rows || rows.length === 0) return ''
   const lines = rows.map((p) => {
     const bonus = p.bonus_active ? ' **(bonus active)**' : ''
     const notes = p.notes ? ` — ${p.notes}` : ''
-    return `- **${p.from_slug}** → ${programSlug} at ${p.ratio}${bonus}${notes}`
+    const arrow = direction === 'outbound' ? `${programSlug} → ${p.from_slug}` : `${p.from_slug} → ${programSlug}`
+    return `- **${arrow}** at ${p.ratio}${bonus}${notes}`
   })
   return lines.join('\n')
 }
@@ -119,9 +125,21 @@ export function programToMarkdown(program: ProgramSubset): string {
     out.push('')
   }
 
-  const partnersBlock = formatTransferPartners(program.transfer_partners, program.slug)
+  const outboundBlock = formatTransferPartners(
+    program.transfer_partners_outbound,
+    program.slug,
+    'outbound',
+  )
+  if (outboundBlock) {
+    out.push('## Transfer partners (outbound)')
+    out.push('')
+    out.push(outboundBlock)
+    out.push('')
+  }
+
+  const partnersBlock = formatTransferPartners(program.transfer_partners, program.slug, 'inbound')
   if (partnersBlock) {
-    out.push('## Transfer partners (inbound)')
+    out.push('## Ways to earn (inbound transfers)')
     out.push('')
     out.push(partnersBlock)
     out.push('')

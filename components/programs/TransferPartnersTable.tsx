@@ -32,14 +32,28 @@ function titleCaseSlug(slug: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
+/**
+ * Direction controls the first-column label:
+ *   - 'inbound' (default): rows describe programs that transfer INTO the
+ *     subject — column header is "From".
+ *   - 'outbound': rows describe destinations the subject transfers TO —
+ *     column header is "To".
+ * The underlying TransferPartnerRow shape uses `from_slug` regardless; for
+ * outbound rows, the slug is the destination program (legacy field name
+ * kept for backward compat — the structural meaning depends on which
+ * JSONB column the rows came from).
+ */
 export default function TransferPartnersTable({
   rows,
   programNameBySlug,
+  direction = 'inbound',
 }: {
   rows: TransferPartnerRow[]
   programNameBySlug: Map<string, string>
+  direction?: 'inbound' | 'outbound'
 }) {
   if (rows.length === 0) return null
+  const partnerColumnLabel = direction === 'outbound' ? 'To' : 'From'
 
   return (
     <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
@@ -66,7 +80,7 @@ export default function TransferPartnersTable({
         <thead>
           <tr style={{ borderBottom: '1px solid var(--color-border-soft)' }}>
             <th style={{ textAlign: 'left', padding: '0.625rem 0.75rem', fontFamily: 'var(--font-ui)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)' }}>
-              From
+              {partnerColumnLabel}
             </th>
             <th style={{ textAlign: 'left', padding: '0.625rem 0.75rem', fontFamily: 'var(--font-ui)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)' }}>
               Ratio
