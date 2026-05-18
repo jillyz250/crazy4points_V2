@@ -6,7 +6,21 @@ import { extractCardBenefits } from '@/utils/cards/extractCardBenefits'
 import { saveExtractedBenefits } from '@/utils/cards/saveExtractedBenefits'
 import { discoverCardSourceUrl } from '@/utils/cards/discoverCardSourceUrl'
 import { setManualOverride } from '@/utils/admin/manualOverride'
+import { checkUrl, type UrlCheckResult } from '@/utils/admin/checkUrl'
 import type { CardExtraction } from '@/utils/cards/cardExtractionSchema'
+
+/**
+ * Validate a single URL on demand — backs the inline "Test URL" button on the
+ * extract page. Lets the editor confirm a URL resolves before clicking Run
+ * Extraction, so we stop burning Sonnet calls on 404s.
+ */
+export async function validateUrlAction(formData: FormData): Promise<UrlCheckResult> {
+  const url = String(formData.get('url') ?? '').trim()
+  if (!url) {
+    return { ok: false, status: 0, reason: 'unreachable' }
+  }
+  return checkUrl(url)
+}
 
 /**
  * The one-shot "run extraction" action used by auto-approve mode.

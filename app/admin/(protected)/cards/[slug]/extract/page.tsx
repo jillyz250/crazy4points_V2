@@ -14,7 +14,10 @@ import {
   applyDiscoveredCardUrls,
   setCardManualOverride,
   setCardUrlField,
+  validateUrlAction,
 } from './actions'
+import { checkCardUrls, hasAnyBrokenUrl, type UrlChecks } from '@/utils/admin/checkUrl'
+import { TestUrlButton, UrlStatusBadgeView } from '@/components/admin/cards/UrlStatusBadge'
 
 export const dynamic = 'force-dynamic'
 
@@ -133,6 +136,18 @@ export default async function CardExtractPage({
   const issuerSite = Array.isArray(card.issuer) ? card.issuer[0]?.website_url : (card.issuer as { website_url?: string } | null)?.website_url
   const defaultSourceUrl = sourceUrlParam || card.official_url || ''
 
+  // Pre-validate all four configured URLs on every page load so the editor
+  // sees a green/yellow/red badge before clicking Run Extraction. Cached
+  // in-memory for 5 min so re-renders are cheap. This is the fix for the
+  // IHG / BA / Aer Lingus 404-extract loop.
+  const urlChecks = await checkCardUrls({
+    official_url: card.official_url as string | null,
+    guide_to_benefits_url: card.guide_to_benefits_url as string | null,
+    pricing_terms_url: card.pricing_terms_url as string | null,
+    rotating_categories_url: card.rotating_categories_url as string | null,
+  })
+  const anyBroken = hasAnyBrokenUrl(urlChecks)
+
   return (
     <div className="rg-container px-6 py-10">
       <header className="mb-6">
@@ -184,6 +199,29 @@ export default async function CardExtractPage({
           </div>
         )}
 
+        {/* URL reachability banner — surfaces 404/blocked URLs so the editor
+            stops the "extract → thin result → chase URL → repeat" loop. */}
+        {anyBroken && (
+          <div
+            role="alert"
+            className="mt-4 rounded-[var(--radius-card)] border-l-4 border-l-amber-500 bg-amber-50 p-4"
+          >
+            <div className="flex items-start gap-2">
+              <span className="text-lg leading-none">⚠️</span>
+              <div className="flex-1">
+                <div className="font-ui text-xs font-bold uppercase tracking-wide text-amber-900">
+                  One or more configured URLs are unreachable
+                </div>
+                <div className="mt-1 font-body text-sm text-amber-900">
+                  Extraction may return thin results. Fix the broken URLs in the
+                  Manual URL config section below before clicking Run Extraction —
+                  otherwise Sonnet will waste a call on a 404 page.
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Configured URLs summary — what's currently in DB for this card */}
         <ConfiguredUrlsSummary
           officialUrl={card.official_url as string | null}
@@ -191,6 +229,7 @@ export default async function CardExtractPage({
           pricingUrl={card.pricing_terms_url as string | null}
           rotatingCategoriesUrl={card.rotating_categories_url as string | null}
           scoutSources={scoutSourcesForCard}
+          urlChecks={urlChecks}
         />
       </header>
 
@@ -331,6 +370,9 @@ export default async function CardExtractPage({
                 placeholder="https://creditcards.chase.com/rewards-credit-cards/sapphire/reserve"
                 className="mt-1 w-full rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-white px-3 py-2 font-body text-base"
               />
+              <div className="mt-1.5">
+                <TestUrlButton inputName="source_url" action={validateUrlAction} />
+              </div>
             </label>
             <RunExtractionButton />
           </div>
@@ -560,12 +602,14 @@ function ConfiguredUrlsSummary({
   pricingUrl,
   rotatingCategoriesUrl,
   scoutSources,
+  urlChecks,
 }: {
   officialUrl: string | null
   guideUrl: string | null
   pricingUrl: string | null
   rotatingCategoriesUrl: string | null
   scoutSources: Array<{ name: string; url: string; scrape_frequency: string; is_active: boolean }>
+  urlChecks?: UrlChecks
 }) {
   const hasAny = officialUrl || guideUrl || pricingUrl || rotatingCategoriesUrl || scoutSources.length > 0
   if (!hasAny) {
@@ -575,8 +619,9 @@ function ConfiguredUrlsSummary({
       </p>
     )
   }
+  const anyBroken = urlChecks ? hasAnyBrokenUrl(urlChecks) : false
   return (
-    <details className="mt-2 rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-white px-2 py-1">
+    <details open={anyBroken} className="mt-2 rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-white px-2 py-1">
       <summary className="cursor-pointer font-ui text-xs uppercase tracking-wide text-[var(--color-text-secondary)]">
         ✓ Configured URLs ({(officialUrl ? 1 : 0) + (guideUrl ? 1 : 0) + (pricingUrl ? 1 : 0) + (rotatingCategoriesUrl ? 1 : 0) + scoutSources.length}) — click to expand
       </summary>
@@ -585,18 +630,21 @@ function ConfiguredUrlsSummary({
           <li>
             <span className="font-semibold">🎯 Product page:</span>{' '}
             <a className="text-[var(--color-primary)] underline" href={officialUrl} target="_blank" rel="noreferrer">{officialUrl}</a>
+            <UrlStatusBadgeView result={urlChecks?.official_url ?? null} />
           </li>
         ) : null}
         {guideUrl ? (
           <li>
             <span className="font-semibold">📘 Guide to Benefits:</span>{' '}
             <a className="text-[var(--color-primary)] underline" href={guideUrl} target="_blank" rel="noreferrer">{guideUrl}</a>
+            <UrlStatusBadgeView result={urlChecks?.guide_to_benefits_url ?? null} />
           </li>
         ) : null}
         {pricingUrl ? (
           <li>
             <span className="font-semibold">💲 Pricing &amp; Terms:</span>{' '}
             <a className="text-[var(--color-primary)] underline" href={pricingUrl} target="_blank" rel="noreferrer">{pricingUrl}</a>
+            <UrlStatusBadgeView result={urlChecks?.pricing_terms_url ?? null} />
           </li>
         ) : null}
         {rotatingCategoriesUrl ? (
@@ -604,6 +652,7 @@ function ConfiguredUrlsSummary({
             <span className="font-semibold">🔄 Rotating categories:</span>{' '}
             <a className="text-[var(--color-primary)] underline" href={rotatingCategoriesUrl} target="_blank" rel="noreferrer">{rotatingCategoriesUrl}</a>{' '}
             <span className="text-amber-700">(quarterly refresh)</span>
+            <UrlStatusBadgeView result={urlChecks?.rotating_categories_url ?? null} />
           </li>
         ) : null}
         {scoutSources.map((s) => (
