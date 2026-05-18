@@ -51,6 +51,12 @@ export default function ExtractionReview({
 }) {
   const wb = extraction.welcome_bonus
 
+  // savedAt being set means the extraction was already applied to the public
+  // card row (auto-applied on first save). The Re-publish button is only
+  // useful for pushing a re-extraction over the existing data — it's not
+  // required for a first-time extraction.
+  const alreadyPublished = !!savedAt && status === 'saved'
+
   return (
     <section className="rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-white p-5 shadow-[var(--shadow-soft)]">
       <header className="mb-4 flex items-start justify-between gap-3">
@@ -68,20 +74,53 @@ export default function ExtractionReview({
           </p>
         </div>
         <div className="flex gap-2">
-          <form action={resaveAction}>
-            <input type="hidden" name="extraction_id" value={extractionId} />
-            <ExtractionActionButton
-              variant="ghost"
-              label="🔄 Re-apply to card row"
-              pendingLabel="Re-applying…"
-            />
-          </form>
           <form action={rejectAction}>
             <input type="hidden" name="extraction_id" value={extractionId} />
             <ExtractionActionButton variant="danger" label="Reject extraction" pendingLabel="Rejecting…" />
           </form>
         </div>
       </header>
+
+      {/* Status banner — tells the user exactly where they stand. The
+          earlier "Re-apply" button confused users into thinking they had to
+          click it on every extraction. They don't — extraction auto-saves
+          to the public card row. */}
+      {alreadyPublished ? (
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-[var(--radius-ui)] border border-emerald-200 bg-emerald-50/40 px-3 py-2">
+          <p className="font-body text-sm text-emerald-900">
+            <strong>✅ Live on the public card page.</strong>{' '}
+            <span className="text-emerald-800/80">
+              This extraction is already published. The button below only re-pushes
+              if you re-extracted and want to overwrite the existing data.
+            </span>
+          </p>
+          <form action={resaveAction}>
+            <input type="hidden" name="extraction_id" value={extractionId} />
+            <ExtractionActionButton
+              variant="ghost"
+              label="🔄 Re-publish"
+              pendingLabel="Re-publishing…"
+            />
+          </form>
+        </div>
+      ) : (
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-[var(--radius-ui)] border border-amber-200 bg-amber-50/40 px-3 py-2">
+          <p className="font-body text-sm text-amber-900">
+            <strong>⚠ Not yet published.</strong>{' '}
+            <span className="text-amber-800/80">
+              Click below to apply this extraction to the public card page.
+            </span>
+          </p>
+          <form action={resaveAction}>
+            <input type="hidden" name="extraction_id" value={extractionId} />
+            <ExtractionActionButton
+              variant="primary"
+              label="✅ Publish to card page"
+              pendingLabel="Publishing…"
+            />
+          </form>
+        </div>
+      )}
 
       {/* Save error (if any) */}
       {errorMessage ? (
