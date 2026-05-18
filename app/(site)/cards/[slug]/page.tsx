@@ -613,11 +613,32 @@ export default async function CardPage({
             preview={preview}
           >
             {hasSpendReq ? (
-              <p style={{ marginBottom: '0.5rem' }}>
-                <strong>{wb.short}</strong> after spending{' '}
-                <strong>${sub.spend_required_usd!.toLocaleString()}</strong> in the first{' '}
-                <strong>{sub.spend_window_months} months</strong>.
-              </p>
+              wb.isTiered ? (
+                // Tiered bonus: break out main offer + each additional tier
+                // so users see exactly what unlocks the "Up to X" headline.
+                <>
+                  <p style={{ marginBottom: '0.5rem' }}>
+                    <strong>{wb.short}</strong> total. Here&apos;s how it breaks down:
+                  </p>
+                  <ul style={{ margin: '0 0 0.75rem 1.25rem', padding: 0, fontSize: '0.9375rem' }}>
+                    <li style={{ marginBottom: '0.4rem' }}>
+                      <strong>{sub.bonus_amount.toLocaleString()} {sub.bonus_currency}</strong> after spending{' '}
+                      <strong>${sub.spend_required_usd!.toLocaleString()}</strong> in the first{' '}
+                      <strong>{sub.spend_window_months} months</strong>
+                    </li>
+                    <li>
+                      <strong>{wb.extrasSum.toLocaleString()} {sub.bonus_currency}</strong> more when you add an authorized user in the first{' '}
+                      <strong>{sub.spend_window_months} months</strong> (no extra spending required)
+                    </li>
+                  </ul>
+                </>
+              ) : (
+                <p style={{ marginBottom: '0.5rem' }}>
+                  <strong>{wb.short}</strong> after spending{' '}
+                  <strong>${sub.spend_required_usd!.toLocaleString()}</strong> in the first{' '}
+                  <strong>{sub.spend_window_months} months</strong>.
+                </p>
+              )
             ) : (
               <p style={{ marginBottom: '0.5rem' }}>
                 <strong>{wb.short}</strong>
@@ -625,7 +646,8 @@ export default async function CardPage({
                 . No minimum spend required.
               </p>
             )}
-            {sub.extras && (
+            {sub.extras && !wb.isTiered && (
+              // Don't double-show extras when we've already broken out tiers above.
               <p style={{ color: 'var(--color-text-secondary)' }}>{sub.extras}</p>
             )}
             {sub.notes && (
