@@ -12,6 +12,9 @@ import { useState, useTransition } from 'react'
 import {
   generateVariantAction,
   updateVariantBodyAction,
+  publishVariantAction,
+  unpublishVariantAction,
+  approveVariantAction,
 } from '@/app/admin/(protected)/topics/actions'
 import type {
   ContentVariant,
@@ -89,6 +92,18 @@ function bodyMetric(format: VariantFormat, body: string | null): string {
   return `${words} words`
 }
 
+const SOCIAL_FORMATS: ReadonlySet<VariantFormat> = new Set([
+  'facebook',
+  'twitter',
+  'instagram',
+  'linkedin',
+  'threads',
+])
+
+function isSocialFormat(format: VariantFormat): boolean {
+  return SOCIAL_FORMATS.has(format)
+}
+
 function unmatchedFromMetadata(v: ContentVariant): FactGrepUnmatched[] {
   const raw = (v.metadata ?? {}) as { fact_grep_unmatched?: FactGrepUnmatched[] }
   return Array.isArray(raw.fact_grep_unmatched) ? raw.fact_grep_unmatched : []
@@ -113,6 +128,8 @@ export default function VariantsGrid({
   const [editorBody, setEditorBody] = useState('')
   const [editorTitle, setEditorTitle] = useState('')
   const [grepModalFormat, setGrepModalFormat] = useState<VariantFormat | null>(null)
+  const [socialPublishFormat, setSocialPublishFormat] = useState<VariantFormat | null>(null)
+  const [socialPublishUrl, setSocialPublishUrl] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
 
@@ -165,6 +182,15 @@ export default function VariantsGrid({
   function onOpenEdit(format: VariantFormat) {
     const existing = byFormat[format]
     if (!existing) return
+    if (
+      existing.status === 'published' &&
+      typeof window !== 'undefined' &&
+      !window.confirm(
+        "Editing won't auto-republish. Unpublish + re-publish to push edits. Continue editing?",
+      )
+    ) {
+      return
+    }
     setEditingFormat(format)
     setEditorBody(existing.body ?? '')
     setEditorTitle(existing.title ?? '')
@@ -198,6 +224,81 @@ export default function VariantsGrid({
     setEditingFormat(null)
     setEditorBody('')
     setEditorTitle('')
+  }
+
+  function onApprove(format: VariantFormat) {
+    flashError(null)
+    const fd = new FormData()
+    fd.set('topicSlug', slug)
+    fd.set('format', format)
+    startTransition(async () => {
+      const r = await approveVariantAction(fd)
+      if (!r.ok) {
+        flashError(r.error ?? 'Approve failed.')
+        return
+      }
+      flashInfo(`Approved ${FORMAT_LABELS[format]}.`)
+      if (typeof window !== 'undefined') window.location.reload()
+    })
+  }
+
+  function onPublish(format: VariantFormat, publishTargetUrl?: string) {
+    flashError(null)
+    const fd = new FormData()
+    fd.set('topicSlug', slug)
+    fd.set('format', format)
+    if (publishTargetUrl) fd.set('publishTargetUrl', publishTargetUrl)
+    startTransition(async () => {
+      const r = await publishVariantAction(fd)
+      if (!r.ok) {
+        flashError(r.error ?? 'Publish failed.')
+        return
+      }
+      flashInfo(
+        r.publishTargetUrl
+          ? `Published — ${r.publishTargetUrl}`
+          : `Published ${FORMAT_LABELS[format]}.`,
+      )
+      if (typeof window !== 'undefined') window.location.reload()
+    })
+  }
+
+  function onPublishClick(format: VariantFormat) {
+    if (isSocialFormat(format)) {
+      setSocialPublishFormat(format)
+      setSocialPublishUrl('')
+      return
+    }
+    onPublish(format)
+  }
+
+  function onSocialPublishSubmit() {
+    if (!socialPublishFormat) return
+    const f = socialPublishFormat
+    setSocialPublishFormat(null)
+    onPublish(f, socialPublishUrl.trim())
+  }
+
+  function onUnpublish(format: VariantFormat) {
+    flashError(null)
+    if (
+      typeof window !== 'undefined' &&
+      !window.confirm(`Unpublish the ${FORMAT_LABELS[format]} variant?`)
+    ) {
+      return
+    }
+    const fd = new FormData()
+    fd.set('topicSlug', slug)
+    fd.set('format', format)
+    startTransition(async () => {
+      const r = await unpublishVariantAction(fd)
+      if (!r.ok) {
+        flashError(r.error ?? 'Unpublish failed.')
+        return
+      }
+      flashInfo(`Unpublished ${FORMAT_LABELS[format]}.`)
+      if (typeof window !== 'undefined') window.location.reload()
+    })
   }
 
   return (
@@ -315,6 +416,40 @@ export default function VariantsGrid({
                 </div>
               )}
 
+              {v?.status === 'published' && (
+                <div
+                  style={{
+                    fontSize: '0.7rem',
+                    color: '#1f3a8a',
+                    background: '#eef2fb',
+                    border: '1px solid #c5d1ee',
+                    padding: '0.25rem 0.4rem',
+                    borderRadius: 'var(--radius-ui)',
+                    wordBreak: 'break-all',
+                  }}
+                >
+                  {v.publish_target_url ? (
+                    <>
+                      <a
+                        href={v.publish_target_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: '#1f3a8a', textDecoration: 'underline' }}
+                      >
+                        {v.publish_target_url}
+                      </a>
+                    </>
+                  ) : (
+                    <>Marked published (no URL)</>
+                  )}
+                  {v.published_at && (
+                    <div style={{ color: 'var(--color-text-secondary)', marginTop: '0.15rem' }}>
+                      {new Date(v.published_at).toLocaleString()}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div
                 style={{
                   marginTop: 'auto',
@@ -341,6 +476,40 @@ export default function VariantsGrid({
                     disabled={isPending}
                   >
                     Edit
+                  </button>
+                )}
+                {v && (status === 'draft' || status === 'needs_review') && (
+                  <button
+                    type="button"
+                    onClick={() => onApprove(format)}
+                    className="rg-btn-secondary"
+                    style={{ padding: '0.3rem 0.55rem', fontSize: '0.75rem' }}
+                    disabled={isPending}
+                    title="Approve this variant so it can be published"
+                  >
+                    Approve
+                  </button>
+                )}
+                {v && status === 'approved' && (
+                  <button
+                    type="button"
+                    onClick={() => onPublishClick(format)}
+                    className="rg-btn-primary"
+                    style={{ padding: '0.3rem 0.55rem', fontSize: '0.75rem' }}
+                    disabled={isPending}
+                  >
+                    Publish
+                  </button>
+                )}
+                {v && status === 'published' && (
+                  <button
+                    type="button"
+                    onClick={() => onUnpublish(format)}
+                    className="rg-btn-secondary"
+                    style={{ padding: '0.3rem 0.55rem', fontSize: '0.75rem' }}
+                    disabled={isPending}
+                  >
+                    Unpublish
                   </button>
                 )}
                 {unmatched.length > 0 && (
@@ -424,6 +593,61 @@ export default function VariantsGrid({
             <button
               type="button"
               onClick={onCancelEdit}
+              className="rg-btn-secondary"
+              disabled={isPending}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Social publish modal — optional paste-URL capture */}
+      {socialPublishFormat && (
+        <div
+          style={{
+            marginTop: '1.5rem',
+            padding: '1rem',
+            border: '1px solid var(--color-border-soft)',
+            borderRadius: 'var(--radius-card)',
+            background: 'var(--color-background-soft)',
+          }}
+        >
+          <h3 style={{ marginTop: 0, marginBottom: '0.5rem' }}>
+            Mark {FORMAT_LABELS[socialPublishFormat]} as published
+          </h3>
+          <p style={{ fontSize: '0.8rem', marginTop: 0, color: 'var(--color-text-secondary)' }}>
+            Paste the URL of the live social post (optional). Auto-posting via
+            platform APIs is Phase 3 — for now this just flips the variant to
+            <code style={{ marginLeft: '0.25rem', marginRight: '0.25rem' }}>published</code>
+            and records the URL.
+          </p>
+          <input
+            value={socialPublishUrl}
+            onChange={(e) => setSocialPublishUrl(e.target.value)}
+            placeholder="https://twitter.com/..."
+            style={{
+              width: '100%',
+              padding: '0.5rem',
+              fontSize: '1rem',
+              border: '1px solid var(--color-border-soft)',
+              borderRadius: 'var(--radius-ui)',
+              background: '#fff',
+              marginBottom: '0.75rem',
+            }}
+          />
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button
+              type="button"
+              onClick={onSocialPublishSubmit}
+              className="rg-btn-primary"
+              disabled={isPending}
+            >
+              Mark as published
+            </button>
+            <button
+              type="button"
+              onClick={() => setSocialPublishFormat(null)}
               className="rg-btn-secondary"
               disabled={isPending}
             >
