@@ -69,6 +69,12 @@ EARN RATE NUANCES (use earn_rates[].notes for):
     hotel credit"), note in the earn rate's notes: "Points earned on gross transaction; statement credits
     do not reduce points." This is the most-misunderstood Chase Reserve detail.
 20. Brand-specific earn rates with end dates → include "Through M/D/YYYY" in notes.
+21. CARD-ONLY MULTIPLIER vs COMBINED: when an issuer page says "9x on United flights (6x as MileagePlus
+    member + 3x card)" or "14x at Marriott (10x base + 1x Silver + 3x card)" — the multiplier you
+    store is the CARD's contribution ONLY (3x in both examples). The combined breakdown goes in notes
+    as "+6x as MileagePlus member" or "+10x Marriott base + 1x Silver Elite (combined ~14x total)".
+    This convention lets users compare cards fairly — the program base earn isn't a card feature.
+    Issuers vary in their marketing language; you must do the math to isolate the card's contribution.
 
 FREQUENCY VALUES (must use one of these for benefits[].frequency):
   per_trip       — paid out per qualifying trip (most insurance benefits)

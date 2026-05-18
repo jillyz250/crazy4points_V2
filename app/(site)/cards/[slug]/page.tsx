@@ -612,6 +612,25 @@ export default async function CardPage({
             cta="See the offer"
             preview={preview}
           >
+            {sub.is_elevated && (
+              <div
+                style={{
+                  display: 'inline-block',
+                  background: 'var(--color-accent)',
+                  color: '#3a2b00',
+                  fontFamily: 'var(--font-ui)',
+                  fontSize: '0.7rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  padding: '0.25rem 0.65rem',
+                  borderRadius: '999px',
+                  fontWeight: 700,
+                  marginBottom: '0.75rem',
+                }}
+              >
+                🕐 Limited-time offer
+              </div>
+            )}
             {hasSpendReq ? (
               wb.isTiered ? (
                 // Tiered bonus: break out main offer + each additional tier
@@ -627,8 +646,9 @@ export default async function CardPage({
                       <strong>{sub.spend_window_months} months</strong>
                     </li>
                     <li>
-                      <strong>{wb.extrasSum.toLocaleString()} {sub.bonus_currency}</strong> more when you add an authorized user in the first{' '}
-                      <strong>{sub.spend_window_months} months</strong> (no extra spending required)
+                      <strong>{wb.extrasSum.toLocaleString()} {sub.bonus_currency}</strong> more when you add{' '}
+                      {card.card_type === 'business' ? 'an employee card' : 'an authorized user'}{' '}
+                      in the first <strong>{sub.spend_window_months} months</strong> (no extra spending required)
                     </li>
                   </ul>
                 </>
@@ -654,6 +674,25 @@ export default async function CardPage({
               <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', marginTop: '0.75rem' }}>
                 {sub.notes}
               </p>
+            )}
+            {card.referral_bonus_amount && card.referral_bonus_amount > 0 && (
+              <div
+                style={{
+                  marginTop: '1rem',
+                  paddingTop: '0.85rem',
+                  borderTop: '1px solid var(--color-border-soft)',
+                  fontSize: '0.875rem',
+                  color: 'var(--color-text-primary)',
+                }}
+              >
+                <strong>🤝 Refer a friend:</strong>{' '}
+                Earn <strong>{card.referral_bonus_amount.toLocaleString()} {card.referral_bonus_currency ?? ''}</strong> for each friend approved for any{' '}
+                {issuer.name} card
+                {card.referral_cap_per_year ? (
+                  <> — up to <strong>{card.referral_cap_per_year.toLocaleString()}</strong> per year</>
+                ) : null}
+                .
+              </div>
             )}
           </SimpleTile>
         )
