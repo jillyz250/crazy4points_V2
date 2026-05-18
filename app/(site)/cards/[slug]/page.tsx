@@ -748,14 +748,21 @@ export default async function CardPage({
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '0.35rem' }}>
-                  <a
-                    href={p.official_url}
-                    target="_blank"
-                    rel="noreferrer noopener"
-                    style={{ fontWeight: 600, color: 'var(--color-primary)', textDecoration: 'none' }}
-                  >
-                    {p.name} →
-                  </a>
+                  {p.requires_cardholder_auth ? (
+                    // Login-walled portals: don't pretend the link is useful.
+                    // Show as plain text with the access instructions in the
+                    // requires_cardholder_auth note below.
+                    <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{p.name}</span>
+                  ) : (
+                    <a
+                      href={p.official_url}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      style={{ fontWeight: 600, color: 'var(--color-primary)', textDecoration: 'none' }}
+                    >
+                      {p.name} →
+                    </a>
+                  )}
                   {p.access_tier && (
                     <span
                       style={{
@@ -796,7 +803,7 @@ export default async function CardPage({
                       fontStyle: 'italic',
                     }}
                   >
-                    🔒 Cardmember login required for current event details / booking.
+                    🔒 Access this perk through your cardmember account at the issuer&apos;s website or app.
                   </div>
                 )}
               </div>
