@@ -14,9 +14,11 @@ import type {
   FactLedgerEntry,
   TopicType,
   ConfidenceLevel,
+  ContentVariant,
 } from '@/utils/supabase/queries'
 import type { VerifyError } from '@/utils/content/verifyTopic'
 import { MultiSelectChecklist, type MultiSelectOption } from './MultiSelectChecklist'
+import VariantsGrid from './VariantsGrid'
 
 const TOPIC_TYPE_OPTIONS: TopicType[] = [
   'promo',
@@ -82,10 +84,12 @@ export default function TopicEditor({
   topic,
   programOptions,
   cardOptions,
+  variants,
 }: {
   topic: Topic
   programOptions: MultiSelectOption[]
   cardOptions: MultiSelectOption[]
+  variants: ContentVariant[]
 }) {
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
@@ -539,39 +543,19 @@ export default function TopicEditor({
         )}
       </section>
 
-      {/* Section: variants placeholder */}
+      {/* Section: variants */}
       <section style={sectionStyle}>
         <h2 style={{ marginTop: 0 }}>Variants</h2>
         <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
-          Coming in PR 3: per-format generators. A verified topic will be able
-          to fan out into the formats below.
+          One card per format. Generate runs Sonnet against the fact ledger;
+          fact-grep flags any dollar amount, percent, or date the model
+          introduced that isn&apos;t in the ledger.
         </p>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(11rem, 1fr))',
-            gap: '0.5rem',
-          }}
-        >
-          {(['alert', 'blog', 'newsletter', 'facebook', 'twitter', 'instagram', 'linkedin', 'threads'] as const).map(
-            (fmt) => (
-              <div
-                key={fmt}
-                style={{
-                  padding: '0.75rem',
-                  border: '1px dashed var(--color-border-soft)',
-                  borderRadius: 'var(--radius-card)',
-                  textAlign: 'center',
-                  color: 'var(--color-text-secondary)',
-                  fontSize: '0.875rem',
-                }}
-              >
-                {fmt}
-                <div style={{ fontSize: '0.7rem', marginTop: '0.25rem' }}>PR 3</div>
-              </div>
-            ),
-          )}
-        </div>
+        <VariantsGrid
+          slug={topic.slug}
+          variants={variants}
+          factCheckStatus={topic.fact_check_status}
+        />
       </section>
     </div>
   )
