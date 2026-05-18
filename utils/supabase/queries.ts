@@ -514,6 +514,144 @@ export interface ContentVariant {
 export type ContentVariantInsert = Omit<ContentVariant, 'id' | 'created_at' | 'updated_at'>
 export type ContentVariantUpdate = Partial<Omit<ContentVariant, 'id' | 'topic_id' | 'created_at' | 'updated_at'>>
 
+// ─── Topic queries ───────────────────────────────────────────────────────────
+
+export async function listTopics(
+  supabase: SupabaseClient,
+  filters: {
+    status?: TopicStatus
+    topic_type?: TopicType
+    program?: string
+  } = {},
+): Promise<Array<Topic & { variant_count: number }>> {
+  let q = supabase
+    .from('topics')
+    .select('*')
+    .order('updated_at', { ascending: false })
+  if (filters.status) q = q.eq('status', filters.status)
+  if (filters.topic_type) q = q.eq('topic_type', filters.topic_type)
+  if (filters.program) q = q.contains('programs', [filters.program])
+  const { data, error } = await q
+  if (error) throw new Error(error.message)
+  const topics = (data ?? []) as Topic[]
+  if (topics.length === 0) return []
+
+  // Pull variant counts in one query.
+  const ids = topics.map((t) => t.id)
+  const { data: variants, error: vErr } = await supabase
+    .from('content_variants')
+    .select('topic_id')
+    .in('topic_id', ids)
+  if (vErr) throw new Error(vErr.message)
+  const counts = new Map<string, number>()
+  for (const row of (variants ?? []) as Array<{ topic_id: string }>) {
+    counts.set(row.topic_id, (counts.get(row.topic_id) ?? 0) + 1)
+  }
+  return topics.map((t) => ({ ...t, variant_count: counts.get(t.id) ?? 0 }))
+}
+
+export async function getTopicBySlug(
+  supabase: SupabaseClient,
+  slug: string,
+): Promise<Topic | null> {
+  const { data, error } = await supabase
+    .from('topics')
+    .select('*')
+    .eq('slug', slug)
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+  return (data as Topic | null) ?? null
+}
+
+export async function createTopic(
+  supabase: SupabaseClient,
+  input: TopicInsert,
+): Promise<Topic> {
+  const { data, error } = await supabase
+    .from('topics')
+    .insert(input)
+    .select('*')
+    .single()
+  if (error) throw new Error(error.message)
+  return data as Topic
+}
+
+export async function updateTopic(
+  supabase: SupabaseClient,
+  id: string,
+  input: TopicUpdate,
+): Promise<Topic> {
+  const { data, error } = await supabase
+    .from('topics')
+    .update(input)
+    .eq('id', id)
+    .select('*')
+    .single()
+  if (error) throw new Error(error.message)
+  return data as Topic
+}
+
+// ─── Content variant queries (PR 3) ──────────────────────────────────────────
+
+export async function listVariantsForTopic(
+  supabase: SupabaseClient,
+  topicId: string,
+): Promise<ContentVariant[]> {
+  const { data, error } = await supabase
+    .from('content_variants')
+    .select('*')
+    .eq('topic_id', topicId)
+  if (error) throw new Error(error.message)
+  return (data ?? []) as ContentVariant[]
+}
+
+export async function getVariant(
+  supabase: SupabaseClient,
+  topicId: string,
+  format: VariantFormat,
+): Promise<ContentVariant | null> {
+  const { data, error } = await supabase
+    .from('content_variants')
+    .select('*')
+    .eq('topic_id', topicId)
+    .eq('format', format)
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+  return (data as ContentVariant | null) ?? null
+}
+
+/**
+ * Upsert a variant row keyed on (topic_id, format). On conflict update body /
+ * title / metadata / status / generation provenance.
+ */
+export async function upsertVariant(
+  supabase: SupabaseClient,
+  input: ContentVariantInsert,
+): Promise<ContentVariant> {
+  const { data, error } = await supabase
+    .from('content_variants')
+    .upsert(input, { onConflict: 'topic_id,format' })
+    .select('*')
+    .single()
+  if (error) throw new Error(error.message)
+  return data as ContentVariant
+}
+
+export async function updateVariant(
+  supabase: SupabaseClient,
+  id: string,
+  patch: ContentVariantUpdate,
+): Promise<ContentVariant> {
+  const { data, error } = await supabase
+    .from('content_variants')
+    .update(patch)
+    .eq('id', id)
+    .select('*')
+    .single()
+  if (error) throw new Error(error.message)
+  return data as ContentVariant
+}
+
 // ─── Queries ─────────────────────────────────────────────────────────────────
 
 /**

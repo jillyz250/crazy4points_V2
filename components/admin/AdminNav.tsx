@@ -39,6 +39,7 @@ const NAV_GROUPS: NavGroup[] = [
         match: (p) => p === '/admin/content-ideas',
       },
       { href: '/admin/newsletter', label: 'Newsletter', abbr: 'Nw' },
+      { href: '/admin/topics', label: 'Topics', abbr: 'Tp' },
     ],
   },
   {
