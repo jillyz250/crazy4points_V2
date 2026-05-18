@@ -444,9 +444,20 @@ export default async function CardExtractPage({
           ) : null}
 
           <label className="inline-flex items-center gap-2 font-body text-sm text-[var(--color-text-secondary)]">
-            <input type="checkbox" name="interactive" value="on" className="h-4 w-4 rounded border-[var(--color-border-soft)]" />
+            {/* Default-checked for business cards. Chase business product pages
+                hide travel/purchase insurance behind a JS accordion that plain
+                Firecrawl can't crack. Confirmed gap on Southwest Premier Business
+                + Ink trio on 2026-05-18. Editor can still uncheck for a faster
+                scrape. */}
+            <input
+              type="checkbox"
+              name="interactive"
+              value="on"
+              defaultChecked={card.card_type === 'business'}
+              className="h-4 w-4 rounded border-[var(--color-border-soft)]"
+            />
             <span>
-              <strong className="text-[var(--color-text-primary)]">Interactive mode</strong> — expand accordions, click &ldquo;Show more&rdquo;, open all <code className="font-mono text-xs">{`<details>`}</code>. Adds ~5 sec. Use for Citi, US Bank, Wells Fargo pages that hide benefits behind accordions.
+              <strong className="text-[var(--color-text-primary)]">Interactive mode</strong> — expand accordions, click &ldquo;Show more&rdquo;, open all <code className="font-mono text-xs">{`<details>`}</code>. Adds ~5 sec. <strong>Auto-enabled for business cards</strong> (insurance hides behind accordions); also recommended for Citi, US Bank, Wells Fargo.
             </span>
           </label>
 
