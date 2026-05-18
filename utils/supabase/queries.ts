@@ -1686,6 +1686,10 @@ export interface CreditCard {
   last_verified: string | null
   /** Newline-separated bullets, each starting with "- ". Renders as a callout box on the card detail page above the intro. Required on every card per plans/credit-cards-architecture.md. */
   good_to_know: string | null
+  /** When true, the card is grandfathered — issuer continues to service existing
+   *  cardholders but no longer accepts new applications. Card page hides the
+   *  Apply CTA and shows a "Closed to new applicants" banner. */
+  closed_to_new_applicants: boolean
   created_at: string
   updated_at: string
 }

@@ -42,10 +42,16 @@ export default function TransferPartnersTable({
   if (rows.length === 0) return null
 
   return (
-    <div style={{ overflowX: 'auto' }}>
+    <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
       <table
         style={{
           width: '100%',
+          // 36rem floor (~576px) so the partner-name column never gets squeezed
+          // below readable width. On narrower viewports the wrapper scrolls
+          // horizontally — much better than the previous behavior where
+          // tableLayout:'fixed' + wordBreak:'break-word' split "Chase Ultimate
+          // Rewards" character-by-character on mobile.
+          minWidth: '36rem',
           tableLayout: 'fixed',
           borderCollapse: 'collapse',
           fontFamily: 'var(--font-body)',
@@ -53,9 +59,9 @@ export default function TransferPartnersTable({
         }}
       >
         <colgroup>
+          <col style={{ width: '28%' }} />
           <col style={{ width: '18%' }} />
-          <col style={{ width: '22%' }} />
-          <col style={{ width: '60%' }} />
+          <col style={{ width: '54%' }} />
         </colgroup>
         <thead>
           <tr style={{ borderBottom: '1px solid var(--color-border-soft)' }}>
