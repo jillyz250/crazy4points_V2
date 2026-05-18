@@ -1245,21 +1245,37 @@ export async function getAllPrograms(supabase: SupabaseClient): Promise<Program[
 }
 
 /**
- * Fetch a single published alert by slug.
+ * Fetch a single published alert by slug. Falls back to short_slug match
+ * so legacy /alerts/<short_slug> links keep working (the LiveBarsHero used
+ * to render short_slug URLs into the /alerts/ route before the 2026-05-18
+ * fix; this fallback prevents dead-link bookmarks/external shares).
  */
 export async function getAlertBySlug(
   supabase: SupabaseClient,
   slug: string
 ): Promise<Alert> {
+  // Primary lookup — exact slug match.
   const { data, error } = await supabase
     .from('alerts')
     .select('*')
     .eq('slug', slug)
     .eq('status', 'published' satisfies AlertStatus)
-    .single()
+    .maybeSingle()
 
+  if (data) return data as Alert
   if (error) throw error
-  return data as Alert
+
+  // Fallback — short_slug match (legacy URLs).
+  const { data: shortMatch, error: shortErr } = await supabase
+    .from('alerts')
+    .select('*')
+    .eq('short_slug', slug)
+    .eq('status', 'published' satisfies AlertStatus)
+    .maybeSingle()
+
+  if (shortErr) throw shortErr
+  if (!shortMatch) throw new Error('Alert not found')
+  return shortMatch as Alert
 }
 
 /**
