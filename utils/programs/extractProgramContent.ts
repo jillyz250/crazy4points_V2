@@ -232,10 +232,10 @@ export async function extractProgramContent({
     await Promise.all(
       Array.from(verifiedMap.entries()).map(async ([originalUrl, finalUrl]) => {
         const stealth = isHostile(finalUrl)
-        const md = interactive
+        const result = interactive
           ? await fetchFirecrawlInteractive(finalUrl, { maxChars: PER_URL_MARKDOWN_LIMIT, stealth })
           : await fetchFirecrawl(finalUrl, { maxChars: PER_URL_MARKDOWN_LIMIT, stealth })
-        if (md) markdownByUrl.set(originalUrl, md)
+        if (result.ok && result.markdown) markdownByUrl.set(originalUrl, result.markdown)
         if (stealth) console.log(`[extract] used stealth proxy for ${finalUrl}`)
       }),
     )

@@ -1,9 +1,16 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { logUsage } from './logUsage'
 import type { Source, AlertType, IntelConfidence } from '@/utils/supabase/queries'
-import { fetchFirecrawl } from './firecrawl'
+import { fetchFirecrawl, isHostileDomain, type FirecrawlResult } from './firecrawl'
 
 export interface ScoutFinding {
+  /**
+   * UUID of the source row this finding came from. Haiku MUST return this
+   * (we pass it in the prompt) so attribution doesn't break when Haiku
+   * paraphrases source_name. `source_name` is kept for human-readable logs
+   * and the old name-match fallback.
+   */
+  source_id?: string
   source_url?: string
   source_type: 'official' | 'blog' | 'reddit' | 'social'
   source_name: string
@@ -69,6 +76,31 @@ async function fetchPlainHtml(url: string): Promise<string> {
   }
 }
 
+/**
+ * Firecrawl fetch with stealth-retry on bot walls.
+ *
+ * On `bot_wall` or `empty`, retry ONCE with `stealth: true`. Hostile
+ * domains (delta.com, marriott.com) use stealth on the FIRST call to avoid
+ * burning the budget on a known-failing plain attempt.
+ */
+async function fetchFirecrawlWithStealthRetry(url: string): Promise<FirecrawlResult> {
+  const preStealth = isHostileDomain(url)
+  if (preStealth) {
+    console.log(`[runScout] ${url} on hostile-domain allowlist — using stealth on first call`)
+  }
+  const first = await fetchFirecrawl(url, { stealth: preStealth })
+  if (first.ok) return first
+
+  // Only retry on bot_wall or empty. Do NOT retry on no_api_key, timeout,
+  // redirect_trap, or generic error — those won't be fixed by stealth.
+  if (first.reason !== 'bot_wall' && first.reason !== 'empty') return first
+  // Already attempted stealth; don't loop.
+  if (preStealth) return first
+
+  console.warn(`[runScout] ${url} hit ${first.reason} — retrying once with stealth proxy`)
+  return fetchFirecrawl(url, { stealth: true })
+}
+
 async function fetchSource(source: Source): Promise<string> {
   try {
     if (source.type === 'community') return await fetchReddit(source.url)
@@ -76,9 +108,11 @@ async function fetchSource(source: Source): Promise<string> {
 
     // Official pages: prefer Firecrawl (renders JS) when flagged, fall back to plain fetch
     if (source.use_firecrawl) {
-      const md = await fetchFirecrawl(source.url)
-      if (md.length > 100) return md
-      console.warn(`[runScout] Firecrawl returned empty for ${source.name}, falling back to plain fetch`)
+      const result = await fetchFirecrawlWithStealthRetry(source.url)
+      if (result.ok && result.markdown.length > 100) return result.markdown
+      console.warn(
+        `[runScout] Firecrawl returned ${result.ok ? 'short markdown' : result.reason} for ${source.name}, falling back to plain fetch`,
+      )
     }
 
     return await fetchPlainHtml(source.url)
@@ -93,29 +127,49 @@ export interface ScoutProgram {
   type: string // credit_card | airline | hotel | ...
 }
 
-export async function runScout(
-  sources: Source[],
-  recentHeadlines: string[] = [],
-  programs: ScoutProgram[] = []
+/**
+ * Number of sources sent to Haiku in a single call. Below ~20, attention
+ * dilution is manageable and Haiku reliably extracts findings from every
+ * source. Above that, sources at the bottom of the prompt get ignored.
+ * 201 sources / 20 = ~11 parallel Haiku calls.
+ */
+const SOURCES_PER_BATCH = 20
+
+function chunk<T>(arr: T[], size: number): T[][] {
+  if (size <= 0) return [arr]
+  const out: T[][] = []
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size))
+  return out
+}
+
+async function runScoutBatch(
+  client: Anthropic,
+  batchContents: SourceContent[],
+  recentHeadlines: string[],
+  programs: ScoutProgram[],
+  batchIndex: number,
+  batchCount: number,
 ): Promise<ScoutFinding[]> {
-  const client = new Anthropic()
+  const today = new Date().toISOString().split('T')[0]
 
-  // Fetch all sources in parallel
-  const contents: SourceContent[] = await Promise.all(
-    sources
-      .filter((s) => s.is_active)
-      .map(async (source) => ({
-        source,
-        content: await fetchSource(source),
-      }))
-  )
-
-  const sourceSummaries = contents
+  const sourceSummaries = batchContents
     .filter((c) => c.content.length > 50)
-    .map((c) => `### ${c.source.name} (${c.source.type})\n${c.content}`)
+    .map(
+      (c) =>
+        `### ${c.source.name} (${c.source.type})\nSOURCE_ID: ${c.source.id}\n${c.content}`,
+    )
     .join('\n\n---\n\n')
 
-  const today = new Date().toISOString().split('T')[0]
+  if (!sourceSummaries) {
+    console.log(`[runScout] batch ${batchIndex + 1}/${batchCount}: no source content with >50 chars, skipping`)
+    return []
+  }
+
+  // Registry of source_id -> name for the prompt, so Haiku has both
+  // available and can return source_id unambiguously.
+  const sourceRegistry = batchContents
+    .map((c) => `- source_id="${c.source.id}" name="${c.source.name}"`)
+    .join('\n')
 
   const knownSection = recentHeadlines.length > 0
     ? `\nALREADY KNOWN (last 7 days — skip unless there is a major new development):\n${recentHeadlines.map((h) => `- ${h}`).join('\n')}\n`
@@ -152,6 +206,12 @@ RULES:
 - TRANSFER BONUSES: tag both source and destination (see order rule above).
 - AIRLINE/HOTEL AWARD SALES: always tag the operating loyalty program (e.g., SAS award sale → ["sas-eurobonus"] if listed).
 - Never return an empty programs array unless the finding truly has no loyalty angle.
+
+SOURCE ATTRIBUTION (CRITICAL):
+Each source below has a SOURCE_ID line above its content. For every finding you produce, return the source's "source_id" field EXACTLY as listed in the registry below. Do NOT invent a UUID; use the one above the source's content. Also return "source_name" as-listed for human-readable logs.
+
+SOURCE REGISTRY (use these source_id values verbatim):
+${sourceRegistry}
 
 PROGRAM LIST (authoritative — use these slugs):
 ${programList}
@@ -198,7 +258,8 @@ Schema per finding:
 {
   "headline": "string (clear, specific, action-oriented)",
   "description": "string (2–3 sentences: what it is, why it matters, what to do — written for a travel rewards enthusiast)",
-  "source_name": "string",
+  "source_id": "string (UUID from the SOURCE REGISTRY above — required)",
+  "source_name": "string (must match the registry entry for source_id)",
   "source_type": "official|blog|reddit|social",
   "source_url": "string|null",
   "raw_text": "string (1–2 sentence excerpt from source)",
@@ -214,19 +275,60 @@ ${sourceSummaries}`,
       },
     ],
   })
-  await logUsage(message, 'runScout')
+  await logUsage(message, `runScout:batch-${batchIndex + 1}-of-${batchCount}`)
 
   const raw = message.content[0].type === 'text' ? message.content[0].text.trim() : '[]'
-  console.log('[runScout] Claude raw response (first 500):', raw.slice(0, 500))
+  console.log(
+    `[runScout] batch ${batchIndex + 1}/${batchCount} raw response (first 300):`,
+    raw.slice(0, 300),
+  )
 
-  // Strip markdown code fences if present
   const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
-
   try {
     const findings = JSON.parse(cleaned)
-    return Array.isArray(findings) ? findings : []
+    return Array.isArray(findings) ? (findings as ScoutFinding[]) : []
   } catch {
-    console.error('[runScout] Failed to parse Claude response:', cleaned.slice(0, 300))
+    console.error(
+      `[runScout] batch ${batchIndex + 1}/${batchCount}: failed to parse response:`,
+      cleaned.slice(0, 300),
+    )
     return []
   }
+}
+
+export async function runScout(
+  sources: Source[],
+  recentHeadlines: string[] = [],
+  programs: ScoutProgram[] = []
+): Promise<ScoutFinding[]> {
+  const client = new Anthropic()
+
+  // Fetch all sources in parallel
+  const contents: SourceContent[] = await Promise.all(
+    sources
+      .filter((s) => s.is_active)
+      .map(async (source) => ({
+        source,
+        content: await fetchSource(source),
+      }))
+  )
+
+  // Filter out empty pulls before batching so each batch carries real content.
+  const usable = contents.filter((c) => c.content.length > 50)
+  const batches = chunk(usable, SOURCES_PER_BATCH)
+  console.log(
+    `[runScout] ${usable.length} sources with content / ${contents.length} attempted; ` +
+    `running ${batches.length} parallel Haiku batches of up to ${SOURCES_PER_BATCH}`,
+  )
+
+  // Parallel Haiku calls — Anthropic SDK handles per-key concurrency fine
+  // and each batch is independent. If we ever hit rate limits, switch to
+  // a `for` loop with a small delay.
+  const batchResults = await Promise.all(
+    batches.map((batchContents, i) =>
+      runScoutBatch(client, batchContents, recentHeadlines, programs, i, batches.length),
+    ),
+  )
+
+  return batchResults.flat()
 }

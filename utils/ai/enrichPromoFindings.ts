@@ -71,7 +71,8 @@ export async function enrichPromoFindings(
 
     let body = ''
     try {
-      body = await fetchFirecrawl(f.source_url, FIRECRAWL_MAX_CHARS)
+      const result = await fetchFirecrawl(f.source_url, FIRECRAWL_MAX_CHARS)
+      if (result.ok) body = result.markdown
     } catch (err) {
       // fetchFirecrawl already swallows + logs; this catches anything else.
       console.warn('[enrichPromoFindings] unexpected error:', err)

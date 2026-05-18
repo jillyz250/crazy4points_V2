@@ -70,10 +70,12 @@ export async function extractCardBenefits({
   const PER_URL_LIMIT = Math.floor(MARKDOWN_CHAR_LIMIT / Math.max(1, 1 + (secondaryUrls?.length ?? 0)))
 
   async function scrapeOne(url: string): Promise<string> {
-    const md = interactive
+    const result = interactive
       ? await fetchFirecrawlInteractive(url, { maxChars: PER_URL_LIMIT })
       : await fetchFirecrawl(url, { maxChars: PER_URL_LIMIT })
-    return md ?? ''
+    // Card extraction has no use for the granular failure reason; treat any
+    // !ok the same as the old empty-string return.
+    return result.ok ? result.markdown : ''
   }
 
   let markdown: string
