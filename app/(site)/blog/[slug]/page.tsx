@@ -37,6 +37,48 @@ interface BlogPost {
 
 async function getPost(slug: string): Promise<BlogPost | null> {
   const supabase = await createClient();
+
+  // PR 4 (content-system rehaul): topic-driven blog variants land in the new
+  // `blog_posts` table. Check there first; fall back to the legacy
+  // content_ideas-backed posts so older content keeps rendering.
+  const { data: bp } = await supabase
+    .from('blog_posts')
+    .select(
+      'slug, title, lede, body_markdown, meta_description, hero_image_alt, published_at, updated_at',
+    )
+    .eq('slug', slug)
+    .eq('status', 'published')
+    .maybeSingle();
+  if (bp) {
+    const row = bp as {
+      slug: string;
+      title: string;
+      lede: string | null;
+      body_markdown: string;
+      meta_description: string | null;
+      hero_image_alt: string | null;
+      published_at: string | null;
+      updated_at: string | null;
+    };
+    return {
+      slug: row.slug,
+      title: row.title,
+      pitch: row.lede ?? row.meta_description ?? '',
+      excerpt: row.meta_description,
+      article_body: row.body_markdown,
+      hero_image_url: null,
+      category: null,
+      primary_program_slug: null,
+      secondary_program_slugs: null,
+      card_slugs: null,
+      reading_time_minutes: null,
+      published_at: row.published_at,
+      updated_at: row.updated_at,
+      written_by: null,
+      fact_checked_at: null,
+    };
+  }
+
   const { data } = await supabase
     .from('content_ideas')
     .select(

@@ -22,6 +22,7 @@ import { verifyTopic as runVerifyChecks, type VerifyError } from '@/utils/conten
 import { generateVariantByFormat, getPromptVersion } from '@/utils/content/generators'
 import { factGrepCheck, type FactGrepResult } from '@/utils/content/factGrepCheck'
 import { BRAND_VOICE } from '@/utils/ai/editorialRules'
+import { publishByFormat, unpublishByFormat } from '@/utils/content/publishers'
 
 const TOPIC_TYPES: TopicType[] = [
   'promo',
@@ -521,6 +522,169 @@ export async function updateVariantBodyAction(
       error: e instanceof Error ? e.message : 'Failed to save variant.',
     }
   }
+}
+
+// ─── Publish / unpublish per variant (PR 4) ────────────────────────────────
+
+export async function publishVariantAction(
+  formData: FormData,
+): Promise<{ ok: boolean; error?: string; publishTargetUrl?: string | null }> {
+  const topicSlug = String(formData.get('topicSlug') ?? formData.get('slug') ?? '').trim()
+  const format = String(formData.get('format') ?? '').trim() as VariantFormat
+  const publishTargetUrlInput =
+    String(formData.get('publishTargetUrl') ?? '').trim() || null
+
+  if (!topicSlug) return { ok: false, error: 'Missing topic slug.' }
+  if (!VARIANT_FORMATS.includes(format)) {
+    return { ok: false, error: `Unknown variant format: ${format}` }
+  }
+
+  const supabase = createAdminClient()
+  const topic = await getTopicBySlug(supabase, topicSlug)
+  if (!topic) return { ok: false, error: 'Topic not found.' }
+
+  // HARD GATE 1 — topic must be verified.
+  if (
+    topic.fact_check_status !== 'verified' &&
+    topic.fact_check_status !== 'partially_verified'
+  ) {
+    return {
+      ok: false,
+      error: 'Topic must be verified before publishing variants.',
+    }
+  }
+
+  const variant = await getVariant(supabase, topic.id, format)
+  if (!variant) return { ok: false, error: 'Variant does not exist yet.' }
+
+  // HARD GATE 2 — variant must be approved.
+  if (variant.status !== 'approved') {
+    return {
+      ok: false,
+      error: 'Variant must be approved before publishing.',
+    }
+  }
+
+  // Dispatch to format-specific publisher.
+  let publishTargetUrl: string | null
+  try {
+    const result = await publishByFormat(format, {
+      supabase,
+      topic,
+      variant,
+      publishTargetUrl: publishTargetUrlInput,
+    })
+    publishTargetUrl = result.publishTargetUrl
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : 'Publish handler failed.',
+    }
+  }
+
+  // Update the variant row.
+  try {
+    await updateVariant(supabase, variant.id, {
+      status: 'published',
+      published_at: new Date().toISOString(),
+      publish_target_url: publishTargetUrl,
+    })
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : 'Failed to update variant.',
+    }
+  }
+
+  revalidatePath(`/admin/topics/${topicSlug}/edit`)
+  if (format === 'alert') revalidatePath(`/alerts/${topicSlug}`)
+  if (format === 'blog') revalidatePath(`/blog/${topicSlug}`)
+  return { ok: true, publishTargetUrl }
+}
+
+export async function unpublishVariantAction(
+  formData: FormData,
+): Promise<{ ok: boolean; error?: string }> {
+  const topicSlug = String(formData.get('topicSlug') ?? formData.get('slug') ?? '').trim()
+  const format = String(formData.get('format') ?? '').trim() as VariantFormat
+
+  if (!topicSlug) return { ok: false, error: 'Missing topic slug.' }
+  if (!VARIANT_FORMATS.includes(format)) {
+    return { ok: false, error: `Unknown variant format: ${format}` }
+  }
+
+  const supabase = createAdminClient()
+  const topic = await getTopicBySlug(supabase, topicSlug)
+  if (!topic) return { ok: false, error: 'Topic not found.' }
+
+  const variant = await getVariant(supabase, topic.id, format)
+  if (!variant) return { ok: false, error: 'Variant not found.' }
+  if (variant.status !== 'published') {
+    return { ok: false, error: 'Variant is not currently published.' }
+  }
+
+  try {
+    await unpublishByFormat(format, { supabase, topic, variant })
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : 'Unpublish handler failed.',
+    }
+  }
+
+  try {
+    await updateVariant(supabase, variant.id, {
+      status: 'approved',
+      published_at: null,
+      publish_target_url: null,
+    })
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : 'Failed to update variant.',
+    }
+  }
+
+  revalidatePath(`/admin/topics/${topicSlug}/edit`)
+  if (format === 'alert') revalidatePath(`/alerts/${topicSlug}`)
+  if (format === 'blog') revalidatePath(`/blog/${topicSlug}`)
+  return { ok: true }
+}
+
+// Lightweight admin helper — flip an approved-eligible variant to 'approved'.
+// Editors need a way to move 'draft' → 'approved' so the publish gate can pass.
+export async function approveVariantAction(
+  formData: FormData,
+): Promise<{ ok: boolean; error?: string }> {
+  const topicSlug = String(formData.get('topicSlug') ?? formData.get('slug') ?? '').trim()
+  const format = String(formData.get('format') ?? '').trim() as VariantFormat
+  if (!topicSlug) return { ok: false, error: 'Missing topic slug.' }
+  if (!VARIANT_FORMATS.includes(format)) {
+    return { ok: false, error: `Unknown variant format: ${format}` }
+  }
+
+  const supabase = createAdminClient()
+  const topic = await getTopicBySlug(supabase, topicSlug)
+  if (!topic) return { ok: false, error: 'Topic not found.' }
+  const variant = await getVariant(supabase, topic.id, format)
+  if (!variant) return { ok: false, error: 'Variant not found.' }
+  if (variant.status !== 'draft' && variant.status !== 'needs_review') {
+    return {
+      ok: false,
+      error: `Only draft / needs_review variants can be approved (current: ${variant.status}).`,
+    }
+  }
+
+  try {
+    await updateVariant(supabase, variant.id, { status: 'approved' })
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : 'Failed to approve variant.',
+    }
+  }
+  revalidatePath(`/admin/topics/${topicSlug}/edit`)
+  return { ok: true }
 }
 
 export async function activateTopicAction(
