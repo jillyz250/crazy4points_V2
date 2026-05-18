@@ -126,6 +126,26 @@ function normalizeBenefitType(raw: string, category: string): string {
   return 'other'
 }
 
+// Must match CHECK constraint on credit_card_earn_rates.cap_period in migration 044.
+const VALID_CAP_PERIODS = new Set(['monthly', 'quarterly', 'annual', 'lifetime'])
+
+/**
+ * Coerces a Claude-returned cap_period to a valid enum value. Common Sonnet
+ * mistakes mapped to the closest valid value; anything unknown falls through
+ * to null (cap_period is nullable on the column).
+ */
+function normalizeCapPeriod(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  const v = raw.toLowerCase().trim().replace(/[-\s]/g, '_')
+  if (VALID_CAP_PERIODS.has(v)) return v
+  // Common drift
+  if (v === 'yearly' || v === 'year' || v === 'calendar_year' || v === 'per_year' || v === 'annually') return 'annual'
+  if (v === 'per_month' || v === 'per_calendar_month' || v === 'calendar_month') return 'monthly'
+  if (v === 'per_quarter' || v === 'quarter' || v === 'calendar_quarter') return 'quarterly'
+  if (v === 'forever' || v === 'one_time' || v === 'no_cap') return 'lifetime'
+  return null  // Unknown — drop cap_period rather than fail CHECK
+}
+
 export async function saveExtractedBenefits({
   cardId,
   extractionId,
@@ -202,7 +222,7 @@ export async function saveExtractedBenefits({
     category: r.category,
     multiplier: r.multiplier,
     cap_amount_usd: r.cap_amount_usd,
-    cap_period: r.cap_period,
+    cap_period: normalizeCapPeriod(r.cap_period),
     rotating: r.rotating,
     booking_channel: r.booking_channel,
     notes: r.notes,
