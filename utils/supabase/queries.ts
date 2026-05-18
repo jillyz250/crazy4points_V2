@@ -392,6 +392,128 @@ export type RecentIntelItem = Pick<IntelItem, 'id' | 'headline' | 'source_type' 
 
 export type IntelItemInsert = Omit<IntelItem, 'id' | 'created_at' | 'processed' | 'alert_id' | 'dedup_count' | 'rejected_at'>
 
+// ─── Topics + content variants (content system rehaul, PR 1) ────────────────
+// See plans/content-system-rehaul.md. Schema lives in supabase/migrations
+// 297 (topics), 298 (content_variants), 299 (indexes).
+
+export type TopicStatus = 'draft' | 'active' | 'archived'
+
+export type FactCheckStatus =
+  | 'pending'
+  | 'verified'
+  | 'partially_verified'
+  | 'failed'
+
+export type TopicType =
+  | 'promo'
+  | 'devaluation'
+  | 'sweet_spot'
+  | 'program_change'
+  | 'partner_change'
+  | 'category_change'
+  | 'earn_rate_change'
+  | 'status_change'
+  | 'policy_change'
+  | 'industry_news'
+  | 'signup_bonus'
+  | 'referral_bonus'
+  | 'retention_offer'
+  | 'shopping_portal_bonus'
+  | 'award_sale'
+  | 'companion_pass'
+  | 'dining_bonus'
+  | 'fee_change'
+  | 'card_refresh'
+  | 'milestone_bonus'
+  | 'card_credit'
+  | 'limited_time_offer'
+  | 'award_availability'
+  | 'status_promo'
+  | 'glitch'
+  | 'transfer_bonus'
+  | 'other'
+
+export interface FactLedgerEntry {
+  claim: string
+  category: string | null
+  source_url: string
+  source_quote: string
+  confidence: ConfidenceLevel
+  verified_at: string
+  verified_by: string | null
+}
+
+export interface Topic {
+  id: string
+  slug: string
+  title: string
+  summary: string | null
+  source_markdown: string | null
+  source_urls: string[]
+  fact_ledger: FactLedgerEntry[]
+  fact_check_status: FactCheckStatus
+  verified_at: string | null
+  verified_by: string | null
+  programs: string[]
+  cards: string[]
+  topic_type: TopicType
+  end_date: string | null
+  status: TopicStatus
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+export type TopicInsert = Omit<Topic, 'id' | 'created_at' | 'updated_at'>
+export type TopicUpdate = Partial<Omit<Topic, 'id' | 'created_at' | 'updated_at'>>
+
+export type VariantFormat =
+  | 'alert'
+  | 'blog'
+  | 'newsletter'
+  | 'facebook'
+  | 'twitter'
+  | 'instagram'
+  | 'linkedin'
+  | 'threads'
+
+export type VariantStatus =
+  | 'draft'
+  | 'needs_review'
+  | 'approved'
+  | 'published'
+  | 'archived'
+
+export type VariantGeneratedBy = 'sonnet' | 'haiku' | 'editor'
+
+export interface FactCheckResults {
+  confirmed: string[]
+  corrected: string[]
+  unverifiable: string[]
+}
+
+export interface ContentVariant {
+  id: string
+  topic_id: string
+  format: VariantFormat
+  title: string | null
+  body: string | null
+  metadata: Record<string, unknown>
+  brand_voice_run: boolean
+  fact_check_run: boolean
+  fact_check_results: FactCheckResults | null
+  status: VariantStatus
+  published_at: string | null
+  publish_target_url: string | null
+  generated_by: VariantGeneratedBy | null
+  generation_prompt_version: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type ContentVariantInsert = Omit<ContentVariant, 'id' | 'created_at' | 'updated_at'>
+export type ContentVariantUpdate = Partial<Omit<ContentVariant, 'id' | 'topic_id' | 'created_at' | 'updated_at'>>
+
 // ─── Queries ─────────────────────────────────────────────────────────────────
 
 /**
