@@ -591,6 +591,67 @@ export async function updateTopic(
   return data as Topic
 }
 
+// ─── Content variant queries (PR 3) ──────────────────────────────────────────
+
+export async function listVariantsForTopic(
+  supabase: SupabaseClient,
+  topicId: string,
+): Promise<ContentVariant[]> {
+  const { data, error } = await supabase
+    .from('content_variants')
+    .select('*')
+    .eq('topic_id', topicId)
+  if (error) throw new Error(error.message)
+  return (data ?? []) as ContentVariant[]
+}
+
+export async function getVariant(
+  supabase: SupabaseClient,
+  topicId: string,
+  format: VariantFormat,
+): Promise<ContentVariant | null> {
+  const { data, error } = await supabase
+    .from('content_variants')
+    .select('*')
+    .eq('topic_id', topicId)
+    .eq('format', format)
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+  return (data as ContentVariant | null) ?? null
+}
+
+/**
+ * Upsert a variant row keyed on (topic_id, format). On conflict update body /
+ * title / metadata / status / generation provenance.
+ */
+export async function upsertVariant(
+  supabase: SupabaseClient,
+  input: ContentVariantInsert,
+): Promise<ContentVariant> {
+  const { data, error } = await supabase
+    .from('content_variants')
+    .upsert(input, { onConflict: 'topic_id,format' })
+    .select('*')
+    .single()
+  if (error) throw new Error(error.message)
+  return data as ContentVariant
+}
+
+export async function updateVariant(
+  supabase: SupabaseClient,
+  id: string,
+  patch: ContentVariantUpdate,
+): Promise<ContentVariant> {
+  const { data, error } = await supabase
+    .from('content_variants')
+    .update(patch)
+    .eq('id', id)
+    .select('*')
+    .single()
+  if (error) throw new Error(error.message)
+  return data as ContentVariant
+}
+
 // ─── Queries ─────────────────────────────────────────────────────────────────
 
 /**

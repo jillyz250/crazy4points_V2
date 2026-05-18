@@ -7,13 +7,21 @@ import {
   createTopic,
   updateTopic,
   getTopicBySlug,
+  upsertVariant,
+  updateVariant,
+  getVariant,
 } from '@/utils/supabase/queries'
 import type {
   TopicType,
   FactLedgerEntry,
+  VariantFormat,
+  ContentVariant,
 } from '@/utils/supabase/queries'
 import { extractFactLedger } from '@/utils/content/extractFactLedger'
 import { verifyTopic as runVerifyChecks, type VerifyError } from '@/utils/content/verifyTopic'
+import { generateVariantByFormat, getPromptVersion } from '@/utils/content/generators'
+import { factGrepCheck, type FactGrepResult } from '@/utils/content/factGrepCheck'
+import { BRAND_VOICE } from '@/utils/ai/editorialRules'
 
 const TOPIC_TYPES: TopicType[] = [
   'promo',
@@ -312,6 +320,207 @@ export async function archiveTopicAction(
   revalidatePath('/admin/topics')
   if (slug) revalidatePath(`/admin/topics/${slug}/edit`)
   return {}
+}
+
+// ─── Variant actions (PR 3) ────────────────────────────────────────────────
+
+const VARIANT_FORMATS: VariantFormat[] = [
+  'alert',
+  'blog',
+  'newsletter',
+  'facebook',
+  'twitter',
+  'instagram',
+  'linkedin',
+  'threads',
+]
+
+export async function generateVariantAction(
+  formData: FormData,
+): Promise<{
+  ok: boolean
+  error?: string
+  variantId?: string
+  factGrepResult?: FactGrepResult
+  status?: ContentVariant['status']
+}> {
+  const slug = String(formData.get('slug') ?? '').trim()
+  const format = String(formData.get('format') ?? '').trim() as VariantFormat
+  if (!slug) return { ok: false, error: 'Missing topic slug.' }
+  if (!VARIANT_FORMATS.includes(format)) {
+    return { ok: false, error: `Unknown variant format: ${format}` }
+  }
+
+  const supabase = createAdminClient()
+  const topic = await getTopicBySlug(supabase, slug)
+  if (!topic) return { ok: false, error: 'Topic not found.' }
+
+  if (
+    topic.fact_check_status !== 'verified' &&
+    topic.fact_check_status !== 'partially_verified'
+  ) {
+    return {
+      ok: false,
+      error:
+        'Topic must be verified (or partially verified) before generating variants. Run "Verify topic" first.',
+    }
+  }
+  if (!topic.fact_ledger || topic.fact_ledger.length === 0) {
+    return { ok: false, error: 'Fact ledger is empty.' }
+  }
+
+  // Pull display names for cards + programs so factGrepCheck knows they're legit.
+  let knownCardNames: string[] = []
+  let knownProgramNames: string[] = []
+  if (topic.cards.length > 0) {
+    const { data } = await supabase
+      .from('credit_cards')
+      .select('name')
+      .in('slug', topic.cards)
+    knownCardNames = ((data ?? []) as Array<{ name: string }>).map((r) => r.name)
+  }
+  if (topic.programs.length > 0) {
+    const { data } = await supabase
+      .from('programs')
+      .select('name')
+      .in('slug', topic.programs)
+    knownProgramNames = ((data ?? []) as Array<{ name: string }>).map((r) => r.name)
+  }
+
+  // Generate.
+  let generated
+  try {
+    generated = await generateVariantByFormat(format, {
+      topic,
+      factLedger: topic.fact_ledger,
+      brandVoice: BRAND_VOICE,
+    })
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : 'Generator failed.',
+    }
+  }
+
+  // Fact-grep.
+  const grep = factGrepCheck(
+    generated.body,
+    topic.fact_ledger,
+    knownCardNames,
+    knownProgramNames,
+  )
+
+  const status: ContentVariant['status'] = grep.ok ? 'draft' : 'needs_review'
+  const metadata = {
+    ...generated.metadata,
+    fact_grep_unmatched: grep.unmatched,
+  }
+
+  try {
+    const saved = await upsertVariant(supabase, {
+      topic_id: topic.id,
+      format,
+      title: generated.title,
+      body: generated.body,
+      metadata,
+      brand_voice_run: false,
+      fact_check_run: false,
+      fact_check_results: null,
+      status,
+      published_at: null,
+      publish_target_url: null,
+      generated_by: 'sonnet',
+      generation_prompt_version: getPromptVersion(format),
+    })
+    revalidatePath(`/admin/topics/${slug}/edit`)
+    return {
+      ok: true,
+      variantId: saved.id,
+      factGrepResult: grep,
+      status: saved.status,
+    }
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : 'Failed to save variant.',
+    }
+  }
+}
+
+export async function updateVariantBodyAction(
+  formData: FormData,
+): Promise<{
+  ok: boolean
+  error?: string
+  factGrepResult?: FactGrepResult
+  status?: ContentVariant['status']
+}> {
+  const slug = String(formData.get('slug') ?? '').trim()
+  const format = String(formData.get('format') ?? '').trim() as VariantFormat
+  const body = String(formData.get('body') ?? '')
+  const title = String(formData.get('title') ?? '').trim() || null
+  if (!slug) return { ok: false, error: 'Missing topic slug.' }
+  if (!VARIANT_FORMATS.includes(format)) {
+    return { ok: false, error: `Unknown variant format: ${format}` }
+  }
+
+  const supabase = createAdminClient()
+  const topic = await getTopicBySlug(supabase, slug)
+  if (!topic) return { ok: false, error: 'Topic not found.' }
+
+  const existing = await getVariant(supabase, topic.id, format)
+  if (!existing) {
+    return { ok: false, error: 'Variant does not exist yet. Generate first.' }
+  }
+
+  // Re-run fact-grep against the edited body.
+  let knownCardNames: string[] = []
+  let knownProgramNames: string[] = []
+  if (topic.cards.length > 0) {
+    const { data } = await supabase
+      .from('credit_cards')
+      .select('name')
+      .in('slug', topic.cards)
+    knownCardNames = ((data ?? []) as Array<{ name: string }>).map((r) => r.name)
+  }
+  if (topic.programs.length > 0) {
+    const { data } = await supabase
+      .from('programs')
+      .select('name')
+      .in('slug', topic.programs)
+    knownProgramNames = ((data ?? []) as Array<{ name: string }>).map((r) => r.name)
+  }
+  const grep = factGrepCheck(body, topic.fact_ledger, knownCardNames, knownProgramNames)
+
+  // If the variant was already approved/published, editor edits should knock
+  // it back to draft for re-review. We don't auto-publish from this action.
+  const nextStatus: ContentVariant['status'] = grep.ok
+    ? existing.status === 'published'
+      ? 'published' // editor edit of a published variant: keep it; PR 4 handles republish flow
+      : 'draft'
+    : 'needs_review'
+
+  const metadata = {
+    ...(existing.metadata ?? {}),
+    fact_grep_unmatched: grep.unmatched,
+  }
+
+  try {
+    await updateVariant(supabase, existing.id, {
+      title,
+      body,
+      metadata,
+      status: nextStatus,
+      generated_by: 'editor',
+    })
+    revalidatePath(`/admin/topics/${slug}/edit`)
+    return { ok: true, factGrepResult: grep, status: nextStatus }
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : 'Failed to save variant.',
+    }
+  }
 }
 
 export async function activateTopicAction(

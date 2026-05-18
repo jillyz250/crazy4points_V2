@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createAdminClient } from '@/utils/supabase/server'
-import { getTopicBySlug } from '@/utils/supabase/queries'
+import { getTopicBySlug, listVariantsForTopic } from '@/utils/supabase/queries'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Badge } from '@/components/admin/ui/Badge'
 import TopicEditor from '@/components/admin/topics/TopicEditor'
@@ -18,6 +18,8 @@ export default async function EditTopicPage({
   const supabase = createAdminClient()
   const topic = await getTopicBySlug(supabase, slug)
   if (!topic) notFound()
+
+  const variants = await listVariantsForTopic(supabase, topic.id)
 
   const [{ data: programs }, { data: cards }] = await Promise.all([
     supabase
@@ -75,7 +77,7 @@ export default async function EditTopicPage({
           </Link>
         }
       />
-      <TopicEditor topic={topic} programOptions={programOptions} cardOptions={cardOptions} />
+      <TopicEditor topic={topic} programOptions={programOptions} cardOptions={cardOptions} variants={variants} />
     </div>
   )
 }
