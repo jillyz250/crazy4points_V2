@@ -514,6 +514,83 @@ export interface ContentVariant {
 export type ContentVariantInsert = Omit<ContentVariant, 'id' | 'created_at' | 'updated_at'>
 export type ContentVariantUpdate = Partial<Omit<ContentVariant, 'id' | 'topic_id' | 'created_at' | 'updated_at'>>
 
+// ─── Topic queries ───────────────────────────────────────────────────────────
+
+export async function listTopics(
+  supabase: SupabaseClient,
+  filters: {
+    status?: TopicStatus
+    topic_type?: TopicType
+    program?: string
+  } = {},
+): Promise<Array<Topic & { variant_count: number }>> {
+  let q = supabase
+    .from('topics')
+    .select('*')
+    .order('updated_at', { ascending: false })
+  if (filters.status) q = q.eq('status', filters.status)
+  if (filters.topic_type) q = q.eq('topic_type', filters.topic_type)
+  if (filters.program) q = q.contains('programs', [filters.program])
+  const { data, error } = await q
+  if (error) throw new Error(error.message)
+  const topics = (data ?? []) as Topic[]
+  if (topics.length === 0) return []
+
+  // Pull variant counts in one query.
+  const ids = topics.map((t) => t.id)
+  const { data: variants, error: vErr } = await supabase
+    .from('content_variants')
+    .select('topic_id')
+    .in('topic_id', ids)
+  if (vErr) throw new Error(vErr.message)
+  const counts = new Map<string, number>()
+  for (const row of (variants ?? []) as Array<{ topic_id: string }>) {
+    counts.set(row.topic_id, (counts.get(row.topic_id) ?? 0) + 1)
+  }
+  return topics.map((t) => ({ ...t, variant_count: counts.get(t.id) ?? 0 }))
+}
+
+export async function getTopicBySlug(
+  supabase: SupabaseClient,
+  slug: string,
+): Promise<Topic | null> {
+  const { data, error } = await supabase
+    .from('topics')
+    .select('*')
+    .eq('slug', slug)
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+  return (data as Topic | null) ?? null
+}
+
+export async function createTopic(
+  supabase: SupabaseClient,
+  input: TopicInsert,
+): Promise<Topic> {
+  const { data, error } = await supabase
+    .from('topics')
+    .insert(input)
+    .select('*')
+    .single()
+  if (error) throw new Error(error.message)
+  return data as Topic
+}
+
+export async function updateTopic(
+  supabase: SupabaseClient,
+  id: string,
+  input: TopicUpdate,
+): Promise<Topic> {
+  const { data, error } = await supabase
+    .from('topics')
+    .update(input)
+    .eq('id', id)
+    .select('*')
+    .single()
+  if (error) throw new Error(error.message)
+  return data as Topic
+}
+
 // ─── Queries ─────────────────────────────────────────────────────────────────
 
 /**
