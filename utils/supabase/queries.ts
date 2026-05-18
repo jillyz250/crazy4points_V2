@@ -1732,7 +1732,7 @@ export interface CreditCardWelcomeBonus {
   card_id: string
   bonus_amount: number
   bonus_currency: string
-  spend_required_usd: number
+  spend_required_usd: number | null
   spend_window_months: number
   extras: string | null
   estimated_value_usd: number | null
@@ -1741,6 +1741,16 @@ export interface CreditCardWelcomeBonus {
   is_current: boolean
   source_url: string | null
   notes: string | null
+  /** JSONB array of additional bonus tiers beyond the main offer (e.g. AU bonus).
+   *  Each item shape: { spend_usd, bonus_amount, timeline_months, note? }.
+   *  Total potential bonus = bonus_amount + sum of additional tiers that differ
+   *  from the main offer. Used to render "Up to X total" on the public card page. */
+  tiered_bonuses: Array<{
+    spend_usd: number
+    bonus_amount: number
+    timeline_months: number
+    note?: string
+  }> | null
   created_at: string
   updated_at: string
 }

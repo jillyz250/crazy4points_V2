@@ -124,16 +124,27 @@ function formatDate(iso: string | null): string {
 /**
  * Format a welcome bonus amount + currency for display.
  *
- * The DB stores currency as a free-form string the extractor wrote — usually
- * 'points', 'miles', 'USD' for points/miles cards, or 'USD_cashback' for
- * cash-back cards. For cash-back currencies, render as a $ amount with no
- * suffix (since "$" already implies USD). For everything else, keep the
- * "75,000 points" / "60,000 miles" formatting.
+ * Computes TOTAL potential bonus across main + tiered offers:
+ *   - main: 100K miles after $5K spend (the headline)
+ *   - tiered[0]: 100K miles after $5K spend (duplicate of main — Sonnet often
+ *     repeats main in tiered)
+ *   - tiered[1]: 10K miles after AU added (additional)
+ *   → total = 100K + 10K = 110K (matches Chase's "Up to 110,000" marketing)
+ *
+ * Returns isTiered=true when total exceeds the main offer (so the hero can
+ * render "Up to X" instead of just "X").
  */
-function formatWelcomeBonus(amount: number, currency: string): {
-  short: string  // For tiles/previews: "$750" or "75,000 points"
-  amount: string  // Just the number: "$750" or "75,000"
-  unit: string  // Suffix unit: "" or "points" or "miles"
+function formatWelcomeBonus(
+  amount: number,
+  currency: string,
+  tieredBonuses?: Array<{ spend_usd: number; bonus_amount: number }> | null,
+): {
+  short: string         // "$750" or "Up to 110,000 miles"
+  amount: string        // "$750" or "Up to 110,000"
+  unit: string          // "" or "miles" / "points"
+  totalAmount: number   // Sum of main + extras
+  isTiered: boolean     // True when total > main (render "Up to" prefix)
+  extrasSum: number     // Just the extras beyond main (10K for the example)
 } {
   const lower = (currency ?? '').toLowerCase()
   const isCashBack =
@@ -142,17 +153,45 @@ function formatWelcomeBonus(amount: number, currency: string): {
     lower.includes('cash') ||
     lower.includes('dollar') ||
     lower === '$'
+
+  // Sum tiers that aren't a duplicate of the main offer. Sonnet often writes
+  // tiered[0] as a copy of main + tiered[1...] as the additional unlocks.
+  // We dedupe by treating any tier with the same bonus_amount as main as the
+  // "main echo" — anything else is additional.
+  let extrasSum = 0
+  if (Array.isArray(tieredBonuses)) {
+    let mainEchoSeen = false
+    for (const t of tieredBonuses) {
+      if (!mainEchoSeen && t.bonus_amount === amount) {
+        mainEchoSeen = true
+        continue
+      }
+      extrasSum += t.bonus_amount
+    }
+  }
+
+  const totalAmount = amount + extrasSum
+  const isTiered = extrasSum > 0
+
   if (isCashBack) {
     return {
-      short: `$${amount.toLocaleString()}`,
-      amount: `$${amount.toLocaleString()}`,
+      short: isTiered ? `Up to $${totalAmount.toLocaleString()}` : `$${amount.toLocaleString()}`,
+      amount: isTiered ? `Up to $${totalAmount.toLocaleString()}` : `$${amount.toLocaleString()}`,
       unit: '',
+      totalAmount,
+      isTiered,
+      extrasSum,
     }
   }
   return {
-    short: `${amount.toLocaleString()} ${currency}`,
-    amount: amount.toLocaleString(),
+    short: isTiered
+      ? `Up to ${totalAmount.toLocaleString()} ${currency}`
+      : `${amount.toLocaleString()} ${currency}`,
+    amount: isTiered ? `Up to ${totalAmount.toLocaleString()}` : amount.toLocaleString(),
     unit: currency,
+    totalAmount,
+    isTiered,
+    extrasSum,
   }
 }
 
@@ -268,7 +307,7 @@ export default async function CardPage({
     },
     offers: sub
       ? (() => {
-          const wb = formatWelcomeBonus(sub.bonus_amount, sub.bonus_currency)
+          const wb = formatWelcomeBonus(sub.bonus_amount, sub.bonus_currency, sub.tiered_bonuses)
           return {
             '@type': 'Offer',
             description: sub.spend_required_usd
@@ -344,7 +383,7 @@ export default async function CardPage({
             <div style={{ fontSize: '1.5rem', fontWeight: 600 }}>${card.annual_fee_usd ?? '—'}</div>
           </div>
           {sub && (() => {
-            const wb = formatWelcomeBonus(sub.bonus_amount, sub.bonus_currency)
+            const wb = formatWelcomeBonus(sub.bonus_amount, sub.bonus_currency, sub.tiered_bonuses)
             return (
               <div>
                 <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)' }}>Welcome bonus</div>
@@ -559,7 +598,7 @@ export default async function CardPage({
             spend_required_usd is null and the trigger lives in `extras`. */}
       {sub && (() => {
         const hasSpendReq = typeof sub.spend_required_usd === 'number' && sub.spend_required_usd > 0
-        const wb = formatWelcomeBonus(sub.bonus_amount, sub.bonus_currency)
+        const wb = formatWelcomeBonus(sub.bonus_amount, sub.bonus_currency, sub.tiered_bonuses)
         const preview = hasSpendReq
           ? `${wb.short} · $${sub.spend_required_usd!.toLocaleString()} spend in ${sub.spend_window_months}mo`
           : `${wb.short}${sub.spend_window_months ? ` · within ${sub.spend_window_months}mo` : ''} · no min spend`
