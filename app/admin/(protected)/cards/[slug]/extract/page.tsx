@@ -334,6 +334,23 @@ export default async function CardExtractPage({
             </label>
             <RunExtractionButton />
           </div>
+          {/* Opt-in: persist the typed Source URL as the card's canonical
+              official_url. Default OFF so one-off extractions from a secondary
+              URL (e.g. a benefits sub-page) don't silently corrupt the
+              canonical product page. */}
+          <label className="mt-2 flex items-start gap-2 font-body text-xs text-[var(--color-text-secondary)]">
+            <input
+              type="checkbox"
+              name="save_source_url_as_canonical"
+              className="mt-0.5"
+            />
+            <span>
+              Save this Source URL as the card&rsquo;s canonical{' '}
+              <code className="rounded bg-[var(--color-background-soft)] px-1 py-0.5 font-mono text-[10px]">official_url</code>
+              . Leave unchecked for a one-off extraction (the saved URL stays
+              the same).
+            </span>
+          </label>
           {(card.guide_to_benefits_url || card.pricing_terms_url) ? (
             <div className="rounded-[var(--radius-ui)] border border-emerald-200 bg-emerald-50/40 px-3 py-2 font-body text-xs text-emerald-800">
               <p className="mb-1 font-semibold">

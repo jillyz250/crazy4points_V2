@@ -19,6 +19,10 @@ export async function runExtractionAndSave(formData: FormData): Promise<void> {
   const sourceUrl = String(formData.get('source_url') ?? '').trim()
   const interactive = formData.get('interactive') === 'on'
   const manualMarkdown = String(formData.get('manual_markdown') ?? '').trim() || undefined
+  // Editor opt-in: when checked, this extraction's source_url replaces the
+  // saved official_url. Default OFF so one-off extractions from a secondary
+  // URL (e.g. perks sub-page) don't silently corrupt the canonical source.
+  const saveSourceUrlAsCanonical = formData.get('save_source_url_as_canonical') === 'on'
 
   if (!slug || !sourceUrl) {
     console.error('[card-extract] missing slug or source_url')
@@ -37,10 +41,14 @@ export async function runExtractionAndSave(formData: FormData): Promise<void> {
     return
   }
 
-  // Persist the URL on the card row the first time the editor types one in
-  // (or whenever they switch to a different source URL). Means the editor
-  // never has to copy/paste it again — pre-fills on every future extraction.
-  if (sourceUrl !== card.official_url) {
+  // Persist the URL on the card row only when:
+  //   (a) the card has no official_url yet (first-time setup), OR
+  //   (b) the editor explicitly opted in via the "save as canonical" checkbox.
+  // Without this guard, every one-off extraction from a secondary URL silently
+  // corrupts the canonical product page URL (the IHG Premier Business loop).
+  const shouldPersistUrl =
+    sourceUrl !== card.official_url && (!card.official_url || saveSourceUrlAsCanonical)
+  if (shouldPersistUrl) {
     await supabase
       .from('credit_cards')
       .update({ official_url: sourceUrl })
