@@ -48,6 +48,7 @@ export default async function CardExtractPage({
       official_url, guide_to_benefits_url, pricing_terms_url, rotating_categories_url,
       suggested_field_urls, manual_overrides,
       intro, last_verified,
+      requires_manual_paste, manual_paste_reason,
       issuer:issuers(slug, name, website_url)
     `)
     .eq('slug', slug)
@@ -160,6 +161,29 @@ export default async function CardExtractPage({
             </>
           ) : null}
         </p>
+        {/* Manual-paste required banner. Flipped on by editors after a failed
+            Firecrawl scrape so the next person doesn't waste credits trying
+            again. Stored in credit_cards.requires_manual_paste + reason. */}
+        {(card as { requires_manual_paste?: boolean }).requires_manual_paste && (
+          <div
+            role="alert"
+            className="mt-4 rounded-[var(--radius-card)] border-l-4 border-l-red-500 bg-red-50 p-4"
+          >
+            <div className="flex items-start gap-2">
+              <span className="text-lg leading-none">⚠️</span>
+              <div className="flex-1">
+                <div className="font-ui text-xs font-bold uppercase tracking-wide text-red-900">
+                  Manual paste required — Firecrawl fails on this card
+                </div>
+                <div className="mt-1 font-body text-sm text-red-900">
+                  {(card as { manual_paste_reason?: string | null }).manual_paste_reason ||
+                    'Automatic extraction has failed on this card before. Use the Manual markdown textarea below — copy page content from the issuer URL and paste it in to bypass Firecrawl.'}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Configured URLs summary — what's currently in DB for this card */}
         <ConfiguredUrlsSummary
           officialUrl={card.official_url as string | null}
