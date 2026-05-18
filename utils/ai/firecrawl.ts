@@ -4,8 +4,11 @@
  *
  * Docs: https://docs.firecrawl.dev/api-reference/endpoint/scrape
  *
- * Returns empty string on missing key, timeout, or any non-OK response so the
- * caller can transparently fall back to a plain fetch.
+ * Returns a discriminated union so callers can differentiate failure modes:
+ * a bot-wall result should trigger a stealth retry, while `no_api_key` or
+ * `timeout` should not. The old API (returning '' on every failure)
+ * collapsed 6 distinct failure modes into one — Scout couldn't decide when
+ * to retry.
  *
  * INTERACTIVE MODE
  * Pass `actions` to interact with the page before extracting markdown.
@@ -37,10 +40,22 @@ export type FirecrawlOptions = {
   stealth?: boolean
 }
 
+export type FirecrawlFailReason =
+  | 'no_api_key'
+  | 'timeout'
+  | 'bot_wall'
+  | 'empty'
+  | 'redirect_trap'
+  | 'error'
+
+export type FirecrawlResult =
+  | { ok: true; markdown: string }
+  | { ok: false; reason: FirecrawlFailReason; message?: string }
+
 export async function fetchFirecrawl(
   url: string,
   optionsOrMaxChars: FirecrawlOptions | number = {},
-): Promise<string> {
+): Promise<FirecrawlResult> {
   // Back-compat: callers that passed `maxChars` as a number still work.
   const options: FirecrawlOptions =
     typeof optionsOrMaxChars === 'number'
@@ -51,7 +66,7 @@ export async function fetchFirecrawl(
   const apiKey = process.env.FIRECRAWL_API_KEY
   if (!apiKey) {
     console.warn('[firecrawl] FIRECRAWL_API_KEY not set — skipping Firecrawl fetch')
-    return ''
+    return { ok: false, reason: 'no_api_key' }
   }
 
   const hasActions = options.actions && options.actions.length > 0
@@ -98,8 +113,14 @@ export async function fetchFirecrawl(
 
     if (!res.ok) {
       const errBody = await res.text().catch(() => '')
-      console.warn(`[firecrawl] ${url} returned ${res.status}: ${errBody.slice(0, 200)}`)
-      return ''
+      const snippet = errBody.slice(0, 200)
+      console.warn(`[firecrawl] ${url} returned ${res.status}: ${snippet}`)
+      // 403/429/503 frequently signal bot walls (Akamai, Cloudflare, etc.).
+      // Mark these so the caller can retry with stealth proxy.
+      if (res.status === 403 || res.status === 429 || res.status === 503) {
+        return { ok: false, reason: 'bot_wall', message: `HTTP ${res.status}: ${snippet}` }
+      }
+      return { ok: false, reason: 'error', message: `HTTP ${res.status}: ${snippet}` }
     }
 
     const json = (await res.json()) as {
@@ -108,7 +129,7 @@ export async function fetchFirecrawl(
     }
     if (!json.success || !json.data?.markdown) {
       console.warn(`[firecrawl] ${url} returned no markdown payload`)
-      return ''
+      return { ok: false, reason: 'empty', message: 'no markdown payload' }
     }
 
     // Detect anti-bot redirect traps. If the final URL contains marker tokens
@@ -117,14 +138,19 @@ export async function fetchFirecrawl(
     const finalUrl = json.data.metadata?.sourceURL || json.data.metadata?.url || ''
     const TRAP_MARKERS = /sorry|blocked|captcha|access[-_]denied|bot[-_]check|incident/i
     if (finalUrl && TRAP_MARKERS.test(finalUrl) && finalUrl !== url) {
-      console.warn(`[firecrawl] ${url} redirected to anti-bot trap: ${finalUrl} — returning empty`)
-      return ''
+      console.warn(`[firecrawl] ${url} redirected to anti-bot trap: ${finalUrl}`)
+      return { ok: false, reason: 'redirect_trap', message: `redirected to ${finalUrl}` }
     }
 
-    return json.data.markdown.slice(0, maxChars)
+    return { ok: true, markdown: json.data.markdown.slice(0, maxChars) }
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
     console.warn(`[firecrawl] ${url} fetch error:`, err)
-    return ''
+    // AbortSignal.timeout fires a DOMException with name "TimeoutError".
+    if (err instanceof Error && (err.name === 'TimeoutError' || /timeout/i.test(message))) {
+      return { ok: false, reason: 'timeout', message }
+    }
+    return { ok: false, reason: 'error', message }
   }
 }
 
@@ -181,12 +207,36 @@ export const EXPAND_EVERYTHING_ACTIONS: FirecrawlAction[] = [
 export async function fetchFirecrawlInteractive(
   url: string,
   options: Omit<FirecrawlOptions, 'actions'> = {},
-): Promise<string> {
+): Promise<FirecrawlResult> {
   return fetchFirecrawl(url, {
     ...options,
     actions: EXPAND_EVERYTHING_ACTIONS,
     // stealth pass-through is handled by FirecrawlOptions spread
   })
+}
+
+/**
+ * Domains known to deploy aggressive bot detection (Akamai, Cloudflare
+ * Enterprise, etc.). Scout (and any caller) should pass `stealth: true`
+ * on the FIRST call to these domains, not just on retry.
+ */
+const HOSTILE_DOMAINS = [
+  'delta.com',
+  'marriott.com',
+  'news.marriott.com',
+]
+
+/**
+ * Returns true if `url` belongs to a known-hostile domain (Akamai, Cloudflare
+ * Enterprise, etc). Scout pre-emptively uses stealth on these.
+ */
+export function isHostileDomain(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.toLowerCase()
+    return HOSTILE_DOMAINS.some((d) => host === d || host.endsWith(`.${d}`))
+  } catch {
+    return false
+  }
 }
 
 /**
