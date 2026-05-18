@@ -38,6 +38,26 @@ export type FirecrawlOptions = {
    * hostile domains.
    */
   stealth?: boolean
+  /**
+   * Default true. When false, Firecrawl returns the FULL page including
+   * footer, nav, and sections it normally classifies as boilerplate.
+   *
+   * Why this matters (Sleuth, 2026-05-18): Chase business product pages
+   * (e.g. creditcards.chase.com/business-credit-cards/ink/cash) render
+   * the "Travel & purchase coverage" section as STATIC HTML — no
+   * accordion — but Firecrawl's main-content heuristic strips it as
+   * boilerplate. WebFetch's HTML-to-markdown sees the content fine on
+   * the same URL. Set `onlyMainContent: false` for these pages.
+   */
+  onlyMainContent?: boolean
+  /**
+   * Default ['markdown']. When ['markdown','rawHtml'] (or just ['rawHtml']),
+   * the response includes the raw page HTML so the caller can re-derive
+   * text Firecrawl's markdown converter dropped. Used by the Chase
+   * business fallback in extractCardBenefits — when markdown comes back
+   * thin, the raw HTML is stripped to text and concatenated.
+   */
+  formats?: Array<'markdown' | 'rawHtml' | 'html' | 'screenshot'>
 }
 
 export type FirecrawlFailReason =
@@ -49,7 +69,7 @@ export type FirecrawlFailReason =
   | 'error'
 
 export type FirecrawlResult =
-  | { ok: true; markdown: string }
+  | { ok: true; markdown: string; rawHtml?: string }
   | { ok: false; reason: FirecrawlFailReason; message?: string }
 
 export async function fetchFirecrawl(
@@ -75,10 +95,12 @@ export async function fetchFirecrawl(
   const firecrawlTimeout = Math.max(15_000, timeoutMs - 5_000)
 
   try {
+    const formats = options.formats ?? ['markdown']
+    const onlyMainContent = options.onlyMainContent ?? true
     const body: Record<string, unknown> = {
       url,
-      formats: ['markdown'],
-      onlyMainContent: true,
+      formats,
+      onlyMainContent,
       // waitFor 3s: many big-brand sites (delta.com, marriott.com) render
       // hero content via JS post-load. Without a wait, Firecrawl captures
       // the skeleton + bot-detection redirect script before content lands.
@@ -125,24 +147,41 @@ export async function fetchFirecrawl(
 
     const json = (await res.json()) as {
       success?: boolean
-      data?: { markdown?: string; metadata?: { sourceURL?: string; url?: string; statusCode?: number } }
+      data?: {
+        markdown?: string
+        rawHtml?: string
+        html?: string
+        metadata?: { sourceURL?: string; url?: string; statusCode?: number }
+      }
     }
-    if (!json.success || !json.data?.markdown) {
-      console.warn(`[firecrawl] ${url} returned no markdown payload`)
-      return { ok: false, reason: 'empty', message: 'no markdown payload' }
+    const markdown = json.data?.markdown ?? ''
+    const rawHtml = json.data?.rawHtml ?? json.data?.html ?? ''
+    if (!json.success || (!markdown && !rawHtml)) {
+      console.warn(`[firecrawl] ${url} returned no markdown/html payload`)
+      return { ok: false, reason: 'empty', message: 'no markdown/html payload' }
     }
 
     // Detect anti-bot redirect traps. If the final URL contains marker tokens
     // ("sorry", "blocked", "captcha", "access-denied"), treat as a scrape
     // failure rather than letting the trap page's content flow downstream.
-    const finalUrl = json.data.metadata?.sourceURL || json.data.metadata?.url || ''
+    const finalUrl = json.data?.metadata?.sourceURL || json.data?.metadata?.url || ''
     const TRAP_MARKERS = /sorry|blocked|captcha|access[-_]denied|bot[-_]check|incident/i
     if (finalUrl && TRAP_MARKERS.test(finalUrl) && finalUrl !== url) {
       console.warn(`[firecrawl] ${url} redirected to anti-bot trap: ${finalUrl}`)
       return { ok: false, reason: 'redirect_trap', message: `redirected to ${finalUrl}` }
     }
 
-    return { ok: true, markdown: json.data.markdown.slice(0, maxChars) }
+    const result: { ok: true; markdown: string; rawHtml?: string } = {
+      ok: true,
+      markdown: markdown.slice(0, maxChars),
+    }
+    if (rawHtml) {
+      // rawHtml is bigger than markdown; allow up to 4x maxChars so callers
+      // have enough surface to grep through for content the markdown
+      // converter dropped. Callers that don't want it just ignore the field.
+      result.rawHtml = rawHtml.slice(0, maxChars * 4)
+    }
+    return result
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.warn(`[firecrawl] ${url} fetch error:`, err)
@@ -201,18 +240,191 @@ export const EXPAND_EVERYTHING_ACTIONS: FirecrawlAction[] = [
 ]
 
 /**
+ * AGGRESSIVE expand mode — used for hostile accordion patterns where the
+ * standard set misses content (Chase business product pages are the
+ * known offender — their "Travel & purchase coverage" section uses a
+ * lazy-rendered accordion that doesn't materialize until the user scrolls
+ * the section into view, AND the controls aren't <button> elements but
+ * `[aria-expanded]` on custom tags with `aria-controls`).
+ *
+ * Differences from EXPAND_EVERYTHING_ACTIONS:
+ *   1. Scrolls down 3x with waits in between to trigger lazy-load.
+ *   2. Multi-pass clicks — Chase's accordion re-renders new collapsed
+ *      children after the parent expands, so pass 1's button list isn't
+ *      the same as pass 3's.
+ *   3. Broader selectors: `[aria-expanded="false"]` across ALL non-anchor
+ *      tags (not just <button>), `[aria-controls]`, and Chase-y class
+ *      hints (`.accordion-trigger`, `.expand-collapse-link`,
+ *      `[data-expandable]`).
+ *   4. Scrolls back down after expansion in case more collapsed content
+ *      was newly rendered.
+ *
+ * Anti-navigation: the script DELIBERATELY skips <a> tags. Citi extraction
+ * broke before when interactive mode navigated the browser away from the
+ * product page mid-scrape.
+ *
+ * Used by the auto-retry in extractCardBenefits when a business card
+ * comes back with <3 insurance benefits. Slower (~10-12s vs. ~5s for
+ * EXPAND_EVERYTHING_ACTIONS) so it's not the default.
+ */
+export const AGGRESSIVE_EXPAND_ACTIONS: FirecrawlAction[] = [
+  { type: 'wait', milliseconds: 2500 },
+  // Pass 1: scroll down to trigger lazy-load
+  { type: 'scroll', direction: 'down' },
+  { type: 'wait', milliseconds: 1000 },
+  { type: 'scroll', direction: 'down' },
+  { type: 'wait', milliseconds: 1000 },
+  { type: 'scroll', direction: 'down' },
+  { type: 'wait', milliseconds: 1500 },
+  // Pass 2: aggressive expand on whatever is now in the DOM
+  {
+    type: 'executeJavascript',
+    script: `
+      (() => {
+        document.querySelectorAll('details').forEach((d) => { d.open = true });
+
+        const isAnchor = (el) => el && el.tagName === 'A';
+        const revealRegex = /show\\s*more|view\\s*all|see\\s*all|expand|read\\s*more|view\\s*details|more\\s*info|travel\\s*&?\\s*purchase\\s*coverage|benefits|insurance|protection/i;
+
+        // Expand-text triggers (skip anchors)
+        document.querySelectorAll('button, [role="button"]').forEach((el) => {
+          try {
+            if (isAnchor(el)) return;
+            const type = el.getAttribute && el.getAttribute('type');
+            if (type === 'submit' || type === 'reset') return;
+            if (el.dataset && el.dataset.navigate) return;
+            const txt = (el.textContent || '').trim();
+            if (revealRegex.test(txt)) el.click();
+          } catch (e) {}
+        });
+
+        // Any aria-expanded=false control (skip anchors — those navigate)
+        document.querySelectorAll('[aria-expanded="false"]').forEach((el) => {
+          try {
+            if (isAnchor(el)) return;
+            el.click();
+          } catch (e) {}
+        });
+
+        // Chase-y custom patterns
+        document.querySelectorAll('[aria-controls]:not(a)').forEach((el) => {
+          try {
+            const expanded = el.getAttribute('aria-expanded');
+            if (expanded === 'false') el.click();
+          } catch (e) {}
+        });
+        document.querySelectorAll('[data-expandable]:not(a), .accordion-trigger:not(a), .expand-collapse-link:not(a)').forEach((el) => {
+          try { el.click(); } catch (e) {}
+        });
+      })();
+    `,
+  },
+  { type: 'wait', milliseconds: 2000 },
+  // Pass 3: scroll + re-click, since Chase's accordion re-renders
+  // additional collapsed children after the parent expands.
+  { type: 'scroll', direction: 'down' },
+  { type: 'wait', milliseconds: 1000 },
+  {
+    type: 'executeJavascript',
+    script: `
+      (() => {
+        document.querySelectorAll('details').forEach((d) => { d.open = true });
+        document.querySelectorAll('[aria-expanded="false"]').forEach((el) => {
+          try {
+            if (el.tagName === 'A') return;
+            el.click();
+          } catch (e) {}
+        });
+      })();
+    `,
+  },
+  { type: 'wait', milliseconds: 2000 },
+]
+
+/**
  * Convenience: fetch with the default expand-everything action set.
  * Use for issuer pages that hide benefits behind accordions.
+ *
+ * @param aggressive  When true, uses AGGRESSIVE_EXPAND_ACTIONS (scroll +
+ *                    multi-pass clicks + broader selectors) instead of
+ *                    the standard set. Used on retry when a business
+ *                    card came back with thin insurance data.
  */
 export async function fetchFirecrawlInteractive(
   url: string,
-  options: Omit<FirecrawlOptions, 'actions'> = {},
+  options: Omit<FirecrawlOptions, 'actions'> & { aggressive?: boolean } = {},
 ): Promise<FirecrawlResult> {
+  const { aggressive, ...rest } = options
+  const actions = aggressive ? AGGRESSIVE_EXPAND_ACTIONS : EXPAND_EVERYTHING_ACTIONS
+  // Aggressive mode runs more actions, so bump the outer timeout to 90s.
+  // (Firecrawl's internal timeout is capped at outer - 5s by fetchFirecrawl.)
+  const timeoutMs = options.timeoutMs ?? (aggressive ? 90_000 : 60_000)
   return fetchFirecrawl(url, {
-    ...options,
-    actions: EXPAND_EVERYTHING_ACTIONS,
-    // stealth pass-through is handled by FirecrawlOptions spread
+    ...rest,
+    actions,
+    timeoutMs,
   })
+}
+
+/**
+ * Lightweight HTML-to-text stripper for the rawHtml fallback path.
+ *
+ * Not a full parser — does NOT preserve structure (headings, lists, links).
+ * The goal is to expose text content that Firecrawl's markdown converter
+ * dropped (e.g. Chase business "Travel & purchase coverage" benefits) so
+ * Sonnet can still see it during extraction.
+ *
+ * Steps:
+ *   1. Drop <script>, <style>, <noscript> blocks entirely.
+ *   2. Drop HTML comments.
+ *   3. Convert tags to whitespace.
+ *   4. Decode the handful of HTML entities that Sonnet trips over (&amp;,
+ *      &lt;, &gt;, &quot;, &#39;, &nbsp;).
+ *   5. Collapse whitespace.
+ *
+ * Why not cheerio / jsdom / turndown? We don't have any of those installed
+ * and adding a dep for one rescue path isn't worth it. This is intentionally
+ * dumb-and-cheap — the worst case is we feed Sonnet some extra raw text;
+ * Sonnet handles it fine.
+ */
+export function htmlToText(html: string): string {
+  if (!html) return ''
+  return html
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/<(script|style|noscript)\b[^>]*>[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<\/?(br|p|div|li|h[1-6]|tr|td|th|section|article)\b[^>]*>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#x27;/g, "'")
+    .replace(/&#x2F;/g, '/')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim()
+}
+
+/**
+ * Identifies URLs where the issuer ships the benefits section as static
+ * HTML that Firecrawl's main-content heuristic strips. Sleuth's
+ * investigation (2026-05-18) found Chase business product pages
+ * (creditcards.chase.com/business-credit-cards/...) lose the entire
+ * "Travel & purchase coverage" section under default Firecrawl settings,
+ * even though WebFetch reads the same content fine. Set onlyMainContent
+ * to false + request rawHtml as a fallback for these.
+ */
+export function needsBoilerplateInclusive(url: string): boolean {
+  try {
+    const u = new URL(url)
+    if (u.hostname !== 'creditcards.chase.com') return false
+    return u.pathname.startsWith('/business-credit-cards/')
+  } catch {
+    return false
+  }
 }
 
 /**

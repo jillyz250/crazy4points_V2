@@ -134,6 +134,10 @@ export default async function CardExtractPage({
   // has to type it again. If the issuer page moves, update it on the card row
   // (admin → cards → edit) and every future extraction picks up the new URL.
   const issuerSite = Array.isArray(card.issuer) ? card.issuer[0]?.website_url : (card.issuer as { website_url?: string } | null)?.website_url
+  const issuerSlug = Array.isArray(card.issuer)
+    ? (card.issuer[0] as { slug?: string } | undefined)?.slug
+    : (card.issuer as { slug?: string } | null)?.slug
+  const isChaseBusinessCard = card.card_type === 'business' && issuerSlug === 'chase'
   const defaultSourceUrl = sourceUrlParam || card.official_url || ''
 
   // Pre-validate all four configured URLs on every page load so the editor
@@ -345,6 +349,37 @@ export default async function CardExtractPage({
         }}
         action={setCardUrlField}
       />
+
+      {/* Chase business accordion note — surfaces the known issue so editors
+          don't accept thin insurance data on these cards. Auto-retry already
+          runs aggressive expansion in the pipeline; this is the manual escape
+          hatch when even that fails. */}
+      {isChaseBusinessCard ? (
+        <section
+          className="mb-6 rounded-[var(--radius-card)] border-l-4 border-l-blue-500 bg-blue-50 p-4"
+          role="note"
+        >
+          <div className="flex items-start gap-2">
+            <span className="text-lg leading-none">ℹ️</span>
+            <div className="flex-1">
+              <div className="font-ui text-xs font-bold uppercase tracking-wide text-blue-900">
+                Chase business card — accordion-hidden insurance
+              </div>
+              <p className="mt-1 font-body text-sm text-blue-900">
+                Chase business product pages hide the <em>Travel &amp; purchase
+                coverage</em> section behind a JS accordion. The pipeline now
+                auto-retries with aggressive scroll + multi-pass expansion if
+                the first scrape misses it. If your extraction still has fewer
+                than 4 insurance benefits after Run Extraction, the accordion
+                didn&rsquo;t expand even on retry — use the{' '}
+                <strong>Manual markdown upload / paste</strong> box below and
+                paste the Travel &amp; purchase coverage section directly from
+                the product page.
+              </p>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       {/* Run extraction form */}
       <section className="mb-8 rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] p-5">

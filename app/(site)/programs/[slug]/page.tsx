@@ -314,8 +314,8 @@ export default async function ProgramPage({
             ...(activePromos.length > 0 ? [{ id: 'active-promos', label: 'Active promos' }] : []),
             ...(program.intro ? [{ id: 'intro', label: 'Intro' }] : []),
             ...(program.award_chart ? [{ id: 'award-chart', label: 'Award chart' }] : []),
-            ...((program.transfer_partners?.length ?? 0) > 0 && program.type !== 'alliance' ? [{ id: 'transfer-partners', label: 'Transfer partners (in)' }] : []),
-            ...((program.transfer_partners_outbound?.length ?? 0) > 0 && program.type !== 'alliance' ? [{ id: 'transfer-partners-outbound', label: 'Where to transfer points' }] : []),
+            ...((program.transfer_partners_outbound?.length ?? 0) > 0 && program.type !== 'alliance' ? [{ id: 'transfer-partners', label: 'Transfer partners' }] : []),
+            ...((program.transfer_partners?.length ?? 0) > 0 && program.type !== 'alliance' ? [{ id: 'ways-to-earn', label: 'Ways to earn more' }] : []),
             ...(program.type === 'alliance' && (program.member_programs?.length ?? 0) > 0 ? [{ id: 'member-airlines', label: 'Member airlines' }] : []),
             ...(program.how_to_spend ? [{ id: 'how-to-spend', label: 'How to spend' }] : []),
             ...(program.sweet_spots ? [{ id: 'sweet-spots', label: 'Sweet spots' }] : []),
@@ -394,7 +394,7 @@ export default async function ProgramPage({
         )}
 
         {/* Alerts heading — only show when content above exists, to mark transition */}
-        {(program.intro || (program.transfer_partners?.length ?? 0) > 0 || program.sweet_spots || program.quirks || properties.length > 0) && (
+        {(program.intro || (program.transfer_partners?.length ?? 0) > 0 || (program.transfer_partners_outbound?.length ?? 0) > 0 || program.sweet_spots || program.quirks || properties.length > 0) && (
           <h2
             id="alerts"
             style={{

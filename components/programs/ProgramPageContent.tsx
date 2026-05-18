@@ -102,29 +102,9 @@ export default async function ProgramPageContent({
         </section>
       )}
 
-      {hasPartners && (
-        <section id="transfer-partners" style={sectionStyle}>
-          <h2 style={headingStyle}>Transfer partners (inbound)</h2>
-          <p
-            style={{
-              fontFamily: 'var(--font-body)',
-              fontSize: '0.875rem',
-              color: 'var(--color-text-secondary)',
-              marginBottom: '0.75rem',
-            }}
-          >
-            Programs that transfer points or miles INTO {program.name}.
-          </p>
-          <TransferPartnersTable
-            rows={program.transfer_partners!}
-            programNameBySlug={programNameBySlug}
-          />
-        </section>
-      )}
-
       {hasOutboundPartners && (
-        <section id="transfer-partners-outbound" style={sectionStyle}>
-          <h2 style={headingStyle}>Where you can transfer {program.name} points</h2>
+        <section id="transfer-partners" style={sectionStyle}>
+          <h2 style={headingStyle}>Transfer partners</h2>
           <p
             style={{
               fontFamily: 'var(--font-body)',
@@ -133,11 +113,33 @@ export default async function ProgramPageContent({
               marginBottom: '0.75rem',
             }}
           >
-            Programs that {program.name} points / miles can be transferred OUT to.
+            {program.name} transfers points or miles OUT to these programs.
           </p>
           <TransferPartnersTable
             rows={program.transfer_partners_outbound!}
             programNameBySlug={programNameBySlug}
+            direction="outbound"
+          />
+        </section>
+      )}
+
+      {hasPartners && (
+        <section id="ways-to-earn" style={sectionStyle}>
+          <h2 style={headingStyle}>Ways to earn more</h2>
+          <p
+            style={{
+              fontFamily: 'var(--font-body)',
+              fontSize: '0.875rem',
+              color: 'var(--color-text-secondary)',
+              marginBottom: '0.75rem',
+            }}
+          >
+            Programs that transfer points or miles into {program.name}.
+          </p>
+          <TransferPartnersTable
+            rows={program.transfer_partners!}
+            programNameBySlug={programNameBySlug}
+            direction="inbound"
           />
         </section>
       )}

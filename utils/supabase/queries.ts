@@ -222,7 +222,21 @@ export interface Program {
   program_url: string | null
   intro: string | null
   award_chart: string | null
+  /**
+   * INBOUND partners: programs that transfer points/miles INTO this one.
+   * Populated for closed-loop airline co-brand programs (Southwest, Delta,
+   * AA, United, JetBlue, etc.) where the editorial value is "how to earn
+   * these points". Empty for transferable currencies + hotels — their
+   * outbound destinations live on `transfer_partners_outbound` instead.
+   * See migration 301 for the data model split.
+   */
   transfer_partners: TransferPartnerRow[] | null
+  /**
+   * OUTBOUND partners: programs that THIS program transfers points OUT to.
+   * Populated for transferable card currencies (UR, MR, TY, Cap1, Bilt),
+   * hotel chains (Marriott, Hilton, Hyatt, IHG, Choice, Wyndham), and the
+   * Avios family. Empty for closed-loop airline programs.
+   */
   transfer_partners_outbound: TransferPartnerRow[] | null
   sweet_spots: string | null
   marquee_redemption_id: string | null

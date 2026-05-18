@@ -27,7 +27,14 @@ export default async function SimpleTileGrid({
   const isAlliance = program.type === 'alliance'
 
   const hasAwardChart = !!program.award_chart?.trim() && !isAlliance
-  const hasPartners = (program.transfer_partners?.length ?? 0) > 0 && !isAlliance
+  // INBOUND partners: programs that transfer INTO this one (closed-loop
+  // airline co-brands). OUTBOUND partners: where this program's points go
+  // (transferable currencies + hotels + Avios family). Each gets its own
+  // tile when present. See migration 301.
+  const inboundCount = program.transfer_partners?.length ?? 0
+  const outboundCount = program.transfer_partners_outbound?.length ?? 0
+  const hasPartners = inboundCount > 0 && !isAlliance
+  const hasOutboundPartners = outboundCount > 0 && !isAlliance
   const hasMembers = isAlliance && (program.member_programs?.length ?? 0) > 0
   const hasSweetSpots = !!program.sweet_spots?.trim()
   const hasQuirks = !!program.quirks?.trim()
@@ -38,6 +45,7 @@ export default async function SimpleTileGrid({
   if (
     !hasAwardChart &&
     !hasPartners &&
+    !hasOutboundPartners &&
     !hasMembers &&
     !hasSweetSpots &&
     !hasQuirks &&
@@ -55,7 +63,7 @@ export default async function SimpleTileGrid({
   const howToSpendHtml = hasHowToSpend ? await marked.parse(program.how_to_spend!, { async: true }) : null
   const loungeAccessHtml = hasLounge ? await marked.parse(program.lounge_access!, { async: true }) : null
 
-  const partnerCount = program.transfer_partners?.length ?? 0
+  const partnerCount = inboundCount
   const tierCount = program.tier_benefits?.length ?? 0
   const memberCount = program.member_programs?.length ?? 0
 
@@ -83,14 +91,53 @@ export default async function SimpleTileGrid({
         </SimpleTile>
       )}
 
-      {hasPartners && (
+      {hasOutboundPartners && (
         <SimpleTile
           title="Transfer partners"
-          description={`${partnerCount} ways to feed this currency. Friends with benefits.`}
+          description={`${outboundCount} place${outboundCount === 1 ? '' : 's'} to send these points. Where the currency goes.`}
           cta="Meet the partners"
-          preview={`${partnerCount} cards + currencies that transfer in.`}
+          preview={`${outboundCount} program${outboundCount === 1 ? '' : 's'} this transfers out to.`}
         >
-          <TransferPartnersTable rows={program.transfer_partners ?? []} programNameBySlug={programNameBySlug} />
+          <p
+            style={{
+              fontFamily: 'var(--font-body)',
+              fontSize: '0.875rem',
+              color: 'var(--color-text-secondary)',
+              marginBottom: '0.75rem',
+            }}
+          >
+            {program.name} transfers points or miles OUT to these programs.
+          </p>
+          <TransferPartnersTable
+            rows={program.transfer_partners_outbound ?? []}
+            programNameBySlug={programNameBySlug}
+            direction="outbound"
+          />
+        </SimpleTile>
+      )}
+
+      {hasPartners && (
+        <SimpleTile
+          title="Ways to earn more"
+          description={`${partnerCount} ways to feed this currency. Friends with benefits.`}
+          cta="See inbound paths"
+          preview={`${partnerCount} program${partnerCount === 1 ? '' : 's'} that transfer in.`}
+        >
+          <p
+            style={{
+              fontFamily: 'var(--font-body)',
+              fontSize: '0.875rem',
+              color: 'var(--color-text-secondary)',
+              marginBottom: '0.75rem',
+            }}
+          >
+            Programs that transfer points or miles into {program.name}.
+          </p>
+          <TransferPartnersTable
+            rows={program.transfer_partners ?? []}
+            programNameBySlug={programNameBySlug}
+            direction="inbound"
+          />
         </SimpleTile>
       )}
 

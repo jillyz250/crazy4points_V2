@@ -12,7 +12,12 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { jsonrepair } from 'jsonrepair'
 import { createHash } from 'node:crypto'
-import { fetchFirecrawl, fetchFirecrawlInteractive } from '@/utils/ai/firecrawl'
+import {
+  fetchFirecrawl,
+  fetchFirecrawlInteractive,
+  htmlToText,
+  needsBoilerplateInclusive,
+} from '@/utils/ai/firecrawl'
 import { logUsage } from '@/utils/ai/logUsage'
 import { createAdminClient } from '@/utils/supabase/server'
 import {
@@ -78,7 +83,25 @@ export async function extractCardBenefits({
     return result.ok ? result.markdown : ''
   }
 
+  // Look up card_type + issuer.slug up front — used to decide whether to
+  // auto-retry with AGGRESSIVE_EXPAND_ACTIONS on a thin extraction.
+  // The "Chase business product page accordion" pattern is the known offender:
+  // standard Firecrawl extraction misses the entire Travel & purchase coverage
+  // section because it's hidden behind a JS-lazy-rendered accordion.
+  const { data: cardRow } = await supabase
+    .from('credit_cards')
+    .select('card_type, issuer:issuers(slug)')
+    .eq('id', cardId)
+    .maybeSingle()
+  const cardType = (cardRow?.card_type as string | undefined) ?? null
+  const issuerRel = cardRow?.issuer as unknown
+  const issuerSlug = Array.isArray(issuerRel)
+    ? (issuerRel[0] as { slug?: string } | undefined)?.slug ?? null
+    : (issuerRel as { slug?: string } | null)?.slug ?? null
+  const isChaseBusinessCard = cardType === 'business' && issuerSlug === 'chase'
+
   let markdown: string
+  let usedAggressiveRetry = false
   if (hasManualPaste) {
     markdown = manualMarkdown!.slice(0, MARKDOWN_CHAR_LIMIT)
     console.log(`[card-extract] using manual paste (${manualMarkdown!.length} chars), skipping Firecrawl`)
@@ -91,6 +114,104 @@ export async function extractCardBenefits({
     markdown = labeled.join('\n\n').slice(0, MARKDOWN_CHAR_LIMIT)
     if (allUrls.length > 1) {
       console.log(`[card-extract] combined ${labeled.length}/${allUrls.length} URLs into ${markdown.length} chars`)
+    }
+
+    // Auto-retry path for Chase business cards: if the scraped markdown
+    // doesn't contain insurance-section markers ("Travel & purchase
+    // coverage", "Baggage delay", "Lost luggage", "Purchase protection",
+    // "Extended warranty") the accordion didn't expand. Re-scrape ONCE
+    // using AGGRESSIVE_EXPAND_ACTIONS (scroll + multi-pass clicks).
+    // Only retry once — no infinite loops.
+    if (isChaseBusinessCard && markdown) {
+      const INSURANCE_MARKERS = /travel\s*&?\s*purchase\s*coverage|baggage\s*delay|lost\s*luggage|purchase\s*protection|extended\s*warranty|trip\s*cancellation|trip\s*delay/i
+      if (!INSURANCE_MARKERS.test(markdown)) {
+        console.log(`[card-extract] Chase business card — no insurance markers in initial scrape; retrying with AGGRESSIVE_EXPAND_ACTIONS`)
+        const aggressiveScrapes = await Promise.all(
+          allUrls.map(async (url) => {
+            const result = await fetchFirecrawlInteractive(url, {
+              maxChars: PER_URL_LIMIT,
+              aggressive: true,
+            })
+            return result.ok ? result.markdown : ''
+          }),
+        )
+        const aggressiveLabeled = aggressiveScrapes
+          .map((md, i) => (md ? `=== SOURCE ${i + 1}: ${allUrls[i]} ===\n\n${md}` : null))
+          .filter((s): s is string => s !== null)
+        const aggressiveMarkdown = aggressiveLabeled.join('\n\n').slice(0, MARKDOWN_CHAR_LIMIT)
+        // Only swap in the aggressive result if it found insurance markers
+        // OR is meaningfully larger than the original. Otherwise keep the
+        // original — sometimes aggressive mode trips an anti-bot wall and
+        // returns less content.
+        const aggressiveHasMarkers = INSURANCE_MARKERS.test(aggressiveMarkdown)
+        const aggressiveIsLarger = aggressiveMarkdown.length > markdown.length * 1.1
+        if (aggressiveHasMarkers || aggressiveIsLarger) {
+          console.log(
+            `[card-extract] aggressive retry kept (markers=${aggressiveHasMarkers}, ` +
+            `${markdown.length} → ${aggressiveMarkdown.length} chars)`,
+          )
+          markdown = aggressiveMarkdown
+          usedAggressiveRetry = true
+        } else {
+          console.log(
+            `[card-extract] aggressive retry discarded ` +
+            `(${markdown.length} chars original vs ${aggressiveMarkdown.length} aggressive, no markers)`,
+          )
+        }
+      }
+
+      // rawHtml fallback — Sleuth's investigation (2026-05-18) found that
+      // the Chase business "Travel & purchase coverage" section is NOT
+      // behind an accordion. It's static HTML, but Firecrawl's
+      // onlyMainContent heuristic strips the section as boilerplate.
+      // WebFetch's HTML-to-markdown sees the same content fine. So when
+      // the markers are STILL missing after the aggressive click retry,
+      // re-scrape each Chase business URL with onlyMainContent:false +
+      // rawHtml, strip the HTML to text, and APPEND it to the existing
+      // markdown so Sonnet has something to extract from. Additive —
+      // never replaces what we already captured.
+      if (!INSURANCE_MARKERS.test(markdown)) {
+        const businessUrls = allUrls.filter(needsBoilerplateInclusive)
+        if (businessUrls.length > 0) {
+          console.log(
+            `[card-extract] still missing insurance markers after aggressive retry — ` +
+            `rawHtml fallback on ${businessUrls.length} Chase business URL(s)`,
+          )
+          const htmlFallbacks = await Promise.all(
+            businessUrls.map(async (url) => {
+              const result = await fetchFirecrawl(url, {
+                maxChars: PER_URL_LIMIT,
+                onlyMainContent: false,
+                formats: ['markdown', 'rawHtml'],
+                timeoutMs: 60_000,
+              })
+              if (!result.ok) return ''
+              // Prefer rawHtml-derived text since the original markdown
+              // already missed the section. But if we have BOTH, the
+              // rawHtml->text covers everything the markdown saw plus
+              // the dropped boilerplate.
+              const text = result.rawHtml ? htmlToText(result.rawHtml) : ''
+              return text
+            }),
+          )
+          const appendBlocks = htmlFallbacks
+            .map((text, i) =>
+              text
+                ? `\n\n=== RAW HTML FALLBACK ${i + 1}: ${businessUrls[i]} ===\n\n${text}`
+                : null,
+            )
+            .filter((s): s is string => s !== null)
+          if (appendBlocks.length > 0) {
+            const before = markdown.length
+            markdown = (markdown + appendBlocks.join('')).slice(0, MARKDOWN_CHAR_LIMIT)
+            const nowHasMarkers = INSURANCE_MARKERS.test(markdown)
+            console.log(
+              `[card-extract] rawHtml fallback appended ` +
+              `${markdown.length - before} chars; markers=${nowHasMarkers}`,
+            )
+          }
+        }
+      }
     }
   }
   if (!markdown) {
@@ -296,6 +417,33 @@ export async function extractCardBenefits({
   }
   // Use the merged extraction going forward.
   extraction = review.extraction
+
+  // Thin-extraction detection: on a Chase business card, expect the
+  // Travel & purchase coverage section to surface ~5 insurance benefits.
+  // If we got < 3, surface a warning on the extraction so the admin
+  // review UI flags it before the editor accepts it. This is independent
+  // of the aggressive-retry path above — the retry might have still
+  // failed (Firecrawl can't crack every accordion pattern), in which
+  // case the editor needs to know to use manual paste.
+  if (isChaseBusinessCard) {
+    const insuranceCount = (extraction.benefits ?? []).filter(
+      (b) => b.category === 'insurance',
+    ).length
+    if (insuranceCount < 3) {
+      const note =
+        `Only ${insuranceCount} insurance benefits extracted on a Chase business card. ` +
+        `Chase business product pages hide the Travel & purchase coverage section behind a ` +
+        `JS-rendered accordion that Firecrawl sometimes can't expand` +
+        (usedAggressiveRetry ? ' (aggressive retry already attempted).' : '.') +
+        ' Try toggling Interactive mode, OR copy the Travel & purchase coverage section from the ' +
+        'issuer page and paste it into the Manual markdown box.'
+      extraction.extraction_warnings = [
+        ...(extraction.extraction_warnings ?? []),
+        note,
+      ]
+      console.warn(`[card-extract] thin-insurance warning for ${cardName}: ${insuranceCount} benefits`)
+    }
+  }
 
   // 4. Persist the extraction (status='extracted', not yet saved to card tables)
   const { data: inserted, error: insertErr } = await supabase

@@ -249,28 +249,42 @@ export default async function CardPage({
   const orderedCategories = BENEFIT_CATEGORY_ORDER.filter((c) => benefitGroups.has(c))
   const applyUrl = card.affiliate_url ?? card.official_url
 
-  // Transfer partners: properly live on the currency program (chase-ultimate-rewards,
-  // amex-membership-rewards, etc.) — every card that earns into the same currency
-  // shares the same partner list. We surface them here so users see "transferring
-  // is a benefit of THIS card" without bouncing to the currency program page.
-  let transferPartners: TransferPartnerRow[] = []
+  // Transfer partners live on the currency program. Two distinct lists:
+  //   - OUTBOUND (`transfer_partners_outbound`): where THIS program's points
+  //     go. Populated for transferable currencies (UR, MR, TY, Cap1, Bilt)
+  //     and hotels + Avios family. THIS is what the "Transfer partners"
+  //     tile means on a card page.
+  //   - INBOUND (`transfer_partners`): programs that transfer points INTO
+  //     this currency. Populated for closed-loop airline co-brand programs
+  //     (Southwest, Delta, AA, United, JetBlue, etc.). Surfaced on the
+  //     "Other ways to earn these points" tile when the card's currency
+  //     itself can't transfer out.
+  // See migration 301 for the data model split.
+  let transferPartnersOutbound: TransferPartnerRow[] = []
+  let transferPartnersInbound: TransferPartnerRow[] = []
   let programNameBySlug = new Map<string, string>()
   if (currency_program?.slug) {
     const { data: currencyRow } = await supabase
       .from('programs')
-      .select('transfer_partners')
+      .select('transfer_partners, transfer_partners_outbound')
       .eq('slug', currency_program.slug)
       .maybeSingle()
-    transferPartners = (currencyRow?.transfer_partners as TransferPartnerRow[] | null) ?? []
+    transferPartnersInbound =
+      (currencyRow?.transfer_partners as TransferPartnerRow[] | null) ?? []
+    transferPartnersOutbound =
+      (currencyRow?.transfer_partners_outbound as TransferPartnerRow[] | null) ?? []
 
-    if (transferPartners.length > 0) {
-      // Look up partner names for any slug referenced in the partners list,
-      // so the table renders "United MileagePlus" instead of just "united".
-      const partnerSlugs = transferPartners.map((r) => r.from_slug)
+    const allPartnerSlugs = [
+      ...transferPartnersOutbound.map((r) => r.from_slug),
+      ...transferPartnersInbound.map((r) => r.from_slug),
+    ]
+    if (allPartnerSlugs.length > 0) {
+      // Look up partner names so the table renders "United MileagePlus"
+      // instead of just "united".
       const { data: namedPrograms } = await supabase
         .from('programs')
         .select('slug, name')
-        .in('slug', partnerSlugs)
+        .in('slug', allPartnerSlugs)
       programNameBySlug = new Map((namedPrograms ?? []).map((p) => [p.slug, p.name]))
     }
   }
@@ -289,13 +303,21 @@ export default async function CardPage({
   const tocSections: Array<{ id: string; label: string }> = [
     ...(sub ? [{ id: 'welcome-bonus', label: 'Welcome bonus' }] : []),
     ...(earn_rates.length > 0 ? [{ id: 'earn-rates', label: 'Earn rates' }] : []),
-    // Transferable card with partners -> "Transfer partners" tile
+    // Transferable card with outbound partners -> "Transfer partners" tile
     // Non-transferable card with sibling unlock paths -> "Unlock transfers" tile
-    ...(card.points_transferable_to_partners && transferPartners.length > 0
+    ...(card.points_transferable_to_partners && transferPartnersOutbound.length > 0
       ? [{ id: 'transfer-partners', label: 'Transfer partners' }]
       : !card.points_transferable_to_partners && siblingCards.length > 0
         ? [{ id: 'transfer-partners', label: 'Unlock transfers' }]
         : []),
+    // Closed-loop airline co-brand cards: inbound list = "Other ways to
+    // earn these points". Only surface when there's no outbound list to
+    // potentially confuse readers.
+    ...(transferPartnersInbound.length > 0 &&
+      !card.points_transferable_to_partners &&
+      transferPartnersOutbound.length === 0
+      ? [{ id: 'earn-inbound', label: 'Other ways to earn these points' }]
+      : []),
     ...orderedCategories.map((cat) => ({
       id: `benefit-${cat}`,
       label: BENEFIT_CATEGORY_LABELS[cat] ?? cat.replace(/_/g, ' '),
@@ -825,25 +847,66 @@ export default async function CardPage({
           - Non-transferable card (Freedom Rise/Flex/Unlimited, Ink Cash/Unlimited, Citi
             Custom Cash/Double Cash): partner table HIDDEN. Alert links to the premium
             sibling cards that DO transfer. */}
-      {card.points_transferable_to_partners && transferPartners.length > 0 && currency_program ? (
+      {card.points_transferable_to_partners && transferPartnersOutbound.length > 0 && currency_program ? (
         <SimpleTile
           title="Transfer partners"
           description={`Where you can move your ${currency_program.name} to airline + hotel programs.`}
           cta="Meet the partners"
-          preview={`${transferPartners.length} partner${transferPartners.length === 1 ? '' : 's'}${transferPartners.some((p) => p.bonus_active) ? ' · 🎁 bonus active' : ''}`}
+          preview={`${transferPartnersOutbound.length} partner${transferPartnersOutbound.length === 1 ? '' : 's'}${transferPartnersOutbound.some((p) => p.bonus_active) ? ' · 🎁 bonus active' : ''}`}
         >
           {/* No "pool from siblings" alert here — this card already transfers
               directly, so leading with a pooling note implied it was needed.
               The unlock messaging lives on the non-transferable card instead. */}
           <p style={{ marginTop: '0.25rem', marginBottom: '1rem', color: 'var(--color-text-secondary)', fontSize: '0.9375rem' }}>
-            Points earned with this card transfer to {transferPartners.length} partner program
-            {transferPartners.length === 1 ? '' : 's'} via{' '}
+            Points earned with this card transfer to {transferPartnersOutbound.length} partner program
+            {transferPartnersOutbound.length === 1 ? '' : 's'} via{' '}
             <Link href={`/programs/${currency_program.slug}`} style={{ color: 'var(--color-primary)' }}>
               {currency_program.name}
             </Link>
-            {transferPartners.some((p) => p.bonus_active) ? ' — bonuses live now flagged below.' : '.'}
+            {transferPartnersOutbound.some((p) => p.bonus_active) ? ' — bonuses live now flagged below.' : '.'}
           </p>
-          <TransferPartnersTable rows={transferPartners} programNameBySlug={programNameBySlug} />
+          <TransferPartnersTable
+            rows={transferPartnersOutbound}
+            programNameBySlug={programNameBySlug}
+            direction="outbound"
+          />
+        </SimpleTile>
+      ) : null}
+
+      {/* Inbound-only "other ways to earn" tile — surfaces on closed-loop
+          airline co-brand cards (Southwest, Delta, AA, United, JetBlue,
+          Aeroplan, Atmos, Hawaiian, etc.) where the currency itself has
+          no outbound transfers but multiple OTHER programs feed into it.
+          Renders only when:
+            - inbound list is non-empty
+            - the card itself can't transfer to partners (closed-loop)
+            - there's no outbound list (we don't show both to avoid
+              confusing the reader about which direction the points flow) */}
+      {transferPartnersInbound.length > 0 &&
+        !card.points_transferable_to_partners &&
+        transferPartnersOutbound.length === 0 &&
+        currency_program ? (
+        <SimpleTile
+          title="Other ways to earn these points"
+          description={`Programs that transfer into ${currency_program.name} — additional paths to top up your balance.`}
+          cta="See the inbound paths"
+          preview={`${transferPartnersInbound.length} program${transferPartnersInbound.length === 1 ? '' : 's'} transfer in`}
+        >
+          <p style={{ marginTop: '0.25rem', marginBottom: '1rem', color: 'var(--color-text-secondary)', fontSize: '0.9375rem' }}>
+            You can transfer points into{' '}
+            <Link href={`/programs/${currency_program.slug}`} style={{ color: 'var(--color-primary)' }}>
+              {currency_program.name}
+            </Link>{' '}
+            from {transferPartnersInbound.length} other program
+            {transferPartnersInbound.length === 1 ? '' : 's'} — useful if you
+            want to combine balances from multiple loyalty currencies before
+            booking.
+          </p>
+          <TransferPartnersTable
+            rows={transferPartnersInbound}
+            programNameBySlug={programNameBySlug}
+            direction="inbound"
+          />
         </SimpleTile>
       ) : null}
 

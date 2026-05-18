@@ -24,7 +24,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
   const { data, error } = await supabase
     .from('programs')
     .select(
-      'name, slug, type, description, intro, award_chart, sweet_spots, how_to_spend, quirks, lounge_access, transfer_partners, tier_benefits, member_programs, alliance, hubs, program_url, content_updated_at'
+      'name, slug, type, description, intro, award_chart, sweet_spots, how_to_spend, quirks, lounge_access, transfer_partners, transfer_partners_outbound, tier_benefits, member_programs, alliance, hubs, program_url, content_updated_at'
     )
     .eq('slug', slug)
     .maybeSingle()
