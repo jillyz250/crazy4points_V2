@@ -645,11 +645,28 @@ export default async function CardPage({
                       <strong>${sub.spend_required_usd!.toLocaleString()}</strong> in the first{' '}
                       <strong>{sub.spend_window_months} months</strong>
                     </li>
-                    <li>
-                      <strong>{wb.extrasSum.toLocaleString()} {sub.bonus_currency}</strong> more when you add{' '}
-                      {card.card_type === 'business' ? 'an employee card' : 'an authorized user'}{' '}
-                      in the first <strong>{sub.spend_window_months} months</strong> (no extra spending required)
-                    </li>
+                    {(sub.tiered_bonuses ?? [])
+                      .filter((t) => t.bonus_amount !== sub.bonus_amount)
+                      .map((t, i) => {
+                        // Three tier mechanic patterns we know:
+                        //   1. AU/employee bonus: spend_usd === 0 (no extra spending required)
+                        //   2. Tiered spend ladder: spend_usd > main.spend_required_usd
+                        //   3. Other: just describe what's required from the tier shape
+                        const isAuTier = t.spend_usd === 0
+                        const isHigherSpendTier =
+                          typeof sub.spend_required_usd === 'number' &&
+                          t.spend_usd > sub.spend_required_usd
+                        const mechanicCopy = isAuTier
+                          ? `when you add ${card.card_type === 'business' ? 'an employee card' : 'an authorized user'} in the first ${t.timeline_months} months (no extra spending required)`
+                          : isHigherSpendTier
+                            ? `after spending $${t.spend_usd.toLocaleString()} total on purchases in the first ${t.timeline_months} months`
+                            : `after spending $${t.spend_usd.toLocaleString()} in the first ${t.timeline_months} months`
+                        return (
+                          <li key={i} style={{ marginBottom: '0.4rem' }}>
+                            <strong>{t.bonus_amount.toLocaleString()} {sub.bonus_currency}</strong> more {mechanicCopy}
+                          </li>
+                        )
+                      })}
                   </ul>
                 </>
               ) : (
