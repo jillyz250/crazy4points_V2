@@ -134,7 +134,7 @@ export default function LiveBarsHero({
         const { baseTitle, endLabel } = splitTitleAndDate(transferBonus.title, transferBonus.end_date)
         return (
           <Link
-            href={`/alerts/${transferBonus.short_slug ?? transferBonus.slug}`}
+            href={`/alerts/${transferBonus.slug}`}
             className="rg-live-bar"
           >
             <span className="rg-live-bar-tag">Live</span>
@@ -153,7 +153,7 @@ export default function LiveBarsHero({
         return (
           <Link
             key={alert.id}
-            href={`/alerts/${alert.short_slug ?? alert.slug}`}
+            href={`/alerts/${alert.slug}`}
             className="rg-live-bar"
           >
             <span className="rg-live-bar-tag">Live</span>
