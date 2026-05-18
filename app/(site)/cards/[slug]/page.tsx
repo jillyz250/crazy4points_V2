@@ -349,6 +349,41 @@ export default async function CardPage({
         return <RotatingCategoriesBanner notes={rotatingRow.notes} cardName={card.name} />
       })()}
 
+      {/* Grandfathered banner — shown when the card is closed to new applicants
+          (e.g. Chase Marriott Bonvoy Premier). Existing cardholders still need
+          benefit details, so we keep the page and signal status up front. */}
+      {card.closed_to_new_applicants && (
+        <div
+          role="status"
+          style={{
+            background: 'var(--color-background-soft)',
+            border: '1px solid var(--color-border-soft)',
+            borderLeft: '4px solid var(--color-primary)',
+            borderRadius: 'var(--radius-card)',
+            padding: '1rem 1.25rem',
+            marginBottom: '1.5rem',
+            fontFamily: 'var(--font-body)',
+          }}
+        >
+          <div
+            style={{
+              fontFamily: 'var(--font-ui)',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              color: 'var(--color-primary)',
+              marginBottom: '0.375rem',
+            }}
+          >
+            Closed to new applicants
+          </div>
+          <div style={{ fontSize: '0.9375rem', color: 'var(--color-text-primary)', lineHeight: 1.5 }}>
+            {issuer.name} no longer issues this card to new applicants. Existing cardholders continue to receive the benefits listed below.
+          </div>
+        </div>
+      )}
+
       {/* Hero */}
       <section style={{ marginBottom: '2.5rem' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
@@ -419,7 +454,7 @@ export default async function CardPage({
           </div>
         </div>
 
-        {applyUrl && (
+        {applyUrl && !card.closed_to_new_applicants && (
           <a
             href={applyUrl}
             target="_blank"
@@ -430,7 +465,7 @@ export default async function CardPage({
             Apply at {issuer.name}
           </a>
         )}
-        {!card.affiliate_url && (
+        {!card.affiliate_url && !card.closed_to_new_applicants && (
           <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginBottom: '0.5rem' }}>
             (Direct link to issuer does not currently earn a commission on this card.)
           </div>
