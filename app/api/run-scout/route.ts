@@ -148,8 +148,68 @@ export async function GET(req: NextRequest) {
   }
 
   // Update source performance stats (items_produced + last_scraped_at per active source)
+  //
+  // Match findings to sources by source_id (UUID) first — Haiku is instructed
+  // to return the registered source_id verbatim. If a finding lacks source_id
+  // (older runs, JSON parse glitches), fall back to case-insensitive name
+  // match and log the mismatch so we can audit attribution drift.
+  const sourcesById = new Map(activeSources.map((s) => [s.id, s]))
+  const sourcesByName = new Map(activeSources.map((s) => [s.name.toLowerCase(), s]))
+  const findingsBySourceId = new Map<string, number>()
+  const attributionFailures: Array<{
+    haiku_source_name: string
+    haiku_source_id?: string
+    headline: string
+    source_url?: string
+  }> = []
+
+  for (const f of findings) {
+    let matched: typeof activeSources[number] | undefined
+    if (f.source_id && sourcesById.has(f.source_id)) {
+      matched = sourcesById.get(f.source_id)
+    } else {
+      // Fallback: case-insensitive name match. Log a warning so we can see
+      // when Haiku is paraphrasing the registered name (or omitting source_id).
+      matched = sourcesByName.get((f.source_name ?? '').toLowerCase())
+      if (matched) {
+        console.warn(
+          `[run-scout] attribution fallback: finding source_name="${f.source_name}" source_id="${f.source_id ?? ''}" matched by name to source ${matched.id} (${matched.name})`,
+        )
+      }
+    }
+
+    if (matched) {
+      findingsBySourceId.set(matched.id, (findingsBySourceId.get(matched.id) ?? 0) + 1)
+    } else {
+      attributionFailures.push({
+        haiku_source_name: f.source_name ?? '',
+        haiku_source_id: f.source_id,
+        headline: f.headline,
+        source_url: f.source_url ?? undefined,
+      })
+    }
+  }
+
+  if (attributionFailures.length > 0) {
+    const registeredNames = activeSources.map((s) => s.name)
+    console.warn(
+      `[run-scout] attribution_failures count=${attributionFailures.length} ` +
+        `ts=${new Date().toISOString()}`,
+    )
+    for (const f of attributionFailures) {
+      console.warn(
+        `[run-scout] attribution_failure: haiku_source_name="${f.haiku_source_name}" ` +
+          `haiku_source_id="${f.haiku_source_id ?? ''}" headline="${f.headline.slice(0, 100)}" ` +
+          `url=${f.source_url ?? ''} registered_names_count=${registeredNames.length}`,
+      )
+    }
+    // Log the registered roster once so the editor can diff against Haiku's
+    // returned names without paging through hundreds of failure lines.
+    console.warn(`[run-scout] registered_source_names: ${JSON.stringify(registeredNames)}`)
+  }
+
   for (const source of activeSources) {
-    const count = findings.filter((f) => f.source_name === source.name).length
+    const count = findingsBySourceId.get(source.id) ?? 0
     await incrementSourceProduced(supabase, source.name, count)
   }
 
