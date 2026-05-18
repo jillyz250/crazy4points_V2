@@ -223,6 +223,7 @@ export interface Program {
   intro: string | null
   award_chart: string | null
   transfer_partners: TransferPartnerRow[] | null
+  transfer_partners_outbound: TransferPartnerRow[] | null
   sweet_spots: string | null
   marquee_redemption_id: string | null
   marquee_pitch: string | null

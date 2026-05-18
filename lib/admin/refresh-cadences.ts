@@ -25,6 +25,11 @@ export const REFRESH_CADENCE_DAYS = {
   program_lounge_network: 365,
   program_ota: 365,
   hotel_properties_program: 365,
+  // Transfer partner rosters drift faster than the rest of a program's
+  // facts (issuers add/drop partners and shift ratios several times a
+  // year). 90 days forces re-verification against each issuer's
+  // logged-in transfer page. Added in migration 302.
+  transfer_partners: 90,
 } as const
 
 export type RefreshEntityType = keyof typeof REFRESH_CADENCE_DAYS
@@ -43,6 +48,7 @@ export const REFRESH_ENTITY_LABELS: Record<RefreshEntityType, string> = {
   program_lounge_network: 'Lounge network',
   program_ota: 'OTA',
   hotel_properties_program: 'Hotel properties (program-wide)',
+  transfer_partners: 'Transfer partners',
 }
 
 /**
