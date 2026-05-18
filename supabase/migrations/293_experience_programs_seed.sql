@@ -10,7 +10,7 @@
 
 insert into experience_programs (slug, name, official_url, description, category, issuer_slug, last_verified) values
 ('chase-experiences', 'Chase Experiences',
- 'https://experiences.chase.com/',
+ 'https://www.chase.com/personal/events/experiences',
  'Chase''s cardmember-exclusive events portal - dining series, chef collaborations, concerts, sports, cultural events. Open to all Chase consumer credit cardholders.',
  'issuer_wide', 'chase', current_date),
 
@@ -76,7 +76,7 @@ insert into experience_programs (slug, name, official_url, description, category
  'card_specific', 'chase', current_date),
 
 ('chase-sapphire-reserved', 'Sapphire Reserved (Chase Gets You Closer)',
- 'https://experiences.chase.com/sapphire',
+ 'https://www.chase.com/personal/events/experiences',
  'Sapphire-exclusive VIP access program: presales, festival lounges, dining series, curated weekends. Available to Chase Sapphire Preferred and Sapphire Reserve cardholders only.',
  'card_specific', 'chase', current_date),
 
