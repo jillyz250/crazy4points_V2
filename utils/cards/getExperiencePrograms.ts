@@ -26,6 +26,11 @@ export interface ExperienceProgram {
   /** For card_specific: access tier (standard / premium / invite_only). Null otherwise. */
   access_tier: 'standard' | 'premium' | 'invite_only' | null
   status: 'active' | 'discontinued' | 'beta'
+  /** True when the official_url points at a preview/marketing page and full event
+   *  browsing requires cardholder login (Chase Experiences, By Invitation Only,
+   *  Resy, Hyatt FIND, etc.). False when the URL is openly browsable (Citi
+   *  Entertainment, Capital One Entertainment, BoA Preferred Seating). */
+  requires_cardholder_auth: boolean
 }
 
 export async function getExperienceProgramsForCard(
@@ -42,7 +47,7 @@ export async function getExperienceProgramsForCard(
     card.issuer_slug
       ? supabase
           .from('experience_programs')
-          .select('id, slug, name, official_url, description, category, status')
+          .select('id, slug, name, official_url, description, category, status, requires_cardholder_auth')
           .eq('category', 'issuer_wide')
           .eq('issuer_slug', card.issuer_slug)
           .eq('status', 'active')
@@ -50,14 +55,14 @@ export async function getExperienceProgramsForCard(
     card.currency_program_slug
       ? supabase
           .from('experience_programs')
-          .select('id, slug, name, official_url, description, category, status')
+          .select('id, slug, name, official_url, description, category, status, requires_cardholder_auth')
           .eq('category', 'loyalty')
           .eq('currency_program_slug', card.currency_program_slug)
           .eq('status', 'active')
       : Promise.resolve({ data: [], error: null }),
     supabase
       .from('credit_card_experience_programs')
-      .select('access_tier, experience_programs!inner(id, slug, name, official_url, description, category, status)')
+      .select('access_tier, experience_programs!inner(id, slug, name, official_url, description, category, status, requires_cardholder_auth)')
       .eq('card_id', card.id)
       .eq('experience_programs.status', 'active'),
   ])

@@ -787,6 +787,18 @@ export default async function CardPage({
                     {p.description}
                   </div>
                 )}
+                {p.requires_cardholder_auth && (
+                  <div
+                    style={{
+                      marginTop: '0.5rem',
+                      fontSize: '0.8125rem',
+                      color: 'var(--color-text-secondary)',
+                      fontStyle: 'italic',
+                    }}
+                  >
+                    🔒 Cardmember login required for current event details / booking.
+                  </div>
+                )}
               </div>
             ))}
           </div>
