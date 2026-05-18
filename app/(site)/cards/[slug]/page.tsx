@@ -195,6 +195,23 @@ function formatWelcomeBonus(
   }
 }
 
+/**
+ * Pluralize a bonus currency based on amount. Most currencies end in 's' when
+ * plural ("miles", "points", "Free Night Awards"); strip the trailing 's' when
+ * amount is 1. USD / cash-back currencies don't pluralize.
+ */
+function pluralizeCurrency(amount: number, currency: string): string {
+  if (amount !== 1) return currency
+  const lower = currency.toLowerCase()
+  if (lower === 'usd' || lower === 'usd_cashback' || lower.includes('cash') || lower.includes('dollar')) {
+    return currency
+  }
+  if (currency.endsWith('s') || currency.endsWith('S')) {
+    return currency.slice(0, -1)
+  }
+  return currency
+}
+
 function groupBenefits(benefits: CreditCardBenefit[]): Map<string, CreditCardBenefit[]> {
   const groups = new Map<string, CreditCardBenefit[]>()
   for (const b of benefits) {
@@ -641,7 +658,7 @@ export default async function CardPage({
                   </p>
                   <ul style={{ margin: '0 0 0.75rem 1.25rem', padding: 0, fontSize: '0.9375rem' }}>
                     <li style={{ marginBottom: '0.4rem' }}>
-                      <strong>{sub.bonus_amount.toLocaleString()} {sub.bonus_currency}</strong> after spending{' '}
+                      <strong>{sub.bonus_amount.toLocaleString()} {pluralizeCurrency(sub.bonus_amount, sub.bonus_currency)}</strong> after spending{' '}
                       <strong>${sub.spend_required_usd!.toLocaleString()}</strong> in the first{' '}
                       <strong>{sub.spend_window_months} months</strong>
                     </li>
@@ -663,7 +680,7 @@ export default async function CardPage({
                             : `after spending $${t.spend_usd.toLocaleString()} in the first ${t.timeline_months} months`
                         return (
                           <li key={i} style={{ marginBottom: '0.4rem' }}>
-                            <strong>{t.bonus_amount.toLocaleString()} {sub.bonus_currency}</strong> more {mechanicCopy}
+                            <strong>{t.bonus_amount.toLocaleString()} {pluralizeCurrency(t.bonus_amount, sub.bonus_currency)}</strong> more {mechanicCopy}
                           </li>
                         )
                       })}
