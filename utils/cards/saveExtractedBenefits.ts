@@ -192,7 +192,11 @@ export async function saveExtractedBenefits({
   if (cardErr) return { ok: false, error: `credit_cards update failed: ${cardErr.message}` }
 
   // ── 2. Replace earn rates ──────────────────────────────────────────────
-  await supabase.from('credit_card_earn_rates').delete().eq('card_id', cardId)
+  // NON-DESTRUCTIVE: if Sonnet returned an empty earn_rates array (because the
+  // scraped page didn't contain earn rates — e.g. extracting from a benefits
+  // sub-page), preserve the existing rows. Only replace when the extraction
+  // has actual content. Prevents the IHG Premier Business loop where
+  // re-extracting from the perks sub-page wiped welcome+earn rates.
   const earnRows = extraction.earn_rates.map((r) => ({
     card_id: cardId,
     category: r.category,
@@ -204,12 +208,14 @@ export async function saveExtractedBenefits({
     notes: r.notes,
   }))
   if (earnRows.length > 0) {
+    await supabase.from('credit_card_earn_rates').delete().eq('card_id', cardId)
     const { error: earnErr } = await supabase.from('credit_card_earn_rates').insert(earnRows)
     if (earnErr) return { ok: false, error: `earn_rates insert failed: ${earnErr.message}` }
   }
 
   // ── 3. Replace structured benefits ─────────────────────────────────────
-  await supabase.from('credit_card_benefits').delete().eq('card_id', cardId)
+  // NON-DESTRUCTIVE: same guard as earn rates. Preserve existing benefits
+  // when extraction returns empty array.
   const benefitRows = extraction.benefits.map((b, i) => {
     const category = normalizeCategory(b.category)
     return {
@@ -230,6 +236,7 @@ export async function saveExtractedBenefits({
     }
   })
   if (benefitRows.length > 0) {
+    await supabase.from('credit_card_benefits').delete().eq('card_id', cardId)
     const { error: benErr } = await supabase.from('credit_card_benefits').insert(benefitRows)
     if (benErr) return { ok: false, error: `credit_card_benefits insert failed: ${benErr.message}` }
   }
