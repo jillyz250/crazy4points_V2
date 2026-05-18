@@ -17,6 +17,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { mapFirecrawl } from '@/utils/ai/firecrawl'
 import { logUsage } from '@/utils/ai/logUsage'
 import { createAdminClient } from '@/utils/supabase/server'
+import { checkUrl } from '@/utils/admin/checkUrl'
 
 // URL classification is a simple categorization task — Haiku handles it at
 // ~10% of Sonnet's cost. Switched during the cost-reduction pass.
@@ -316,6 +317,28 @@ export async function discoverCardSourceUrl({
     newsroom_source?: { url: string; reason: string; confidence: string } | null
   }
   const suggestions = (toolUseBlock.input ?? {}) as Suggestions
+
+  // Verify each suggested URL with a HEAD request before surfacing to the
+  // editor. Drops any 404/forbidden suggestion to null so the editor only
+  // sees verified URLs — kills the "suggested URL turns out to be a 404"
+  // class of bugs at the source.
+  const slots: Array<keyof Suggestions> = [
+    'source_url',
+    'guide_to_benefits_url',
+    'pricing_terms_url',
+    'promo_source',
+    'newsroom_source',
+  ]
+  await Promise.all(
+    slots.map(async (slot) => {
+      const entry = suggestions[slot]
+      if (!entry?.url) return
+      const result = await checkUrl(entry.url)
+      if (!result.ok) {
+        suggestions[slot] = null
+      }
+    }),
+  )
 
   const supabase = createAdminClient()
   const payload: Record<string, unknown> = {
