@@ -12,7 +12,12 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { jsonrepair } from 'jsonrepair'
 import { createHash } from 'node:crypto'
-import { fetchFirecrawl, fetchFirecrawlInteractive } from '@/utils/ai/firecrawl'
+import {
+  fetchFirecrawl,
+  fetchFirecrawlInteractive,
+  htmlToText,
+  needsBoilerplateInclusive,
+} from '@/utils/ai/firecrawl'
 import { logUsage } from '@/utils/ai/logUsage'
 import { createAdminClient } from '@/utils/supabase/server'
 import {
@@ -152,6 +157,59 @@ export async function extractCardBenefits({
             `[card-extract] aggressive retry discarded ` +
             `(${markdown.length} chars original vs ${aggressiveMarkdown.length} aggressive, no markers)`,
           )
+        }
+      }
+
+      // rawHtml fallback — Sleuth's investigation (2026-05-18) found that
+      // the Chase business "Travel & purchase coverage" section is NOT
+      // behind an accordion. It's static HTML, but Firecrawl's
+      // onlyMainContent heuristic strips the section as boilerplate.
+      // WebFetch's HTML-to-markdown sees the same content fine. So when
+      // the markers are STILL missing after the aggressive click retry,
+      // re-scrape each Chase business URL with onlyMainContent:false +
+      // rawHtml, strip the HTML to text, and APPEND it to the existing
+      // markdown so Sonnet has something to extract from. Additive —
+      // never replaces what we already captured.
+      if (!INSURANCE_MARKERS.test(markdown)) {
+        const businessUrls = allUrls.filter(needsBoilerplateInclusive)
+        if (businessUrls.length > 0) {
+          console.log(
+            `[card-extract] still missing insurance markers after aggressive retry — ` +
+            `rawHtml fallback on ${businessUrls.length} Chase business URL(s)`,
+          )
+          const htmlFallbacks = await Promise.all(
+            businessUrls.map(async (url) => {
+              const result = await fetchFirecrawl(url, {
+                maxChars: PER_URL_LIMIT,
+                onlyMainContent: false,
+                formats: ['markdown', 'rawHtml'],
+                timeoutMs: 60_000,
+              })
+              if (!result.ok) return ''
+              // Prefer rawHtml-derived text since the original markdown
+              // already missed the section. But if we have BOTH, the
+              // rawHtml->text covers everything the markdown saw plus
+              // the dropped boilerplate.
+              const text = result.rawHtml ? htmlToText(result.rawHtml) : ''
+              return text
+            }),
+          )
+          const appendBlocks = htmlFallbacks
+            .map((text, i) =>
+              text
+                ? `\n\n=== RAW HTML FALLBACK ${i + 1}: ${businessUrls[i]} ===\n\n${text}`
+                : null,
+            )
+            .filter((s): s is string => s !== null)
+          if (appendBlocks.length > 0) {
+            const before = markdown.length
+            markdown = (markdown + appendBlocks.join('')).slice(0, MARKDOWN_CHAR_LIMIT)
+            const nowHasMarkers = INSURANCE_MARKERS.test(markdown)
+            console.log(
+              `[card-extract] rawHtml fallback appended ` +
+              `${markdown.length - before} chars; markers=${nowHasMarkers}`,
+            )
+          }
         }
       }
     }
