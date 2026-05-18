@@ -30,7 +30,11 @@ export default function ManualWelcomeBonusForm({
       </h3>
       <p className="mt-1 font-body text-sm text-amber-900">
         The extraction didn&rsquo;t find a bonus amount on this page (issuer often hides it behind the apply flow).
-        Look up the current public offer (NerdWallet, TPG, Citi&rsquo;s offer comparison page) and enter it here.
+        Look up the issuer&rsquo;s current public offer — Chase&rsquo;s marketing landing
+        page (creditcards.chase.com/a1/&hellip;), Amex&rsquo;s offer comparison page,
+        the issuer&rsquo;s newsroom, or the issuer&rsquo;s apply flow — and enter it
+        here. <strong>Issuer URLs only — never use NerdWallet, TPG, Doctor of Credit,
+        Upgraded Points, or any other third-party blog.</strong>
       </p>
 
       <form action={saveAction} className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -44,7 +48,7 @@ export default function ManualWelcomeBonusForm({
             type="number"
             min="0"
             required
-            placeholder="60000"
+            placeholder="e.g., 50000"
             className="rounded-[var(--radius-ui)] border border-amber-300 bg-white px-3 py-2 font-body text-base"
             style={{ fontSize: '1rem' }}
           />
@@ -57,7 +61,7 @@ export default function ManualWelcomeBonusForm({
             type="text"
             required
             defaultValue={defaultCurrency ?? ''}
-            placeholder="ThankYou Points"
+            placeholder="e.g., points / miles"
             className="rounded-[var(--radius-ui)] border border-amber-300 bg-white px-3 py-2 font-body text-base"
             style={{ fontSize: '1rem' }}
           />
@@ -71,7 +75,7 @@ export default function ManualWelcomeBonusForm({
             min="0"
             required
             defaultValue={defaultSpendUsd ?? ''}
-            placeholder="4000"
+            placeholder="e.g., 3000"
             className="rounded-[var(--radius-ui)] border border-amber-300 bg-white px-3 py-2 font-body text-base"
             style={{ fontSize: '1rem' }}
           />
@@ -85,7 +89,7 @@ export default function ManualWelcomeBonusForm({
             min="1"
             required
             defaultValue={defaultWindowMonths ?? ''}
-            placeholder="3"
+            placeholder="e.g., 3 or 6"
             className="rounded-[var(--radius-ui)] border border-amber-300 bg-white px-3 py-2 font-body text-base"
             style={{ fontSize: '1rem' }}
           />
@@ -113,7 +117,7 @@ export default function ManualWelcomeBonusForm({
           <input
             name="notes"
             type="text"
-            placeholder="e.g., 'NerdWallet shows 75K offer through Dec 2026'"
+            placeholder="e.g., 'Issuer SEM landing shows 75K offer through Dec 2026'"
             className="rounded-[var(--radius-ui)] border border-amber-300 bg-white px-3 py-2 font-body text-base"
             style={{ fontSize: '1rem' }}
           />
