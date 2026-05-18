@@ -1671,6 +1671,14 @@ export interface CreditCard {
   foreign_transaction_fee_pct: number | null
   chase_5_24_subject: boolean
   credit_score_recommended: CreditScoreRecommended | null
+  /** Referral bonus per approved referral (e.g. 10000 miles per friend on the
+   *  Chase United Business card). Null when the card has no referral program. */
+  referral_bonus_amount: number | null
+  /** Currency of the referral bonus — usually matches the card's earn currency
+   *  ('miles' for airline cobrands, 'points' for UR cards, etc.). */
+  referral_bonus_currency: string | null
+  /** Annual cap on total referral bonuses earnable (e.g. 100000 miles per year). */
+  referral_cap_per_year: number | null
   tags: string[]
   intended_user: string[]
   is_active: boolean
@@ -1751,6 +1759,14 @@ export interface CreditCardWelcomeBonus {
     timeline_months: number
     note?: string
   }> | null
+  /** True when the offer is flagged as elevated / limited-time. Renders a
+   *  "🕐 LIMITED TIME" badge on the public card page regardless of whether
+   *  baseline equals current. Sonnet sets this when it detects "LIMITED TIME"
+   *  copy on the issuer's page. */
+  is_elevated: boolean | null
+  /** Baseline (non-elevated) offer amount, when the issuer page shows one.
+   *  When null or equal to bonus_amount, no elevation math is shown. */
+  baseline_bonus_amount: number | null
   created_at: string
   updated_at: string
 }

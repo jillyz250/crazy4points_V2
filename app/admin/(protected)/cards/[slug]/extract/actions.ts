@@ -311,12 +311,68 @@ export async function applyDiscoveredCardUrls(formData: FormData): Promise<void>
 
   const suggestions = (card.suggested_field_urls as Record<string, { url?: string } | null>) ?? {}
 
+  // Look up the issuer's primary domain so we can validate that discovery's
+  // proposed URLs actually live on the issuer's site. Catches the case where
+  // discovery returns a third-party aggregator URL (e.g.
+  // traveler.marriott.com/credit-cards/bold-boundless-credit-card for a Chase
+  // Marriott card) — those should NOT auto-set as the card's source_url.
+  const { data: cardForIssuer } = await supabase
+    .from('credit_cards')
+    .select('issuer_id')
+    .eq('id', card.id)
+    .single()
+  const { data: issuer } = cardForIssuer?.issuer_id
+    ? await supabase.from('issuers').select('slug').eq('id', cardForIssuer.issuer_id).single()
+    : { data: null }
+
+  // Per-issuer allowed product-page domain patterns. Any suggestion URL
+  // outside this list is treated as "discovery got confused" and SKIPPED
+  // for auto-set (editor can still set manually).
+  const ISSUER_DOMAINS: Record<string, string[]> = {
+    chase: ['creditcards.chase.com', 'chase.com'],
+    amex: ['americanexpress.com'],
+    citi: ['citi.com', 'citicards.com'],
+    'capital-one': ['capitalone.com'],
+    barclays: ['cards.barclaycardus.com', 'barclaycardus.com'],
+    'bank-of-america': ['bankofamerica.com'],
+    'wells-fargo': ['wellsfargo.com'],
+    'us-bank': ['usbank.com'],
+    fnbo: ['fnbo.com'],
+    bilt: ['biltrewards.com'],
+  }
+  const allowedDomains = issuer?.slug ? (ISSUER_DOMAINS[issuer.slug] ?? []) : []
+  function isOnIssuerDomain(url: string): boolean {
+    if (allowedDomains.length === 0) return true  // No allowlist → permissive
+    try {
+      const host = new URL(url).hostname.toLowerCase()
+      return allowedDomains.some((d) => host === d || host.endsWith('.' + d))
+    } catch {
+      return false
+    }
+  }
+
   // Apply source_url to credit_cards.official_url
   // AND guide_to_benefits_url so the next extraction scrapes both.
+  // Skip any URL that's NOT on the issuer's allowed domains — those need
+  // editor review.
   const cardUpdate: Record<string, string | null> = {}
-  if (suggestions.source_url?.url) cardUpdate.official_url = suggestions.source_url.url
-  if (suggestions.guide_to_benefits_url?.url) cardUpdate.guide_to_benefits_url = suggestions.guide_to_benefits_url.url
-  if (suggestions.pricing_terms_url?.url) cardUpdate.pricing_terms_url = suggestions.pricing_terms_url.url
+  const skipped: string[] = []
+  for (const [field, target] of [
+    ['source_url', 'official_url'],
+    ['guide_to_benefits_url', 'guide_to_benefits_url'],
+    ['pricing_terms_url', 'pricing_terms_url'],
+  ] as const) {
+    const url = suggestions[field]?.url
+    if (!url) continue
+    if (isOnIssuerDomain(url)) {
+      cardUpdate[target] = url
+    } else {
+      skipped.push(`${field}=${url} (not on ${issuer?.slug ?? 'issuer'} domain)`)
+    }
+  }
+  if (skipped.length > 0) {
+    console.warn(`[apply-card-urls] skipped non-issuer URLs for ${slug}: ${skipped.join('; ')}`)
+  }
   if (Object.keys(cardUpdate).length > 0) {
     await supabase.from('credit_cards').update(cardUpdate).eq('id', card.id)
   }

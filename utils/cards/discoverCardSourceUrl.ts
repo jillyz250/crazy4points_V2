@@ -108,11 +108,31 @@ You return:
 - promo_source: the issuer's current offers / bonus miles / current promotions page (time-sensitive content for the alerts pipeline, NOT for the card page).
 - newsroom_source: the issuer's CONSUMER newsroom (e.g. news.americanexpress.com, hub.united.com/newsroom). AVOID investor-relations subdomains.
 
+KNOWN PROMO + NEWSROOM URL PATTERNS (use as fallback when explicit candidate is missing):
+- Chase: promo_source = creditcards.chase.com/newest-offers-credit-cards | newsroom_source = media.chase.com/news/*
+- American Express: promo_source = americanexpress.com/.../current-offers OR americanexpress.com/.../offers
+                    newsroom_source = news.americanexpress.com or about.americanexpress.com/news
+- Citi: promo_source = citi.com/.../credit-cards-offers | newsroom_source = citigroup.com/global/news
+- Capital One: promo_source = capitalone.com/credit-cards/.../offers | newsroom_source = capitalone.com/about/newsroom
+- Barclays: promo_source = cards.barclaycardus.com (issuer-wide) | newsroom_source = home.barclays/news
+- Bank of America: newsroom_source = about.bankofamerica.com/en/making-an-impact (consumer-facing)
+- Wells Fargo: newsroom_source = newsroom.wf.com (yes — wf, not wellsfargo)
+- US Bank: newsroom_source = usbank.com/newsroom
+
+CRITICAL — SOURCE_URL DOMAIN RULE:
+- source_url MUST be on the ISSUER's own domain (chase.com, americanexpress.com, etc.)
+- For cobrand cards (Chase Marriott, Chase United, Amex Hilton, etc.) the SOURCE URL is the
+  ISSUER's product page (creditcards.chase.com/...), NOT the brand partner's marketing page
+  (traveler.marriott.com/..., united.com/credit-cards/..., etc.). Brand-partner pages are
+  marketing aggregators that cover multiple products and aren't authoritative for extraction.
+
 RULES:
 1. Return ONLY URLs you saw in the candidate list. Don't invent URLs.
-2. source_url should be a card-specific product page (e.g. chase.com/.../sapphire-preferred), not the issuer homepage.
+2. source_url should be a card-specific product page on the ISSUER's domain (see rule above).
 3. If no perfect candidate exists for a slot, return null for that slot.
 4. Confidence: high / medium / low based on URL-name match to card.
+5. For promo_source + newsroom_source: if no card-specific candidate exists, return the
+   issuer-wide URL from the KNOWN URL PATTERNS list above (those serve all the issuer's cards).
 
 OUTPUT: call submit_discovery with the structured fields.`
 
