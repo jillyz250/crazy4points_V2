@@ -52,6 +52,7 @@ export default async function CardExtractPage({
       suggested_field_urls, manual_overrides,
       intro, last_verified,
       requires_manual_paste, manual_paste_reason,
+      benefits_human_curated,
       issuer:issuers(slug, name, website_url)
     `)
     .eq('slug', slug)
@@ -180,6 +181,36 @@ export default async function CardExtractPage({
             </>
           ) : null}
         </p>
+        {/* Human-curated benefits warning. Surfaces when this card's benefits
+            were hand-authored (vs auto-extracted) so the editor knows that
+            re-extraction risks downgrading polished content. saveExtractedBenefits
+            uses delete-then-insert; any non-empty extraction REPLACES the existing
+            set, and Firecrawl frequently can't expand JS accordions on Chase
+            business pages. Per migration 309. */}
+        {(card as { benefits_human_curated?: boolean }).benefits_human_curated && (
+          <div
+            role="alert"
+            className="mt-4 rounded-[var(--radius-card)] border-l-4 border-l-amber-500 bg-amber-50 p-4"
+          >
+            <div className="flex items-start gap-2">
+              <span className="text-lg leading-none">🛡️</span>
+              <div className="flex-1">
+                <div className="font-ui text-xs font-bold uppercase tracking-wide text-amber-900">
+                  Human-curated benefits — re-extraction discouraged
+                </div>
+                <div className="mt-1 font-body text-sm text-amber-900">
+                  This card&apos;s benefit rows were hand-authored. Re-extraction risks
+                  downgrading polished content, especially when Firecrawl can&apos;t
+                  expand JS accordions (Chase business pages in particular). Prefer
+                  per-field edits on the card&apos;s edit page. For semi-annual deep
+                  refreshes, paste the accordion-expanded source into the Manual
+                  Markdown box below.
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Manual-paste required banner. Flipped on by editors after a failed
             Firecrawl scrape so the next person doesn't waste credits trying
             again. Stored in credit_cards.requires_manual_paste + reason. */}
