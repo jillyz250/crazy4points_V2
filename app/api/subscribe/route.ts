@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createAdminClient } from '@/utils/supabase/server'
+import { unsubscribeUrlFor } from '@/utils/email/unsubscribeToken'
+import { isRateLimited, ipHashFromRequest } from '@/utils/security/rateLimit'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -17,6 +19,26 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = createAdminClient()
+
+  // Rate limit: 10 subscribe attempts per IP per hour. Cheap insurance
+  // against bots that defeat the honeypot. Hash the IP so the raw value
+  // never lands in our DB.
+  const ipKey = ipHashFromRequest(req.headers)
+  if (ipKey) {
+    const blocked = await isRateLimited(supabase, {
+      key: ipKey,
+      kind: 'subscribe',
+      max: 10,
+      windowMinutes: 60,
+    })
+    if (blocked) {
+      console.warn(`[subscribe] rate-limited ip=${ipKey.slice(0, 8)} email=${email}`)
+      return NextResponse.json(
+        { error: 'Too many attempts. Please try again later.' },
+        { status: 429 },
+      )
+    }
+  }
 
   const normalizedEmail = email.toLowerCase().trim()
 
@@ -80,7 +102,7 @@ export async function POST(req: NextRequest) {
         <p style="margin-top: 16px; font-size: 12px; color: #4A4A4A; line-height: 1.6;">
           You're receiving this because you signed up at crazy4points.com.<br/>
           crazy4points · New York, NY, USA<br/>
-          <a href="https://www.crazy4points.com/api/unsubscribe?email=${encodeURIComponent(email)}" style="color: #6B2D8F;">Unsubscribe</a>
+          <a href="${unsubscribeUrlFor(email)}" style="color: #6B2D8F;">Unsubscribe</a>
         </p>
       </div>
     `,

@@ -76,13 +76,13 @@ export async function GET(req: NextRequest) {
   }
 
   const subject = slots.subject || 'Crazy4Points — Weekly'
+  const to = toParam ?? process.env.BRIEF_RECIPIENT ?? 'jillzeller6@gmail.com'
   const html = renderNewsletterV2Html({
     slots,
     weekOf: formatWeekOf(row.week_of),
     isPreview: true,
+    recipientEmail: to,
   })
-
-  const to = toParam ?? process.env.BRIEF_RECIPIENT ?? 'jillzeller6@gmail.com'
 
   const { error: sendErr } = await resend.emails.send({
     from: process.env.RESEND_FROM ?? 'Crazy4Points <hello@crazy4points.com>',

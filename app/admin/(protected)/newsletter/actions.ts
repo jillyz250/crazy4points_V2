@@ -129,6 +129,7 @@ export async function sendTestAction(id: string, toOverride?: string) {
     slots,
     weekOf: formatWeekOf(row.week_of),
     isPreview: !isCatchUp,
+    recipientEmail: target,
   })
 
   const { error } = await resend.emails.send({
@@ -171,12 +172,6 @@ export async function sendToSubscribersAction(id: string, confirmWord: string) {
     throw new Error('No active subscribers to send to.')
   }
 
-  const html = renderNewsletterV2Html({
-    slots,
-    weekOf: formatWeekOf(row.week_of),
-    isPreview: false,
-  })
-
   // Resend's free tier rate-limits at 5 requests/sec. We throttle each send
   // by 250ms (= 4/sec) so the last subscribers in the list don't get 429'd
   // and silently dropped. Discovered the hard way on 2026-05-07: 8 subs sent
@@ -191,6 +186,15 @@ export async function sendToSubscribersAction(id: string, confirmWord: string) {
     const to = recipients[i]
     if (i > 0) await sleep(SEND_DELAY_MS)
     try {
+      // Re-render per recipient so the unsubscribe URL carries that
+      // subscriber's HMAC token. Cheap (~ms per render, dwarfed by the
+      // 250ms throttle below).
+      const html = renderNewsletterV2Html({
+        slots,
+        weekOf: formatWeekOf(row.week_of),
+        isPreview: false,
+        recipientEmail: to,
+      })
       const { error } = await resend.emails.send({
         from: FROM,
         to,
