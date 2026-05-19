@@ -5,6 +5,7 @@ import { createAdminClient } from '@/utils/supabase/server'
 import { writeEditCheck } from '@/utils/ai/writeEditCheck'
 import { buildExtraContext } from '@/utils/ai/buildExtraContext'
 import { loadAllianceContextForPrograms, updateAlert, setAlertPrograms } from '@/utils/supabase/queries'
+import type { AlertStatus } from '@/utils/supabase/queries'
 import type { WriteDraftProgram } from '@/utils/ai/writeAlertDraft'
 
 /**
@@ -98,7 +99,7 @@ export async function writeAlertFromCandidate(formData: FormData): Promise<void>
       end_date: wec.draft.end_date,
       voice_pass: wec.voice?.passed ?? null,
       voice_score: wec.voice?.score ?? null,
-      status: 'pending_review',
+      status: 'pending_review' as AlertStatus,
     }
     if (existing?.id) {
       alertId = existing.id as string
@@ -125,7 +126,7 @@ export async function writeAlertFromCandidate(formData: FormData): Promise<void>
     .map((s) => programBySlug.get(s)?.id)
     .filter((x): x is string => typeof x === 'string')
   if (primaryId || secondaryIds.length > 0) {
-    await setAlertPrograms(supabase, alertId, primaryId, secondaryIds)
+    await setAlertPrograms(supabase, alertId, { primaryId, secondaryIds })
   }
 
   // 7) Mark intel processed + linked
