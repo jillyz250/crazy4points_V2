@@ -7,16 +7,15 @@ import {
   generateEditorialPlan,
   type PlanIntelItem,
 } from '@/utils/ai/generateEditorialPlan'
-import { writeAlertDraft, type WriteDraftProgram } from '@/utils/ai/writeAlertDraft'
-import { editAlertDraft } from '@/utils/ai/editAlertDraft'
-import { writeEditCheck } from '@/utils/ai/writeEditCheck'
-import { verifyAlertDraft, webVerifyClaims, highSeverityUnsupported } from '@/utils/ai/verifyAlertDraft'
-import { buildProgramReferenceForDraft } from '@/utils/ai/programReferenceData'
+import type { WriteDraftProgram } from '@/utils/ai/writeAlertDraft'
 import { detectConflict } from '@/utils/ai/detectConflict'
-import { reviseAlertDraft, type RevisionLogEntry } from '@/utils/ai/reviseAlertDraft'
 import type { ApproveMeta } from '@/utils/ai/briefEmail'
-import { updateAlert, setAlertPrograms, logSystemError, loadAllianceContextForPrograms } from '@/utils/supabase/queries'
-import { buildExtraContext } from '@/utils/ai/buildExtraContext'
+import { logSystemError } from '@/utils/supabase/queries'
+// writeEditCheck / verifyAlertDraft / webVerifyClaims / reviseAlertDraft /
+// buildExtraContext / loadAllianceContextForPrograms etc. are no longer
+// imported here — the auto-write loop was removed in the May 2026 triage
+// refactor. Those functions are now invoked on demand from /admin/triage
+// → writeAlertFromCandidate server action.
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -220,29 +219,60 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Writer pass — for every approve-recommended intel, polish the pending_review alert
+  // ──────────────────────────────────────────────────────────────────────
+  // TRIAGE MODE (May 2026) — the expensive auto-write loop is GONE.
+  // ──────────────────────────────────────────────────────────────────────
+  // Previously this route ran the full write → edit → voice-check →
+  // fact-check → web-verify → revise pipeline for every approved item
+  // (~3-5 API calls per item × 5-10 approved items = the daily 20-30 call
+  // spike).
+  //
+  // New model: persist the planner's approve/reject decisions on
+  // intel_items.triage_decision and STOP. Editor reviews candidates in
+  // /admin/triage and clicks "Write this" on items she actually wants.
+  // That click runs the same writeEditCheck pipeline, but on demand.
+  //
+  // All the per-item write-loop variables below are kept (zeroed) so the
+  // response shape doesn't change and downstream consumers don't break.
   const allPrograms = (programsRes.data ?? []) as WriteDraftProgram[]
   const programBySlug = new Map(allPrograms.map((p) => [p.slug, p]))
   const intelById = new Map(items.map((i) => [i.id as string, i]))
 
-  let drafts_written = 0
-  let writer_null_drafts = 0
-  let writer_no_pending_alert = 0
-  let writer_update_errors = 0
-  let editor_run = 0
-  let editor_null = 0
-  let fact_checks_run = 0
-  let fact_checks_flagged = 0
-  let web_verify_runs = 0
-  let web_verify_likely_wrong = 0
-  let revisions_run = 0
-  let revisions_succeeded = 0
-  let revisions_failed = 0
-  let revisions_resolved = 0
-  let revisions_persistent = 0
-  const REVISE_MAX_ITERS = 2
   const alertIdByIntelId: Record<string, string> = {}
   const approveMetaByIntelId: Record<string, ApproveMeta> = {}
+
+  // Persist triage decisions to intel_items so the /admin/triage inbox can
+  // show "what the planner approved, ready for you to write" + reasoning.
+  let triage_decisions_persisted = 0
+  if (plan) {
+    const triageUpdates: Array<{ intel_id: string; decision: string; reasoning: string }> = []
+    for (const a of plan.approve) {
+      triageUpdates.push({ intel_id: a.intel_id, decision: 'approved', reasoning: a.reason ?? '' })
+    }
+    for (const r of plan.reject) {
+      triageUpdates.push({ intel_id: r.intel_id, decision: 'rejected', reasoning: r.reason ?? '' })
+    }
+    for (const b of plan.newsletter_candidates ?? []) {
+      triageUpdates.push({ intel_id: b.intel_id, decision: 'newsletter_idea', reasoning: b.angle ?? '' })
+    }
+    // blog_ideas have no intel_id binding in the current schema; skip them.
+
+    for (const u of triageUpdates) {
+      const { error } = await supabase
+        .from('intel_items')
+        .update({
+          triage_decision: u.decision,
+          triage_reasoning: u.reasoning.slice(0, 1000),
+          triage_decided_at: new Date().toISOString(),
+        })
+        .eq('id', u.intel_id)
+      if (!error) triage_decisions_persisted++
+    }
+  }
+
+  // Seed approveMetaByIntelId so the brief email still renders deadline /
+  // program / source chips for each approved candidate (no alertId yet —
+  // the editor will create one via the triage page).
   if (plan && plan.approve.length) {
     const recentSamples = voiceSamples
 
@@ -284,341 +314,6 @@ export async function GET(req: NextRequest) {
         }
       }
 
-      // Fetch alliance context once per intel — used by writer + every
-      // verify/reverify pass below. Looks up programs.alliance for each
-      // intel-tagged program; null if none of them belong to oneworld /
-      // SkyTeam / Star Alliance.
-      const intelProgramIds = ((intel.programs as string[] | null) ?? [])
-        .map((slug) => programBySlug.get(slug)?.id)
-        .filter((x): x is string => typeof x === 'string')
-      const alliance_context = await loadAllianceContextForPrograms(
-        supabase,
-        intelProgramIds
-      )
-
-      // Load program Page content + concurrent active offers so the first
-      // draft has the same context the regenerate path gets. Without this,
-      // the writer sees only raw_text and produces flavorless boilerplate.
-      const { extra_context } = await buildExtraContext(supabase, {
-        programSlugs: (intel.programs as string[] | null) ?? [],
-      })
-
-      // Write → edit → voice-check with one retry on voice failure. The
-      // voice check scores the post-edit draft against the c4p-writer
-      // persona; if score < 4 or banned phrases / hyphen-pause / sounds_like_ai,
-      // re-runs the writer with the specific issues fed back. Cap at 1 retry.
-      editor_run++
-      const wec = await writeEditCheck({
-        intel: {
-          intel_id: intel.id as string,
-          headline: intel.headline as string,
-          raw_text: (intel.raw_text as string | null) ?? null,
-          source_name: intel.source_name as string,
-          source_url: (intel.source_url as string | null) ?? null,
-          alert_type: intel.alert_type,
-          programs: intel.programs as string[] | null,
-        },
-        programs: allPrograms,
-        recent_samples: recentSamples,
-        extra_context,
-        alliance_context,
-      })
-      const draft = wec.draft
-      if (!draft) {
-        writer_null_drafts++
-        continue
-      }
-      if (!wec.edited) editor_null++
-      if (wec.voice && !wec.voice.passed) {
-        console.warn('[build-brief] voice gate failed after retry', {
-          intel_id: intel.id,
-          score: wec.voice.score,
-          issues: wec.voice.issues,
-          banned: wec.voice.banned_phrases_found,
-        })
-      }
-
-      const { data: pending } = await supabase
-        .from('alerts')
-        .select('id')
-        .eq('source_intel_id', intel.id as string)
-        .eq('status', 'pending_review')
-        .maybeSingle()
-      if (!pending) {
-        writer_no_pending_alert++
-        continue
-      }
-      const alertId = pending.id as string
-      alertIdByIntelId[intel.id as string] = alertId
-
-      const primaryId = draft.primary_program_slug
-        ? programBySlug.get(draft.primary_program_slug)?.id ?? null
-        : null
-      const secondaryIds = draft.secondary_program_slugs
-        .map((s) => programBySlug.get(s)?.id)
-        .filter((x): x is string => typeof x === 'string')
-
-      try {
-        const voiceNotesPayload = wec.voice
-          ? JSON.stringify({
-              banned_phrases_found: wec.voice.banned_phrases_found,
-              em_dash_count: wec.voice.em_dash_count,
-              hyphen_pause_count: wec.voice.hyphen_pause_count,
-              sounds_like_ai: wec.voice.sounds_like_ai,
-              issues: wec.voice.issues,
-              retried: wec.retried,
-            })
-          : null
-        await updateAlert(supabase, alertId, {
-          title: draft.title,
-          summary: draft.summary,
-          description: draft.description,
-          action_type: draft.action_type,
-          primary_program_id: primaryId,
-          start_date: draft.start_date,
-          end_date: draft.end_date,
-          // Phase 3 — persist Sonnet's why_publish onto the alert so the
-          // public page, the newsletter blurb, and Decision Engine context
-          // all draw from one editable source.
-          why_this_matters: a.why_publish ?? null,
-          // Writer redesign — voice gate result + context-load timestamp.
-          voice_pass: wec.voice?.passed ?? null,
-          voice_score: wec.voice?.score ?? null,
-          voice_lead_mode: wec.voice?.lead_mode_detected ?? null,
-          voice_notes: voiceNotesPayload,
-          voice_checked_at: wec.voice ? new Date().toISOString() : null,
-          context_loaded_at: new Date().toISOString(),
-        })
-        await setAlertPrograms(supabase, alertId, { primaryId, secondaryIds })
-        drafts_written++
-
-        // Fact-check pass: ground every factual claim in the draft against
-        // the intel raw_text. Unsupported high-severity claims surface as
-        // red warnings in admin review before publish.
-        const initialDraftText = `${draft.title}\n${draft.summary}\n${draft.description ?? ''}`
-        const initialProgramReference = await buildProgramReferenceForDraft(
-          supabase,
-          primaryId,
-          initialDraftText
-        )
-        const verify = await verifyAlertDraft({
-          draft: { title: draft.title, summary: draft.summary, description: draft.description },
-          raw_text: (intel.raw_text as string | null) ?? null,
-          source_url: (intel.source_url as string | null) ?? null,
-          alert_type: intel.alert_type,
-          program_reference: initialProgramReference,
-          alliance_context,
-          extra_context,
-        })
-        if (verify) {
-          fact_checks_run++
-          if (highSeverityUnsupported(verify.claims).length > 0) fact_checks_flagged++
-
-          // Phase 3.6 — for any claim the source didn't support, ask Sonnet
-          // (with web search) whether the web agrees. Never blocks publish:
-          // admin UI shows the verdict + snippet + URL so the human decides.
-          let finalClaims = verify.claims
-          const hasUnsupported = verify.claims.some((c) => !c.supported)
-          if (hasUnsupported) {
-            web_verify_runs++
-            try {
-              finalClaims = await webVerifyClaims({
-                claims: verify.claims,
-                context: { title: draft.title, source_url: (intel.source_url as string | null) ?? null },
-              })
-              if (finalClaims.some((c) => c.web_verdict === 'likely_wrong')) web_verify_likely_wrong++
-            } catch (err) {
-              await logSystemError(supabase, 'build-brief:webVerifyClaims', err, {
-                alert_id: alertId,
-                intel_id: intel.id,
-                title: draft.title,
-                unsupported_count: verify.claims.filter((c) => !c.supported).length,
-              })
-              // Mark every unsupported claim as "checked but verdict unknown" so
-              // the UI can distinguish from "never checked" (missing field).
-              finalClaims = verify.claims.map((c) =>
-                c.supported
-                  ? c
-                  : { ...c, web_verdict: 'unverifiable' as const, web_evidence: null, web_url: null }
-              )
-            }
-          }
-
-          // Phase 2 — loop the reviser up to REVISE_MAX_ITERS times. Each pass
-          // rewrites likely_wrong claims, persists the revised copy, then re-runs
-          // verify + webVerify so the next iteration sees fresh claims. Exit as
-          // soon as no likely_wrong remain. If still flagged after the cap, we
-          // persist what we have and let the existing chip surface the residual.
-          let revisionLog: RevisionLogEntry[] = []
-          let workingDraft = {
-            title: draft.title,
-            summary: draft.summary,
-            description: draft.description,
-          }
-          const initialLikelyWrong = finalClaims.filter((c) => c.web_verdict === 'likely_wrong').length
-          if (initialLikelyWrong > 0) {
-            revisions_run++
-            let iter = 0
-            let aborted = false
-            while (iter < REVISE_MAX_ITERS) {
-              const likelyWrong = finalClaims.filter((c) => c.web_verdict === 'likely_wrong')
-              if (likelyWrong.length === 0) break
-              iter++
-              try {
-                const revised = await reviseAlertDraft({
-                  draft: workingDraft,
-                  problem_claims: likelyWrong,
-                  source_url: (intel.source_url as string | null) ?? null,
-                  iter,
-                })
-                workingDraft = revised.revised
-                revisionLog = [...revisionLog, ...revised.log]
-
-                // Persist revised copy after each iteration so admin review +
-                // the site always show the latest corrected text, even if a
-                // later iteration fails.
-                await updateAlert(supabase, alertId, {
-                  title: workingDraft.title,
-                  summary: workingDraft.summary,
-                  description: workingDraft.description,
-                })
-
-                const reverifyDraftText = `${workingDraft.title}\n${workingDraft.summary}\n${workingDraft.description ?? ''}`
-                const reverifyProgramReference = await buildProgramReferenceForDraft(
-                  supabase,
-                  primaryId,
-                  reverifyDraftText
-                )
-                const reverify = await verifyAlertDraft({
-                  draft: workingDraft,
-                  raw_text: (intel.raw_text as string | null) ?? null,
-                  source_url: (intel.source_url as string | null) ?? null,
-                  alert_type: intel.alert_type,
-                  program_reference: reverifyProgramReference,
-                  alliance_context,
-                  extra_context,
-                })
-                if (!reverify) break
-                let reverified = reverify.claims
-                if (reverified.some((c) => !c.supported)) {
-                  try {
-                    reverified = await webVerifyClaims({
-                      claims: reverified,
-                      context: {
-                        title: workingDraft.title,
-                        source_url: (intel.source_url as string | null) ?? null,
-                      },
-                    })
-                  } catch (err) {
-                    await logSystemError(supabase, 'build-brief:webVerifyClaims:post-revise', err, {
-                      alert_id: alertId,
-                      intel_id: intel.id,
-                      iter,
-                    })
-                    reverified = reverified.map((c) =>
-                      c.supported
-                        ? c
-                        : { ...c, web_verdict: 'unverifiable' as const, web_evidence: null, web_url: null }
-                    )
-                    // web-verify failed — can't trust the next iteration's
-                    // likely_wrong read. Stop the loop and ship what we have.
-                    finalClaims = reverified
-                    aborted = true
-                    break
-                  }
-                }
-                finalClaims = reverified
-              } catch (err) {
-                aborted = true
-                await logSystemError(supabase, 'build-brief:reviseAlertDraft', err, {
-                  alert_id: alertId,
-                  intel_id: intel.id,
-                  title: draft.title,
-                  likely_wrong_count: likelyWrong.length,
-                  iter,
-                })
-                break
-              }
-            }
-
-            // Per-alert outcome after the loop:
-            //   succeeded = at least one iteration completed without throwing
-            //   resolved  = no likely_wrong remain in finalClaims
-            //   persistent = revised but flags still remain (reviser couldn't fix)
-            //   failed    = all iterations threw and we have no revisions
-            const residualLikelyWrong = finalClaims.some((c) => c.web_verdict === 'likely_wrong')
-            if (revisionLog.length > 0) {
-              revisions_succeeded++
-              if (residualLikelyWrong) revisions_persistent++
-              else revisions_resolved++
-            } else if (aborted) {
-              revisions_failed++
-            }
-          }
-
-          try {
-            await updateAlert(supabase, alertId, {
-              fact_check_claims: finalClaims,
-              fact_check_at: verify.checked_at,
-              revision_log: revisionLog.length > 0 ? revisionLog : null,
-            })
-          } catch (err) {
-            console.error('[build-brief] fact-check write failed for alert', alertId, err)
-          }
-
-          // Populate the email-chip summary. Filter to high-severity only so the
-          // chip flags claims that could actually mislead a reader; low-severity
-          // descriptive color (geography, property counts) and 'unverifiable'
-          // procedural steps stay in the admin view but don't spam the email.
-          const openUnsupported = finalClaims.filter(
-            (c) => !c.supported && !c.acknowledged && c.severity === 'high'
-          )
-          const existingMeta = approveMetaByIntelId[intel.id as string] ?? {}
-          approveMetaByIntelId[intel.id as string] = {
-            ...existingMeta,
-            factCheck: {
-              openClaimCount: openUnsupported.length,
-              likelyWrongCount: openUnsupported.filter((c) => c.web_verdict === 'likely_wrong').length,
-              claims: openUnsupported.slice(0, 3).map((c) => ({
-                text: c.claim,
-                severity: c.severity,
-                web_verdict: c.web_verdict ?? null,
-              })),
-            },
-            revisions: revisionLog.length > 0
-              ? revisionLog.map((r) => ({
-                  reason: r.reason,
-                  source_url: r.source_url,
-                  before_claim: r.before_claim,
-                  after_claim: r.after_claim,
-                }))
-              : undefined,
-          }
-        }
-
-        const draftPrograms: { name: string; slug: string }[] = []
-        if (draft.primary_program_slug) {
-          const p = programBySlug.get(draft.primary_program_slug)
-          if (p) draftPrograms.push({ name: p.name, slug: p.slug })
-        }
-        for (const slug of draft.secondary_program_slugs) {
-          const p = programBySlug.get(slug)
-          if (p) draftPrograms.push({ name: p.name, slug: p.slug })
-        }
-        // Merge with prior meta so factCheck + computedScore (set earlier in
-        // the loop) survive the writer-success update.
-        const priorMeta = approveMetaByIntelId[intel.id as string] ?? {}
-        approveMetaByIntelId[intel.id as string] = {
-          ...priorMeta,
-          alertId,
-          endDate: draft.end_date,
-          programNames: draftPrograms.map((p) => p.name),
-          programs: draftPrograms,
-        }
-      } catch (err) {
-        writer_update_errors++
-        console.error('[build-brief] writer update failed for alert', alertId, err)
-      }
     }
   }
 
@@ -673,13 +368,9 @@ export async function GET(req: NextRequest) {
     siteOrigin: 'https://www.crazy4points.com',
     alertIdByIntelId,
     approveMetaByIntelId,
-    reviseCounters: {
-      run: revisions_run,
-      succeeded: revisions_succeeded,
-      failed: revisions_failed,
-      resolved: revisions_resolved,
-      persistent: revisions_persistent,
-    },
+    // Revise loop no longer runs in build-brief (triage refactor). Counters
+    // zeroed so the existing buildBriefEmail signature still satisfies.
+    reviseCounters: { run: 0, succeeded: 0, failed: 0, resolved: 0, persistent: 0 },
   })
 
   // Persist the rendered HTML so admin can preview a brief in-app without
@@ -712,18 +403,10 @@ export async function GET(req: NextRequest) {
   }
 
   const approve_count = plan?.approve.length ?? 0
-  const writer_success_rate = approve_count
-    ? Number((drafts_written / approve_count).toFixed(2))
-    : null
-  if (approve_count) {
+  const reject_count = plan?.reject.length ?? 0
+  if (approve_count || reject_count) {
     console.log(
-      `[build-brief] writer stats — approves=${approve_count} drafts=${drafts_written} null=${writer_null_drafts} no_pending=${writer_no_pending_alert} errors=${writer_update_errors} success_rate=${writer_success_rate}`
-    )
-    console.log(
-      `[build-brief] editor stats — run=${editor_run} null=${editor_null}`
-    )
-    console.log(
-      `[build-brief] fact-check stats — run=${fact_checks_run} flagged_high_severity=${fact_checks_flagged} web_verify_runs=${web_verify_runs} web_likely_wrong=${web_verify_likely_wrong} revisions=${revisions_run} resolved=${revisions_resolved} persistent=${revisions_persistent} failed=${revisions_failed}`
+      `[build-brief] triage stats — approves=${approve_count} rejects=${reject_count} persisted=${triage_decisions_persisted}`
     )
   }
 
@@ -731,33 +414,21 @@ export async function GET(req: NextRequest) {
     findings_in_brief: findings.length,
     brief_id: briefId ?? null,
     plan_generated: plan !== null,
-    drafts_written,
-    writer_stats: {
+    triage_stats: {
       approve_count,
-      drafts_written,
-      null_drafts: writer_null_drafts,
-      no_pending_alert: writer_no_pending_alert,
-      update_errors: writer_update_errors,
-      success_rate: writer_success_rate,
-    },
-    editor_stats: {
-      run: editor_run,
-      null: editor_null,
-    },
-    fact_check_stats: {
-      run: fact_checks_run,
-      flagged_high_severity: fact_checks_flagged,
-      web_verify_runs,
-      web_likely_wrong: web_verify_likely_wrong,
-      revisions_run,
-      revisions_succeeded,
-      revisions_failed,
-      revisions_resolved,
-      revisions_persistent,
+      reject_count,
+      newsletter_idea_count: plan?.newsletter_candidates?.length ?? 0,
+      decisions_persisted: triage_decisions_persisted,
     },
     content_ideas_inserted,
     email_sent: emailSent,
     date,
+    // Auto-write removed; per-item writes happen on demand at /admin/triage.
+    // Keys preserved for downstream consumers (set to 0 / null).
+    drafts_written: 0,
+    writer_stats: { approve_count, drafts_written: 0, null_drafts: 0, no_pending_alert: 0, update_errors: 0, success_rate: null },
+    editor_stats: { run: 0, null: 0 },
+    fact_check_stats: { run: 0, flagged_high_severity: 0, web_verify_runs: 0, web_likely_wrong: 0, revisions_run: 0, revisions_succeeded: 0, revisions_failed: 0, revisions_resolved: 0, revisions_persistent: 0 },
   })
   } catch (err) {
     await logSystemError(supabase, 'brief', err)
