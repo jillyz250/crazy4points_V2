@@ -23,6 +23,17 @@ CORE RULES:
 4. Welcome bonuses with tiered spending requirements ("60K after $5K + 25K more after $12K") populate BOTH the main object AND a tiered[] entry per additional segment.
 5. Return ONE valid JSON object matching the schema. No prose before or after. No markdown fences.
 
+PLAIN-ENGLISH RULES FOR description FIELDS:
+The benefits[].description field is READER-FACING on the public card page. The source quote belongs in source_quote (verbatim with all the jargon); the description is a translation for non-experts. Translate industry jargon:
+  - "decline the CDW" → "decline the rental counter's damage-coverage upsell" (CDW = Collision Damage Waiver)
+  - "common carrier" → "scheduled travel (plane, train, ship, or bus)"
+  - "Covered Purchase" / "Covered Purchases" → "eligible purchase(s)"
+  - "AD&D" → "Accidental Death and Dismemberment"
+  - "NPSL" → "No Preset Spending Limit (no fixed credit line; flexes with spending pattern)"
+  - "ENC" → "Elite Night Credits"
+  - "TQN" → "Tier-Qualifying Night"
+Don't dump issuer legalese verbatim into description. If the source says "Coverage is provided up to $1,250 per Common Carrier Vehicle ticket", description reads "Up to $1,250 for lost/damaged baggage on scheduled transit when you paid the full fare with this card." Source_quote stays verbatim. Aim for ~80-200 chars per description, scannable, active voice.
+
 SOURCE_QUOTE RULES (CRITICAL FOR JSON VALIDITY):
 6. Keep every source_quote under 120 characters. If the source sentence is longer, quote the most relevant fragment.
 7. Inside a source_quote, every double-quote " MUST be escaped as \\" — backslash-quote. Curly/smart quotes (" " ' ') do NOT need escaping but prefer straight quotes if available.
