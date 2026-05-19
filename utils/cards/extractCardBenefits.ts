@@ -30,9 +30,22 @@ import { verifyCardExtraction } from '@/utils/cards/verifyCardExtraction'
 
 const MODEL = 'claude-sonnet-4-6'
 
-// Generous limit — Sapphire Reserve product page is ~25K chars of markdown.
-// Sonnet handles up to 200K context; cost is what matters.
-const MARKDOWN_CHAR_LIMIT = 40_000
+// Total markdown budget across ALL configured source URLs combined. After
+// scraping, the concatenation is clipped to this size. Per-URL budget is
+// derived as MARKDOWN_CHAR_LIMIT / urlCount.
+//
+// Raised from 40K → 80K on 2026-05-19: Amex Business co-brand cards with
+// 4 configured URLs hit the 40K combined cap, truncating the bottom of
+// the benefits dashboard and losing trip insurance / purchase protection
+// rows. Sonnet 4.6 has 200K context (~50K tokens for input markdown is
+// comfortable); ~80K chars ≈ 20K tokens of source content per extraction.
+//
+// Per-URL math at 80K:
+//   1 URL  → 80K/URL  (fine for standalone product pages)
+//   2 URLs → 40K/URL  (fine for issuer + co-brand-partner page)
+//   3 URLs → 26K/URL  (fine for typical co-brand setup)
+//   4 URLs → 20K/URL  (sufficient for benefits-dense Amex Business pages)
+const MARKDOWN_CHAR_LIMIT = 80_000
 
 export type ExtractionResult =
   | { ok: true; extractionId: string; extraction: CardExtraction }
