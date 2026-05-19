@@ -15,6 +15,7 @@ import type {
   NewsletterHeadsUpItem,
   NewsletterRadarItem,
 } from './buildNewsletter'
+import { unsubscribeUrlFor } from '@/utils/email/unsubscribeToken'
 
 const PURPLE = '#6B2D8F'
 const GOLD = '#D4AF37'
@@ -154,6 +155,8 @@ export interface RenderNewsletterArgs {
   origin?: string
   comicUrl?: string | null
   isPreview?: boolean
+  /** Recipient email — required for personalised unsubscribe URL. */
+  recipientEmail?: string
 }
 
 export function renderNewsletterHtml({
@@ -163,6 +166,7 @@ export function renderNewsletterHtml({
   origin = 'https://www.crazy4points.com',
   comicUrl,
   isPreview = false,
+  recipientEmail,
 }: RenderNewsletterArgs): string {
   const logoUrl = `${origin}/crazy4points-logo.png`
 
@@ -235,7 +239,7 @@ export function renderNewsletterHtml({
         </td></tr>
         <tr><td style="padding:24px 28px 32px;border-top:1px solid ${BORDER};background:${SOFT_BG};text-align:center;">
           <p style="margin:0 0 8px;font-family:${FONT_UI};font-size:13px;color:${MUTED};">Forwarded this? <a href="${origin}" style="color:${PURPLE};font-weight:600;text-decoration:none;">Subscribe for free</a></p>
-          <p style="margin:0;font-family:${FONT_UI};font-size:11px;color:${MUTED};">crazy4points.com · <a href="${origin}/unsubscribe" style="color:${MUTED};text-decoration:underline;">Unsubscribe</a></p>
+          <p style="margin:0;font-family:${FONT_UI};font-size:11px;color:${MUTED};">crazy4points.com · <a href="${recipientEmail ? unsubscribeUrlFor(recipientEmail, origin) : `${origin}/unsubscribe`}" style="color:${MUTED};text-decoration:underline;">Unsubscribe</a></p>
         </td></tr>
       </table>
     </td></tr>

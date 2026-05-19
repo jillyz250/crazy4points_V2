@@ -12,6 +12,7 @@ export default async function UnsubscribePage({
   const { status } = await searchParams
   const success = status === 'success'
   const error = status === 'error'
+  const invalidLink = status === 'invalid-link'
 
   return (
     <main className="rg-major-section">
@@ -36,6 +37,21 @@ export default async function UnsubscribePage({
               </h1>
               <p className="mt-4 font-body text-[var(--color-text-secondary)]">
                 We couldn't process your unsubscribe request. Please try again or contact us.
+              </p>
+              <Link href="/" className="rg-btn-secondary mt-8 inline-block">
+                Go Home
+              </Link>
+            </>
+          ) : invalidLink ? (
+            <>
+              <h1 className="font-display text-3xl font-semibold text-[var(--color-primary)]">
+                Link expired or invalid
+              </h1>
+              <p className="mt-4 font-body text-[var(--color-text-secondary)]">
+                This unsubscribe link is missing its signature or is no longer
+                valid. Please use the unsubscribe link in your most recent email
+                from us. If you can't find one, reply to any of our emails and
+                we'll remove you manually.
               </p>
               <Link href="/" className="rg-btn-secondary mt-8 inline-block">
                 Go Home

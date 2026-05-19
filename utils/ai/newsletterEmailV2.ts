@@ -10,6 +10,7 @@
  * (newsletterEmail.ts) stays in place for legacy/already-sent newsletters.
  */
 import type { NewsletterSlots, AlsoHappeningItem, NewsletterSweetSpot } from './newsletterSlots'
+import { unsubscribeUrlFor } from '@/utils/email/unsubscribeToken'
 
 const PURPLE = '#6B2D8F'
 const GOLD = '#D4AF37'
@@ -158,6 +159,10 @@ export interface RenderNewsletterV2Args {
   origin?: string
   /** When true, prepends a gold "preview" banner so admin/test sends look distinct from real ones. */
   isPreview?: boolean
+  /** Recipient email — required for personalised unsubscribe URL. When omitted
+   *  (e.g. admin preview without a real subscriber), the footer falls back
+   *  to the public /unsubscribe page. */
+  recipientEmail?: string
 }
 
 export function renderNewsletterV2Html({
@@ -165,6 +170,7 @@ export function renderNewsletterV2Html({
   weekOf,
   origin = 'https://crazy4points.com',
   isPreview = false,
+  recipientEmail,
 }: RenderNewsletterV2Args): string {
   const logoUrl = `${origin}/crazy4points-logo.png`
   const subject = slots.subject || 'Crazy4Points — Weekly'
@@ -212,7 +218,7 @@ export function renderNewsletterV2Html({
         <!-- Footer -->
         <tr><td style="padding:32px 28px 32px;border-top:1px solid ${BORDER};background:${SOFT_BG};text-align:center;margin-top:24px;">
           <p style="margin:0 0 8px;font-family:${FONT_UI};font-size:13px;color:${MUTED};">Forward this to a friend who's better at points than you.</p>
-          <p style="margin:0;font-family:${FONT_UI};font-size:11px;color:${MUTED};">crazy4points.com · <a href="${origin}/unsubscribe" style="color:${MUTED};text-decoration:underline;">Unsubscribe</a></p>
+          <p style="margin:0;font-family:${FONT_UI};font-size:11px;color:${MUTED};">crazy4points.com · <a href="${recipientEmail ? unsubscribeUrlFor(recipientEmail, origin) : `${origin}/unsubscribe`}" style="color:${MUTED};text-decoration:underline;">Unsubscribe</a></p>
         </td></tr>
 
       </table>
