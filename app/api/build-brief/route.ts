@@ -247,10 +247,10 @@ export async function GET(req: NextRequest) {
   if (plan) {
     const triageUpdates: Array<{ intel_id: string; decision: string; reasoning: string }> = []
     for (const a of plan.approve) {
-      triageUpdates.push({ intel_id: a.intel_id, decision: 'approved', reasoning: a.reason ?? '' })
+      triageUpdates.push({ intel_id: a.intel_id, decision: 'approved', reasoning: a.why_publish ?? '' })
     }
     for (const r of plan.reject) {
-      triageUpdates.push({ intel_id: r.intel_id, decision: 'rejected', reasoning: r.reason ?? '' })
+      triageUpdates.push({ intel_id: r.intel_id, decision: 'rejected', reasoning: r.why_reject ?? '' })
     }
     for (const b of plan.newsletter_candidates ?? []) {
       triageUpdates.push({ intel_id: b.intel_id, decision: 'newsletter_idea', reasoning: b.angle ?? '' })
