@@ -869,6 +869,7 @@ export default async function CardPage({
             rows={transferPartnersOutbound}
             programNameBySlug={programNameBySlug}
             direction="outbound"
+            currentCardSlug={card.slug}
           />
         </SimpleTile>
       ) : null}

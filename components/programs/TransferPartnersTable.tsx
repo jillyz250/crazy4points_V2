@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import type { TransferPartnerRow } from '@/utils/supabase/queries'
+import type { TransferPartnerRow, TransferPartnerTier } from '@/utils/supabase/queries'
 
 /**
  * Renders the structured transfer_partners JSONB as a clean responsive table.
@@ -43,14 +43,91 @@ function titleCaseSlug(slug: string): string {
  * kept for backward compat — the structural meaning depends on which
  * JSONB column the rows came from).
  */
+/**
+ * Pick which tier to display when a row is tier-aware. Returns the tier whose
+ * eligible_card_slugs includes the viewer's card slug, or null if none match
+ * (the card doesn't qualify to transfer to this partner at all).
+ */
+function tierForCard(tiers: TransferPartnerTier[], currentCardSlug: string): TransferPartnerTier | null {
+  return tiers.find((t) => t.eligible_card_slugs.includes(currentCardSlug)) ?? null
+}
+
+/**
+ * Render the ratio cell. Three shapes:
+ *   1. Flat row (no tiers) → just `row.ratio`
+ *   2. Tiered row + currentCardSlug → filter to the matching tier (or "Not eligible")
+ *   3. Tiered row + no card context → show all tiers stacked (program-page view)
+ */
+function RatioCell({ row, currentCardSlug }: { row: TransferPartnerRow; currentCardSlug?: string }) {
+  const baseStyle: React.CSSProperties = {
+    fontFamily: 'var(--font-ui)',
+    fontWeight: 600,
+  }
+
+  if (!row.tiers || row.tiers.length === 0) {
+    return <span style={baseStyle}>{row.ratio}</span>
+  }
+
+  // Card-level filtering: show just the row's eligible tier.
+  if (currentCardSlug) {
+    const matched = tierForCard(row.tiers, currentCardSlug)
+    if (!matched) {
+      return (
+        <span style={{ ...baseStyle, color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>
+          Not eligible
+        </span>
+      )
+    }
+    if (matched.promo_ratio) {
+      return (
+        <span style={baseStyle}>
+          <span>{matched.promo_ratio}</span>{' '}
+          <span style={{ color: 'var(--color-text-secondary)', fontWeight: 400, textDecoration: 'line-through', fontSize: '0.8125rem' }}>
+            {matched.ratio}
+          </span>
+        </span>
+      )
+    }
+    return <span style={baseStyle}>{matched.ratio}</span>
+  }
+
+  // Program-page view: stack tiers.
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+      {row.tiers.map((t) => (
+        <div key={t.tier} style={{ fontSize: '0.8125rem' }}>
+          <span style={{ fontFamily: 'var(--font-ui)', textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.6875rem', color: 'var(--color-text-secondary)', marginRight: '0.5rem' }}>
+            {t.tier}
+          </span>
+          {t.promo_ratio ? (
+            <>
+              <span style={baseStyle}>{t.promo_ratio}</span>{' '}
+              <span style={{ color: 'var(--color-text-secondary)', fontWeight: 400, textDecoration: 'line-through' }}>
+                {t.ratio}
+              </span>
+            </>
+          ) : (
+            <span style={baseStyle}>{t.ratio}</span>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function TransferPartnersTable({
   rows,
   programNameBySlug,
   direction = 'inbound',
+  currentCardSlug,
 }: {
   rows: TransferPartnerRow[]
   programNameBySlug: Map<string, string>
   direction?: 'inbound' | 'outbound'
+  /** When rendered on a card detail page, pass the card's slug so tiered rows
+   *  filter to the card's eligibility tier. Omit on program pages to show
+   *  all tiers stacked. */
+  currentCardSlug?: string
 }) {
   if (rows.length === 0) return null
   const partnerColumnLabel = direction === 'outbound' ? 'To' : 'From'
@@ -128,8 +205,8 @@ export default function TransferPartnersTable({
                     </span>
                   )}
                 </td>
-                <td style={{ padding: '0.75rem', fontFamily: 'var(--font-ui)', fontWeight: 600, verticalAlign: 'top', wordBreak: 'break-word' }}>
-                  {row.ratio}
+                <td style={{ padding: '0.75rem', verticalAlign: 'top', wordBreak: 'break-word' }}>
+                  <RatioCell row={row} currentCardSlug={currentCardSlug} />
                 </td>
                 <td style={{ padding: '0.75rem', color: 'var(--color-text-secondary)', fontSize: '0.875rem', verticalAlign: 'top' }}>
                   {row.notes ?? '—'}

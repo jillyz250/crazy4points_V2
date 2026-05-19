@@ -181,11 +181,30 @@ export const ALLIANCE_OPTIONS: Array<{ value: Alliance; label: string }> = [
   { value: 'other',         label: 'Other / partnership' },
 ]
 
+export interface TransferPartnerTier {
+  /** Tier identifier — currently 'premium' or 'standard'; reserved for future per-card tier names. */
+  tier: string
+  /** Base transfer ratio for this tier (e.g. "1:1", "1:0.7"). */
+  ratio: string
+  /** Promo-boosted ratio, if a temporary bonus is running. Renderer should show
+   *  this with a strikethrough on `ratio` when present. */
+  promo_ratio?: string | null
+  /** Credit card slugs (matches `credit_cards.slug`) that qualify for this tier's ratio. */
+  eligible_card_slugs: string[]
+}
+
 export interface TransferPartnerRow {
   from_slug: string
+  /** Flat ratio — used by non-tiered programs (Amex/Chase/Bilt/Cap One/hotels).
+   *  When `tiers` is populated, this is ignored at render-time. */
   ratio: string
   notes: string | null
   bonus_active: boolean
+  /** Tier-aware ratios. Set for programs where the ratio depends on which
+   *  card the holder has (Citi ThankYou is the canonical case). When present,
+   *  the renderer picks the row matching the viewer's card slug; on the
+   *  program page it shows all tiers side by side. */
+  tiers?: TransferPartnerTier[] | null
 }
 
 export interface TierBenefitRow {

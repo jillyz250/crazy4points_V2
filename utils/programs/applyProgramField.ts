@@ -14,6 +14,29 @@
 
 import { createAdminClient } from '@/utils/supabase/server'
 
+/**
+ * GUARDIAN: detect when a value is "empty" enough that overwriting a
+ * populated previous value would be destructive.
+ *
+ * Counted as empty:
+ *   - null / undefined
+ *   - empty string (after trim)
+ *   - empty array (length 0)
+ *   - object with zero own keys (treats {} JSONB as empty)
+ *
+ * NOT counted as empty (legitimate values):
+ *   - 0, false, "0", etc.
+ *   - arrays with items (even if every item is null — that's the editor's call)
+ *   - objects with any key
+ */
+function isEmptyValue(v: unknown): boolean {
+  if (v == null) return true
+  if (typeof v === 'string') return v.trim() === ''
+  if (Array.isArray(v)) return v.length === 0
+  if (typeof v === 'object') return Object.keys(v as object).length === 0
+  return false
+}
+
 const ALLOWED_FIELDS = [
   'intro',
   'sweet_spots',
@@ -33,18 +56,30 @@ export function isApplyableField(s: string): s is ApplyableField {
 
 export type ApplyResult =
   | { ok: true; field: ApplyableField; previousValue: unknown }
-  | { ok: false; error: string }
+  | { ok: false; error: string; reason?: 'blank_guard' | 'snapshot_failed' | 'update_failed' | 'fetch_failed' }
 
 export async function applyProgramField({
   programId,
   field,
   newValue,
   extractionId,
+  allowBlank = false,
 }: {
   programId: string
   field: ApplyableField
   newValue: unknown
   extractionId: string
+  /**
+   * GUARDIAN bypass — when true, allows writing an empty value over a populated
+   * one (legitimate "Clear field" admin action). Default false: empty-over-
+   * populated is refused with a blank_guard error.
+   *
+   * This is the non-destructive program-extraction safeguard. Same risk class
+   * as PR #621 (non-destructive card extraction): a failed re-extraction
+   * returning null for a field must NEVER blank that field unless the editor
+   * explicitly intends to clear it.
+   */
+  allowBlank?: boolean
 }): Promise<ApplyResult> {
   const supabase = createAdminClient()
 
@@ -56,10 +91,24 @@ export async function applyProgramField({
     .single()
 
   if (fetchErr || !currentRow) {
-    return { ok: false, error: `Could not read current value: ${fetchErr?.message ?? 'not found'}` }
+    return { ok: false, error: `Could not read current value: ${fetchErr?.message ?? 'not found'}`, reason: 'fetch_failed' }
   }
 
   const previousValue = (currentRow as unknown as Record<string, unknown>)[field]
+
+  // GUARDIAN: refuse to blank a populated field.
+  // If the editor (or a re-extraction) submitted an empty new value but the
+  // current value has real content, we stop here. Editor must explicitly opt
+  // in via allowBlank=true to clear a field.
+  if (!allowBlank && isEmptyValue(newValue) && !isEmptyValue(previousValue)) {
+    return {
+      ok: false,
+      reason: 'blank_guard',
+      error:
+        `Refusing to blank populated field "${field}". The extraction returned no value, but the current value has content. ` +
+        `If you intend to clear this field, use the explicit "Clear field" admin action (allowBlank=true) — never via Apply on an empty diff.`,
+    }
+  }
 
   // 2. Snapshot to history BEFORE we overwrite
   const { error: histErr } = await supabase.from('program_field_history').insert({
@@ -72,7 +121,7 @@ export async function applyProgramField({
 
   if (histErr) {
     // Hard fail — we never want to overwrite without a backup
-    return { ok: false, error: `Failed to snapshot prior value: ${histErr.message}` }
+    return { ok: false, error: `Failed to snapshot prior value: ${histErr.message}`, reason: 'snapshot_failed' }
   }
 
   // 3. Update programs.<field>
@@ -95,7 +144,7 @@ export async function applyProgramField({
     .eq('id', programId)
 
   if (updateErr) {
-    return { ok: false, error: `Update failed: ${updateErr.message}` }
+    return { ok: false, error: `Update failed: ${updateErr.message}`, reason: 'update_failed' }
   }
 
   // 4. Mark applied on the extraction row
