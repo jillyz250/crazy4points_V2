@@ -4,6 +4,7 @@ import ExtractionReview from '@/components/admin/cards/ExtractionReview'
 import RunExtractionButton from '@/components/admin/cards/RunExtractionButton'
 import ManualWelcomeBonusForm from '@/components/admin/cards/ManualWelcomeBonusForm'
 import ExtractionActionButton from '@/components/admin/cards/ExtractionActionButton'
+import GoodToKnowEditor from '@/components/admin/cards/GoodToKnowEditor'
 import ManualMarkdownInput from '@/components/admin/programs/ManualMarkdownInput'
 import {
   runExtractionAndSave,
@@ -53,6 +54,7 @@ export default async function CardExtractPage({
       intro, last_verified,
       requires_manual_paste, manual_paste_reason,
       benefits_human_curated,
+      good_to_know,
       issuer:issuers(slug, name, website_url)
     `)
     .eq('slug', slug)
@@ -603,6 +605,14 @@ export default async function CardExtractPage({
               />
             )
           })()}
+
+          {/* Editorial layer — Sonnet-draft + manual edit of good_to_know.
+              Lives below extraction review because curation comes after facts. */}
+          <GoodToKnowEditor
+            slug={card.slug}
+            initialValue={(card as { good_to_know?: string | null }).good_to_know ?? null}
+          />
+
 
           {/* Raw scraped markdown — collapsed by default to keep the page lean.
               Useful when an extraction is wrong and you want to confirm whether

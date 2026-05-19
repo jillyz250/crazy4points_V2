@@ -5,6 +5,7 @@ import { createAdminClient } from '@/utils/supabase/server'
 import { extractCardBenefits } from '@/utils/cards/extractCardBenefits'
 import { saveExtractedBenefits } from '@/utils/cards/saveExtractedBenefits'
 import { discoverCardSourceUrl } from '@/utils/cards/discoverCardSourceUrl'
+import { draftGoodToKnow } from '@/utils/cards/draftGoodToKnow'
 import { setManualOverride } from '@/utils/admin/manualOverride'
 import { checkUrl, type UrlCheckResult } from '@/utils/admin/checkUrl'
 import type { CardExtraction } from '@/utils/cards/cardExtractionSchema'
@@ -530,4 +531,67 @@ export async function setCardManualOverride(formData: FormData): Promise<void> {
   revalidatePath(`/admin/cards/${slug}/extract`)
   revalidatePath(`/cards/${slug}`)
   revalidatePath('/admin/manual-overrides')
+}
+
+/**
+ * Sonnet-draft a good_to_know block for this card in Jill's voice, using
+ * existing good_to_know on other cards as few-shot voice samples. Saves
+ * directly to credit_cards.good_to_know so the textarea picks it up on
+ * page revalidation.
+ *
+ * Editor's responsibility: review before publishing. Sonnet is a writing
+ * assistant, not a final authority. ~$0.02 per call.
+ */
+export async function draftGoodToKnowAction(formData: FormData): Promise<void> {
+  const slug = String(formData.get('slug') ?? '').trim()
+  if (!slug) return
+
+  const supabase = createAdminClient()
+  const { data: card } = await supabase
+    .from('credit_cards')
+    .select('id')
+    .eq('slug', slug)
+    .single()
+  if (!card) {
+    console.error(`[good-to-know] card not found: ${slug}`)
+    return
+  }
+
+  const result = await draftGoodToKnow({ supabase, cardId: card.id as string })
+  if (!result.ok) {
+    console.error(`[good-to-know] draft failed: ${result.error}`)
+    return
+  }
+
+  await supabase
+    .from('credit_cards')
+    .update({ good_to_know: result.draft, updated_at: new Date().toISOString() })
+    .eq('id', card.id)
+
+  console.log(`[good-to-know] saved draft for ${slug} (${result.voiceSamplesUsed} voice samples, ${result.draft.length} chars)`)
+
+  revalidatePath(`/admin/cards/${slug}/extract`)
+  revalidatePath(`/cards/${slug}`)
+}
+
+/**
+ * Save good_to_know directly from the textarea on the extract page.
+ * Editor uses this after editing the Sonnet draft.
+ */
+export async function saveGoodToKnowAction(formData: FormData): Promise<void> {
+  const slug = String(formData.get('slug') ?? '').trim()
+  const value = String(formData.get('good_to_know') ?? '')
+  if (!slug) return
+
+  const supabase = createAdminClient()
+  await supabase
+    .from('credit_cards')
+    .update({
+      good_to_know: value.trim() || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('slug', slug)
+
+  revalidatePath(`/admin/cards/${slug}/extract`)
+  revalidatePath(`/cards/${slug}`)
 }
