@@ -5,7 +5,7 @@ import { createAdminClient } from '@/utils/supabase/server'
 import { writeEditCheck } from '@/utils/ai/writeEditCheck'
 import { buildExtraContext } from '@/utils/ai/buildExtraContext'
 import { loadAllianceContextForPrograms, updateAlert, setAlertPrograms } from '@/utils/supabase/queries'
-import type { AlertStatus } from '@/utils/supabase/queries'
+import type { Alert } from '@/utils/supabase/queries'
 import type { WriteDraftProgram } from '@/utils/ai/writeAlertDraft'
 
 /**
@@ -91,7 +91,7 @@ export async function writeAlertFromCandidate(formData: FormData): Promise<void>
       .select('id')
       .eq('source_intel_id', intelId)
       .maybeSingle()
-    const draftRow = {
+    const draftRow: Partial<Omit<Alert, 'id' | 'created_at' | 'updated_at'>> = {
       title: wec.draft.title,
       summary: wec.draft.summary,
       description: wec.draft.description,
@@ -99,7 +99,7 @@ export async function writeAlertFromCandidate(formData: FormData): Promise<void>
       end_date: wec.draft.end_date,
       voice_pass: wec.voice?.passed ?? null,
       voice_score: wec.voice?.score ?? null,
-      status: 'pending_review' as AlertStatus,
+      status: 'pending_review',
     }
     if (existing?.id) {
       alertId = existing.id as string
