@@ -211,6 +211,25 @@ export async function saveExtractedBenefits({
     .eq('id', cardId)
   if (cardErr) return { ok: false, error: `credit_cards update failed: ${cardErr.message}` }
 
+  // ── Determine save mode (merge vs replace) based on curated flag ───────
+  // Curated cards have hand-authored benefits with editorial polish. Auto
+  // re-extraction can miss content behind JS accordions (Chase business
+  // pages especially), and the legacy delete-then-insert would overwrite
+  // the curated work.
+  //
+  // For curated cards (benefits_human_curated=true): MERGE — keep all
+  // existing rows, only insert genuinely-new rows that don't match an
+  // existing benefit_type / name. Re-extraction can only ADD value.
+  //
+  // For auto-managed cards: REPLACE — delete-then-insert the extraction
+  // result (the extraction IS the source of truth).
+  const { data: curatedRow } = await supabase
+    .from('credit_cards')
+    .select('benefits_human_curated')
+    .eq('id', cardId)
+    .maybeSingle()
+  const isCurated = (curatedRow as { benefits_human_curated?: boolean } | null)?.benefits_human_curated === true
+
   // ── 2. Replace earn rates ──────────────────────────────────────────────
   // NON-DESTRUCTIVE: if Sonnet returned an empty earn_rates array (because the
   // scraped page didn't contain earn rates — e.g. extracting from a benefits
@@ -228,9 +247,27 @@ export async function saveExtractedBenefits({
     notes: r.notes,
   }))
   if (earnRows.length > 0) {
-    await supabase.from('credit_card_earn_rates').delete().eq('card_id', cardId)
-    const { error: earnErr } = await supabase.from('credit_card_earn_rates').insert(earnRows)
-    if (earnErr) return { ok: false, error: `earn_rates insert failed: ${earnErr.message}` }
+    if (isCurated) {
+      // Merge: keep existing earn rates; only add new (category, booking_channel) pairs
+      const { data: existingEarn } = await supabase
+        .from('credit_card_earn_rates')
+        .select('category, booking_channel')
+        .eq('card_id', cardId)
+      const existingKeys = new Set(
+        ((existingEarn ?? []) as Array<{ category: string; booking_channel: string | null }>).map(
+          (e) => `${e.category}|${e.booking_channel}`,
+        ),
+      )
+      const toInsert = earnRows.filter((r) => !existingKeys.has(`${r.category}|${r.booking_channel}`))
+      if (toInsert.length > 0) {
+        const { error: earnErr } = await supabase.from('credit_card_earn_rates').insert(toInsert)
+        if (earnErr) return { ok: false, error: `earn_rates merge-insert failed: ${earnErr.message}` }
+      }
+    } else {
+      await supabase.from('credit_card_earn_rates').delete().eq('card_id', cardId)
+      const { error: earnErr } = await supabase.from('credit_card_earn_rates').insert(earnRows)
+      if (earnErr) return { ok: false, error: `earn_rates insert failed: ${earnErr.message}` }
+    }
   }
 
   // ── 3. Replace structured benefits ─────────────────────────────────────
@@ -256,9 +293,49 @@ export async function saveExtractedBenefits({
     }
   })
   if (benefitRows.length > 0) {
-    await supabase.from('credit_card_benefits').delete().eq('card_id', cardId)
-    const { error: benErr } = await supabase.from('credit_card_benefits').insert(benefitRows)
-    if (benErr) return { ok: false, error: `credit_card_benefits insert failed: ${benErr.message}` }
+    if (isCurated) {
+      // Merge: keep existing curated benefits, only insert genuinely-new ones.
+      // Dedup logic:
+      //   - If benefit_type is specific (NOT 'other'), match on benefit_type
+      //     (e.g. only one 'lounge_priority_pass' per card; only one
+      //     'free_night_award' per card).
+      //   - Otherwise match on normalized name (case-insensitive, alphanumeric).
+      // This preserves the editorial polish on existing rows while still
+      // adding new benefits the extraction discovered (e.g. referral
+      // programs Sonnet found that the editor hadn't authored yet).
+      const { data: existingBens } = await supabase
+        .from('credit_card_benefits')
+        .select('benefit_type, name, sort_order')
+        .eq('card_id', cardId)
+      const normName = (s: string | null) =>
+        (s ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+      const existingTypes = new Set<string>()
+      const existingNames = new Set<string>()
+      for (const e of (existingBens ?? []) as Array<{ benefit_type: string | null; name: string | null }>) {
+        if (e.benefit_type && e.benefit_type !== 'other') existingTypes.add(e.benefit_type)
+        existingNames.add(normName(e.name))
+      }
+      const toInsert = benefitRows.filter((b) => {
+        if (b.benefit_type && b.benefit_type !== 'other' && existingTypes.has(b.benefit_type)) return false
+        if (existingNames.has(normName(b.name))) return false
+        return true
+      })
+      if (toInsert.length > 0) {
+        const maxOrder = Math.max(
+          -1,
+          ...((existingBens ?? []) as Array<{ sort_order: number | null }>).map(
+            (e) => e.sort_order ?? -1,
+          ),
+        )
+        const reindexed = toInsert.map((b, i) => ({ ...b, sort_order: maxOrder + 1 + i }))
+        const { error: benErr } = await supabase.from('credit_card_benefits').insert(reindexed)
+        if (benErr) return { ok: false, error: `credit_card_benefits merge-insert failed: ${benErr.message}` }
+      }
+    } else {
+      await supabase.from('credit_card_benefits').delete().eq('card_id', cardId)
+      const { error: benErr } = await supabase.from('credit_card_benefits').insert(benefitRows)
+      if (benErr) return { ok: false, error: `credit_card_benefits insert failed: ${benErr.message}` }
+    }
   }
 
   // ── 4. Welcome bonus: upsert is_current + flip historical_high + elevated ─
