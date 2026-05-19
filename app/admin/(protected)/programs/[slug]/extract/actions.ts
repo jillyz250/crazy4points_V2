@@ -229,6 +229,24 @@ export async function applyExtractedField(formData: FormData): Promise<void> {
 
   if (!result.ok) {
     console.error(`[program-extract] apply failed for ${field}: ${result.error}`)
+
+    // GUARDIAN: when a blank-over-populated apply is refused, surface the
+    // outcome on the extraction row so the admin UI can render a clear
+    // "🛡️ blocked: would blank existing value" badge instead of leaving the
+    // editor wondering why nothing happened.
+    if (result.reason === 'blank_guard') {
+      const { data: row } = await supabase
+        .from('program_extractions')
+        .select('applied_fields')
+        .eq('id', extractionId)
+        .single()
+      const applied = ((row?.applied_fields as Record<string, string> | null) ?? {})
+      applied[field] = 'guard_blocked'
+      await supabase
+        .from('program_extractions')
+        .update({ applied_fields: applied })
+        .eq('id', extractionId)
+    }
   }
 
   // Revalidate both admin extract + public program page

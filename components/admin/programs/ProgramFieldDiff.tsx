@@ -95,6 +95,17 @@ export default function ProgramFieldDiff({
     statusBadge = <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-ui text-[10px] uppercase tracking-wide text-emerald-800">✓ Applied</span>
   } else if (appliedStatus === 'skipped') {
     statusBadge = <span className="rounded-full bg-gray-100 px-2 py-0.5 font-ui text-[10px] uppercase tracking-wide text-gray-700">⏭ Skipped</span>
+  } else if (appliedStatus === 'guard_blocked') {
+    // GUARDIAN: the apply was refused because the new value was empty and
+    // the current value was populated. Editor needs to know nothing changed.
+    statusBadge = (
+      <span
+        className="rounded-full bg-amber-100 px-2 py-0.5 font-ui text-[10px] uppercase tracking-wide text-amber-900"
+        title="Apply was refused: extraction returned no value, but the current field has content. Use Clear field if you actually want to blank it."
+      >
+        🛡️ Guard blocked
+      </span>
+    )
   }
 
   // Determine if there's a meaningful diff worth showing
