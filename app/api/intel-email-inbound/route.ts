@@ -106,7 +106,11 @@ export async function POST(req: NextRequest) {
   // --- 4 + 5. Sanitize HTML / strip attachments ------------------------------
   const html = payload.html ? sanitizeInboundHtml(payload.html).sanitized : ''
   const bodyText = (payload.text ?? '').trim() || stripHtmlForText(html)
-  const urls = html ? extractSafeUrls(html) : []
+  const allUrls = html ? extractSafeUrls(html) : []
+  // For source_url we want a meaningful destination — drop mailto: links
+  // (they show up from "unsubscribe by email" or "contact us"); they're
+  // safe and stay in the body, just not the canonical source.
+  const urls = allUrls.filter((u) => !u.toLowerCase().startsWith('mailto:'))
   // payload.attachments — intentionally never read further. They aren't stored.
 
   // --- 6. Extract +tag from To: address ------------------------------------
