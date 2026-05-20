@@ -199,7 +199,7 @@ export async function POST(req: NextRequest) {
         alert_type: null,
         programs: classification.programs,
         expires_at: null,
-        fact_origin: 'secondary',
+        fact_origin: classification.fact_origin,
         processed: true,
         rejected_at: new Date().toISOString(),
         rejected_reason: 'auto-discard: no loyalty angle',
@@ -234,10 +234,7 @@ export async function POST(req: NextRequest) {
       alert_type: (classification.alert_type as AlertType) ?? null,
       programs: classification.programs,
       expires_at: classification.expires_at,
-      fact_origin:
-        classification.confidence === 'high' && senderRow.source_id
-          ? 'official'
-          : 'secondary',
+      fact_origin: classification.fact_origin,
     },
     programSlugMap,
   )

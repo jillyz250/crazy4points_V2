@@ -24,12 +24,20 @@ export interface EmailClassificationInput {
   available_program_slugs: string[]
 }
 
+export type FactOriginGuess =
+  | 'official'
+  | 'secondary'
+  | 'social-rumor'
+  | 'inferred'
+  | 'ai-discovered-only'
+
 export interface EmailClassification {
   headline: string
   raw_summary: string
   programs: string[]
   alert_type: string | null
   confidence: 'high' | 'medium' | 'low'
+  fact_origin: FactOriginGuess
   expires_at: string | null // ISO datetime if Haiku detected one
   has_loyalty_angle: boolean // false → caller should quarantine or discard
   /** True when we couldn't get a real Haiku response. Caller decides what to do. */
@@ -53,6 +61,13 @@ RULES:
 - headline: under 100 chars, concrete and specific. Lead with the key fact.
 - raw_summary: 2-4 sentences, plain English. Captures the actionable detail.
 - expires_at: ISO date (YYYY-MM-DD) if the email mentions an offer deadline. Null otherwise.
+- fact_origin: where the underlying CLAIM originated. Distinct from confidence — it's about the upstream source of the fact, not how credible the reporter is.
+    "official"           — Direct from the issuer (forwarded From: an @<airline|hotel|bank>.com address, even if forwarded via Gmail; press release; official policy page).
+    "secondary"          — Credible blog / third-party reporting (TPG, OMAAT, Frequent Miler, Prince of Travel, etc.).
+    "social-rumor"       — Reddit / X social claim, not yet corroborated by official or secondary.
+    "inferred"           — Analyst inference from indirect signals (Grok summary, market commentary).
+    "ai-discovered-only" — AI surfaced this without a human-verifiable upstream source.
+  When the email is a Gmail FORWARD, look for forwarded headers in the body (e.g. "---------- Forwarded message ----------" with a "From: ..." line). The original From address determines fact_origin, not the gmail forwarder.
 
 OUTPUT — return ONLY strict JSON, no prose, no markdown, no code fences. All fields required:
 
@@ -63,6 +78,7 @@ OUTPUT — return ONLY strict JSON, no prose, no markdown, no code fences. All f
   "programs": string[],
   "alert_type": string | null,
   "confidence": "high" | "medium" | "low",
+  "fact_origin": "official" | "secondary" | "social-rumor" | "inferred" | "ai-discovered-only",
   "expires_at": string | null
 }`
 
@@ -128,6 +144,10 @@ Return strict JSON.`
     const allowed = new Set(input.available_program_slugs)
     const programs = (parsed.programs ?? []).filter((p) => allowed.has(p))
 
+    const VALID_FACT_ORIGINS = ['official', 'secondary', 'social-rumor', 'inferred', 'ai-discovered-only'] as const
+    const factOrigin: FactOriginGuess = VALID_FACT_ORIGINS.includes(parsed.fact_origin as FactOriginGuess)
+      ? (parsed.fact_origin as FactOriginGuess)
+      : 'secondary'
     return {
       has_loyalty_angle: parsed.has_loyalty_angle,
       headline: parsed.headline.slice(0, 240),
@@ -135,6 +155,7 @@ Return strict JSON.`
       programs,
       alert_type: parsed.alert_type,
       confidence: parsed.confidence,
+      fact_origin: factOrigin,
       expires_at: parsed.expires_at,
       fail_open: false,
     }
@@ -152,6 +173,7 @@ function failOpen(reason: string, subject: string): EmailClassification {
     programs: [],
     alert_type: null,
     confidence: 'low',
+    fact_origin: 'secondary',
     expires_at: null,
     fail_open: true,
   }
