@@ -105,13 +105,32 @@ export async function writeAlertFromCandidate(formData: FormData): Promise<void>
       alertId = existing.id as string
       await updateAlert(supabase, alertId, draftRow)
     } else {
+      // alerts.slug + alerts.type are NOT NULL — generate slug from intel ID
+      // (same pattern as run-scout/route.ts uses for staging) and pull alert
+      // type from the intel row.
+      const slug = `intel-${intelId.slice(0, 8)}-${Date.now()}`
+      const insertRow = {
+        source_intel_id: intelId,
+        slug,
+        type: (intel.type as string | null) ?? 'industry_news',
+        ...draftRow,
+      }
       const { data: inserted, error: insErr } = await supabase
         .from('alerts')
-        .insert({ source_intel_id: intelId, ...draftRow })
+        .insert(insertRow)
         .select('id')
         .single()
       if (insErr || !inserted) {
         console.error(`[triage] alert insert failed for ${intelId}:`, insErr)
+        // Also log to ingest errors so Jill can see what happened
+        try {
+          await supabase.from('intel_ingest_errors').insert({
+            source: 'manual',
+            stage: 'insert',
+            payload: { intel_id: intelId, insert_row: insertRow as Record<string, unknown> },
+            error_message: (insErr?.message ?? 'no error message').slice(0, 1000),
+          })
+        } catch {}
         return
       }
       alertId = inserted.id as string
