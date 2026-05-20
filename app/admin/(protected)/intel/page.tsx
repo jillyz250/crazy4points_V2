@@ -121,6 +121,27 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
 
   return (
     <div>
+      {/* Phase 1d.2 — soft migration banner. Hard redirect in 1d.3. */}
+      <div
+        style={{
+          padding: '0.75rem 1rem',
+          marginBottom: '1.25rem',
+          background: 'var(--color-chip-amber-bg)',
+          color: 'var(--color-chip-amber-fg)',
+          border: '1px solid var(--color-chip-amber)',
+          borderRadius: 'var(--admin-radius)',
+          fontFamily: 'var(--font-body)',
+          fontSize: '0.875rem',
+        }}
+      >
+        <strong>Moved.</strong> The new unified inbox is at{' '}
+        <Link href="/admin/triage" style={{ color: 'var(--admin-accent)', fontWeight: 600 }}>
+          /admin/triage
+        </Link>
+        . This page stays available during Phase 1 of the content-pipeline overhaul, but every new
+        feature (chips, snooze, sort-by-attention, Provenance Panel) lives on the new page.
+      </div>
+
       <PageHeader
         title="Triage"
         description="Raw findings from Claude Scout. Paste verified T&Cs (or a waiver reason) on the inbox cards, then promote to alert."

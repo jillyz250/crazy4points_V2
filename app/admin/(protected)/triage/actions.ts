@@ -143,9 +143,32 @@ export async function writeAlertFromCandidate(formData: FormData): Promise<void>
  * Skip a candidate — editor doesn't want it written. Marks intel as
  * processed + rejected so it drops out of the inbox.
  */
+const PRESET_REJECT_REASONS = new Set([
+  'duplicate',
+  'low-signal',
+  'wrong-program',
+  'off-brand',
+  'not-actionable',
+])
+
 export async function dismissCandidate(formData: FormData): Promise<void> {
   const intelId = String(formData.get('intel_id') ?? '').trim()
   if (!intelId) return
+
+  // Reason capture: preset value OR "other:<free text>". Anything we don't
+  // recognize and isn't an explicit "other:" gets stored verbatim — better
+  // than silently dropping editor commentary.
+  const rawReason = String(formData.get('rejected_reason') ?? '').trim()
+  let rejectedReason: string | null = null
+  if (rawReason) {
+    if (PRESET_REJECT_REASONS.has(rawReason)) {
+      rejectedReason = rawReason
+    } else if (rawReason.startsWith('other:')) {
+      rejectedReason = rawReason.slice(0, 500)
+    } else {
+      rejectedReason = `other:${rawReason}`.slice(0, 500)
+    }
+  }
 
   const supabase = createAdminClient()
   await supabase
@@ -153,8 +176,45 @@ export async function dismissCandidate(formData: FormData): Promise<void> {
     .update({
       processed: true,
       rejected_at: new Date().toISOString(),
-      reject_reason: 'manually skipped from /admin/triage',
+      rejected_reason: rejectedReason,
     })
+    .eq('id', intelId)
+
+  revalidatePath('/admin/triage')
+}
+
+/**
+ * Snooze an intel item to a future date. Hidden from Active view until
+ * snoozed_until passes. Triage-page side: 1d / 3d / 1w preset buttons +
+ * custom date input (Phase 1d.4 wires the UI).
+ */
+export async function snoozeIntel(formData: FormData): Promise<void> {
+  const intelId = String(formData.get('intel_id') ?? '').trim()
+  const snoozedUntilRaw = String(formData.get('snoozed_until') ?? '').trim()
+  if (!intelId || !snoozedUntilRaw) return
+  const snoozedUntil = new Date(snoozedUntilRaw)
+  if (Number.isNaN(snoozedUntil.getTime())) return
+
+  const supabase = createAdminClient()
+  await supabase
+    .from('intel_items')
+    .update({ snoozed_until: snoozedUntil.toISOString() })
+    .eq('id', intelId)
+
+  revalidatePath('/admin/triage')
+}
+
+/**
+ * Reverse a snooze. Surfaces the item back in Active immediately.
+ */
+export async function unsnoozeIntel(formData: FormData): Promise<void> {
+  const intelId = String(formData.get('intel_id') ?? '').trim()
+  if (!intelId) return
+
+  const supabase = createAdminClient()
+  await supabase
+    .from('intel_items')
+    .update({ snoozed_until: null })
     .eq('id', intelId)
 
   revalidatePath('/admin/triage')

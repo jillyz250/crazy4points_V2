@@ -6,8 +6,31 @@ import { isRateLimited, ipHashFromRequest } from '@/utils/security/rateLimit'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
+// Bot defense: Gmail dot-trick detector. Real Gmail users almost never have
+// 4+ dots in the local part. Bots use the dot-trick to test if the form
+// dedupes (Gmail ignores dots, so sid.uf.a.lip.e79@gmail.com and
+// siduflalipe79@gmail.com hit the same inbox). 4+ dots is overwhelmingly bot.
+// Caught two of these (2026-04-26, 2026-05-20) before adding this check.
+function looksLikeDotTrickBot(email: string): boolean {
+  const local = (email.split('@')[0] || '').toLowerCase()
+  const dotCount = (local.match(/\./g) ?? []).length
+  return dotCount >= 4
+}
+
+// Allowed signup_source values. Anything else gets coerced to 'api_direct'
+// so we can distinguish form submits from raw API hits.
+const ALLOWED_SOURCES = new Set([
+  'homepage_hero',
+  'footer',
+  'hub_hero',
+  'inline_alert',
+  'newsletter_link',
+  'manual',
+  'api_direct',
+])
+
 export async function POST(req: NextRequest) {
-  const { email, firstName, lastName, website } = await req.json()
+  const { email, firstName, lastName, website, source } = await req.json()
 
   // Honeypot — bots fill hidden fields; humans don't see it.
   if (website && String(website).trim() !== '') {
@@ -17,6 +40,16 @@ export async function POST(req: NextRequest) {
   if (!email || !email.includes('@')) {
     return NextResponse.json({ error: 'Valid email required.' }, { status: 400 })
   }
+
+  // Bot defense layer 2 — Gmail dot-trick pattern. Silently 200 so the bot
+  // doesn't learn we filter on this signature.
+  if (looksLikeDotTrickBot(email)) {
+    console.warn(`[subscribe] dot-trick bot rejected: ${email}`)
+    return NextResponse.json({ success: true })
+  }
+
+  const validatedSource =
+    typeof source === 'string' && ALLOWED_SOURCES.has(source) ? source : 'api_direct'
 
   const supabase = createAdminClient()
 
@@ -53,7 +86,8 @@ export async function POST(req: NextRequest) {
     if (existing.active) {
       return NextResponse.json({ error: 'You\'re already subscribed!' }, { status: 409 })
     }
-    // Reactivate unsubscribed user
+    // Reactivate unsubscribed user. Preserve the original signup_source
+    // (don't overwrite history); only stamp it if it was NULL on the legacy row.
     const { error: reactivateError } = await supabase
       .from('subscribers')
       .update({
@@ -74,6 +108,7 @@ export async function POST(req: NextRequest) {
         email: normalizedEmail,
         first_name: firstName?.trim() || null,
         last_name: lastName?.trim() || null,
+        signup_source: validatedSource,
       })
     if (dbError) {
       console.error('[subscribe] DB error:', dbError)
