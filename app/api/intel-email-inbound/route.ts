@@ -28,6 +28,7 @@ import { createAdminClient } from '@/utils/supabase/server'
 import { ingestItem } from '@/utils/intel/ingestItem'
 import { sanitizeInboundHtml, extractSafeUrls } from '@/utils/intel/email-inbound/sanitizeHtml'
 import { classifyEmail } from '@/utils/intel/email-inbound/classifyEmail'
+import { fetchResendInboundEmail } from '@/utils/intel/email-inbound/fetchResendInboundEmail'
 import { getAllPrograms } from '@/utils/supabase/queries'
 import type { AlertType } from '@/utils/supabase/queries'
 
@@ -66,12 +67,35 @@ export async function POST(req: NextRequest) {
 
   // --- 3. Parse payload -----------------------------------------------------
   let payload: ResendInboundPayload
+  let emailId: string | null = null
   try {
     const raw = await req.json()
     payload = normalizePayload(raw)
+    emailId = extractEmailId(raw)
   } catch (err) {
     await logIngestError('email', 'parse', err)
     return NextResponse.json({ ok: false, error: 'malformed JSON' }, { status: 400 })
+  }
+
+  // --- 3b. Resend webhook only ships metadata; fetch body via API ----------
+  // If we have an email_id but the webhook body is empty, retrieve the full
+  // content from Resend's receiving API. Synthetic test payloads include
+  // text/html directly and skip this step (they have no email_id).
+  if (emailId && !payload.text && !payload.html) {
+    const fetched = await fetchResendInboundEmail(emailId)
+    if (fetched) {
+      payload = {
+        from: payload.from || fetched.from || '',
+        to: payload.to.length > 0 ? payload.to : fetched.to,
+        subject: payload.subject ?? fetched.subject,
+        text: payload.text ?? fetched.text,
+        html: payload.html ?? fetched.html,
+      }
+    } else {
+      console.warn(
+        `[email-inbound] failed to fetch body for email_id=${emailId} — proceeding with metadata only`,
+      )
+    }
   }
 
   if (!payload.from || !payload.to || payload.to.length === 0) {
@@ -134,6 +158,7 @@ export async function POST(req: NextRequest) {
           text: bodyText.slice(0, 4000),
           urls,
           source_tag,
+          email_id: emailId, // preserve so Promote can re-fetch body if needed
         },
       })
       .select('id')
@@ -265,6 +290,18 @@ function normalizePayload(raw: unknown): ResendInboundPayload {
     text: (data.text ?? data.text_body ?? data.TextBody ?? null) as string | null,
     html: (data.html ?? data.html_body ?? data.HtmlBody ?? null) as string | null,
   }
+}
+
+/**
+ * Pull Resend's email_id out of the webhook envelope.
+ * Resend sends `{ type: 'email.received', data: { email_id, ... } }`.
+ */
+function extractEmailId(raw: unknown): string | null {
+  if (typeof raw !== 'object' || raw === null) return null
+  const r = raw as Record<string, unknown>
+  const data = typeof r.data === 'object' && r.data !== null ? (r.data as Record<string, unknown>) : r
+  const id = data.email_id ?? data.emailId ?? data.id
+  return typeof id === 'string' ? id : null
 }
 
 /** Pull bare address out of "Name <addr@host>" form. */

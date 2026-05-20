@@ -17,6 +17,7 @@ import { createAdminClient } from '@/utils/supabase/server'
 import { ingestItem } from '@/utils/intel/ingestItem'
 import { sanitizeInboundHtml } from '@/utils/intel/email-inbound/sanitizeHtml'
 import { classifyEmail } from '@/utils/intel/email-inbound/classifyEmail'
+import { fetchResendInboundEmail } from '@/utils/intel/email-inbound/fetchResendInboundEmail'
 import { getAllPrograms } from '@/utils/supabase/queries'
 import type { AlertType } from '@/utils/supabase/queries'
 
@@ -28,6 +29,7 @@ interface SavedPayload {
   text?: string | null
   urls?: string[]
   source_tag?: string | null
+  email_id?: string | null
 }
 
 export async function promoteQuarantine(formData: FormData): Promise<void> {
@@ -64,8 +66,21 @@ export async function promoteQuarantine(formData: FormData): Promise<void> {
     }
   }
 
-  // 3. Reconstruct the email body for classification.
-  const bodyText = (payload.text ?? '').trim() || stripHtmlForText(payload.html_sanitized ?? '')
+  // 3. Reconstruct the email body for classification. If the saved payload
+  //    body is empty AND we have a Resend email_id, re-fetch from Resend's API
+  //    (the original webhook only sent metadata).
+  let savedText = (payload.text ?? '').trim()
+  let savedHtml = payload.html_sanitized ?? ''
+  if (!savedText && !savedHtml && payload.email_id) {
+    const fetched = await fetchResendInboundEmail(payload.email_id)
+    if (fetched) {
+      savedText = (fetched.text ?? '').trim()
+      if (fetched.html) {
+        savedHtml = sanitizeInboundHtml(fetched.html).sanitized
+      }
+    }
+  }
+  const bodyText = savedText || stripHtmlForText(savedHtml)
 
   // 4. Re-run classification + ingestItem with the new fact that this is allowlisted.
   const programs = await getAllPrograms(supabase)
