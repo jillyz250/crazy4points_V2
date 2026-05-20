@@ -105,14 +105,28 @@ export async function writeAlertFromCandidate(formData: FormData): Promise<void>
       alertId = existing.id as string
       await updateAlert(supabase, alertId, draftRow)
     } else {
-      // alerts.slug + alerts.type are NOT NULL — generate slug from intel ID
-      // (same pattern as run-scout/route.ts uses for staging) and pull alert
-      // type from the intel row.
+      // alerts table has several NOT NULL columns the write action used to
+      // omit, causing silent insert failures. Match the shape that
+      // run-scout/route.ts uses when it stages alerts directly: slug, type,
+      // impact/value/rarity scores, impact_justification, source attribution,
+      // confidence_level, primary_program_id.
       const slug = `intel-${intelId.slice(0, 8)}-${Date.now()}`
+      const primaryProgramSlug = wec.draft.primary_program_slug ?? intelSlugs[0]
+      const primaryProgramId = primaryProgramSlug
+        ? allPrograms.find((p) => p.slug === primaryProgramSlug)?.id ?? null
+        : null
       const insertRow = {
         source_intel_id: intelId,
         slug,
         type: (intel.type as string | null) ?? 'industry_news',
+        impact_score: 5,
+        value_score: 5,
+        rarity_score: 5,
+        impact_justification: 'Auto-drafted from Triage write action',
+        source: (intel.source_name as string | null) ?? null,
+        source_url: (intel.source_url as string | null) ?? null,
+        confidence_level: (intel.confidence as string | null) ?? 'medium',
+        primary_program_id: primaryProgramId,
         ...draftRow,
       }
       const { data: inserted, error: insErr } = await supabase
