@@ -1,134 +1,262 @@
+/**
+ * /admin/triage — Phase 1d.3 — unified intake queue with tabs.
+ *
+ * Tabs: Active / Snoozed / Rejected / Archive / Promoted
+ *  - Active default. Hides promoted/rejected/archived/snoozed.
+ *  - Sort-by-attention in Active: pending (planner-approved) first, then new,
+ *    then freshest within bucket.
+ *  - Other tabs filter the queue to their lifecycle state.
+ *
+ * 1d.4 will add row actions (reject-as-one-liner, snooze picker).
+ */
 import Link from 'next/link'
 import { createAdminClient } from '@/utils/supabase/server'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Badge } from '@/components/admin/ui/Badge'
 import { EmptyState } from '@/components/admin/ui/EmptyState'
-import { writeAlertFromCandidate, dismissCandidate } from './actions'
+import {
+  ChipRow,
+  StatusChip,
+  SourceChip,
+  ConfidenceChip,
+  FactOriginChip,
+  EndDateChip,
+  RelativeTimeChip,
+  ConfirmationCountChip,
+  ProvenancePanel,
+  type LifecycleStatus,
+  type ConfidenceLevel,
+  type FactOrigin,
+} from '@/components/admin/chips'
+import { writeAlertFromCandidate } from './actions'
+import { SnoozeButton } from '@/components/admin/triage/SnoozeButton'
+import { UnsnoozeButton } from '@/components/admin/triage/UnsnoozeButton'
+import { RejectButton } from '@/components/admin/triage/RejectButton'
+import { RejectedOneLiner as RejectedOneLinerClient } from '@/components/admin/triage/RejectedOneLiner'
 
 export const dynamic = 'force-dynamic'
 
-interface IntelCandidate {
+type Tab = 'active' | 'snoozed' | 'rejected' | 'archive' | 'promoted'
+
+const TABS: Array<{ key: Tab; label: string }> = [
+  { key: 'active', label: 'Active' },
+  { key: 'snoozed', label: 'Snoozed' },
+  { key: 'rejected', label: 'Rejected' },
+  { key: 'archive', label: 'Archive' },
+  { key: 'promoted', label: 'Promoted' },
+]
+
+interface IntelRow {
   id: string
   headline: string
   raw_text: string | null
   source_name: string | null
   source_url: string | null
+  source_type: string | null
   programs: string[] | null
-  type: string | null
-  confidence: number | null
+  alert_type: string | null
+  confidence: 'high' | 'medium' | 'low' | null
+  fact_origin: FactOrigin | null
   triage_decision: string | null
   triage_reasoning: string | null
   triage_decided_at: string | null
   expires_at: string | null
   alert_id: string | null
+  rejected_at: string | null
+  rejected_reason: string | null
+  archived_at: string | null
+  snoozed_until: string | null
+  confirmation_count: number | null
+  confirming_sources: string[] | null
+  dup_of_intel_id: string | null
+  update_to_alert_id: string | null
+  haiku_diff_summary: string | null
+  haiku_diff_fail_open: boolean | null
+  created_at: string
   processed: boolean | null
 }
 
-function formatTime(iso: string | null): string {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleString(undefined, {
-    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
-  })
+function deriveStatus(r: IntelRow): LifecycleStatus {
+  if (r.archived_at) return 'archived'
+  if (r.rejected_at) return 'rejected'
+  if (r.snoozed_until && new Date(r.snoozed_until) > new Date()) return 'snoozed'
+  if (r.alert_id) return 'published'
+  if (r.triage_decision === 'approved') return 'pending'
+  if (r.triage_decision === 'rejected') return 'rejected'
+
+  // Auto-approval (Phase 1d.4 trust dial). v9 criteria, cheap subset only:
+  //   - high confidence
+  //   - fact_origin = official or secondary (not social-rumor / inferred / AI-only)
+  //   - 2+ confirmations from later sources
+  //   - Haiku diff didn't fail-open (no surfaced uncertainty)
+  // The 5th v9 criterion (≥3 historical alerts of same type for program) is
+  // deferred until Drafts hub exists — needs a per-row alerts query.
+  if (
+    r.triage_decision === null &&
+    r.confidence === 'high' &&
+    (r.fact_origin === 'official' || r.fact_origin === 'secondary') &&
+    (r.confirmation_count ?? 0) >= 2 &&
+    !r.haiku_diff_fail_open
+  ) {
+    return 'auto-approved'
+  }
+
+  return 'new'
 }
+
+/**
+ * Sort-by-attention for the Active tab: pending → new → others, then within
+ * each bucket by created_at descending.
+ */
+function attentionRank(r: IntelRow): number {
+  const s = deriveStatus(r)
+  if (s === 'pending') return 0
+  if (s === 'new') return 1
+  return 2
+}
+
+const SELECT_COLUMNS = [
+  'id',
+  'headline',
+  'raw_text',
+  'source_name',
+  'source_url',
+  'source_type',
+  'programs',
+  'alert_type',
+  'confidence',
+  'fact_origin',
+  'triage_decision',
+  'triage_reasoning',
+  'triage_decided_at',
+  'expires_at',
+  'alert_id',
+  'rejected_at',
+  'rejected_reason',
+  'archived_at',
+  'snoozed_until',
+  'confirmation_count',
+  'confirming_sources',
+  'dup_of_intel_id',
+  'update_to_alert_id',
+  'haiku_diff_summary',
+  'haiku_diff_fail_open',
+  'created_at',
+  'processed',
+].join(', ')
 
 export default async function TriagePage({
   searchParams,
 }: {
-  searchParams: Promise<{ show?: string }>
+  searchParams: Promise<{ tab?: string }>
 }) {
-  const { show = 'approved' } = await searchParams
+  const { tab: rawTab } = await searchParams
+  const tab: Tab = TABS.some((t) => t.key === rawTab) ? (rawTab as Tab) : 'active'
   const supabase = createAdminClient()
+  const now = new Date().toISOString()
 
-  // Approved candidates without an alert yet = the inbox
-  const { data: approvedData } = await supabase
-    .from('intel_items')
-    .select('id, headline, raw_text, source_name, source_url, programs, type, confidence, triage_decision, triage_reasoning, triage_decided_at, expires_at, alert_id, processed')
-    .eq('triage_decision', 'approved')
-    .is('alert_id', null)
-    .is('rejected_at', null)
-    .order('confidence', { ascending: false, nullsFirst: false })
-    .order('triage_decided_at', { ascending: false })
-    .limit(50)
+  // Build the per-tab query.
+  let q = supabase.from('intel_items').select(SELECT_COLUMNS).limit(150)
+  if (tab === 'active') {
+    q = q
+      .is('rejected_at', null)
+      .is('archived_at', null)
+      .is('alert_id', null)
+      .or(`snoozed_until.is.null,snoozed_until.lt.${now}`)
+      .order('created_at', { ascending: false })
+  } else if (tab === 'snoozed') {
+    q = q
+      .is('rejected_at', null)
+      .is('archived_at', null)
+      .not('snoozed_until', 'is', null)
+      .gte('snoozed_until', now)
+      .order('snoozed_until', { ascending: true })
+  } else if (tab === 'rejected') {
+    q = q.not('rejected_at', 'is', null).order('rejected_at', { ascending: false })
+  } else if (tab === 'archive') {
+    q = q.not('archived_at', 'is', null).order('archived_at', { ascending: false })
+  } else if (tab === 'promoted') {
+    q = q.not('alert_id', 'is', null).order('created_at', { ascending: false })
+  }
 
-  const { data: rejectedData } = await supabase
-    .from('intel_items')
-    .select('id, headline, raw_text, source_name, source_url, programs, type, confidence, triage_decision, triage_reasoning, triage_decided_at, expires_at, alert_id, processed')
-    .eq('triage_decision', 'rejected')
-    .order('triage_decided_at', { ascending: false })
-    .limit(20)
+  const { data, error } = await q
 
-  const { data: writtenData } = await supabase
-    .from('intel_items')
-    .select('id, headline, raw_text, source_name, source_url, programs, type, confidence, triage_decision, triage_reasoning, triage_decided_at, expires_at, alert_id, processed')
-    .eq('triage_decision', 'approved')
-    .not('alert_id', 'is', null)
-    .order('triage_decided_at', { ascending: false })
-    .limit(20)
+  // Run count queries for the tab badges. Cheap — each is one COUNT(*) head request.
+  const [active, snoozed, rejected, archive, promoted, quarantine] = await Promise.all([
+    countActive(supabase, now),
+    countSnoozed(supabase, now),
+    countSimple(supabase, 'rejected_at'),
+    countSimple(supabase, 'archived_at'),
+    countSimple(supabase, 'alert_id'),
+    countQuarantinePending(supabase),
+  ])
+  const counts: Record<Tab, number> = { active, snoozed, rejected, archive, promoted }
 
-  const approved = (approvedData as IntelCandidate[] | null) ?? []
-  const rejected = (rejectedData as IntelCandidate[] | null) ?? []
-  const written = (writtenData as IntelCandidate[] | null) ?? []
+  if (error) {
+    return (
+      <div style={{ padding: '2rem' }}>
+        <PageHeader title="Triage" />
+        <p style={{ color: 'var(--admin-danger)' }}>Failed to load intel: {error.message}</p>
+      </div>
+    )
+  }
 
-  const tabs: Array<{ key: string; label: string; count: number }> = [
-    { key: 'approved', label: 'To write', count: approved.length },
-    { key: 'written', label: 'Already written', count: written.length },
-    { key: 'rejected', label: 'Planner rejected', count: rejected.length },
-  ]
-
-  const rows = show === 'rejected' ? rejected : show === 'written' ? written : approved
+  let rows = ((data ?? []) as unknown as IntelRow[]) ?? []
+  if (tab === 'active') {
+    // Apply sort-by-attention on top of the DB order.
+    rows = rows.slice().sort((a, b) => {
+      const ra = attentionRank(a)
+      const rb = attentionRank(b)
+      if (ra !== rb) return ra - rb
+      // Within bucket, freshest first.
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    })
+  }
 
   return (
     <div>
       <PageHeader
         title="Triage"
-        description="Editorial planner approved these from this morning's intel — click Write on the ones worth drafting. Saves ~80% of API spend vs auto-writing everything."
-        actions={<Badge tone={approved.length > 0 ? 'warning' : 'neutral'}>{approved.length} to write</Badge>}
+        description="Unified intake queue. Every source — Scout, forwarded email, Grok, manual paste — lands here."
+        actions={
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <Badge tone={tab === 'active' && rows.length > 0 ? 'warning' : 'neutral'}>
+              {rows.length} {tab === 'active' ? 'active item' : tab}
+              {rows.length === 1 ? '' : 's'}
+            </Badge>
+            {quarantine > 0 && (
+              <Link
+                href="/admin/triage/quarantine"
+                style={{
+                  padding: '0.25rem 0.625rem',
+                  borderRadius: '9999px',
+                  fontFamily: 'var(--font-ui)',
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  background: 'var(--color-chip-red-bg)',
+                  color: 'var(--color-chip-red-fg)',
+                  border: '1px solid var(--color-chip-red)',
+                  textDecoration: 'none',
+                }}
+              >
+                {quarantine} in quarantine →
+              </Link>
+            )}
+          </div>
+        }
       />
 
-      <nav style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-        {tabs.map((t) => {
-          const active = t.key === show
-          return (
-            <Link
-              key={t.key}
-              href={`/admin/triage?show=${t.key}`}
-              style={{
-                padding: '0.4rem 0.875rem',
-                borderRadius: '9999px',
-                fontFamily: 'var(--font-ui)',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                textDecoration: 'none',
-                background: active ? 'var(--color-primary)' : 'var(--color-background-soft)',
-                color: active ? '#fff' : 'var(--color-text-primary)',
-                border: '1px solid ' + (active ? 'var(--color-primary)' : 'var(--color-border-soft)'),
-              }}
-            >
-              {t.label} ({t.count})
-            </Link>
-          )
-        })}
-      </nav>
+      <Tabs current={tab} counts={counts} />
 
       {rows.length === 0 ? (
         <EmptyState
-          title={
-            show === 'approved'
-              ? 'Nothing in the triage inbox'
-              : show === 'written'
-              ? 'No alerts written from triage yet'
-              : 'No rejected items'
-          }
-          description={
-            show === 'approved'
-              ? "Run build-brief to populate. Or you're caught up — nice."
-              : ''
-          }
+          title={emptyTitle(tab)}
+          description={emptyDescription(tab)}
         />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
-          {rows.map((c) => (
-            <CandidateCard key={c.id} c={c} mode={show} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          {rows.map((r) => (
+            <TriageRow key={r.id} row={r} tab={tab} />
           ))}
         </div>
       )}
@@ -136,94 +264,353 @@ export default async function TriagePage({
   )
 }
 
-function CandidateCard({ c, mode }: { c: IntelCandidate; mode: string }) {
-  const slugs = c.programs ?? []
-  const isWritten = !!c.alert_id
-  const isApproved = mode === 'approved'
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+async function countActive(
+  supabase: ReturnType<typeof createAdminClient>,
+  nowIso: string,
+): Promise<number> {
+  const { count } = await supabase
+    .from('intel_items')
+    .select('*', { count: 'exact', head: true })
+    .is('rejected_at', null)
+    .is('archived_at', null)
+    .is('alert_id', null)
+    .or(`snoozed_until.is.null,snoozed_until.lt.${nowIso}`)
+  return count ?? 0
+}
+
+async function countSnoozed(
+  supabase: ReturnType<typeof createAdminClient>,
+  nowIso: string,
+): Promise<number> {
+  const { count } = await supabase
+    .from('intel_items')
+    .select('*', { count: 'exact', head: true })
+    .is('rejected_at', null)
+    .is('archived_at', null)
+    .not('snoozed_until', 'is', null)
+    .gte('snoozed_until', nowIso)
+  return count ?? 0
+}
+
+async function countSimple(
+  supabase: ReturnType<typeof createAdminClient>,
+  col: 'rejected_at' | 'archived_at' | 'alert_id',
+): Promise<number> {
+  const { count } = await supabase
+    .from('intel_items')
+    .select('*', { count: 'exact', head: true })
+    .not(col, 'is', null)
+  return count ?? 0
+}
+
+async function countQuarantinePending(
+  supabase: ReturnType<typeof createAdminClient>,
+): Promise<number> {
+  const { count } = await supabase
+    .from('intel_email_quarantine')
+    .select('*', { count: 'exact', head: true })
+    .is('promoted_to_intel_id', null)
+    .is('discarded_at', null)
+  return count ?? 0
+}
+
+function emptyTitle(tab: Tab): string {
+  if (tab === 'active') return 'Inbox is empty'
+  if (tab === 'snoozed') return 'Nothing snoozed'
+  if (tab === 'rejected') return 'No rejected items'
+  if (tab === 'archive') return 'Archive is empty'
+  return 'No promoted items'
+}
+
+function emptyDescription(tab: Tab): string {
+  if (tab === 'active')
+    return "No active intel awaiting your decision. Scout's next run is daily at 10:00 UTC."
+  if (tab === 'snoozed') return 'Snoozed items will appear here with their wake date.'
+  if (tab === 'rejected') return 'Items you reject (or that fail QA) collapse to one-liners here.'
+  if (tab === 'archive')
+    return 'Auto-archived items (30 days post-expire) and manually shelved items live here.'
+  return 'Items that became alerts will appear here.'
+}
+
+// ── Tab strip ──────────────────────────────────────────────────────────────
+
+function Tabs({ current, counts }: { current: Tab; counts: Record<Tab, number> }) {
+  return (
+    <nav
+      style={{
+        display: 'flex',
+        gap: '0.375rem',
+        marginBottom: '1.5rem',
+        flexWrap: 'wrap',
+      }}
+    >
+      {TABS.map((t) => {
+        const active = t.key === current
+        return (
+          <Link
+            key={t.key}
+            href={`/admin/triage?tab=${t.key}`}
+            style={{
+              padding: '0.4rem 0.875rem',
+              borderRadius: '9999px',
+              fontFamily: 'var(--font-ui)',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              textDecoration: 'none',
+              background: active ? 'var(--admin-accent)' : 'var(--admin-surface)',
+              color: active ? '#fff' : 'var(--admin-text)',
+              border: '1px solid ' + (active ? 'var(--admin-accent)' : 'var(--admin-border)'),
+            }}
+          >
+            {t.label}{' '}
+            <span
+              style={{
+                marginLeft: '0.25rem',
+                fontFamily: 'var(--font-ui)',
+                fontSize: '0.6875rem',
+                fontWeight: 500,
+                opacity: 0.85,
+              }}
+            >
+              ({counts[t.key]})
+            </span>
+          </Link>
+        )
+      })}
+    </nav>
+  )
+}
+
+// ── Row ────────────────────────────────────────────────────────────────────
+
+function TriageRow({ row, tab }: { row: IntelRow; tab: Tab }) {
+  const status = deriveStatus(row)
+  const isRejectedTab = tab === 'rejected'
+
+  // 1d.4 will turn rejected rows into true one-liners. For 1d.3 we keep the
+  // card layout but dim it and collapse the body.
+  if (isRejectedTab) {
+    return (
+      <RejectedOneLinerClient
+        row={{
+          id: row.id,
+          headline: row.headline,
+          source_name: row.source_name,
+          source_url: row.source_url,
+          raw_text: row.raw_text,
+          rejected_at: row.rejected_at,
+          rejected_reason: row.rejected_reason,
+        }}
+      />
+    )
+  }
+
+  const provenance = {
+    source_name: row.source_name ?? '(unknown)',
+    source_url: row.source_url,
+    confidence: row.confidence ?? undefined,
+    fact_origin: row.fact_origin ?? undefined,
+    arrived_at: row.created_at,
+    confirmation_count: row.confirmation_count ?? 0,
+    confirming_sources: row.confirming_sources ?? [],
+    haiku_diff_summary: row.haiku_diff_summary,
+  }
+  const isWritable = !row.alert_id && !row.rejected_at && !row.archived_at
 
   return (
     <article
       style={{
         padding: '1rem 1.125rem',
-        border: '1px solid var(--color-border-soft)',
-        borderRadius: 'var(--radius-card)',
-        background: '#fff',
+        border: '1px solid var(--admin-border)',
+        borderRadius: 'var(--admin-radius-lg)',
+        background: 'var(--admin-surface)',
+        boxShadow: 'var(--admin-shadow)',
       }}
     >
       <header style={{ marginBottom: '0.5rem' }}>
-        <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.0625rem', fontWeight: 600, color: 'var(--color-primary)', margin: 0, lineHeight: 1.3 }}>
-          {c.headline}
-        </h3>
-        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.375rem', flexWrap: 'wrap', alignItems: 'center', fontFamily: 'var(--font-body)', fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
-          {c.source_name && <span>📰 {c.source_name}</span>}
-          {c.source_url && (
-            <a href={c.source_url} target="_blank" rel="noopener" style={{ color: 'var(--color-primary)' }}>
-              source ↗
-            </a>
+        <h3
+          style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: '1.0625rem',
+            fontWeight: 600,
+            color: 'var(--admin-accent)',
+            margin: 0,
+            lineHeight: 1.3,
+          }}
+        >
+          {row.alert_id ? (
+            <Link
+              href={`/admin/alerts/${row.alert_id}`}
+              style={{ color: 'inherit', textDecoration: 'none' }}
+            >
+              {row.headline}
+            </Link>
+          ) : (
+            row.headline
           )}
-          {c.type && <Badge tone="neutral">{c.type}</Badge>}
-          {c.confidence != null && <span>conf {Math.round(c.confidence * 100)}%</span>}
-          {c.expires_at && <span>⏰ ends {new Date(c.expires_at).toLocaleDateString()}</span>}
-          {slugs.length > 0 && <span>· {slugs.join(', ')}</span>}
-        </div>
+        </h3>
       </header>
 
-      {c.triage_reasoning && (
-        <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.875rem', color: 'var(--color-text-primary)', marginBottom: '0.625rem', padding: '0.625rem 0.75rem', background: 'var(--color-background-soft)', borderRadius: 'var(--radius-ui)', borderLeft: '3px solid var(--color-primary)' }}>
-          <strong style={{ fontFamily: 'var(--font-ui)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-secondary)', marginRight: '0.5rem' }}>
-            Planner says
-          </strong>
-          {c.triage_reasoning}
+      <ChipRow maxVisible={4}>
+        <StatusChip status={status} />
+        {row.source_name ? <SourceChip name={row.source_name} /> : null}
+        {row.confidence ? <ConfidenceChip level={row.confidence as ConfidenceLevel} /> : null}
+        <RelativeTimeChip timestamp={row.created_at} />
+        {row.expires_at ? <EndDateChip endsAt={row.expires_at} /> : null}
+        {row.fact_origin ? <FactOriginChip origin={row.fact_origin} /> : null}
+        {row.confirmation_count && row.confirmation_count > 0 ? (
+          <ConfirmationCountChip
+            count={row.confirmation_count}
+            sources={row.confirming_sources ?? null}
+          />
+        ) : null}
+      </ChipRow>
+
+      {row.snoozed_until && new Date(row.snoozed_until) > new Date() && (
+        <div
+          style={{
+            marginTop: '0.625rem',
+            padding: '0.5rem 0.75rem',
+            background: 'var(--color-chip-purple-bg)',
+            color: 'var(--color-chip-purple-fg)',
+            border: '1px solid var(--color-chip-purple)',
+            borderRadius: 'var(--admin-radius)',
+            fontFamily: 'var(--font-body)',
+            fontSize: '0.8125rem',
+          }}
+        >
+          Snoozed until{' '}
+          {new Date(row.snoozed_until).toLocaleString('en-US', {
+            dateStyle: 'medium',
+            timeStyle: 'short',
+          })}
         </div>
       )}
 
-      {c.raw_text && (
-        <details style={{ marginBottom: '0.75rem' }}>
-          <summary style={{ fontFamily: 'var(--font-ui)', fontSize: '0.8125rem', color: 'var(--color-text-secondary)', cursor: 'pointer' }}>
+      {row.update_to_alert_id && row.haiku_diff_summary && (
+        <div
+          style={{
+            marginTop: '0.625rem',
+            padding: '0.5rem 0.75rem',
+            background: 'var(--color-chip-amber-bg)',
+            color: 'var(--color-chip-amber-fg)',
+            border: '1px solid var(--color-chip-amber)',
+            borderRadius: 'var(--admin-radius)',
+            fontFamily: 'var(--font-body)',
+            fontSize: '0.8125rem',
+          }}
+        >
+          <strong>Updates existing alert:</strong> {row.haiku_diff_summary}{' '}
+          <Link
+            href={`/admin/alerts/${row.update_to_alert_id}`}
+            style={{ color: 'var(--admin-accent)', marginLeft: '0.25rem' }}
+          >
+            (review)
+          </Link>
+        </div>
+      )}
+
+      {row.triage_reasoning && (
+        <div
+          style={{
+            fontFamily: 'var(--font-body)',
+            fontSize: '0.875rem',
+            color: 'var(--admin-text)',
+            marginTop: '0.625rem',
+            padding: '0.5rem 0.75rem',
+            background: 'var(--admin-surface-alt)',
+            borderRadius: 'var(--admin-radius)',
+            borderLeft: '3px solid var(--admin-accent)',
+          }}
+        >
+          <strong
+            style={{
+              fontFamily: 'var(--font-ui)',
+              fontSize: '0.6875rem',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              color: 'var(--admin-text-muted)',
+              marginRight: '0.5rem',
+            }}
+          >
+            Planner says
+          </strong>
+          {row.triage_reasoning}
+        </div>
+      )}
+
+      {row.raw_text && (
+        <details style={{ marginTop: '0.625rem' }}>
+          <summary
+            style={{
+              fontFamily: 'var(--font-ui)',
+              fontSize: '0.8125rem',
+              color: 'var(--admin-text-muted)',
+              cursor: 'pointer',
+            }}
+          >
             Raw intel text
           </summary>
-          <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.875rem', marginTop: '0.5rem', whiteSpace: 'pre-wrap', color: 'var(--color-text-primary)' }}>
-            {c.raw_text}
+          <div
+            style={{
+              fontFamily: 'var(--font-body)',
+              fontSize: '0.875rem',
+              marginTop: '0.5rem',
+              whiteSpace: 'pre-wrap',
+              color: 'var(--admin-text)',
+            }}
+          >
+            {row.raw_text}
           </div>
         </details>
       )}
 
-      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
-        {isWritten && c.alert_id && (
-          <Link href={`/admin/alerts/${c.alert_id}`} className="rg-btn-secondary" style={{ padding: '0.4rem 0.875rem', fontSize: '0.875rem' }}>
-            Review alert →
-          </Link>
-        )}
-        {isApproved && !isWritten && (
-          <>
-            <form action={writeAlertFromCandidate}>
-              <input type="hidden" name="intel_id" value={c.id} />
-              <button type="submit" className="rg-btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}>
-                ✍️ Write this
-              </button>
-            </form>
-            <form action={dismissCandidate}>
-              <input type="hidden" name="intel_id" value={c.id} />
-              <button
-                type="submit"
-                style={{
-                  padding: '0.5rem 0.875rem',
-                  fontFamily: 'var(--font-ui)',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  background: 'transparent',
-                  color: 'var(--color-text-secondary)',
-                  border: '1px solid var(--color-border-soft)',
-                  borderRadius: 'var(--radius-ui)',
-                  cursor: 'pointer',
-                }}
-              >
-                Skip
-              </button>
-            </form>
-          </>
-        )}
-      </div>
+      <ProvenancePanel data={provenance} />
+
+      <RowActions row={row} tab={tab} isWritable={isWritable} />
     </article>
+  )
+}
+
+function RowActions({ row, tab, isWritable }: { row: IntelRow; tab: Tab; isWritable: boolean }) {
+  const isSnoozedNow =
+    row.snoozed_until && new Date(row.snoozed_until) > new Date()
+
+  if (tab === 'snoozed' || isSnoozedNow) {
+    return (
+      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.75rem' }}>
+        <UnsnoozeButton intelId={row.id} />
+      </div>
+    )
+  }
+
+  if (!isWritable) return null
+
+  return (
+    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.75rem' }}>
+      <form action={writeAlertFromCandidate}>
+        <input type="hidden" name="intel_id" value={row.id} />
+        <button
+          type="submit"
+          style={{
+            padding: '0.5rem 1rem',
+            fontFamily: 'var(--font-ui)',
+            fontSize: '0.8125rem',
+            fontWeight: 600,
+            background: 'var(--admin-accent)',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 'var(--admin-radius)',
+            cursor: 'pointer',
+          }}
+        >
+          Write alert
+        </button>
+      </form>
+      <SnoozeButton intelId={row.id} />
+      <RejectButton intelId={row.id} />
+    </div>
   )
 }

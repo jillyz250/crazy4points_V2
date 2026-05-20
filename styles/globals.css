@@ -58,6 +58,30 @@
   --admin-radius: 6px;
   --admin-radius-lg: 10px;
   --admin-shadow: 0 1px 2px rgba(24, 24, 27, 0.04), 0 1px 3px rgba(24, 24, 27, 0.04);
+
+  /* ── Chip tokens (Phase 1c) ──
+     Locked palette per plans/content-pipeline-overhaul-2026-05-20.md v9.
+     Consciously a separate layer from admin tokens — chips are the
+     row-level visual vocabulary documented at /admin/glossary.
+     fg/bg pairs are Tailwind 100/800 for accessible contrast. */
+  --color-chip-green: #10b981;
+  --color-chip-green-bg: #d1fae5;
+  --color-chip-green-fg: #065f46;
+  --color-chip-amber: #f59e0b;
+  --color-chip-amber-bg: #fef3c7;
+  --color-chip-amber-fg: #92400e;
+  --color-chip-red: #ef4444;
+  --color-chip-red-bg: #fee2e2;
+  --color-chip-red-fg: #991b1b;
+  --color-chip-purple: #8b5cf6;
+  --color-chip-purple-bg: #ede9fe;
+  --color-chip-purple-fg: #5b21b6;
+  --color-chip-grey: #6b7280;
+  --color-chip-grey-bg: #f3f4f6;
+  --color-chip-grey-fg: #374151;
+  --color-chip-blue: #3b82f6;
+  --color-chip-blue-bg: #dbeafe;
+  --color-chip-blue-fg: #1e40af;
 }
 
 * {

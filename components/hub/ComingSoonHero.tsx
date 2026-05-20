@@ -33,7 +33,7 @@ export default function ComingSoonHero({
       const res = await fetch('/api/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, firstName }),
+        body: JSON.stringify({ email, firstName, source: 'hub_hero' }),
       })
       const data = await res.json()
       if (!res.ok) {

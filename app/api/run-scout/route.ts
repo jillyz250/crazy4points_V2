@@ -11,7 +11,8 @@ import {
 } from '@/utils/supabase/queries'
 import { runScout } from '@/utils/ai/runScout'
 import { enrichPromoFindings } from '@/utils/ai/enrichPromoFindings'
-import type { AlertType, IntelItemInsert, IntelConfidence, RecentIntelItem } from '@/utils/supabase/queries'
+import { ingestItem } from '@/utils/intel/ingestItem'
+import type { AlertType, IntelConfidence, RecentIntelItem } from '@/utils/supabase/queries'
 import type { ScoutFinding } from '@/utils/ai/runScout'
 
 // Boost to 'high' when cross-source corroboration exists within 48h
@@ -109,7 +110,13 @@ export async function GET(req: NextRequest) {
     `(of ${promoEnrichStats.candidates} candidates)`
   )
 
-  // Write to intel_items
+  // Write to intel_items via shared ingestItem helper.
+  //
+  // Layer 1 (in-batch) is already done inside runScout's Haiku prompt.
+  // Layer 2 (getRecentDecisionFor — status-aware semantic) + Layer 3 (pg_trgm
+  // fuzzy headline) + Haiku diff all run inside ingestItem per item.
+  //
+  // We need the program-slug→id map for Layer 2; build it once here.
   let inserted: Array<{
     id: string
     headline: string
@@ -122,29 +129,69 @@ export async function GET(req: NextRequest) {
     expires_at: string | null
   }> = []
 
+  const programSlugToId = new Map(programsForScout.map((p) => [p.slug, p.id]))
+
   if (findings.length > 0) {
-    const items: IntelItemInsert[] = findings.map((f) => ({
-      source_url: f.source_url ?? null,
-      source_type: f.source_type,
-      source_name: f.source_name,
-      raw_text: f.raw_text ?? null,
-      headline: f.headline,
-      confidence: f.confidence,
-      alert_type: (f.alert_type as AlertType) ?? null,
-      programs: f.programs ?? null,
-      expires_at: f.expires_at ?? null,
-    }))
-
-    const { data, error: intelError } = await supabase
-      .from('intel_items')
-      .insert(items)
-      .select()
-
-    if (intelError) {
-      console.error('[run-scout] intel_items insert error:', intelError)
-    } else {
-      inserted = data ?? []
+    const ingestStats = {
+      inserted: 0,
+      suppressed_as_dup: 0,
+      surfaced_as_update: 0,
+      error: 0,
     }
+
+    for (const f of findings) {
+      // Map Scout source_type to ingestItem's wider enum
+      const result = await ingestItem(
+        supabase,
+        {
+          source: 'scout',
+          source_url: f.source_url ?? null,
+          source_type: f.source_type,
+          source_name: f.source_name,
+          raw_text: f.raw_text ?? null,
+          headline: f.headline,
+          confidence: f.confidence,
+          alert_type: (f.alert_type as AlertType) ?? null,
+          programs: f.programs ?? null,
+          expires_at: f.expires_at ?? null,
+          // Scout sources are typically 'secondary' (blog) or 'official' (newsroom).
+          // Reddit / social use 'social-rumor'.
+          fact_origin:
+            f.source_type === 'official'
+              ? 'official'
+              : f.source_type === 'reddit' || f.source_type === 'social'
+                ? 'social-rumor'
+                : 'secondary',
+        },
+        programSlugToId,
+      )
+
+      ingestStats[result.kind]++
+
+      // Only the 'inserted' path (fresh news, no dedup hit) feeds the
+      // legacy staging path below. Suppressed dups and update surfaces are
+      // handled by Triage — don't auto-stage them as new alerts.
+      if (result.kind === 'inserted') {
+        inserted.push({
+          id: result.intel_id,
+          headline: f.headline,
+          raw_text: f.raw_text ?? null,
+          source_name: f.source_name,
+          source_url: f.source_url ?? null,
+          confidence: f.confidence,
+          alert_type: (f.alert_type as AlertType) ?? null,
+          programs: f.programs ?? null,
+          expires_at: f.expires_at ?? null,
+        })
+      }
+    }
+
+    console.log(
+      `[run-scout] ingest stats: inserted=${ingestStats.inserted} ` +
+        `suppressed=${ingestStats.suppressed_as_dup} ` +
+        `surfaced_as_update=${ingestStats.surfaced_as_update} ` +
+        `errors=${ingestStats.error} (of ${findings.length} findings)`,
+    )
   }
 
   // Update source performance stats (items_produced + last_scraped_at per active source)
