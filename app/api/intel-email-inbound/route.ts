@@ -179,13 +179,40 @@ export async function POST(req: NextRequest) {
     available_program_slugs: programSlugs,
   })
 
-  // --- 9. Drop unrelated commercial email -----------------------------------
+  // --- 9. Loyalty-irrelevant: insert as rejected intel_item so editor has
+  //         a visible record on /admin/triage?tab=rejected. Previously these
+  //         were silently dropped, leaving no trail of what was forwarded.
   if (!classification.has_loyalty_angle && !classification.fail_open) {
-    // Not loyalty-relevant. Don't ingest, don't quarantine — log and discard.
+    const { data: rejectedRow, error: rejErr } = await supabase
+      .from('intel_items')
+      .insert({
+        source_url: urls[0] ?? null,
+        source_type: 'email',
+        source_name: sourceName ?? `email:${senderDomain}`,
+        raw_text: bodyText.slice(0, 4000),
+        headline: classification.headline,
+        confidence: classification.confidence,
+        alert_type: null,
+        programs: classification.programs,
+        expires_at: null,
+        fact_origin: 'secondary',
+        processed: true,
+        rejected_at: new Date().toISOString(),
+        rejected_reason: 'auto-discard: no loyalty angle',
+      })
+      .select('id')
+      .single()
+    if (rejErr) {
+      await logIngestError('email', 'insert', rejErr, { stage: 'auto-discard-record' })
+    }
     console.log(
-      `[email-inbound] discarded (no loyalty angle): from=${senderEmail} subject=${payload.subject?.slice(0, 60)}`,
+      `[email-inbound] auto-discarded as no-loyalty (intel_id=${rejectedRow?.id ?? '(failed)'}): from=${senderEmail} subject=${payload.subject?.slice(0, 60)}`,
     )
-    return NextResponse.json({ ok: true, discarded: 'no_loyalty_angle' })
+    return NextResponse.json({
+      ok: true,
+      discarded: 'no_loyalty_angle',
+      intel_id: rejectedRow?.id ?? null,
+    })
   }
 
   // --- 10. ingestItem -------------------------------------------------------
