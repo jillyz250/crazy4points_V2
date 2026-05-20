@@ -29,11 +29,11 @@ import {
   type ConfidenceLevel,
   type FactOrigin,
 } from '@/components/admin/chips'
-import { writeAlertFromCandidate } from './actions'
 import { SnoozeButton } from '@/components/admin/triage/SnoozeButton'
 import { UnsnoozeButton } from '@/components/admin/triage/UnsnoozeButton'
 import { RejectButton } from '@/components/admin/triage/RejectButton'
 import { RejectedOneLiner as RejectedOneLinerClient } from '@/components/admin/triage/RejectedOneLiner'
+import { WriteAlertButton } from '@/components/admin/triage/WriteAlertButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -594,25 +594,7 @@ function RowActions({ row, tab, isWritable }: { row: IntelRow; tab: Tab; isWrita
 
   return (
     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.75rem' }}>
-      <form action={writeAlertFromCandidate}>
-        <input type="hidden" name="intel_id" value={row.id} />
-        <button
-          type="submit"
-          style={{
-            padding: '0.5rem 1rem',
-            fontFamily: 'var(--font-ui)',
-            fontSize: '0.8125rem',
-            fontWeight: 600,
-            background: 'var(--admin-accent)',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 'var(--admin-radius)',
-            cursor: 'pointer',
-          }}
-        >
-          Write alert
-        </button>
-      </form>
+      <WriteAlertButton intelId={row.id} />
       <SnoozeButton intelId={row.id} />
       <RejectButton intelId={row.id} />
     </div>
