@@ -186,6 +186,7 @@ function isClassificationShape(x: unknown): x is {
   programs: string[] | null
   alert_type: string | null
   confidence: 'high' | 'medium' | 'low'
+  fact_origin: string
   expires_at: string | null
 } {
   if (typeof x !== 'object' || x === null) return false
