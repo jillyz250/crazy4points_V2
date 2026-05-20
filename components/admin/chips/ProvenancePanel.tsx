@@ -112,13 +112,13 @@ export function ProvenancePanel({
           {data.haiku_diff_summary && (
             <Row label="What changed (Haiku diff)">{data.haiku_diff_summary}</Row>
           )}
-          {data.confirmation_count && data.confirmation_count > 0 && (
+          {(data.confirmation_count ?? 0) > 0 && (
             <Row label={`+${data.confirmation_count} later confirmations`}>
               {(data.confirming_sources ?? []).join(', ') || '(no source names recorded)'}
             </Row>
           )}
-          {data.surface_locations && data.surface_locations.length > 0 && (
-            <Row label="Currently live on">{data.surface_locations.join(', ')}</Row>
+          {(data.surface_locations?.length ?? 0) > 0 && (
+            <Row label="Currently live on">{(data.surface_locations ?? []).join(', ')}</Row>
           )}
           {data.timeline && data.timeline.length > 0 && (
             <div style={{ marginTop: '0.75rem' }}>
