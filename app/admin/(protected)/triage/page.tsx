@@ -23,7 +23,7 @@ import {
   EndDateChip,
   RelativeTimeChip,
   ConfirmationCountChip,
-  ProgramChip,
+  ProgramsChip,
   ProvenancePanel,
   type LifecycleStatus,
   type ConfidenceLevel,
@@ -454,19 +454,19 @@ function TriageRow({ row, tab }: { row: IntelRow; tab: Tab }) {
         </h3>
       </header>
 
+      {/* Top 4 priority: status → programs (core editorial signal) → confidence → time.
+          Source / fact-origin / end-date / confirmations fall behind +more. */}
       <ChipRow maxVisible={4}>
         <StatusChip status={status} />
-        {row.source_name ? <SourceChip name={row.source_name} /> : null}
+        <ProgramsChip slugs={row.programs} />
         {row.confidence ? <ConfidenceChip level={row.confidence as ConfidenceLevel} /> : null}
         <RelativeTimeChip timestamp={row.created_at} />
-        {(row.programs ?? []).map((slug) => (
-          <ProgramChip key={slug} slug={slug} />
-        ))}
+        {row.source_name ? <SourceChip name={row.source_name} /> : null}
         {row.expires_at ? <EndDateChip endsAt={row.expires_at} /> : null}
         {row.fact_origin ? <FactOriginChip origin={row.fact_origin} /> : null}
-        {row.confirmation_count && row.confirmation_count > 0 ? (
+        {(row.confirmation_count ?? 0) > 0 ? (
           <ConfirmationCountChip
-            count={row.confirmation_count}
+            count={row.confirmation_count ?? 0}
             sources={row.confirming_sources ?? null}
           />
         ) : null}
