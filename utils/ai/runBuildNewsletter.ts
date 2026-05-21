@@ -11,6 +11,7 @@
  *                               call Sonnet, fact-check, upsert the row.
  */
 import { createAdminClient } from '@/utils/supabase/server'
+import { selectAlertViewFromVariants } from '@/utils/content/alertView'
 import {
   buildNewsletter,
   type NewsletterAlertInput,
@@ -50,15 +51,14 @@ export async function getNewsletterInputs(
   const weekOf = mondayOfWeek(now)
   const since7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
 
-  const [alertsRes, newsletterIdeasRes, blogIdeasRes, radarRes] = await Promise.all([
-    supabase
-      .from('alerts')
-      .select('id, slug, title, summary, ai_summary, why_this_matters, published_at, end_date, type, impact_score')
-      .eq('status', 'published')
-      .gte('published_at', since7d)
-      .order('impact_score', { ascending: false })
-      .order('published_at', { ascending: false })
-      .limit(12),
+  // Phase 3 Wave 2 flip #5: alerts source via AlertView adapter
+  // (content_variants + topics) instead of alerts table. Order-by impact then
+  // published_at applied client-side because the adapter supports only one
+  // sort; result set is tiny (≤19 rows currently) so the perf cost is nil.
+  // ai_summary preserved as null — the legacy query was selecting a phantom
+  // column that doesn't exist on alerts, so this matches prior behavior.
+  const [alertViewRows, newsletterIdeasRes, blogIdeasRes, radarRes] = await Promise.all([
+    selectAlertViewFromVariants(supabase, { status: 'published', activeOnly: true, limit: 50 }),
     supabase
       .from('content_ideas')
       .select('id, title, pitch, type, priority, slug')
@@ -83,18 +83,27 @@ export async function getNewsletterInputs(
       .limit(8),
   ])
 
-  const alerts: NewsletterAlertInput[] = (alertsRes.data ?? []).map((a) => ({
-    id: a.id,
-    slug: a.slug ?? null,
-    title: a.title,
-    summary: a.summary ?? null,
-    ai_summary: a.ai_summary ?? null,
-    why_this_matters: (a as { why_this_matters?: string | null }).why_this_matters ?? null,
-    published_at: a.published_at ?? null,
-    end_date: (a as { end_date?: string | null }).end_date ?? null,
-    alert_type: (a as { type?: string | null }).type ?? null,
-    impact_score: a.impact_score ?? null,
-  }))
+  const alerts: NewsletterAlertInput[] = alertViewRows
+    .filter((a) => a.published_at && a.published_at >= since7d)
+    .sort((a, b) => {
+      const scoreA = a.impact_score ?? 0
+      const scoreB = b.impact_score ?? 0
+      if (scoreA !== scoreB) return scoreB - scoreA
+      return (b.published_at ?? '').localeCompare(a.published_at ?? '')
+    })
+    .slice(0, 12)
+    .map((a) => ({
+      id: a.id,
+      slug: a.slug ?? null,
+      title: a.title,
+      summary: a.summary ?? null,
+      ai_summary: null, // legacy field never actually existed on alerts; kept null for shape compat
+      why_this_matters: a.why_this_matters ?? null,
+      published_at: a.published_at ?? null,
+      end_date: a.end_date ?? null,
+      alert_type: a.type ?? null,
+      impact_score: a.impact_score ?? null,
+    }))
 
   const newsletter_ideas: NewsletterIdeaInput[] = (newsletterIdeasRes.data ?? []).map((i) => ({
     id: i.id,
