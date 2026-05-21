@@ -1,7 +1,8 @@
 import HomeHeroV2 from "@/components/home/HomeHeroV2";
 import RedAlertBar from "@/components/home/RedAlertBar";
 import { createAdminClient } from "@/utils/supabase/server";
-import { getActiveAlerts, type AlertWithPrograms } from "@/utils/supabase/queries";
+import { selectAlertViewFromVariants, type AlertView } from "@/utils/content/alertView";
+import { isAlertActiveET } from "@/lib/alerts/expiry";
 import type { Metadata } from "next";
 
 // Revalidate every 60s so the hot alerts bar can't go stale past a minute
@@ -34,7 +35,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // sweet-spot or partner addition (e.g. "Delta + Airbnb earn") had no way to
 // surface against time-sensitive bonuses. With +30 floor, a fresh evergreen
 // scores 50 + 30 = 80 — top of the bar, exactly where it belongs.
-function hotnessScore(a: AlertWithPrograms, now: number): number {
+function hotnessScore(a: AlertView, now: number): number {
   let s = 0;
   if (a.is_hot) s += 100;
   if (a.published_at) {
@@ -52,11 +53,11 @@ function hotnessScore(a: AlertWithPrograms, now: number): number {
 }
 
 interface HotAlertSelection {
-  visible: AlertWithPrograms[];
+  visible: AlertView[];
   overflowCount: number;
 }
 
-function selectHotAlerts(alerts: AlertWithPrograms[]): HotAlertSelection {
+function selectHotAlerts(alerts: AlertView[]): HotAlertSelection {
   const now = Date.now();
   const scored = alerts
     .map((a) => ({ a, s: hotnessScore(a, now) }))
@@ -75,7 +76,13 @@ function selectHotAlerts(alerts: AlertWithPrograms[]): HotAlertSelection {
 
 export default async function HomePage() {
   const supabase = createAdminClient();
-  const active = await getActiveAlerts(supabase);
+  // Phase 3 Wave 2 flip #6: hot alerts source from content_variants + topics
+  // via the AlertView adapter. ET-based active filter applied client-side to
+  // match legacy getActiveAlerts semantics exactly (the adapter's activeOnly
+  // uses UTC `now()`, which differs from ET by 4–12h and would over/under-
+  // exclude rows near the day boundary).
+  const allPublished = await selectAlertViewFromVariants(supabase, { status: "published" });
+  const active = allPublished.filter((a) => isAlertActiveET(a.end_date));
 
   const lastUpdated = active.length > 0
     ? active.reduce((latest, a) =>

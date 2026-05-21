@@ -1,9 +1,13 @@
 import Link from "next/link";
-import type { AlertWithPrograms } from "@/utils/supabase/queries";
+import type { Alert } from "@/utils/supabase/queries";
 import { daysUntilEndOfDay } from "@/lib/alertExpiry";
 
+// RedAlertBar reads only alert-level fields (id, slug, title, type,
+// published_at, end_date). The legacy AlertWithPrograms shape was overly
+// specific — `Alert` is the right surface and lets Phase 3 Wave 2 callers
+// pass either the legacy `alerts` row or the new `AlertView` (variants).
 interface Props {
-  alerts: AlertWithPrograms[];
+  alerts: Alert[];
   /** Total active alerts beyond the visible set; renders as a "+N more" pill. */
   overflowCount: number;
 }
