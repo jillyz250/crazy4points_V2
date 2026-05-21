@@ -70,22 +70,22 @@ export default async function DailyBriefPage() {
           </Link>
         </div>
 
-        {/* Section 1 — New Today */}
-        <div className="mb-14">
-          <h2 className="mb-6 font-display text-2xl font-semibold">New Today</h2>
+        {/* Today's alerts only. The cumulative "Still Active" section was
+            removed 2026-05-21 — the page is called Daily Brief, so it should
+            actually be daily. Readers wanting the full list have the "View
+            All Alerts" link in the header. */}
+        <div>
           {newToday.length === 0 ? (
             <p className="font-body text-sm text-[var(--color-text-secondary)]">
-              No new alerts today — check back later.
+              No new alerts today — check back later, or{' '}
+              <Link href="/alerts" className="text-[var(--color-primary)] underline hover:text-[var(--color-accent)]">
+                view all active alerts
+              </Link>
+              .
             </p>
           ) : (
             <AlertsGridSB alerts={newToday} />
           )}
-        </div>
-
-        {/* Section 2 — Still Active */}
-        <div>
-          <h2 className="mb-6 font-display text-2xl font-semibold">Still Active</h2>
-          <AlertsGridSB alerts={stillActive} />
         </div>
 
       </div>
