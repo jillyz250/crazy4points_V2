@@ -28,7 +28,7 @@ export async function reverifyAlertClaimsAction(alertId: string): Promise<Reveri
 
   const { data: alert, error: alertErr } = await supabase
     .from('alerts')
-    .select('id, title, source_url, fact_check_claims')
+    .select('id, title, source_url, fact_check_claims, verified_terms')
     .eq('id', alertId)
     .maybeSingle()
 
@@ -51,6 +51,7 @@ export async function reverifyAlertClaimsAction(alertId: string): Promise<Reveri
       context: {
         title: (alert.title as string) ?? '',
         source_url: (alert.source_url as string | null) ?? null,
+        verified_terms: (alert.verified_terms as string | null) ?? null,
       },
     })
   } catch (err) {
@@ -88,7 +89,7 @@ export async function reviseAlertAction(alertId: string): Promise<ReviseActionRe
 
   const { data: alert, error: alertErr } = await supabase
     .from('alerts')
-    .select('id, title, summary, description, type, source_url, source_intel_id, fact_check_claims, revision_log, primary_program_id')
+    .select('id, title, summary, description, type, source_url, source_intel_id, fact_check_claims, revision_log, primary_program_id, verified_terms')
     .eq('id', alertId)
     .maybeSingle()
 
@@ -165,6 +166,7 @@ export async function reviseAlertAction(alertId: string): Promise<ReviseActionRe
       supabase,
       primaryId ? [primaryId] : []
     )
+    const verifiedTermsRaw = (alert.verified_terms as string | null) ?? null
     const reverify = await verifyAlertDraft({
       draft: revised.revised,
       raw_text: rawText,
@@ -172,6 +174,7 @@ export async function reviseAlertAction(alertId: string): Promise<ReviseActionRe
       alert_type: (alert.type as AlertType | null) ?? null,
       program_reference: programReference,
       alliance_context,
+      verified_terms: verifiedTermsRaw,
     })
     const newClaims = reverify?.claims ?? []
     if (newClaims.some((c) => !c.supported)) {
@@ -180,6 +183,7 @@ export async function reviseAlertAction(alertId: string): Promise<ReviseActionRe
         context: {
           title: revised.revised.title,
           source_url: (alert.source_url as string | null) ?? null,
+          verified_terms: verifiedTermsRaw,
         },
       })
     } else {

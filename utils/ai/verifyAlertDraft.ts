@@ -937,8 +937,9 @@ export async function verifyAlertDraft(args: {
     return null
   }
 
-  const sourceText = args.raw_text?.trim()
-  if (!sourceText) {
+  const sourceText = args.raw_text?.trim() ?? ''
+  const verifiedTermsText = args.verified_terms?.trim() ?? ''
+  if (!sourceText && !verifiedTermsText) {
     // Nothing to ground against — return a single high-severity sentinel.
     // No promo-terms chip in this branch: without source text we can't
     // distinguish "writer omitted" from "source genuinely had no terms",
@@ -956,11 +957,15 @@ export async function verifyAlertDraft(args: {
     }
   }
 
+  // raw_text may be empty when the original scrape was thin and the editor
+  // pasted verified_terms instead. The system prompt already treats
+  // verified_terms as highest-authority ground truth, so a verified-terms-only
+  // payload is valid — don't short-circuit.
   const userContent = JSON.stringify(
     {
       draft: args.draft,
       source_url: args.source_url,
-      source_text: sourceText,
+      source_text: sourceText.length > 0 ? sourceText : null,
       alert_type: args.alert_type ?? null,
       program_reference: args.program_reference ?? null,
       alliance_context: args.alliance_context ?? null,
@@ -1024,14 +1029,45 @@ export function highSeverityUnsupported(claims: VerifyClaim[]): VerifyClaim[] {
 
 const WEB_VERIFY_PROMPT = `You are a travel-industry fact-checker with access to web search.
 The writer agent produced a draft; a first-pass verifier found factual claims in the draft that
-are NOT supported by the source article. Your job: search the web to determine whether each
-unsupported claim is likely correct, likely wrong, or unverifiable.
+are NOT supported by the source article. Your job: determine whether each unsupported claim is
+likely correct, likely wrong, or unverifiable.
 
 ═══════════════════════════════════════════════════════════
-HOW TO JUDGE
+VERIFIED_TERMS — CHECK FIRST, BEFORE ANY WEB SEARCH
 ═══════════════════════════════════════════════════════════
 
-Use the web_search tool to find authoritative corroboration for each claim:
+The user payload may include "verified_terms" — full text of the program's OWN
+published terms (T&Cs, press release, official FAQ), pasted by the admin. This
+is the HIGHEST-AUTHORITY source available and supersedes anything you might find
+on the web.
+
+For EACH claim, before issuing a web_search call:
+
+1. Read verified_terms carefully (when present).
+2. If the claim is directly supported by verified_terms — verbatim or in clear
+   paraphrase, including numbers, dates, partner names, and procedural steps —
+   return:
+     web_verdict = "likely_correct"
+     web_evidence = "VT: <quoted span from verified_terms, under 300 chars>"
+     web_url = null
+   Do NOT burn a web_search call on this claim.
+3. If the claim CONTRADICTS verified_terms (wrong number, wrong date, etc.),
+   return:
+     web_verdict = "likely_wrong"
+     web_evidence = "VT: <the contradicting span>"
+     web_url = null
+4. Only fall through to web search when verified_terms is absent, empty, or
+   genuinely silent on the claim.
+
+When verified_terms is absent, empty, or whitespace-only, ignore this section
+and proceed directly to web search.
+
+═══════════════════════════════════════════════════════════
+HOW TO JUDGE (web-search fallback)
+═══════════════════════════════════════════════════════════
+
+For claims not resolved by verified_terms, use the web_search tool to find
+authoritative corroboration:
 • OFFICIAL PROGRAM FAQ / TERMS PAGES ARE THE SOURCE OF TRUTH. Always check the
   program's own FAQ or terms page first (e.g. flyingblue.statusmatch.com/faq/,
   chase.com/ultimate-rewards terms, hilton.com/honors promotion T&Cs). Only fall
@@ -1099,7 +1135,17 @@ function findLastTextBlock(content: Anthropic.ContentBlock[]): string | null {
  */
 export async function webVerifyClaims(args: {
   claims: VerifyClaim[]
-  context: { title: string; source_url: string | null }
+  context: {
+    title: string
+    source_url: string | null
+    /**
+     * Admin-pasted authoritative T&Cs from alerts.verified_terms. When present,
+     * the web-verifier checks it BEFORE issuing a web search so claims grounded
+     * in the editor's pasted terms aren't downgraded to "unverifiable" just
+     * because the official page isn't easily web-searchable.
+     */
+    verified_terms?: string | null
+  }
 }): Promise<VerifyClaim[]> {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) return args.claims
@@ -1107,10 +1153,13 @@ export async function webVerifyClaims(args: {
   const unsupported = args.claims.filter((c) => !c.supported)
   if (unsupported.length === 0) return args.claims
 
+  const verifiedTerms = args.context.verified_terms?.trim() ?? ''
+
   const userContent = JSON.stringify(
     {
       alert_title: args.context.title,
       original_source_url: args.context.source_url,
+      verified_terms: verifiedTerms.length > 0 ? verifiedTerms : null,
       claims_to_verify: unsupported.map((c) => c.claim),
     },
     null,
