@@ -1288,28 +1288,44 @@ export async function getAlertBySlug(
   supabase: SupabaseClient,
   slug: string
 ): Promise<Alert> {
-  // Primary lookup — exact slug match.
-  const { data, error } = await supabase
-    .from('alerts')
-    .select('*')
-    .eq('slug', slug)
-    .eq('status', 'published' satisfies AlertStatus)
+  // Phase 3 Wave 2 flip #11 (final): read from content_variants + topics
+  // via the AlertView adapter. SEO-critical — every /alerts/[slug] URL
+  // resolves through this function. Two-step lookup preserved exactly:
+  // exact slug first, then short_slug fallback for legacy URLs.
+  const { getAlertViewBySlug, selectAlertViewFromVariants } = await import('@/utils/content/alertView')
+
+  // Primary lookup — exact slug match against topics.slug.
+  const primary = await getAlertViewBySlug(supabase, slug)
+  if (primary && primary.status === 'published') return primary
+
+  // Fallback — short_slug match (legacy URLs). variant.metadata.short_slug
+  // is preserved by the dual-write trigger.
+  const { data: shortMatch } = await supabase
+    .from('content_variants')
+    .select('topic_id, topics:topics!inner(slug)')
+    .eq('format', 'alert')
+    .eq('status', 'published')
+    .eq('metadata->>short_slug', slug)
     .maybeSingle()
 
-  if (data) return data as Alert
-  if (error) throw error
+  const topicsRaw = (shortMatch?.topics ?? null) as unknown
+  const topic = Array.isArray(topicsRaw) ? topicsRaw[0] : topicsRaw
+  const targetSlug = topic && typeof topic === 'object' && 'slug' in topic
+    ? (topic as { slug: string }).slug
+    : null
 
-  // Fallback — short_slug match (legacy URLs).
-  const { data: shortMatch, error: shortErr } = await supabase
-    .from('alerts')
-    .select('*')
-    .eq('short_slug', slug)
-    .eq('status', 'published' satisfies AlertStatus)
-    .maybeSingle()
+  if (!targetSlug) throw new Error('Alert not found')
 
-  if (shortErr) throw shortErr
-  if (!shortMatch) throw new Error('Alert not found')
-  return shortMatch as Alert
+  // Resolve canonical slug → full AlertView
+  const resolved = await getAlertViewBySlug(supabase, targetSlug)
+  if (!resolved) throw new Error('Alert not found')
+
+  // Wave-2 callers want the full Alert shape; AlertView is a superset.
+  // Strip out any AlertView-only fields if present (e.g. internal _view_source).
+  // The reader-facing select also benefits from including the joined programs.
+  // Detail page may want them; fetch via withPrograms separately if needed.
+  const list = await selectAlertViewFromVariants(supabase, { slug: targetSlug, withPrograms: true, limit: 1 })
+  return (list[0] ?? resolved) as Alert
 }
 
 /**
