@@ -17,17 +17,22 @@ export default async function ShortLinkRedirect({
   if (!short) notFound()
 
   const supabase = createAdminClient()
+  // Phase 3 Wave 2 flip #2: resolve short_slug via content_variants instead
+  // of alerts. variant.metadata.short_slug is preserved by the dual-write
+  // trigger (migration 319). Only published alert-variants with an active
+  // topic resolve; everything else lands on /alerts.
   const { data } = await supabase
-    .from('alerts')
-    .select('slug, status')
-    .eq('short_slug', short.toLowerCase())
+    .from('content_variants')
+    .select('status, topics:topics!inner(slug, status, end_date)')
+    .eq('format', 'alert')
+    .eq('status', 'published')
+    .eq('metadata->>short_slug', short.toLowerCase())
     .maybeSingle()
 
-  if (!data || data.status !== 'published') {
-    redirect('/alerts')
-  }
+  const topic = data?.topics as { slug: string; status: string; end_date: string | null } | null
+  if (!topic) redirect('/alerts')
 
-  redirect(`/alerts/${data.slug}`)
+  redirect(`/alerts/${topic.slug}`)
 }
 
 // Don't cache the redirect endpoint — short_slugs can be unpublished /
