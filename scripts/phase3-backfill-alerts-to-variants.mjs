@@ -113,7 +113,6 @@ async function loadProgramSlugsFor(alertId) {
 
 function buildTopicRow(alert, programSlugs, statuses) {
   const editorialScores = {
-    source: 'alerts_backfill',
     impact_score: alert.impact_score ?? null,
     value_score: alert.value_score ?? null,
     rarity_score: alert.rarity_score ?? null,
@@ -142,12 +141,19 @@ function buildTopicRow(alert, programSlugs, statuses) {
       backfilled_at: new Date().toISOString(),
       editorial_scores: editorialScores,
       original_alert_id: alert.id,
+      original_alert_created_at: alert.created_at ?? null,
+      original_alert_updated_at: alert.updated_at ?? null,
     },
   }
 }
 
+// Fields copied verbatim from alert → variant.metadata. `source` is renamed
+// to `alerts_source` to avoid colliding with the provenance marker
+// metadata.source = 'alerts_backfill'.
 const BACKFILL_FIELDS_ON_VARIANT_METADATA = [
+  'short_slug',
   'action_type',
+  'start_date',
   'registration_required',
   'override_reason',
   'terms_waived_reason',
@@ -162,7 +168,6 @@ const BACKFILL_FIELDS_ON_VARIANT_METADATA = [
   'history_note',
   'revision_log',
   'confidence_level',
-  'source',
   'last_verified',
   'revisit_after',
   'gaps',
@@ -170,10 +175,15 @@ const BACKFILL_FIELDS_ON_VARIANT_METADATA = [
 ]
 
 function buildVariantRow(alert, topicId, statuses) {
-  const variantMetadata = { source: 'alerts_backfill', _backfill_fields: BACKFILL_FIELDS_ON_VARIANT_METADATA }
+  const variantMetadata = { source: 'alerts_backfill', _backfill_fields: [...BACKFILL_FIELDS_ON_VARIANT_METADATA, 'alerts_source', 'original_alert_type'] }
   for (const f of BACKFILL_FIELDS_ON_VARIANT_METADATA) {
     if (alert[f] !== undefined && alert[f] !== null) variantMetadata[f] = alert[f]
   }
+  // alert.source → alerts_source (avoid key collision with provenance marker)
+  if (alert.source !== undefined && alert.source !== null) variantMetadata.alerts_source = alert.source
+  // alert.type → original_alert_type (topic.topic_type is a subset; preserve full original)
+  if (alert.type !== undefined && alert.type !== null) variantMetadata.original_alert_type = alert.type
+
   const sourceHash = createHash('sha256')
     .update(`${alert.title ?? ''}|${alert.description ?? ''}`)
     .digest('hex')
@@ -243,7 +253,30 @@ async function main() {
       }
       topicId = existingTopic.id
       if (DRY_RUN) {
-        console.log(`[dry-run] ${alert.slug} → topic exists (${topicId}), would upsert variant`)
+        console.log(`[dry-run] ${alert.slug} → topic exists (${topicId}), would update + upsert variant`)
+      } else {
+        // Update existing topic with the latest mapping (re-runs are how we patch
+        // backfilled rows after the script changes shape).
+        const { error: tuErr } = await sb
+          .from('topics')
+          .update({
+            title: topicRow.title,
+            summary: topicRow.summary,
+            source_urls: topicRow.source_urls,
+            fact_ledger: topicRow.fact_ledger,
+            fact_check_status: topicRow.fact_check_status,
+            verified_at: topicRow.verified_at,
+            programs: topicRow.programs,
+            end_date: topicRow.end_date,
+            status: topicRow.status,
+            metadata: topicRow.metadata,
+          })
+          .eq('id', topicId)
+        if (tuErr) {
+          console.error(`  [err] ${alert.slug} topic update failed:`, tuErr.message)
+          errors++
+          continue
+        }
       }
     } else {
       if (DRY_RUN) {
