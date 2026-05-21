@@ -1474,6 +1474,11 @@ export async function getAlertsByProgramSlug(
   supabase: SupabaseClient,
   programSlug: string
 ): Promise<{ program: Program; alerts: AlertWithPrograms[] }> {
+  // Phase 3 Wave 2 flip #10: alerts portion read from content_variants +
+  // topics via the AlertView adapter. Program resolution + alliance
+  // expansion logic preserved exactly.
+  const { selectAlertViewFromVariants } = await import('@/utils/content/alertView')
+
   // 1. Resolve the program
   const { data: program, error: progError } = await supabase
     .from('programs')
@@ -1483,54 +1488,29 @@ export async function getAlertsByProgramSlug(
 
   if (progError) throw progError
 
-  // 2. Determine the set of program IDs whose alerts should appear on this page.
+  // 2. Determine the set of program slugs whose alerts should appear on this page.
   //    Alliance pages aggregate alerts from every member airline (programs whose
-  //    `alliance` column matches this slug), plus alerts tagged directly to the
-  //    alliance row. Carrier / hotel / loyalty pages just use their own ID.
-  let programIds: string[] = [program.id]
+  //    `alliance` column matches this slug). Carrier / hotel / loyalty pages
+  //    just use their own slug.
+  let targetSlugs: Set<string> = new Set([program.slug])
   if (program.type === 'alliance') {
     const { data: members, error: mError } = await supabase
       .from('programs')
-      .select('id')
+      .select('slug')
       .eq('alliance', program.slug)
     if (mError) throw mError
-    if (members && members.length > 0) {
-      programIds = [program.id, ...members.map((m: { id: string }) => m.id)]
-    }
+    for (const m of (members ?? []) as { slug: string }[]) targetSlugs.add(m.slug)
   }
 
-  // 3. Fetch alerts via junction table for any of those program IDs.
-  const { data: junction, error: jError } = await supabase
-    .from('alert_programs')
-    .select('alert_id')
-    .in('program_id', programIds)
+  // 3. Fetch all published variants with joined programs, then filter to
+  //    those tagged with any of the target slugs. Result set is small so
+  //    client-side filter is fine.
+  const allPublished = await selectAlertViewFromVariants(supabase, { status: 'published', withPrograms: true })
+  const alerts = (allPublished as (Alert & { alert_programs: (AlertProgram & { programs: Program })[] })[])
+    .filter((a) => a.alert_programs.some((ap) => targetSlugs.has(ap.programs.slug)))
+    .sort((a, b) => (b.published_at ?? '').localeCompare(a.published_at ?? ''))
 
-  if (jError) throw jError
-
-  const junctionIds = Array.from(
-    new Set((junction ?? []).map((r: { alert_id: string }) => r.alert_id))
-  )
-
-  // 4. Fetch alerts by primary_program_id OR junction membership.
-  let query = supabase
-    .from('alerts')
-    .select('*, alert_programs(*, programs(*))')
-    .eq('status', 'published' satisfies AlertStatus)
-    .order('published_at', { ascending: false, nullsFirst: false })
-
-  if (junctionIds.length > 0) {
-    query = query.or(
-      `primary_program_id.in.(${programIds.join(',')}),id.in.(${junctionIds.join(',')})`
-    )
-  } else {
-    query = query.in('primary_program_id', programIds)
-  }
-
-  const { data: alerts, error: alertError } = await query
-
-  if (alertError) throw alertError
-
-  return { program: program as Program, alerts: (alerts ?? []) as AlertWithPrograms[] }
+  return { program: program as Program, alerts }
 }
 
 /**

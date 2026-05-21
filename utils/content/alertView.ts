@@ -17,11 +17,20 @@
  * `Alert` alias.
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { Alert } from '@/utils/supabase/queries'
+import type { Alert, AlertProgram, Program } from '@/utils/supabase/queries'
 
 export type AlertView = Alert & {
   /** Wave 2 provenance marker. Always 'variants' from this adapter. */
   _view_source?: 'variants'
+}
+
+/**
+ * Same as AlertView plus the joined alert_programs shape callers like
+ * AlertCard / AlertCardSB consume. Populate via the `withPrograms` filter.
+ */
+export type AlertViewWithPrograms = AlertView & {
+  alert_programs: (AlertProgram & { programs: Program })[]
+  programs: Program[]
 }
 
 /** Shape returned by the joined SELECT. Kept loose; mapped row-by-row. */
@@ -191,6 +200,13 @@ type SelectFilters = {
    * (currently-live alerts only).
    */
   activeOnly?: boolean
+  /**
+   * When true, also fetch the `programs` table rows for every topic.programs
+   * slug and attach them as `alert_programs` + `programs` on the result so
+   * callers like AlertCard / AlertCardSB get the same shape they got from
+   * the legacy alerts join. Adds one extra query (batched across all rows).
+   */
+  withPrograms?: boolean
 }
 
 /**
@@ -221,7 +237,39 @@ export async function selectAlertViewFromVariants(
     console.error('[alertView] select failed:', error.message)
     return []
   }
-  return (data as unknown as VariantRow[]).map(mapVariantRowToAlertView)
+  const variantRows = data as unknown as VariantRow[]
+  const rows = variantRows.map(mapVariantRowToAlertView)
+  if (!filters.withPrograms) return rows
+
+  // Batch-lookup the programs table for every slug in any topic.programs[]
+  // appearing in this result set. One query, then merge per-row.
+  const flatSlugs = Array.from(new Set(variantRows.flatMap((vr) => vr.topics?.programs ?? [])))
+  if (flatSlugs.length === 0) {
+    return rows.map((r) => ({ ...r, alert_programs: [], programs: [] } as AlertViewWithPrograms))
+  }
+
+  const { data: programRows } = await supabase
+    .from('programs')
+    .select('*')
+    .in('slug', flatSlugs)
+  const programBySlug = new Map<string, Program>()
+  for (const p of (programRows as Program[] | null) ?? []) programBySlug.set(p.slug, p)
+
+  return rows.map((alert, i) => {
+    const vr = variantRows[i]
+    const slugs = vr.topics?.programs ?? []
+    const primaryId = (vr.topics?.metadata as { primary_program_id?: string } | null)?.primary_program_id ?? null
+    const matchedPrograms = slugs.map((s) => programBySlug.get(s)).filter((p): p is Program => !!p)
+    const alert_programs: (AlertProgram & { programs: Program })[] = matchedPrograms.map((p) => ({
+      id: `${vr.topic_id}-${p.id}`,
+      alert_id: alert.id,
+      program_id: p.id,
+      role: primaryId && p.id === primaryId ? 'primary' : 'secondary',
+      created_at: alert.created_at,
+      programs: p,
+    }))
+    return { ...alert, alert_programs, programs: matchedPrograms } as AlertViewWithPrograms
+  })
 }
 
 /** Single-row lookup by slug (the variant must be format='alert'). */

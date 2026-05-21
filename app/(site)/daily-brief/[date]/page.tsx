@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { createClient } from '@/utils/supabase/server'
-import { getAlertsByPublishDate } from '@/utils/supabase/queries'
+import { selectAlertViewFromVariants, type AlertViewWithPrograms } from '@/utils/content/alertView'
 import AlertsGridSB from '@/components/alerts/AlertsGridSB'
 
 // Historical daily brief; immutable once the date has passed.
@@ -41,7 +41,15 @@ export default async function DailyBriefArchivePage({
   if (new Date(dateStr).toString() === 'Invalid Date') notFound()
 
   const supabase = await createClient()
-  const alerts = await getAlertsByPublishDate(supabase, dateStr)
+  // Phase 3 Wave 2 flip #8: alerts published on this date sourced from
+  // content_variants + topics via the AlertView adapter. Filter for
+  // published_at within the dateStr day client-side; result set is small.
+  const startISO = `${dateStr}T00:00:00.000Z`
+  const endISO   = `${dateStr}T23:59:59.999Z`
+  const allPublished = await selectAlertViewFromVariants(supabase, { status: 'published', withPrograms: true }) as AlertViewWithPrograms[]
+  const alerts = allPublished
+    .filter((a) => a.published_at && a.published_at >= startISO && a.published_at <= endISO)
+    .sort((a, b) => (b.computed_score ?? 0) - (a.computed_score ?? 0))
   const dateLabel = formatDate(dateStr)
 
   return (

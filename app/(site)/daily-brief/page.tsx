@@ -1,8 +1,9 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { createAdminClient } from '@/utils/supabase/server'
-import { getActiveAlerts } from '@/utils/supabase/queries'
 import type { AlertWithPrograms } from '@/utils/supabase/queries'
+import { selectAlertViewFromVariants, type AlertViewWithPrograms } from '@/utils/content/alertView'
+import { isAlertActiveET } from '@/lib/alerts/expiry'
 import AlertsGridSB from '@/components/alerts/AlertsGridSB'
 
 // Daily brief; cron rebuilds once/day, no need to revalidate often.
@@ -13,7 +14,7 @@ export const metadata: Metadata = {
   description: "Today's top travel rewards alerts, scored and ranked.",
 }
 
-function byScore(a: AlertWithPrograms, b: AlertWithPrograms): number {
+function byScore(a: AlertViewWithPrograms, b: AlertViewWithPrograms): number {
   return (
     (b.impact_score + b.value_score + b.rarity_score) -
     (a.impact_score + a.value_score + a.rarity_score)
@@ -22,7 +23,12 @@ function byScore(a: AlertWithPrograms, b: AlertWithPrograms): number {
 
 export default async function DailyBriefPage() {
   const supabase = createAdminClient()
-  const allAlerts = await getActiveAlerts(supabase)
+  // Phase 3 Wave 2 flip #7: read from content_variants + topics via the
+  // AlertView adapter. withPrograms reconstructs the alert_programs shape
+  // AlertsGridSB consumes. ET-based active filter applied client-side
+  // to match legacy getActiveAlerts semantics exactly.
+  const allPublished = await selectAlertViewFromVariants(supabase, { status: 'published', withPrograms: true }) as AlertViewWithPrograms[]
+  const allAlerts = allPublished.filter((a) => isAlertActiveET(a.end_date))
 
   const todayStart = new Date()
   todayStart.setHours(0, 0, 0, 0)
