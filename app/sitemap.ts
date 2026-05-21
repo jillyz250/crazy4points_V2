@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next'
 import { createClient } from '@/utils/supabase/server'
 import { SITE_URL as BASE_URL } from '@/lib/constants'
+import { selectAlertViewFromVariants } from '@/utils/content/alertView'
 
 export const revalidate = 3600
 
@@ -13,13 +14,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   try {
     const supabase = await createClient()
 
-    const { data: alerts } = await supabase
-      .from('alerts')
-      .select('slug, published_at')
-      .eq('status', 'published')
-      .order('published_at', { ascending: false })
+    // Phase 3 Wave 2 flip #1: read alert URLs from content_variants + topics.
+    // Public route, SEO-critical — every URL here is something Google indexes.
+    // The adapter returns the same slug + published_at shape the legacy
+    // alerts query did. Verification gate
+    // (scripts/phase3-verify-wave2.mjs) confirmed parity vs the old read path
+    // before this flip shipped.
+    const alerts = await selectAlertViewFromVariants(supabase, { status: 'published', activeOnly: true })
 
-    alertEntries = (alerts ?? []).map((a: { slug: string; published_at: string | null }) => ({
+    alertEntries = alerts.map((a) => ({
       url: `${BASE_URL}/alerts/${a.slug}`,
       lastModified: a.published_at ?? undefined,
       changeFrequency: 'weekly' as const,
