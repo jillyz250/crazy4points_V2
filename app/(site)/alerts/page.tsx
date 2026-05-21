@@ -1,7 +1,9 @@
 import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import { createAdminClient } from '@/utils/supabase/server'
-import { getActiveAlertsByFilter, getPrograms } from '@/utils/supabase/queries'
+import { getPrograms } from '@/utils/supabase/queries'
+import { selectAlertViewFromVariants, type AlertViewWithPrograms } from '@/utils/content/alertView'
+import { isAlertActiveET } from '@/lib/alerts/expiry'
 import AlertsGridSB from '@/components/alerts/AlertsGridSB'
 import AlertsTieredSB from '@/components/alerts/AlertsTieredSB'
 import AlertsFiltersSB from '@/components/alerts/AlertsFiltersSB'
@@ -22,18 +24,20 @@ export default async function AlertsPage({
   const { type, program: programSlug } = await searchParams
   const supabase = createAdminClient()
 
-  // Resolve program slug → ID if provided
-  let programId: string | undefined
-  if (programSlug) {
-    const programs = await getPrograms(supabase)
-    const match = programs.find((p) => p.slug === programSlug)
-    programId = match?.id
-  }
-
-  const [alerts, programs] = await Promise.all([
-    getActiveAlertsByFilter(supabase, type, programId),
+  // Phase 3 Wave 2 flip #9: alerts read from content_variants + topics via
+  // the AlertView adapter. Type + program filters and ET-active filter all
+  // applied client-side after the adapter fetch. Result set is small so
+  // client filter cost is nil.
+  const [allPublished, programs] = await Promise.all([
+    selectAlertViewFromVariants(supabase, { status: 'published', withPrograms: true }) as Promise<AlertViewWithPrograms[]>,
     getPrograms(supabase),
   ])
+  const alerts = allPublished.filter((a) => {
+    if (!isAlertActiveET(a.end_date)) return false
+    if (type && a.type !== type) return false
+    if (programSlug && !a.alert_programs.some((ap) => ap.programs.slug === programSlug)) return false
+    return true
+  })
 
   return (
     <section className="rg-major-section !pt-8">

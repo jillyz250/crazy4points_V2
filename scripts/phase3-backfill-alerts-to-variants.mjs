@@ -144,6 +144,7 @@ function buildTopicRow(alert, programSlugs, statuses) {
       original_alert_created_at: alert.created_at ?? null,
       original_alert_updated_at: alert.updated_at ?? null,
       source_intel_id: alert.source_intel_id ?? null,
+      primary_program_id: alert.primary_program_id ?? null,
     },
   }
 }
