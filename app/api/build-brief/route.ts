@@ -11,6 +11,7 @@ import type { WriteDraftProgram } from '@/utils/ai/writeAlertDraft'
 import { detectConflict } from '@/utils/ai/detectConflict'
 import type { ApproveMeta } from '@/utils/ai/briefEmail'
 import { logSystemError } from '@/utils/supabase/queries'
+import { selectAlertViewFromVariants } from '@/utils/content/alertView'
 // writeEditCheck / verifyAlertDraft / webVerifyClaims / reviseAlertDraft /
 // buildExtraContext / loadAllianceContextForPrograms etc. are no longer
 // imported here — the auto-write loop was removed in the May 2026 triage
@@ -37,7 +38,7 @@ export async function GET(req: NextRequest) {
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
   const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
 
-  const [intelRes, recentRes, programsRes] = await Promise.all([
+  const [intelRes, recentAlertsView, programsRes] = await Promise.all([
     supabase
       .from('intel_items')
       .select('id, headline, raw_text, source_name, source_url, confidence, alert_type, programs, expires_at, conflict_detected_at')
@@ -45,15 +46,22 @@ export async function GET(req: NextRequest) {
       .is('rejected_at', null)
       .order('confidence', { ascending: false })
       .order('created_at', { ascending: false }),
-    supabase
-      .from('alerts')
-      .select('id, title, summary, published_at')
-      .eq('status', 'published')
-      .gte('published_at', since30d)
-      .order('published_at', { ascending: false })
-      .limit(3),
+    // Phase 3 Wave 2 flip #3: voice samples now read from variants.
+    // selectAlertViewFromVariants returns Alert-shape rows ordered by
+    // published_at desc; activeOnly excludes formerly-expired alerts to
+    // match the legacy `status='published'` behavior. since30d filter
+    // applied client-side because the adapter doesn't take a date range.
+    selectAlertViewFromVariants(supabase, { status: 'published', activeOnly: true, limit: 12 }),
     supabase.from('programs').select('id, slug, name, type'),
   ])
+
+  const recentRes = {
+    data: recentAlertsView
+      .filter((a) => a.published_at && a.published_at >= since30d)
+      .slice(0, 3)
+      .map((a) => ({ id: a.id, title: a.title, summary: a.summary, published_at: a.published_at })),
+    error: null,
+  }
 
   if (intelRes.error) {
     console.error('[build-brief] intel_items fetch failed:', intelRes.error)
