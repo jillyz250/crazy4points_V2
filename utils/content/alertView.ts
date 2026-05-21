@@ -183,6 +183,14 @@ type SelectFilters = {
   orderByPublishedDesc?: boolean
   /** Restrict to topics tagged with this program slug. */
   programSlug?: string
+  /**
+   * Exclude variants whose topic.end_date is in the past. The legacy `alerts`
+   * read paths used `status='published'` which excluded `status='expired'`
+   * rows; in the variants world both map to `status='published'` so we use
+   * end_date for the same effect. Set true to preserve legacy semantics
+   * (currently-live alerts only).
+   */
+  activeOnly?: boolean
 }
 
 /**
@@ -202,6 +210,9 @@ export async function selectAlertViewFromVariants(
   if (filters.status) q = q.eq('status', filters.status)
   if (filters.slug) q = q.eq('topics.slug', filters.slug)
   if (filters.programSlug) q = q.contains('topics.programs', [filters.programSlug])
+  if (filters.activeOnly) {
+    q = q.or('end_date.is.null,end_date.gt.' + new Date().toISOString(), { foreignTable: 'topics' })
+  }
   if (filters.orderByPublishedDesc !== false) q = q.order('published_at', { ascending: false, nullsFirst: false })
   if (typeof filters.limit === 'number') q = q.limit(filters.limit)
 
