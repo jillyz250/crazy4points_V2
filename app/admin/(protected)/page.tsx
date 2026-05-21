@@ -20,7 +20,6 @@ type Tile = {
 const TILES: Tile[] = [
   { title: 'Alerts', description: 'Draft, approve, and publish alerts. Review Scout-generated drafts.', href: '/admin/alerts', cta: 'Manage' },
   { title: 'Sources', description: 'Intelligence sources scraped by Claude Scout.', href: '/admin/sources', cta: 'Manage' },
-  { title: 'Intel', description: 'Raw findings from Claude Scout. Filter and reject noise.', href: '/admin/intel', cta: 'View' },
   { title: 'Programs', description: 'Loyalty programs that alerts can be tagged against.', href: '/admin/programs', cta: 'Manage' },
   { title: 'Content Ideas', description: 'Long-form ideas generated during the daily brief.', href: '/admin/content-ideas', cta: 'View' },
   { title: 'Newsletter', description: 'Compose and send weekly newsletter.', href: '/admin/newsletter', cta: 'Open' },
@@ -99,7 +98,7 @@ export default async function AdminDashboard() {
       label: 'Unprocessed intel (24h)',
       value: stats.unprocessedIntel,
       tone: 'neutral',
-      href: '/admin/intel',
+      href: '/admin/triage',
       hint: 'auto-staged when high confidence',
     },
     {
