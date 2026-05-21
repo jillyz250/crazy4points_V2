@@ -86,7 +86,7 @@ export default async function TopicsIndexPage({
   return (
     <div>
       <PageHeader
-        title="Topics"
+        title={`Topics (${rows.length})`}
         description="Editorial topics — the verified source-of-truth unit that fans out into format-specific variants (alert, blog, newsletter, social). PR 2: CRUD + Haiku fact extraction with anti-fabrication checks."
         actions={
           <Link href="/admin/topics/new" className="rg-btn-primary">
