@@ -29,10 +29,15 @@ export default async function ShortLinkRedirect({
     .eq('metadata->>short_slug', short.toLowerCase())
     .maybeSingle()
 
-  const topic = data?.topics as { slug: string; status: string; end_date: string | null } | null
-  if (!topic) redirect('/alerts')
+  // PostgREST types the joined relation as Array; with !inner + maybeSingle()
+  // it's at most one row. Normalize to single via unknown cast.
+  const topicRaw = data?.topics as unknown
+  const topic = Array.isArray(topicRaw) ? topicRaw[0] : topicRaw
+  if (!topic || typeof topic !== 'object' || !('slug' in topic) || typeof (topic as { slug: unknown }).slug !== 'string') {
+    redirect('/alerts')
+  }
 
-  redirect(`/alerts/${topic.slug}`)
+  redirect(`/alerts/${(topic as { slug: string }).slug}`)
 }
 
 // Don't cache the redirect endpoint — short_slugs can be unpublished /
