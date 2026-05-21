@@ -307,18 +307,28 @@ export async function GET(req: NextRequest) {
 
       // Also try to resolve the staged alert id up-front so Review & Publish
       // links survive even when the writer call itself fails.
+      //
+      // Phase 3 Wave 2 flip #4: read from content_variants + topics. The
+      // dual-write trigger (migration 321) preserves source_intel_id on
+      // topic.metadata, computed_score on topic.metadata.editorial_scores,
+      // and the original alert id on topic.metadata.original_alert_id.
       {
-        const { data: existingAlert } = await supabase
-          .from('alerts')
-          .select('id, computed_score')
-          .eq('source_intel_id', intel.id as string)
+        const { data: existingTopicRow } = await supabase
+          .from('topics')
+          .select('metadata')
+          .eq('metadata->>source_intel_id', intel.id as string)
+          .eq('status', 'active')
           .maybeSingle()
-        if (existingAlert?.id) {
-          const alertId = existingAlert.id as string
+        const topicMeta = (existingTopicRow?.metadata ?? null) as {
+          original_alert_id?: string
+          editorial_scores?: { computed_score?: number | null }
+        } | null
+        const alertId = topicMeta?.original_alert_id ?? null
+        if (alertId) {
           alertIdByIntelId[intel.id as string] = alertId
           approveMetaByIntelId[intel.id as string].alertId = alertId
           approveMetaByIntelId[intel.id as string].computedScore =
-            (existingAlert.computed_score as number | null) ?? null
+            topicMeta?.editorial_scores?.computed_score ?? null
         }
       }
 
