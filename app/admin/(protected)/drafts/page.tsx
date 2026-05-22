@@ -6,6 +6,7 @@ import { Badge } from '@/components/admin/ui/Badge'
 import { Card } from '@/components/admin/ui/Card'
 import { EmptyState } from '@/components/admin/ui/EmptyState'
 import { publishAlertAction, expireAlertAction } from '../alerts/actions'
+import ConfirmButton from '@/components/admin/ConfirmButton'
 
 /**
  * Phase 4 — Unified Drafts hub.
@@ -28,7 +29,7 @@ import { publishAlertAction, expireAlertAction } from '../alerts/actions'
 type FormatKey =
   | 'all' | 'alert' | 'blog' | 'newsletter'
   | 'facebook' | 'instagram' | 'linkedin' | 'x' | 'threads'
-type StatusKey = 'all' | 'draft' | 'needs_review' | 'published' | 'archived'
+type StatusKey = 'all' | 'draft' | 'needs_review' | 'published' | 'expired' | 'archived'
 type SortKey = 'updated' | 'voice' | 'start'
 
 // Format chips. Social formats land "real" in Phase 4.5 PR B (generators);
@@ -52,6 +53,9 @@ const STATUS_OPTIONS: { key: StatusKey; label: string }[] = [
   { key: 'needs_review', label: 'Needs review' },
   { key: 'draft', label: 'Draft' },
   { key: 'published', label: 'Published' },
+  // Expired is derived: variant.status stays 'published' but topic.end_date
+  // is in the past. The trigger projects 'expired' on the alerts mirror.
+  { key: 'expired', label: 'Expired' },
   { key: 'archived', label: 'Archived' },
 ]
 
@@ -67,6 +71,7 @@ const STATUS_TONE: Record<string, { label: string; tone: 'success' | 'warning' |
   needs_review: { label: 'Needs review', tone: 'warning' },
   approved:     { label: 'Approved', tone: 'success' },
   archived:     { label: 'Archived', tone: 'neutral' },
+  expired:      { label: 'Expired', tone: 'accent' },
 }
 
 interface DraftRow {
@@ -110,7 +115,7 @@ export default async function AdminDraftsPage({
   const sp = await searchParams
   const VALID_FORMATS = ['alert', 'blog', 'newsletter', 'facebook', 'instagram', 'linkedin', 'x', 'threads']
   const format = (sp.format && VALID_FORMATS.includes(sp.format) ? sp.format : 'all') as FormatKey
-  const status = (sp.status && ['draft', 'needs_review', 'published', 'archived'].includes(sp.status) ? sp.status : 'all') as StatusKey
+  const status = (sp.status && ['draft', 'needs_review', 'published', 'expired', 'archived'].includes(sp.status) ? sp.status : 'all') as StatusKey
   const voice: 'fail' | undefined = sp.voice === 'fail' ? 'fail' : undefined
   const sort = (sp.sort && ['updated', 'voice', 'start'].includes(sp.sort) ? sp.sort : 'updated') as SortKey
   const filters: { format: FormatKey; status: StatusKey; voice: 'fail' | undefined; sort: SortKey } = {
@@ -125,7 +130,12 @@ export default async function AdminDraftsPage({
     )
 
   if (format !== 'all') query = query.eq('format', format)
-  if (status !== 'all') query = query.eq('status', status)
+  // Expired is derived: variant.status='published' AND topic.end_date is past.
+  // The trigger projects 'expired' to alerts.status but variant stays
+  // published; filter is computed in JS after fetch so we keep all the
+  // indexed-column wins on the base query.
+  if (status !== 'all' && status !== 'expired') query = query.eq('status', status)
+  if (status === 'expired') query = query.eq('status', 'published')
   if (voice === 'fail') query = query.eq('voice_pass', false)
 
   if (sort === 'voice') query = query.order('voice_score', { ascending: false, nullsFirst: false })
@@ -146,7 +156,8 @@ export default async function AdminDraftsPage({
     )
   }
 
-  const rows: DraftRow[] = (rawRows ?? []).map((r) => {
+  const nowMs = Date.now()
+  let rows: DraftRow[] = (rawRows ?? []).map((r) => {
     const t = Array.isArray(r.topics) ? r.topics[0] : r.topics
     const alertId = (t?.metadata as { original_alert_id?: string } | null)?.original_alert_id ?? null
     return {
@@ -168,6 +179,16 @@ export default async function AdminDraftsPage({
       updated_at: r.updated_at as string | null,
     }
   })
+
+  // Apply the derived expired/published distinction:
+  //   • "Published" chip wants ONLY currently-live rows (end_date null or in future)
+  //   • "Expired" chip wants ONLY rows whose end_date is past
+  // Both queries pulled status='published'; this split happens in JS.
+  if (status === 'expired') {
+    rows = rows.filter(r => r.end_date && new Date(r.end_date).getTime() < nowMs)
+  } else if (status === 'published') {
+    rows = rows.filter(r => !r.end_date || new Date(r.end_date).getTime() >= nowMs)
+  }
 
   return (
     <div>
@@ -251,7 +272,11 @@ export default async function AdminDraftsPage({
               </thead>
               <tbody>
                 {rows.map((r) => {
-                  const s = STATUS_TONE[r.status] ?? STATUS_TONE.draft
+                  // Derive "expired" badge: variant.status stays 'published',
+                  // but if topic.end_date is past, surface it as Expired.
+                  const isExpired = r.status === 'published' && r.end_date && new Date(r.end_date).getTime() < nowMs
+                  const displayStatus = isExpired ? 'expired' : r.status
+                  const s = STATUS_TONE[displayStatus] ?? STATUS_TONE.draft
                   const voiceCell =
                     r.voice_pass === true ? (
                       <Badge tone="success">✓ {r.voice_score ?? ''}</Badge>
@@ -301,13 +326,17 @@ export default async function AdminDraftsPage({
                               </button>
                             </form>
                           )}
-                          {r.alert_id && r.status === 'published' && (
-                            <form action={expireAlertAction.bind(null, r.alert_id)}>
-                              <button type="submit" className="admin-btn admin-btn-ghost admin-btn-sm">
+                          {r.alert_id && r.status === 'published' && (() => {
+                            const aid = r.alert_id
+                            return (
+                              <ConfirmButton
+                                action={async () => { await expireAlertAction(aid) }}
+                                confirmMessage={`Expire "${r.title}"?\n\nThis sets end_date=now and hides the alert from active surfaces. URL stays live but reads "expired". You can restore by clearing end_date on the topic.`}
+                              >
                                 Expire
-                              </button>
-                            </form>
-                          )}
+                              </ConfirmButton>
+                            )
+                          })()}
                         </div>
                       </td>
                     </tr>
