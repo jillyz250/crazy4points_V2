@@ -31,6 +31,14 @@
     {
       "path": "/api/cron/recompute-surface-locations",
       "schedule": "30 7 * * *"
+    },
+    {
+      "path": "/api/cron/auto-expire",
+      "schedule": "5 * * * *"
+    },
+    {
+      "path": "/api/cron/auto-archive",
+      "schedule": "15 7 * * *"
     }
   ]
 }
