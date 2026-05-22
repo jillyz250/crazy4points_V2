@@ -885,67 +885,68 @@ a.admin-btn-primary:hover:not(:disabled) {
 
    Modifier .chip--active flips the chip to full color + white text.
    ──────────────────────────────────────────────────────────────────── */
+/* Each chip is a real pill from the start — soft tinted fill when inactive,
+   saturated color when active. The inactive state isn't transparent text;
+   it's a tinted lozenge. That's what makes the row read as a control bar
+   rather than a sentence of links. */
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  padding: 0.28rem 0.7rem;
+  padding: 0.3rem 0.78rem;
   border-radius: 9999px;
   font-family: var(--font-ui);
   font-size: 0.78125rem;
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   line-height: 1.2;
   border: 1px solid transparent;
-  background: transparent;
-  color: var(--admin-text-muted);
   cursor: pointer;
   text-decoration: none;
   transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease, transform 90ms ease, box-shadow 140ms ease;
   user-select: none;
 }
 .chip:hover:not(.chip--active) {
-  background: var(--admin-surface-alt, #f5f5f7);
-  color: var(--admin-text);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(24, 24, 27, 0.08);
   text-decoration: none;
 }
-.chip:active:not(.chip--active) { transform: translateY(1px); }
+.chip:active:not(.chip--active) { transform: translateY(0); }
 
-/* Active state — full color fill. Override per-tone below. */
+/* Active = full color fill, white text, soft shadow lift. Per-tone below. */
 .chip--active {
   color: #fff;
-  background: var(--admin-text);
-  border-color: var(--admin-text);
-  box-shadow: 0 1px 0 rgba(0,0,0,0.06);
+  box-shadow: 0 2px 6px rgba(107, 45, 143, 0.18);
 }
 
-/* Per-tone — soft tint on hover, full saturation when active */
-.chip--neutral { color: var(--admin-text-muted); }
-.chip--neutral.chip--active { background: var(--admin-text); border-color: var(--admin-text); color: #fff; }
-.chip--neutral:hover:not(.chip--active) { background: #eeeef0; color: var(--admin-text); }
+/* ── Per-tone: soft tint inactive · saturated active · deeper tint on hover ── */
+.chip--neutral { background: #f4f4f5; color: var(--admin-text-muted); }
+.chip--neutral:hover:not(.chip--active) { background: #e4e4e7; color: var(--admin-text); }
+.chip--neutral.chip--active { background: var(--admin-accent); border-color: var(--admin-accent); color: #fff; }
 
-.chip--purple { color: var(--admin-accent); }
+.chip--purple { background: var(--admin-accent-soft); color: var(--admin-accent); }
+.chip--purple:hover:not(.chip--active) { background: #e9d5ff; color: var(--admin-accent-hover); }
 .chip--purple.chip--active { background: var(--admin-accent); border-color: var(--admin-accent); color: #fff; }
-.chip--purple:hover:not(.chip--active) { background: var(--admin-accent-soft); color: var(--admin-accent); }
 
-.chip--green { color: var(--admin-success); }
+.chip--green { background: var(--admin-success-soft); color: var(--admin-success); }
+.chip--green:hover:not(.chip--active) { background: #bbf7d0; color: #14532d; }
 .chip--green.chip--active { background: var(--admin-success); border-color: var(--admin-success); color: #fff; }
-.chip--green:hover:not(.chip--active) { background: var(--admin-success-soft); color: var(--admin-success); }
 
-.chip--red { color: var(--admin-danger); }
+.chip--red { background: var(--admin-danger-soft); color: var(--admin-danger); }
+.chip--red:hover:not(.chip--active) { background: #fecaca; color: #7f1d1d; }
 .chip--red.chip--active { background: var(--admin-danger); border-color: var(--admin-danger); color: #fff; }
-.chip--red:hover:not(.chip--active) { background: var(--admin-danger-soft); color: var(--admin-danger); }
 
-.chip--amber { color: var(--admin-warning); }
+.chip--amber { background: var(--admin-warning-soft); color: var(--admin-warning); }
+.chip--amber:hover:not(.chip--active) { background: #fde68a; color: #7c2d12; }
 .chip--amber.chip--active { background: var(--admin-warning); border-color: var(--admin-warning); color: #fff; }
-.chip--amber:hover:not(.chip--active) { background: var(--admin-warning-soft); color: var(--admin-warning); }
 
-.chip--blue { color: #1e40af; }
+.chip--blue { background: #dbeafe; color: #1e40af; }
+.chip--blue:hover:not(.chip--active) { background: #bfdbfe; color: #1e3a8a; }
 .chip--blue.chip--active { background: #1e40af; border-color: #1e40af; color: #fff; }
-.chip--blue:hover:not(.chip--active) { background: #dbeafe; color: #1e40af; }
 
-.chip--muted { color: var(--admin-text-muted); }
+.chip--muted { background: #f4f4f5; color: var(--admin-text-subtle); }
+.chip--muted:hover:not(.chip--active) { background: #e4e4e7; color: var(--admin-text-muted); }
 .chip--muted.chip--active { background: var(--admin-text-muted); border-color: var(--admin-text-muted); color: #fff; }
-.chip--muted:hover:not(.chip--active) { background: var(--admin-surface-alt, #f5f5f7); }
 
 /* Card */
 .admin-card {
