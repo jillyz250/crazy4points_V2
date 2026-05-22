@@ -268,6 +268,7 @@ export default function FactCheckWarnings({
                       {v.label}
                     </span>
                     <span style={{ fontWeight: 500, flex: 1, minWidth: '10rem', lineHeight: 1.4 }}>{claim.claim}</span>
+                    <FindInDescriptionButton claim={claim.claim} color={v.color} />
                     <AckButton
                       alertId={alertId}
                       originalIndex={originalIndex}
@@ -360,6 +361,83 @@ function SyntheticChip({
         {helper}
       </p>
     </li>
+  )
+}
+
+// "Find in description" — locates a fragment of the flagged claim in the
+// description textarea, scrolls it into view, and selects it so the admin
+// can edit or strip immediately. Falls back to progressively shorter
+// fragments (first N words) when the full claim text isn't a literal match.
+function findClaimRangeInTextarea(
+  textarea: HTMLTextAreaElement,
+  claim: string,
+): { start: number; end: number } | null {
+  const haystack = textarea.value.toLowerCase()
+  const tryNeedle = (needle: string): { start: number; end: number } | null => {
+    const n = needle.trim().toLowerCase()
+    if (n.length < 4) return null
+    const idx = haystack.indexOf(n)
+    if (idx === -1) return null
+    return { start: idx, end: idx + n.length }
+  }
+  const direct = tryNeedle(claim)
+  if (direct) return direct
+  // Drop trailing punctuation (verifier sometimes adds " — likely wrong")
+  const stripped = claim.replace(/[—:–-].*$/, '').trim()
+  if (stripped !== claim) {
+    const r = tryNeedle(stripped)
+    if (r) return r
+  }
+  // Progressive shrink: 12, 8, 5 leading words
+  const words = stripped.split(/\s+/).filter(Boolean)
+  for (const n of [12, 8, 5]) {
+    if (words.length < n) continue
+    const r = tryNeedle(words.slice(0, n).join(' '))
+    if (r) return r
+  }
+  return null
+}
+
+function FindInDescriptionButton({ claim, color }: { claim: string; color: string }) {
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        const ta = document.querySelector(
+          'textarea[name="description"]',
+        ) as HTMLTextAreaElement | null
+        if (!ta) return
+        const range = findClaimRangeInTextarea(ta, claim)
+        ta.focus()
+        if (range) {
+          ta.setSelectionRange(range.start, range.end)
+        }
+        ta.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        // Brief outline flash so the user can see where it landed even on
+        // viewports where the selection isn't visually distinct.
+        const prev = ta.style.outline
+        ta.style.outline = `2px solid ${color}`
+        ta.style.outlineOffset = '2px'
+        window.setTimeout(() => {
+          ta.style.outline = prev
+        }, 1200)
+      }}
+      style={{
+        fontSize: '0.6875rem',
+        fontFamily: 'var(--font-ui)',
+        fontWeight: 600,
+        padding: '0.15rem 0.5rem',
+        background: '#fff',
+        border: `1px solid ${color}`,
+        color,
+        borderRadius: '3px',
+        cursor: 'pointer',
+        flexShrink: 0,
+      }}
+      title="Scroll to and highlight this claim in the description"
+    >
+      🔍 Find
+    </button>
   )
 }
 
