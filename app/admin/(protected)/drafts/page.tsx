@@ -323,19 +323,20 @@ export default async function AdminDraftsPage({
                               Edit
                             </Link>
                           )}
-                          {r.alert_id && (r.status === 'draft' || r.status === 'needs_review') && (
+                          {/* Publish + Expire buttons only on ALERT format. Social
+                              variants ship via copy-paste; their "publish" is
+                              "mark posted" which lives on the per-platform editor.
+                              Without this guard, clicking Publish on a social row
+                              would (wrongly) republish the underlying alert. */}
+                          {r.format === 'alert' && r.alert_id && (r.status === 'draft' || r.status === 'needs_review') && (
                             <form action={publishAlertAction.bind(null, r.alert_id)}>
                               <button type="submit" className="admin-btn admin-btn-secondary admin-btn-sm">
                                 Publish
                               </button>
                             </form>
                           )}
-                          {r.alert_id && r.status === 'published' && (
+                          {r.format === 'alert' && r.alert_id && r.status === 'published' && (
                             <ConfirmButton
-                              // Server action bound with the alert id — bind returns a
-                              // serializable reference; an inline closure over
-                              // expireAlertAction would crash with "Functions cannot be
-                              // passed directly to Client Components".
                               action={expireAlertAction.bind(null, r.alert_id)}
                               confirmMessage={`Expire "${r.title}"?\n\nThis sets end_date=now and hides the alert from active surfaces. URL stays live but reads "expired". You can restore by clearing end_date on the topic.`}
                             >

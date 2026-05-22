@@ -214,3 +214,43 @@ export async function regenerateSocialVariantAction(
     return { ok: false, error: err instanceof Error ? err.message : String(err) }
   }
 }
+
+/**
+ * Close the editorial loop on a social variant: editor has manually posted
+ * the copy to the platform. Flips status → 'published' + records posted_at
+ * (and optional post_url) in metadata so we have an audit trail of what
+ * shipped where.
+ *
+ * Per SV10 — never auto-posts. This action is the bookkeeping that
+ * acknowledges a human already did the post.
+ */
+export async function markSocialVariantPostedAction(
+  variantId: string,
+  postUrl?: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = createAdminClient()
+  const { data: variant } = await supabase
+    .from('content_variants')
+    .select('id, format, metadata')
+    .eq('id', variantId)
+    .maybeSingle()
+  if (!variant) return { ok: false, error: 'variant not found' }
+  if (!SOCIAL_FORMATS.includes(variant.format as SocialFormat)) {
+    return { ok: false, error: `variant format=${variant.format} is not a social platform` }
+  }
+
+  const nowIso = new Date().toISOString()
+  const newMetadata = {
+    ...(variant.metadata as Record<string, unknown> ?? {}),
+    posted_at: nowIso,
+    ...(postUrl && postUrl.trim() ? { post_url: postUrl.trim() } : {}),
+  }
+  const { error } = await supabase
+    .from('content_variants')
+    .update({ status: 'published', published_at: nowIso, metadata: newMetadata })
+    .eq('id', variantId)
+  if (error) return { ok: false, error: error.message }
+
+  revalidatePath('/admin/drafts')
+  return { ok: true }
+}
