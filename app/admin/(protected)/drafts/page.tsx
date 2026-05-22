@@ -278,7 +278,15 @@ export default async function AdminDraftsPage({
                       </td>
                       <td>
                         <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-end' }}>
-                          {r.alert_id && (
+                          {/* Format-aware edit link — socials get their own per-platform editor */}
+                          {['facebook', 'instagram', 'linkedin', 'x'].includes(r.format) ? (
+                            <Link
+                              href={`/admin/drafts/${r.variant_id}/edit-social`}
+                              className="admin-btn admin-btn-ghost admin-btn-sm"
+                            >
+                              Edit
+                            </Link>
+                          ) : r.alert_id && (
                             <Link
                               href={`/admin/alerts/${r.alert_id}/edit`}
                               className="admin-btn admin-btn-ghost admin-btn-sm"
