@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/utils/supabase/server'
 import type { AlertType, IntelItemInsert } from '@/utils/supabase/queries'
+import { writeAlertVariant } from '@/utils/content/writeAlertVariant'
 
 interface IntelFinding {
   source_url?: string
@@ -65,41 +66,43 @@ export async function POST(req: NextRequest) {
 
   for (const item of highConfidence) {
     const slug = `intel-${item.id.slice(0, 8)}-${Date.now()}`
-    const { data: alert, error: alertError } = await supabase
-      .from('alerts')
-      .insert({
+
+    // Wave 3a: stage via writeAlertVariant(); the variants→alerts trigger
+    // mirrors back. Direct alerts.insert() is blocked by the G6 trigger.
+    let stagedAlertId: string
+    try {
+      const result = await writeAlertVariant(supabase, {
         slug,
         title: item.headline,
         summary: item.raw_text?.slice(0, 300) ?? item.headline,
-        type: item.alert_type,
+        type: (item.alert_type ?? 'industry_news') as AlertType,
         status: 'pending_review',
+        action_type: 'monitor',
         confidence_level: item.confidence,
         source_url: item.source_url ?? null,
         source: item.source_name,
-        end_date: item.expires_at ?? null,
         source_intel_id: item.id,
+        program_slugs: (item.programs ?? []) as string[],
+        end_date: item.expires_at ?? null,
         impact_score: 5,
         value_score: 5,
         rarity_score: 5,
         impact_justification: 'Auto-staged from Claude Scout',
-        action_type: 'monitor',
         registration_required: false,
       })
-      .select('id')
-      .single()
-
-    if (alertError) {
-      console.error('[ingest-intel] Alert staging error:', alertError)
+      stagedAlertId = result.alert_id
+    } catch (err) {
+      console.error('[ingest-intel] writeAlertVariant staging error:', err)
       continue
     }
 
     // Mark intel item as processed
     await supabase
       .from('intel_items')
-      .update({ processed: true, alert_id: alert.id })
+      .update({ processed: true, alert_id: stagedAlertId })
       .eq('id', item.id)
 
-    staged.push(alert.id)
+    staged.push(stagedAlertId)
   }
 
   return NextResponse.json({
