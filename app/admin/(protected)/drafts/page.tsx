@@ -25,16 +25,26 @@ import { publishAlertAction, expireAlertAction } from '../alerts/actions'
  *   ?sort=updated|voice|start    (default: updated)
  */
 
-type FormatKey = 'all' | 'alert' | 'blog' | 'newsletter' | 'social'
+type FormatKey =
+  | 'all' | 'alert' | 'blog' | 'newsletter'
+  | 'facebook' | 'instagram' | 'linkedin' | 'x' | 'threads'
 type StatusKey = 'all' | 'draft' | 'needs_review' | 'published' | 'archived'
 type SortKey = 'updated' | 'voice' | 'start'
 
-const FORMAT_OPTIONS: { key: FormatKey; label: string; disabled?: boolean }[] = [
+// Format chips. Social formats land "real" in Phase 4.5 PR B (generators);
+// listed here from PR A so the chip surface is final + matches the DB
+// constraint. No grey-out states — when no variants of a format exist yet,
+// the filtered list just shows empty.
+const FORMAT_OPTIONS: { key: FormatKey; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: 'alert', label: 'Alerts' },
-  { key: 'blog', label: 'Blog', disabled: true },
-  { key: 'newsletter', label: 'Newsletter', disabled: true },
-  { key: 'social', label: 'Social', disabled: true },
+  { key: 'blog', label: 'Blog' },
+  { key: 'newsletter', label: 'Newsletter' },
+  { key: 'facebook', label: 'Facebook' },
+  { key: 'instagram', label: 'Instagram' },
+  { key: 'linkedin', label: 'LinkedIn' },
+  { key: 'x', label: 'X' },
+  { key: 'threads', label: 'Threads' },
 ]
 
 const STATUS_OPTIONS: { key: StatusKey; label: string }[] = [
@@ -98,7 +108,8 @@ export default async function AdminDraftsPage({
   searchParams: Promise<{ format?: string; status?: string; voice?: string; sort?: string }>
 }) {
   const sp = await searchParams
-  const format = (sp.format && ['alert', 'blog', 'newsletter', 'social'].includes(sp.format) ? sp.format : 'all') as FormatKey
+  const VALID_FORMATS = ['alert', 'blog', 'newsletter', 'facebook', 'instagram', 'linkedin', 'x', 'threads']
+  const format = (sp.format && VALID_FORMATS.includes(sp.format) ? sp.format : 'all') as FormatKey
   const status = (sp.status && ['draft', 'needs_review', 'published', 'archived'].includes(sp.status) ? sp.status : 'all') as StatusKey
   const voice: 'fail' | undefined = sp.voice === 'fail' ? 'fail' : undefined
   const sort = (sp.sort && ['updated', 'voice', 'start'].includes(sp.sort) ? sp.sort : 'updated') as SortKey
@@ -181,7 +192,6 @@ export default async function AdminDraftsPage({
               key: o.key,
               label: o.label,
               active: filters.format === o.key,
-              disabled: o.disabled,
               href: buildHref(filters, { format: o.key }),
             }))}
           />
