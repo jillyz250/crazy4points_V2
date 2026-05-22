@@ -510,7 +510,7 @@ function TriageRow({ row, tab }: { row: IntelRow; tab: Tab }) {
         >
           <strong>Updates existing alert:</strong> {row.haiku_diff_summary}{' '}
           <Link
-            href={`/admin/alerts/${row.update_to_alert_id}`}
+            href={`/admin/alerts/${row.update_to_alert_id}/edit`}
             style={{ color: 'var(--admin-accent)', marginLeft: '0.25rem' }}
           >
             (review)
