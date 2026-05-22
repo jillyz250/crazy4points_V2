@@ -92,14 +92,15 @@ export default function FooterNewsletterSignup() {
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label htmlFor="footer-newsletter-first" className="sr-only">
-                    First name (optional)
+                    First name
                   </label>
                   <input
                     id="footer-newsletter-first"
                     type="text"
-                    placeholder="First name (optional)"
+                    placeholder="First name"
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
+                    required
                     autoComplete="given-name"
                     className="w-full rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background)] px-4 py-3 font-body text-base text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
                     style={{ fontSize: '1rem' }}
