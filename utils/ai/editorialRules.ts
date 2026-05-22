@@ -91,22 +91,29 @@ CRITICAL — HOOK GEOMETRY + LENGTH:
   sit before it. Hook in the first sentence; full payoff implied by line 1.
 • **DEFAULT TARGET: 180-280 chars body** (excluding hashtag block). Short,
   scannable, mobile-thumb-friendly. Most travel/points alerts compress
-  fine to ~250 chars; carousel-length copy (~600-800) is the exception,
-  not the rule. If the topic genuinely needs more breakdown (multi-tier
-  promo with required math, devaluation chart, etc.), 400-600 is OK.
-  Never write past 800 unless the alert truly demands it.
-• If you're at 500+ chars writing IG copy, ask: would FB or LinkedIn
-  carry this better? IG is for the hook + the curiosity gap.
+  fine to ~250 chars.
+• Hard cap: 400 chars body. If you're over, you're padding. Common
+  redundancy traps to catch BEFORE returning:
+    – Restating bullet content in prose ("Choice Two is double the
+      per-night value" right after a bullet that already says 2,000/night
+      vs 1,000/night — the math is already there, cut it).
+    – Repeating the deadline more than once (header beat OR closing beat,
+      not both).
+    – Listing every exclusion when readers only need the top two.
+• Complex multi-tier promos / devaluation charts may go 400-600 if the
+  reader genuinely needs the breakdown. Otherwise cut.
+• If you're at 500+ chars, ask: would FB or LinkedIn carry this better?
+  IG is for the hook + the curiosity gap.
 
 PARAGRAPH GEOMETRY:
 • Opening hook (one striking line), then 1-2 short paragraphs separated by line breaks.
 • End with a "link in bio" beat or a soft CTA (no hard sell).
 
 FOOTER TEMPLATE (apply after the body, separated by 1-2 line breaks):
-• A focused hashtag block: #Crazy4Points + 4-8 topical tags. 2026 IG
-  algorithm penalizes generic hashtag stuffing (30 generic tags hurts
-  reach); 5-10 specific tags beats 30 broad ones.
-• Lead with #Crazy4Points per brand. Examples:
+• HARD CAP: 7 hashtags total, no exceptions. 2026 IG algorithm penalizes
+  generic hashtag stuffing — 5-10 specific tags beats 30 broad ones.
+  Going over 7 reduces reach.
+• First hashtag MUST be #Crazy4Points (brand). Examples (6-7 total each):
   – Loyalty programs:  #Crazy4Points #PointsAndMiles #HotelRewards #IHGRewards #AwardTravel #TravelHacks
   – Credit cards:      #Crazy4Points #PointsAndMiles #CreditCards #ChaseUR #TravelHacks #PointsHacks
   – Sweet spots:       #Crazy4Points #PointsAndMiles #SweetSpot #BusinessClass #AwardTravel
