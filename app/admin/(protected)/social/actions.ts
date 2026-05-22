@@ -57,12 +57,20 @@ export async function generateSocialVariantsAction(
   const topic = await loadTopic(supabase, topicId)
   if (!topic) return { ok: false, error: 'topic not found' }
 
-  // SV9 — only generate when the topic's published variant has shipped.
-  // Topic.status reflects "published" once any variant is published.
-  if (topic.status !== 'published') {
+  // SV9 — only generate when the topic has at least one PUBLISHED variant.
+  // Topic.status uses {draft|active|archived}, so "active" is the live state
+  // — but we check the variant level explicitly so socials never generate
+  // for a topic whose alert is still in needs_review/draft.
+  const { count: publishedAlertCount } = await supabase
+    .from('content_variants')
+    .select('*', { count: 'exact', head: true })
+    .eq('topic_id', topic.id)
+    .eq('format', 'alert')
+    .eq('status', 'published')
+  if (!publishedAlertCount || publishedAlertCount === 0) {
     return {
       ok: false,
-      error: `topic must be published before generating social variants (status=${topic.status}). Publish the alert first.`,
+      error: `topic has no published alert variant (topic.status=${topic.status}). Publish the alert first.`,
     }
   }
 
@@ -127,8 +135,16 @@ export async function regenerateSocialVariantAction(
 
   const topic = await loadTopic(supabase, variant.topic_id as string)
   if (!topic) return { ok: false, error: 'topic not found' }
-  if (topic.status !== 'published') {
-    return { ok: false, error: `topic must be published (status=${topic.status})` }
+  // SV9 — alert must be published. Topic.status uses {draft|active|archived},
+  // so check the alert variant directly.
+  const { count: publishedAlertCount } = await supabase
+    .from('content_variants')
+    .select('*', { count: 'exact', head: true })
+    .eq('topic_id', topic.id)
+    .eq('format', 'alert')
+    .eq('status', 'published')
+  if (!publishedAlertCount || publishedAlertCount === 0) {
+    return { ok: false, error: `topic has no published alert variant (topic.status=${topic.status})` }
   }
 
   // Load sibling variants from the same generation group — they're the
