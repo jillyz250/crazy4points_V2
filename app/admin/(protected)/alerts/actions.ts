@@ -1063,15 +1063,17 @@ async function persistTermsFields(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const v = verifiedTerms.trim()
   const w = (termsWaivedReason ?? '').trim()
-  const { error } = await supabase
-    .from('alerts')
-    .update({
+  // Wave 3a: verified_terms + terms_waived_reason live on variant.metadata.
+  // Direct writes to alerts are blocked by the G6 trigger.
+  try {
+    await updateAlertVariantMetadata(supabase, id, {
       verified_terms: v.length > 0 ? v : null,
       terms_waived_reason: w.length > 0 ? w : null,
     })
-    .eq('id', id)
-  if (error) return { ok: false, error: `save terms failed — ${error.message}` }
-  return { ok: true }
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: `save terms failed — ${errMessage(err)}` }
+  }
 }
 
 export async function runAllChecksAlertAction(id: string): Promise<AlertPipelineResult> {
