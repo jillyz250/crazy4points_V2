@@ -45,6 +45,7 @@ export async function checkAlertGates(
     Alert,
     | 'id'
     | 'type'
+    | 'description'
     | 'verified_terms'
     | 'terms_waived_reason'
     | 'voice_pass'
@@ -62,6 +63,17 @@ export async function checkAlertGates(
   )
 
   const failures: string[] = []
+
+  // 0) Draft gate — must have an actual description before anything else
+  //    matters. Skeleton alerts (staged from triage with no Sonnet pass yet)
+  //    would otherwise sail through all three downstream gates because
+  //    there's nothing to check. This blocks publish until the writer ran.
+  const hasDraft = Boolean(alert.description && alert.description.trim().length > 0)
+  if (!hasDraft) {
+    failures.push(
+      'No draft written yet — paste verified T&Cs below + click Save & Regenerate to write the article.'
+    )
+  }
 
   // 1) T&C gate
   let tnc: GateStatus
@@ -127,7 +139,9 @@ export async function checkAlertGates(
 
   const passOrSkip = (g: GateStatus): boolean =>
     g === 'pass' || g === 'overridden' || g === 'not-applicable'
-  const canPublish = passOrSkip(tnc) && passOrSkip(factcheck) && passOrSkip(voice)
+  // canPublish requires an actual draft + all three gates to pass-or-skip.
+  // The draft gate can't be overridden — publishing nothing is never valid.
+  const canPublish = hasDraft && passOrSkip(tnc) && passOrSkip(factcheck) && passOrSkip(voice)
 
   return { tnc, factcheck, voice, canPublish, failures }
 }
