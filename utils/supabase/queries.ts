@@ -970,13 +970,14 @@ export type Subscriber = {
   first_name: string | null
   last_name: string | null
   active: boolean
+  subscribed_at: string | null
 }
 
 export async function listSubscribers(supabase: SupabaseClient): Promise<Subscriber[]> {
   const { data, error } = await supabase
     .from('subscribers')
-    .select('id, email, first_name, last_name, active')
-    .order('email', { ascending: true })
+    .select('id, email, first_name, last_name, active, subscribed_at')
+    .order('subscribed_at', { ascending: false, nullsFirst: false })
   if (error) throw error
   return (data ?? []) as Subscriber[]
 }
