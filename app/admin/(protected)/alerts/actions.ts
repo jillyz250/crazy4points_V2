@@ -4,10 +4,8 @@ import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/utils/supabase/server'
 import {
-  updateAlert,
   incrementSourceApproved,
   getAlertById,
-  setAlertPrograms,
   logSystemError,
   loadAllianceContextForPrograms,
 } from '@/utils/supabase/queries'
@@ -25,7 +23,7 @@ import { voiceCheckArticle } from '@/utils/ai/voiceCheckArticle'
 import { originalityCheck } from '@/utils/ai/originalityCheck'
 import { checkAlertGates } from '@/utils/alerts/publishGates'
 import { logAlertOverride, type OverrideGate } from '@/utils/supabase/alertOverrides'
-import { rejectAlertVariant, updateAlertVariantMetadata, updateTopicFactLedger, updateAlertVariantBody, findVariantByAlertId, publishAlertVariant, expireAlertVariant } from '@/utils/content/writeAlertVariant'
+import { rejectAlertVariant, updateAlertVariantMetadata, updateTopicFactLedger, updateAlertVariantBody, findVariantByAlertId, publishAlertVariant, expireAlertVariant, setAlertVariantPrograms } from '@/utils/content/writeAlertVariant'
 
 function errMessage(err: unknown): string {
   if (err instanceof Error) return err.message
@@ -338,15 +336,37 @@ export interface RegenerateResult {
 export async function regenerateAlertDraftAction(alertId: string): Promise<RegenerateResult> {
   const supabase = createAdminClient()
 
-  const { data: alert, error: alertErr } = await supabase
-    .from('alerts')
-    .select('id, title, summary, description, source_url, source_intel_id, revision_log, gaps, verified_terms')
-    .eq('id', alertId)
-    .maybeSingle()
-  if (alertErr || !alert) return { ok: false, error: alertErr?.message ?? 'alert not found' }
-  if (!alert.source_intel_id) return { ok: false, error: 'alert has no source_intel_id — cannot regenerate' }
+  // Wave 3a: read alert state via variant/topic. The alerts row is the
+  // downstream mirror; we treat variants as canonical (invariant I2).
+  const refs = await findVariantByAlertId(supabase, alertId)
+  if (!refs) return { ok: false, error: 'alert not found (no matching topic/variant)' }
 
-  const [intelRes, programsRes, recentRes] = await Promise.all([
+  const [{ data: topic }, { data: variant }] = await Promise.all([
+    supabase.from('topics').select('id, title, summary, source_urls, fact_ledger, metadata').eq('id', refs.topic_id).single(),
+    supabase.from('content_variants').select('id, title, body, metadata').eq('id', refs.variant_id).single(),
+  ])
+  if (!topic || !variant) return { ok: false, error: 'topic or variant missing' }
+
+  const sourceIntelId = (topic.metadata as { source_intel_id?: string } | null)?.source_intel_id ?? null
+  if (!sourceIntelId) return { ok: false, error: 'alert has no source_intel_id — cannot regenerate' }
+
+  // Shim the legacy alert-shape for downstream code that still expects it.
+  const alert = {
+    id: alertId,
+    title: variant.title as string,
+    summary: topic.summary as string,
+    description: variant.body as string | null,
+    source_url: Array.isArray(topic.source_urls) && topic.source_urls.length > 0 ? topic.source_urls[0] : null,
+    source_intel_id: sourceIntelId,
+    revision_log: (variant.metadata as { revision_log?: unknown[] } | null)?.revision_log ?? [],
+    gaps: (variant.metadata as { gaps?: AlertGap[] } | null)?.gaps ?? [],
+    verified_terms: (variant.metadata as { verified_terms?: string } | null)?.verified_terms ?? null,
+  }
+
+  // recent samples (voice anchors for the writer) come from content_variants
+  // via the AlertView adapter — same source the rest of the public site reads.
+  const { selectAlertViewFromVariants } = await import('@/utils/content/alertView')
+  const [intelRes, programsRes, recentAlertsView] = await Promise.all([
     supabase
       .from('intel_items')
       .select('id, headline, raw_text, source_name, source_url, alert_type, programs')
@@ -355,13 +375,12 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
     supabase
       .from('programs')
       .select('id, slug, name, type, intro, transfer_partners, sweet_spots, quirks, how_to_spend, tier_benefits, lounge_access'),
-    supabase
-      .from('alerts')
-      .select('title, summary')
-      .eq('status', 'published')
-      .order('published_at', { ascending: false })
-      .limit(3),
+    selectAlertViewFromVariants(supabase, { status: 'published', activeOnly: true, limit: 12 }),
   ])
+  const recentRes = {
+    data: recentAlertsView.slice(0, 3).map((a) => ({ title: a.title, summary: a.summary })),
+    error: null,
+  }
 
   if (intelRes.error || !intelRes.data) {
     return { ok: false, error: intelRes.error?.message ?? 'intel_item not found' }
@@ -510,25 +529,46 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
           retried: wec.retried,
         })
       : null
-    await updateAlert(supabase, alertId, {
-      title: draft.title,
-      summary: draft.summary,
-      description: draft.description,
-      action_type: draft.action_type,
-      primary_program_id: primaryId,
-      start_date: draft.start_date,
-      end_date: draft.end_date,
-      revision_log: [...existingLog, regenEntry],
-      gaps: mergedGaps,
-      // Writer redesign — voice gate result + context-load timestamp.
-      voice_pass: wec.voice?.passed ?? null,
-      voice_score: wec.voice?.score ?? null,
-      voice_lead_mode: wec.voice?.lead_mode_detected ?? null,
-      voice_notes: voiceNotesPayload,
-      voice_checked_at: wec.voice ? new Date().toISOString() : null,
-      context_loaded_at: new Date().toISOString(),
+
+    // Wave 3a: variant.title/body + variant.metadata (writer fields) +
+    // topic.summary + topic.end_date. setAlertVariantPrograms reconciles
+    // the junction via the trigger.
+    await supabase
+      .from('content_variants')
+      .update({
+        title: draft.title,
+        body: draft.description,
+        metadata: {
+          ...((variant.metadata as object) ?? {}),
+          action_type: draft.action_type,
+          start_date: draft.start_date,
+          revision_log: [...existingLog, regenEntry],
+          gaps: mergedGaps,
+          voice_pass: wec.voice?.passed ?? null,
+          voice_score: wec.voice?.score ?? null,
+          voice_lead_mode: wec.voice?.lead_mode_detected ?? null,
+          voice_notes: voiceNotesPayload,
+          voice_checked_at: wec.voice ? new Date().toISOString() : null,
+          context_loaded_at: new Date().toISOString(),
+        },
+        brand_voice_run: !!wec.voice,
+      })
+      .eq('id', refs.variant_id)
+      .throwOnError()
+
+    await supabase
+      .from('topics')
+      .update({
+        summary: draft.summary,
+        end_date: draft.end_date,
+      })
+      .eq('id', refs.topic_id)
+      .throwOnError()
+
+    await setAlertVariantPrograms(supabase, alertId, {
+      primaryProgramId: primaryId,
+      secondaryProgramIds: secondaryIds,
     })
-    await setAlertPrograms(supabase, alertId, secondaryIds)
   } catch (err) {
     await logSystemError(supabase, 'alerts:regenerate:persist', err, { alert_id: alertId })
     return { ok: false, error: errMessage(err) }
@@ -594,11 +634,15 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
           workingDraft = revised.revised
           reviseLog = [...reviseLog, ...revised.log]
 
-          await updateAlert(supabase, alertId, {
-            title: workingDraft.title,
-            summary: workingDraft.summary,
-            description: workingDraft.description,
-          })
+          // Variant owns title + description; topic owns summary
+          await supabase
+            .from('content_variants')
+            .update({ title: workingDraft.title, body: workingDraft.description })
+            .eq('id', refs.variant_id)
+          await supabase
+            .from('topics')
+            .update({ summary: workingDraft.summary })
+            .eq('id', refs.topic_id)
 
           const reverifyDraftText = `${workingDraft.title}\n${workingDraft.summary}\n${workingDraft.description ?? ''}`
           const reverifyProgramReference = await buildProgramReferenceForDraft(
@@ -653,29 +697,26 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
         }
       }
 
-      await updateAlert(supabase, alertId, {
-        fact_check_claims: finalClaims,
-        fact_check_at: checkedAt,
+      // Wave 3a: write claims to topic.fact_ledger + verified_at
+      await updateTopicFactLedger(supabase, alertId, finalClaims, {
+        verified_at: checkedAt ?? new Date().toISOString(),
       })
     }
   } catch (err) {
     await logSystemError(supabase, 'alerts:regenerate:verify', err, { alert_id: alertId })
   }
 
-  // Append any revise log entries to the revision_log we already wrote
-  // (which contains the 'regenerate' prev-snapshot entry).
+  // Append any revise log entries to the variant.metadata.revision_log
   if (reviseLog.length > 0) {
     try {
-      const { data: fresh } = await supabase
-        .from('alerts')
-        .select('revision_log')
-        .eq('id', alertId)
-        .maybeSingle()
-      const current = Array.isArray(fresh?.revision_log)
-        ? (fresh!.revision_log as Array<Record<string, unknown>>)
-        : []
-      await updateAlert(supabase, alertId, {
-        revision_log: [...current, ...reviseLog],
+      const { data: freshVariant } = await supabase
+        .from('content_variants')
+        .select('metadata')
+        .eq('id', refs.variant_id)
+        .single()
+      const currentLog = ((freshVariant?.metadata as { revision_log?: unknown[] } | null)?.revision_log ?? []) as unknown[]
+      await updateAlertVariantMetadata(supabase, alertId, {
+        revision_log: [...currentLog, ...reviseLog],
       })
     } catch (err) {
       await logSystemError(supabase, 'alerts:regenerate:revision_log_append', err, {
