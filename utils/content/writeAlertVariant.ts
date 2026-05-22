@@ -379,6 +379,65 @@ export async function updateAlertVariantStatus(
 }
 
 /**
+ * Reject (hard or soft) an existing alert. Sets variant.status='archived',
+ * topic.status='archived', and stamps the archive metadata that the
+ * variants→alerts trigger uses to project the correct alerts.status
+ * ('rejected' vs 'soft_rejected').
+ *
+ * Hard reject: kind='rejected'. Scout's dedup blocks resurfacing via
+ * decided_at + N-day window.
+ *
+ * Soft reject: kind='soft_rejected', provide revisitAfter ISO string.
+ * Scout's dedup blocks until revisit_after passes.
+ */
+export async function rejectAlertVariant(
+  supabase: SupabaseClient,
+  alertId: string,
+  opts: {
+    kind: 'rejected' | 'soft_rejected'
+    revisitAfter?: string  // ISO; required for soft_rejected
+    rejectedReason?: string | null
+  },
+): Promise<void> {
+  const refs = await findVariantByAlertId(supabase, alertId)
+  if (!refs) throw new Error(`rejectAlertVariant: no topic/variant for alert ${alertId}`)
+
+  const decidedAt = new Date().toISOString()
+
+  // Read current variant metadata so we don't clobber other fields
+  const { data: variant } = await supabase
+    .from('content_variants')
+    .select('metadata')
+    .eq('id', refs.variant_id)
+    .single()
+
+  const newMeta = {
+    ...((variant?.metadata as object) ?? {}),
+    archive_reason: opts.kind,
+    decided_at: decidedAt,
+    revisit_after: opts.kind === 'soft_rejected' ? (opts.revisitAfter ?? null) : null,
+    rejected_reason: opts.kind === 'rejected' ? (opts.rejectedReason ?? null) : null,
+  }
+
+  // Topic to archived
+  await supabase
+    .from('topics')
+    .update({ status: 'archived' })
+    .eq('id', refs.topic_id)
+
+  // Variant to archived with reason metadata
+  const { error: vErr } = await supabase
+    .from('content_variants')
+    .update({
+      status: 'archived',
+      archived_at: decidedAt,
+      metadata: newMeta,
+    })
+    .eq('id', refs.variant_id)
+  if (vErr) throw new Error(`rejectAlertVariant: variant update failed: ${vErr.message}`)
+}
+
+/**
  * Lookup helper: find the topic+variant ids for a legacy alert id.
  * Returns null if no matching topic exists (e.g. for rejected alerts that
  * were never backfilled).

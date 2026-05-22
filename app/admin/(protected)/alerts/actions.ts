@@ -26,6 +26,7 @@ import { voiceCheckArticle } from '@/utils/ai/voiceCheckArticle'
 import { originalityCheck } from '@/utils/ai/originalityCheck'
 import { checkAlertGates } from '@/utils/alerts/publishGates'
 import { logAlertOverride, type OverrideGate } from '@/utils/supabase/alertOverrides'
+import { rejectAlertVariant } from '@/utils/content/writeAlertVariant'
 
 function errMessage(err: unknown): string {
   if (err instanceof Error) return err.message
@@ -289,9 +290,10 @@ export async function bulkApproveIntelAlertsAction(ids: string[]) {
 export async function bulkRejectAlertsAction(ids: string[]) {
   if (!Array.isArray(ids) || ids.length === 0) return
   const supabase = createAdminClient()
-  const now = new Date().toISOString()
   for (const id of ids) {
-    await updateAlert(supabase, id, { status: 'rejected', decided_at: now }).catch(() => {})
+    await rejectAlertVariant(supabase, id, { kind: 'rejected' }).catch((err) => {
+      console.error(`[bulkRejectAlertsAction] failed for ${id}:`, err)
+    })
   }
   revalidatePath('/admin/alerts')
   redirect('/admin/alerts')
@@ -299,11 +301,7 @@ export async function bulkRejectAlertsAction(ids: string[]) {
 
 export async function rejectAlertAction(id: string) {
   const supabase = createAdminClient()
-  const now = new Date().toISOString()
-  await updateAlert(supabase, id, {
-    status: 'rejected',
-    decided_at: now,
-  })
+  await rejectAlertVariant(supabase, id, { kind: 'rejected' })
   redirect('/admin/alerts')
 }
 
@@ -311,16 +309,19 @@ export async function rejectAlertAction(id: string) {
  * Soft-reject (Phase 2): "not now, but check back in N days." Sets a
  * revisit_after timestamp; Scout's dedup keeps suppressing similar findings
  * until that timestamp passes.
+ *
+ * Wave 3a: status now lives on variant.status='archived' with
+ * metadata.archive_reason='soft_rejected' + metadata.revisit_after. The
+ * variants→alerts trigger projects this to alerts.status='soft_rejected'
+ * + alerts.revisit_after so Scout's dedup keeps working.
  */
 export async function softRejectAlertAction(id: string, days: number) {
   const supabase = createAdminClient()
   const safeDays = Math.max(1, Math.min(180, Math.round(days)))
-  const now = new Date()
-  const revisitAfter = new Date(now.getTime() + safeDays * 24 * 60 * 60 * 1000).toISOString()
-  await updateAlert(supabase, id, {
-    status: 'soft_rejected',
-    decided_at: now.toISOString(),
-    revisit_after: revisitAfter,
+  const revisitAfter = new Date(Date.now() + safeDays * 24 * 60 * 60 * 1000).toISOString()
+  await rejectAlertVariant(supabase, id, {
+    kind: 'soft_rejected',
+    revisitAfter,
   })
   revalidatePath('/admin/alerts')
   redirect('/admin/alerts')
