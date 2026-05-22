@@ -869,6 +869,84 @@ a.admin-btn-primary:hover:not(:disabled) {
 
 .admin-btn-sm { padding: 0.25rem 0.625rem; font-size: 0.75rem; }
 
+/* ────────────────────────────────────────────────────────────────────
+   Chip pills — colored, hover-lifted filter chips for the Drafts hub.
+   Base shape: rounded-full, transparent border that turns into a
+   bordered ring on hover, full color fill when active.
+
+   Per-tone variant (set via .chip--<tone>):
+     .chip--neutral   grey (default / All)
+     .chip--purple    primary purple (Alerts)
+     .chip--green     success (Published)
+     .chip--red       danger (Expired)
+     .chip--amber     warning (Needs review)
+     .chip--blue      accent secondary (Draft)
+     .chip--muted     dim grey (Archived)
+
+   Modifier .chip--active flips the chip to full color + white text.
+   ──────────────────────────────────────────────────────────────────── */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.28rem 0.7rem;
+  border-radius: 9999px;
+  font-family: var(--font-ui);
+  font-size: 0.78125rem;
+  font-weight: 500;
+  line-height: 1.2;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--admin-text-muted);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease, transform 90ms ease, box-shadow 140ms ease;
+  user-select: none;
+}
+.chip:hover:not(.chip--active) {
+  background: var(--admin-surface-alt, #f5f5f7);
+  color: var(--admin-text);
+  text-decoration: none;
+}
+.chip:active:not(.chip--active) { transform: translateY(1px); }
+
+/* Active state — full color fill. Override per-tone below. */
+.chip--active {
+  color: #fff;
+  background: var(--admin-text);
+  border-color: var(--admin-text);
+  box-shadow: 0 1px 0 rgba(0,0,0,0.06);
+}
+
+/* Per-tone — soft tint on hover, full saturation when active */
+.chip--neutral { color: var(--admin-text-muted); }
+.chip--neutral.chip--active { background: var(--admin-text); border-color: var(--admin-text); color: #fff; }
+.chip--neutral:hover:not(.chip--active) { background: #eeeef0; color: var(--admin-text); }
+
+.chip--purple { color: var(--admin-accent); }
+.chip--purple.chip--active { background: var(--admin-accent); border-color: var(--admin-accent); color: #fff; }
+.chip--purple:hover:not(.chip--active) { background: var(--admin-accent-soft); color: var(--admin-accent); }
+
+.chip--green { color: var(--admin-success); }
+.chip--green.chip--active { background: var(--admin-success); border-color: var(--admin-success); color: #fff; }
+.chip--green:hover:not(.chip--active) { background: var(--admin-success-soft); color: var(--admin-success); }
+
+.chip--red { color: var(--admin-danger); }
+.chip--red.chip--active { background: var(--admin-danger); border-color: var(--admin-danger); color: #fff; }
+.chip--red:hover:not(.chip--active) { background: var(--admin-danger-soft); color: var(--admin-danger); }
+
+.chip--amber { color: var(--admin-warning); }
+.chip--amber.chip--active { background: var(--admin-warning); border-color: var(--admin-warning); color: #fff; }
+.chip--amber:hover:not(.chip--active) { background: var(--admin-warning-soft); color: var(--admin-warning); }
+
+.chip--blue { color: #1e40af; }
+.chip--blue.chip--active { background: #1e40af; border-color: #1e40af; color: #fff; }
+.chip--blue:hover:not(.chip--active) { background: #dbeafe; color: #1e40af; }
+
+.chip--muted { color: var(--admin-text-muted); }
+.chip--muted.chip--active { background: var(--admin-text-muted); border-color: var(--admin-text-muted); color: #fff; }
+.chip--muted:hover:not(.chip--active) { background: var(--admin-surface-alt, #f5f5f7); }
+
 /* Card */
 .admin-card {
   background: var(--admin-surface);
