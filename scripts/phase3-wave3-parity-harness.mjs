@@ -61,8 +61,9 @@ function normBool(v) {
   return v === true
 }
 
-// Status mapping: variant.status → expected alerts.status
-function expectedAlertStatus(variantStatus, topicEndDate) {
+// Status mapping: variant.status → expected alerts.status. Mirrors the
+// trigger logic from migration 326 — archived splits by archive_reason.
+function expectedAlertStatus(variantStatus, topicEndDate, archiveReason) {
   switch (variantStatus) {
     case 'draft': return 'draft'
     case 'needs_review':
@@ -71,7 +72,10 @@ function expectedAlertStatus(variantStatus, topicEndDate) {
     case 'published':
       if (topicEndDate && new Date(topicEndDate) < new Date()) return 'expired'
       return 'published'
-    case 'archived': return 'soft_rejected'
+    case 'archived':
+      if (archiveReason === 'rejected') return 'rejected'
+      if (archiveReason === 'soft_rejected') return 'soft_rejected'
+      return 'soft_rejected'  // backward-compat default
     default: return null
   }
 }
@@ -142,10 +146,11 @@ async function main() {
       failures.push(`G1 summary (${t.slug}): topic.summary vs alert.summary differ`)
     }
 
-    // G2: status mapping
-    const expected = expectedAlertStatus(v.status, t.end_date)
+    // G2: status mapping (mirrors migration 326 trigger logic)
+    const archiveReason = v.metadata?.archive_reason
+    const expected = expectedAlertStatus(v.status, t.end_date, archiveReason)
     if (alert.status !== expected) {
-      failures.push(`G2 status (${t.slug}): variant=${v.status} → expected alert=${expected}, got=${alert.status}`)
+      failures.push(`G2 status (${t.slug}): variant=${v.status} reason=${archiveReason ?? 'none'} → expected alert=${expected}, got=${alert.status}`)
     }
 
     // G3: short_slug parity (warning unless --strict)
