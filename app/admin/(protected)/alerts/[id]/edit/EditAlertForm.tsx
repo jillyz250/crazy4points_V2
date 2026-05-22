@@ -108,8 +108,10 @@ export default function EditAlertForm({
         const pills: { label: string; on: boolean; hint: string }[] = [
           {
             label: 'Written',
-            on: Boolean(alert.description) || Boolean(alert.summary),
-            hint: alert.description ? 'Description present' : alert.summary ? 'Summary only' : 'Empty',
+            on: Boolean(alert.description && alert.description.trim().length > 0),
+            hint: alert.description && alert.description.trim().length > 0
+              ? 'Description present'
+              : 'No draft yet — Save & Regenerate writes the article',
           },
           {
             label: 'Fact-checked',
