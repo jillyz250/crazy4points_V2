@@ -28,7 +28,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Writing',
     items: [
-      { href: '/admin/drafts', label: 'Drafts', abbr: 'Dr' },
+      { href: '/admin/alerts', label: 'Alerts', abbr: 'Al' },
       {
         href: '/admin/content-ideas?type=blog',
         label: 'Blog',
