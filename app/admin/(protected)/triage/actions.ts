@@ -218,7 +218,10 @@ export async function stageAlertFromCandidate(formData: FormData): Promise<void>
       id: existingAlertId ?? undefined,
       slug,
       title: intel.headline as string,
-      summary: ((intel.raw_text as string | null) ?? (intel.headline as string)).slice(0, 300),
+      // Headline-as-placeholder summary. raw_text frequently starts with
+      // article boilerplate (markdown TOC, share buttons) that's useless
+      // here; the Regenerate call replaces this with the writer's summary.
+      summary: intel.headline as string,
       description: null,
       type: (intel.type as never) ?? 'industry_news',
       status: 'pending_review',
