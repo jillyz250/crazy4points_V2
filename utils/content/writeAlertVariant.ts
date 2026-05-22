@@ -438,6 +438,93 @@ export async function rejectAlertVariant(
 }
 
 /**
+ * Publish an existing alert. Sets variant.status='published',
+ * published_at=now, stamps approved_at + decided_at + short_slug on
+ * variant.metadata. Topic flips to 'active' (no-op if already there).
+ *
+ * The variants → alerts trigger projects all of this to the alerts
+ * mirror row.
+ */
+export async function publishAlertVariant(
+  supabase: SupabaseClient,
+  alertId: string,
+  opts?: { approved_at?: string; shortSlugGenerator?: (title: string) => Promise<string | null> },
+): Promise<void> {
+  const refs = await findVariantByAlertId(supabase, alertId)
+  if (!refs) throw new Error(`publishAlertVariant: no topic/variant for alert ${alertId}`)
+
+  const now = new Date().toISOString()
+
+  const { data: v } = await supabase
+    .from('content_variants')
+    .select('title, metadata')
+    .eq('id', refs.variant_id)
+    .single()
+
+  // Generate a short_slug if one isn't already set and the caller provided
+  // a generator function. Keep this idempotent: existing short_slugs are
+  // never overwritten (I4 — URLs are forever).
+  const currentMeta = (v?.metadata as Record<string, unknown>) ?? {}
+  let shortSlug: string | null = (currentMeta.short_slug as string | null) ?? null
+  if (!shortSlug && opts?.shortSlugGenerator) {
+    try {
+      shortSlug = await opts.shortSlugGenerator((v?.title as string) ?? '')
+    } catch {
+      shortSlug = null
+    }
+  }
+
+  const newMeta: Record<string, unknown> = { ...currentMeta, decided_at: now }
+  if (shortSlug) newMeta.short_slug = shortSlug
+  if (opts?.approved_at) newMeta.approved_at = opts.approved_at
+
+  // Topic to active (if archived from a prior rejection)
+  await supabase
+    .from('topics')
+    .update({ status: 'active' })
+    .eq('id', refs.topic_id)
+
+  // Variant published
+  const { error } = await supabase
+    .from('content_variants')
+    .update({
+      status: 'published',
+      published_at: now,
+      metadata: newMeta,
+      archived_at: null,
+    })
+    .eq('id', refs.variant_id)
+  if (error) throw new Error(`publishAlertVariant: variant update failed: ${error.message}`)
+}
+
+/**
+ * Expire an alert. Topic.end_date set to now; the variants→alerts trigger
+ * detects topic.end_date < now and projects status='expired' on alerts.
+ * Variant stays status='published' so public URLs keep working — only the
+ * derived alerts.status flips.
+ */
+export async function expireAlertVariant(
+  supabase: SupabaseClient,
+  alertId: string,
+): Promise<void> {
+  const refs = await findVariantByAlertId(supabase, alertId)
+  if (!refs) throw new Error(`expireAlertVariant: no topic/variant for alert ${alertId}`)
+
+  const now = new Date().toISOString()
+
+  await supabase
+    .from('topics')
+    .update({ end_date: now })
+    .eq('id', refs.topic_id)
+
+  // Touch variant so trigger fires
+  await supabase
+    .from('content_variants')
+    .update({ updated_at: now })
+    .eq('id', refs.variant_id)
+}
+
+/**
  * Merge a partial metadata payload into the variant's metadata. Touches
  * the variant so the trigger re-mirrors to alerts. Used by voice/originality
  * check actions that only update a handful of metadata keys.
