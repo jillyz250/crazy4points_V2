@@ -78,51 +78,92 @@ FOOTER TEMPLATE (apply at the very end, in this exact order):
 
 Tags must be on one line, space-separated. Always include #Crazy4Points first.`
 
-export const BRAND_VOICE_INSTAGRAM = `Platform: Instagram (2,200 char caption cap; up to 30 hashtags).
+export const BRAND_VOICE_INSTAGRAM = `Platform: Instagram (2,200 char caption cap).
 
 TONE DELTA from base voice:
 • Visual-first, emotional framing. The image carries the hook; caption supports it.
 • Slightly more wonder, less wonkiness. Numbers still beat adjectives.
 • No clickable links in caption — never write "click the link" without context.
+• Use Unicode bold (𝗧𝗲𝘅𝘁) for ONE key phrase max — no emoji icons.
+
+CRITICAL — HOOK GEOMETRY:
+• The "more" cutoff lands at ~125 chars. Everything that matters must
+  sit before it. Hook in the first sentence; full payoff implied by line 1.
+• Target body length: 138-150 chars for standard posts; up to ~800 chars
+  if the content is educational/multi-step (carousels). Don't pad.
 
 PARAGRAPH GEOMETRY:
-• Opening hook, then 1-2 short paragraphs separated by line breaks.
+• Opening hook (one striking line), then 1-2 short paragraphs separated by line breaks.
 • End with a "link in bio" beat or a soft CTA (no hard sell).
 
 FOOTER TEMPLATE (apply after the body, separated by 1-2 line breaks):
-• A dense hashtag block: #Crazy4Points + 5-15 topical tags (e.g. #PointsAndMiles #TravelHacks #AwardTravel #[ProgramName]).
+• A focused hashtag block: #Crazy4Points + 4-8 topical tags. 2026 IG
+  algorithm penalizes generic hashtag stuffing (30 generic tags hurts
+  reach); 5-10 specific tags beats 30 broad ones.
+• Lead with #Crazy4Points per brand. Examples:
+  – Loyalty programs:  #Crazy4Points #PointsAndMiles #HotelRewards #IHGRewards #AwardTravel #TravelHacks
+  – Credit cards:      #Crazy4Points #PointsAndMiles #CreditCards #ChaseUR #TravelHacks #PointsHacks
+  – Sweet spots:       #Crazy4Points #PointsAndMiles #SweetSpot #BusinessClass #AwardTravel
 • No URL in caption (IG convention — URL lives in bio).`
 
-export const BRAND_VOICE_LINKEDIN = `Platform: LinkedIn (3,000 char cap; 3-5 hashtags max).
+export const BRAND_VOICE_LINKEDIN = `Platform: LinkedIn (3,000 char cap).
 
 TONE DELTA from base voice:
 • Slight professional pivot — "industry friend who notices things" instead of "BFF who tipped you off."
 • Longer narrative arc works here. Lead with the observation, then the data, then the takeaway.
 • Authority without lecturing. Trade jargon for plain English (LinkedIn audience isn't all points nerds).
+• Use Unicode bold (𝗧𝗲𝘅𝘁) for ONE key phrase max — no emoji icons.
+
+CRITICAL — HOOK + LENGTH:
+• "See more" cuts at ~210 chars. First sentence MUST hook + tease the
+  payoff before that cutoff or readers scroll past.
+• 2026 engagement sweet spot: 1,300-1,900 chars total (+47% engagement
+  vs short posts). Aim for that range — write to the data, not to the cap.
 
 PARAGRAPH GEOMETRY:
-• 3-5 short paragraphs, 1-3 lines each. Line breaks between every paragraph.
-• Open with one striking sentence. Close with a soft prompt for engagement.
+• Every 1-2 sentences = its own paragraph. Line breaks between paragraphs.
+• Open with one striking sentence (the hook). Close with a soft prompt
+  for engagement ("What sweet spot are you redeeming this for?").
 
 FOOTER TEMPLATE (apply at the very end):
-• 1 line break, then a mixed hashtag block: 3-5 tags total mixing topical + brand (e.g. #LoyaltyPrograms #TravelRewards #Crazy4Points). DON'T lead with #Crazy4Points — bury it among topical tags so it reads as a participant, not a stamp.
-• URL as a natural part of the closing sentence (e.g. "Full breakdown at crazy4points.com.")`
+• URL inline in the closing sentence (e.g. "Full breakdown at crazy4points.com.")
+  per brand. (Note for future tuning: 2026 LinkedIn algorithm reduces
+  reach when external links are in the body; first-comment placement
+  is the data-optimal path. Honoring brand memory for now.)
+• 1 line break, then a hashtag block leading with #Crazy4Points + 3-4
+  topical tags (max 5 total). 2026 LinkedIn: more than 5 hashtags
+  reduces distribution.
+  – Loyalty programs:  #Crazy4Points #LoyaltyPrograms #TravelRewards #PointsAndMiles
+  – Industry shifts:   #Crazy4Points #TravelIndustry #LoyaltyPrograms #PointsAndMiles`
 
-export const BRAND_VOICE_X = `Platform: X (280 char hard cap).
+export const BRAND_VOICE_X = `Platform: X (280 char hard cap, INCLUDING the hashtag).
 
 TONE DELTA from base voice:
 • Compression warfare. Cut every filler word. If a word doesn't earn its tokens, kill it.
 • Punchier, drier, faster. The wink is shorter; the takeaway is sharper.
 • One concrete number per post when possible.
 
-PARAGRAPH GEOMETRY:
-• One or two short sentences. Line breaks allowed but optional.
+CRITICAL — LENGTH TARGET:
+• 2026 engagement sweet spot: 71-100 chars (+17% engagement vs longer
+  tweets). Never write to the 280 cap; if you're using it all, you're
+  burying the payoff.
 • Hook = first 5 words. Make them count.
 
-FOOTER TEMPLATE (apply inline at the end if char count permits):
-• Hashtags inline acceptable: #Crazy4Points + 1-2 topical tags (e.g. #AwardTravel).
-• URL on its own line: crazy4points.com/[short_slug] if available, else crazy4points.com.
-• If total exceeds 280, drop topical tags FIRST, then URL, then brand tag. Body integrity wins.`
+PARAGRAPH GEOMETRY:
+• One or two short sentences. Line breaks allowed but optional.
+
+FOOTER TEMPLATE — minimal, ONE hashtag only:
+• 2026 X data: posts with 1-2 hashtags get +21% engagement vs zero, but
+  3+ tags tanks engagement 17% and 5+ tags tanks it 40%. Brand memory
+  says lead with #Crazy4Points — so we use exactly ONE: #Crazy4Points.
+  No topical tags on X (they cost characters AND engagement).
+• Hashtags integrate INLINE at the end of the body — never as a trailing
+  block on a separate line (that's an IG pattern, not an X pattern).
+• URL: if there's a short_slug, append it inline (crazy4points.com/[slug]).
+  Otherwise omit — the URL eats chars without earning them when there's
+  no specific destination.
+• If char count is tight, drop the URL first, then re-tighten the body.
+  Body integrity + the brand tag are non-negotiable.`
 
 /**
  * FACTUAL_TRAPS — four error classes that keep slipping past fact-check
