@@ -1,5 +1,6 @@
 'use server'
 
+import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/utils/supabase/server'
 import { writeEditCheck } from '@/utils/ai/writeEditCheck'
@@ -160,6 +161,104 @@ export async function writeAlertFromCandidate(formData: FormData): Promise<void>
 
   revalidatePath('/admin/triage')
   revalidatePath('/admin/alerts')
+}
+
+/**
+ * Stage a candidate for editing WITHOUT running the Sonnet writer.
+ *
+ * Creates a skeleton alert in pending_review (title = intel headline,
+ * summary = first 300 chars of raw_text, no description) and redirects
+ * the editor to /admin/alerts/[id]/edit. From there they can paste
+ * verified T&Cs into the verified_terms field and click Regenerate to
+ * get a much better first draft with full source context — cheaper
+ * (one Sonnet pass instead of two) and more accurate (writer sees the
+ * T&Cs the first time).
+ *
+ * Same data shape as writeAlertFromCandidate, just no Sonnet call.
+ */
+export async function stageAlertFromCandidate(formData: FormData): Promise<void> {
+  const intelId = String(formData.get('intel_id') ?? '').trim()
+  if (!intelId) return
+
+  const supabase = createAdminClient()
+
+  const { data: intel, error: intelErr } = await supabase
+    .from('intel_items')
+    .select('*')
+    .eq('id', intelId)
+    .single()
+  if (intelErr || !intel) {
+    console.error(`[triage:stage] intel not found: ${intelId}`, intelErr)
+    return
+  }
+
+  // Resolve programs (lookup primary id from first program slug)
+  const intelSlugs = (intel.programs as string[] | null) ?? []
+  const { data: programRows } = await supabase
+    .from('programs')
+    .select('id, slug')
+    .in('slug', intelSlugs.length > 0 ? intelSlugs : ['__none__'])
+  const programs = programRows ?? []
+  const primaryProgramSlug = intelSlugs[0] ?? null
+  const primaryProgramId = primaryProgramSlug
+    ? programs.find((p) => p.slug === primaryProgramSlug)?.id ?? null
+    : null
+
+  // Reuse intel.alert_id if a skeleton already exists for this intel
+  // (e.g. editor clicked Stage twice). findVariantByAlertId via topic
+  // metadata.source_intel_id would also catch it; the intel_items.alert_id
+  // pointer is the simpler lookup.
+  const existingAlertId = (intel.alert_id as string | null) ?? null
+
+  const slug = `intel-${intelId.slice(0, 8)}-${Date.now()}`
+
+  let alertId: string
+  try {
+    const result = await writeAlertVariant(supabase, {
+      id: existingAlertId ?? undefined,
+      slug,
+      title: intel.headline as string,
+      summary: ((intel.raw_text as string | null) ?? (intel.headline as string)).slice(0, 300),
+      description: null,
+      type: (intel.type as never) ?? 'industry_news',
+      status: 'pending_review',
+      action_type: 'monitor',
+      end_date: (intel.expires_at as string | null) ?? null,
+      source: (intel.source_name as string | null) ?? null,
+      source_url: (intel.source_url as string | null) ?? null,
+      source_intel_id: intelId,
+      confidence_level: (intel.confidence as string | null) ?? 'medium',
+      impact_score: 5,
+      impact_justification: 'Staged from Triage (no draft yet)',
+      value_score: 5,
+      rarity_score: 5,
+      primary_program_id: primaryProgramId,
+      program_slugs: intelSlugs,
+    })
+    alertId = result.alert_id
+  } catch (err) {
+    console.error(`[triage:stage] writeAlertVariant failed for ${intelId}:`, err)
+    try {
+      await supabase.from('intel_ingest_errors').insert({
+        source: 'manual',
+        stage: 'stage',
+        payload: { intel_id: intelId, primary_program_id: primaryProgramId },
+        error_message: (err instanceof Error ? err.message : String(err)).slice(0, 1000),
+      })
+    } catch {}
+    return
+  }
+
+  // Mark intel as processed + linked
+  await supabase
+    .from('intel_items')
+    .update({ processed: true, alert_id: alertId })
+    .eq('id', intelId)
+
+  revalidatePath('/admin/triage')
+  revalidatePath('/admin/alerts')
+  // Send the editor straight to the edit page — they'll paste T&Cs there.
+  redirect(`/admin/alerts/${alertId}/edit`)
 }
 
 /**

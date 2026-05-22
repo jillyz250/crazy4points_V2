@@ -34,6 +34,7 @@ import { UnsnoozeButton } from '@/components/admin/triage/UnsnoozeButton'
 import { RejectButton } from '@/components/admin/triage/RejectButton'
 import { RejectedOneLiner as RejectedOneLinerClient } from '@/components/admin/triage/RejectedOneLiner'
 import { WriteAlertButton } from '@/components/admin/triage/WriteAlertButton'
+import { StageAlertButton } from '@/components/admin/triage/StageAlertButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -597,6 +598,7 @@ function RowActions({ row, tab, isWritable }: { row: IntelRow; tab: Tab; isWrita
   return (
     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.75rem' }}>
       <WriteAlertButton intelId={row.id} />
+      <StageAlertButton intelId={row.id} />
       <SnoozeButton intelId={row.id} />
       <RejectButton intelId={row.id} />
     </div>
