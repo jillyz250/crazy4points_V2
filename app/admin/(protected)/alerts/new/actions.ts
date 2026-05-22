@@ -2,10 +2,11 @@
 
 import { redirect } from 'next/navigation'
 import { createAdminClient } from '@/utils/supabase/server'
-import { createAlert, setAlertPrograms } from '@/utils/supabase/queries'
-import type { AlertInsert, AlertType, AlertStatus, AlertActionType, ConfidenceLevel } from '@/utils/supabase/queries'
+import { getAlertById } from '@/utils/supabase/queries'
+import type { AlertType, AlertStatus, AlertActionType, ConfidenceLevel } from '@/utils/supabase/queries'
 import { logPublishEvent } from '@/utils/ai/logPublishEvent'
 import { actionError, isRedirectError, type ActionResult } from '@/lib/admin/actionResult'
+import { writeAlertVariant } from '@/utils/content/writeAlertVariant'
 
 function toSlug(title: string): string {
   return (
@@ -33,7 +34,26 @@ export async function createAlertAction(formData: FormData): Promise<ActionResul
     const confidence_level = formData.get('confidence_level') as ConfidenceLevel
     const source_url = (formData.get('source_url') as string) || null
 
-    const alertData: AlertInsert = {
+    const supabase = createAdminClient()
+
+    // Resolve all tagged program IDs → slugs for topic.programs[]
+    const taggedIds = (formData.getAll('tagged_program_ids') as string[]).filter(Boolean)
+    const allIds = Array.from(new Set([
+      ...(primary_program_id ? [primary_program_id] : []),
+      ...taggedIds,
+    ]))
+    let programSlugs: string[] = []
+    if (allIds.length > 0) {
+      const { data: progs } = await supabase
+        .from('programs')
+        .select('slug')
+        .in('id', allIds)
+      programSlugs = (progs ?? []).map((p) => p.slug as string)
+    }
+
+    // Wave 3a: writeAlertVariant() lands the new alert as topic + variant.
+    // The trigger mirrors back to alerts; logPublishEvent reads the mirror.
+    const result = await writeAlertVariant(supabase, {
       slug: toSlug(title),
       title,
       summary: title,
@@ -41,9 +61,10 @@ export async function createAlertAction(formData: FormData): Promise<ActionResul
       type,
       status,
       action_type,
-      primary_program_id: primary_program_id || null,
-      start_date: start_date ? new Date(start_date).toISOString() : null,
-      end_date: end_date ? new Date(end_date).toISOString() : null,
+      primary_program_id,
+      program_slugs: programSlugs,
+      start_date,
+      end_date,
       published_at: status === 'published' ? new Date().toISOString() : null,
       source: null,
       source_url,
@@ -55,23 +76,15 @@ export async function createAlertAction(formData: FormData): Promise<ActionResul
       history_note,
       registration_required: false,
       created_by: null,
-      approved_by: null,
-      last_verified: null,
       is_hot: false,
       gaps: [],
       verified_terms: null,
-    }
-
-    const supabase = createAdminClient()
-    const alert = await createAlert(supabase, alertData)
-
-    const taggedIds = (formData.getAll('tagged_program_ids') as string[]).filter(Boolean)
-    if (taggedIds.length > 0) {
-      await setAlertPrograms(supabase, alert.id, taggedIds)
-    }
+    })
 
     if (status === 'published') {
-      await logPublishEvent(alert).catch(() => {})
+      // logPublishEvent expects the legacy Alert row; load via the mirror.
+      const alert = await getAlertById(supabase, result.alert_id).catch(() => null)
+      if (alert) await logPublishEvent(alert).catch(() => {})
     }
   } catch (err) {
     if (isRedirectError(err)) throw err
