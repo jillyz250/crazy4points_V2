@@ -5,7 +5,6 @@ import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/utils/supabase/server'
 import {
   updateAlert,
-  expireAlert,
   incrementSourceApproved,
   getAlertById,
   setAlertPrograms,
@@ -26,7 +25,7 @@ import { voiceCheckArticle } from '@/utils/ai/voiceCheckArticle'
 import { originalityCheck } from '@/utils/ai/originalityCheck'
 import { checkAlertGates } from '@/utils/alerts/publishGates'
 import { logAlertOverride, type OverrideGate } from '@/utils/supabase/alertOverrides'
-import { rejectAlertVariant, updateAlertVariantMetadata, updateTopicFactLedger, updateAlertVariantBody, findVariantByAlertId } from '@/utils/content/writeAlertVariant'
+import { rejectAlertVariant, updateAlertVariantMetadata, updateTopicFactLedger, updateAlertVariantBody, findVariantByAlertId, publishAlertVariant, expireAlertVariant } from '@/utils/content/writeAlertVariant'
 
 function errMessage(err: unknown): string {
   if (err instanceof Error) return err.message
@@ -115,12 +114,11 @@ export async function acknowledgeFactCheckClaimAction(alertId: string, claimInde
 
 export async function publishAlertAction(id: string): Promise<void> {
   const supabase = createAdminClient()
+  // Wave 3a: still read via getAlertById (alerts is the mirror, fine for reads).
+  // Status flip + short_slug now flows through publishAlertVariant — direct
+  // writes to alerts are blocked by the G6 trigger.
   const prev = await getAlertById(supabase, id)
 
-  // Writer redesign — gate check before publish. Overrides logged in
-  // alert_overrides count as pass. If a gate fails, throw — the form will
-  // surface the error via Next's error boundary, and admin can use
-  // overrideAndPublishAlertAction to bypass with a reason.
   const gates = await checkAlertGates(supabase, prev)
   if (!gates.canPublish) {
     throw new Error(
@@ -129,13 +127,16 @@ export async function publishAlertAction(id: string): Promise<void> {
     )
   }
 
-  const now = new Date().toISOString()
-  const shortSlug = await ensureShortSlug(supabase, prev as { id: string; title: string; short_slug?: string | null })
-  await updateAlert(supabase, id, {
-    status: 'published',
-    published_at: now,
-    decided_at: now,
-    ...(shortSlug ? { short_slug: shortSlug } : {}),
+  await publishAlertVariant(supabase, id, {
+    shortSlugGenerator: async (title) => {
+      try {
+        const { generateUniqueShortSlug } = await import('@/utils/alerts/generateShortSlug')
+        return await generateUniqueShortSlug(supabase, title, id)
+      } catch (err) {
+        console.error('[publishAlertAction] short_slug generation failed:', err)
+        return null
+      }
+    },
   })
   await trackSourceApprovalIfNeeded(supabase, prev, 'published')
   await revalidateAlertPaths(supabase, id, prev.slug)
@@ -162,7 +163,6 @@ export async function overrideAndPublishAlertAction(
       throw new Error(`Override logging failed: ${res.error}`)
     }
   }
-  // Now check gates again — overrides should make canPublish=true.
   const prev = await getAlertById(supabase, id)
   const gates = await checkAlertGates(supabase, prev)
   if (!gates.canPublish) {
@@ -170,36 +170,25 @@ export async function overrideAndPublishAlertAction(
       `Gates still blocked after override: ${gates.failures.join(' · ')}`
     )
   }
-  const now = new Date().toISOString()
-  const shortSlug = await ensureShortSlug(supabase, prev as { id: string; title: string; short_slug?: string | null })
-  await updateAlert(supabase, id, {
-    status: 'published',
-    published_at: now,
-    decided_at: now,
-    ...(shortSlug ? { short_slug: shortSlug } : {}),
+  await publishAlertVariant(supabase, id, {
+    shortSlugGenerator: async (title) => {
+      try {
+        const { generateUniqueShortSlug } = await import('@/utils/alerts/generateShortSlug')
+        return await generateUniqueShortSlug(supabase, title, id)
+      } catch (err) {
+        console.error('[overrideAndPublishAlertAction] short_slug generation failed:', err)
+        return null
+      }
+    },
   })
   await trackSourceApprovalIfNeeded(supabase, prev, 'published')
   await revalidateAlertPaths(supabase, id, prev.slug)
   redirect('/admin/alerts')
 }
 
-/**
- * Generate a short_slug if the alert doesn't already have one. Idempotent:
- * returns the existing slug if set. Used by publish + bulk-approve paths.
- */
-async function ensureShortSlug(
-  supabase: ReturnType<typeof createAdminClient>,
-  alert: { id: string; title: string; short_slug?: string | null },
-): Promise<string | null> {
-  if (alert.short_slug) return null // already has one, don't overwrite
-  try {
-    const { generateUniqueShortSlug } = await import('@/utils/alerts/generateShortSlug')
-    return await generateUniqueShortSlug(supabase, alert.title, alert.id)
-  } catch (err) {
-    console.error('[ensureShortSlug] failed:', err)
-    return null
-  }
-}
+// `ensureShortSlug` helper removed — publishAlertVariant() now owns short_slug
+// generation as its `shortSlugGenerator` option (idempotent, respects existing
+// variant.metadata.short_slug per invariant I4).
 
 /**
  * Bulk-regenerate every pending_review alert from the last `daysWindow` days
@@ -252,13 +241,17 @@ export async function approveIntelAlertAction(id: string) {
   const supabase = createAdminClient()
   const prev = await getAlertById(supabase, id)
   const now = new Date().toISOString()
-  const shortSlug = await ensureShortSlug(supabase, prev as { id: string; title: string; short_slug?: string | null })
-  await updateAlert(supabase, id, {
-    status: 'published',
-    published_at: now,
+  await publishAlertVariant(supabase, id, {
     approved_at: now,
-    decided_at: now,
-    ...(shortSlug ? { short_slug: shortSlug } : {}),
+    shortSlugGenerator: async (title) => {
+      try {
+        const { generateUniqueShortSlug } = await import('@/utils/alerts/generateShortSlug')
+        return await generateUniqueShortSlug(supabase, title, id)
+      } catch (err) {
+        console.error('[approveIntelAlertAction] short_slug generation failed:', err)
+        return null
+      }
+    },
   })
   await trackSourceApprovalIfNeeded(supabase, prev, 'published')
   await revalidateAlertPaths(supabase, id, prev.slug)
@@ -273,14 +266,18 @@ export async function bulkApproveIntelAlertsAction(ids: string[]) {
     const prev = await getAlertById(supabase, id).catch(() => null)
     if (!prev) continue
     if (prev.status === 'published') continue
-    const shortSlug = await ensureShortSlug(supabase, prev as { id: string; title: string; short_slug?: string | null })
-    await updateAlert(supabase, id, {
-      status: 'published',
-      published_at: now,
+    await publishAlertVariant(supabase, id, {
       approved_at: now,
-      decided_at: now,
-      ...(shortSlug ? { short_slug: shortSlug } : {}),
-    })
+      shortSlugGenerator: async (title) => {
+        try {
+          const { generateUniqueShortSlug } = await import('@/utils/alerts/generateShortSlug')
+          return await generateUniqueShortSlug(supabase, title, id)
+        } catch (err) {
+          console.error('[bulkApproveIntelAlertsAction] short_slug generation failed:', err)
+          return null
+        }
+      },
+    }).catch((err) => console.error(`[bulkApprove] ${id} failed:`, err))
     await trackSourceApprovalIfNeeded(supabase, prev, 'published')
     await revalidateAlertPaths(supabase, id, prev.slug)
   }
@@ -702,7 +699,7 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
 
 export async function expireAlertAction(id: string) {
   const supabase = createAdminClient()
-  await expireAlert(supabase, id)
+  await expireAlertVariant(supabase, id)
   redirect('/admin/alerts')
 }
 
