@@ -26,7 +26,7 @@ import { voiceCheckArticle } from '@/utils/ai/voiceCheckArticle'
 import { originalityCheck } from '@/utils/ai/originalityCheck'
 import { checkAlertGates } from '@/utils/alerts/publishGates'
 import { logAlertOverride, type OverrideGate } from '@/utils/supabase/alertOverrides'
-import { rejectAlertVariant } from '@/utils/content/writeAlertVariant'
+import { rejectAlertVariant, updateAlertVariantMetadata, updateTopicFactLedger, updateAlertVariantBody, findVariantByAlertId } from '@/utils/content/writeAlertVariant'
 
 function errMessage(err: unknown): string {
   if (err instanceof Error) return err.message
@@ -94,20 +94,21 @@ async function trackSourceApprovalIfNeeded(
 
 export async function acknowledgeFactCheckClaimAction(alertId: string, claimIndex: number) {
   const supabase = createAdminClient()
-  const { data: alert, error } = await supabase
-    .from('alerts')
-    .select('fact_check_claims')
-    .eq('id', alertId)
-    .single()
-  if (error) throw error
+  // Wave 3a: claims live on topic.fact_ledger. Read from there, mutate, write back.
+  const refs = await findVariantByAlertId(supabase, alertId)
+  if (!refs) throw new Error('alert not found (no matching topic)')
 
-  const claims = Array.isArray(alert?.fact_check_claims)
-    ? (alert.fact_check_claims as VerifyClaim[])
-    : []
+  const { data: topic } = await supabase
+    .from('topics')
+    .select('fact_ledger')
+    .eq('id', refs.topic_id)
+    .single()
+
+  const claims = Array.isArray(topic?.fact_ledger) ? (topic.fact_ledger as VerifyClaim[]) : []
   if (claimIndex < 0 || claimIndex >= claims.length) return
 
   const updated = claims.map((c, i) => (i === claimIndex ? { ...c, acknowledged: true } : c))
-  await updateAlert(supabase, alertId, { fact_check_claims: updated })
+  await updateTopicFactLedger(supabase, alertId, updated)
   revalidatePath('/admin/alerts')
   revalidatePath(`/admin/alerts/${alertId}/edit`)
 }
@@ -728,34 +729,37 @@ export type AlertQuickFixVoiceResult =
 export async function quickFixVoiceAlertAction(id: string): Promise<AlertQuickFixVoiceResult> {
   const { voiceFixArticle } = await import('@/utils/ai/voiceFixArticle')
   const supabase = createAdminClient()
-  const { data: alert } = await supabase
-    .from('alerts')
-    .select('id, title, description, voice_notes, voice_pass')
-    .eq('id', id)
+
+  // Wave 3a: read variant.title/body + variant.metadata.voice_*
+  const refs = await findVariantByAlertId(supabase, id)
+  if (!refs) return { ok: false, error: 'Alert not found' }
+
+  const { data: variant } = await supabase
+    .from('content_variants')
+    .select('title, body, metadata')
+    .eq('id', refs.variant_id)
     .single()
-  if (!alert) return { ok: false, error: 'Alert not found' }
-  if (!alert.description || !alert.description.trim()) {
+  if (!variant) return { ok: false, error: 'Variant not found' }
+  if (!variant.body || !(variant.body as string).trim()) {
     return { ok: false, error: 'No description to fix' }
   }
-  if (alert.voice_pass !== false || !alert.voice_notes) {
+  const meta = (variant.metadata ?? {}) as { voice_pass?: boolean | null; voice_notes?: string | null }
+  if (meta.voice_pass !== false || !meta.voice_notes) {
     return { ok: false, error: 'No voice failure notes to apply (voice check has not failed)' }
   }
 
   const fix = await voiceFixArticle({
-    title: alert.title as string,
-    article_body: alert.description as string,
-    voice_notes: alert.voice_notes as string,
+    title: variant.title as string,
+    article_body: variant.body as string,
+    voice_notes: meta.voice_notes,
   })
   if (!fix) return { ok: false, error: 'Quick-fix call failed (see logs)' }
 
-  const { error: updateErr } = await supabase
-    .from('alerts')
-    .update({
-      description: fix.article_body,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', id)
-  if (updateErr) return { ok: false, error: updateErr.message }
+  try {
+    await updateAlertVariantBody(supabase, id, fix.article_body)
+  } catch (err) {
+    return { ok: false, error: errMessage(err) }
+  }
 
   // Re-run the voice check against the revised body. If it still fails,
   // surface the new notes; if it passes, the pill flips green.
@@ -783,36 +787,39 @@ export type AlertFactCheckResult =
 export async function factCheckAlertAction(id: string): Promise<AlertFactCheckResult> {
   const supabase = createAdminClient()
 
-  const { data: alert, error: alertErr } = await supabase
-    .from('alerts')
-    .select('id, title, summary, description, source_url, source_intel_id, verified_terms, primary_program_id')
-    .eq('id', id)
-    .maybeSingle()
-  if (alertErr || !alert) return { ok: false, error: alertErr?.message ?? 'alert not found' }
-  if (!alert.source_intel_id) return { ok: false, error: 'alert has no source_intel_id — cannot fact-check' }
+  // Wave 3a: read from topic + variant via findVariantByAlertId, not alerts.
+  const refs = await findVariantByAlertId(supabase, id)
+  if (!refs) return { ok: false, error: 'alert not found (no matching topic/variant)' }
+
+  const [{ data: topic }, { data: variant }] = await Promise.all([
+    supabase.from('topics').select('id, title, summary, source_urls, programs, metadata').eq('id', refs.topic_id).single(),
+    supabase.from('content_variants').select('id, title, body, metadata').eq('id', refs.variant_id).single(),
+  ])
+  if (!topic || !variant) return { ok: false, error: 'topic or variant missing' }
+
+  const sourceIntelId = (topic.metadata as { source_intel_id?: string } | null)?.source_intel_id ?? null
+  if (!sourceIntelId) return { ok: false, error: 'alert has no source_intel_id — cannot fact-check' }
 
   const { data: intel, error: intelErr } = await supabase
     .from('intel_items')
     .select('raw_text, source_url, alert_type, programs')
-    .eq('id', alert.source_intel_id as string)
+    .eq('id', sourceIntelId)
     .maybeSingle()
   if (intelErr || !intel) return { ok: false, error: intelErr?.message ?? 'intel_item not found' }
 
-  const programSlugs = (intel.programs as string[] | null) ?? []
+  const verifiedTerms = (variant.metadata as { verified_terms?: string } | null)?.verified_terms ?? null
+  const primaryProgramId = (topic.metadata as { primary_program_id?: string } | null)?.primary_program_id ?? null
+
   const { extra_context } = await buildExtraContext(supabase, {
-    programSlugs,
-    verifiedTerms: (alert.verified_terms as string | null) ?? null,
+    programSlugs: (intel.programs as string[] | null) ?? [],
+    verifiedTerms,
     excludeAlertId: id,
   })
 
-  const draftText = `${alert.title}\n${alert.summary}\n${alert.description ?? ''}`
-  const programReference = await buildProgramReferenceForDraft(
-    supabase,
-    alert.primary_program_id as string | null,
-    draftText
-  )
+  const draftText = `${variant.title}\n${topic.summary}\n${variant.body ?? ''}`
+  const programReference = await buildProgramReferenceForDraft(supabase, primaryProgramId, draftText)
 
-  // Look up tagged program IDs for alliance context lookup.
+  // Tagged program IDs for alliance context.
   const { data: taggedRows } = await supabase
     .from('alert_programs')
     .select('program_id')
@@ -825,13 +832,13 @@ export async function factCheckAlertAction(id: string): Promise<AlertFactCheckRe
   let verify
   try {
     verify = await verifyAlertDraft({
-      draft: { title: alert.title, summary: alert.summary, description: alert.description },
+      draft: { title: variant.title as string, summary: topic.summary as string, description: variant.body },
       raw_text: (intel.raw_text as string | null) ?? null,
       source_url: (intel.source_url as string | null) ?? null,
       alert_type: intel.alert_type,
       program_reference: programReference,
       alliance_context,
-      verified_terms: (alert.verified_terms as string | null) ?? null,
+      verified_terms: verifiedTerms,
       extra_context,
     })
   } catch (err) {
@@ -845,7 +852,7 @@ export async function factCheckAlertAction(id: string): Promise<AlertFactCheckRe
     try {
       finalClaims = await webVerifyClaims({
         claims: finalClaims,
-        context: { title: alert.title, source_url: (intel.source_url as string | null) ?? null },
+        context: { title: variant.title as string, source_url: (intel.source_url as string | null) ?? null },
       })
     } catch (err) {
       await logSystemError(supabase, 'alerts:factCheck:webVerify', err, { alert_id: id })
@@ -855,10 +862,8 @@ export async function factCheckAlertAction(id: string): Promise<AlertFactCheckRe
     }
   }
 
-  await updateAlert(supabase, id, {
-    fact_check_claims: finalClaims,
-    fact_check_at: verify.checked_at,
-  })
+  // Write claims to topic.fact_ledger + verified_at; trigger mirrors to alerts.
+  await updateTopicFactLedger(supabase, id, finalClaims, { verified_at: verify.checked_at })
 
   revalidatePath('/admin/alerts')
   revalidatePath(`/admin/alerts/${id}/edit`)
@@ -870,28 +875,30 @@ export async function factCheckAlertAction(id: string): Promise<AlertFactCheckRe
 
 export async function voiceCheckAlertAction(id: string): Promise<AlertVoiceCheckResult> {
   const supabase = createAdminClient()
-  const { data: alert } = await supabase
-    .from('alerts')
-    .select('id, title, description, summary')
-    .eq('id', id)
-    .single()
-  if (!alert) return { ok: false, error: 'Alert not found' }
-  const body = alert.description || alert.summary || ''
+
+  // Wave 3a: read variant.title/body + topic.summary; write voice fields to variant.metadata.
+  const refs = await findVariantByAlertId(supabase, id)
+  if (!refs) return { ok: false, error: 'Alert not found' }
+
+  const [{ data: variant }, { data: topic }] = await Promise.all([
+    supabase.from('content_variants').select('title, body').eq('id', refs.variant_id).single(),
+    supabase.from('topics').select('summary').eq('id', refs.topic_id).single(),
+  ])
+  const body = variant?.body || topic?.summary || ''
   if (!body.trim()) return { ok: false, error: 'No description or summary to check' }
 
-  const res = await voiceCheckArticle({ title: alert.title, article_body: body })
+  const res = await voiceCheckArticle({ title: variant?.title as string, article_body: body })
   if (!res) return { ok: false, error: 'Voice-check call failed (see logs)' }
 
-  const { error } = await supabase
-    .from('alerts')
-    .update({
+  try {
+    await updateAlertVariantMetadata(supabase, id, {
       voice_checked_at: res.checked_at,
       voice_pass: res.pass,
       voice_notes: res.notes,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', id)
-  if (error) return { ok: false, error: error.message }
+    }, { brand_voice_run: true })
+  } catch (err) {
+    return { ok: false, error: errMessage(err) }
+  }
 
   revalidatePath('/admin/alerts')
   revalidatePath(`/admin/alerts/${id}/edit`)
@@ -904,45 +911,49 @@ export type AlertOriginalityCheckResult =
 
 export async function originalityCheckAlertAction(id: string): Promise<AlertOriginalityCheckResult> {
   const supabase = createAdminClient()
-  const { data: alert } = await supabase
-    .from('alerts')
-    .select('id, title, description, summary, source_intel_id, source_url')
-    .eq('id', id)
-    .single()
-  if (!alert) return { ok: false, error: 'Alert not found' }
-  const body = alert.description || alert.summary || ''
+
+  // Wave 3a: read variant + topic; write originality fields to variant.metadata.
+  const refs = await findVariantByAlertId(supabase, id)
+  if (!refs) return { ok: false, error: 'Alert not found' }
+
+  const [{ data: variant }, { data: topic }] = await Promise.all([
+    supabase.from('content_variants').select('title, body').eq('id', refs.variant_id).single(),
+    supabase.from('topics').select('summary, source_urls, metadata').eq('id', refs.topic_id).single(),
+  ])
+  const body = variant?.body || topic?.summary || ''
   if (!body.trim()) return { ok: false, error: 'No description or summary to check' }
 
-  // v3 — fetch the intel raw_text the alert was drafted from. Originality
-  // check now compares against the source, not the open web.
+  const sourceIntelId = (topic?.metadata as { source_intel_id?: string } | null)?.source_intel_id ?? null
+  const topicSourceUrl = Array.isArray(topic?.source_urls) && topic.source_urls.length > 0 ? topic.source_urls[0] : null
+
+  // v3 — fetch the intel raw_text the alert was drafted from.
   const sources: { url: string | null; text: string }[] = []
-  if (alert.source_intel_id) {
+  if (sourceIntelId) {
     const { data: intel } = await supabase
       .from('intel_items')
       .select('raw_text, source_url')
-      .eq('id', alert.source_intel_id)
+      .eq('id', sourceIntelId)
       .single()
     if (intel?.raw_text) {
-      sources.push({ url: intel.source_url ?? alert.source_url ?? null, text: intel.raw_text })
+      sources.push({ url: intel.source_url ?? topicSourceUrl, text: intel.raw_text })
     }
   }
   if (sources.length === 0) {
     return { ok: false, error: 'No source intel to check against — manual alerts skip this check.' }
   }
 
-  const res = await originalityCheck({ title: alert.title, article_body: body, sources })
+  const res = await originalityCheck({ title: variant?.title as string, article_body: body, sources })
   if (!res) return { ok: false, error: 'Originality check failed (see logs)' }
 
-  const { error } = await supabase
-    .from('alerts')
-    .update({
+  try {
+    await updateAlertVariantMetadata(supabase, id, {
       originality_checked_at: res.checked_at,
       originality_pass: res.pass,
       originality_notes: res.notes,
-      updated_at: new Date().toISOString(),
     })
-    .eq('id', id)
-  if (error) return { ok: false, error: error.message }
+  } catch (err) {
+    return { ok: false, error: errMessage(err) }
+  }
 
   revalidatePath('/admin/alerts')
   revalidatePath(`/admin/alerts/${id}/edit`)
