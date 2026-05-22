@@ -438,6 +438,84 @@ export async function rejectAlertVariant(
 }
 
 /**
+ * Merge a partial metadata payload into the variant's metadata. Touches
+ * the variant so the trigger re-mirrors to alerts. Used by voice/originality
+ * check actions that only update a handful of metadata keys.
+ */
+export async function updateAlertVariantMetadata(
+  supabase: SupabaseClient,
+  alertId: string,
+  partial: Record<string, unknown>,
+  opts?: { brand_voice_run?: boolean; fact_check_run?: boolean },
+): Promise<void> {
+  const refs = await findVariantByAlertId(supabase, alertId)
+  if (!refs) throw new Error(`updateAlertVariantMetadata: no topic/variant for alert ${alertId}`)
+
+  const { data: v } = await supabase
+    .from('content_variants')
+    .select('metadata')
+    .eq('id', refs.variant_id)
+    .single()
+
+  const merged = { ...((v?.metadata as object) ?? {}), ...partial }
+  const update: Record<string, unknown> = { metadata: merged, updated_at: new Date().toISOString() }
+  if (opts?.brand_voice_run !== undefined) update.brand_voice_run = opts.brand_voice_run
+  if (opts?.fact_check_run !== undefined) update.fact_check_run = opts.fact_check_run
+
+  const { error } = await supabase
+    .from('content_variants')
+    .update(update)
+    .eq('id', refs.variant_id)
+  if (error) throw new Error(`updateAlertVariantMetadata: variant update failed: ${error.message}`)
+}
+
+/**
+ * Write fact-check claims to topic.fact_ledger and bump topic.verified_at.
+ * Touches the variant so the trigger re-mirrors. The source of truth for
+ * claims is the topic, not the variant.
+ */
+export async function updateTopicFactLedger(
+  supabase: SupabaseClient,
+  alertId: string,
+  claims: unknown[],
+  opts?: { verified_at?: string },
+): Promise<void> {
+  const refs = await findVariantByAlertId(supabase, alertId)
+  if (!refs) throw new Error(`updateTopicFactLedger: no topic/variant for alert ${alertId}`)
+
+  const verifiedAt = opts?.verified_at ?? new Date().toISOString()
+  await supabase
+    .from('topics')
+    .update({ fact_ledger: claims, verified_at: verifiedAt, fact_check_status: 'verified' })
+    .eq('id', refs.topic_id)
+
+  await supabase
+    .from('content_variants')
+    .update({ fact_check_run: true, updated_at: new Date().toISOString() })
+    .eq('id', refs.variant_id)
+}
+
+/**
+ * Update the variant's body (description) directly. Used by quick-fix flows
+ * that just need to change the rendered copy. Trigger mirrors variant.body
+ * to alerts.description.
+ */
+export async function updateAlertVariantBody(
+  supabase: SupabaseClient,
+  alertId: string,
+  body: string,
+): Promise<void> {
+  const refs = await findVariantByAlertId(supabase, alertId)
+  if (!refs) throw new Error(`updateAlertVariantBody: no topic/variant for alert ${alertId}`)
+
+  const { error } = await supabase
+    .from('content_variants')
+    .update({ body, updated_at: new Date().toISOString() })
+    .eq('id', refs.variant_id)
+  if (error) throw new Error(`updateAlertVariantBody: variant update failed: ${error.message}`)
+}
+
+/**
  * Lookup helper: find the topic+variant ids for a legacy alert id.
  * Returns null if no matching topic exists (e.g. for rejected alerts that
  * were never backfilled).
