@@ -44,7 +44,9 @@ const TABS: Array<{ key: Tab; label: string }> = [
   { key: 'snoozed', label: 'Snoozed' },
   { key: 'rejected', label: 'Rejected' },
   { key: 'archive', label: 'Archive' },
-  { key: 'promoted', label: 'Promoted' },
+  // 'Promoted' tab hidden 2026-05-22 — it shows informational counts only
+  // (intel items that became alerts) and isn't a to-do list. The tab handler
+  // logic + counts stay in case someone navigates to ?tab=promoted directly.
 ]
 
 interface IntelRow {
