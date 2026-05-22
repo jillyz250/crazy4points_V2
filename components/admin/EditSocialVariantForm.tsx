@@ -45,12 +45,34 @@ export default function EditSocialVariantForm({
   const tightWarning = format === 'x' && charCount > cap - 20 && !overCap
 
   async function copyToClipboard() {
+    setError(null)
+    // 1. Modern path — navigator.clipboard. Requires secure context + user gesture.
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(body)
+        setCopied(true)
+        window.setTimeout(() => setCopied(false), 1500)
+        return
+      } catch (err) {
+        // Fall through to legacy path if the modern one rejects
+        // (some browsers block on focus issues or permission policy).
+        console.warn('[copyToClipboard] navigator.clipboard failed, trying execCommand:', err)
+      }
+    }
+    // 2. Legacy fallback — select the existing textarea + document.execCommand.
     try {
-      await navigator.clipboard.writeText(body)
+      const ta = document.getElementById('variant-body') as HTMLTextAreaElement | null
+      if (!ta) throw new Error('textarea not found')
+      ta.focus()
+      ta.select()
+      ta.setSelectionRange(0, ta.value.length)
+      const ok = document.execCommand('copy')
+      if (!ok) throw new Error('execCommand returned false')
+      ta.blur()
       setCopied(true)
       window.setTimeout(() => setCopied(false), 1500)
-    } catch {
-      setError('Clipboard copy failed — select the text manually.')
+    } catch (err) {
+      setError(`Clipboard copy failed — select the text manually. (${err instanceof Error ? err.message : 'unknown'})`)
     }
   }
 
