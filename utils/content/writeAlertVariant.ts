@@ -438,6 +438,64 @@ export async function rejectAlertVariant(
 }
 
 /**
+ * Reconcile the program tagging for an existing alert. Updates
+ * topic.programs[] (slug projection of the junction) +
+ * topic.metadata.primary_program_id (authority during Wave 3a) and touches
+ * the variant so the trigger rebuilds alert_programs from the new state.
+ *
+ * Takes program IDs (matching the legacy setAlertPrograms surface) and
+ * resolves them to slugs for the topic.programs[] array.
+ */
+export async function setAlertVariantPrograms(
+  supabase: SupabaseClient,
+  alertId: string,
+  opts: {
+    primaryProgramId: string | null
+    /** Secondary program IDs only. Primary is handled separately. */
+    secondaryProgramIds: string[]
+  },
+): Promise<void> {
+  const refs = await findVariantByAlertId(supabase, alertId)
+  if (!refs) throw new Error(`setAlertVariantPrograms: no topic/variant for alert ${alertId}`)
+
+  // Build the full slug set (primary + secondaries) by looking up programs.
+  const allIds = [
+    ...(opts.primaryProgramId ? [opts.primaryProgramId] : []),
+    ...opts.secondaryProgramIds,
+  ]
+  let allSlugs: string[] = []
+  if (allIds.length > 0) {
+    const { data: programs } = await supabase
+      .from('programs')
+      .select('slug')
+      .in('id', allIds)
+    allSlugs = (programs ?? []).map((p) => p.slug as string).sort()
+  }
+
+  // Merge primary_program_id into topic.metadata (preserve other keys)
+  const { data: topic } = await supabase
+    .from('topics')
+    .select('metadata')
+    .eq('id', refs.topic_id)
+    .single()
+  const mergedTopicMeta = {
+    ...((topic?.metadata as object) ?? {}),
+    primary_program_id: opts.primaryProgramId ?? null,
+  }
+
+  await supabase
+    .from('topics')
+    .update({ programs: allSlugs, metadata: mergedTopicMeta })
+    .eq('id', refs.topic_id)
+
+  // Touch variant so trigger rebuilds alert_programs from the new topic state
+  await supabase
+    .from('content_variants')
+    .update({ updated_at: new Date().toISOString() })
+    .eq('id', refs.variant_id)
+}
+
+/**
  * Publish an existing alert. Sets variant.status='published',
  * published_at=now, stamps approved_at + decided_at + short_slug on
  * variant.metadata. Topic flips to 'active' (no-op if already there).
