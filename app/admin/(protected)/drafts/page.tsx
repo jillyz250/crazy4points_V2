@@ -330,17 +330,18 @@ export default async function AdminDraftsPage({
                               </button>
                             </form>
                           )}
-                          {r.alert_id && r.status === 'published' && (() => {
-                            const aid = r.alert_id
-                            return (
-                              <ConfirmButton
-                                action={async () => { await expireAlertAction(aid) }}
-                                confirmMessage={`Expire "${r.title}"?\n\nThis sets end_date=now and hides the alert from active surfaces. URL stays live but reads "expired". You can restore by clearing end_date on the topic.`}
-                              >
-                                Expire
-                              </ConfirmButton>
-                            )
-                          })()}
+                          {r.alert_id && r.status === 'published' && (
+                            <ConfirmButton
+                              // Server action bound with the alert id — bind returns a
+                              // serializable reference; an inline closure over
+                              // expireAlertAction would crash with "Functions cannot be
+                              // passed directly to Client Components".
+                              action={expireAlertAction.bind(null, r.alert_id)}
+                              confirmMessage={`Expire "${r.title}"?\n\nThis sets end_date=now and hides the alert from active surfaces. URL stays live but reads "expired". You can restore by clearing end_date on the topic.`}
+                            >
+                              Expire
+                            </ConfirmButton>
+                          )}
                         </div>
                       </td>
                     </tr>
