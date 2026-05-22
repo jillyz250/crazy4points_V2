@@ -40,6 +40,15 @@ export async function reverifyAlertClaimsAction(alertId: string): Promise<Reveri
     .select('id, title, source_urls, fact_ledger')
     .eq('id', refs.topic_id)
     .single()
+  // Pull verified_terms from the variant — Sonnet's web-verify pass should
+  // check pasted T&Cs first before issuing a web search.
+  const { data: variantMeta } = await supabase
+    .from('content_variants')
+    .select('metadata')
+    .eq('id', refs.variant_id)
+    .single()
+  const verifiedTerms =
+    (variantMeta?.metadata as { verified_terms?: string } | null)?.verified_terms ?? null
 
   const claims = Array.isArray(topic?.fact_ledger) ? (topic.fact_ledger as VerifyClaim[]) : []
   if (claims.length === 0) return { ok: false, error: 'alert has no fact_check_claims' }
@@ -54,6 +63,7 @@ export async function reverifyAlertClaimsAction(alertId: string): Promise<Reveri
       context: {
         title: (topic?.title as string) ?? '',
         source_url: Array.isArray(topic?.source_urls) && topic.source_urls.length > 0 ? topic.source_urls[0] : null,
+        verified_terms: verifiedTerms,
       },
     })
   } catch (err) {
@@ -195,6 +205,8 @@ export async function reviseAlertAction(alertId: string): Promise<ReviseActionRe
       supabase,
       primaryProgramId ? [primaryProgramId] : []
     )
+    const verifiedTermsRevise =
+      (variant.metadata as { verified_terms?: string } | null)?.verified_terms ?? null
     const reverify = await verifyAlertDraft({
       draft: revised.revised,
       raw_text: rawText,
@@ -202,6 +214,7 @@ export async function reviseAlertAction(alertId: string): Promise<ReviseActionRe
       alert_type: (topic.topic_type as AlertType | null) ?? null,
       program_reference: programReference,
       alliance_context,
+      verified_terms: verifiedTermsRevise,
     })
     const newClaims = reverify?.claims ?? []
     if (newClaims.some((c) => !c.supported)) {
@@ -210,6 +223,7 @@ export async function reviseAlertAction(alertId: string): Promise<ReviseActionRe
         context: {
           title: revised.revised.title,
           source_url: sourceUrl,
+          verified_terms: verifiedTermsRevise,
         },
       })
     } else {

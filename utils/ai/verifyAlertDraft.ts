@@ -938,11 +938,13 @@ export async function verifyAlertDraft(args: {
   }
 
   const sourceText = args.raw_text?.trim()
-  if (!sourceText) {
-    // Nothing to ground against — return a single high-severity sentinel.
-    // No promo-terms chip in this branch: without source text we can't
-    // distinguish "writer omitted" from "source genuinely had no terms",
-    // and chipping every term would be noise.
+  const verifiedTermsText = args.verified_terms?.trim()
+  // Only short-circuit when BOTH raw_text and verified_terms are empty.
+  // Editors paste verified_terms precisely *because* the raw scrape is thin
+  // — bailing here would kill the pasted-T&Cs path exactly when it's most
+  // load-bearing. The system prompt already treats verified_terms as
+  // highest authority, so a verified-terms-only payload is fine to verify.
+  if (!sourceText && !verifiedTermsText) {
     return {
       claims: [
         {
@@ -960,7 +962,7 @@ export async function verifyAlertDraft(args: {
     {
       draft: args.draft,
       source_url: args.source_url,
-      source_text: sourceText,
+      source_text: sourceText ?? '',
       alert_type: args.alert_type ?? null,
       program_reference: args.program_reference ?? null,
       alliance_context: args.alliance_context ?? null,
@@ -1024,11 +1026,27 @@ export function highSeverityUnsupported(claims: VerifyClaim[]): VerifyClaim[] {
 
 const WEB_VERIFY_PROMPT = `You are a travel-industry fact-checker with access to web search.
 The writer agent produced a draft; a first-pass verifier found factual claims in the draft that
-are NOT supported by the source article. Your job: search the web to determine whether each
-unsupported claim is likely correct, likely wrong, or unverifiable.
+are NOT supported by the source article. Your job: determine whether each unsupported claim is
+likely correct, likely wrong, or unverifiable.
 
 ═══════════════════════════════════════════════════════════
-HOW TO JUDGE
+CHECK verified_terms FIRST — NO WEB SEARCH NEEDED
+═══════════════════════════════════════════════════════════
+
+The user payload may include "verified_terms" — full text of the official T&Cs / press release
+pasted by the editor. This is the highest-authority source available.
+
+BEFORE issuing any web search for a claim, scan verified_terms for direct support or contradiction:
+• If verified_terms supports the claim → return "likely_correct" with a short paraphrase in
+  web_evidence prefixed with "VT: " (e.g. "VT: Promo runs Apr 15 – May 31, 2026.") and
+  web_url = null.
+• If verified_terms explicitly contradicts the claim → return "likely_wrong" with a "VT: " excerpt
+  and web_url = null.
+• Only fall through to web search if verified_terms is empty, absent, or genuinely silent on the
+  claim. Don't search for things the pasted T&Cs already settled.
+
+═══════════════════════════════════════════════════════════
+HOW TO JUDGE (web search)
 ═══════════════════════════════════════════════════════════
 
 Use the web_search tool to find authoritative corroboration for each claim:
@@ -1099,7 +1117,12 @@ function findLastTextBlock(content: Anthropic.ContentBlock[]): string | null {
  */
 export async function webVerifyClaims(args: {
   claims: VerifyClaim[]
-  context: { title: string; source_url: string | null }
+  context: {
+    title: string
+    source_url: string | null
+    /** Editor-pasted T&Cs. Sonnet checks these BEFORE issuing web searches. */
+    verified_terms?: string | null
+  }
 }): Promise<VerifyClaim[]> {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) return args.claims
@@ -1111,6 +1134,7 @@ export async function webVerifyClaims(args: {
     {
       alert_title: args.context.title,
       original_source_url: args.context.source_url,
+      verified_terms: args.context.verified_terms ?? null,
       claims_to_verify: unsupported.map((c) => c.claim),
     },
     null,

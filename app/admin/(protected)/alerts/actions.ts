@@ -598,7 +598,11 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
         try {
           finalClaims = await webVerifyClaims({
             claims: finalClaims,
-            context: { title: draft.title, source_url: (intel.source_url as string | null) ?? null },
+            context: {
+              title: draft.title,
+              source_url: (intel.source_url as string | null) ?? null,
+              verified_terms: verifiedTermsRaw,
+            },
           })
         } catch (err) {
           await logSystemError(supabase, 'alerts:regenerate:webVerify', err, { alert_id: alertId })
@@ -671,6 +675,7 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
                 context: {
                   title: workingDraft.title,
                   source_url: (intel.source_url as string | null) ?? null,
+                  verified_terms: verifiedTermsRaw,
                 },
               })
             } catch (err) {
@@ -890,7 +895,11 @@ export async function factCheckAlertAction(id: string): Promise<AlertFactCheckRe
     try {
       finalClaims = await webVerifyClaims({
         claims: finalClaims,
-        context: { title: variant.title as string, source_url: (intel.source_url as string | null) ?? null },
+        context: {
+          title: variant.title as string,
+          source_url: (intel.source_url as string | null) ?? null,
+          verified_terms: verifiedTerms,
+        },
       })
     } catch (err) {
       await logSystemError(supabase, 'alerts:factCheck:webVerify', err, { alert_id: id })
