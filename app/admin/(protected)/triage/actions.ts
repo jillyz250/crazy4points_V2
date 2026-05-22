@@ -4,14 +4,19 @@ import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/utils/supabase/server'
 import { writeEditCheck } from '@/utils/ai/writeEditCheck'
 import { buildExtraContext } from '@/utils/ai/buildExtraContext'
-import { loadAllianceContextForPrograms, updateAlert, setAlertPrograms } from '@/utils/supabase/queries'
-import type { Alert } from '@/utils/supabase/queries'
+import { loadAllianceContextForPrograms } from '@/utils/supabase/queries'
 import type { WriteDraftProgram } from '@/utils/ai/writeAlertDraft'
+import { writeAlertVariant } from '@/utils/content/writeAlertVariant'
+import { selectAlertViewFromVariants } from '@/utils/content/alertView'
 
 /**
  * Per-item write action — same Sonnet pipeline that used to fire
  * automatically inside /api/build-brief, now triggered manually from
  * /admin/triage on the items the editor actually wants.
+ *
+ * Wave 3a: writes through writeAlertVariant() (content_variants + topics);
+ * variants→alerts trigger mirrors back. Direct writes to alerts are blocked
+ * by the G6 trigger.
  *
  * v1 = writeEditCheck only (writer → editor → voice check, ~3 calls).
  * Future buttons (Verify, Revise) handle fact-check + web-verify + revise
@@ -34,17 +39,17 @@ export async function writeAlertFromCandidate(formData: FormData): Promise<void>
     return
   }
 
-  // 2) Recent published alerts → voice samples for consistency
-  const { data: voiceRows } = await supabase
-    .from('alerts')
-    .select('title, summary, description')
-    .eq('status', 'published')
-    .order('published_at', { ascending: false })
-    .limit(8)
-  const recent_samples = (voiceRows ?? []).map((r) => ({
-    title: r.title as string,
-    summary: (r.summary as string | null) ?? '',
-    description: (r.description as string | null) ?? '',
+  // 2) Recent published alerts → voice samples for consistency.
+  // Wave 2 reads come from content_variants via the AlertView adapter.
+  const recentView = await selectAlertViewFromVariants(supabase, {
+    status: 'published',
+    activeOnly: true,
+    limit: 8,
+  })
+  const recent_samples = recentView.map((r) => ({
+    title: r.title,
+    summary: r.summary ?? '',
+    description: r.description ?? '',
   }))
 
   // 3) Resolve programs for context
@@ -83,83 +88,68 @@ export async function writeAlertFromCandidate(formData: FormData): Promise<void>
     return
   }
 
-  // 5) Persist to alerts (update if pending row exists, else insert)
-  let alertId: string | null = null
-  {
-    const { data: existing } = await supabase
-      .from('alerts')
-      .select('id')
-      .eq('source_intel_id', intelId)
-      .maybeSingle()
-    const draftRow: Partial<Omit<Alert, 'id' | 'created_at' | 'updated_at'>> = {
-      title: wec.draft.title,
-      summary: wec.draft.summary,
-      description: wec.draft.description,
-      action_type: wec.draft.action_type,
-      end_date: wec.draft.end_date,
-      voice_pass: wec.voice?.passed ?? null,
-      voice_score: wec.voice?.score ?? null,
-      status: 'pending_review',
-    }
-    if (existing?.id) {
-      alertId = existing.id as string
-      await updateAlert(supabase, alertId, draftRow)
-    } else {
-      // alerts table has several NOT NULL columns the write action used to
-      // omit, causing silent insert failures. Match the shape that
-      // run-scout/route.ts uses when it stages alerts directly: slug, type,
-      // impact/value/rarity scores, impact_justification, source attribution,
-      // confidence_level, primary_program_id.
-      const slug = `intel-${intelId.slice(0, 8)}-${Date.now()}`
-      const primaryProgramSlug = wec.draft.primary_program_slug ?? intelSlugs[0]
-      const primaryProgramId = primaryProgramSlug
-        ? allPrograms.find((p) => p.slug === primaryProgramSlug)?.id ?? null
-        : null
-      const insertRow = {
-        source_intel_id: intelId,
-        slug,
-        type: (intel.type as string | null) ?? 'industry_news',
-        impact_score: 5,
-        value_score: 5,
-        rarity_score: 5,
-        impact_justification: 'Auto-drafted from Triage write action',
-        source: (intel.source_name as string | null) ?? null,
-        source_url: (intel.source_url as string | null) ?? null,
-        confidence_level: (intel.confidence as string | null) ?? 'medium',
-        primary_program_id: primaryProgramId,
-        ...draftRow,
-      }
-      const { data: inserted, error: insErr } = await supabase
-        .from('alerts')
-        .insert(insertRow)
-        .select('id')
-        .single()
-      if (insErr || !inserted) {
-        console.error(`[triage] alert insert failed for ${intelId}:`, insErr)
-        // Also log to ingest errors so Jill can see what happened
-        try {
-          await supabase.from('intel_ingest_errors').insert({
-            source: 'manual',
-            stage: 'insert',
-            payload: { intel_id: intelId, insert_row: insertRow as Record<string, unknown> },
-            error_message: (insErr?.message ?? 'no error message').slice(0, 1000),
-          })
-        } catch {}
-        return
-      }
-      alertId = inserted.id as string
-    }
-  }
+  // 5) Find existing topic by source_intel_id (Wave 3a path) so re-running
+  // updates the existing variant rather than creating a duplicate.
+  const { data: existingTopic } = await supabase
+    .from('topics')
+    .select('id, slug, metadata')
+    .eq('metadata->>source_intel_id', intelId)
+    .maybeSingle()
+  const existingAlertId = (existingTopic?.metadata as { original_alert_id?: string } | null)?.original_alert_id ?? null
 
-  // 6) Set primary + secondary programs on the junction
-  const primaryId = wec.draft.primary_program_slug
-    ? programBySlug.get(wec.draft.primary_program_slug)?.id ?? null
+  // 6) Build write payload + persist via writeAlertVariant
+  const primaryProgramSlug = wec.draft.primary_program_slug ?? intelSlugs[0]
+  const primaryProgramId = primaryProgramSlug
+    ? programBySlug.get(primaryProgramSlug)?.id ?? null
     : null
   const secondaryIds = (wec.draft.secondary_program_slugs ?? [])
     .map((s) => programBySlug.get(s)?.id)
     .filter((x): x is string => typeof x === 'string')
-  if (primaryId || secondaryIds.length > 0) {
-    await setAlertPrograms(supabase, alertId, { primaryId, secondaryIds })
+  // program_slugs[] gets the full primary+secondary set
+  const allProgramSlugs = Array.from(new Set([
+    ...(primaryProgramSlug ? [primaryProgramSlug] : []),
+    ...((wec.draft.secondary_program_slugs ?? []).filter((s): s is string => typeof s === 'string')),
+  ]))
+
+  const slug = existingTopic?.slug ?? `intel-${intelId.slice(0, 8)}-${Date.now()}`
+
+  let alertId: string
+  try {
+    const result = await writeAlertVariant(supabase, {
+      id: existingAlertId ?? undefined,
+      slug,
+      title: wec.draft.title,
+      summary: wec.draft.summary,
+      description: wec.draft.description,
+      type: (intel.type as never) ?? 'industry_news',
+      status: 'pending_review',
+      action_type: wec.draft.action_type ?? null,
+      end_date: wec.draft.end_date ?? null,
+      source: (intel.source_name as string | null) ?? null,
+      source_url: (intel.source_url as string | null) ?? null,
+      source_intel_id: intelId,
+      confidence_level: (intel.confidence as string | null) ?? 'medium',
+      impact_score: 5,
+      impact_justification: 'Auto-drafted from Triage write action',
+      value_score: 5,
+      rarity_score: 5,
+      primary_program_id: primaryProgramId,
+      program_slugs: allProgramSlugs,
+      voice_pass: wec.voice?.passed ?? null,
+      voice_score: wec.voice?.score ?? null,
+    })
+    alertId = result.alert_id
+  } catch (err) {
+    console.error(`[triage] writeAlertVariant failed for ${intelId}:`, err)
+    try {
+      await supabase.from('intel_ingest_errors').insert({
+        source: 'manual',
+        stage: 'insert',
+        payload: { intel_id: intelId, secondaryIds, primary_program_id: primaryProgramId },
+        error_message: (err instanceof Error ? err.message : String(err)).slice(0, 1000),
+      })
+    } catch {}
+    return
   }
 
   // 7) Mark intel processed + linked
