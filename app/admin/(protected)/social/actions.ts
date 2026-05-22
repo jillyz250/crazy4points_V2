@@ -52,6 +52,10 @@ async function loadTopic(supabase: SupabaseClient, topicId: string): Promise<Top
 
 export async function generateSocialVariantsAction(
   topicId: string,
+  /** Subset of platforms to generate. Omit/empty = all 4. Per-platform
+   * generation is ~25% the cost of generating all 4 (each platform = one
+   * Sonnet call ≈ $0.013). */
+  platforms?: SocialFormat[],
 ): Promise<{ ok: true; group_id: string; variants: { format: SocialFormat; variant_id: string }[] } | { ok: false; error: string }> {
   const supabase = createAdminClient()
   const topic = await loadTopic(supabase, topicId)
@@ -87,31 +91,40 @@ export async function generateSocialVariantsAction(
     },
   }
 
-  try {
-    const [fb, ig, li, x] = await Promise.all([
-      generateFacebook(baseArgs),
-      generateInstagram(baseArgs),
-      generateLinkedIn(baseArgs),
-      generateX(baseArgs),
-    ])
+  // Subset filter — omit/empty = all 4
+  const requested = platforms && platforms.length > 0
+    ? SOCIAL_FORMATS.filter((p) => platforms.includes(p))
+    : SOCIAL_FORMATS
 
-    const results = await Promise.all([
-      writeSocialVariant(supabase, { topic_id: topic.id, format: 'facebook', body: fb.body, hashtags: fb.hashtags, char_count: fb.char_count, generation_group_id: groupId }),
-      writeSocialVariant(supabase, { topic_id: topic.id, format: 'instagram', body: ig.body, hashtags: ig.hashtags, char_count: ig.char_count, generation_group_id: groupId }),
-      writeSocialVariant(supabase, { topic_id: topic.id, format: 'linkedin', body: li.body, hashtags: li.hashtags, char_count: li.char_count, generation_group_id: groupId }),
-      writeSocialVariant(supabase, { topic_id: topic.id, format: 'x', body: x.body, hashtags: x.hashtags, char_count: x.char_count, generation_group_id: groupId }),
-    ])
+  const GENERATORS: Record<SocialFormat, (a: typeof baseArgs) => Promise<{ body: string; hashtags: string[]; char_count: number }>> = {
+    facebook: generateFacebook,
+    instagram: generateInstagram,
+    linkedin: generateLinkedIn,
+    x: generateX,
+  }
+
+  try {
+    const generated = await Promise.all(requested.map(async (fmt) => {
+      const res = await GENERATORS[fmt](baseArgs)
+      return { fmt, ...res }
+    }))
+
+    const persisted = await Promise.all(generated.map((g) =>
+      writeSocialVariant(supabase, {
+        topic_id: topic.id,
+        format: g.fmt,
+        body: g.body,
+        hashtags: g.hashtags,
+        char_count: g.char_count,
+        generation_group_id: groupId,
+      }),
+    ))
 
     revalidatePath('/admin/drafts')
     return {
       ok: true,
       group_id: groupId,
-      variants: [
-        { format: 'facebook', variant_id: results[0].variant_id },
-        { format: 'instagram', variant_id: results[1].variant_id },
-        { format: 'linkedin', variant_id: results[2].variant_id },
-        { format: 'x', variant_id: results[3].variant_id },
-      ],
+      variants: generated.map((g, i) => ({ format: g.fmt, variant_id: persisted[i].variant_id })),
     }
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : String(err) }

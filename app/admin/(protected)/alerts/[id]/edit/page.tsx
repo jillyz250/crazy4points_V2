@@ -45,22 +45,27 @@ export default async function EditAlertPage({ params }: Props) {
 
   return (
     <div>
-      <h1 style={{ marginBottom: '2rem' }}>Edit Alert</h1>
-      <EditAlertForm
-        alert={alertWithPrograms}
-        programs={programs}
-        taggedProgramIds={secondaryOnly}
-        gates={gates}
-        overrides={overrides}
-      />
+      <h1 style={{ marginBottom: '1.25rem' }}>Edit Alert</h1>
 
+      {/* Phase 4.5 — Social variants control bar lives at the top so it's
+          the first thing visible after publish (when the action becomes
+          available) instead of scrolled past below the form. */}
       {refs?.topic_id && (
-        <div style={{ marginTop: '2rem', maxWidth: '640px' }}>
-          <h2 style={{ marginBottom: '0.5rem', fontSize: '1.125rem' }}>Social variants</h2>
-          <p style={{ fontSize: '0.875rem', color: 'var(--admin-text-muted)', marginBottom: '0.75rem' }}>
-            Generate ready-to-paste Facebook / Instagram / LinkedIn / X copy from this topic&apos;s
-            verified facts. Variants share one narrative spine so the bundle stays coherent.
-          </p>
+        <div
+          style={{
+            marginBottom: '1.75rem',
+            maxWidth: '640px',
+            padding: '1rem 1.125rem',
+            background: 'var(--admin-surface)',
+            border: '1px solid var(--admin-border)',
+            borderRadius: 'var(--radius-card, 12px)',
+            boxShadow: 'var(--admin-shadow, none)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.5rem' }}>
+            <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>Social variants</h2>
+            <span style={{ fontSize: '0.75rem', color: 'var(--admin-text-subtle)' }}>~$0.01/platform · ~$0.05 for all 4</span>
+          </div>
           <SocialVariantsButton
             topicId={refs.topic_id}
             isPublished={alertWithPrograms.status === 'published'}
@@ -68,6 +73,14 @@ export default async function EditAlertPage({ params }: Props) {
           />
         </div>
       )}
+
+      <EditAlertForm
+        alert={alertWithPrograms}
+        programs={programs}
+        taggedProgramIds={secondaryOnly}
+        gates={gates}
+        overrides={overrides}
+      />
     </div>
   )
 }
