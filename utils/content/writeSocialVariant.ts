@@ -35,7 +35,7 @@ export async function writeSocialVariant(
         title: null,
         body: input.body,
         status: 'needs_review',
-        generated_by: 'social_generator',
+        generated_by: 'sonnet',
         generation_group_id: input.generation_group_id,
         variant_schema_version: 1,
         metadata: {
