@@ -57,7 +57,7 @@ export default function Header({
   return (
     <header className="sticky top-0 z-50 border-b border-[var(--color-border-soft)] bg-[var(--color-background)]">
       <div className="rg-container px-6 md:px-8">
-        <div className="flex h-20 items-center justify-between">
+        <div className="flex h-24 items-center justify-between">
           <Link href="/" className="flex items-center">
             {logoError ? (
               <span className="font-display text-2xl font-semibold tracking-tight text-[var(--color-text-primary)]">
@@ -68,10 +68,10 @@ export default function Header({
               <Image
                 src="/crazy4points-logo.png"
                 alt="Crazy4Points logo"
-                width={130}
-                height={40}
+                width={520}
+                height={340}
                 priority
-                className="h-auto w-[160px] md:w-[205px]"
+                className="h-14 w-auto md:h-20"
                 onError={() => setLogoError(true)}
               />
             )}
