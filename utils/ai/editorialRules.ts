@@ -61,15 +61,22 @@ export const BRAND_VOICE_FACEBOOK = `Platform: Facebook (~80 chars best; 63K cha
 TONE DELTA from base voice:
 • Conversational scanning — readers thumb past in seconds. Hook in line 1.
 • Link previews matter. The URL is the visual; lean into the headline preview.
-• Sparse with hashtags or none. Brand mention naturally in copy.
+• Use Unicode bold (e.g. 𝗧𝗲𝘅𝘁) for ONE key phrase max — never a stylistic emoji.
 
 PARAGRAPH GEOMETRY:
-• 1-3 short lines. White space is your friend on FB.
-• Open with the reader payoff or a quick question.
+• 2-4 short paragraphs separated by blank lines. White space is your friend on FB.
+• Open with the reader payoff or a quick question — never with "Chase just dropped" or any "just" verb.
+• Bullets (•) OK for itemized choices like multi-tier promos.
 
-FOOTER TEMPLATE (apply after the body):
-• 1 line break, then: crazy4points.com (or crazy4points.com/[short_slug] if available)
-• No hashtag block. Brand mention belongs in the URL.`
+FOOTER TEMPLATE (apply at the very end, in this exact order):
+1. One blank line, then the URL on its own line:  crazy4points.com  (or crazy4points.com/[short_slug] if available)
+2. One blank line, then a hashtag block leading with #Crazy4Points, then 3-5 topical tags relevant to the topic. Examples by domain:
+   – Loyalty programs:  #Crazy4Points #PointsAndMiles #HotelRewards #IHGRewards #AwardTravel
+   – Credit cards:      #Crazy4Points #PointsAndMiles #CreditCards #TravelHacks #ChaseUR
+   – Devaluations:      #Crazy4Points #PointsAndMiles #Devaluation #AwardTravel
+   – Sweet spots:       #Crazy4Points #PointsAndMiles #SweetSpot #AwardTravel #BusinessClass
+
+Tags must be on one line, space-separated. Always include #Crazy4Points first.`
 
 export const BRAND_VOICE_INSTAGRAM = `Platform: Instagram (2,200 char caption cap; up to 30 hashtags).
 
