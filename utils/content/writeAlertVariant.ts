@@ -303,6 +303,27 @@ export async function writeAlertVariant(
     topicId = inserted.id as string
   }
 
+  // Phase 4: promoted columns. Helper writes both column AND metadata in a
+  // single object literal — no conditional branches (Invariant V1: symmetric
+  // dual-write). Trigger reads column first via COALESCE.
+  //
+  // VSV1 — variant_schema_version is always set explicitly (no silent drift).
+  // A3 — metadata dual-write happens only at schema_version=1; future formats
+  //      (schema_version ≥ 2) write columns only.
+  const SCHEMA_VERSION = 1
+  const promotedColumns = {
+    voice_pass: normBool(input.voice_pass),
+    voice_score: normInt(input.voice_score),
+    confidence_level: normString(input.confidence_level) ?? 'medium',
+    action_type: normString(input.action_type) ?? 'monitor',
+    original_alert_type: input.type,
+    start_date: normString(input.start_date),
+    short_slug: normString(input.short_slug),
+    verified_terms: normString(input.verified_terms),
+    terms_waived_reason: normString(input.terms_waived_reason),
+    variant_schema_version: SCHEMA_VERSION,
+  }
+
   // Upsert variant — (topic_id, format='alert') is unique by constraint
   const variantRow = {
     topic_id: topicId,
@@ -310,6 +331,7 @@ export async function writeAlertVariant(
     title: input.title,
     body: normString(input.description),
     metadata: variantMetadata,
+    ...promotedColumns,
     brand_voice_run: input.voice_checked_at !== null && input.voice_checked_at !== undefined,
     fact_check_run: input.fact_check_at !== null && input.fact_check_at !== undefined,
     fact_check_results: null,

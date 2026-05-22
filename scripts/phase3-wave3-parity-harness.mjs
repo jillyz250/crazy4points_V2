@@ -95,10 +95,11 @@ async function main() {
   const warnings = []
   const programIdBySlug = await loadProgramsBySlug()
 
-  // Pull every variant we care about
+  // Pull every variant we care about. Promoted columns (Phase 4) included so
+  // G7/G7a can check column ↔ metadata symmetry during the bake window.
   const { data: variants, error } = await sb
     .from('content_variants')
-    .select('id, topic_id, title, body, status, published_at, metadata, topics:topics!inner(id, slug, title, summary, end_date, programs, metadata)')
+    .select('id, topic_id, title, body, status, published_at, metadata, voice_pass, voice_score, confidence_level, action_type, original_alert_type, start_date, short_slug, verified_terms, terms_waived_reason, variant_schema_version, topics:topics!inner(id, slug, title, summary, end_date, programs, metadata)')
     .eq('format', 'alert')
     .in('status', ['published', 'archived'])
   if (error) {
@@ -207,6 +208,55 @@ async function main() {
     }
     if (normString(ed.why_this_matters) !== normString(alert.why_this_matters)) {
       failures.push(`G5 why_this_matters (${t.slug}): topic vs alert differ`)
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    // Phase 4 — column ↔ metadata symmetry (bake-window only; remove after
+    // migration 328 drops the dual-write metadata keys).
+    //
+    //   G7  — promoted column matches metadata->>key (or metadata is null)
+    //   G7a — strict: when column is non-null, metadata MUST match exactly.
+    //         Catches the asymmetric-write bug where someone updates one
+    //         side without the other.
+    // ────────────────────────────────────────────────────────────────────
+    const promotedFields = [
+      { col: 'voice_pass',          meta: 'voice_pass',          cast: (v) => v === undefined || v === null ? null : Boolean(v) },
+      { col: 'voice_score',         meta: 'voice_score',         cast: (v) => v === undefined || v === null ? null : Number(v) },
+      { col: 'confidence_level',    meta: 'confidence_level',    cast: (v) => normString(v) },
+      { col: 'action_type',         meta: 'action_type',         cast: (v) => normString(v) },
+      { col: 'original_alert_type', meta: 'original_alert_type', cast: (v) => normString(v) },
+      { col: 'short_slug',          meta: 'short_slug',          cast: (v) => normString(v) },
+      { col: 'verified_terms',      meta: 'verified_terms',      cast: (v) => normString(v) },
+      { col: 'terms_waived_reason', meta: 'terms_waived_reason', cast: (v) => normString(v) },
+    ]
+    for (const { col, meta, cast } of promotedFields) {
+      const colVal = cast(v[col])
+      const metaVal = cast(v.metadata?.[meta])
+      // G7: equality OR metadata is null (column may lag during initial backfill bake)
+      if (metaVal !== null && colVal !== metaVal) {
+        failures.push(`G7 ${col} (${t.slug}): col=${JSON.stringify(colVal)} metadata=${JSON.stringify(metaVal)}`)
+      }
+      // G7a: when column is non-null, metadata MUST match (no silent column-only writes)
+      if (colVal !== null && metaVal !== colVal) {
+        failures.push(`G7a ${col} (${t.slug}): col=${JSON.stringify(colVal)} but metadata=${JSON.stringify(metaVal)} (asymmetric write)`)
+      }
+    }
+
+    // Special-case start_date — alerts.start_date is timestamptz, variant
+    // column is timestamptz, metadata stores ISO string. Compare epoch ms.
+    const colStart = v.start_date ? new Date(v.start_date).getTime() : null
+    const metaStart = v.metadata?.start_date ? new Date(v.metadata.start_date).getTime() : null
+    if (metaStart !== null && colStart !== metaStart) {
+      failures.push(`G7 start_date (${t.slug}): col=${v.start_date} metadata=${v.metadata?.start_date}`)
+    }
+    if (colStart !== null && metaStart !== colStart) {
+      failures.push(`G7a start_date (${t.slug}): col=${v.start_date} but metadata=${v.metadata?.start_date} (asymmetric write)`)
+    }
+
+    // VSV1 — variant_schema_version must always be set explicitly.
+    // (The migration default lands 1; helper always sets 1; reject 0/null.)
+    if (!v.variant_schema_version || v.variant_schema_version < 1) {
+      failures.push(`VSV1 (${t.slug}): variant_schema_version=${v.variant_schema_version} (must be ≥ 1)`)
     }
   }
 
