@@ -6,12 +6,12 @@ import {
   getRecentIntelItems,
   incrementSourceProduced,
   logSystemError,
-  setAlertPrograms,
   getRecentDecisionFor,
 } from '@/utils/supabase/queries'
 import { runScout } from '@/utils/ai/runScout'
 import { enrichPromoFindings } from '@/utils/ai/enrichPromoFindings'
 import { ingestItem } from '@/utils/intel/ingestItem'
+import { writeAlertVariant } from '@/utils/content/writeAlertVariant'
 import type { AlertType, IntelConfidence, RecentIntelItem } from '@/utils/supabase/queries'
 import type { ScoutFinding } from '@/utils/ai/runScout'
 
@@ -304,49 +304,42 @@ export async function GET(req: NextRequest) {
     const historyNote: string | null = null
 
     const slug = `intel-${item.id.slice(0, 8)}-${Date.now()}`
-    const { data: alert, error: alertError } = await supabase
-      .from('alerts')
-      .insert({
+
+    // Wave 3a: stage via writeAlertVariant(); the variants→alerts trigger
+    // mirrors back. Direct alerts inserts are blocked by the G6 trigger.
+    let stagedAlertId: string
+    try {
+      const result = await writeAlertVariant(supabase, {
         slug,
         title: item.headline,
         summary: item.raw_text?.slice(0, 300) ?? item.headline,
         description: finding?.description ?? null,
-        type: item.alert_type,
+        type: (item.alert_type ?? 'industry_news') as AlertType,
         status: 'pending_review',
+        action_type: 'monitor',
         confidence_level: item.confidence,
         source_url: item.source_url ?? null,
         source: item.source_name,
+        source_intel_id: item.id,
         primary_program_id: primaryProgramId,
+        program_slugs: (item.programs ?? []) as string[],
         start_date: finding?.start_date ?? null,
         end_date: item.expires_at ?? null,
         history_note: historyNote,
-        source_intel_id: item.id,
         impact_score: 5,
         value_score: 5,
         rarity_score: 5,
         impact_justification: 'Auto-staged from Claude Scout',
-        action_type: 'monitor',
         registration_required: false,
       })
-      .select('id')
-      .single()
-
-    if (alertError) {
-      console.error('[run-scout] Alert staging error:', alertError)
+      stagedAlertId = result.alert_id
+    } catch (err) {
+      console.error('[run-scout] writeAlertVariant staging error:', err)
       continue
     }
 
-    // Tag the alert with primary + any secondaries in alert_programs.
-    // Previously only secondaries were inserted (and only when there were
-    // ≥2 programs), which left the primary off the junction entirely —
-    // breaking every downstream filter that joins on alert_programs.
-    await setAlertPrograms(supabase, alert.id, {
-      primaryId: primaryProgramId,
-      secondaryIds: programIds.slice(1),
-    })
-
-    await supabase.from('intel_items').update({ processed: true, alert_id: alert.id }).eq('id', item.id)
-    staged.push(alert.id)
+    await supabase.from('intel_items').update({ processed: true, alert_id: stagedAlertId }).eq('id', item.id)
+    staged.push(stagedAlertId)
   }
 
   return NextResponse.json({
