@@ -6,6 +6,7 @@ import { Badge } from '@/components/admin/ui/Badge'
 import { Card } from '@/components/admin/ui/Card'
 import { EmptyState } from '@/components/admin/ui/EmptyState'
 import { publishAlertAction, expireAlertAction } from '../alerts/actions'
+import ConfirmButton from '@/components/admin/ConfirmButton'
 
 /**
  * Phase 4 — Unified Drafts hub.
@@ -28,37 +29,40 @@ import { publishAlertAction, expireAlertAction } from '../alerts/actions'
 type FormatKey =
   | 'all' | 'alert' | 'blog' | 'newsletter'
   | 'facebook' | 'instagram' | 'linkedin' | 'x' | 'threads'
-type StatusKey = 'all' | 'draft' | 'needs_review' | 'published' | 'archived'
-type SortKey = 'updated' | 'voice' | 'start'
+type StatusKey = 'all' | 'draft' | 'needs_review' | 'published' | 'expired' | 'archived'
+type SortKey = 'updated' | 'published' | 'expiring'
 
-// Format chips. Social formats land "real" in Phase 4.5 PR B (generators);
-// listed here from PR A so the chip surface is final + matches the DB
-// constraint. No grey-out states — when no variants of a format exist yet,
-// the filtered list just shows empty.
-const FORMAT_OPTIONS: { key: FormatKey; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'alert', label: 'Alerts' },
-  { key: 'blog', label: 'Blog' },
-  { key: 'newsletter', label: 'Newsletter' },
-  { key: 'facebook', label: 'Facebook' },
-  { key: 'instagram', label: 'Instagram' },
-  { key: 'linkedin', label: 'LinkedIn' },
-  { key: 'x', label: 'X' },
-  { key: 'threads', label: 'Threads' },
+type ChipTone = 'neutral' | 'purple' | 'green' | 'red' | 'amber' | 'blue' | 'muted'
+
+// Per-chip tone — color semantic that survives both inactive (tinted text)
+// and active (full color fill) states. See .chip--<tone> in globals.css.
+const FORMAT_OPTIONS: { key: FormatKey; label: string; tone: ChipTone }[] = [
+  { key: 'all',        label: 'All',        tone: 'neutral' },
+  { key: 'alert',      label: 'Alerts',     tone: 'purple' },
+  { key: 'blog',       label: 'Blog',       tone: 'purple' },
+  { key: 'newsletter', label: 'Newsletter', tone: 'purple' },
+  { key: 'facebook',   label: 'Facebook',   tone: 'blue' },
+  { key: 'instagram',  label: 'Instagram',  tone: 'blue' },
+  { key: 'linkedin',   label: 'LinkedIn',   tone: 'blue' },
+  { key: 'x',          label: 'X',          tone: 'blue' },
+  { key: 'threads',    label: 'Threads',    tone: 'blue' },
 ]
 
-const STATUS_OPTIONS: { key: StatusKey; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'needs_review', label: 'Needs review' },
-  { key: 'draft', label: 'Draft' },
-  { key: 'published', label: 'Published' },
-  { key: 'archived', label: 'Archived' },
+const STATUS_OPTIONS: { key: StatusKey; label: string; tone: ChipTone }[] = [
+  { key: 'all',          label: 'All',          tone: 'neutral' },
+  { key: 'needs_review', label: 'Needs review', tone: 'amber' },
+  { key: 'draft',        label: 'Draft',        tone: 'neutral' },
+  { key: 'published',    label: 'Published',    tone: 'green' },
+  // Expired is derived: variant.status stays 'published' but topic.end_date
+  // is in the past. The trigger projects 'expired' on the alerts mirror.
+  { key: 'expired',      label: 'Expired',      tone: 'red' },
+  { key: 'archived',     label: 'Archived',     tone: 'muted' },
 ]
 
-const SORT_OPTIONS: { key: SortKey; label: string }[] = [
-  { key: 'updated', label: 'Recently edited' },
-  { key: 'voice', label: 'Voice score' },
-  { key: 'start', label: 'Starts soonest' },
+const SORT_OPTIONS: { key: SortKey; label: string; tone: ChipTone }[] = [
+  { key: 'updated',   label: 'Recently edited',  tone: 'neutral' },
+  { key: 'published', label: 'Recently published', tone: 'neutral' },
+  { key: 'expiring',  label: 'Expires soonest',  tone: 'neutral' },
 ]
 
 const STATUS_TONE: Record<string, { label: string; tone: 'success' | 'warning' | 'danger' | 'neutral' | 'accent' }> = {
@@ -67,6 +71,7 @@ const STATUS_TONE: Record<string, { label: string; tone: 'success' | 'warning' |
   needs_review: { label: 'Needs review', tone: 'warning' },
   approved:     { label: 'Approved', tone: 'success' },
   archived:     { label: 'Archived', tone: 'neutral' },
+  expired:      { label: 'Expired', tone: 'accent' },
 }
 
 interface DraftRow {
@@ -110,9 +115,9 @@ export default async function AdminDraftsPage({
   const sp = await searchParams
   const VALID_FORMATS = ['alert', 'blog', 'newsletter', 'facebook', 'instagram', 'linkedin', 'x', 'threads']
   const format = (sp.format && VALID_FORMATS.includes(sp.format) ? sp.format : 'all') as FormatKey
-  const status = (sp.status && ['draft', 'needs_review', 'published', 'archived'].includes(sp.status) ? sp.status : 'all') as StatusKey
+  const status = (sp.status && ['draft', 'needs_review', 'published', 'expired', 'archived'].includes(sp.status) ? sp.status : 'all') as StatusKey
   const voice: 'fail' | undefined = sp.voice === 'fail' ? 'fail' : undefined
-  const sort = (sp.sort && ['updated', 'voice', 'start'].includes(sp.sort) ? sp.sort : 'updated') as SortKey
+  const sort = (sp.sort && ['updated', 'published', 'expiring'].includes(sp.sort) ? sp.sort : 'updated') as SortKey
   const filters: { format: FormatKey; status: StatusKey; voice: 'fail' | undefined; sort: SortKey } = {
     format, status, voice, sort,
   }
@@ -121,15 +126,20 @@ export default async function AdminDraftsPage({
   let query = supabase
     .from('content_variants')
     .select(
-      'id, topic_id, format, title, status, voice_pass, voice_score, confidence_level, action_type, original_alert_type, start_date, short_slug, updated_at, topics:topics!inner(id, slug, end_date, metadata)',
+      'id, topic_id, format, title, status, voice_pass, voice_score, confidence_level, action_type, original_alert_type, start_date, short_slug, updated_at, published_at, topics:topics!inner(id, slug, end_date, metadata)',
     )
 
   if (format !== 'all') query = query.eq('format', format)
-  if (status !== 'all') query = query.eq('status', status)
+  // Expired is derived: variant.status='published' AND topic.end_date is past.
+  // The trigger projects 'expired' to alerts.status but variant stays
+  // published; filter is computed in JS after fetch so we keep all the
+  // indexed-column wins on the base query.
+  if (status !== 'all' && status !== 'expired') query = query.eq('status', status)
+  if (status === 'expired') query = query.eq('status', 'published')
   if (voice === 'fail') query = query.eq('voice_pass', false)
 
-  if (sort === 'voice') query = query.order('voice_score', { ascending: false, nullsFirst: false })
-  else if (sort === 'start') query = query.order('start_date', { ascending: true, nullsFirst: false })
+  if (sort === 'published') query = query.order('published_at', { ascending: false, nullsFirst: false })
+  else if (sort === 'expiring') query = query.order('end_date', { referencedTable: 'topics', ascending: true, nullsFirst: false })
   else query = query.order('updated_at', { ascending: false, nullsFirst: false })
 
   query = query.limit(200)
@@ -146,7 +156,8 @@ export default async function AdminDraftsPage({
     )
   }
 
-  const rows: DraftRow[] = (rawRows ?? []).map((r) => {
+  const nowMs = Date.now()
+  let rows: DraftRow[] = (rawRows ?? []).map((r) => {
     const t = Array.isArray(r.topics) ? r.topics[0] : r.topics
     const alertId = (t?.metadata as { original_alert_id?: string } | null)?.original_alert_id ?? null
     return {
@@ -168,6 +179,16 @@ export default async function AdminDraftsPage({
       updated_at: r.updated_at as string | null,
     }
   })
+
+  // Apply the derived expired/published distinction:
+  //   • "Published" chip wants ONLY currently-live rows (end_date null or in future)
+  //   • "Expired" chip wants ONLY rows whose end_date is past
+  // Both queries pulled status='published'; this split happens in JS.
+  if (status === 'expired') {
+    rows = rows.filter(r => r.end_date && new Date(r.end_date).getTime() < nowMs)
+  } else if (status === 'published') {
+    rows = rows.filter(r => !r.end_date || new Date(r.end_date).getTime() >= nowMs)
+  }
 
   return (
     <div>
@@ -191,6 +212,7 @@ export default async function AdminDraftsPage({
             options={FORMAT_OPTIONS.map((o) => ({
               key: o.key,
               label: o.label,
+              tone: o.tone,
               active: filters.format === o.key,
               href: buildHref(filters, { format: o.key }),
             }))}
@@ -200,6 +222,7 @@ export default async function AdminDraftsPage({
             options={STATUS_OPTIONS.map((o) => ({
               key: o.key,
               label: o.label,
+              tone: o.tone,
               active: filters.status === o.key,
               href: buildHref(filters, { status: o.key }),
             }))}
@@ -210,6 +233,7 @@ export default async function AdminDraftsPage({
               {
                 key: 'voice-fail',
                 label: '✗ Voice failed',
+                tone: 'red' as ChipTone,
                 active: filters.voice === 'fail',
                 href: buildHref(filters, { voice: filters.voice === 'fail' ? undefined : 'fail' }),
               },
@@ -220,6 +244,7 @@ export default async function AdminDraftsPage({
             options={SORT_OPTIONS.map((o) => ({
               key: o.key,
               label: o.label,
+              tone: o.tone,
               active: filters.sort === o.key,
               href: buildHref(filters, { sort: o.key }),
             }))}
@@ -251,7 +276,11 @@ export default async function AdminDraftsPage({
               </thead>
               <tbody>
                 {rows.map((r) => {
-                  const s = STATUS_TONE[r.status] ?? STATUS_TONE.draft
+                  // Derive "expired" badge: variant.status stays 'published',
+                  // but if topic.end_date is past, surface it as Expired.
+                  const isExpired = r.status === 'published' && r.end_date && new Date(r.end_date).getTime() < nowMs
+                  const displayStatus = isExpired ? 'expired' : r.status
+                  const s = STATUS_TONE[displayStatus] ?? STATUS_TONE.draft
                   const voiceCell =
                     r.voice_pass === true ? (
                       <Badge tone="success">✓ {r.voice_score ?? ''}</Badge>
@@ -301,13 +330,17 @@ export default async function AdminDraftsPage({
                               </button>
                             </form>
                           )}
-                          {r.alert_id && r.status === 'published' && (
-                            <form action={expireAlertAction.bind(null, r.alert_id)}>
-                              <button type="submit" className="admin-btn admin-btn-ghost admin-btn-sm">
+                          {r.alert_id && r.status === 'published' && (() => {
+                            const aid = r.alert_id
+                            return (
+                              <ConfirmButton
+                                action={async () => { await expireAlertAction(aid) }}
+                                confirmMessage={`Expire "${r.title}"?\n\nThis sets end_date=now and hides the alert from active surfaces. URL stays live but reads "expired". You can restore by clearing end_date on the topic.`}
+                              >
                                 Expire
-                              </button>
-                            </form>
-                          )}
+                              </ConfirmButton>
+                            )
+                          })()}
                         </div>
                       </td>
                     </tr>
@@ -327,44 +360,33 @@ function ChipRow({
   options,
 }: {
   label: string
-  options: { key: string; label: string; active: boolean; href: string; disabled?: boolean }[]
+  options: { key: string; label: string; active: boolean; href: string; tone?: ChipTone }[]
 }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexWrap: 'wrap' }}>
       <span
         style={{
-          fontSize: '0.75rem',
-          fontWeight: 600,
+          fontSize: '0.6875rem',
+          fontWeight: 700,
           textTransform: 'uppercase',
-          letterSpacing: '0.06em',
+          letterSpacing: '0.08em',
           color: 'var(--admin-text-muted)',
           marginRight: '0.5rem',
-          minWidth: '4rem',
+          minWidth: '4.5rem',
         }}
       >
         {label}
       </span>
-      {options.map((o) =>
-        o.disabled ? (
-          <span
-            key={o.key}
-            className="admin-btn admin-btn-sm admin-btn-ghost"
-            style={{ opacity: 0.4, cursor: 'not-allowed' }}
-            title="Coming with Phase 4.5"
-          >
-            {o.label}
-          </span>
-        ) : (
-          <Link
-            key={o.key}
-            href={o.href}
-            className={`admin-btn admin-btn-sm ${o.active ? 'admin-btn-primary' : 'admin-btn-ghost'}`}
-            scroll={false}
-          >
-            {o.label}
-          </Link>
-        ),
-      )}
+      {options.map((o) => (
+        <Link
+          key={o.key}
+          href={o.href}
+          className={`chip chip--${o.tone ?? 'neutral'}${o.active ? ' chip--active' : ''}`}
+          scroll={false}
+        >
+          {o.label}
+        </Link>
+      ))}
     </div>
   )
 }
