@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { regenerateSocialVariantAction } from '@/app/admin/(protected)/social/actions'
+import { regenerateSocialVariantAction, markSocialVariantPostedAction } from '@/app/admin/(protected)/social/actions'
 
 const CHAR_CAPS: Record<string, number> = {
   facebook: 63206,
@@ -88,6 +88,20 @@ export default function EditSocialVariantForm({
       }
     })
   }
+
+  const [postUrl, setPostUrl] = useState('')
+  function markPosted() {
+    setError(null)
+    startTransition(async () => {
+      const res = await markSocialVariantPostedAction(variantId, postUrl.trim() || undefined)
+      if (res.ok) {
+        window.location.reload()
+      } else {
+        setError(res.error)
+      }
+    })
+  }
+  const isPosted = status === 'published'
 
   return (
     <div style={{ maxWidth: '720px', display: 'grid', gap: '1.25rem' }}>
@@ -195,6 +209,65 @@ export default function EditSocialVariantForm({
         <p style={{ fontSize: '0.8125rem', color: 'var(--admin-danger, #dc2626)' }}>
           ✗ {error}
         </p>
+      )}
+
+      {/* Mark-as-posted lifecycle close. SV10 — never auto-posts. This is
+          bookkeeping that acknowledges a human already pasted the copy. */}
+      {!isPosted ? (
+        <div
+          style={{
+            padding: '0.875rem 1rem',
+            background: 'var(--admin-surface-alt)',
+            border: '1px solid var(--admin-border)',
+            borderRadius: 'var(--radius-ui)',
+            display: 'grid',
+            gap: '0.5rem',
+          }}
+        >
+          <div style={{ fontSize: '0.8125rem', color: 'var(--admin-text)' }}>
+            After you&apos;ve pasted this on {PLATFORM_LABELS[format] ?? format}, mark it
+            posted to close the loop. Optionally paste the live URL for audit.
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <input
+              type="url"
+              placeholder="https://… (optional — URL of the live post)"
+              value={postUrl}
+              onChange={(e) => setPostUrl(e.target.value)}
+              style={{
+                flex: 1,
+                minWidth: '14rem',
+                padding: '0.4rem 0.625rem',
+                fontFamily: 'var(--font-ui)',
+                fontSize: '0.8125rem',
+                border: '1px solid var(--admin-border)',
+                borderRadius: 'var(--radius-ui)',
+                background: 'var(--admin-bg)',
+              }}
+            />
+            <button
+              type="button"
+              onClick={markPosted}
+              disabled={pending}
+              className="admin-btn admin-btn-primary admin-btn-sm"
+            >
+              {pending ? 'Marking…' : '✓ Mark posted'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div
+          style={{
+            padding: '0.625rem 0.875rem',
+            background: 'var(--admin-success-soft)',
+            border: '1px solid var(--admin-success)',
+            borderRadius: 'var(--radius-ui)',
+            fontSize: '0.8125rem',
+            color: 'var(--admin-success)',
+          }}
+        >
+          ✓ Posted to {PLATFORM_LABELS[format] ?? format}. (status: published)
+        </div>
       )}
 
       <p style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)', fontStyle: 'italic' }}>
