@@ -1,0 +1,399 @@
+'use client'
+
+/**
+ * Airport Code Ladder — client-side puzzle game.
+ *
+ * Mechanic: start IATA → goal IATA, changing one letter per step. Every
+ * intermediate must be a real airport code.
+ *
+ * Easy mode shows the valid next-step neighbors as clickable chips so
+ * players can scan the surface. Hard mode hides them — type blind.
+ *
+ * BFS runs locally on the ~6000-airport graph for "give up" reveals + par
+ * verification. Cached by current code.
+ */
+import { useMemo, useState, useCallback } from 'react'
+
+interface Puzzle {
+  slug: string
+  title: string
+  subtitle: string
+  start: string
+  goal: string
+  par: number
+  sample_path: string[]
+}
+
+interface IataEntry {
+  code: string
+  name: string
+  city: string
+  country: string
+}
+
+interface Props {
+  puzzle: Puzzle
+  iata: IataEntry[]
+}
+
+function oneLetterDiff(a: string, b: string): boolean {
+  if (a.length !== 3 || b.length !== 3) return false
+  let diffs = 0
+  for (let i = 0; i < 3; i++) if (a[i] !== b[i]) diffs++
+  return diffs === 1
+}
+
+function neighbors(code: string, set: Set<string>): string[] {
+  const out: string[] = []
+  for (let i = 0; i < 3; i++) {
+    for (let ch = 65; ch <= 90; ch++) {
+      const c = String.fromCharCode(ch)
+      if (c === code[i]) continue
+      const next = code.slice(0, i) + c + code.slice(i + 1)
+      if (set.has(next)) out.push(next)
+    }
+  }
+  return out
+}
+
+function bfs(start: string, goal: string, set: Set<string>): string[] | null {
+  if (!set.has(start) || !set.has(goal)) return null
+  const queue: string[] = [start]
+  const prev = new Map<string, string | null>([[start, null]])
+  while (queue.length) {
+    const cur = queue.shift()!
+    if (cur === goal) {
+      const path: string[] = []
+      let n: string | null = cur
+      while (n !== null) {
+        path.unshift(n)
+        n = prev.get(n) ?? null
+      }
+      return path
+    }
+    for (const nb of neighbors(cur, set)) {
+      if (!prev.has(nb)) {
+        prev.set(nb, cur)
+        queue.push(nb)
+      }
+    }
+  }
+  return null
+}
+
+const TILE: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: '2.25rem',
+  height: '2.75rem',
+  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+  fontWeight: 700,
+  fontSize: '1.5rem',
+  border: '2px solid var(--color-border-soft, #E6DEEE)',
+  borderRadius: 'var(--radius-ui, 0.375rem)',
+  background: '#fff',
+  color: 'var(--color-text-primary, #1A1A1A)',
+}
+
+const TILE_GREEN: React.CSSProperties = {
+  ...TILE,
+  background: '#2e7d4f',
+  borderColor: '#2e7d4f',
+  color: '#fff',
+}
+
+const TILE_MUTED: React.CSSProperties = {
+  ...TILE,
+  background: '#f4f1f8',
+  borderColor: '#E6DEEE',
+  color: 'var(--color-text-secondary, #4A4A4A)',
+}
+
+function CodeTiles({ code, goal }: { code: string; goal: string }) {
+  return (
+    <div style={{ display: 'inline-flex', gap: '0.25rem' }}>
+      {[0, 1, 2].map((i) => (
+        <span key={i} style={code[i] === goal[i] ? TILE_GREEN : TILE}>
+          {code[i]}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+export default function Game({ puzzle, iata }: Props) {
+  const codeSet = useMemo(() => new Set(iata.map((e) => e.code)), [iata])
+  const byCode = useMemo(() => {
+    const m = new Map<string, IataEntry>()
+    for (const e of iata) m.set(e.code, e)
+    return m
+  }, [iata])
+
+  const [chain, setChain] = useState<string[]>([puzzle.start])
+  const [input, setInput] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [easyMode, setEasyMode] = useState(true)
+  const [revealedHints, setRevealedHints] = useState<Set<number>>(new Set())
+  const [givenUp, setGivenUp] = useState<string[] | null>(null)
+
+  const current = chain[chain.length - 1]
+  const isWon = current === puzzle.goal
+  const hopsTaken = chain.length - 1
+
+  const validNeighbors = useMemo(
+    () => (isWon ? [] : neighbors(current, codeSet)),
+    [current, codeSet, isWon],
+  )
+
+  const handleSubmit = useCallback(
+    (raw: string) => {
+      const code = raw.trim().toUpperCase()
+      setError(null)
+      if (!/^[A-Z]{3}$/.test(code)) {
+        setError('Enter a 3-letter airport code.')
+        return
+      }
+      if (!codeSet.has(code)) {
+        setError(`${code} isn't a recognized airport code.`)
+        return
+      }
+      if (!oneLetterDiff(current, code)) {
+        setError(`${code} differs from ${current} by more than one letter.`)
+        return
+      }
+      setChain((prev) => [...prev, code])
+      setInput('')
+      setRevealedHints(new Set())
+    },
+    [codeSet, current],
+  )
+
+  const handleHint = useCallback(() => {
+    // Reveal one goal letter position that isn't already matched at the
+    // current step. If they're all matched (i.e. only one letter left to
+    // change), the hint is redundant — error gently.
+    const unmatched: number[] = []
+    for (let i = 0; i < 3; i++) {
+      if (current[i] !== puzzle.goal[i] && !revealedHints.has(i)) unmatched.push(i)
+    }
+    if (unmatched.length === 0) {
+      setError('No hints left — every letter is either matched or already shown.')
+      return
+    }
+    const pick = unmatched[Math.floor(Math.random() * unmatched.length)]
+    setRevealedHints((s) => new Set(s).add(pick))
+  }, [current, puzzle.goal, revealedHints])
+
+  const handleGiveUp = useCallback(() => {
+    if (!confirm('Give up and reveal one valid solution? You can keep playing after.')) return
+    const path = puzzle.sample_path?.length
+      ? puzzle.sample_path
+      : bfs(puzzle.start, puzzle.goal, codeSet)
+    setGivenUp(path)
+  }, [codeSet, puzzle.goal, puzzle.sample_path, puzzle.start])
+
+  const handleReset = useCallback(() => {
+    setChain([puzzle.start])
+    setInput('')
+    setError(null)
+    setRevealedHints(new Set())
+    setGivenUp(null)
+  }, [puzzle.start])
+
+  return (
+    <main className="rg-container" style={{ paddingTop: '2.5rem', paddingBottom: '4rem' }}>
+      <header style={{ marginBottom: '2rem' }}>
+        <p style={{ fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--color-primary, #6B2D8F)', fontWeight: 700, margin: 0 }}>
+          Airport Code Ladder
+        </p>
+        <h1 style={{ margin: '0.375rem 0 0.5rem', fontSize: '2rem', lineHeight: 1.15, color: 'var(--color-primary, #6B2D8F)' }}>
+          {puzzle.title}
+        </h1>
+        <p style={{ color: 'var(--color-text-secondary, #4A4A4A)', margin: 0, fontSize: '1rem', lineHeight: 1.5 }}>
+          {puzzle.subtitle}
+        </p>
+      </header>
+
+      {/* Goal panel */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', padding: '1rem 1.25rem', background: 'var(--color-background-soft, #F8F5FB)', border: '1px solid var(--color-border-soft, #E6DEEE)', borderRadius: 'var(--radius-card, 0.75rem)', marginBottom: '1.5rem' }}>
+        <div>
+          <div style={{ fontSize: '0.6875rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-secondary)', fontWeight: 700, marginBottom: '0.25rem' }}>
+            Goal
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <CodeTiles code={puzzle.goal} goal={puzzle.goal} />
+            <span style={{ color: 'var(--color-text-secondary)' }}>
+              {byCode.get(puzzle.goal)?.city ?? puzzle.goal}
+            </span>
+          </div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: '0.6875rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-secondary)', fontWeight: 700 }}>
+            Par
+          </div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--color-primary)' }}>
+            {puzzle.par} hops
+          </div>
+        </div>
+      </div>
+
+      {/* Mode toggle */}
+      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '1rem' }}>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.875rem' }}>
+          <input type="checkbox" checked={easyMode} onChange={(e) => setEasyMode(e.target.checked)} style={{ accentColor: 'var(--color-primary)' }} />
+          Easy mode (show valid next codes)
+        </label>
+      </div>
+
+      {/* Chain */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.25rem' }}>
+        {chain.map((code, i) => {
+          const entry = byCode.get(code)
+          const isStart = i === 0
+          return (
+            <div key={`${code}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div style={{ width: '1.5rem', textAlign: 'center', fontFamily: 'ui-monospace, monospace', fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
+                {isStart ? '↧' : i}
+              </div>
+              <CodeTiles code={code} goal={puzzle.goal} />
+              <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
+                {entry ? `${entry.city}${entry.country && entry.country !== 'United States' ? `, ${entry.country}` : ''}` : '—'}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Input + hint row (hidden when won) */}
+      {!isWon && (
+        <div style={{ border: '1px solid var(--color-border-soft)', borderRadius: 'var(--radius-card)', padding: '1rem 1.25rem', marginBottom: '1.25rem' }}>
+          <div style={{ fontSize: '0.75rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-secondary)', fontWeight: 700, marginBottom: '0.5rem' }}>
+            Step {hopsTaken + 1} — change one letter of {current}
+          </div>
+
+          {revealedHints.size > 0 && (
+            <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', marginBottom: '0.5rem' }}>
+              Hint:{' '}
+              {[0, 1, 2].map((i) => (
+                <span key={i} style={{ fontFamily: 'ui-monospace, monospace', fontWeight: 700, color: revealedHints.has(i) ? 'var(--color-primary)' : 'var(--color-text-secondary)' }}>
+                  {revealedHints.has(i) ? puzzle.goal[i] : '·'}
+                </span>
+              ))}
+              <span style={{ marginLeft: '0.5rem' }}>← letters from the goal at those positions</span>
+            </div>
+          )}
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              handleSubmit(input)
+            }}
+            style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}
+          >
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3))}
+              placeholder="3-letter code"
+              maxLength={3}
+              autoFocus
+              style={{
+                fontFamily: 'ui-monospace, monospace',
+                fontSize: '1.25rem',
+                fontWeight: 700,
+                letterSpacing: '0.2em',
+                padding: '0.5rem 0.75rem',
+                border: '2px solid var(--color-border-soft)',
+                borderRadius: 'var(--radius-ui)',
+                width: '6.5rem',
+                textTransform: 'uppercase',
+              }}
+            />
+            <button type="submit" className="rg-btn-primary" style={{ padding: '0.5rem 1.25rem' }}>
+              Try it
+            </button>
+            <button type="button" onClick={handleHint} className="rg-btn-secondary" style={{ padding: '0.5rem 0.875rem' }}>
+              Hint
+            </button>
+            <button type="button" onClick={handleGiveUp} style={{ background: 'transparent', border: '1px dashed var(--color-border-soft)', color: 'var(--color-text-secondary)', padding: '0.5rem 0.875rem', borderRadius: 'var(--radius-ui)', cursor: 'pointer', fontFamily: 'var(--font-ui)', fontSize: '0.8125rem' }}>
+              I give up
+            </button>
+          </form>
+
+          {error && (
+            <div style={{ marginTop: '0.625rem', fontSize: '0.8125rem', color: '#c0392b' }}>{error}</div>
+          )}
+
+          {easyMode && validNeighbors.length > 0 && (
+            <div style={{ marginTop: '0.875rem' }}>
+              <div style={{ fontSize: '0.6875rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-secondary)', fontWeight: 700, marginBottom: '0.375rem' }}>
+                Valid next codes ({validNeighbors.length})
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
+                {validNeighbors.map((nb) => {
+                  const e = byCode.get(nb)
+                  return (
+                    <button
+                      key={nb}
+                      type="button"
+                      onClick={() => handleSubmit(nb)}
+                      title={e ? `${e.city}, ${e.country}` : nb}
+                      style={{
+                        fontFamily: 'ui-monospace, monospace',
+                        fontWeight: 700,
+                        fontSize: '0.8125rem',
+                        padding: '0.3125rem 0.5rem',
+                        border: '1px solid var(--color-border-soft)',
+                        borderRadius: 'var(--radius-ui)',
+                        background: '#fff',
+                        cursor: 'pointer',
+                        color: 'var(--color-text-primary)',
+                      }}
+                    >
+                      {nb}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Won state */}
+      {isWon && (
+        <div style={{ padding: '1.25rem 1.5rem', background: '#eaf6ee', border: '1px solid #2e7d4f', borderRadius: 'var(--radius-card)', marginBottom: '1.25rem' }}>
+          <div style={{ fontSize: '1.125rem', fontWeight: 700, color: '#2e7d4f', marginBottom: '0.25rem' }}>
+            You made it. {hopsTaken} hop{hopsTaken === 1 ? '' : 's'}.
+          </div>
+          <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
+            {hopsTaken === puzzle.par ? 'Right on par.' : hopsTaken < puzzle.par ? 'Under par — nice work.' : `${hopsTaken - puzzle.par} over par. The shortest route is ${puzzle.par}.`}
+          </div>
+          <div style={{ marginTop: '0.625rem' }}>
+            <button type="button" onClick={handleReset} className="rg-btn-secondary" style={{ padding: '0.4375rem 1rem' }}>
+              Play again
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Give-up reveal */}
+      {givenUp && (
+        <div style={{ padding: '1rem 1.25rem', background: 'var(--color-background-soft)', border: '1px solid var(--color-border-soft)', borderRadius: 'var(--radius-card)', marginBottom: '1.25rem' }}>
+          <div style={{ fontSize: '0.75rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-secondary)', fontWeight: 700, marginBottom: '0.5rem' }}>
+            One valid path ({givenUp.length - 1} hops)
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
+            {givenUp.map((code, i) => (
+              <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontFamily: 'ui-monospace, monospace', fontWeight: 700, color: 'var(--color-primary)' }}>{code}</span>
+                {i < givenUp.length - 1 && <span style={{ color: 'var(--color-text-secondary)' }}>→</span>}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </main>
+  )
+}
