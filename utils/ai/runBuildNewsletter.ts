@@ -99,6 +99,7 @@ export async function getNewsletterInputs(
       summary: a.summary ?? null,
       ai_summary: null, // legacy field never actually existed on alerts; kept null for shape compat
       why_this_matters: a.why_this_matters ?? null,
+      description: a.description ?? null,
       published_at: a.published_at ?? null,
       end_date: a.end_date ?? null,
       alert_type: a.type ?? null,

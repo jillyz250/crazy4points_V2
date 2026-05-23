@@ -235,6 +235,10 @@ export async function generateBigStoryFromLockAction(id: string) {
     alert.title ? `# ${alert.title}` : '',
     alert.summary ?? '',
     alert.why_this_matters ? `\nWhy this matters:\n${alert.why_this_matters}` : '',
+    // Full alert body / description carries most of the actionable facts
+    // (event dates, multi-city listings, eligibility). Without this the
+    // verifier can't compare article claims against the full source.
+    alert.description ? `\nFull alert body:\n${alert.description}` : '',
   ]
     .filter(Boolean)
     .join('\n\n')

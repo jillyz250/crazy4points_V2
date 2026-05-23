@@ -86,6 +86,10 @@ export async function writeBigStoryHtml(
         alert_type: alert.alert_type,
         summary: alert.summary,
         why_this_matters: alert.why_this_matters,
+        // The full alert body / description is where most actionable facts
+        // live (event dates, multi-city listings, etc.). Without this the
+        // writer only sees the short summary and misses everything else.
+        description: alert.description,
         end_date: alert.end_date,
         published_at: alert.published_at,
       },

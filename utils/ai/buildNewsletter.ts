@@ -26,6 +26,12 @@ export interface NewsletterAlertInput {
   ai_summary: string | null
   /** Auto-filled by build-brief from Sonnet's why_publish. Used as Quick Wins blurb seed. */
   why_this_matters: string | null
+  /**
+   * The alert's full description / body prose — what shows on the public
+   * alert page. Often contains key actionable facts (dates, multi-city
+   * listings, eligibility) that are NOT in the short `summary` field.
+   */
+  description: string | null
   published_at: string | null
   end_date: string | null
   alert_type: string | null
