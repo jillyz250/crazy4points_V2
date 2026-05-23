@@ -21,12 +21,11 @@ OUTPUT FORMAT (return ONLY this JSON, no prose, no fences)
 ═══════════════════════════════════════════════════════════
 
 {
-  "big_story_html": "<HTML body, ~150 words. <p> paragraphs and one <ul> bulleted list of 'What this means for you'. NO links, NO headings (h2 is added by the renderer). NO emojis. End with the punchiest sentence first.>"
+  "big_story_html": "<HTML body, ~150 words. <p> paragraphs and one <ul> bulleted list. NO links, NO headings (h2 is added by the renderer). NO emojis. NO 'What this means for you' / 'Here's what to know' / 'The details' label paragraph — bullets follow the lead directly. End with the punchiest sentence first.>"
 }
 
 Structure:
 <p>Lead paragraph — what happened, in plain language, reader-payoff first.</p>
-<p><strong>What this means for you:</strong></p>
 <ul>
   <li><strong>Bullet 1.</strong> Concrete consequence.</li>
   <li><strong>Bullet 2.</strong> Concrete consequence.</li>

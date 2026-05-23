@@ -44,14 +44,43 @@ function esc(s: string | null | undefined): string {
  */
 function bodyHtml(raw: string | null | undefined): string {
   if (!raw) return ''
-  // If the field already contains a <p> or <ul>, treat as already-rendered.
-  if (/<(p|ul|ol|h\d|table)\b/i.test(raw)) return raw
+  let html = raw
+
+  // Strip stale label paragraphs ("What this means for you:" etc.) that
+  // older Sonnet generations baked in. Bullets stand alone — the visual
+  // separation between lead paragraph and bullet list does the work.
+  html = html.replace(
+    /<p>\s*(<strong>\s*)?(What\s+this\s+means\s+for\s+you|Here'?s?\s+what\s+to\s+know|The\s+details|Key\s+dates|Mark\s+your\s+calendar)\s*:?\s*(<\/strong>\s*)?<\/p>/gi,
+    '',
+  )
+
+  // If the (now-cleaned) field has structured HTML, inject inline styles
+  // on bare p/ul/li tags for breathing typography. Email clients ignore
+  // <style> blocks (especially Gmail) so we must inline.
+  if (/<(p|ul|ol|h\d|table)\b/i.test(html)) {
+    return html
+      .replace(
+        /<p(?![^>]*style=)/gi,
+        `<p style="margin:0 0 20px;font-family:${FONT_BODY};font-size:16px;line-height:1.75;color:${BODY};"`,
+      )
+      .replace(
+        /<ul(?![^>]*style=)/gi,
+        `<ul style="margin:0 0 20px;padding-left:22px;font-family:${FONT_BODY};font-size:16px;line-height:1.7;color:${BODY};"`,
+      )
+      .replace(
+        /<li(?![^>]*style=)/gi,
+        `<li style="margin:0 0 12px;line-height:1.65;"`,
+      )
+  }
   // Otherwise paragraph-wrap — split on blank lines, escape each, wrap in <p>.
-  return raw
+  return html
     .split(/\n\s*\n/)
     .map((para) => para.trim())
     .filter(Boolean)
-    .map((p) => `<p style="margin:0 0 14px;font-family:${FONT_BODY};font-size:15px;line-height:1.65;color:${BODY};">${esc(p)}</p>`)
+    .map(
+      (p) =>
+        `<p style="margin:0 0 20px;font-family:${FONT_BODY};font-size:16px;line-height:1.75;color:${BODY};">${esc(p)}</p>`,
+    )
     .join('')
 }
 
