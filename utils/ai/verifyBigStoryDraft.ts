@@ -13,7 +13,7 @@
  */
 import Anthropic from '@anthropic-ai/sdk'
 import { logUsage } from './logUsage'
-import type { VerifyClaim, VerifyResult } from './verifyAlertDraft'
+import type { VerifyClaim } from './verifyAlertDraft'
 
 export interface VerifyBigStoryInput {
   /** Generated article HTML (just the Big Story body). */
@@ -22,6 +22,21 @@ export interface VerifyBigStoryInput {
   source_text: string
   /** Optional issuer T&Cs from the alert, treated as ground truth if present. */
   verified_terms?: string | null
+}
+
+/** A source-side fact (date / time / number / named entity) that doesn't
+ *  appear in the article. Surfaced to the editor as "you forgot to mention
+ *  this." */
+export interface MissingFact {
+  fact: string
+  severity: 'high' | 'low'
+  source_excerpt: string | null
+}
+
+export interface VerifyBigStoryResult {
+  claims: VerifyClaim[]
+  missing_facts: MissingFact[]
+  checked_at: string
 }
 
 const SYSTEM_PROMPT = `You are the fact-checker for crazy4points's weekly newsletter Big Story.
@@ -85,6 +100,34 @@ severity="low" for descriptive color (framing, tone) that's
 wrong-but-harmless.
 
 ═══════════════════════════════════════════════════════════
+COMPLETENESS — facts the source has but the article OMITS
+═══════════════════════════════════════════════════════════
+
+After grading the article's claims, scan the SOURCE_TEXT and VERIFIED_TERMS
+for any factual detail that DOES NOT appear in the article. List each in
+"missing_facts". This is the second-most-important output — readers need
+these to act, and the writer sometimes drops them.
+
+Specifically look for:
+• Event dates the article doesn't mention (e.g. source has "July 2" and
+  "July 11" but article only mentions the on-sale date)
+• Multiple cities / locations / variants — if the source lists three
+  cities and the article mentions one, the other two are missing
+• Times, time zones, durations, capacities, ratios that appear in source
+  but not article
+• Eligibility constraints ("Reserve cardmembers only", "must be enrolled")
+  that the article skips
+
+severity="high" if the omission would make a subscriber miss out on the
+opportunity or plan wrong (event dates, eligibility, on-sale times).
+severity="low" for descriptive color that's nice-to-have.
+
+Do NOT list:
+• Marketing fluff from the source the article correctly skipped
+• Generic context the article doesn't need to repeat
+• Facts that ARE in the article in different words
+
+═══════════════════════════════════════════════════════════
 OUTPUT FORMAT (return ONLY this JSON, no prose, no fences)
 ═══════════════════════════════════════════════════════════
 
@@ -96,10 +139,18 @@ OUTPUT FORMAT (return ONLY this JSON, no prose, no fences)
       "severity": "high" | "low",
       "source_excerpt": "<quoted span from source, <200 chars, OR null>"
     }
+  ],
+  "missing_facts": [
+    {
+      "fact": "<plain-English description of the missing fact>",
+      "severity": "high" | "low",
+      "source_excerpt": "<quoted span from source where the fact lives, <200 chars>"
+    }
   ]
 }
 
-If the article makes no falsifiable claims, return { "claims": [] }.`
+If the article makes no falsifiable claims, set claims to []. If nothing
+is missing, set missing_facts to [].`
 
 function extractJson(text: string): string {
   const trimmed = text.trim()
@@ -116,7 +167,7 @@ function extractJson(text: string): string {
 
 export async function verifyBigStoryDraft(
   args: VerifyBigStoryInput,
-): Promise<VerifyResult | null> {
+): Promise<VerifyBigStoryResult | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
     console.warn('[verifyBigStoryDraft] ANTHROPIC_API_KEY missing — skipping')
@@ -132,6 +183,7 @@ export async function verifyBigStoryDraft(
           source_excerpt: null,
         },
       ],
+      missing_facts: [],
       checked_at: new Date().toISOString(),
     }
   }
@@ -164,7 +216,10 @@ export async function verifyBigStoryDraft(
       console.error('[verifyBigStoryDraft] Non-text block returned')
       return null
     }
-    const parsed = JSON.parse(extractJson(block.text)) as { claims?: unknown[] }
+    const parsed = JSON.parse(extractJson(block.text)) as {
+      claims?: unknown[]
+      missing_facts?: unknown[]
+    }
     const rawClaims = Array.isArray(parsed.claims) ? parsed.claims : []
     const claims: VerifyClaim[] = rawClaims
       .map((c): VerifyClaim | null => {
@@ -187,7 +242,24 @@ export async function verifyBigStoryDraft(
         }
       })
       .filter((c): c is VerifyClaim => c !== null)
-    return { claims, checked_at: new Date().toISOString() }
+
+    const rawMissing = Array.isArray(parsed.missing_facts) ? parsed.missing_facts : []
+    const missing_facts: MissingFact[] = rawMissing
+      .map((m): MissingFact | null => {
+        const r = m as Partial<MissingFact>
+        if (!r.fact || typeof r.fact !== 'string') return null
+        return {
+          fact: String(r.fact).slice(0, 400),
+          severity: r.severity === 'high' ? 'high' : 'low',
+          source_excerpt:
+            typeof r.source_excerpt === 'string'
+              ? r.source_excerpt.slice(0, 240)
+              : null,
+        }
+      })
+      .filter((m): m is MissingFact => m !== null)
+
+    return { claims, missing_facts, checked_at: new Date().toISOString() }
   } catch (err) {
     console.error('[verifyBigStoryDraft] Haiku call failed:', err)
     return null
