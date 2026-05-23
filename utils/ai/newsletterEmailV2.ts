@@ -22,9 +22,6 @@ const PAGE_BG = '#f4eef8'
 /** Editorial blue used for in-body link styling — distinct from the
  *  purple-and-gold brand palette so links read as clearly clickable. */
 const LINK_BLUE = '#1a5fb4'
-/** Soft champagne wash behind Jill's Take — gold-tinted but light
- *  enough that dark text remains readable. */
-const CHAMPAGNE_BG = '#F4E8C5'
 
 const FONT_DISPLAY = "'Playfair Display', Georgia, serif"
 const FONT_BODY = "'Lato', 'Helvetica Neue', Arial, sans-serif"
@@ -230,11 +227,16 @@ function renderJillsTake(html: string | null | undefined): string {
   const inner = /<(p|em|strong)\b/i.test(html)
     ? html
     : `<p style="margin:0;">${esc(html)}</p>`
+  // White block, gold ribbon BEHIND just the eyebrow text — "Jill's Take"
+  // sits in a gold rectangle with white uppercase letters, body in italic
+  // Playfair on white below. Reads as a banner-tagged pull quote.
   return `
     <tr><td style="padding:32px 28px 8px;">
-      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:${CHAMPAGNE_BG};border-radius:10px;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#ffffff;">
         <tr><td style="padding:28px 32px;text-align:center;">
-          <p style="margin:0 0 16px;font-family:${FONT_UI};font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:${PURPLE};font-weight:700;">Jill's Take</p>
+          <p style="margin:0 0 20px;">
+            <span style="display:inline-block;background:${GOLD};color:#ffffff;padding:8px 24px;font-family:${FONT_UI};font-size:12px;letter-spacing:2.5px;text-transform:uppercase;font-weight:700;">Jill's Take</span>
+          </p>
           <div style="font-family:${FONT_DISPLAY};font-size:18px;line-height:1.6;color:${BODY};font-style:italic;max-width:480px;margin:0 auto;">${inner}</div>
         </td></tr>
       </table>
