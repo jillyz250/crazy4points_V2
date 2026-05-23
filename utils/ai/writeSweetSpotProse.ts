@@ -46,7 +46,8 @@ RULES
 - NEVER use "drop/drops/dropping" as a release verb. Use "go on sale," "open," "release."
 - NEVER use influencer phrasing: "Love this for you," "obsessed," "iconic," "the girlies."
 - NEVER recommend transferring points without a redemption in mind — every transfer mention pairs with a specific redemption play.
-- Don't editorialize beyond the data the alert + verified_terms give you.`
+- Don't editorialize beyond the data the alert + verified_terms give you.
+- **NEVER claim a mechanic about how a points/currency/card/gift-card product works** (how transfers post, where redemption credit applies, whether something "loads into" an account, expiration behavior, stacking rules, etc.) **unless the mechanic is stated verbatim in the source alert or verified_terms.** Vague paraphrase = fabrication risk. If the mechanic isn't in the source, don't claim it — describe what IS verifiable (e.g. "$350 in gift card credit" rather than "$350 loaded into your account").`
 
 interface SonnetOutput {
   topic?: string
