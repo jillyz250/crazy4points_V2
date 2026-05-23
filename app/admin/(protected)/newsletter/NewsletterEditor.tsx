@@ -20,6 +20,7 @@ import {
 } from './actions'
 import type { NewsletterSlots, AlsoHappeningItem, NewsletterSweetSpot, SweetSpotBestUse } from '@/utils/ai/newsletterSlots'
 import type { BigStoryCandidate } from './page'
+import type { VerifyClaim } from '@/utils/ai/verifyAlertDraft'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Badge } from '@/components/admin/ui/Badge'
 
@@ -32,7 +33,12 @@ interface Props {
   recipientCount: number | null
   activeSubscriberCount: number
   bigStoryCandidates: BigStoryCandidate[]
+  bigStoryClaims: VerifyClaim[]
 }
+
+/** What's currently running, so we can surface inline progress + disable the
+ *  buttons that would conflict. null = idle. */
+type PendingTarget = 'subjects' | 'big-story' | 'lock' | 'unlock' | 'save' | 'run' | 'test' | 'blast' | null
 
 const labelStyle: React.CSSProperties = {
   display: 'block',
@@ -84,13 +90,16 @@ export default function NewsletterEditor({
   recipientCount,
   activeSubscriberCount,
   bigStoryCandidates,
+  bigStoryClaims: initialBigStoryClaims,
 }: Props) {
   const [slots, setSlots] = useState<NewsletterSlots>(initialSlots)
+  const [bigStoryClaims, setBigStoryClaims] = useState<VerifyClaim[]>(initialBigStoryClaims)
   const [confirmWord, setConfirmWord] = useState('')
   const [testToEmail, setTestToEmail] = useState('')
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isPending, start] = useTransition()
+  const [pendingTarget, setPendingTarget] = useState<PendingTarget>(null)
 
   const isSent = status === 'sent'
 
@@ -215,24 +224,26 @@ export default function NewsletterEditor({
   }
 
   function handleLockBigStory(alertId: string) {
+    setPendingTarget('lock')
     start(async () => {
       try {
         await lockBigStoryAction(id, alertId)
-        // Reflect lock in local state so the picker collapses immediately;
-        // the freshly-generated HTML lands on next reload (or after Generate).
         setSlots((prev) => ({
           ...prev,
           big_story_ref_id: alertId,
           big_story_ref_type: 'alert',
           big_story_html: null,
         }))
+        setBigStoryClaims([])
         notify('Big Story locked. Click "Generate Big Story" to write the article.')
       } catch (e) { notify(e instanceof Error ? e.message : 'Lock failed', true) }
+      setPendingTarget(null)
     })
   }
 
   function handleUnlockBigStory() {
     if (!confirm('Unlock Big Story? The current draft article will also be cleared.')) return
+    setPendingTarget('unlock')
     start(async () => {
       try {
         await unlockBigStoryAction(id)
@@ -242,12 +253,15 @@ export default function NewsletterEditor({
           big_story_ref_type: null,
           big_story_html: null,
         }))
+        setBigStoryClaims([])
         notify('Unlocked. Pick a new lead or run a full regenerate.')
       } catch (e) { notify(e instanceof Error ? e.message : 'Unlock failed', true) }
+      setPendingTarget(null)
     })
   }
 
   function handleGenerateSubjects() {
+    setPendingTarget('subjects')
     start(async () => {
       try {
         const res = await generateSubjectOptionsFromLockAction(id)
@@ -258,16 +272,25 @@ export default function NewsletterEditor({
         }))
         notify(`Generated ${res.options.length} subject options anchored to the Big Story.`)
       } catch (e) { notify(e instanceof Error ? e.message : 'Generate failed', true) }
+      setPendingTarget(null)
     })
   }
 
   function handleGenerateBigStory() {
+    setPendingTarget('big-story')
     start(async () => {
       try {
         const res = await generateBigStoryFromLockAction(id)
         setSlots((prev) => ({ ...prev, big_story_html: res.html }))
-        notify('Big Story article written.')
+        setBigStoryClaims(res.claims)
+        const unsupportedHigh = res.claims.filter((c) => c.supported !== true && c.severity === 'high').length
+        notify(
+          unsupportedHigh > 0
+            ? `Article written. Fact-check flagged ${unsupportedHigh} high-severity claim${unsupportedHigh === 1 ? '' : 's'} — review the chips above.`
+            : 'Article written and fact-checked.',
+        )
       } catch (e) { notify(e instanceof Error ? e.message : 'Generate failed', true) }
+      setPendingTarget(null)
     })
   }
 
@@ -346,7 +369,11 @@ export default function NewsletterEditor({
               style={slots.big_story_ref_id ? btnSecondary : { ...btnSecondary, opacity: 0.5, cursor: 'not-allowed' }}
               title={slots.big_story_ref_id ? 'Generate 5 punchy options anchored to the locked lead' : 'Lock a lead alert first'}
             >
-              {slots.subject_options.length > 0 ? 'Regenerate headlines' : 'Generate headlines'}
+              {pendingTarget === 'subjects'
+                ? 'Generating headlines…'
+                : slots.subject_options.length > 0
+                  ? 'Regenerate headlines'
+                  : 'Generate headlines'}
             </button>
           )}
         </div>
@@ -387,7 +414,11 @@ export default function NewsletterEditor({
               style={slots.big_story_ref_id ? btnPrimary : { ...btnPrimary, opacity: 0.5, cursor: 'not-allowed' }}
               title={slots.big_story_ref_id ? 'Write the ~150-word article body around the locked lead + chosen subject' : 'Lock a lead alert first'}
             >
-              {slots.big_story_html ? 'Regenerate Big Story' : 'Generate Big Story'}
+              {pendingTarget === 'big-story'
+                ? 'Writing + fact-checking…'
+                : slots.big_story_html
+                  ? 'Regenerate Big Story'
+                  : 'Generate Big Story'}
             </button>
           )}
         </div>
@@ -396,6 +427,7 @@ export default function NewsletterEditor({
             Lock a lead alert above first.
           </p>
         )}
+        <BigStoryFactCheck claims={bigStoryClaims} />
         <p style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)', margin: '0 0 0.5rem' }}>
           ~150 words, plain HTML. Use {'<p>'} for paragraphs and one {'<ul>'} of bullets. The renderer adds the section heading. Edit freely after generation.
         </p>
@@ -607,6 +639,70 @@ export default function NewsletterEditor({
             </div>
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+function BigStoryFactCheck({ claims }: { claims: VerifyClaim[] }) {
+  if (claims.length === 0) return null
+  const supported = claims.filter((c) => c.supported === true).length
+  const unsupported = claims.filter((c) => c.supported !== true)
+  const highUnsupported = unsupported.filter((c) => c.severity === 'high').length
+  const headerTone =
+    highUnsupported > 0
+      ? { color: 'var(--admin-danger)', label: `⚠ ${highUnsupported} high-severity claim${highUnsupported === 1 ? '' : 's'} need${highUnsupported === 1 ? 's' : ''} review` }
+      : { color: 'var(--admin-success)', label: `✓ ${supported}/${claims.length} claim${claims.length === 1 ? '' : 's'} supported by the source alert` }
+  return (
+    <div
+      style={{
+        border: '1px solid var(--admin-border)',
+        borderRadius: 'var(--admin-radius)',
+        padding: '0.625rem 0.75rem',
+        marginBottom: '0.75rem',
+        background: 'var(--admin-surface-alt)',
+      }}
+    >
+      <div style={{ fontSize: '0.75rem', fontWeight: 700, color: headerTone.color, marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        Fact-check &middot; {headerTone.label}
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
+        {claims.map((c, i) => {
+          const isSupported = c.supported === true
+          const isUnsupportedSilent = c.supported === 'unsupported'
+          const bg = isSupported
+            ? 'var(--admin-success-soft, #e8f5ee)'
+            : isUnsupportedSilent
+              ? '#fff7e6'
+              : 'var(--admin-danger-soft, #fde4e4)'
+          const fg = isSupported
+            ? 'var(--admin-success)'
+            : isUnsupportedSilent
+              ? '#9a6b00'
+              : 'var(--admin-danger)'
+          const prefix = isSupported ? '✓' : isUnsupportedSilent ? '?' : '✗'
+          return (
+            <span
+              key={i}
+              title={c.source_excerpt ?? (isUnsupportedSilent ? 'Source is silent on this claim.' : 'No source excerpt.')}
+              style={{
+                fontSize: '0.75rem',
+                background: bg,
+                color: fg,
+                padding: '0.25rem 0.5rem',
+                borderRadius: 'var(--admin-radius)',
+                border: `1px solid ${fg}33`,
+                cursor: 'help',
+                maxWidth: '320px',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {prefix} {c.severity === 'high' ? <strong>{c.claim}</strong> : c.claim}
+            </span>
+          )
+        })}
       </div>
     </div>
   )

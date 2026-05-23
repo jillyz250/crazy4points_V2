@@ -8,13 +8,15 @@ import type { NewsletterSlots } from '@/utils/ai/newsletterSlots'
 import { runBuildNewsletter, getNewsletterInputs } from '@/utils/ai/runBuildNewsletter'
 import { writeBigStoryHtml } from '@/utils/ai/writeBigStoryHtml'
 import { writeSubjectOptions } from '@/utils/ai/writeSubjectOptions'
+import { verifyBigStoryDraft } from '@/utils/ai/verifyBigStoryDraft'
+import type { VerifyClaim } from '@/utils/ai/verifyAlertDraft'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 const FROM = process.env.RESEND_FROM ?? 'Crazy4Points <hello@crazy4points.com>'
 const ADMIN_EMAIL = process.env.BRIEF_RECIPIENT ?? 'jillzeller6@gmail.com'
 
 const SLOT_SELECT =
-  'id, week_of, subject, subject_options, status, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_html, sweet_spot, also_happening, jills_take_html, game_slug, game_title, game_clue_text'
+  'id, week_of, subject, subject_options, status, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_html, big_story_claims, sweet_spot, also_happening, jills_take_html, game_slug, game_title, game_clue_text'
 
 interface SlotRow {
   id: string
@@ -27,6 +29,7 @@ interface SlotRow {
   big_story_ref_type: 'alert' | 'intel' | null
   big_story_ref_id: string | null
   big_story_html: string | null
+  big_story_claims: VerifyClaim[] | null
   sweet_spot: NewsletterSlots['sweet_spot'] | null
   also_happening: NewsletterSlots['also_happening'] | null
   jills_take_html: string | null
@@ -121,6 +124,7 @@ export async function lockBigStoryAction(id: string, alertId: string) {
       big_story_ref_id: alertId,
       big_story_ref_type: 'alert',
       big_story_html: null,
+      big_story_claims: null,
     })
     .eq('id', id)
     .neq('status', 'sent')
@@ -137,6 +141,7 @@ export async function unlockBigStoryAction(id: string) {
       big_story_ref_id: null,
       big_story_ref_type: null,
       big_story_html: null,
+      big_story_claims: null,
     })
     .eq('id', id)
     .neq('status', 'sent')
@@ -208,15 +213,46 @@ export async function generateBigStoryFromLockAction(id: string) {
     throw new Error('Sonnet returned no Big Story HTML — see server logs.')
   }
 
+  // Pull issuer T&Cs from the source alert (if any) for fact-check ground
+  // truth. Source prose comes from the AlertView's summary +
+  // why_this_matters (already in `alert`); verified_terms only lives on
+  // the alerts table, so fetch it separately. Cheap, one row by id.
   const supabase = createAdminClient()
+  const { data: alertRow } = await supabase
+    .from('alerts')
+    .select('verified_terms')
+    .eq('id', alert.id)
+    .maybeSingle()
+  const verifiedTerms =
+    (alertRow as { verified_terms?: string | null } | null)?.verified_terms ?? null
+
+  const sourceText = [
+    alert.title ? `# ${alert.title}` : '',
+    alert.summary ?? '',
+    alert.why_this_matters ? `\nWhy this matters:\n${alert.why_this_matters}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+
+  // Haiku fact-check — quick and cheap. Doesn't block save; null result
+  // just means no chips render (logged to server).
+  const verify = await verifyBigStoryDraft({
+    big_story_html: html,
+    source_text: sourceText,
+    verified_terms: verifiedTerms,
+  })
+
   const { error } = await supabase
     .from('newsletters')
-    .update({ big_story_html: html })
+    .update({
+      big_story_html: html,
+      big_story_claims: verify?.claims ?? null,
+    })
     .eq('id', id)
     .neq('status', 'sent')
   if (error) throw new Error(error.message)
   revalidatePath('/admin/newsletter')
-  return { ok: true as const, html }
+  return { ok: true as const, html, claims: verify?.claims ?? [] }
 }
 
 /**
