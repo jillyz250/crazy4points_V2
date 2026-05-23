@@ -14,7 +14,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/utils/supabase/server'
 import {
   renderNewsletterV2Html,
-  formatWeekOf,
+  formatNewsletterDate,
   type CurrentBonusRow,
 } from '@/utils/ai/newsletterEmailV2'
 import { getActiveBonusAlerts } from '@/utils/ai/getActiveBonusAlerts'
@@ -25,11 +25,12 @@ import type {
 } from '@/utils/ai/newsletterSlots'
 
 const SLOT_SELECT =
-  'id, week_of, subject, subject_options, status, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_html, sweet_spot, also_happening, jills_take_html, game_slug, game_title, game_clue_text'
+  'id, week_of, sent_at, subject, subject_options, status, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_html, sweet_spot, also_happening, jills_take_html, game_slug, game_title, game_clue_text'
 
 type Row = {
   id: string
   week_of: string
+  sent_at: string | null
   subject: string | null
   subject_options: string[] | null
   status: 'draft' | 'sent' | 'failed'
@@ -87,7 +88,7 @@ export async function GET(
 
   const html = renderNewsletterV2Html({
     slots,
-    weekOf: formatWeekOf(row.week_of),
+    weekOf: formatNewsletterDate(row),
     isPreview: true,
     currentBonuses,
   })

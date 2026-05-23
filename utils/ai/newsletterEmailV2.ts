@@ -89,7 +89,6 @@ function renderBigStory(slots: NewsletterSlots, origin: string): string {
     : ''
   return `
     <tr><td style="padding:32px 28px 8px;">
-      <p style="margin:0 0 8px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#c0392b;font-weight:700;">This Week's Big Story</p>
       ${headline}
       ${bodyHtml(slots.big_story_html)}
     </td></tr>`
@@ -278,7 +277,7 @@ export function renderNewsletterV2Html({
           <img src="${origin}/newsletter-hero-banner.png" alt="Crazy4Points Newsletter" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0;" />
         </td></tr>
         <tr><td style="padding:14px 28px 12px;background:#ffffff;text-align:left;">
-          <p style="margin:0;font-family:${FONT_DISPLAY};font-style:italic;font-size:15px;color:${PURPLE};letter-spacing:0.3px;">${esc(weekOf)}</p>
+          <p style="margin:0;font-family:${FONT_DISPLAY};font-style:italic;font-size:18px;font-weight:600;color:${PURPLE};letter-spacing:0.3px;">${esc(weekOf)}</p>
         </td></tr>
         <tr><td style="padding:0 28px;background:#ffffff;">
           <div style="height:1px;background:${BORDER};line-height:1px;font-size:0;">&nbsp;</div>
@@ -312,4 +311,15 @@ export function formatWeekOf(weekOf: string): string {
   const d = new Date(weekOf + 'T00:00:00Z')
   if (Number.isNaN(d.getTime())) return weekOf
   return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+}
+
+/** Newsletter dateline = the date subscribers actually receive (or see) it.
+ *  For sent newsletters, use sent_at so archives keep the real send date.
+ *  For everything else (drafts, previews, test sends), use NOW — that's
+ *  what the email is dated when it actually goes out, not the Monday the
+ *  draft was started. */
+export function formatNewsletterDate(row: { sent_at?: string | null }): string {
+  const d = row.sent_at ? new Date(row.sent_at) : new Date()
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 }
