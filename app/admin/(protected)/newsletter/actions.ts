@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { Resend } from 'resend'
 import { createAdminClient } from '@/utils/supabase/server'
-import { renderNewsletterV2Html, formatWeekOf } from '@/utils/ai/newsletterEmailV2'
+import { renderNewsletterV2Html, formatNewsletterDate } from '@/utils/ai/newsletterEmailV2'
 import type { NewsletterSlots } from '@/utils/ai/newsletterSlots'
 import { runBuildNewsletter, getNewsletterInputs } from '@/utils/ai/runBuildNewsletter'
 import { writeBigStoryHtml } from '@/utils/ai/writeBigStoryHtml'
@@ -19,11 +19,12 @@ const FROM = process.env.RESEND_FROM ?? 'Crazy4Points <hello@crazy4points.com>'
 const ADMIN_EMAIL = process.env.BRIEF_RECIPIENT ?? 'jillzeller6@gmail.com'
 
 const SLOT_SELECT =
-  'id, week_of, subject, subject_options, status, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_html, big_story_claims, big_story_missing_facts, sweet_spot_ref_type, sweet_spot_ref_id, sweet_spot, also_happening, jills_take_html, game_slug, game_title, game_clue_text'
+  'id, week_of, sent_at, subject, subject_options, status, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_html, big_story_claims, big_story_missing_facts, sweet_spot_ref_type, sweet_spot_ref_id, sweet_spot, also_happening, jills_take_html, game_slug, game_title, game_clue_text'
 
 interface SlotRow {
   id: string
   week_of: string
+  sent_at: string | null
   subject: string | null
   subject_options: string[] | null
   status: 'draft' | 'sent' | 'failed'
@@ -385,7 +386,7 @@ export async function sendTestAction(id: string, toOverride?: string) {
   const currentBonuses = await getActiveBonusAlerts()
   const html = renderNewsletterV2Html({
     slots,
-    weekOf: formatWeekOf(row.week_of),
+    weekOf: formatNewsletterDate(row),
     isPreview: !isCatchUp,
     recipientEmail: target,
     currentBonuses,
@@ -454,7 +455,7 @@ export async function sendToSubscribersAction(id: string, confirmWord: string) {
       // 250ms throttle below).
       const html = renderNewsletterV2Html({
         slots,
-        weekOf: formatWeekOf(row.week_of),
+        weekOf: formatNewsletterDate(row),  // bulk send
         isPreview: false,
         recipientEmail: to,
         currentBonuses,
