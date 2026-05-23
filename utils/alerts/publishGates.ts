@@ -64,15 +64,24 @@ export async function checkAlertGates(
 
   const failures: string[] = []
 
-  // 0) Draft gate — must have an actual description before anything else
-  //    matters. Skeleton alerts (staged from triage with no Sonnet pass yet)
-  //    would otherwise sail through all three downstream gates because
-  //    there's nothing to check. This blocks publish until the writer ran.
-  const hasDraft = Boolean(alert.description && alert.description.trim().length > 0)
+  // 0) Draft gate — must have a real article body, not just a stub.
+  //    Skeleton alerts (a few sentences pasted to test if a topic is worth
+  //    pursuing) would otherwise sail through all three downstream gates
+  //    because there's "some text." We require ≥ 60 words as a proxy for
+  //    "actually written" — any real alert clears that easily.
+  const MIN_WORD_COUNT = 60
+  const wordCount = (alert.description ?? '').trim().split(/\s+/).filter(Boolean).length
+  const hasDraft = wordCount >= MIN_WORD_COUNT
   if (!hasDraft) {
-    failures.push(
-      'No draft written yet — paste verified T&Cs below + click Save & Regenerate to write the article.'
-    )
+    if (wordCount === 0) {
+      failures.push(
+        'No draft written yet — paste verified T&Cs below + click Save & Regenerate to write the article.'
+      )
+    } else {
+      failures.push(
+        `Draft is only ${wordCount} word${wordCount === 1 ? '' : 's'} — need at least ${MIN_WORD_COUNT} to qualify as a real article. Either flesh it out, or archive if it's a discarded test.`
+      )
+    }
   }
 
   // 1) T&C gate

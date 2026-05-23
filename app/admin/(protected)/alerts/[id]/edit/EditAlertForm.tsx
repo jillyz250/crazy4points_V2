@@ -105,13 +105,19 @@ export default function EditAlertForm({
         const factOn = Boolean(alert.fact_check_at) && !flagged
         const voiceOn = Boolean(alert.voice_checked_at) && alert.voice_pass === true
         const origOn = Boolean(alert.originality_checked_at) && alert.originality_pass === true
+        // "Written" requires a real article body, not just a few stub lines.
+        // Threshold matches the draft gate in publishGates.ts (≥ 60 words).
+        const wordCount = (alert.description ?? '').trim().split(/\s+/).filter(Boolean).length
+        const writtenOn = wordCount >= 60
         const pills: { label: string; on: boolean; hint: string }[] = [
           {
             label: 'Written',
-            on: Boolean(alert.description && alert.description.trim().length > 0),
-            hint: alert.description && alert.description.trim().length > 0
-              ? 'Description present'
-              : 'No draft yet — Save & Regenerate writes the article',
+            on: writtenOn,
+            hint: writtenOn
+              ? `Article complete — ${wordCount} words`
+              : wordCount === 0
+                ? 'No draft yet — Save & Regenerate writes the article'
+                : `Only ${wordCount} words so far — need 60+ to qualify as a real article`,
           },
           {
             label: 'Fact-checked',

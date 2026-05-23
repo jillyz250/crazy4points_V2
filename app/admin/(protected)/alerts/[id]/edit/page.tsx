@@ -4,7 +4,9 @@ import { getAlertById, getPrograms, getAlertPrograms } from '@/utils/supabase/qu
 import { checkAlertGates } from '@/utils/alerts/publishGates'
 import { getAlertOverrides } from '@/utils/supabase/alertOverrides'
 import { findVariantByAlertId } from '@/utils/content/writeAlertVariant'
+import { archiveVariantAction } from '@/app/admin/(protected)/drafts/actions'
 import SocialVariantsButton from '@/components/admin/SocialVariantsButton'
+import ConfirmButton from '@/components/admin/ConfirmButton'
 import EditAlertForm from './EditAlertForm'
 
 interface Props {
@@ -45,7 +47,21 @@ export default async function EditAlertPage({ params }: Props) {
 
   return (
     <div>
-      <h1 style={{ marginBottom: '1.25rem' }}>Edit Alert</h1>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1.25rem' }}>
+        <h1 style={{ margin: 0 }}>Edit Alert</h1>
+        {/* Archive (soft-delete) is always available on the alert edit page —
+            cleanest exit for test-writes, abandoned drafts, etc. Uses the
+            same archive action the Drafts hub row uses. */}
+        {refs?.variant_id && (
+          <ConfirmButton
+            action={archiveVariantAction.bind(null, refs.variant_id) as unknown as () => Promise<unknown>}
+            confirmMessage={`Archive this alert?\n\nUseful for test writes you're not going to publish. Row drops out of the active queue; data stays in the DB for audit. Find it via the Archived chip in Drafts if you need it back.`}
+            variant="danger"
+          >
+            Archive draft
+          </ConfirmButton>
+        )}
+      </div>
 
       {/* Phase 4.5 — Social variants control bar lives at the top so it's
           the first thing visible after publish (when the action becomes

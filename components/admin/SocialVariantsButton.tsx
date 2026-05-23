@@ -63,7 +63,8 @@ export default function SocialVariantsButton({
           fontSize: '0.875rem',
         }}
       >
-        Publish this alert first to generate social variants.
+        Social variants generate after the alert is published. If you&apos;re not going
+        to publish this one, use <strong>Archive draft</strong> at the top of the page.
       </div>
     )
   }
