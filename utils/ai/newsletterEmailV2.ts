@@ -80,9 +80,17 @@ function renderGame(game: NewsletterSlots['game'], origin: string): string {
 
 function renderBigStory(slots: NewsletterSlots, origin: string): string {
   if (!slots.big_story_html) return ''
+  // Big Story now leads with the chosen subject line as a 28px Playfair
+  // headline. The inbox subject + article headline align by design — they
+  // anchor to the same locked alert, so reusing the subject keeps the
+  // editorial throughline tight without requiring a new field.
+  const headline = slots.subject
+    ? `<h1 style="margin:0 0 14px;font-family:${FONT_DISPLAY};font-size:28px;line-height:1.2;color:${BODY};font-weight:700;">${esc(slots.subject)}</h1>`
+    : ''
   return `
     <tr><td style="padding:32px 28px 8px;">
-      <p style="margin:0 0 6px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#c0392b;font-weight:700;">This Week's Big Story</p>
+      <p style="margin:0 0 8px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#c0392b;font-weight:700;">This Week's Big Story</p>
+      ${headline}
       ${bodyHtml(slots.big_story_html)}
     </td></tr>`
 }
@@ -188,13 +196,13 @@ function renderJillsTake(html: string | null | undefined, origin: string): strin
   const mascotUrl = `${origin}/Mascot.png`
   return `
     <tr><td style="padding:32px 28px 8px;">
-      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:${SOFT_BG};border-left:4px solid ${PURPLE};border-radius:6px;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:${SOFT_BG};border-left:4px solid ${PURPLE};border-radius:8px;">
         <tr>
-          <td style="width:96px;padding:18px 0 18px 18px;vertical-align:top;">
-            <img src="${mascotUrl}" alt="" width="80" style="display:block;width:80px;height:auto;" />
+          <td style="width:140px;padding:22px 0 22px 22px;vertical-align:middle;">
+            <img src="${mascotUrl}" alt="Jill" width="120" style="display:block;width:120px;max-width:120px;height:auto;" />
           </td>
-          <td style="padding:18px 22px 18px 8px;vertical-align:top;">
-            <p style="margin:0 0 8px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${PURPLE};font-weight:700;">Jill's Take</p>
+          <td style="padding:22px 24px 22px 18px;vertical-align:middle;">
+            <p style="margin:0 0 10px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${PURPLE};font-weight:700;">Jill's Take</p>
             ${inner}
           </td>
         </tr>
@@ -243,8 +251,11 @@ export function renderNewsletterV2Html({
     </td></tr>`
     : ''
 
-  const heroKicker = slots.hero_kicker
-    ? `<p style="margin:0 0 6px;font-family:${FONT_UI};font-size:10px;letter-spacing:3px;text-transform:uppercase;color:${GOLD};font-weight:700;">${esc(slots.hero_kicker)}</p>`
+  // Hero kicker now serves as the editorial one-liner (per design-pass-2
+  // critique — Morning Brew-style "today we're talking about…" line that
+  // tells readers what's in this issue before they scroll).
+  const heroKickerLine = slots.hero_kicker
+    ? `<p style="margin:14px 0 0;font-family:${FONT_DISPLAY};font-size:20px;line-height:1.3;color:${PURPLE};">${esc(slots.hero_kicker)}</p>`
     : ''
 
   return `<!DOCTYPE html>
@@ -262,13 +273,24 @@ export function renderNewsletterV2Html({
 
         ${previewBanner}
 
-        <!-- Hero -->
-        <tr><td style="padding:18px 32px 14px;background:${SOFT_BG};text-align:center;">
-          ${heroKicker}
-          <img src="${logoUrl}" alt="Crazy4Points" width="200" style="display:block;margin:0 auto;max-width:60%;height:auto;" />
-          <p style="margin:6px 0 0;font-family:${FONT_UI};font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:${MUTED};font-weight:600;">Week of ${esc(weekOf)}</p>
+        <!-- Hero (design pass 2 — left-aligned logo + right-aligned dateline,
+             editorial one-liner below, hairline divider instead of gold bar) -->
+        <tr><td style="padding:22px 28px 18px;background:${SOFT_BG};">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+            <tr>
+              <td style="vertical-align:middle;">
+                <img src="${logoUrl}" alt="Crazy4Points" width="140" style="display:block;width:140px;max-width:140px;height:auto;" />
+              </td>
+              <td style="vertical-align:middle;text-align:right;">
+                <p style="margin:0;font-family:${FONT_UI};font-size:10px;letter-spacing:2.5px;text-transform:uppercase;color:${MUTED};font-weight:700;">Week of ${esc(weekOf)}</p>
+              </td>
+            </tr>
+          </table>
+          ${heroKickerLine}
         </td></tr>
-        <tr><td style="height:3px;background:${GOLD};line-height:3px;font-size:0;">&nbsp;</td></tr>
+        <tr><td style="padding:0 28px;background:${SOFT_BG};">
+          <div style="height:1px;background:${BORDER};line-height:1px;font-size:0;">&nbsp;</div>
+        </td></tr>
 
         ${renderBigStory(slots, origin)}
         ${renderSweetSpot(slots.sweet_spot)}
