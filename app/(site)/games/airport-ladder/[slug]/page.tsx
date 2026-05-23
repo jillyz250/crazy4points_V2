@@ -13,11 +13,17 @@ interface Puzzle {
   start: string
   goal: string
   par: number
+  /** Max valid moves before the player is locked out. Defaults to 6. */
+  max_guesses?: number
   sample_path: string[]
   story?: {
     intro: string
+    /** Bold-red mission paragraph rendered separately from intro. */
+    mission?: string
     /** May include {stops} token, replaced with the hop count at win time. */
     win: string
+    /** Shown when player runs out of guesses. */
+    fail?: string
     give_up: string
   }
 }
