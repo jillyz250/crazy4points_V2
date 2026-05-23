@@ -142,6 +142,10 @@ export default function Game({ puzzle, iata }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [difficulty, setDifficulty] = useState<Difficulty>('easy')
   const [revealedHints, setRevealedHints] = useState<Set<number>>(new Set())
+  // Hard-mode-only: a one-shot "show me the list" toggle that surfaces the
+  // valid-next-codes chip list for the current step. Resets every time the
+  // chain advances so it's a per-stop hint, not a permanent override.
+  const [hardModeChipsRevealed, setHardModeChipsRevealed] = useState(false)
   const [givenUp, setGivenUp] = useState<string[] | null>(null)
 
   const current = chain[chain.length - 1]
@@ -192,14 +196,20 @@ export default function Game({ puzzle, iata }: Props) {
       setChain((prev) => [...prev, code])
       setInput('')
       setRevealedHints(new Set())
+      setHardModeChipsRevealed(false)
     },
     [codeSet, current],
   )
 
   const handleHint = useCallback(() => {
-    // Reveal one goal letter position that isn't already matched at the
-    // current step. If they're all matched (i.e. only one letter left to
-    // change), the hint is redundant — error gently.
+    // Hard mode: Hint surfaces the full list of valid next codes for this
+    // step. Easy/medium already have a chip list, so Hint there reveals a
+    // goal letter instead.
+    if (difficulty === 'hard') {
+      setHardModeChipsRevealed(true)
+      setError(null)
+      return
+    }
     const unmatched: number[] = []
     for (let i = 0; i < 3; i++) {
       if (current[i] !== puzzle.goal[i] && !revealedHints.has(i)) unmatched.push(i)
@@ -210,7 +220,7 @@ export default function Game({ puzzle, iata }: Props) {
     }
     const pick = unmatched[Math.floor(Math.random() * unmatched.length)]
     setRevealedHints((s) => new Set(s).add(pick))
-  }, [current, puzzle.goal, revealedHints])
+  }, [difficulty, current, puzzle.goal, revealedHints])
 
   const handleGiveUp = useCallback(() => {
     if (!confirm('Give up and reveal one valid solution? You can keep playing after.')) return
@@ -225,6 +235,7 @@ export default function Game({ puzzle, iata }: Props) {
     setInput('')
     setError(null)
     setRevealedHints(new Set())
+    setHardModeChipsRevealed(false)
     setGivenUp(null)
   }, [puzzle.start])
 
@@ -232,15 +243,17 @@ export default function Game({ puzzle, iata }: Props) {
     <main className="rg-container" style={{ paddingTop: '2.5rem', paddingBottom: '4rem' }}>
       <header style={{ marginBottom: '1.5rem' }}>
         <p style={{ fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--color-primary, #6B2D8F)', fontWeight: 700, margin: 0 }}>
-          Airport Code Ladder
+          Three-Letter Dash
         </p>
         <h1 style={{ margin: '0.375rem 0 0.75rem', fontSize: '2rem', lineHeight: 1.15, color: 'var(--color-primary, #6B2D8F)' }}>
           {puzzle.title}
         </h1>
         {puzzle.story?.intro && (
-          <p style={{ color: 'var(--color-text-primary, #1A1A1A)', margin: '0 0 0.75rem', fontSize: '1rem', lineHeight: 1.55 }}>
-            {puzzle.story.intro}
-          </p>
+          <div style={{ color: 'var(--color-text-primary, #1A1A1A)', margin: '0 0 0.75rem', fontSize: '1rem', lineHeight: 1.55 }}>
+            {puzzle.story.intro.split('\n\n').map((para, i) => (
+              <p key={i} style={{ margin: i === 0 ? '0 0 0.75rem' : '0 0 0.75rem' }}>{para}</p>
+            ))}
+          </div>
         )}
         <p style={{ color: 'var(--color-text-secondary, #4A4A4A)', margin: 0, fontSize: '0.875rem', lineHeight: 1.5 }}>
           {puzzle.subtitle}
@@ -380,41 +393,58 @@ export default function Game({ puzzle, iata }: Props) {
             <div style={{ marginTop: '0.625rem', fontSize: '0.8125rem', color: '#c0392b' }}>{error}</div>
           )}
 
-          {difficulty !== 'hard' && filteredNeighbors.length > 0 && (
-            <div style={{ marginTop: '0.875rem' }}>
-              <div style={{ fontSize: '0.6875rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-secondary)', fontWeight: 700, marginBottom: '0.375rem' }}>
-                {difficulty === 'easy'
-                  ? `Stops that move Amanda closer (${filteredNeighbors.length})`
-                  : `Valid next codes (${filteredNeighbors.length})`}
+          {(() => {
+            // Which chip set to render, if any:
+            //  easy/medium → filteredNeighbors (no list if empty)
+            //  hard → only when user clicked Hint for this step; show ALL
+            //         valid 1-letter-diff codes for the step
+            const chips =
+              difficulty === 'hard'
+                ? hardModeChipsRevealed
+                  ? validNeighbors
+                  : []
+                : filteredNeighbors
+            if (chips.length === 0) return null
+            const headerLabel =
+              difficulty === 'easy'
+                ? `Stops that move Amanda closer (${chips.length})`
+                : difficulty === 'hard'
+                  ? `Possible next codes (${chips.length})`
+                  : `Valid next codes (${chips.length})`
+            return (
+              <div style={{ marginTop: '0.875rem' }}>
+                <div style={{ fontSize: '0.6875rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-secondary)', fontWeight: 700, marginBottom: '0.375rem' }}>
+                  {headerLabel}
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
+                  {chips.map((nb) => {
+                    const e = byCode.get(nb)
+                    return (
+                      <button
+                        key={nb}
+                        type="button"
+                        onClick={() => handleSubmit(nb)}
+                        title={e ? `${e.city}, ${e.country}` : nb}
+                        style={{
+                          fontFamily: 'ui-monospace, monospace',
+                          fontWeight: 700,
+                          fontSize: '0.8125rem',
+                          padding: '0.3125rem 0.5rem',
+                          border: '1px solid var(--color-border-soft)',
+                          borderRadius: 'var(--radius-ui)',
+                          background: '#fff',
+                          cursor: 'pointer',
+                          color: 'var(--color-text-primary)',
+                        }}
+                      >
+                        {nb}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
-                {filteredNeighbors.map((nb) => {
-                  const e = byCode.get(nb)
-                  return (
-                    <button
-                      key={nb}
-                      type="button"
-                      onClick={() => handleSubmit(nb)}
-                      title={e ? `${e.city}, ${e.country}` : nb}
-                      style={{
-                        fontFamily: 'ui-monospace, monospace',
-                        fontWeight: 700,
-                        fontSize: '0.8125rem',
-                        padding: '0.3125rem 0.5rem',
-                        border: '1px solid var(--color-border-soft)',
-                        borderRadius: 'var(--radius-ui)',
-                        background: '#fff',
-                        cursor: 'pointer',
-                        color: 'var(--color-text-primary)',
-                      }}
-                    >
-                      {nb}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          )}
+            )
+          })()}
           {difficulty === 'easy' && filteredNeighbors.length === 0 && validNeighbors.length > 0 && !isWon && (
             <div style={{ marginTop: '0.875rem', fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
               No single-letter swap aligns another goal letter from here. Switch to <strong>Medium</strong> to see all valid options, or use a hint.

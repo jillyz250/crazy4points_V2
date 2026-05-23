@@ -2,14 +2,14 @@
   {
     "slug": "jfk-to-las-2026-05-23",
     "week_of": "2026-05-18",
-    "title": "Amanda's Late for the Interview",
+    "title": "Amanda's Three-Letter Dash",
     "subtitle": "Get from JFK to LAS by changing one letter at a time. Every step has to be a real airport code.",
     "start": "JFK",
     "goal": "LAS",
     "par": 3,
     "sample_path": ["JFK", "LFK", "LAK", "LAS"],
     "story": {
-      "intro": "Amanda has 18 hours to get from New York (JFK) to a 5pm Friday job interview in Las Vegas (LAS). The catch: the only flights she can find route through the strangest set of airports you've ever heard of. Help her plan the route — one letter at a time, each stop has to be a real airport. Get her there before the recruiter gives up.",
+      "intro": "Amanda's dream job is waiting in Las Vegas (LAS). Her interview is at 5pm Friday. She's standing in New York (JFK) with 18 hours to get there — and every normal routing is either sold out, delayed, or priced like someone actively wants her to fail.\n\nHer only option: a leftover chain of oddball connections that will get her west… if she can stitch them together.\n\nThe catch: she can only move from one airport to the next by changing ONE letter of the airport code at a time — and every step must be a real IATA airport code. No fakes, no stretches, no \"trust me bro.\"\n\nYour mission: build the code-by-code route that gets Amanda from JFK to LAS before the recruiter crosses her off the list.",
       "win": "Phew. Amanda made it in {stops} stops, walked in five minutes before the interview, and absolutely nailed it. She's jetsetting next week — and now thinks of you as her lucky travel agent.",
       "give_up": "Amanda's still in transit somewhere over the heartland. Here's one route she could have taken — call her and let her know."
     }
