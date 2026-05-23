@@ -22,7 +22,14 @@ interface Puzzle {
   goal: string
   par: number
   sample_path: string[]
+  story?: {
+    intro: string
+    win: string
+    give_up: string
+  }
 }
+
+type Difficulty = 'easy' | 'medium' | 'hard'
 
 interface IataEntry {
   code: string
@@ -133,18 +140,38 @@ export default function Game({ puzzle, iata }: Props) {
   const [chain, setChain] = useState<string[]>([puzzle.start])
   const [input, setInput] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [easyMode, setEasyMode] = useState(true)
+  const [difficulty, setDifficulty] = useState<Difficulty>('easy')
   const [revealedHints, setRevealedHints] = useState<Set<number>>(new Set())
   const [givenUp, setGivenUp] = useState<string[] | null>(null)
 
   const current = chain[chain.length - 1]
   const isWon = current === puzzle.goal
-  const hopsTaken = chain.length - 1
+  const stopsTaken = chain.length - 1
 
   const validNeighbors = useMemo(
     () => (isWon ? [] : neighbors(current, codeSet)),
     [current, codeSet, isWon],
   )
+
+  // Easy mode: only show chips that advance Amanda toward the goal — chips
+  // that change one letter to match the goal at THAT position. Usually 1-3
+  // chips per step, guiding the player.
+  // Medium mode: every valid 1-letter-diff IATA (the unfiltered list).
+  // Hard mode: no chips. Type blind, hint button still works.
+  const filteredNeighbors = useMemo(() => {
+    if (difficulty === 'hard') return []
+    if (difficulty === 'medium') return validNeighbors
+    return validNeighbors.filter((nb) => {
+      for (let i = 0; i < 3; i++) {
+        if (nb[i] !== current[i]) {
+          // Position i changed. Only keep this chip if the new letter
+          // matches the goal at that position.
+          return nb[i] === puzzle.goal[i]
+        }
+      }
+      return false
+    })
+  }, [difficulty, validNeighbors, current, puzzle.goal])
 
   const handleSubmit = useCallback(
     (raw: string) => {
@@ -203,14 +230,19 @@ export default function Game({ puzzle, iata }: Props) {
 
   return (
     <main className="rg-container" style={{ paddingTop: '2.5rem', paddingBottom: '4rem' }}>
-      <header style={{ marginBottom: '2rem' }}>
+      <header style={{ marginBottom: '1.5rem' }}>
         <p style={{ fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--color-primary, #6B2D8F)', fontWeight: 700, margin: 0 }}>
           Airport Code Ladder
         </p>
-        <h1 style={{ margin: '0.375rem 0 0.5rem', fontSize: '2rem', lineHeight: 1.15, color: 'var(--color-primary, #6B2D8F)' }}>
+        <h1 style={{ margin: '0.375rem 0 0.75rem', fontSize: '2rem', lineHeight: 1.15, color: 'var(--color-primary, #6B2D8F)' }}>
           {puzzle.title}
         </h1>
-        <p style={{ color: 'var(--color-text-secondary, #4A4A4A)', margin: 0, fontSize: '1rem', lineHeight: 1.5 }}>
+        {puzzle.story?.intro && (
+          <p style={{ color: 'var(--color-text-primary, #1A1A1A)', margin: '0 0 0.75rem', fontSize: '1rem', lineHeight: 1.55 }}>
+            {puzzle.story.intro}
+          </p>
+        )}
+        <p style={{ color: 'var(--color-text-secondary, #4A4A4A)', margin: 0, fontSize: '0.875rem', lineHeight: 1.5 }}>
           {puzzle.subtitle}
         </p>
       </header>
@@ -233,17 +265,40 @@ export default function Game({ puzzle, iata }: Props) {
             Par
           </div>
           <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--color-primary)' }}>
-            {puzzle.par} hops
+            {puzzle.par} stops
           </div>
         </div>
       </div>
 
-      {/* Mode toggle */}
-      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '1rem' }}>
-        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.875rem' }}>
-          <input type="checkbox" checked={easyMode} onChange={(e) => setEasyMode(e.target.checked)} style={{ accentColor: 'var(--color-primary)' }} />
-          Easy mode (show valid next codes)
-        </label>
+      {/* Difficulty picker */}
+      <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: '0.75rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-secondary)', fontWeight: 700, marginRight: '0.25rem' }}>
+          Difficulty
+        </span>
+        {(['easy', 'medium', 'hard'] as const).map((d) => {
+          const active = difficulty === d
+          const label = d === 'easy' ? 'Easy (guided)' : d === 'medium' ? 'Medium (all options)' : 'Hard (blind)'
+          return (
+            <button
+              key={d}
+              type="button"
+              onClick={() => setDifficulty(d)}
+              style={{
+                padding: '0.375rem 0.875rem',
+                fontSize: '0.8125rem',
+                fontWeight: 600,
+                border: `1px solid ${active ? 'var(--color-primary)' : 'var(--color-border-soft)'}`,
+                background: active ? 'var(--color-primary)' : '#fff',
+                color: active ? '#fff' : 'var(--color-text-primary)',
+                borderRadius: 'var(--radius-ui)',
+                cursor: 'pointer',
+                fontFamily: 'var(--font-ui)',
+              }}
+            >
+              {label}
+            </button>
+          )
+        })}
       </div>
 
       {/* Chain */}
@@ -269,7 +324,7 @@ export default function Game({ puzzle, iata }: Props) {
       {!isWon && (
         <div style={{ border: '1px solid var(--color-border-soft)', borderRadius: 'var(--radius-card)', padding: '1rem 1.25rem', marginBottom: '1.25rem' }}>
           <div style={{ fontSize: '0.75rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-secondary)', fontWeight: 700, marginBottom: '0.5rem' }}>
-            Step {hopsTaken + 1} — change one letter of {current}
+            Stop {stopsTaken + 1} — change one letter of {current}
           </div>
 
           {revealedHints.size > 0 && (
@@ -325,13 +380,15 @@ export default function Game({ puzzle, iata }: Props) {
             <div style={{ marginTop: '0.625rem', fontSize: '0.8125rem', color: '#c0392b' }}>{error}</div>
           )}
 
-          {easyMode && validNeighbors.length > 0 && (
+          {difficulty !== 'hard' && filteredNeighbors.length > 0 && (
             <div style={{ marginTop: '0.875rem' }}>
               <div style={{ fontSize: '0.6875rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-secondary)', fontWeight: 700, marginBottom: '0.375rem' }}>
-                Valid next codes ({validNeighbors.length})
+                {difficulty === 'easy'
+                  ? `Stops that move Amanda closer (${filteredNeighbors.length})`
+                  : `Valid next codes (${filteredNeighbors.length})`}
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
-                {validNeighbors.map((nb) => {
+                {filteredNeighbors.map((nb) => {
                   const e = byCode.get(nb)
                   return (
                     <button
@@ -358,17 +415,28 @@ export default function Game({ puzzle, iata }: Props) {
               </div>
             </div>
           )}
+          {difficulty === 'easy' && filteredNeighbors.length === 0 && validNeighbors.length > 0 && !isWon && (
+            <div style={{ marginTop: '0.875rem', fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
+              No single-letter swap aligns another goal letter from here. Switch to <strong>Medium</strong> to see all valid options, or use a hint.
+            </div>
+          )}
         </div>
       )}
 
       {/* Won state */}
       {isWon && (
         <div style={{ padding: '1.25rem 1.5rem', background: '#eaf6ee', border: '1px solid #2e7d4f', borderRadius: 'var(--radius-card)', marginBottom: '1.25rem' }}>
-          <div style={{ fontSize: '1.125rem', fontWeight: 700, color: '#2e7d4f', marginBottom: '0.25rem' }}>
-            You made it. {hopsTaken} hop{hopsTaken === 1 ? '' : 's'}.
-          </div>
+          {puzzle.story?.win ? (
+            <div style={{ fontSize: '1rem', color: 'var(--color-text-primary)', lineHeight: 1.55, marginBottom: '0.5rem' }}>
+              {puzzle.story.win.replace('{stops}', String(stopsTaken))}
+            </div>
+          ) : (
+            <div style={{ fontSize: '1.125rem', fontWeight: 700, color: '#2e7d4f', marginBottom: '0.25rem' }}>
+              You made it. {stopsTaken} stop{stopsTaken === 1 ? '' : 's'}.
+            </div>
+          )}
           <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
-            {hopsTaken === puzzle.par ? 'Right on par.' : hopsTaken < puzzle.par ? 'Under par — nice work.' : `${hopsTaken - puzzle.par} over par. The shortest route is ${puzzle.par}.`}
+            {stopsTaken === puzzle.par ? 'Right on par.' : stopsTaken < puzzle.par ? 'Under par — nice work.' : `${stopsTaken - puzzle.par} over par. The shortest route is ${puzzle.par}.`}
           </div>
           <div style={{ marginTop: '0.625rem' }}>
             <button type="button" onClick={handleReset} className="rg-btn-secondary" style={{ padding: '0.4375rem 1rem' }}>
@@ -381,8 +449,13 @@ export default function Game({ puzzle, iata }: Props) {
       {/* Give-up reveal */}
       {givenUp && (
         <div style={{ padding: '1rem 1.25rem', background: 'var(--color-background-soft)', border: '1px solid var(--color-border-soft)', borderRadius: 'var(--radius-card)', marginBottom: '1.25rem' }}>
+          {puzzle.story?.give_up && (
+            <p style={{ fontSize: '0.9375rem', color: 'var(--color-text-primary)', margin: '0 0 0.75rem', lineHeight: 1.5 }}>
+              {puzzle.story.give_up}
+            </p>
+          )}
           <div style={{ fontSize: '0.75rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-secondary)', fontWeight: 700, marginBottom: '0.5rem' }}>
-            One valid path ({givenUp.length - 1} hops)
+            One valid route ({givenUp.length - 1} stops)
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
             {givenUp.map((code, i) => (

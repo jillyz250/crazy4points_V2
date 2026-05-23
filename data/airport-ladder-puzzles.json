@@ -2,11 +2,16 @@
   {
     "slug": "jfk-to-las-2026-05-23",
     "week_of": "2026-05-18",
-    "title": "Coast-to-Coast Ladder",
+    "title": "Amanda's Late for the Interview",
     "subtitle": "Get from JFK to LAS by changing one letter at a time. Every step has to be a real airport code.",
     "start": "JFK",
     "goal": "LAS",
     "par": 3,
-    "sample_path": ["JFK", "LFK", "LAK", "LAS"]
+    "sample_path": ["JFK", "LFK", "LAK", "LAS"],
+    "story": {
+      "intro": "Amanda has 18 hours to get from New York (JFK) to a 5pm Friday job interview in Las Vegas (LAS). The catch: the only flights she can find route through the strangest set of airports you've ever heard of. Help her plan the route — one letter at a time, each stop has to be a real airport. Get her there before the recruiter gives up.",
+      "win": "Phew. Amanda made it in {stops} stops, walked in five minutes before the interview, and absolutely nailed it. She's jetsetting next week — and now thinks of you as her lucky travel agent.",
+      "give_up": "Amanda's still in transit somewhere over the heartland. Here's one route she could have taken — call her and let her know."
+    }
   }
 ]
