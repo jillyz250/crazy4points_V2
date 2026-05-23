@@ -107,7 +107,9 @@ export default async function NewsletterAdminPage({
   if (current && current.status !== 'sent') {
     try {
       const inputs = await getNewsletterInputs()
-      candidates = inputs.alerts.map((a) => ({
+      // Top 5 candidates only — keeps the picker scannable and aligned with
+      // the editorial cadence Jill described (pick from 5).
+      candidates = inputs.alerts.slice(0, 5).map((a) => ({
         id: a.id,
         title: a.title,
         slug: a.slug,
