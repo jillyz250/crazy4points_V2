@@ -312,17 +312,39 @@ export default function NewsletterEditor({
         }}>{error ?? message}</div>
       )}
 
-      {/* Subject */}
+      {/* 1. Pick the lead — Jill picks 1-of-5 alerts before anything else */}
+      <div style={sectionStyle}>
+        <label style={labelStyle}>① Pick the lead alert</label>
+        <p style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)', margin: '0 0 0.625rem' }}>
+          Pick this week&apos;s lead from the {bigStoryCandidates.length} published alert{bigStoryCandidates.length === 1 ? '' : 's'} below. Subject lines and the Big Story article will both be derived from your pick.
+        </p>
+        {slots.big_story_ref_id && slots.big_story_ref_type === 'alert' ? (
+          <LockedBigStoryCard
+            candidate={bigStoryCandidates.find((c) => c.id === slots.big_story_ref_id) ?? null}
+            lockedId={slots.big_story_ref_id}
+            disabled={isSent || isPending}
+            onUnlock={handleUnlockBigStory}
+          />
+        ) : (
+          <BigStoryPicker
+            candidates={bigStoryCandidates}
+            disabled={isSent || isPending}
+            onLock={handleLockBigStory}
+          />
+        )}
+      </div>
+
+      {/* 2. Subject line — anchored to the locked alert */}
       <div style={sectionStyle}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '0.75rem', marginBottom: '0.5rem' }}>
-          <label style={{ ...labelStyle, marginBottom: 0 }}>Subject line</label>
+          <label style={{ ...labelStyle, marginBottom: 0 }}>② Subject line</label>
           {!isSent && (
             <button
               type="button"
               onClick={handleGenerateSubjects}
               disabled={isPending || !slots.big_story_ref_id}
               style={slots.big_story_ref_id ? btnSecondary : { ...btnSecondary, opacity: 0.5, cursor: 'not-allowed' }}
-              title={slots.big_story_ref_id ? 'Generate 5 punchy options anchored to the locked Big Story' : 'Lock a Big Story first'}
+              title={slots.big_story_ref_id ? 'Generate 5 punchy options anchored to the locked lead' : 'Lock a lead alert first'}
             >
               {slots.subject_options.length > 0 ? 'Regenerate headlines' : 'Generate headlines'}
             </button>
@@ -330,7 +352,7 @@ export default function NewsletterEditor({
         </div>
         {!slots.big_story_ref_id && !isSent && (
           <p style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)', margin: '0 0 0.625rem' }}>
-            Lock a Big Story below first — subject options will anchor to it.
+            Lock a lead alert above first — subject options will anchor to it.
           </p>
         )}
         {slots.subject_options.length > 0 && (
@@ -349,6 +371,40 @@ export default function NewsletterEditor({
           onChange={(e) => patch('subject', e.target.value)}
           placeholder="Type a custom subject"
           className="admin-input"
+          disabled={isSent}
+        />
+      </div>
+
+      {/* 3. Big Story article — anchored to locked alert + chosen subject */}
+      <div style={sectionStyle}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '0.75rem', marginBottom: '0.5rem' }}>
+          <label style={{ ...labelStyle, marginBottom: 0 }}>③ 🚨 Big Story article</label>
+          {!isSent && (
+            <button
+              type="button"
+              onClick={handleGenerateBigStory}
+              disabled={isPending || !slots.big_story_ref_id}
+              style={slots.big_story_ref_id ? btnPrimary : { ...btnPrimary, opacity: 0.5, cursor: 'not-allowed' }}
+              title={slots.big_story_ref_id ? 'Write the ~150-word article body around the locked lead + chosen subject' : 'Lock a lead alert first'}
+            >
+              {slots.big_story_html ? 'Regenerate Big Story' : 'Generate Big Story'}
+            </button>
+          )}
+        </div>
+        {!slots.big_story_ref_id && !isSent && (
+          <p style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)', margin: '0 0 0.5rem' }}>
+            Lock a lead alert above first.
+          </p>
+        )}
+        <p style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)', margin: '0 0 0.5rem' }}>
+          ~150 words, plain HTML. Use {'<p>'} for paragraphs and one {'<ul>'} of bullets. The renderer adds the section heading. Edit freely after generation.
+        </p>
+        <textarea
+          value={slots.big_story_html ?? ''}
+          onChange={(e) => patch('big_story_html', e.target.value || null)}
+          placeholder="<p>Spirit went dark this week — full ground stop…</p>"
+          className="admin-input"
+          style={{ minHeight: '12rem', resize: 'vertical', lineHeight: 1.5, fontFamily: 'monospace', fontSize: '0.8125rem' }}
           disabled={isSent}
         />
       </div>
@@ -379,41 +435,6 @@ export default function NewsletterEditor({
           placeholder="Body copy under the title (one short sentence)"
           className="admin-input"
           style={{ minHeight: '3.5rem', resize: 'vertical', lineHeight: 1.5 }}
-          disabled={isSent}
-        />
-      </div>
-
-      {/* Big Story — NL1a: pick the lead first, then generate the article */}
-      <div style={sectionStyle}>
-        <label style={labelStyle}>🚨 The Big Story</label>
-
-        {/* Locked-lead card OR picker — mutually exclusive */}
-        {slots.big_story_ref_id && slots.big_story_ref_type === 'alert' ? (
-          <LockedBigStoryCard
-            candidate={bigStoryCandidates.find((c) => c.id === slots.big_story_ref_id) ?? null}
-            lockedId={slots.big_story_ref_id}
-            hasHtml={!!slots.big_story_html}
-            disabled={isSent || isPending}
-            onUnlock={handleUnlockBigStory}
-            onGenerate={handleGenerateBigStory}
-          />
-        ) : (
-          <BigStoryPicker
-            candidates={bigStoryCandidates}
-            disabled={isSent || isPending}
-            onLock={handleLockBigStory}
-          />
-        )}
-
-        <p style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)', margin: '0.875rem 0 0.5rem' }}>
-          ~150 words, plain HTML. Use {'<p>'} for paragraphs and one {'<ul>'} of bullets. The renderer adds the section heading. Edit freely after generation.
-        </p>
-        <textarea
-          value={slots.big_story_html ?? ''}
-          onChange={(e) => patch('big_story_html', e.target.value || null)}
-          placeholder="<p>Spirit went dark this week — full ground stop…</p>"
-          className="admin-input"
-          style={{ minHeight: '12rem', resize: 'vertical', lineHeight: 1.5, fontFamily: 'monospace', fontSize: '0.8125rem' }}
           disabled={isSent}
         />
       </div>
@@ -654,17 +675,13 @@ function BigStoryPicker({
 function LockedBigStoryCard({
   candidate,
   lockedId,
-  hasHtml,
   disabled,
   onUnlock,
-  onGenerate,
 }: {
   candidate: BigStoryCandidate | null
   lockedId: string
-  hasHtml: boolean
   disabled: boolean
   onUnlock: () => void
-  onGenerate: () => void
 }) {
   return (
     <div
@@ -675,7 +692,7 @@ function LockedBigStoryCard({
         marginBottom: 0,
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'flex-start' }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--admin-accent)', marginBottom: '0.25rem' }}>
             Locked lead
@@ -693,12 +710,7 @@ function LockedBigStoryCard({
             </div>
           )}
         </div>
-      </div>
-      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-        <button type="button" onClick={onGenerate} disabled={disabled || !candidate} style={btnPrimary}>
-          {hasHtml ? 'Regenerate Big Story' : 'Generate Big Story'}
-        </button>
-        <button type="button" onClick={onUnlock} disabled={disabled} style={btnGhost}>
+        <button type="button" onClick={onUnlock} disabled={disabled} style={{ ...btnGhost, flexShrink: 0 }}>
           Unlock
         </button>
       </div>

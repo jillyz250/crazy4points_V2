@@ -203,7 +203,7 @@ export async function generateBigStoryFromLockAction(id: string) {
     )
   }
 
-  const html = await writeBigStoryHtml(alert)
+  const html = await writeBigStoryHtml(alert, row.subject)
   if (!html) {
     throw new Error('Sonnet returned no Big Story HTML — see server logs.')
   }

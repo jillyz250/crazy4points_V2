@@ -44,7 +44,8 @@ HARD RULES
 - NEVER use "savvy", "insider", "hack", "game-changer", "must-know".
 - NEVER assert recurring cadence ("daily", "every Tuesday") unless the input explicitly says so.
 - NO links inside big_story_html — the reader stays in the email.
-- Paraphrase the alert's why_this_matters in voice; don't quote it verbatim.`
+- Paraphrase the alert's why_this_matters in voice; don't quote it verbatim.
+- If chosen_subject is non-null, treat it as a steering signal: the article's tone and lead sentence should echo the angle of that headline (curiosity question → lead with the question; deadline-focused → put the date front and center; etc.). Do NOT restate the subject line verbatim inside the article.`
 
 interface SonnetOutput {
   big_story_html?: string | null
@@ -65,6 +66,7 @@ function extractJson(text: string): string {
 
 export async function writeBigStoryHtml(
   alert: NewsletterAlertInput,
+  chosenSubject?: string | null,
 ): Promise<string | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
@@ -83,6 +85,11 @@ export async function writeBigStoryHtml(
         end_date: alert.end_date,
         published_at: alert.published_at,
       },
+      // When the editor has already picked a subject line, pass it in so the
+      // article's tone and lead sentence can echo the chosen headline's angle
+      // (curiosity, deadline, jab, etc.). Sonnet still writes a full article;
+      // the subject is a steering signal, not a constraint to repeat verbatim.
+      chosen_subject: chosenSubject?.trim() || null,
     },
     null,
     2,
