@@ -16,6 +16,7 @@ import {
   lockBigStoryAction,
   unlockBigStoryAction,
   generateBigStoryFromLockAction,
+  generateSubjectOptionsFromLockAction,
 } from './actions'
 import type { NewsletterSlots, AlsoHappeningItem, NewsletterSweetSpot, SweetSpotBestUse } from '@/utils/ai/newsletterSlots'
 import type { BigStoryCandidate } from './page'
@@ -246,6 +247,20 @@ export default function NewsletterEditor({
     })
   }
 
+  function handleGenerateSubjects() {
+    start(async () => {
+      try {
+        const res = await generateSubjectOptionsFromLockAction(id)
+        setSlots((prev) => ({
+          ...prev,
+          subject_options: res.options,
+          subject: res.options[0] ?? '',
+        }))
+        notify(`Generated ${res.options.length} subject options anchored to the Big Story.`)
+      } catch (e) { notify(e instanceof Error ? e.message : 'Generate failed', true) }
+    })
+  }
+
   function handleGenerateBigStory() {
     start(async () => {
       try {
@@ -299,7 +314,25 @@ export default function NewsletterEditor({
 
       {/* Subject */}
       <div style={sectionStyle}>
-        <label style={labelStyle}>Subject line</label>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '0.75rem', marginBottom: '0.5rem' }}>
+          <label style={{ ...labelStyle, marginBottom: 0 }}>Subject line</label>
+          {!isSent && (
+            <button
+              type="button"
+              onClick={handleGenerateSubjects}
+              disabled={isPending || !slots.big_story_ref_id}
+              style={slots.big_story_ref_id ? btnSecondary : { ...btnSecondary, opacity: 0.5, cursor: 'not-allowed' }}
+              title={slots.big_story_ref_id ? 'Generate 5 punchy options anchored to the locked Big Story' : 'Lock a Big Story first'}
+            >
+              {slots.subject_options.length > 0 ? 'Regenerate headlines' : 'Generate headlines'}
+            </button>
+          )}
+        </div>
+        {!slots.big_story_ref_id && !isSent && (
+          <p style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)', margin: '0 0 0.625rem' }}>
+            Lock a Big Story below first — subject options will anchor to it.
+          </p>
+        )}
         {slots.subject_options.length > 0 && (
           <div style={{ display: 'grid', gap: '0.375rem', marginBottom: '0.75rem' }}>
             {slots.subject_options.map((opt, i) => (

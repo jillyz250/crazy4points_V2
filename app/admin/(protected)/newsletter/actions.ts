@@ -7,6 +7,7 @@ import { renderNewsletterV2Html, formatWeekOf } from '@/utils/ai/newsletterEmail
 import type { NewsletterSlots } from '@/utils/ai/newsletterSlots'
 import { runBuildNewsletter, getNewsletterInputs } from '@/utils/ai/runBuildNewsletter'
 import { writeBigStoryHtml } from '@/utils/ai/writeBigStoryHtml'
+import { writeSubjectOptions } from '@/utils/ai/writeSubjectOptions'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 const FROM = process.env.RESEND_FROM ?? 'Crazy4Points <hello@crazy4points.com>'
@@ -142,6 +143,44 @@ export async function unlockBigStoryAction(id: string) {
   if (error) throw new Error(error.message)
   revalidatePath('/admin/newsletter')
   return { ok: true as const }
+}
+
+export async function generateSubjectOptionsFromLockAction(id: string) {
+  const { row } = await loadSlotRow(id)
+  if (row.status === 'sent') {
+    throw new Error('This newsletter has already been sent.')
+  }
+  if (!row.big_story_ref_id || row.big_story_ref_type !== 'alert') {
+    throw new Error('Lock a Big Story first — subject lines anchor to it.')
+  }
+
+  const inputs = await getNewsletterInputs()
+  const alert = inputs.alerts.find((a) => a.id === row.big_story_ref_id)
+  if (!alert) {
+    throw new Error(
+      'Locked alert is no longer in the eligible pool (older than 7 days or unpublished). Unlock and pick a new lead.',
+    )
+  }
+
+  const options = await writeSubjectOptions(alert)
+  if (!options || options.length === 0) {
+    throw new Error('Sonnet returned no usable subject options — see server logs.')
+  }
+
+  const supabase = createAdminClient()
+  const { error } = await supabase
+    .from('newsletters')
+    .update({
+      subject_options: options,
+      // Reset the chosen subject to the first option so the radio doesn't
+      // point at a stale value Sonnet just overwrote.
+      subject: options[0],
+    })
+    .eq('id', id)
+    .neq('status', 'sent')
+  if (error) throw new Error(error.message)
+  revalidatePath('/admin/newsletter')
+  return { ok: true as const, options }
 }
 
 export async function generateBigStoryFromLockAction(id: string) {
