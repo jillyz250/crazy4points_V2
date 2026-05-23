@@ -14,6 +14,12 @@ interface Puzzle {
   goal: string
   par: number
   sample_path: string[]
+  story?: {
+    intro: string
+    /** May include {stops} token, replaced with the hop count at win time. */
+    win: string
+    give_up: string
+  }
 }
 
 interface IataEntry {
