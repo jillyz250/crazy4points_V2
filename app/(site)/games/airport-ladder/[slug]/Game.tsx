@@ -278,7 +278,7 @@ export default function Game({ puzzle, iata }: Props) {
           How it works
         </div>
         <p style={{ margin: '0 0 0.5rem', fontSize: '0.9375rem', lineHeight: 1.5, color: 'var(--color-text-primary)' }}>
-          <strong>This is a word puzzle on the airport codes — you&apos;re not booking real flights.</strong> Each step changes exactly one letter of the code, and the new three-letter combo has to be a real IATA airport somewhere in the world.
+          <strong>It&apos;s not the location that matters — it&apos;s the letters.</strong> Each step swaps one letter of the code, and the new three-letter combo has to be a real IATA airport somewhere in the world. You&apos;re solving a word puzzle on the codes themselves, not booking real flights.
         </p>
         <p style={{ margin: '0 0 0.625rem', fontSize: '0.9375rem', lineHeight: 1.5, color: 'var(--color-text-primary)' }}>
           For example, from {puzzle.start} a valid first move would be to change the J to an L → <strong>LFK</strong> (Lufkin, Texas — a real airport, so the move counts). Now you&apos;re at LFK and have to change one letter again, then again, until you land on {puzzle.goal}.
