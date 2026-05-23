@@ -270,6 +270,26 @@ export default function Game({ puzzle, iata }: Props) {
         </p>
       </header>
 
+      {/* How it works — fixes the most common confusion: players assume
+          they're routing a real flight. They're not. It's a word puzzle on
+          the codes themselves. */}
+      <div style={{ background: 'var(--color-background-soft, #F8F5FB)', border: '1px solid var(--color-border-soft, #E6DEEE)', borderRadius: 'var(--radius-card, 0.75rem)', padding: '1rem 1.25rem', marginBottom: '1rem' }}>
+        <div style={{ fontSize: '0.6875rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-primary, #6B2D8F)', fontWeight: 700, marginBottom: '0.5rem' }}>
+          How it works
+        </div>
+        <p style={{ margin: '0 0 0.5rem', fontSize: '0.9375rem', lineHeight: 1.5, color: 'var(--color-text-primary)' }}>
+          <strong>This is a word puzzle on the airport codes — you&apos;re not booking real flights.</strong> Each step changes exactly one letter of the code, and the new three-letter combo has to be a real IATA airport somewhere in the world. Country doesn&apos;t matter.
+        </p>
+        <p style={{ margin: '0 0 0.625rem', fontSize: '0.9375rem', lineHeight: 1.5, color: 'var(--color-text-primary)' }}>
+          For example, from {puzzle.start} a valid first move would be to change the J to an L → <strong>LFK</strong> (Lufkin, Texas — a real airport, so the move counts). Now you&apos;re at LFK and have to change one letter again, then again, until you land on {puzzle.goal}.
+        </p>
+        <ul style={{ margin: '0', paddingLeft: '1.25rem', fontSize: '0.875rem', color: 'var(--color-text-secondary)', lineHeight: 1.55 }}>
+          <li>Change exactly <strong>one</strong> letter per move.</li>
+          <li>Each new three-letter code must be a real IATA airport.</li>
+          <li>Get from {puzzle.start} to {puzzle.goal} in 6 moves or fewer.</li>
+        </ul>
+      </div>
+
       {/* Goal panel */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', padding: '1rem 1.25rem', background: 'var(--color-background-soft, #F8F5FB)', border: '1px solid var(--color-border-soft, #E6DEEE)', borderRadius: 'var(--radius-card, 0.75rem)', marginBottom: '1.5rem' }}>
         <div>
