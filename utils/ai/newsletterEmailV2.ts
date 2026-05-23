@@ -96,7 +96,7 @@ function renderGame(game: NewsletterSlots['game'], origin: string): string {
     : ''
   return `
     <tr><td style="padding:32px 28px 0;">
-      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:2px solid ${PURPLE};border-radius:12px;background:${SOFT_BG};">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:3px dashed ${PURPLE};border-radius:14px;background:${SOFT_BG};">
         <tr><td style="padding:22px 24px;">
           <p style="margin:0 0 6px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${PURPLE};font-weight:700;">Game of the Week</p>
           <h2 style="margin:0 0 10px;font-family:${FONT_DISPLAY};font-size:24px;line-height:1.2;color:${PURPLE};">${title}</h2>
