@@ -168,9 +168,11 @@ function renderSweetSpot(sp: NewsletterSweetSpot | null): string {
         </li>`,
     )
     .join('')
-  const explainer = sp.mechanic_explainer
-    ? `<p style="margin:0 0 14px;font-family:${FONT_BODY};font-size:15px;line-height:1.65;color:${BODY};">${esc(sp.mechanic_explainer)}</p>`
-    : ''
+  // Pass through bodyHtml so the explainer supports admin-pasted HTML
+  // (e.g. <strong>, <ul>, <em>) AND auto-strips stale "What this means
+  // for you" header paragraphs. Falls back to paragraph-wrapping plain
+  // text for legacy entries.
+  const explainer = sp.mechanic_explainer ? bodyHtml(sp.mechanic_explainer) : ''
   return `
     <tr><td style="padding:32px 28px 0;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:2px solid ${GOLD};border-radius:12px;background:${SOFT_BG};">
