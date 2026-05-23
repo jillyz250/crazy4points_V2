@@ -19,6 +19,7 @@ import {
   generateSubjectOptionsFromLockAction,
   lockSweetSpotAction,
   unlockSweetSpotAction,
+  generateSweetSpotFromLockAction,
 } from './actions'
 import type { NewsletterSlots, AlsoHappeningItem, NewsletterSweetSpot, SweetSpotBestUse } from '@/utils/ai/newsletterSlots'
 import type { BigStoryCandidate } from './page'
@@ -44,7 +45,7 @@ interface Props {
 
 /** What's currently running, so we can surface inline progress + disable the
  *  buttons that would conflict. null = idle. */
-type PendingTarget = 'subjects' | 'big-story' | 'lock' | 'unlock' | 'save' | 'run' | 'test' | 'blast' | null
+type PendingTarget = 'subjects' | 'big-story' | 'sweet-spot' | 'lock' | 'unlock' | 'save' | 'run' | 'test' | 'blast' | null
 
 const labelStyle: React.CSSProperties = {
   display: 'block',
@@ -293,6 +294,18 @@ export default function NewsletterEditor({
     })
   }
 
+  function handleGenerateSweetSpot() {
+    setPendingTarget('sweet-spot')
+    start(async () => {
+      try {
+        const res = await generateSweetSpotFromLockAction(id)
+        setSlots((prev) => ({ ...prev, sweet_spot: res.sweet_spot }))
+        notify('Sweet Spot written.')
+      } catch (e) { notify(e instanceof Error ? e.message : 'Generate failed', true) }
+      setPendingTarget(null)
+    })
+  }
+
   function handleUnlockSweetSpot() {
     if (!confirm('Unlock Sweet Spot? The current Sweet Spot prose will also be cleared.')) return
     setPendingTarget('unlock')
@@ -527,11 +540,28 @@ export default function NewsletterEditor({
 
       {/* Sweet Spot */}
       <div style={sectionStyle}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '0.75rem', marginBottom: '0.5rem' }}>
           <label style={{ ...labelStyle, marginBottom: 0 }}>⭐ Sweet Spot of the Week</label>
-          {slots.sweet_spot && !isSent && (
-            <button type="button" onClick={clearSweetSpot} style={btnGhost}>Hide section</button>
-          )}
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            {!isSent && (
+              <button
+                type="button"
+                onClick={handleGenerateSweetSpot}
+                disabled={isPending || !sweetSpotRefId}
+                style={sweetSpotRefId ? btnPrimary : { ...btnPrimary, opacity: 0.5, cursor: 'not-allowed' }}
+                title={sweetSpotRefId ? 'Write the Sweet Spot prose around the locked alert (without touching other slots)' : 'Lock a Sweet Spot alert first'}
+              >
+                {pendingTarget === 'sweet-spot'
+                  ? 'Writing…'
+                  : slots.sweet_spot
+                    ? 'Regenerate Sweet Spot'
+                    : 'Generate Sweet Spot'}
+              </button>
+            )}
+            {slots.sweet_spot && !isSent && (
+              <button type="button" onClick={clearSweetSpot} style={btnGhost}>Hide section</button>
+            )}
+          </div>
         </div>
         <p style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)', margin: '0 0 0.625rem' }}>
           Deep-dive value-add card. Topic + mechanic explainer + 3-4 specific best uses. Empty topic = section hidden.

@@ -8,6 +8,7 @@ import type { NewsletterSlots } from '@/utils/ai/newsletterSlots'
 import { runBuildNewsletter, getNewsletterInputs } from '@/utils/ai/runBuildNewsletter'
 import { writeBigStoryHtml } from '@/utils/ai/writeBigStoryHtml'
 import { writeSubjectOptions } from '@/utils/ai/writeSubjectOptions'
+import { writeSweetSpotProse } from '@/utils/ai/writeSweetSpotProse'
 import { verifyBigStoryDraft } from '@/utils/ai/verifyBigStoryDraft'
 import type { MissingFact } from '@/utils/ai/verifyBigStoryDraft'
 import type { VerifyClaim } from '@/utils/ai/verifyAlertDraft'
@@ -180,6 +181,47 @@ export async function lockSweetSpotAction(id: string, alertId: string) {
   if (error) throw new Error(error.message)
   revalidatePath('/admin/newsletter')
   return { ok: true as const }
+}
+
+export async function generateSweetSpotFromLockAction(id: string) {
+  const { row } = await loadSlotRow(id)
+  if (row.status === 'sent') {
+    throw new Error('This newsletter has already been sent.')
+  }
+  if (!row.sweet_spot_ref_id || row.sweet_spot_ref_type !== 'alert') {
+    throw new Error('No alert is locked as the Sweet Spot anchor. Pick one first.')
+  }
+
+  const inputs = await getNewsletterInputs()
+  const alert = inputs.alerts.find((a) => a.id === row.sweet_spot_ref_id)
+  if (!alert) {
+    throw new Error(
+      'Locked Sweet Spot alert is no longer in the eligible pool (older than 7 days or unpublished). Unlock and pick a new one.',
+    )
+  }
+
+  const supabase = createAdminClient()
+  const { data: alertRow } = await supabase
+    .from('alerts')
+    .select('verified_terms')
+    .eq('id', alert.id)
+    .maybeSingle()
+  const verifiedTerms =
+    (alertRow as { verified_terms?: string | null } | null)?.verified_terms ?? null
+
+  const sweetSpot = await writeSweetSpotProse(alert, verifiedTerms)
+  if (!sweetSpot) {
+    throw new Error('Sonnet returned no Sweet Spot prose — see server logs.')
+  }
+
+  const { error } = await supabase
+    .from('newsletters')
+    .update({ sweet_spot: sweetSpot })
+    .eq('id', id)
+    .neq('status', 'sent')
+  if (error) throw new Error(error.message)
+  revalidatePath('/admin/newsletter')
+  return { ok: true as const, sweet_spot: sweetSpot }
 }
 
 export async function unlockSweetSpotAction(id: string) {
