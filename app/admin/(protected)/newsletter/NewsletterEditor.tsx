@@ -110,6 +110,11 @@ export default function NewsletterEditor({
   function notify(msg: string, err = false) {
     if (err) { setError(msg); setMessage(null) }
     else { setMessage(msg); setError(null) }
+    // Scroll-to-top rule: every notify means an action just completed,
+    // and the new content / chips are at the top of the page. Smooth-
+    // scroll back so the result is visible instead of leaving the user
+    // parked next to the button they clicked.
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   function patch<K extends keyof NewsletterSlots>(key: K, value: NewsletterSlots[K]) {

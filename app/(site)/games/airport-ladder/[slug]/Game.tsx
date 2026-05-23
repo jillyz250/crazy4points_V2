@@ -233,6 +233,9 @@ export default function Game({ puzzle, iata }: Props) {
       ? puzzle.sample_path
       : bfs(puzzle.start, puzzle.goal, codeSet)
     setGivenUp(path)
+    // Scroll-to-top rule: any major state change should put the user back
+    // at the top so the new content is visible.
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [codeSet, puzzle.goal, puzzle.sample_path, puzzle.start])
 
   const handleReset = useCallback(() => {
@@ -242,6 +245,7 @@ export default function Game({ puzzle, iata }: Props) {
     setRevealedHints(new Set())
     setHardModeChipsRevealed(false)
     setGivenUp(null)
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [puzzle.start])
 
   return (
@@ -277,17 +281,17 @@ export default function Game({ puzzle, iata }: Props) {
         <div style={{ fontSize: '0.6875rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-primary, #6B2D8F)', fontWeight: 700, marginBottom: '0.5rem' }}>
           Rules
         </div>
-        <p style={{ margin: '0 0 0.5rem', fontSize: '0.9375rem', lineHeight: 1.5, color: 'var(--color-text-primary)' }}>
-          <strong>It&apos;s not the location that matters — it&apos;s the letters.</strong>{' '}Each step swaps one letter of the code, and the new three-letter combo has to be a real airport code somewhere in the world. You&apos;re solving a word puzzle on the codes themselves, not booking real flights.
-        </p>
-        <p style={{ margin: '0 0 0.625rem', fontSize: '0.9375rem', lineHeight: 1.5, color: 'var(--color-text-primary)' }}>
-          For example: <strong>ATL</strong> (Atlanta) and <strong>ATH</strong> (Athens, Greece) are one letter apart — change the L to an H and you&apos;ve made a valid move, because ATH is a real airport. Different country, different continent — doesn&apos;t matter. The letters are what counts.
-        </p>
-        <ul style={{ margin: '0', paddingLeft: '1.25rem', fontSize: '0.875rem', color: 'var(--color-text-primary)', lineHeight: 1.55, fontWeight: 700 }}>
+        <ul style={{ margin: '0 0 0.75rem', paddingLeft: '1.25rem', fontSize: '0.875rem', color: 'var(--color-text-primary)', lineHeight: 1.55, fontWeight: 700 }}>
           <li>You can only change ONE letter per move.</li>
           <li>Each new three-letter code must be a real airport code.</li>
           <li>Get from {puzzle.start} to {puzzle.goal} in 6 moves or fewer.</li>
         </ul>
+        <p style={{ margin: '0 0 0.5rem', fontSize: '0.9375rem', lineHeight: 1.5, color: 'var(--color-text-primary)' }}>
+          <strong>It&apos;s not the location that matters — it&apos;s the letters.</strong>{' '}Each step swaps one letter of the code, and the new three-letter combo has to be a real airport code somewhere in the world. You&apos;re solving a word puzzle on the codes themselves, not booking real flights.
+        </p>
+        <p style={{ margin: '0', fontSize: '0.9375rem', lineHeight: 1.5, color: 'var(--color-text-primary)' }}>
+          For example: <strong>ATL</strong> (Atlanta) and <strong>ATH</strong> (Athens, Greece) are one letter apart — change the L to an H and you&apos;ve made a valid move, because ATH is a real airport. Different country, different continent — doesn&apos;t matter. The letters are what counts.
+        </p>
       </div>
 
       {/* Goal panel */}
