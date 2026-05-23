@@ -116,12 +116,21 @@ export default function NewsletterEditor({
   const [error, setError] = useState<string | null>(null)
   const [isPending, start] = useTransition()
   const [pendingTarget, setPendingTarget] = useState<PendingTarget>(null)
+  // Live-preview cache buster. Increment on Save / Generate / Lock /
+  // Unlock so the embedded iframe re-fetches the latest render of the
+  // newsletter from the DB. Hand-edit via "Refresh preview" button.
+  const [previewBust, setPreviewBust] = useState(() => Date.now())
 
   const isSent = status === 'sent'
 
   function notify(msg: string, err = false) {
     if (err) { setError(msg); setMessage(null) }
-    else { setMessage(msg); setError(null) }
+    else {
+      setMessage(msg); setError(null)
+      // Every successful action just changed the DB → bust the iframe
+      // cache so the preview re-fetches and shows the new state.
+      setPreviewBust(Date.now())
+    }
     // Scroll-to-top rule: every notify means an action just completed,
     // and the new content / chips are at the top of the page. Smooth-
     // scroll back so the result is visible instead of leaving the user
@@ -403,6 +412,49 @@ export default function NewsletterEditor({
           fontSize: '0.875rem',
         }}>{error ?? message}</div>
       )}
+
+      {/* Live preview — embedded iframe shows the rendered email as
+          subscribers will see it. Auto-refreshes on any save/lock/generate
+          action (notify() bumps previewBust). Manual refresh button + open-
+          in-new-tab link for full-window inspection. */}
+      <div style={sectionStyle}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '0.75rem', marginBottom: '0.5rem' }}>
+          <label style={{ ...labelStyle, marginBottom: 0 }}>Live preview</label>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button
+              type="button"
+              onClick={() => setPreviewBust(Date.now())}
+              style={btnGhost}
+              title="Force reload the preview iframe"
+            >
+              ↻ Refresh
+            </button>
+            <a
+              href={`/admin/newsletter/preview/${id}?v=${previewBust}`}
+              target="_blank"
+              rel="noopener"
+              style={{ ...btnGhost, textDecoration: 'none', display: 'inline-block' }}
+              title="Open in a full window for inspection"
+            >
+              Open in new tab ↗
+            </a>
+          </div>
+        </div>
+        <p style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)', margin: '0 0 0.625rem' }}>
+          This is the actual email subscribers will receive — refreshes after every save / generate / lock action.
+        </p>
+        <iframe
+          title="Newsletter preview"
+          src={`/admin/newsletter/preview/${id}?v=${previewBust}`}
+          style={{
+            width: '100%',
+            height: '720px',
+            border: '1px solid var(--admin-border)',
+            borderRadius: 'var(--admin-radius)',
+            background: '#fff',
+          }}
+        />
+      </div>
 
       {/* 1. Pick the lead — Jill picks 1-of-5 alerts before anything else */}
       <div style={sectionStyle}>
