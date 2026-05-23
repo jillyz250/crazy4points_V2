@@ -615,12 +615,12 @@ export default function NewsletterEditor({
               style={{ marginBottom: '0.375rem' }}
               disabled={isSent}
             />
-            <input
-              type="text"
+            <textarea
               value={u.why}
               onChange={(e) => updateSweetSpotUse(i, { why: e.target.value })}
               placeholder="Why this is a great use (1 sentence, with the math)"
               className="admin-input"
+              style={{ minHeight: '3.25rem', resize: 'vertical', lineHeight: 1.5 }}
               disabled={isSent}
             />
             {!isSent && (
