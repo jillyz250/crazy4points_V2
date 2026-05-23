@@ -122,7 +122,7 @@ function renderBigStory(slots: NewsletterSlots, origin: string): string {
   // with Sweet Spot's gold accent.
   return `
     <tr><td style="padding:24px 28px 0;">
-      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:${SOFT_BG};border-radius:12px;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:${SOFT_BG};border:1px solid ${BORDER};border-radius:12px;">
         <tr><td style="padding:26px 28px 18px;">
           ${headline}
           ${bodyHtml(slots.big_story_html)}
