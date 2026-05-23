@@ -331,8 +331,10 @@ export function renderNewsletterV2Html({
 
         <!-- Footer -->
         <tr><td style="padding:32px 28px 32px;border-top:1px solid ${BORDER};background:${SOFT_BG};text-align:center;margin-top:24px;">
-          <p style="margin:0 0 8px;font-family:${FONT_UI};font-size:13px;color:${MUTED};">Forward this to a friend who's better at points than you.</p>
-          <p style="margin:0;font-family:${FONT_UI};font-size:11px;color:${MUTED};">crazy4points.com · <a href="${recipientEmail ? unsubscribeUrlFor(recipientEmail, origin) : `${origin}/unsubscribe`}" style="color:${MUTED};text-decoration:underline;">Unsubscribe</a></p>
+          <p style="margin:0 0 14px;font-family:${FONT_UI};font-size:13px;color:${MUTED};">Forward this to a friend who's better at points than you.</p>
+          <p style="margin:0 0 10px;font-family:${FONT_UI};font-size:11px;color:${MUTED};line-height:1.55;">Heads up: some links here may be affiliate links. If you apply for a card through them, we may earn a commission at no cost to you &mdash; it helps keep the lights on. Editorial picks are never for sale, and always double-check terms with the issuer before you transfer points or apply.</p>
+          <p style="margin:0 0 14px;font-family:${FONT_UI};font-size:11px;color:${MUTED};line-height:1.55;">Content is informational, not financial advice.</p>
+          <p style="margin:0;font-family:${FONT_UI};font-size:11px;color:${MUTED};">crazy4points.com &middot; <a href="${origin}/privacy" style="color:${MUTED};text-decoration:underline;">Privacy</a> &middot; <a href="${origin}/affiliate-disclosure" style="color:${MUTED};text-decoration:underline;">Affiliate Disclosure</a> &middot; <a href="${recipientEmail ? unsubscribeUrlFor(recipientEmail, origin) : `${origin}/unsubscribe`}" style="color:${MUTED};text-decoration:underline;">Unsubscribe</a></p>
         </td></tr>
 
       </table>
