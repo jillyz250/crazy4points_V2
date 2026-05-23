@@ -251,11 +251,10 @@ export function renderNewsletterV2Html({
     </td></tr>`
     : ''
 
-  // Hero kicker now serves as the editorial one-liner (per design-pass-2
-  // critique — Morning Brew-style "today we're talking about…" line that
-  // tells readers what's in this issue before they scroll).
+  // Hero kicker is the editorial one-liner that tells readers what this
+  // issue is about. Italic Playfair, centered to match pass-3 hero.
   const heroKickerLine = slots.hero_kicker
-    ? `<p style="margin:14px 0 0;font-family:${FONT_DISPLAY};font-size:20px;line-height:1.3;color:${PURPLE};">${esc(slots.hero_kicker)}</p>`
+    ? `<p style="margin:14px auto 0;max-width:480px;font-family:${FONT_DISPLAY};font-size:18px;line-height:1.4;color:${PURPLE};font-style:italic;">${esc(slots.hero_kicker)}</p>`
     : ''
 
   return `<!DOCTYPE html>
@@ -273,19 +272,13 @@ export function renderNewsletterV2Html({
 
         ${previewBanner}
 
-        <!-- Hero (design pass 2 — left-aligned logo + right-aligned dateline,
-             editorial one-liner below, hairline divider instead of gold bar) -->
-        <tr><td style="padding:22px 28px 18px;background:${SOFT_BG};">
-          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-            <tr>
-              <td style="vertical-align:middle;">
-                <img src="${logoUrl}" alt="Crazy4Points" width="140" style="display:block;width:140px;max-width:140px;height:auto;" />
-              </td>
-              <td style="vertical-align:middle;text-align:right;">
-                <p style="margin:0;font-family:${FONT_UI};font-size:10px;letter-spacing:2.5px;text-transform:uppercase;color:${MUTED};font-weight:700;">Week of ${esc(weekOf)}</p>
-              </td>
-            </tr>
-          </table>
+        <!-- Hero (design pass 3 — centered, tighter, bigger logo. The two-
+             column experiment from pass 2 left too much disconnected
+             whitespace; centered with deliberate vertical rhythm reads
+             cleaner.) -->
+        <tr><td style="padding:28px 28px 22px;background:${SOFT_BG};text-align:center;">
+          <img src="${logoUrl}" alt="Crazy4Points" width="240" style="display:block;margin:0 auto;width:240px;max-width:75%;height:auto;" />
+          <p style="margin:10px 0 0;font-family:${FONT_UI};font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:${MUTED};font-weight:700;">Week of ${esc(weekOf)}</p>
           ${heroKickerLine}
         </td></tr>
         <tr><td style="padding:0 28px;background:${SOFT_BG};">
