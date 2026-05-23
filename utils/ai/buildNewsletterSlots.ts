@@ -32,6 +32,15 @@ export interface BuildSlotsInput {
     ref_id: string
     ref_type: 'alert' | 'intel'
   } | null
+  /**
+   * Sweet Spot lock (Phase NL2a). When set, Sonnet must anchor the Sweet
+   * Spot prose to this alert and not pick its own. Editor sets this via
+   * the Sweet Spot picker.
+   */
+  locked_sweet_spot?: {
+    ref_id: string
+    ref_type: 'alert'
+  } | null
 }
 
 interface SonnetSlotOutput {
@@ -111,7 +120,8 @@ big_story:
 - DO NOT include links inside big_story_html. The reader stays in the email.
 
 sweet_spot (THE STAR — value-add deep dive):
-- Pick ONE play with real depth. Best candidates: an active transfer bonus, a sweet-spot redemption mechanic, a peak/off-peak quirk, a quietly-good award chart line. Choose from input alerts (transfer_bonus / earn_rate_change / category_change types are likely), input ideas, or your general points/miles knowledge tied to a real input alert.
+- If input includes \`locked_sweet_spot\` (the editor has picked the Sweet Spot anchor manually), you MUST anchor the Sweet Spot prose to that alert. The topic, mechanic_explainer, and best_uses should all be derived from / connected to that single locked alert. Do NOT pick a different play.
+- Otherwise, pick ONE play with real depth. Best candidates: an active transfer bonus, a sweet-spot redemption mechanic, a peak/off-peak quirk, a quietly-good award chart line. Choose from input alerts (transfer_bonus / earn_rate_change / category_change types are likely), input ideas, or your general points/miles knowledge tied to a real input alert.
 - The topic must connect to something concrete from the input — don't pick a play that has no reference in the data.
 - mechanic_explainer: 3-5 sentences. Explain it like a friend who already knows the basics. Lead with the number that matters.
 - best_uses: 3-4 items. Each name MUST be specific (a property, a route, a chart cell). Each why MUST cite a real number (points cost, value ratio, cabin class). Don't list "cool destinations" — list the math that wins.
@@ -250,6 +260,7 @@ export async function buildNewsletterSlots(
       week_of: input.week_of,
       jill_prompt: input.jill_prompt ?? null,
       locked_big_story: input.locked_big_story ?? null,
+      locked_sweet_spot: input.locked_sweet_spot ?? null,
       alerts: input.alerts.slice(0, 10),
       newsletter_ideas: input.newsletter_ideas.slice(0, 8),
       blog_ideas: input.blog_ideas.slice(0, 3),

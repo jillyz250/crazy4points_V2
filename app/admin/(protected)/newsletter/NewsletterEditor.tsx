@@ -17,6 +17,8 @@ import {
   unlockBigStoryAction,
   generateBigStoryFromLockAction,
   generateSubjectOptionsFromLockAction,
+  lockSweetSpotAction,
+  unlockSweetSpotAction,
 } from './actions'
 import type { NewsletterSlots, AlsoHappeningItem, NewsletterSweetSpot, SweetSpotBestUse } from '@/utils/ai/newsletterSlots'
 import type { BigStoryCandidate } from './page'
@@ -36,6 +38,8 @@ interface Props {
   bigStoryCandidates: BigStoryCandidate[]
   bigStoryClaims: VerifyClaim[]
   bigStoryMissingFacts: MissingFact[]
+  sweetSpotRefId: string | null
+  sweetSpotRefType: 'alert' | null
 }
 
 /** What's currently running, so we can surface inline progress + disable the
@@ -94,10 +98,14 @@ export default function NewsletterEditor({
   bigStoryCandidates,
   bigStoryClaims: initialBigStoryClaims,
   bigStoryMissingFacts: initialBigStoryMissing,
+  sweetSpotRefId: initialSweetSpotRefId,
+  sweetSpotRefType: initialSweetSpotRefType,
 }: Props) {
   const [slots, setSlots] = useState<NewsletterSlots>(initialSlots)
   const [bigStoryClaims, setBigStoryClaims] = useState<VerifyClaim[]>(initialBigStoryClaims)
   const [bigStoryMissing, setBigStoryMissing] = useState<MissingFact[]>(initialBigStoryMissing)
+  const [sweetSpotRefId, setSweetSpotRefId] = useState<string | null>(initialSweetSpotRefId)
+  const [sweetSpotRefType, setSweetSpotRefType] = useState<'alert' | null>(initialSweetSpotRefType)
   const [confirmWord, setConfirmWord] = useState('')
   const [testToEmail, setTestToEmail] = useState('')
   const [message, setMessage] = useState<string | null>(null)
@@ -266,6 +274,35 @@ export default function NewsletterEditor({
         setBigStoryClaims([])
         setBigStoryMissing([])
         notify('Unlocked. Pick a new lead or run a full regenerate.')
+      } catch (e) { notify(e instanceof Error ? e.message : 'Unlock failed', true) }
+      setPendingTarget(null)
+    })
+  }
+
+  function handleLockSweetSpot(alertId: string) {
+    setPendingTarget('lock')
+    start(async () => {
+      try {
+        await lockSweetSpotAction(id, alertId)
+        setSweetSpotRefId(alertId)
+        setSweetSpotRefType('alert')
+        setSlots((prev) => ({ ...prev, sweet_spot: null }))
+        notify('Sweet Spot alert locked. Run Now to write prose anchored to it.')
+      } catch (e) { notify(e instanceof Error ? e.message : 'Lock failed', true) }
+      setPendingTarget(null)
+    })
+  }
+
+  function handleUnlockSweetSpot() {
+    if (!confirm('Unlock Sweet Spot? The current Sweet Spot prose will also be cleared.')) return
+    setPendingTarget('unlock')
+    start(async () => {
+      try {
+        await unlockSweetSpotAction(id)
+        setSweetSpotRefId(null)
+        setSweetSpotRefType(null)
+        setSlots((prev) => ({ ...prev, sweet_spot: null }))
+        notify('Sweet Spot unlocked. Pick a new one or let Sonnet choose on Run Now.')
       } catch (e) { notify(e instanceof Error ? e.message : 'Unlock failed', true) }
       setPendingTarget(null)
     })
@@ -499,6 +536,26 @@ export default function NewsletterEditor({
         <p style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)', margin: '0 0 0.625rem' }}>
           Deep-dive value-add card. Topic + mechanic explainer + 3-4 specific best uses. Empty topic = section hidden.
         </p>
+
+        {/* NL2a — Sweet Spot alert picker. Excludes whichever alert is
+            locked as Big Story so the two slots can't share a source. */}
+        <div style={{ marginBottom: '0.875rem' }}>
+          {sweetSpotRefId && sweetSpotRefType === 'alert' ? (
+            <LockedSweetSpotCard
+              candidate={bigStoryCandidates.find((c) => c.id === sweetSpotRefId) ?? null}
+              lockedId={sweetSpotRefId}
+              disabled={isSent || isPending}
+              onUnlock={handleUnlockSweetSpot}
+            />
+          ) : (
+            <SweetSpotPicker
+              candidates={bigStoryCandidates.filter((c) => c.id !== slots.big_story_ref_id)}
+              bigStoryLocked={!!slots.big_story_ref_id}
+              disabled={isSent || isPending}
+              onLock={handleLockSweetSpot}
+            />
+          )}
+        </div>
         <input
           type="text"
           value={slots.sweet_spot?.topic ?? ''}
@@ -707,6 +764,108 @@ function BigStoryMissingFacts({ missing }: { missing: MissingFact[] }) {
             </div>
           </div>
         ))}
+      </div>
+    </div>
+  )
+}
+
+function SweetSpotPicker({
+  candidates,
+  bigStoryLocked,
+  disabled,
+  onLock,
+}: {
+  candidates: BigStoryCandidate[]
+  bigStoryLocked: boolean
+  disabled: boolean
+  onLock: (alertId: string) => void
+}) {
+  if (candidates.length === 0) {
+    return (
+      <div style={{ ...cardStyle, marginBottom: 0, color: 'var(--admin-text-muted)', fontSize: '0.8125rem' }}>
+        {bigStoryLocked
+          ? 'No other published alerts in the last 7 days to anchor the Sweet Spot — Sonnet will pick from general knowledge on Run Now.'
+          : 'No published alerts in the last 7 days. Run a full regenerate (or publish an alert first) before picking a Sweet Spot anchor.'}
+      </div>
+    )
+  }
+  return (
+    <div>
+      <p style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)', margin: '0 0 0.5rem' }}>
+        Pick which alert anchors this week&apos;s Sweet Spot. Sonnet will write the topic + mechanic + best-uses around it on the next Run Now. (Big Story alert excluded.)
+      </p>
+      <div style={{ display: 'grid', gap: '0.5rem' }}>
+        {candidates.map((c) => (
+          <div key={c.id} style={cardStyle}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'flex-start' }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontWeight: 600, fontSize: '0.9375rem', marginBottom: '0.25rem' }}>{c.title}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)', marginBottom: '0.375rem' }}>
+                  {[c.alert_type, c.published_at?.slice(0, 10), c.end_date ? `ends ${c.end_date.slice(0, 10)}` : null]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </div>
+                {c.why_this_matters && (
+                  <div style={{ fontSize: '0.8125rem', color: 'var(--admin-text)' }}>{c.why_this_matters}</div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => onLock(c.id)}
+                disabled={disabled}
+                style={{ ...btnPrimary, flexShrink: 0, padding: '0.375rem 0.875rem', fontSize: '0.8125rem' }}
+              >
+                Lock as Sweet Spot
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function LockedSweetSpotCard({
+  candidate,
+  lockedId,
+  disabled,
+  onUnlock,
+}: {
+  candidate: BigStoryCandidate | null
+  lockedId: string
+  disabled: boolean
+  onUnlock: () => void
+}) {
+  return (
+    <div
+      style={{
+        ...cardStyle,
+        borderColor: 'var(--admin-accent)',
+        background: 'var(--admin-accent-soft, var(--admin-surface-alt))',
+        marginBottom: 0,
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'flex-start' }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--admin-accent)', marginBottom: '0.25rem' }}>
+            Locked Sweet Spot anchor
+          </div>
+          {candidate ? (
+            <>
+              <div style={{ fontWeight: 600, fontSize: '0.9375rem', marginBottom: '0.25rem' }}>{candidate.title}</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)' }}>
+                {[candidate.alert_type, candidate.published_at?.slice(0, 10)].filter(Boolean).join(' · ')}
+              </div>
+            </>
+          ) : (
+            <div style={{ fontSize: '0.8125rem', color: 'var(--admin-text-muted)' }}>
+              Locked alert id <code>{lockedId.slice(0, 8)}…</code> is outside the current 7-day pool. Unlock to pick a fresh anchor.
+            </div>
+          )}
+        </div>
+        <button type="button" onClick={onUnlock} disabled={disabled} style={{ ...btnGhost, flexShrink: 0 }}>
+          Unlock
+        </button>
       </div>
     </div>
   )
