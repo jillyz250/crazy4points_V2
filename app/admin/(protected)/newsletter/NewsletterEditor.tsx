@@ -666,7 +666,7 @@ function BigStoryFactCheck({ claims }: { claims: VerifyClaim[] }) {
       <div style={{ fontSize: '0.75rem', fontWeight: 700, color: headerTone.color, marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
         Fact-check &middot; {headerTone.label}
       </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
+      <div style={{ display: 'grid', gap: '0.375rem' }}>
         {claims.map((c, i) => {
           const isSupported = c.supported === true
           const isUnsupportedSilent = c.supported === 'unsupported'
@@ -682,25 +682,36 @@ function BigStoryFactCheck({ claims }: { claims: VerifyClaim[] }) {
               : 'var(--admin-danger)'
           const prefix = isSupported ? '✓' : isUnsupportedSilent ? '?' : '✗'
           return (
-            <span
+            <div
               key={i}
-              title={c.source_excerpt ?? (isUnsupportedSilent ? 'Source is silent on this claim.' : 'No source excerpt.')}
               style={{
-                fontSize: '0.75rem',
+                display: 'grid',
+                gridTemplateColumns: 'auto 1fr',
+                gap: '0.5rem',
+                alignItems: 'baseline',
+                fontSize: '0.8125rem',
                 background: bg,
-                color: fg,
-                padding: '0.25rem 0.5rem',
+                padding: '0.4375rem 0.625rem',
                 borderRadius: 'var(--admin-radius)',
                 border: `1px solid ${fg}33`,
-                cursor: 'help',
-                maxWidth: '320px',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
               }}
             >
-              {prefix} {c.severity === 'high' ? <strong>{c.claim}</strong> : c.claim}
-            </span>
+              <span style={{ color: fg, fontWeight: 700, fontFamily: 'ui-monospace, monospace' }}>{prefix}</span>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ color: 'var(--admin-text)', lineHeight: 1.4 }}>
+                  {c.severity === 'high' && c.supported !== true ? <strong>{c.claim}</strong> : c.claim}
+                </div>
+                {c.source_excerpt ? (
+                  <div style={{ marginTop: '0.25rem', fontSize: '0.75rem', color: 'var(--admin-text-muted)', fontStyle: 'italic', lineHeight: 1.4 }}>
+                    &ldquo;{c.source_excerpt}&rdquo;
+                  </div>
+                ) : isUnsupportedSilent ? (
+                  <div style={{ marginTop: '0.25rem', fontSize: '0.75rem', color: 'var(--admin-text-muted)', lineHeight: 1.4 }}>
+                    Source is silent on this — verify before sending.
+                  </div>
+                ) : null}
+              </div>
+            </div>
           )
         })}
       </div>
