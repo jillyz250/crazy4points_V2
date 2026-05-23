@@ -45,6 +45,7 @@ HARD RULES
 - NEVER assert recurring cadence ("daily", "every Tuesday") unless the input explicitly says so.
 - NO links inside big_story_html — the reader stays in the email.
 - Paraphrase the alert's why_this_matters in voice; don't quote it verbatim.
+- **EVERY date, deadline, time, time zone, and number from the source must appear in the article.** Stadium dates, on-sale times, durations, ratios, capacities — all of them. Do not cherry-pick "the most important one"; readers need ALL of them to act. If the source lists multiple cities or events with separate dates, list each city + each date explicitly in the bullets. Skipping a date is a critical failure.
 - If chosen_subject is non-null, treat it as a steering signal: the article's tone and lead sentence should echo the angle of that headline (curiosity question → lead with the question; deadline-focused → put the date front and center; etc.). Do NOT restate the subject line verbatim inside the article.`
 
 interface SonnetOutput {

@@ -21,6 +21,7 @@ import {
 import type { NewsletterSlots, AlsoHappeningItem, NewsletterSweetSpot, SweetSpotBestUse } from '@/utils/ai/newsletterSlots'
 import type { BigStoryCandidate } from './page'
 import type { VerifyClaim } from '@/utils/ai/verifyAlertDraft'
+import type { MissingFact } from '@/utils/ai/verifyBigStoryDraft'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Badge } from '@/components/admin/ui/Badge'
 
@@ -34,6 +35,7 @@ interface Props {
   activeSubscriberCount: number
   bigStoryCandidates: BigStoryCandidate[]
   bigStoryClaims: VerifyClaim[]
+  bigStoryMissingFacts: MissingFact[]
 }
 
 /** What's currently running, so we can surface inline progress + disable the
@@ -91,9 +93,11 @@ export default function NewsletterEditor({
   activeSubscriberCount,
   bigStoryCandidates,
   bigStoryClaims: initialBigStoryClaims,
+  bigStoryMissingFacts: initialBigStoryMissing,
 }: Props) {
   const [slots, setSlots] = useState<NewsletterSlots>(initialSlots)
   const [bigStoryClaims, setBigStoryClaims] = useState<VerifyClaim[]>(initialBigStoryClaims)
+  const [bigStoryMissing, setBigStoryMissing] = useState<MissingFact[]>(initialBigStoryMissing)
   const [confirmWord, setConfirmWord] = useState('')
   const [testToEmail, setTestToEmail] = useState('')
   const [message, setMessage] = useState<string | null>(null)
@@ -235,6 +239,7 @@ export default function NewsletterEditor({
           big_story_html: null,
         }))
         setBigStoryClaims([])
+        setBigStoryMissing([])
         notify('Big Story locked. Click "Generate Big Story" to write the article.')
       } catch (e) { notify(e instanceof Error ? e.message : 'Lock failed', true) }
       setPendingTarget(null)
@@ -254,6 +259,7 @@ export default function NewsletterEditor({
           big_story_html: null,
         }))
         setBigStoryClaims([])
+        setBigStoryMissing([])
         notify('Unlocked. Pick a new lead or run a full regenerate.')
       } catch (e) { notify(e instanceof Error ? e.message : 'Unlock failed', true) }
       setPendingTarget(null)
@@ -283,11 +289,16 @@ export default function NewsletterEditor({
         const res = await generateBigStoryFromLockAction(id)
         setSlots((prev) => ({ ...prev, big_story_html: res.html }))
         setBigStoryClaims(res.claims)
+        setBigStoryMissing(res.missing_facts)
         const unsupportedHigh = res.claims.filter((c) => c.supported !== true && c.severity === 'high').length
+        const missingHigh = res.missing_facts.filter((m) => m.severity === 'high').length
+        const parts = []
+        if (unsupportedHigh > 0) parts.push(`${unsupportedHigh} unsupported claim${unsupportedHigh === 1 ? '' : 's'}`)
+        if (missingHigh > 0) parts.push(`${missingHigh} missing source fact${missingHigh === 1 ? '' : 's'}`)
         notify(
-          unsupportedHigh > 0
-            ? `Article written. Fact-check flagged ${unsupportedHigh} high-severity claim${unsupportedHigh === 1 ? '' : 's'} — review the chips above.`
-            : 'Article written and fact-checked.',
+          parts.length > 0
+            ? `Article written. Review the ${parts.join(' + ')} above before sending.`
+            : 'Article written, fact-checked, and complete.',
         )
       } catch (e) { notify(e instanceof Error ? e.message : 'Generate failed', true) }
       setPendingTarget(null)
@@ -427,6 +438,7 @@ export default function NewsletterEditor({
             Lock a lead alert above first.
           </p>
         )}
+        <BigStoryMissingFacts missing={bigStoryMissing} />
         <BigStoryFactCheck claims={bigStoryClaims} />
         <p style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)', margin: '0 0 0.5rem' }}>
           ~150 words, plain HTML. Use {'<p>'} for paragraphs and one {'<ul>'} of bullets. The renderer adds the section heading. Edit freely after generation.
@@ -639,6 +651,57 @@ export default function NewsletterEditor({
             </div>
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+function BigStoryMissingFacts({ missing }: { missing: MissingFact[] }) {
+  if (missing.length === 0) return null
+  const highCount = missing.filter((m) => m.severity === 'high').length
+  return (
+    <div
+      style={{
+        border: '1px solid var(--admin-danger, #c0392b)33',
+        borderRadius: 'var(--admin-radius)',
+        padding: '0.625rem 0.75rem',
+        marginBottom: '0.75rem',
+        background: 'var(--admin-danger-soft, #fde4e4)',
+      }}
+    >
+      <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--admin-danger, #c0392b)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        ⊘ Missing from article &middot; {missing.length} fact{missing.length === 1 ? '' : 's'} in source not in article
+        {highCount > 0 ? ` (${highCount} high-severity)` : ''}
+      </div>
+      <div style={{ display: 'grid', gap: '0.375rem' }}>
+        {missing.map((m, i) => (
+          <div
+            key={i}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'auto 1fr',
+              gap: '0.5rem',
+              alignItems: 'baseline',
+              fontSize: '0.8125rem',
+              background: '#fff',
+              padding: '0.4375rem 0.625rem',
+              borderRadius: 'var(--admin-radius)',
+              border: '1px solid var(--admin-danger, #c0392b)22',
+            }}
+          >
+            <span style={{ color: 'var(--admin-danger, #c0392b)', fontWeight: 700, fontFamily: 'ui-monospace, monospace' }}>⊘</span>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ color: 'var(--admin-text)', lineHeight: 1.4 }}>
+                {m.severity === 'high' ? <strong>{m.fact}</strong> : m.fact}
+              </div>
+              {m.source_excerpt && (
+                <div style={{ marginTop: '0.25rem', fontSize: '0.75rem', color: 'var(--admin-text-muted)', fontStyle: 'italic', lineHeight: 1.4 }}>
+                  &ldquo;{m.source_excerpt}&rdquo;
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   )

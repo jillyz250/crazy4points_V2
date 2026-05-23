@@ -4,6 +4,7 @@ import NewsletterEditor from './NewsletterEditor'
 import InputsPreview from './InputsPreview'
 import type { NewsletterSlots, AlsoHappeningItem } from '@/utils/ai/newsletterSlots'
 import type { VerifyClaim } from '@/utils/ai/verifyAlertDraft'
+import type { MissingFact } from '@/utils/ai/verifyBigStoryDraft'
 import { getNewsletterInputs } from '@/utils/ai/runBuildNewsletter'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Card } from '@/components/admin/ui/Card'
@@ -38,6 +39,7 @@ type NewsletterRow = {
   big_story_ref_id: string | null
   big_story_html: string | null
   big_story_claims: VerifyClaim[] | null
+  big_story_missing_facts: MissingFact[] | null
   sweet_spot: NewsletterSlots['sweet_spot'] | null
   also_happening: AlsoHappeningItem[] | null
   jills_take_html: string | null
@@ -84,7 +86,7 @@ export default async function NewsletterAdminPage({
   const { data: rowsData } = await supabase
     .from('newsletters')
     .select(
-      'id, week_of, subject, subject_options, status, sent_at, recipient_count, created_at, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_html, big_story_claims, sweet_spot, also_happening, jills_take_html, game_slug, game_title, game_clue_text',
+      'id, week_of, subject, subject_options, status, sent_at, recipient_count, created_at, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_html, big_story_claims, big_story_missing_facts, sweet_spot, also_happening, jills_take_html, game_slug, game_title, game_clue_text',
     )
     .order('week_of', { ascending: false })
     .limit(12)
@@ -139,6 +141,7 @@ export default async function NewsletterAdminPage({
             activeSubscriberCount={activeCount}
             bigStoryCandidates={candidates}
             bigStoryClaims={current.big_story_claims ?? []}
+            bigStoryMissingFacts={current.big_story_missing_facts ?? []}
           />
           {/* Don't show the inputs preview for already-sent newsletters. */}
           {current.status !== 'sent' && <InputsPreview />}
