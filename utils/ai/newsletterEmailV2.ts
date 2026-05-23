@@ -19,6 +19,10 @@ const BODY = '#1A1A1A'
 const MUTED = '#4A4A4A'
 const BORDER = '#E6DEEE'
 const PAGE_BG = '#f4eef8'
+/** Cream wash behind the hero banner. Approximates the banner PNG's
+ *  background — adjust if the seam between banner image and HTML
+ *  date/lede underneath ever shows a visible color difference. */
+const HERO_BG = '#FAF1E6'
 
 const FONT_DISPLAY = "'Playfair Display', Georgia, serif"
 const FONT_BODY = "'Lato', 'Helvetica Neue', Arial, sans-serif"
@@ -272,16 +276,19 @@ export function renderNewsletterV2Html({
 
         ${previewBanner}
 
-        <!-- Hero (design pass 3 — centered, tighter, bigger logo. The two-
-             column experiment from pass 2 left too much disconnected
-             whitespace; centered with deliberate vertical rhythm reads
-             cleaner.) -->
-        <tr><td style="padding:28px 28px 22px;background:${SOFT_BG};text-align:center;">
-          <img src="${logoUrl}" alt="Crazy4Points" width="240" style="display:block;margin:0 auto;width:240px;max-width:75%;height:auto;" />
-          <p style="margin:10px 0 0;font-family:${FONT_UI};font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:${MUTED};font-weight:700;">Week of ${esc(weekOf)}</p>
+        <!-- Hero (design pass 4 — full-width banner image + dynamic date/lede
+             rendered on a matching cream background so the seam disappears.
+             Banner asset: newsletter-hero-banner.png. Background color
+             approximated to match the banner's cream wash — adjust HERO_BG
+             constant below if it doesn't match. -->
+        <tr><td style="background:${HERO_BG};text-align:center;font-size:0;line-height:0;">
+          <img src="${origin}/newsletter-hero-banner.png" alt="Crazy4Points Newsletter" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0;" />
+        </td></tr>
+        <tr><td style="padding:4px 28px 22px;background:${HERO_BG};text-align:center;">
+          <p style="margin:0;font-family:${FONT_UI};font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:${MUTED};font-weight:700;">Week of ${esc(weekOf)}</p>
           ${heroKickerLine}
         </td></tr>
-        <tr><td style="padding:0 28px;background:${SOFT_BG};">
+        <tr><td style="padding:0 28px;background:${HERO_BG};">
           <div style="height:1px;background:${BORDER};line-height:1px;font-size:0;">&nbsp;</div>
         </td></tr>
 
