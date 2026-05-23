@@ -10,7 +10,7 @@
     "sample_path": ["JFK", "LFK", "LAK", "LAS"],
     "max_guesses": 6,
     "story": {
-      "intro": "Amanda's dream job is waiting in Las Vegas (LAS). Her interview is at 5pm Friday. She's standing in New York (JFK) with 18 hours to get there.\n\nHer only option is a leftover chain of oddball connections that will get her west — if she can stitch them together.\n\nShe can only move from one airport to the next by changing ONE letter of the airport code at a time, and every step has to be a real IATA airport code. No fakes, no stretches, no \"trust me bro.\"",
+      "intro": "Amanda's dream job is waiting in Las Vegas (LAS). Her interview is at 5pm Friday. She's standing in New York (JFK) with 18 hours to get there.\n\nHer only option is a leftover chain of oddball connections that will get her west — if she can stitch them together.",
       "mission": "Your mission: build the code-by-code route that gets Amanda from JFK to LAS in 6 moves or fewer — before the recruiter crosses her off the list.",
       "win": "Phew. Amanda made it in {stops} stops, walked in five minutes before the interview, and absolutely nailed it. She's jetsetting next week — and now thinks of you as her lucky travel agent.",
       "fail": "Six tries and Amanda's still in transit somewhere over the heartland. The recruiter just emailed: \"we'll keep you on file.\" Brutal. Here's a route that would have worked — file it away for next time.",
