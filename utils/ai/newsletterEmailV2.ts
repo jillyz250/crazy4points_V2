@@ -19,6 +19,13 @@ const BODY = '#1A1A1A'
 const MUTED = '#4A4A4A'
 const BORDER = '#E6DEEE'
 const PAGE_BG = '#f4eef8'
+/** Warm cream wash for Sweet Spot — pairs with gold border, breaks out
+ *  of the all-purple sameness of SOFT_BG so the section visually pops as
+ *  "the deal of the week" instead of blending. */
+const CREAM_BG = '#FAF4E6'
+/** Slightly-deeper purple wash for Jill's Take — distinguishes the
+ *  personality column from the light-SOFT_BG sections above it. */
+const PURPLE_TINT = '#EDE2F2'
 
 const FONT_DISPLAY = "'Playfair Display', Georgia, serif"
 const FONT_BODY = "'Lato', 'Helvetica Neue', Arial, sans-serif"
@@ -175,7 +182,7 @@ function renderSweetSpot(sp: NewsletterSweetSpot | null): string {
   const explainer = sp.mechanic_explainer ? bodyHtml(sp.mechanic_explainer) : ''
   return `
     <tr><td style="padding:32px 28px 0;">
-      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:2px solid ${GOLD};border-radius:12px;background:${SOFT_BG};">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:2px solid ${GOLD};border-radius:12px;background:${CREAM_BG};">
         <tr><td style="padding:22px 24px;">
           <p style="margin:0 0 6px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${GOLD};font-weight:700;">Sweet Spot of the Week</p>
           <h2 style="margin:0 0 12px;font-family:${FONT_DISPLAY};font-size:22px;line-height:1.3;color:${PURPLE};">${esc(sp.topic)}</h2>
@@ -225,25 +232,19 @@ function renderCurrentBonuses(bonuses: CurrentBonusRow[] | undefined, origin: st
     </td></tr>`
 }
 
-function renderJillsTake(html: string | null | undefined, origin: string): string {
+function renderJillsTake(html: string | null | undefined): string {
   if (!html) return ''
   // Render inside an italic block; respect authored HTML if present, else wrap as-is.
   const inner = /<(p|em|strong)\b/i.test(html)
     ? html
     : `<p style="margin:0;font-family:${FONT_BODY};font-size:16px;line-height:1.65;color:${BODY};font-style:italic;">${esc(html)}</p>`
-  const mascotUrl = `${origin}/Mascot.png`
   return `
     <tr><td style="padding:32px 28px 8px;">
-      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:${SOFT_BG};border-left:4px solid ${PURPLE};border-radius:8px;">
-        <tr>
-          <td style="width:140px;padding:22px 0 22px 22px;vertical-align:middle;">
-            <img src="${mascotUrl}" alt="Jill" width="120" style="display:block;width:120px;max-width:120px;height:auto;" />
-          </td>
-          <td style="padding:22px 24px 22px 18px;vertical-align:middle;">
-            <p style="margin:0 0 10px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${PURPLE};font-weight:700;">Jill's Take</p>
-            ${inner}
-          </td>
-        </tr>
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:${PURPLE_TINT};border-left:4px solid ${PURPLE};border-radius:8px;">
+        <tr><td style="padding:22px 26px;">
+          <p style="margin:0 0 10px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${PURPLE};font-weight:700;">Jill's Take</p>
+          ${inner}
+        </td></tr>
       </table>
     </td></tr>`
 }
@@ -327,7 +328,7 @@ export function renderNewsletterV2Html({
         ${renderCurrentBonuses(currentBonuses, origin)}
         ${renderAlsoHappening(slots.also_happening, origin)}
         ${renderGame(slots.game, origin)}
-        ${renderJillsTake(slots.jills_take_html, origin)}
+        ${renderJillsTake(slots.jills_take_html)}
 
         <!-- Footer (pass 2 — visual hierarchy: warm forward nudge, hairline,
              italic fine-print disclaimer with constrained width, hairline,
