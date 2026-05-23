@@ -269,6 +269,8 @@
     font-weight: 500;
   }
   .actions a:hover { text-decoration: underline; }
+  .actions a.delete-link { color: var(--red); }
+  .actions a.delete-link:hover { color: #7f1d1d; }
   /* Note banner */
   .note {
     background: #fef9e7;
@@ -384,7 +386,7 @@
           <td><span class="badge badge-amber">Needs review</span></td>
           <td class="muted">2h ago</td>
           <td class="muted">Aug 31, 2026</td>
-          <td class="actions" style="text-align:right;"><a href="#">Edit →</a></td>
+          <td class="actions" style="text-align:right;"><a href="#">Edit</a> · <a href="#" class="delete-link" onclick="event.preventDefault(); confirmDelete(this)">Delete</a></td>
         </tr>
         <tr class="row-body">
           <td class="title">IHG One Rewards Pick Your Points</td>
@@ -393,7 +395,7 @@
           <td><span class="badge badge-amber">Needs review</span></td>
           <td class="muted">2h ago</td>
           <td class="muted">Aug 31, 2026</td>
-          <td class="actions" style="text-align:right;"><a href="#">Edit →</a></td>
+          <td class="actions" style="text-align:right;"><a href="#">Edit</a> · <a href="#" class="delete-link" onclick="event.preventDefault(); confirmDelete(this)">Delete</a></td>
         </tr>
         <tr class="row-body">
           <td class="title">IHG One Rewards Pick Your Points</td>
@@ -402,7 +404,7 @@
           <td><span class="badge badge-amber">Needs review</span></td>
           <td class="muted">2h ago</td>
           <td class="muted">Aug 31, 2026</td>
-          <td class="actions" style="text-align:right;"><a href="#">Edit →</a></td>
+          <td class="actions" style="text-align:right;"><a href="#">Edit</a> · <a href="#" class="delete-link" onclick="event.preventDefault(); confirmDelete(this)">Delete</a></td>
         </tr>
         <tr class="row-body">
           <td class="title">IHG One Rewards Pick Your Points</td>
@@ -411,7 +413,7 @@
           <td><span class="badge badge-amber">Needs review</span></td>
           <td class="muted">2h ago</td>
           <td class="muted">Aug 31, 2026</td>
-          <td class="actions" style="text-align:right;"><a href="#">Edit →</a></td>
+          <td class="actions" style="text-align:right;"><a href="#">Edit</a> · <a href="#" class="delete-link" onclick="event.preventDefault(); confirmDelete(this)">Delete</a></td>
         </tr>
         <tr class="row-body">
           <td class="title">United MileagePlus Buy Miles: Up to 100% Bonus</td>
@@ -420,7 +422,7 @@
           <td><span class="badge badge-amber">Needs review</span></td>
           <td class="muted">8d ago</td>
           <td class="muted">Jun 28, 2026</td>
-          <td class="actions" style="text-align:right;"><a href="#">Edit →</a></td>
+          <td class="actions" style="text-align:right;"><a href="#">Edit</a> · <a href="#" class="delete-link" onclick="event.preventDefault(); confirmDelete(this)">Delete</a></td>
         </tr>
         <tr class="row-body">
           <td class="title">Air New Zealand Rebrands Airpoints as Koru</td>
@@ -429,7 +431,7 @@
           <td><span class="badge badge-amber">Needs review</span></td>
           <td class="muted">7d ago</td>
           <td class="muted">—</td>
-          <td class="actions" style="text-align:right;"><a href="#">Edit →</a></td>
+          <td class="actions" style="text-align:right;"><a href="#">Edit</a> · <a href="#" class="delete-link" onclick="event.preventDefault(); confirmDelete(this)">Delete</a></td>
         </tr>
         <tr class="row-body">
           <td class="title">Flying Blue Buy Miles: Up to 45% Off or 80% Bonus</td>
@@ -438,7 +440,7 @@
           <td><span class="badge badge-amber">Needs review</span></td>
           <td class="muted">8d ago</td>
           <td class="muted">May 29, 2026</td>
-          <td class="actions" style="text-align:right;"><a href="#">Edit →</a></td>
+          <td class="actions" style="text-align:right;"><a href="#">Edit</a> · <a href="#" class="delete-link" onclick="event.preventDefault(); confirmDelete(this)">Delete</a></td>
         </tr>
       </tbody>
     </table>
@@ -470,6 +472,24 @@
       btn.textContent = el.classList.contains('open')
         ? '▼ Filter manually'
         : '▶ Filter manually';
+    }
+    function confirmDelete(linkEl) {
+      const row = linkEl.closest('tr');
+      const title = row?.querySelector('.title')?.textContent?.trim() ?? 'this draft';
+      const ok = window.confirm(
+        `Delete "${title}"?\n\n` +
+        `This archives the draft — row drops out of the active queue. ` +
+        `The data stays in the DB for audit; you can find it under the Archived chip.\n\n` +
+        `Click OK to archive.`
+      );
+      if (ok) {
+        // In the real build, this would call markVariantArchivedAction(variantId).
+        row.style.opacity = '0.4';
+        linkEl.textContent = 'Archived ✓';
+        linkEl.style.color = 'var(--muted)';
+        linkEl.style.cursor = 'default';
+        linkEl.onclick = (e) => e.preventDefault();
+      }
     }
   </script>
 </body>
