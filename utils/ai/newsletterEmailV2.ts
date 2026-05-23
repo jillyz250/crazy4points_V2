@@ -116,10 +116,18 @@ function renderBigStory(slots: NewsletterSlots, origin: string): string {
   const headline = slots.subject
     ? `<h1 style="margin:0 0 14px;font-family:${FONT_DISPLAY};font-size:28px;line-height:1.2;color:${BODY};font-weight:700;">${esc(slots.subject)}</h1>`
     : ''
+  // Soft purple wash on the Big Story so it reads as a deliberate featured
+  // section (tier 2) — sits visually between plain white content and the
+  // bordered cards (Sweet Spot, Game). No border so it doesn't compete
+  // with Sweet Spot's gold accent.
   return `
-    <tr><td style="padding:32px 28px 8px;">
-      ${headline}
-      ${bodyHtml(slots.big_story_html)}
+    <tr><td style="padding:24px 28px 0;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:${SOFT_BG};border-radius:12px;">
+        <tr><td style="padding:26px 28px 18px;">
+          ${headline}
+          ${bodyHtml(slots.big_story_html)}
+        </td></tr>
+      </table>
     </td></tr>`
 }
 
