@@ -131,6 +131,23 @@ NON-ACTIONABLE (DO NOT flag — these belong in T&Cs, not the article):
 • Generic context the article doesn't need to repeat
 • Facts that ARE in the article in different words
 
+SERIES / LINEUP HANDLING — special case:
+When the source lists a "series," "lineup," "collection," or "collab roster"
+with 4+ events/items (e.g. 6 chef-collab dinners across the spring/summer),
+the article cannot — and should not — enumerate every single one in a 150-
+word brief. The right editorial move is to summarize the series + cite
+2-3 representative highlights, then link out to the alert page for the
+full list.
+
+In that case:
+• Treat the series itself as ONE actionable fact ("a chef-collab dinner
+  series is bookable now"). If the article mentions the series, do NOT
+  flag missing series members.
+• Only flag a series item as missing if the article fails to mention
+  the series at all.
+• Never list individual series items as separate "missing" facts when
+  the article already covers the series + a couple of highlights.
+
 severity="high" if the omission would make a subscriber miss out, plan
 wrong, or miss a window (event dates, eligibility, on-sale times).
 severity="low" for descriptive color that's nice-to-have.
