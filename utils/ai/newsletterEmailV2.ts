@@ -65,7 +65,7 @@ function renderGame(game: NewsletterSlots['game'], origin: string): string {
     <tr><td style="padding:32px 28px 0;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:2px solid ${PURPLE};border-radius:12px;background:${SOFT_BG};">
         <tr><td style="padding:22px 24px;">
-          <p style="margin:0 0 6px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${PURPLE};font-weight:700;">🎮 Game of the Week</p>
+          <p style="margin:0 0 6px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${PURPLE};font-weight:700;">Game of the Week</p>
           <h2 style="margin:0 0 10px;font-family:${FONT_DISPLAY};font-size:24px;line-height:1.2;color:${PURPLE};">${title}</h2>
           ${clue}
           <table role="presentation" border="0" cellspacing="0" cellpadding="0" style="border-collapse:separate;">
@@ -82,7 +82,7 @@ function renderBigStory(slots: NewsletterSlots, origin: string): string {
   if (!slots.big_story_html) return ''
   return `
     <tr><td style="padding:32px 28px 8px;">
-      <p style="margin:0 0 6px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#c0392b;font-weight:700;">🚨 This Week's Big Story</p>
+      <p style="margin:0 0 6px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#c0392b;font-weight:700;">This Week's Big Story</p>
       ${bodyHtml(slots.big_story_html)}
     </td></tr>`
 }
@@ -108,7 +108,7 @@ function renderAlsoHappening(items: AlsoHappeningItem[], origin: string): string
     .join('')
   return `
     <tr><td style="padding:32px 28px 0;">
-      <p style="margin:0 0 12px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${MUTED};font-weight:700;">📍 Also Happening</p>
+      <p style="margin:0 0 12px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${MUTED};font-weight:700;">Also Happening</p>
       ${cards}
     </td></tr>`
 }
@@ -131,7 +131,7 @@ function renderSweetSpot(sp: NewsletterSweetSpot | null): string {
     <tr><td style="padding:32px 28px 0;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:2px solid ${GOLD};border-radius:12px;background:${SOFT_BG};">
         <tr><td style="padding:22px 24px;">
-          <p style="margin:0 0 6px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${GOLD};font-weight:700;">⭐ Sweet Spot of the Week</p>
+          <p style="margin:0 0 6px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${GOLD};font-weight:700;">Sweet Spot of the Week</p>
           <h2 style="margin:0 0 12px;font-family:${FONT_DISPLAY};font-size:22px;line-height:1.3;color:${PURPLE};">${esc(sp.topic)}</h2>
           ${explainer}
           ${uses ? `<ul style="margin:0;padding:0 0 0 18px;">${uses}</ul>` : ''}
@@ -179,16 +179,26 @@ function renderCurrentBonuses(bonuses: CurrentBonusRow[] | undefined, origin: st
     </td></tr>`
 }
 
-function renderJillsTake(html: string | null | undefined): string {
+function renderJillsTake(html: string | null | undefined, origin: string): string {
   if (!html) return ''
   // Render inside an italic block; respect authored HTML if present, else wrap as-is.
   const inner = /<(p|em|strong)\b/i.test(html)
     ? html
     : `<p style="margin:0;font-family:${FONT_BODY};font-size:16px;line-height:1.65;color:${BODY};font-style:italic;">${esc(html)}</p>`
+  const mascotUrl = `${origin}/Mascot.png`
   return `
     <tr><td style="padding:32px 28px 8px;">
-      <p style="margin:0 0 12px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${MUTED};font-weight:700;">💬 Jill's Take</p>
-      <div style="padding:18px 22px;background:${SOFT_BG};border-left:4px solid ${PURPLE};border-radius:6px;">${inner}</div>
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:${SOFT_BG};border-left:4px solid ${PURPLE};border-radius:6px;">
+        <tr>
+          <td style="width:96px;padding:18px 0 18px 18px;vertical-align:top;">
+            <img src="${mascotUrl}" alt="" width="80" style="display:block;width:80px;height:auto;" />
+          </td>
+          <td style="padding:18px 22px 18px 8px;vertical-align:top;">
+            <p style="margin:0 0 8px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${PURPLE};font-weight:700;">Jill's Take</p>
+            ${inner}
+          </td>
+        </tr>
+      </table>
     </td></tr>`
 }
 
@@ -253,19 +263,19 @@ export function renderNewsletterV2Html({
         ${previewBanner}
 
         <!-- Hero -->
-        <tr><td style="padding:36px 32px 32px;background:${SOFT_BG};text-align:center;">
+        <tr><td style="padding:18px 32px 14px;background:${SOFT_BG};text-align:center;">
           ${heroKicker}
-          <img src="${logoUrl}" alt="Crazy4Points" width="220" style="display:block;margin:0 auto;max-width:65%;height:auto;" />
-          <p style="margin:18px 0 0;font-family:${FONT_UI};font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:${MUTED};font-weight:600;">Week of ${esc(weekOf)}</p>
+          <img src="${logoUrl}" alt="Crazy4Points" width="200" style="display:block;margin:0 auto;max-width:60%;height:auto;" />
+          <p style="margin:6px 0 0;font-family:${FONT_UI};font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:${MUTED};font-weight:600;">Week of ${esc(weekOf)}</p>
         </td></tr>
         <tr><td style="height:3px;background:${GOLD};line-height:3px;font-size:0;">&nbsp;</td></tr>
 
-        ${renderGame(slots.game, origin)}
         ${renderBigStory(slots, origin)}
         ${renderSweetSpot(slots.sweet_spot)}
         ${renderCurrentBonuses(currentBonuses, origin)}
         ${renderAlsoHappening(slots.also_happening, origin)}
-        ${renderJillsTake(slots.jills_take_html)}
+        ${renderGame(slots.game, origin)}
+        ${renderJillsTake(slots.jills_take_html, origin)}
 
         <!-- Footer -->
         <tr><td style="padding:32px 28px 32px;border-top:1px solid ${BORDER};background:${SOFT_BG};text-align:center;margin-top:24px;">
