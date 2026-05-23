@@ -29,7 +29,15 @@ const LABEL: Record<GateStatus, string> = {
   pass: 'Pass',
   overridden: 'Overridden',
   fail: 'Blocked',
-  'not-applicable': 'Not required',
+  'not-applicable': 'N/A',
+}
+
+// Per-gate label override for not-applicable — "N/A" is ambiguous; surface
+// the actual reason it doesn't apply.
+function naLabel(gateKey: string): string {
+  if (gateKey === 'tnc') return 'N/A (not a promo)'
+  if (gateKey === 'voice') return 'Not yet run'
+  return 'N/A'
 }
 
 export default function PublishGatesBanner({ gates }: Props) {
@@ -45,7 +53,7 @@ export default function PublishGatesBanner({ gates }: Props) {
           ? 'Paste official T&Cs or supply a waiver reason'
           : gates.tnc === 'overridden'
           ? 'Bypassed with a logged reason'
-          : 'Not required for this alert type',
+          : 'T&Cs only required for promo-shaped alert types (transfer bonus, limited offer, point purchase, etc.). This alert type doesn\'t have terms to verify.',
     },
     {
       key: 'factcheck',
@@ -69,7 +77,7 @@ export default function PublishGatesBanner({ gates }: Props) {
           ? 'Regenerate or override with a reason'
           : gates.voice === 'overridden'
           ? 'Bypassed with a logged reason'
-          : 'Not yet checked',
+          : 'Voice check hasn\'t been run yet — run it before publishing to make sure the draft sounds on-brand. The gate auto-passes when never run (legacy compat for pre-Phase 1 alerts).',
     },
   ]
 
@@ -110,7 +118,7 @@ export default function PublishGatesBanner({ gates }: Props) {
         {items.map((g) => (
           <span key={g.key} title={g.hint}>
             <Badge tone={TONE[g.status]}>
-              {ICON[g.status]} {g.label}: {LABEL[g.status]}
+              {ICON[g.status]} {g.label}: {g.status === 'not-applicable' ? naLabel(g.key) : LABEL[g.status]}
             </Badge>
           </span>
         ))}
