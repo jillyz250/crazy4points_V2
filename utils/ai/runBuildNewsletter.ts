@@ -167,7 +167,7 @@ export async function runBuildNewsletter(opts: {
 
   const { data: existing } = await supabase
     .from('newsletters')
-    .select('id, status, draft_json, jill_prompt, big_story_ref_id, big_story_ref_type')
+    .select('id, status, draft_json, jill_prompt, big_story_ref_id, big_story_ref_type, sweet_spot_ref_id, sweet_spot_ref_type')
     .eq('week_of', weekOf)
     .maybeSingle()
 
@@ -211,6 +211,16 @@ export async function runBuildNewsletter(opts: {
         }
       : null
 
+  // NL2a — same shape as Big Story lock. Anchors Sonnet's Sweet Spot prose
+  // to the editor-picked alert when present; otherwise Sonnet picks.
+  const lockedSweetSpot =
+    existing && (existing as { sweet_spot_ref_id?: string | null }).sweet_spot_ref_id
+      ? {
+          ref_id: (existing as { sweet_spot_ref_id: string }).sweet_spot_ref_id,
+          ref_type: 'alert' as const,
+        }
+      : null
+
   const [draft, slotDraft] = await Promise.all([
     buildNewsletter({
       week_of: weekOf,
@@ -227,6 +237,7 @@ export async function runBuildNewsletter(opts: {
       radar_signals: inputs.radar_signals,
       jill_prompt: jillPrompt,
       locked_big_story: lockedBigStory,
+      locked_sweet_spot: lockedSweetSpot,
     }),
   ])
 

@@ -17,7 +17,7 @@ const FROM = process.env.RESEND_FROM ?? 'Crazy4Points <hello@crazy4points.com>'
 const ADMIN_EMAIL = process.env.BRIEF_RECIPIENT ?? 'jillzeller6@gmail.com'
 
 const SLOT_SELECT =
-  'id, week_of, subject, subject_options, status, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_html, big_story_claims, big_story_missing_facts, sweet_spot, also_happening, jills_take_html, game_slug, game_title, game_clue_text'
+  'id, week_of, subject, subject_options, status, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_html, big_story_claims, big_story_missing_facts, sweet_spot_ref_type, sweet_spot_ref_id, sweet_spot, also_happening, jills_take_html, game_slug, game_title, game_clue_text'
 
 interface SlotRow {
   id: string
@@ -32,6 +32,8 @@ interface SlotRow {
   big_story_html: string | null
   big_story_claims: VerifyClaim[] | null
   big_story_missing_facts: MissingFact[] | null
+  sweet_spot_ref_type: 'alert' | null
+  sweet_spot_ref_id: string | null
   sweet_spot: NewsletterSlots['sweet_spot'] | null
   also_happening: NewsletterSlots['also_happening'] | null
   jills_take_html: string | null
@@ -146,6 +148,48 @@ export async function unlockBigStoryAction(id: string) {
       big_story_html: null,
       big_story_claims: null,
       big_story_missing_facts: null,
+    })
+    .eq('id', id)
+    .neq('status', 'sent')
+  if (error) throw new Error(error.message)
+  revalidatePath('/admin/newsletter')
+  return { ok: true as const }
+}
+
+/**
+ * NL2a — Sweet Spot alert picker.
+ *
+ * Like the Big Story picker but anchors the SECOND editorial pick.
+ * Sonnet writes the Sweet Spot prose (topic + mechanic_explainer +
+ * best_uses) around this alert on the next Run Now. When null, current
+ * behavior is preserved (Sonnet picks).
+ */
+export async function lockSweetSpotAction(id: string, alertId: string) {
+  const supabase = createAdminClient()
+  const { error } = await supabase
+    .from('newsletters')
+    .update({
+      sweet_spot_ref_id: alertId,
+      sweet_spot_ref_type: 'alert',
+      // Clear the prose so the next regenerate writes fresh content for
+      // this alert. Editor can still hand-edit after.
+      sweet_spot: null,
+    })
+    .eq('id', id)
+    .neq('status', 'sent')
+  if (error) throw new Error(error.message)
+  revalidatePath('/admin/newsletter')
+  return { ok: true as const }
+}
+
+export async function unlockSweetSpotAction(id: string) {
+  const supabase = createAdminClient()
+  const { error } = await supabase
+    .from('newsletters')
+    .update({
+      sweet_spot_ref_id: null,
+      sweet_spot_ref_type: null,
+      sweet_spot: null,
     })
     .eq('id', id)
     .neq('status', 'sent')

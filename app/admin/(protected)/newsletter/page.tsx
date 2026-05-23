@@ -40,6 +40,8 @@ type NewsletterRow = {
   big_story_html: string | null
   big_story_claims: VerifyClaim[] | null
   big_story_missing_facts: MissingFact[] | null
+  sweet_spot_ref_type: 'alert' | null
+  sweet_spot_ref_id: string | null
   sweet_spot: NewsletterSlots['sweet_spot'] | null
   also_happening: AlsoHappeningItem[] | null
   jills_take_html: string | null
@@ -86,7 +88,7 @@ export default async function NewsletterAdminPage({
   const { data: rowsData } = await supabase
     .from('newsletters')
     .select(
-      'id, week_of, subject, subject_options, status, sent_at, recipient_count, created_at, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_html, big_story_claims, big_story_missing_facts, sweet_spot, also_happening, jills_take_html, game_slug, game_title, game_clue_text',
+      'id, week_of, subject, subject_options, status, sent_at, recipient_count, created_at, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_html, big_story_claims, big_story_missing_facts, sweet_spot_ref_type, sweet_spot_ref_id, sweet_spot, also_happening, jills_take_html, game_slug, game_title, game_clue_text',
     )
     .order('week_of', { ascending: false })
     .limit(12)
@@ -142,6 +144,8 @@ export default async function NewsletterAdminPage({
             bigStoryCandidates={candidates}
             bigStoryClaims={current.big_story_claims ?? []}
             bigStoryMissingFacts={current.big_story_missing_facts ?? []}
+            sweetSpotRefId={current.sweet_spot_ref_id}
+            sweetSpotRefType={current.sweet_spot_ref_type}
           />
           {/* Don't show the inputs preview for already-sent newsletters. */}
           {current.status !== 'sent' && <InputsPreview />}
