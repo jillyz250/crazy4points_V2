@@ -43,14 +43,14 @@ const ALL_FORMATS = ['alert', 'blog', 'newsletter', 'facebook', 'instagram', 'li
 interface SmartView {
   key: SmartViewKey
   label: string
-  icon?: string
 }
+// No icons — clean typography + colored count badges carry the visual weight.
 const SMART_VIEWS: SmartView[] = [
-  { key: 'needs_review',     label: 'Needs review',     icon: '⚠' },
-  { key: 'expiring_soon',    label: 'Expiring soon',    icon: '📅' },
-  { key: 'socials_pending',  label: 'Socials pending',  icon: '📣' },
-  { key: 'stale_drafts',     label: 'Stale drafts',     icon: '🕰' },
-  { key: 'recently_expired', label: 'Recently expired', icon: '📜' },
+  { key: 'needs_review',     label: 'Needs review' },
+  { key: 'expiring_soon',    label: 'Expiring soon' },
+  { key: 'socials_pending',  label: 'Socials pending' },
+  { key: 'stale_drafts',     label: 'Stale drafts' },
+  { key: 'recently_expired', label: 'Recently expired' },
   { key: 'all',              label: 'Show all' },
 ]
 
@@ -196,8 +196,14 @@ async function loadRows(supabase: Supa, view: SmartViewKey): Promise<DraftRow[]>
     query = query.eq('status', 'draft').lt('updated_at', past7dIso)
   } else if (view === 'recently_expired') {
     query = query.eq('status', 'published').gte('topics.end_date', past7dIso).lte('topics.end_date', nowIso)
+  } else if (view === 'socials_pending') {
+    // Pre-filter to published alerts BEFORE the limit so the post-fetch
+    // "no social variant for this topic" filter has the right candidate set.
+    // Without this, the top-200 most-recently-edited variants are mostly
+    // needs_review socials/drafts, none of which match the filter → empty list.
+    query = query.eq('format', 'alert').eq('status', 'published')
   }
-  // socials_pending + all are handled below (no SQL filter)
+  // all is handled below (no SQL filter)
 
   const { data: rawRows, error } = await query
   if (error) return []
@@ -306,7 +312,6 @@ export default async function AdminDraftsPage({
                 scroll={false}
                 className={`smart-view${isActive ? ' smart-view--active' : ''}${count === 0 ? ' smart-view--empty' : ''}`}
               >
-                {v.icon && <span style={{ fontSize: '1rem' }}>{v.icon}</span>}
                 <span>{v.label}</span>
                 <span className="smart-view__count">{count}</span>
               </Link>
