@@ -19,10 +19,6 @@ const BODY = '#1A1A1A'
 const MUTED = '#4A4A4A'
 const BORDER = '#E6DEEE'
 const PAGE_BG = '#f4eef8'
-/** Cream wash behind the hero banner. Approximates the banner PNG's
- *  background — adjust if the seam between banner image and HTML
- *  date/lede underneath ever shows a visible color difference. */
-const HERO_BG = '#FAF1E6'
 
 const FONT_DISPLAY = "'Playfair Display', Georgia, serif"
 const FONT_BODY = "'Lato', 'Helvetica Neue', Arial, sans-serif"
@@ -255,11 +251,8 @@ export function renderNewsletterV2Html({
     </td></tr>`
     : ''
 
-  // Hero kicker is the editorial one-liner that tells readers what this
-  // issue is about. Italic Playfair, centered to match pass-3 hero.
-  const heroKickerLine = slots.hero_kicker
-    ? `<p style="margin:14px auto 0;max-width:480px;font-family:${FONT_DISPLAY};font-size:18px;line-height:1.4;color:${PURPLE};font-style:italic;">${esc(slots.hero_kicker)}</p>`
-    : ''
+  // Hero kicker is unused in pass-5 hero (date-only). Kept in slots for
+  // possible future use; just don't render it here.
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -276,19 +269,18 @@ export function renderNewsletterV2Html({
 
         ${previewBanner}
 
-        <!-- Hero (design pass 4 — full-width banner image + dynamic date/lede
-             rendered on a matching cream background so the seam disappears.
-             Banner asset: newsletter-hero-banner.png. Background color
-             approximated to match the banner's cream wash — adjust HERO_BG
-             constant below if it doesn't match. -->
-        <tr><td style="background:${HERO_BG};text-align:center;font-size:0;line-height:0;">
+        <!-- Hero (design pass 5 — banner image at top, then a clean white
+             dateline strip with the date in Playfair italic, left-aligned.
+             The italic serif echoes the banner's wordmark + script while
+             the white bg gives the banner a deliberate stage instead of
+             trying (and failing) to match its cream wash exactly. -->
+        <tr><td style="background:#ffffff;text-align:center;font-size:0;line-height:0;">
           <img src="${origin}/newsletter-hero-banner.png" alt="Crazy4Points Newsletter" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0;" />
         </td></tr>
-        <tr><td style="padding:4px 28px 22px;background:${HERO_BG};text-align:center;">
-          <p style="margin:0;font-family:${FONT_UI};font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:${MUTED};font-weight:700;">Week of ${esc(weekOf)}</p>
-          ${heroKickerLine}
+        <tr><td style="padding:14px 28px 12px;background:#ffffff;text-align:left;">
+          <p style="margin:0;font-family:${FONT_DISPLAY};font-style:italic;font-size:15px;color:${PURPLE};letter-spacing:0.3px;">${esc(weekOf)}</p>
         </td></tr>
-        <tr><td style="padding:0 28px;background:${HERO_BG};">
+        <tr><td style="padding:0 28px;background:#ffffff;">
           <div style="height:1px;background:${BORDER};line-height:1px;font-size:0;">&nbsp;</div>
         </td></tr>
 
