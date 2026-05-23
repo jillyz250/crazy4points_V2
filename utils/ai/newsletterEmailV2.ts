@@ -23,9 +23,6 @@ const PAGE_BG = '#f4eef8'
  *  of the all-purple sameness of SOFT_BG so the section visually pops as
  *  "the deal of the week" instead of blending. */
 const CREAM_BG = '#FAF4E6'
-/** Slightly-deeper purple wash for Jill's Take — distinguishes the
- *  personality column from the light-SOFT_BG sections above it. */
-const PURPLE_TINT = '#EDE2F2'
 
 const FONT_DISPLAY = "'Playfair Display', Georgia, serif"
 const FONT_BODY = "'Lato', 'Helvetica Neue', Arial, sans-serif"
@@ -234,16 +231,19 @@ function renderCurrentBonuses(bonuses: CurrentBonusRow[] | undefined, origin: st
 
 function renderJillsTake(html: string | null | undefined): string {
   if (!html) return ''
-  // Render inside an italic block; respect authored HTML if present, else wrap as-is.
+  // Luxe pull-quote treatment: white background, gold-ribbon top + bottom
+  // borders, sparkle-bookended eyebrow, Playfair italic body centered with
+  // constrained max-width. Reads as a magazine pull-quote / signed editorial
+  // closer — distinct from every other section's purple-tint blocks.
   const inner = /<(p|em|strong)\b/i.test(html)
     ? html
-    : `<p style="margin:0;font-family:${FONT_BODY};font-size:16px;line-height:1.65;color:${BODY};font-style:italic;">${esc(html)}</p>`
+    : `<p style="margin:0;">${esc(html)}</p>`
   return `
     <tr><td style="padding:32px 28px 8px;">
-      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:${PURPLE_TINT};border-left:4px solid ${PURPLE};border-radius:8px;">
-        <tr><td style="padding:22px 26px;">
-          <p style="margin:0 0 10px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${PURPLE};font-weight:700;">Jill's Take</p>
-          ${inner}
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#ffffff;border-top:3px solid ${GOLD};border-bottom:3px solid ${GOLD};">
+        <tr><td style="padding:28px 32px;text-align:center;">
+          <p style="margin:0 0 16px;font-family:${FONT_UI};font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:${GOLD};font-weight:700;">&#10022;&nbsp;&nbsp;Jill's Take&nbsp;&nbsp;&#10022;</p>
+          <div style="font-family:${FONT_DISPLAY};font-size:18px;line-height:1.6;color:${BODY};font-style:italic;max-width:480px;margin:0 auto;">${inner}</div>
         </td></tr>
       </table>
     </td></tr>`
