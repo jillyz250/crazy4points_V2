@@ -21,10 +21,13 @@ interface Puzzle {
   start: string
   goal: string
   par: number
+  max_guesses?: number
   sample_path: string[]
   story?: {
     intro: string
+    mission?: string
     win: string
+    fail?: string
     give_up: string
   }
 }
@@ -151,6 +154,8 @@ export default function Game({ puzzle, iata }: Props) {
   const current = chain[chain.length - 1]
   const isWon = current === puzzle.goal
   const stopsTaken = chain.length - 1
+  const MAX_GUESSES = puzzle.max_guesses ?? 6
+  const isFailed = !isWon && stopsTaken >= MAX_GUESSES
 
   const validNeighbors = useMemo(
     () => (isWon ? [] : neighbors(current, codeSet)),
@@ -251,9 +256,14 @@ export default function Game({ puzzle, iata }: Props) {
         {puzzle.story?.intro && (
           <div style={{ color: 'var(--color-text-primary, #1A1A1A)', margin: '0 0 0.75rem', fontSize: '1rem', lineHeight: 1.55 }}>
             {puzzle.story.intro.split('\n\n').map((para, i) => (
-              <p key={i} style={{ margin: i === 0 ? '0 0 0.75rem' : '0 0 0.75rem' }}>{para}</p>
+              <p key={i} style={{ margin: '0 0 0.75rem' }}>{para}</p>
             ))}
           </div>
+        )}
+        {puzzle.story?.mission && (
+          <p style={{ color: '#c0392b', fontWeight: 700, margin: '0 0 0.75rem', fontSize: '1rem', lineHeight: 1.5 }}>
+            {puzzle.story.mission}
+          </p>
         )}
         <p style={{ color: 'var(--color-text-secondary, #4A4A4A)', margin: 0, fontSize: '0.875rem', lineHeight: 1.5 }}>
           {puzzle.subtitle}
@@ -275,10 +285,10 @@ export default function Game({ puzzle, iata }: Props) {
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: '0.6875rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-secondary)', fontWeight: 700 }}>
-            Par
+            Moves used
           </div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--color-primary)' }}>
-            {puzzle.par} stops
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: stopsTaken >= MAX_GUESSES ? '#c0392b' : 'var(--color-primary)' }}>
+            {stopsTaken} / {MAX_GUESSES}
           </div>
         </div>
       </div>
@@ -333,8 +343,8 @@ export default function Game({ puzzle, iata }: Props) {
         })}
       </div>
 
-      {/* Input + hint row (hidden when won) */}
-      {!isWon && (
+      {/* Input + hint row (hidden when won or failed) */}
+      {!isWon && !isFailed && (
         <div style={{ border: '1px solid var(--color-border-soft)', borderRadius: 'var(--radius-card)', padding: '1rem 1.25rem', marginBottom: '1.25rem' }}>
           <div style={{ fontSize: '0.75rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-secondary)', fontWeight: 700, marginBottom: '0.5rem' }}>
             Stop {stopsTaken + 1} — change one letter of {current}
@@ -453,6 +463,35 @@ export default function Game({ puzzle, iata }: Props) {
         </div>
       )}
 
+      {/* Fail state — ran out of guesses */}
+      {isFailed && (
+        <div style={{ padding: '1.25rem 1.5rem', background: '#fdecea', border: '1px solid #c0392b', borderRadius: 'var(--radius-card)', marginBottom: '1.25rem' }}>
+          {puzzle.story?.fail ? (
+            <p style={{ margin: '0 0 0.75rem', fontSize: '1rem', color: 'var(--color-text-primary)', lineHeight: 1.55 }}>
+              {puzzle.story.fail}
+            </p>
+          ) : (
+            <p style={{ margin: '0 0 0.75rem', fontSize: '1.125rem', fontWeight: 700, color: '#c0392b' }}>
+              Out of moves. Amanda missed the interview.
+            </p>
+          )}
+          <div style={{ fontSize: '0.75rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-secondary)', fontWeight: 700, marginBottom: '0.5rem' }}>
+            One valid route ({puzzle.sample_path.length - 1} stops)
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center', marginBottom: '0.75rem' }}>
+            {puzzle.sample_path.map((code, i) => (
+              <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontFamily: 'ui-monospace, monospace', fontWeight: 700, color: 'var(--color-primary)' }}>{code}</span>
+                {i < puzzle.sample_path.length - 1 && <span style={{ color: 'var(--color-text-secondary)' }}>→</span>}
+              </span>
+            ))}
+          </div>
+          <button type="button" onClick={handleReset} className="rg-btn-secondary" style={{ padding: '0.4375rem 1rem' }}>
+            Try again
+          </button>
+        </div>
+      )}
+
       {/* Won state */}
       {isWon && (
         <div style={{ padding: '1.25rem 1.5rem', background: '#eaf6ee', border: '1px solid #2e7d4f', borderRadius: 'var(--radius-card)', marginBottom: '1.25rem' }}>
@@ -466,7 +505,7 @@ export default function Game({ puzzle, iata }: Props) {
             </div>
           )}
           <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
-            {stopsTaken === puzzle.par ? 'Right on par.' : stopsTaken < puzzle.par ? 'Under par — nice work.' : `${stopsTaken - puzzle.par} over par. The shortest route is ${puzzle.par}.`}
+            {stopsTaken} of {MAX_GUESSES} moves used.
           </div>
           <div style={{ marginTop: '0.625rem' }}>
             <button type="button" onClick={handleReset} className="rg-btn-secondary" style={{ padding: '0.4375rem 1rem' }}>
