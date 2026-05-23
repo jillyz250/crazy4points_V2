@@ -9,6 +9,7 @@ import { runBuildNewsletter, getNewsletterInputs } from '@/utils/ai/runBuildNews
 import { writeBigStoryHtml } from '@/utils/ai/writeBigStoryHtml'
 import { writeSubjectOptions } from '@/utils/ai/writeSubjectOptions'
 import { writeSweetSpotProse } from '@/utils/ai/writeSweetSpotProse'
+import { getActiveBonusAlerts } from '@/utils/ai/getActiveBonusAlerts'
 import { verifyBigStoryDraft } from '@/utils/ai/verifyBigStoryDraft'
 import type { MissingFact } from '@/utils/ai/verifyBigStoryDraft'
 import type { VerifyClaim } from '@/utils/ai/verifyAlertDraft'
@@ -381,11 +382,13 @@ export async function sendTestAction(id: string, toOverride?: string) {
   const isCatchUp = row.status === 'sent' && !!toOverride
 
   const subject = slots.subject || 'Crazy4Points — Weekly'
+  const currentBonuses = await getActiveBonusAlerts()
   const html = renderNewsletterV2Html({
     slots,
     weekOf: formatWeekOf(row.week_of),
     isPreview: !isCatchUp,
     recipientEmail: target,
+    currentBonuses,
   })
 
   const { error } = await resend.emails.send({
@@ -428,6 +431,10 @@ export async function sendToSubscribersAction(id: string, confirmWord: string) {
     throw new Error('No active subscribers to send to.')
   }
 
+  // Pull live bonuses ONCE up front (single query) — same data for every
+  // recipient on this blast. Cheaper than re-querying per render.
+  const currentBonuses = await getActiveBonusAlerts(supabase)
+
   // Resend's free tier rate-limits at 5 requests/sec. We throttle each send
   // by 250ms (= 4/sec) so the last subscribers in the list don't get 429'd
   // and silently dropped. Discovered the hard way on 2026-05-07: 8 subs sent
@@ -450,6 +457,7 @@ export async function sendToSubscribersAction(id: string, confirmWord: string) {
         weekOf: formatWeekOf(row.week_of),
         isPreview: false,
         recipientEmail: to,
+        currentBonuses,
       })
       const { error } = await resend.emails.send({
         from: FROM,

@@ -25,6 +25,7 @@ import type { NewsletterSlots, AlsoHappeningItem, NewsletterSweetSpot, SweetSpot
 import type { BigStoryCandidate } from './page'
 import type { VerifyClaim } from '@/utils/ai/verifyAlertDraft'
 import type { MissingFact } from '@/utils/ai/verifyBigStoryDraft'
+import type { ActiveBonusAlert } from '@/utils/ai/getActiveBonusAlerts'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Badge } from '@/components/admin/ui/Badge'
 
@@ -41,6 +42,7 @@ interface Props {
   bigStoryMissingFacts: MissingFact[]
   sweetSpotRefId: string | null
   sweetSpotRefType: 'alert' | null
+  activeBonuses: ActiveBonusAlert[]
 }
 
 /** What's currently running, so we can surface inline progress + disable the
@@ -101,6 +103,7 @@ export default function NewsletterEditor({
   bigStoryMissingFacts: initialBigStoryMissing,
   sweetSpotRefId: initialSweetSpotRefId,
   sweetSpotRefType: initialSweetSpotRefType,
+  activeBonuses,
 }: Props) {
   const [slots, setSlots] = useState<NewsletterSlots>(initialSlots)
   const [bigStoryClaims, setBigStoryClaims] = useState<VerifyClaim[]>(initialBigStoryClaims)
@@ -630,6 +633,47 @@ export default function NewsletterEditor({
         ))}
         {!isSent && (
           <button type="button" onClick={addSweetSpotUse} style={btnSecondary}>+ Add best use</button>
+        )}
+      </div>
+
+      {/* Current bonuses (auto-pulled, read-only preview) */}
+      <div style={sectionStyle}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '0.75rem', marginBottom: '0.5rem' }}>
+          <label style={{ ...labelStyle, marginBottom: 0 }}>Active transfer + point bonuses</label>
+          <span style={{ fontSize: '0.6875rem', color: 'var(--admin-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>
+            Auto-pulled · {activeBonuses.length} active
+          </span>
+        </div>
+        <p style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)', margin: '0 0 0.625rem' }}>
+          Pulled live from alerts (transfer_bonus + point_purchase, still active). Each row links to the alert on the site. To edit content here, edit the source alerts.
+        </p>
+        {activeBonuses.length === 0 ? (
+          <div style={{ ...cardStyle, marginBottom: 0, color: 'var(--admin-text-muted)', fontSize: '0.8125rem' }}>
+            No active transfer or point-purchase bonuses right now. Section will auto-hide in the rendered email.
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gap: '0.375rem' }}>
+            {activeBonuses.map((b) => (
+              <div
+                key={b.id}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  gap: '0.75rem',
+                  padding: '0.5rem 0.75rem',
+                  background: 'var(--admin-surface-alt)',
+                  border: '1px solid var(--admin-border)',
+                  borderRadius: 'var(--admin-radius)',
+                  fontSize: '0.8125rem',
+                }}
+              >
+                <span style={{ minWidth: 0, fontWeight: 500 }}>{b.title}</span>
+                <span style={{ flexShrink: 0, color: 'var(--admin-text-muted)' }}>
+                  {b.end_date ? `Ends ${b.end_date.slice(0, 10)}` : 'No end date'}
+                </span>
+              </div>
+            ))}
+          </div>
         )}
       </div>
 
