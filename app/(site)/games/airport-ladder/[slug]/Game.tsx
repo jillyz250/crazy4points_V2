@@ -281,7 +281,7 @@ export default function Game({ puzzle, iata }: Props) {
           <strong>It&apos;s not the location that matters — it&apos;s the letters.</strong> Each step swaps one letter of the code, and the new three-letter combo has to be a real IATA airport somewhere in the world. You&apos;re solving a word puzzle on the codes themselves, not booking real flights.
         </p>
         <p style={{ margin: '0 0 0.625rem', fontSize: '0.9375rem', lineHeight: 1.5, color: 'var(--color-text-primary)' }}>
-          For example, from {puzzle.start} a valid first move would be to change the J to an L → <strong>LFK</strong> (Lufkin, Texas — a real airport, so the move counts). Now you&apos;re at LFK and have to change one letter again, then again, until you land on {puzzle.goal}.
+          For example: <strong>ATL</strong> (Atlanta) and <strong>ATH</strong> (Athens, Greece) are one letter apart — change the L to an H and you&apos;ve made a valid move, because ATH is a real airport. Different country, different continent — doesn&apos;t matter. The letters are what counts.
         </p>
         <ul style={{ margin: '0', paddingLeft: '1.25rem', fontSize: '0.875rem', color: 'var(--color-text-secondary)', lineHeight: 1.55 }}>
           <li>Change exactly <strong>one</strong> letter per move.</li>
