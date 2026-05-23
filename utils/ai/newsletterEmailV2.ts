@@ -19,6 +19,12 @@ const BODY = '#1A1A1A'
 const MUTED = '#4A4A4A'
 const BORDER = '#E6DEEE'
 const PAGE_BG = '#f4eef8'
+/** Editorial blue used for in-body link styling — distinct from the
+ *  purple-and-gold brand palette so links read as clearly clickable. */
+const LINK_BLUE = '#1a5fb4'
+/** Soft champagne wash behind Jill's Take — gold-tinted but light
+ *  enough that dark text remains readable. */
+const CHAMPAGNE_BG = '#F4E8C5'
 
 const FONT_DISPLAY = "'Playfair Display', Georgia, serif"
 const FONT_BODY = "'Lato', 'Helvetica Neue', Arial, sans-serif"
@@ -203,7 +209,7 @@ function renderCurrentBonuses(bonuses: CurrentBonusRow[] | undefined, origin: st
       const endLabel = fmtBonusDate(b.end_date)
       return `
         <p style="margin:0 0 10px;font-family:${FONT_BODY};font-size:15px;line-height:1.45;color:${BODY};">
-          <a href="${url}" style="color:${PURPLE};text-decoration:underline;font-weight:600;">${esc(b.title)}</a>
+          <a href="${url}" style="color:${LINK_BLUE};text-decoration:underline;font-weight:600;">${esc(b.title)}</a>
           <span style="color:${MUTED};font-size:13px;margin-left:6px;">&middot; ${esc(endLabel)}</span>
         </p>`
     })
@@ -226,9 +232,9 @@ function renderJillsTake(html: string | null | undefined): string {
     : `<p style="margin:0;">${esc(html)}</p>`
   return `
     <tr><td style="padding:32px 28px 8px;">
-      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#ffffff;border-top:3px solid ${GOLD};border-bottom:3px solid ${GOLD};">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:${CHAMPAGNE_BG};border-radius:10px;">
         <tr><td style="padding:28px 32px;text-align:center;">
-          <p style="margin:0 0 16px;font-family:${FONT_UI};font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:${GOLD};font-weight:700;">&#10022;&nbsp;&nbsp;Jill's Take&nbsp;&nbsp;&#10022;</p>
+          <p style="margin:0 0 16px;font-family:${FONT_UI};font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:${PURPLE};font-weight:700;">Jill's Take</p>
           <div style="font-family:${FONT_DISPLAY};font-size:18px;line-height:1.6;color:${BODY};font-style:italic;max-width:480px;margin:0 auto;">${inner}</div>
         </td></tr>
       </table>
