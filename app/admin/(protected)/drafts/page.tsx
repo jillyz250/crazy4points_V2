@@ -114,13 +114,14 @@ async function loadViewCounts(supabase: Supa): Promise<ViewCounts> {
   const nowIso = new Date().toISOString()
   const in7dIso = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
   const past7dIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+  const past14dIso = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString()
   const staleCutoffIso = past7dIso // 7d
   const yesterdayIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
 
   const [
     needsReview,
     expiringSoon,
-    publishedAlertIds,
+    candidateAlerts, // recent+live published alerts
     topicsWithSocials,
     staleDrafts,
     recentlyExpired,
@@ -134,12 +135,15 @@ async function loadViewCounts(supabase: Supa): Promise<ViewCounts> {
       .eq('status', 'published')
       .gte('topics.end_date', nowIso)
       .lte('topics.end_date', in7dIso),
-    // For socials_pending we need a 2-query join: published alerts + topics that have any social
+    // Socials pending candidate set — published alerts that are RECENT (last 14d)
+    // and still LIVE (end_date null or future). Older or expired alerts are
+    // missed the window; surfacing them as "pending" is noise.
     supabase
       .from('content_variants')
-      .select('topic_id')
+      .select('topic_id, topics:topics!inner(end_date)')
       .eq('format', 'alert')
-      .eq('status', 'published'),
+      .eq('status', 'published')
+      .gte('published_at', past14dIso),
     supabase
       .from('content_variants')
       .select('topic_id')
@@ -159,9 +163,22 @@ async function loadViewCounts(supabase: Supa): Promise<ViewCounts> {
     supabase.from('content_variants').select('*', { count: 'exact', head: true }).gte('created_at', yesterdayIso),
   ])
 
-  const publishedAlertTopics = new Set((publishedAlertIds.data ?? []).map((r) => r.topic_id))
+  const nowMs = Date.now()
+  const candidateRows = (candidateAlerts.data ?? []) as Array<{
+    topic_id: string
+    topics: { end_date: string | null } | Array<{ end_date: string | null }>
+  }>
+  const liveTopicIds = new Set(
+    candidateRows
+      .filter((r) => {
+        const t = Array.isArray(r.topics) ? r.topics[0] : r.topics
+        // Live = no end_date set OR end_date still in the future
+        return !t?.end_date || new Date(t.end_date).getTime() > nowMs
+      })
+      .map((r) => r.topic_id),
+  )
   const topicsThatHaveSocials = new Set((topicsWithSocials.data ?? []).map((r) => r.topic_id))
-  const socialsPending = [...publishedAlertTopics].filter((id) => !topicsThatHaveSocials.has(id)).length
+  const socialsPending = [...liveTopicIds].filter((id) => !topicsThatHaveSocials.has(id)).length
 
   return {
     needs_review:        needsReview.count ?? 0,
@@ -178,6 +195,7 @@ async function loadRows(supabase: Supa, view: SmartViewKey): Promise<DraftRow[]>
   const nowIso = new Date().toISOString()
   const in7dIso = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
   const past7dIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+  const past14dIso = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString()
 
   let query = supabase
     .from('content_variants')
@@ -197,11 +215,15 @@ async function loadRows(supabase: Supa, view: SmartViewKey): Promise<DraftRow[]>
   } else if (view === 'recently_expired') {
     query = query.eq('status', 'published').gte('topics.end_date', past7dIso).lte('topics.end_date', nowIso)
   } else if (view === 'socials_pending') {
-    // Pre-filter to published alerts BEFORE the limit so the post-fetch
-    // "no social variant for this topic" filter has the right candidate set.
-    // Without this, the top-200 most-recently-edited variants are mostly
-    // needs_review socials/drafts, none of which match the filter → empty list.
-    query = query.eq('format', 'alert').eq('status', 'published')
+    // "Socials pending" = recent + live published alerts that don't have
+    // socials yet. The recency + live filters narrow it from "every
+    // published alert ever" to "stuff worth amplifying right now."
+    //   • published_at within last 14 days (recent enough to still amplify)
+    //   • end_date IS NULL OR end_date > now() (still live, not expired)
+    query = query
+      .eq('format', 'alert')
+      .eq('status', 'published')
+      .gte('published_at', past14dIso)
   }
   // all is handled below (no SQL filter)
 
@@ -234,16 +256,22 @@ async function loadRows(supabase: Supa, view: SmartViewKey): Promise<DraftRow[]>
     }
   })
 
-  // Post-filter for socials_pending: published alert rows whose topic has no social variants
+  // Post-filter for socials_pending: drop topics that already have socials,
+  // and drop expired alerts (end_date in the past). The SQL already
+  // restricted to format=alert + status=published + published in last 14d.
   if (view === 'socials_pending') {
     const { data: allSocials } = await supabase
       .from('content_variants')
       .select('topic_id')
       .in('format', SOCIAL_FORMATS)
     const topicsWithSocials = new Set((allSocials ?? []).map((r) => r.topic_id))
-    rows = rows.filter(
-      (r) => r.format === 'alert' && r.status === 'published' && !topicsWithSocials.has(r.topic_id),
-    )
+    const nowMs = Date.now()
+    rows = rows.filter((r) => {
+      if (topicsWithSocials.has(r.topic_id)) return false
+      // Drop expired (end_date past) — past the amplification window
+      if (r.end_date && new Date(r.end_date).getTime() < nowMs) return false
+      return true
+    })
   }
 
   return rows
