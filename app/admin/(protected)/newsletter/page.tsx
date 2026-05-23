@@ -3,10 +3,21 @@ import { createAdminClient } from '@/utils/supabase/server'
 import NewsletterEditor from './NewsletterEditor'
 import InputsPreview from './InputsPreview'
 import type { NewsletterSlots, AlsoHappeningItem } from '@/utils/ai/newsletterSlots'
+import { getNewsletterInputs } from '@/utils/ai/runBuildNewsletter'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Card } from '@/components/admin/ui/Card'
 import { Badge } from '@/components/admin/ui/Badge'
 import { EmptyState as UIEmptyState } from '@/components/admin/ui/EmptyState'
+
+export type BigStoryCandidate = {
+  id: string
+  title: string
+  slug: string | null
+  alert_type: string | null
+  published_at: string | null
+  end_date: string | null
+  why_this_matters: string | null
+}
 
 export const dynamic = 'force-dynamic'
 
@@ -89,6 +100,27 @@ export default async function NewsletterAdminPage({
     ? rows.find((r) => r.id === idParam)
     : rows.find((r) => r.status === 'draft') ?? rows[0]
 
+  // NL1a — load eligible Big Story candidates (the same alert pool the
+  // generator would consider) so the editor can show a picker. Skip the
+  // query if we have no current draft or the newsletter is already sent.
+  let candidates: BigStoryCandidate[] = []
+  if (current && current.status !== 'sent') {
+    try {
+      const inputs = await getNewsletterInputs()
+      candidates = inputs.alerts.map((a) => ({
+        id: a.id,
+        title: a.title,
+        slug: a.slug,
+        alert_type: a.alert_type,
+        published_at: a.published_at,
+        end_date: a.end_date,
+        why_this_matters: a.why_this_matters,
+      }))
+    } catch {
+      candidates = []
+    }
+  }
+
   return (
     <div>
       {current && isPopulated(current) ? (
@@ -101,6 +133,7 @@ export default async function NewsletterAdminPage({
             sentAt={current.sent_at}
             recipientCount={current.recipient_count}
             activeSubscriberCount={activeCount}
+            bigStoryCandidates={candidates}
           />
           {/* Don't show the inputs preview for already-sent newsletters. */}
           {current.status !== 'sent' && <InputsPreview />}

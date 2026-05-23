@@ -13,8 +13,12 @@ import {
   sendTestAction,
   sendToSubscribersAction,
   runNowAction,
+  lockBigStoryAction,
+  unlockBigStoryAction,
+  generateBigStoryFromLockAction,
 } from './actions'
 import type { NewsletterSlots, AlsoHappeningItem, NewsletterSweetSpot, SweetSpotBestUse } from '@/utils/ai/newsletterSlots'
+import type { BigStoryCandidate } from './page'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Badge } from '@/components/admin/ui/Badge'
 
@@ -26,6 +30,7 @@ interface Props {
   sentAt: string | null
   recipientCount: number | null
   activeSubscriberCount: number
+  bigStoryCandidates: BigStoryCandidate[]
 }
 
 const labelStyle: React.CSSProperties = {
@@ -77,6 +82,7 @@ export default function NewsletterEditor({
   sentAt,
   recipientCount,
   activeSubscriberCount,
+  bigStoryCandidates,
 }: Props) {
   const [slots, setSlots] = useState<NewsletterSlots>(initialSlots)
   const [confirmWord, setConfirmWord] = useState('')
@@ -207,6 +213,49 @@ export default function NewsletterEditor({
     })
   }
 
+  function handleLockBigStory(alertId: string) {
+    start(async () => {
+      try {
+        await lockBigStoryAction(id, alertId)
+        // Reflect lock in local state so the picker collapses immediately;
+        // the freshly-generated HTML lands on next reload (or after Generate).
+        setSlots((prev) => ({
+          ...prev,
+          big_story_ref_id: alertId,
+          big_story_ref_type: 'alert',
+          big_story_html: null,
+        }))
+        notify('Big Story locked. Click "Generate Big Story" to write the article.')
+      } catch (e) { notify(e instanceof Error ? e.message : 'Lock failed', true) }
+    })
+  }
+
+  function handleUnlockBigStory() {
+    if (!confirm('Unlock Big Story? The current draft article will also be cleared.')) return
+    start(async () => {
+      try {
+        await unlockBigStoryAction(id)
+        setSlots((prev) => ({
+          ...prev,
+          big_story_ref_id: null,
+          big_story_ref_type: null,
+          big_story_html: null,
+        }))
+        notify('Unlocked. Pick a new lead or run a full regenerate.')
+      } catch (e) { notify(e instanceof Error ? e.message : 'Unlock failed', true) }
+    })
+  }
+
+  function handleGenerateBigStory() {
+    start(async () => {
+      try {
+        const res = await generateBigStoryFromLockAction(id)
+        setSlots((prev) => ({ ...prev, big_story_html: res.html }))
+        notify('Big Story article written.')
+      } catch (e) { notify(e instanceof Error ? e.message : 'Generate failed', true) }
+    })
+  }
+
   function handleSendToSubscribers() {
     if (confirmWord !== 'Send') {
       notify('Type the word "Send" in the confirm box to enable the blast.', true)
@@ -301,11 +350,30 @@ export default function NewsletterEditor({
         />
       </div>
 
-      {/* Big Story */}
+      {/* Big Story — NL1a: pick the lead first, then generate the article */}
       <div style={sectionStyle}>
         <label style={labelStyle}>🚨 The Big Story</label>
-        <p style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)', margin: '0 0 0.5rem' }}>
-          ~150 words, plain HTML. Use {'<p>'} for paragraphs and one {'<ul>'} of bullets. The renderer adds the section heading.
+
+        {/* Locked-lead card OR picker — mutually exclusive */}
+        {slots.big_story_ref_id && slots.big_story_ref_type === 'alert' ? (
+          <LockedBigStoryCard
+            candidate={bigStoryCandidates.find((c) => c.id === slots.big_story_ref_id) ?? null}
+            lockedId={slots.big_story_ref_id}
+            hasHtml={!!slots.big_story_html}
+            disabled={isSent || isPending}
+            onUnlock={handleUnlockBigStory}
+            onGenerate={handleGenerateBigStory}
+          />
+        ) : (
+          <BigStoryPicker
+            candidates={bigStoryCandidates}
+            disabled={isSent || isPending}
+            onLock={handleLockBigStory}
+          />
+        )}
+
+        <p style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)', margin: '0.875rem 0 0.5rem' }}>
+          ~150 words, plain HTML. Use {'<p>'} for paragraphs and one {'<ul>'} of bullets. The renderer adds the section heading. Edit freely after generation.
         </p>
         <textarea
           value={slots.big_story_html ?? ''}
@@ -485,6 +553,121 @@ export default function NewsletterEditor({
             </div>
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+function BigStoryPicker({
+  candidates,
+  disabled,
+  onLock,
+}: {
+  candidates: BigStoryCandidate[]
+  disabled: boolean
+  onLock: (alertId: string) => void
+}) {
+  if (candidates.length === 0) {
+    return (
+      <div
+        style={{
+          ...cardStyle,
+          marginBottom: 0,
+          color: 'var(--admin-text-muted)',
+          fontSize: '0.8125rem',
+        }}
+      >
+        No published alerts in the last 7 days. Run a full regenerate (or
+        publish an alert first) before picking a Big Story.
+      </div>
+    )
+  }
+  return (
+    <div>
+      <p style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)', margin: '0 0 0.5rem' }}>
+        Pick this week&apos;s lead from the {candidates.length} published alert{candidates.length === 1 ? '' : 's'} below. Sonnet will write the article body around it.
+      </p>
+      <div style={{ display: 'grid', gap: '0.5rem' }}>
+        {candidates.map((c) => (
+          <div key={c.id} style={cardStyle}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'flex-start' }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontWeight: 600, fontSize: '0.9375rem', marginBottom: '0.25rem' }}>{c.title}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)', marginBottom: '0.375rem' }}>
+                  {[c.alert_type, c.published_at?.slice(0, 10), c.end_date ? `ends ${c.end_date.slice(0, 10)}` : null]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </div>
+                {c.why_this_matters && (
+                  <div style={{ fontSize: '0.8125rem', color: 'var(--admin-text)' }}>{c.why_this_matters}</div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => onLock(c.id)}
+                disabled={disabled}
+                style={{ ...btnPrimary, flexShrink: 0, padding: '0.375rem 0.875rem', fontSize: '0.8125rem' }}
+              >
+                Lock as Big Story
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function LockedBigStoryCard({
+  candidate,
+  lockedId,
+  hasHtml,
+  disabled,
+  onUnlock,
+  onGenerate,
+}: {
+  candidate: BigStoryCandidate | null
+  lockedId: string
+  hasHtml: boolean
+  disabled: boolean
+  onUnlock: () => void
+  onGenerate: () => void
+}) {
+  return (
+    <div
+      style={{
+        ...cardStyle,
+        borderColor: 'var(--admin-accent)',
+        background: 'var(--admin-accent-soft, var(--admin-surface-alt))',
+        marginBottom: 0,
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--admin-accent)', marginBottom: '0.25rem' }}>
+            Locked lead
+          </div>
+          {candidate ? (
+            <>
+              <div style={{ fontWeight: 600, fontSize: '0.9375rem', marginBottom: '0.25rem' }}>{candidate.title}</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)' }}>
+                {[candidate.alert_type, candidate.published_at?.slice(0, 10)].filter(Boolean).join(' · ')}
+              </div>
+            </>
+          ) : (
+            <div style={{ fontSize: '0.8125rem', color: 'var(--admin-text-muted)' }}>
+              Locked alert id <code>{lockedId.slice(0, 8)}…</code> is outside the current 7-day pool. Unlock to pick a fresh lead.
+            </div>
+          )}
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <button type="button" onClick={onGenerate} disabled={disabled || !candidate} style={btnPrimary}>
+          {hasHtml ? 'Regenerate Big Story' : 'Generate Big Story'}
+        </button>
+        <button type="button" onClick={onUnlock} disabled={disabled} style={btnGhost}>
+          Unlock
+        </button>
       </div>
     </div>
   )
