@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Drafts hub mockup · Crazy4Points</title>
+<title>Drafts hub mockup v2 · Crazy4Points</title>
 <style>
   :root {
     --purple: #6B2D8F;
@@ -22,6 +22,8 @@
     --amber-soft: #fef3c7;
     --red: #b91c1c;
     --red-soft: #fee2e2;
+    --blue: #1e40af;
+    --blue-soft: #dbeafe;
   }
   * { box-sizing: border-box; }
   body {
@@ -32,7 +34,7 @@
     line-height: 1.5;
   }
   .container {
-    max-width: 1080px;
+    max-width: 1120px;
     margin: 0 auto;
     padding: 2rem 1.5rem;
   }
@@ -48,8 +50,8 @@
     background: var(--purple);
     color: #fff;
     border: none;
-    border-radius: 6px;
-    padding: 0.6rem 1rem;
+    border-radius: 8px;
+    padding: 0.625rem 1rem;
     font-weight: 600;
     cursor: pointer;
     font-size: 0.875rem;
@@ -67,25 +69,25 @@
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--muted);
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.625rem;
   }
   /* Smart Views */
   .smart-views {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 12px;
-    padding: 1rem;
+    padding: 1rem 1.125rem;
     margin-bottom: 1rem;
   }
   .smart-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
   .smart-view {
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
+    gap: 0.5rem;
     background: var(--surface);
     border: 1.5px solid var(--border);
     border-radius: 10px;
-    padding: 0.625rem 0.9rem;
+    padding: 0.625rem 0.95rem;
     font-size: 0.875rem;
     font-weight: 600;
     color: var(--text);
@@ -98,6 +100,7 @@
     background: var(--purple-soft);
     transform: translateY(-1px);
     box-shadow: 0 2px 8px rgba(107,45,143,0.12);
+    text-decoration: none;
   }
   .smart-view.active {
     background: var(--purple);
@@ -111,7 +114,7 @@
     justify-content: center;
     min-width: 1.5rem;
     height: 1.25rem;
-    padding: 0 0.4rem;
+    padding: 0 0.45rem;
     background: var(--purple-soft);
     color: var(--purple);
     border-radius: 999px;
@@ -123,13 +126,14 @@
     color: #fff;
   }
   .smart-view .icon { font-size: 0.95rem; }
-  /* Toolbar between filters + table */
+  .smart-view.empty .count { background: #f4f4f5; color: var(--subtle); }
+  /* Manual filter disclosure */
   .table-toolbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    margin: 1rem 0 0.5rem 0;
+    margin: 1.25rem 0 0.5rem 0;
     flex-wrap: wrap;
   }
   .filter-toggle {
@@ -151,7 +155,7 @@
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 0.4rem 0.7rem;
+    padding: 0.45rem 0.75rem;
     font-size: 0.8125rem;
     color: var(--text);
     cursor: pointer;
@@ -174,12 +178,11 @@
     font-size: 0.8125rem;
     padding: 0;
   }
-  /* Manual filters (collapsed) */
   .manual-filters {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 12px;
-    padding: 1rem;
+    padding: 1rem 1.125rem;
     margin-bottom: 0.5rem;
     display: none;
   }
@@ -189,7 +192,7 @@
     align-items: center;
     gap: 0.5rem;
     flex-wrap: wrap;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.625rem;
   }
   .manual-row:last-child { margin-bottom: 0; }
   .manual-row .label {
@@ -212,10 +215,9 @@
     border: 1px solid transparent;
     cursor: pointer;
   }
-  .chip.active {
-    background: var(--purple);
-    color: #fff;
-  }
+  .chip.active { background: var(--purple); color: #fff; }
+  .chip.tone-blue { background: var(--blue-soft); color: var(--blue); }
+  .chip.tone-purple { background: var(--purple-soft); color: var(--purple); }
   /* Table */
   table {
     width: 100%;
@@ -235,12 +237,15 @@
     background: #fafafa;
     font-weight: 600;
     color: var(--muted);
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
+  tr.row-body { cursor: pointer; transition: background 100ms ease; }
+  tr.row-body:hover { background: var(--purple-soft); }
   tr:last-child td { border-bottom: none; }
   td.title { font-weight: 500; color: var(--text); }
+  td.muted { color: var(--muted); }
   .badge {
     display: inline-block;
     padding: 0.15rem 0.55rem;
@@ -249,12 +254,20 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.03em;
+    white-space: nowrap;
   }
   .badge-green { background: var(--green-soft); color: var(--green); }
   .badge-amber { background: var(--amber-soft); color: var(--amber); }
   .badge-red   { background: var(--red-soft);   color: var(--red); }
   .badge-grey  { background: #f4f4f5; color: var(--muted); }
-  .actions a { color: var(--purple); text-decoration: none; font-size: 0.8125rem; font-weight: 500; }
+  .badge-blue  { background: var(--blue-soft); color: var(--blue); }
+  .badge-purple { background: var(--purple-soft); color: var(--purple); }
+  .actions a {
+    color: var(--purple);
+    text-decoration: none;
+    font-size: 0.8125rem;
+    font-weight: 500;
+  }
   .actions a:hover { text-decoration: underline; }
   /* Note banner */
   .note {
@@ -267,19 +280,30 @@
     margin-bottom: 1.5rem;
   }
   .note strong { color: #92400e; }
+  .changes {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    font-size: 0.8125rem;
+    margin-top: 2rem;
+  }
+  .changes h3 { margin: 0 0 0.5rem 0; font-size: 0.875rem; color: var(--text); }
+  .changes ul { margin: 0; padding-left: 1.25rem; color: var(--muted); }
+  .changes li { margin-bottom: 0.25rem; }
 </style>
 </head>
 <body>
   <div class="container">
 
     <div class="note">
-      <strong>This is a mockup.</strong> Static HTML, no real data — just shows the proposed layout for /admin/drafts. Click smart views + the "Filter manually" toggle to see interactions.
+      <strong>Mockup v2 · static HTML, no real data.</strong> Hover the table rows. Click "▶ Filter manually" to expand the legacy chip grid. Counts use real numbers from your DB.
     </div>
 
     <div class="toolbar">
       <div>
         <h1>Drafts</h1>
-        <p class="summary"><strong>3 drafts need review</strong> · 1 new since yesterday · 0 failing voice</p>
+        <p class="summary"><strong>25 drafts need review</strong> · 5 socials pending · 1 new since yesterday</p>
       </div>
       <button class="new-alert">+ New Alert</button>
     </div>
@@ -288,22 +312,22 @@
       <div class="section-label">Start with</div>
       <div class="smart-row">
         <a class="smart-view active" onclick="event.preventDefault()" href="#">
-          <span class="icon">⚠</span> Needs review <span class="count">3</span>
+          <span class="icon">⚠</span> Needs review <span class="count">25</span>
         </a>
         <a class="smart-view" onclick="event.preventDefault()" href="#">
-          <span class="icon">✓</span> Ready to publish <span class="count">1</span>
+          <span class="icon">📅</span> Expiring soon <span class="count">3</span>
         </a>
         <a class="smart-view" onclick="event.preventDefault()" href="#">
-          Stale drafts <span class="count">5</span>
+          <span class="icon">📣</span> Socials pending <span class="count">30</span>
+        </a>
+        <a class="smart-view empty" onclick="event.preventDefault()" href="#">
+          <span class="icon">🕰</span> Stale drafts <span class="count">1</span>
         </a>
         <a class="smart-view" onclick="event.preventDefault()" href="#">
-          Failing voice <span class="count">0</span>
+          <span class="icon">📜</span> Recently expired <span class="count">17</span>
         </a>
         <a class="smart-view" onclick="event.preventDefault()" href="#">
-          Recently expired <span class="count">7</span>
-        </a>
-        <a class="smart-view" onclick="event.preventDefault()" href="#">
-          Show all <span class="count">72</span>
+          Show all <span class="count">79</span>
         </a>
       </div>
     </div>
@@ -312,11 +336,12 @@
       <div class="manual-row">
         <span class="label">Format</span>
         <span class="chip active">All</span>
-        <span class="chip">Alerts</span>
-        <span class="chip">Facebook</span>
-        <span class="chip">Instagram</span>
-        <span class="chip">LinkedIn</span>
-        <span class="chip">X</span>
+        <span class="chip tone-purple">Alerts <small style="opacity:.7">· 74</small></span>
+        <span class="chip tone-blue">Facebook <small style="opacity:.7">· 2</small></span>
+        <span class="chip tone-blue">Instagram <small style="opacity:.7">· 1</small></span>
+        <span class="chip tone-blue">LinkedIn <small style="opacity:.7">· 1</small></span>
+        <span class="chip tone-blue">X <small style="opacity:.7">· 1</small></span>
+        <small style="color:var(--subtle); margin-left:0.5rem;">(Blog · Newsletter hidden until used)</small>
       </div>
       <div class="manual-row">
         <span class="label">Status</span>
@@ -335,7 +360,7 @@
     </div>
 
     <div class="state-line">
-      Showing <strong>3 drafts</strong> · "Needs review"
+      Showing <strong>25 drafts</strong> · "Needs review"
       <button class="clear-filter" onclick="event.preventDefault()">Clear filter ×</button>
     </div>
 
@@ -344,39 +369,96 @@
         <tr>
           <th>Title</th>
           <th>Format</th>
+          <th>Type</th>
           <th>Status</th>
-          <th>Voice</th>
+          <th>Updated</th>
           <th>Expires</th>
           <th style="text-align:right;">Actions</th>
         </tr>
       </thead>
       <tbody>
-        <tr>
+        <tr class="row-body">
           <td class="title">IHG One Rewards Pick Your Points</td>
-          <td>Facebook</td>
+          <td><span class="badge badge-blue">Facebook</span></td>
+          <td class="muted">Limited time offer</td>
           <td><span class="badge badge-amber">Needs review</span></td>
-          <td><span class="badge badge-grey">—</span></td>
-          <td>Aug 31, 2026</td>
-          <td class="actions" style="text-align:right;"><a href="#">Edit</a></td>
+          <td class="muted">2h ago</td>
+          <td class="muted">Aug 31, 2026</td>
+          <td class="actions" style="text-align:right;"><a href="#">Edit →</a></td>
         </tr>
-        <tr>
+        <tr class="row-body">
           <td class="title">IHG One Rewards Pick Your Points</td>
-          <td>Instagram</td>
+          <td><span class="badge badge-blue">Instagram</span></td>
+          <td class="muted">Limited time offer</td>
           <td><span class="badge badge-amber">Needs review</span></td>
-          <td><span class="badge badge-grey">—</span></td>
-          <td>Aug 31, 2026</td>
-          <td class="actions" style="text-align:right;"><a href="#">Edit</a></td>
+          <td class="muted">2h ago</td>
+          <td class="muted">Aug 31, 2026</td>
+          <td class="actions" style="text-align:right;"><a href="#">Edit →</a></td>
         </tr>
-        <tr>
+        <tr class="row-body">
           <td class="title">IHG One Rewards Pick Your Points</td>
-          <td>LinkedIn</td>
+          <td><span class="badge badge-blue">LinkedIn</span></td>
+          <td class="muted">Limited time offer</td>
           <td><span class="badge badge-amber">Needs review</span></td>
-          <td><span class="badge badge-grey">—</span></td>
-          <td>Aug 31, 2026</td>
-          <td class="actions" style="text-align:right;"><a href="#">Edit</a></td>
+          <td class="muted">2h ago</td>
+          <td class="muted">Aug 31, 2026</td>
+          <td class="actions" style="text-align:right;"><a href="#">Edit →</a></td>
+        </tr>
+        <tr class="row-body">
+          <td class="title">IHG One Rewards Pick Your Points</td>
+          <td><span class="badge badge-blue">X</span></td>
+          <td class="muted">Limited time offer</td>
+          <td><span class="badge badge-amber">Needs review</span></td>
+          <td class="muted">2h ago</td>
+          <td class="muted">Aug 31, 2026</td>
+          <td class="actions" style="text-align:right;"><a href="#">Edit →</a></td>
+        </tr>
+        <tr class="row-body">
+          <td class="title">United MileagePlus Buy Miles: Up to 100% Bonus</td>
+          <td><span class="badge badge-purple">Alert</span></td>
+          <td class="muted">Point purchase</td>
+          <td><span class="badge badge-amber">Needs review</span></td>
+          <td class="muted">8d ago</td>
+          <td class="muted">Jun 28, 2026</td>
+          <td class="actions" style="text-align:right;"><a href="#">Edit →</a></td>
+        </tr>
+        <tr class="row-body">
+          <td class="title">Air New Zealand Rebrands Airpoints as Koru</td>
+          <td><span class="badge badge-purple">Alert</span></td>
+          <td class="muted">Program change</td>
+          <td><span class="badge badge-amber">Needs review</span></td>
+          <td class="muted">7d ago</td>
+          <td class="muted">—</td>
+          <td class="actions" style="text-align:right;"><a href="#">Edit →</a></td>
+        </tr>
+        <tr class="row-body">
+          <td class="title">Flying Blue Buy Miles: Up to 45% Off or 80% Bonus</td>
+          <td><span class="badge badge-purple">Alert</span></td>
+          <td class="muted">Point purchase</td>
+          <td><span class="badge badge-amber">Needs review</span></td>
+          <td class="muted">8d ago</td>
+          <td class="muted">May 29, 2026</td>
+          <td class="actions" style="text-align:right;"><a href="#">Edit →</a></td>
         </tr>
       </tbody>
     </table>
+
+    <div class="changes">
+      <h3>Changes from v1 mockup</h3>
+      <ul>
+        <li>Dropped "Failing voice" Smart View (voice is inline craft, not a triage axis)</li>
+        <li>Added <strong>"Socials pending"</strong> Smart View (published alerts with no socials yet — currently 30 leaking)</li>
+        <li>Renamed "Stale" → "Stale drafts" + grey count when empty</li>
+        <li>Added "Expiring soon" Smart View (end_date in next 7 days)</li>
+        <li>Dropped <strong>Voice column</strong> from table → replaced with <strong>Updated</strong> (e.g. "2h ago")</li>
+        <li>Added <strong>Type column</strong> (alert_type) so you see what the row is about at a glance</li>
+        <li>Subhead drops zero counts — only non-zero info shown</li>
+        <li>Social variant rows show <strong>parent topic title</strong> (not the FB-specific copy)</li>
+        <li>Whole row hover highlights purple — click anywhere to edit (try it)</li>
+        <li>Blog + Newsletter hidden from format chips until they have content</li>
+        <li>Default landing is "Needs review", not "Show all"</li>
+      </ul>
+    </div>
 
   </div>
 
