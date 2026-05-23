@@ -42,7 +42,7 @@ export async function generateMetadata({
   const puzzle = (puzzles as Puzzle[]).find((p) => p.slug === slug)
   if (!puzzle) return { title: 'Puzzle not found' }
   return {
-    title: `${puzzle.title} — Airport Code Ladder | crazy4points`,
+    title: `${puzzle.title} — Three-Letter Dash | crazy4points`,
     description: puzzle.subtitle,
   }
 }
