@@ -143,7 +143,7 @@ export default function Game({ puzzle, iata }: Props) {
   const [chain, setChain] = useState<string[]>([puzzle.start])
   const [input, setInput] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [difficulty, setDifficulty] = useState<Difficulty>('easy')
+  const [difficulty, setDifficulty] = useState<Difficulty>('medium')
   const [revealedHints, setRevealedHints] = useState<Set<number>>(new Set())
   // Hard-mode-only: a one-shot "show me the list" toggle that surfaces the
   // valid-next-codes chip list for the current step. Resets every time the
