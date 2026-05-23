@@ -25,6 +25,7 @@ import ConfirmButton from '@/components/admin/ConfirmButton'
 
 type SmartViewKey =
   | 'needs_review'
+  | 'published_alerts'
   | 'expiring_soon'
   | 'socials_pending'
   | 'stale_drafts'
@@ -47,6 +48,7 @@ interface SmartView {
 // No icons — clean typography + colored count badges carry the visual weight.
 const SMART_VIEWS: SmartView[] = [
   { key: 'needs_review',     label: 'Needs review' },
+  { key: 'published_alerts', label: 'Published alerts' },
   { key: 'expiring_soon',    label: 'Expiring soon' },
   { key: 'socials_pending',  label: 'Needs socials' },
   { key: 'stale_drafts',     label: 'Stale drafts' },
@@ -102,6 +104,7 @@ function formatDate(iso: string | null): string {
 type Supa = ReturnType<typeof createAdminClient>
 interface ViewCounts {
   needs_review: number
+  published_alerts: number
   expiring_soon: number
   socials_pending: number
   stale_drafts: number
@@ -120,6 +123,7 @@ async function loadViewCounts(supabase: Supa): Promise<ViewCounts> {
 
   const [
     needsReview,
+    publishedAlerts,
     expiringSoon,
     candidateAlerts, // recent+live published alerts
     topicsWithSocials,
@@ -129,6 +133,14 @@ async function loadViewCounts(supabase: Supa): Promise<ViewCounts> {
     newSinceYesterday,
   ] = await Promise.all([
     supabase.from('content_variants').select('*', { count: 'exact', head: true }).eq('status', 'needs_review'),
+    // Published alerts — the editorial library. format=alert + status=published,
+    // no recency/expiry filter (those are separate views). This is the
+    // "I need to edit a specific published alert" workflow.
+    supabase
+      .from('content_variants')
+      .select('*', { count: 'exact', head: true })
+      .eq('format', 'alert')
+      .eq('status', 'published'),
     supabase
       .from('content_variants')
       .select('*, topics:topics!inner(end_date)', { count: 'exact', head: true })
@@ -182,6 +194,7 @@ async function loadViewCounts(supabase: Supa): Promise<ViewCounts> {
 
   return {
     needs_review:        needsReview.count ?? 0,
+    published_alerts:    publishedAlerts.count ?? 0,
     expiring_soon:       expiringSoon.count ?? 0,
     socials_pending:     socialsPending,
     stale_drafts:        staleDrafts.count ?? 0,
@@ -208,6 +221,8 @@ async function loadRows(supabase: Supa, view: SmartViewKey): Promise<DraftRow[]>
 
   if (view === 'needs_review') {
     query = query.eq('status', 'needs_review')
+  } else if (view === 'published_alerts') {
+    query = query.eq('format', 'alert').eq('status', 'published')
   } else if (view === 'expiring_soon') {
     query = query.eq('status', 'published').gte('topics.end_date', nowIso).lte('topics.end_date', in7dIso)
   } else if (view === 'stale_drafts') {
@@ -288,7 +303,7 @@ export default async function AdminDraftsPage({
   searchParams: Promise<{ view?: string }>
 }) {
   const sp = await searchParams
-  const validViews: SmartViewKey[] = ['needs_review', 'expiring_soon', 'socials_pending', 'stale_drafts', 'recently_expired', 'all']
+  const validViews: SmartViewKey[] = ['needs_review', 'published_alerts', 'expiring_soon', 'socials_pending', 'stale_drafts', 'recently_expired', 'all']
   const view: SmartViewKey = (sp.view && validViews.includes(sp.view as SmartViewKey) ? sp.view : 'needs_review') as SmartViewKey
 
   const supabase = createAdminClient()
@@ -364,6 +379,7 @@ export default async function AdminDraftsPage({
             if (view === 'recently_expired')  return rows.length === 1 ? 'alert that expired recently' : 'alerts that expired recently'
             if (view === 'stale_drafts')      return rows.length === 1 ? 'draft idle for 7+ days' : 'drafts idle for 7+ days'
             if (view === 'needs_review')      return rows.length === 1 ? 'draft needs review' : 'drafts need review'
+            if (view === 'published_alerts')  return rows.length === 1 ? 'published alert' : 'published alerts'
             return rows.length === 1 ? 'draft' : 'drafts'
           })()}
         </div>
