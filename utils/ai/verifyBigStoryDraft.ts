@@ -108,24 +108,32 @@ for any factual detail that DOES NOT appear in the article. List each in
 "missing_facts". This is the second-most-important output — readers need
 these to act, and the writer sometimes drops them.
 
-Specifically look for:
+Flag ONLY ACTIONABLE missing facts. The article is a news brief, not a
+contract recital — Jill does not want every T&C clause in the newsletter.
+
+ACTIONABLE (flag if missing):
 • Event dates the article doesn't mention (e.g. source has "July 2" and
   "July 11" but article only mentions the on-sale date)
-• Multiple cities / locations / variants — if the source lists three
-  cities and the article mentions one, the other two are missing
-• Times, time zones, durations, capacities, ratios that appear in source
-  but not article
-• Eligibility constraints ("Reserve cardmembers only", "must be enrolled")
-  that the article skips
+• Multiple cities / locations / variants — if source lists three cities
+  and the article mentions one, the other two are missing
+• Times, time zones, on-sale windows, durations, capacities, ratios that
+  appear in source but not article
+• Eligibility constraints that materially change who can use the offer
+  ("Reserve cardmembers only", "must be enrolled by X date")
 
-severity="high" if the omission would make a subscriber miss out on the
-opportunity or plan wrong (event dates, eligibility, on-sale times).
-severity="low" for descriptive color that's nice-to-have.
-
-Do NOT list:
-• Marketing fluff from the source the article correctly skipped
+NON-ACTIONABLE (DO NOT flag — these belong in T&Cs, not the article):
+• Arbitration / dispute-resolution clauses
+• "Void where prohibited" / jurisdiction language
+• Exclusion lists of countries / states
+• Generic forfeiture or "modifications without notice" boilerplate
+• Standard issuer-wide eligibility fine print (age 18+, US residents, etc.)
+• Marketing fluff and brand framing
 • Generic context the article doesn't need to repeat
 • Facts that ARE in the article in different words
+
+severity="high" if the omission would make a subscriber miss out, plan
+wrong, or miss a window (event dates, eligibility, on-sale times).
+severity="low" for descriptive color that's nice-to-have.
 
 ═══════════════════════════════════════════════════════════
 OUTPUT FORMAT (return ONLY this JSON, no prose, no fences)

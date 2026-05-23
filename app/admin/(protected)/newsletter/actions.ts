@@ -212,15 +212,11 @@ export async function generateBigStoryFromLockAction(id: string) {
     )
   }
 
-  const html = await writeBigStoryHtml(alert, row.subject)
-  if (!html) {
-    throw new Error('Sonnet returned no Big Story HTML — see server logs.')
-  }
-
-  // Pull issuer T&Cs from the source alert (if any) for fact-check ground
-  // truth. Source prose comes from the AlertView's summary +
-  // why_this_matters (already in `alert`); verified_terms only lives on
-  // the alerts table, so fetch it separately. Cheap, one row by id.
+  // Pull issuer T&Cs BEFORE writing so the writer can see them too. The
+  // verifier needs them as ground truth for the fact-check pass, and the
+  // writer needs them to surface actionable facts (event dates, on-sale
+  // times, multi-city listings) that often only live in T&Cs rather than
+  // the alert's summary/why_this_matters.
   const supabase = createAdminClient()
   const { data: alertRow } = await supabase
     .from('alerts')
@@ -229,6 +225,11 @@ export async function generateBigStoryFromLockAction(id: string) {
     .maybeSingle()
   const verifiedTerms =
     (alertRow as { verified_terms?: string | null } | null)?.verified_terms ?? null
+
+  const html = await writeBigStoryHtml(alert, row.subject, verifiedTerms)
+  if (!html) {
+    throw new Error('Sonnet returned no Big Story HTML — see server logs.')
+  }
 
   const sourceText = [
     alert.title ? `# ${alert.title}` : '',

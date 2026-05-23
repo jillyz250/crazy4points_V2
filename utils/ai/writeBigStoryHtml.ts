@@ -45,7 +45,9 @@ HARD RULES
 - NEVER assert recurring cadence ("daily", "every Tuesday") unless the input explicitly says so.
 - NO links inside big_story_html — the reader stays in the email.
 - Paraphrase the alert's why_this_matters in voice; don't quote it verbatim.
-- **EVERY date, deadline, time, time zone, and number from the source must appear in the article.** Stadium dates, on-sale times, durations, ratios, capacities — all of them. Do not cherry-pick "the most important one"; readers need ALL of them to act. If the source lists multiple cities or events with separate dates, list each city + each date explicitly in the bullets. Skipping a date is a critical failure.
+- **EVERY ACTIONABLE FACT from the source must appear in the article.** "Actionable" = something a reader needs to act on: event dates, on-sale times + time zones, multi-city listings (e.g. "SF July 2, NJ July 11" — list both), eligibility constraints ("Reserve cardmembers only"), durations, capacity limits, transfer ratios, percentage bonuses. Do not cherry-pick "the most important one" — readers need ALL of them to plan.
+- **SKIP legal boilerplate from verified_terms.** Do NOT include: arbitration clauses, "void where prohibited," exclusion lists, "modifications without notice," forfeiture terms, generic disclaimers, eligibility fine print that's standard for the issuer. The article is a news brief, not a contract.
+- If verified_terms is provided, treat it as ground truth for dates/times/eligibility — those facts MUST appear in the article even if they don't appear in the alert's summary.
 - If chosen_subject is non-null, treat it as a steering signal: the article's tone and lead sentence should echo the angle of that headline (curiosity question → lead with the question; deadline-focused → put the date front and center; etc.). Do NOT restate the subject line verbatim inside the article.`
 
 interface SonnetOutput {
@@ -68,6 +70,7 @@ function extractJson(text: string): string {
 export async function writeBigStoryHtml(
   alert: NewsletterAlertInput,
   chosenSubject?: string | null,
+  verifiedTerms?: string | null,
 ): Promise<string | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
@@ -86,6 +89,11 @@ export async function writeBigStoryHtml(
         end_date: alert.end_date,
         published_at: alert.published_at,
       },
+      // verified_terms = the issuer's own T&Cs. Treated as the source of
+      // truth for actionable facts (event dates, on-sale times, multi-city
+      // listings, eligibility) — but per the writer rules below, the
+      // article only surfaces actionable facts, not legal boilerplate.
+      verified_terms: verifiedTerms?.trim() || null,
       // When the editor has already picked a subject line, pass it in so the
       // article's tone and lead sentence can echo the chosen headline's angle
       // (curiosity, deadline, jab, etc.). Sonnet still writes a full article;
