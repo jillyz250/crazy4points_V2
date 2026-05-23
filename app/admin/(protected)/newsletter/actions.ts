@@ -5,7 +5,8 @@ import { Resend } from 'resend'
 import { createAdminClient } from '@/utils/supabase/server'
 import { renderNewsletterV2Html, formatWeekOf } from '@/utils/ai/newsletterEmailV2'
 import type { NewsletterSlots } from '@/utils/ai/newsletterSlots'
-import { runBuildNewsletter } from '@/utils/ai/runBuildNewsletter'
+import { runBuildNewsletter, getNewsletterInputs } from '@/utils/ai/runBuildNewsletter'
+import { writeBigStoryHtml } from '@/utils/ai/writeBigStoryHtml'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 const FROM = process.env.RESEND_FROM ?? 'Crazy4Points <hello@crazy4points.com>'
@@ -98,6 +99,85 @@ export async function runNowAction() {
   if (!result.ok) throw new Error(result.error)
   revalidatePath('/admin/newsletter')
   return result
+}
+
+/**
+ * Phase NL1a — Big Story picker actions.
+ *
+ * lockBigStoryAction:    set the lead alert manually + clear stale HTML so
+ *                        the next generate writes fresh prose for it.
+ * unlockBigStoryAction:  clear the lock (and the HTML) so Sonnet can pick
+ *                        a different lead on next regen.
+ * generateBigStoryFromLockAction:
+ *                        write the Big Story HTML for the currently-locked
+ *                        alert only — does not touch other slots.
+ */
+export async function lockBigStoryAction(id: string, alertId: string) {
+  const supabase = createAdminClient()
+  const { error } = await supabase
+    .from('newsletters')
+    .update({
+      big_story_ref_id: alertId,
+      big_story_ref_type: 'alert',
+      big_story_html: null,
+    })
+    .eq('id', id)
+    .neq('status', 'sent')
+  if (error) throw new Error(error.message)
+  revalidatePath('/admin/newsletter')
+  return { ok: true as const }
+}
+
+export async function unlockBigStoryAction(id: string) {
+  const supabase = createAdminClient()
+  const { error } = await supabase
+    .from('newsletters')
+    .update({
+      big_story_ref_id: null,
+      big_story_ref_type: null,
+      big_story_html: null,
+    })
+    .eq('id', id)
+    .neq('status', 'sent')
+  if (error) throw new Error(error.message)
+  revalidatePath('/admin/newsletter')
+  return { ok: true as const }
+}
+
+export async function generateBigStoryFromLockAction(id: string) {
+  const { row } = await loadSlotRow(id)
+  if (row.status === 'sent') {
+    throw new Error('This newsletter has already been sent.')
+  }
+  if (!row.big_story_ref_id || row.big_story_ref_type !== 'alert') {
+    throw new Error('No alert is locked as the Big Story. Pick one first.')
+  }
+
+  // Pull the same alert pool the generator would see so the locked alert
+  // is hydrated with the fields Sonnet needs (summary, why_this_matters,
+  // etc.). The pool is small and the lookup is cheap.
+  const inputs = await getNewsletterInputs()
+  const alert = inputs.alerts.find((a) => a.id === row.big_story_ref_id)
+  if (!alert) {
+    throw new Error(
+      'Locked alert is no longer in the eligible pool (older than 7 days or unpublished). Unlock and pick a new one.',
+    )
+  }
+
+  const html = await writeBigStoryHtml(alert)
+  if (!html) {
+    throw new Error('Sonnet returned no Big Story HTML — see server logs.')
+  }
+
+  const supabase = createAdminClient()
+  const { error } = await supabase
+    .from('newsletters')
+    .update({ big_story_html: html })
+    .eq('id', id)
+    .neq('status', 'sent')
+  if (error) throw new Error(error.message)
+  revalidatePath('/admin/newsletter')
+  return { ok: true as const, html }
 }
 
 /**

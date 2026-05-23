@@ -166,7 +166,7 @@ export async function runBuildNewsletter(opts: {
 
   const { data: existing } = await supabase
     .from('newsletters')
-    .select('id, status, draft_json, jill_prompt')
+    .select('id, status, draft_json, jill_prompt, big_story_ref_id, big_story_ref_type')
     .eq('week_of', weekOf)
     .maybeSingle()
 
@@ -196,6 +196,20 @@ export async function runBuildNewsletter(opts: {
   const jillPrompt: string | null =
     (existing && (existing as { jill_prompt?: string | null }).jill_prompt) ?? null
 
+  // Phase NL1a — honor a manually-picked Big Story across regenerates. When
+  // the row already has a big_story_ref_id locked in by the editor, pass it
+  // to the slot generator so Sonnet writes the article around that alert
+  // instead of picking its own lead.
+  const lockedBigStory =
+    existing && (existing as { big_story_ref_id?: string | null }).big_story_ref_id
+      ? {
+          ref_id: (existing as { big_story_ref_id: string }).big_story_ref_id,
+          ref_type:
+            ((existing as { big_story_ref_type?: 'alert' | 'intel' | null }).big_story_ref_type ??
+              'alert') as 'alert' | 'intel',
+        }
+      : null
+
   const [draft, slotDraft] = await Promise.all([
     buildNewsletter({
       week_of: weekOf,
@@ -211,6 +225,7 @@ export async function runBuildNewsletter(opts: {
       blog_ideas: inputs.blog_ideas,
       radar_signals: inputs.radar_signals,
       jill_prompt: jillPrompt,
+      locked_big_story: lockedBigStory,
     }),
   ])
 

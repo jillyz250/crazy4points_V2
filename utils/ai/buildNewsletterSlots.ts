@@ -23,6 +23,15 @@ export interface BuildSlotsInput {
   radar_signals?: NewsletterRadarSignalInput[]
   /** Admin scratchpad — informs Jill's Take direction. Empty = generator picks topic. */
   jill_prompt?: string | null
+  /**
+   * Big Story lock (Phase NL1a). When set, Sonnet must use this alert/intel
+   * as the Big Story and not pick its own. Editor sets this when Jill picks
+   * the lead manually via the Big Story picker.
+   */
+  locked_big_story?: {
+    ref_id: string
+    ref_type: 'alert' | 'intel'
+  } | null
 }
 
 interface SonnetSlotOutput {
@@ -69,9 +78,11 @@ OUTPUT FORMAT (return ONLY this JSON, no prose, no fences)
   ],
   "jills_take_html": "<1–2 sentences. <p> tags. Italic styling is added by the renderer — don't use <em>. The single insight, opinion, or wink.>",
   "subject_options": [
-    "<hook 1, under 50 chars, no 'Crazy Thursday' or 'Hey'>",
-    "<hook 2>",
-    "<hook 3>"
+    "<hook 1 — curiosity question, ≤50 chars>",
+    "<hook 2 — playful juxtaposition, ≤50 chars>",
+    "<hook 3 — specific number or deadline, ≤50 chars>",
+    "<hook 4 — rhetorical jab or sly take, ≤50 chars>",
+    "<hook 5 — all-lowercase casual text feel, ≤50 chars>"
   ]
 }
 
@@ -86,7 +97,8 @@ INPUT contains:
 - jill_prompt (optional admin scratchpad steering Jill's Take topic)
 
 big_story:
-- Pick the SINGLE most-important alert OR a major industry-news item from radar_signals if it eclipses any alert (e.g. an airline shutdown).
+- If input includes \`locked_big_story\` (the editor has picked the lead manually), you MUST use that as the Big Story — set big_story_ref_id and big_story_ref_type to match exactly. Do NOT pick a different story.
+- Otherwise, pick the SINGLE most-important alert OR a major industry-news item from radar_signals if it eclipses any alert (e.g. an airline shutdown).
 - big_story_ref_id MUST be the alert's uuid (or intel uuid if from radar_signals).
 - big_story_html: ~150 words, structured as:
     <p>Lead paragraph — what happened, in plain language, reader-payoff first.</p>
@@ -117,9 +129,15 @@ jills_take_html:
 - Lead with the insight; never recap the news.
 - Plain text inside <p> tags. The renderer styles italic — don't use <em>.
 
-subject_options (exactly 3):
-- VARIED. One punchy/playful, one direct/service, one specific (deadline or number).
-- Under 50 chars each (Gmail mobile truncates beyond that).
+subject_options (EXACTLY 5):
+- ALL punchy or playful or curiosity-bait — NEVER "direct/service" energy
+  (no "Here's what's new in points this week", no "Your weekly digest").
+- Vary the angle across the five: one curiosity question, one playful
+  juxtaposition, one specific number/deadline, one rhetorical jab,
+  one ALL-lowercase casual-text feel.
+- HARD CAP 50 chars each — Gmail mobile truncates beyond that. Count
+  the characters yourself before returning. If any option is over 50
+  chars, rewrite it shorter — DO NOT return it long.
 
 ═══════════════════════════════════════════════════════════
 HARD RULES
@@ -182,10 +200,17 @@ function validateSlots(raw: unknown): Omit<NewsletterSlots, 'subject' | 'game' |
   if (!Array.isArray(r.subject_options) || r.subject_options.length === 0) {
     throw new Error('Missing subject_options')
   }
+  // Server-side enforcement: 5 options, hard 50-char cap. Sonnet ignores
+  // the prompt rule sometimes; drop any over-length options rather than
+  // truncating mid-word (a chopped headline reads worse than 4 good ones).
+  const SUBJECT_MAX_CHARS = 50
+  const SUBJECT_TARGET_COUNT = 5
   const subject_options = r.subject_options
     .filter((s): s is string => typeof s === 'string' && s.trim().length > 0)
-    .slice(0, 3)
-  if (subject_options.length === 0) throw new Error('Empty subject_options')
+    .map((s) => s.trim())
+    .filter((s) => s.length <= SUBJECT_MAX_CHARS)
+    .slice(0, SUBJECT_TARGET_COUNT)
+  if (subject_options.length === 0) throw new Error('Empty subject_options (all exceeded 50-char cap)')
 
   const also = Array.isArray(r.also_happening) ? r.also_happening : []
   const also_happening: AlsoHappeningItem[] = also
@@ -224,6 +249,7 @@ export async function buildNewsletterSlots(
     {
       week_of: input.week_of,
       jill_prompt: input.jill_prompt ?? null,
+      locked_big_story: input.locked_big_story ?? null,
       alerts: input.alerts.slice(0, 10),
       newsletter_ideas: input.newsletter_ideas.slice(0, 8),
       blog_ideas: input.blog_ideas.slice(0, 3),
