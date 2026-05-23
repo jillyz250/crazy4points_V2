@@ -48,7 +48,7 @@ interface SmartView {
 const SMART_VIEWS: SmartView[] = [
   { key: 'needs_review',     label: 'Needs review' },
   { key: 'expiring_soon',    label: 'Expiring soon' },
-  { key: 'socials_pending',  label: 'Socials pending' },
+  { key: 'socials_pending',  label: 'Needs socials' },
   { key: 'stale_drafts',     label: 'Stale drafts' },
   { key: 'recently_expired', label: 'Recently expired' },
   { key: 'all',              label: 'Show all' },
@@ -297,7 +297,7 @@ export default async function AdminDraftsPage({
   // Subhead summary — only show non-zero counts so it reads as a real status line.
   const summaryParts: string[] = []
   if (counts.needs_review > 0) summaryParts.push(`${counts.needs_review} ${counts.needs_review === 1 ? 'draft needs' : 'drafts need'} review`)
-  if (counts.socials_pending > 0) summaryParts.push(`${counts.socials_pending} ${counts.socials_pending === 1 ? 'social' : 'socials'} pending`)
+  if (counts.socials_pending > 0) summaryParts.push(`${counts.socials_pending} ${counts.socials_pending === 1 ? 'alert needs' : 'alerts need'} socials`)
   if (counts.new_since_yesterday > 0) summaryParts.push(`${counts.new_since_yesterday} new since yesterday`)
   const summary = summaryParts.length > 0 ? summaryParts.join(' · ') : 'All caught up. Nothing in the queue.'
 
@@ -348,19 +348,30 @@ export default async function AdminDraftsPage({
         </div>
       </Card>
 
-      {/* State line */}
-      {rows.length > 0 && (
-        <div
-          style={{
-            fontSize: '0.8125rem',
-            color: 'var(--admin-text-muted)',
-            margin: '0.75rem 0 0.5rem 0',
-          }}
-        >
-          Showing <strong style={{ color: 'var(--admin-text)' }}>{rows.length}</strong>{' '}
-          {rows.length === 1 ? 'draft' : 'drafts'} · &quot;{activeView.label}&quot;
-        </div>
-      )}
+      {/* State line — view-specific noun so the row identity is clear.
+          "Needs socials" shows ALERTS that need socials, not socials. */}
+      {rows.length > 0 && (() => {
+        const noun = (() => {
+          if (view === 'socials_pending') return rows.length === 1 ? 'published alert that needs social variants' : 'published alerts that need social variants'
+          if (view === 'expiring_soon')   return rows.length === 1 ? 'alert expiring in the next 7 days' : 'alerts expiring in the next 7 days'
+          if (view === 'recently_expired')return rows.length === 1 ? 'alert that expired recently' : 'alerts that expired recently'
+          if (view === 'stale_drafts')    return rows.length === 1 ? 'draft idle for 7+ days' : 'drafts idle for 7+ days'
+          if (view === 'needs_review')    return rows.length === 1 ? 'draft needs review' : 'drafts need review'
+          return rows.length === 1 ? 'draft' : 'drafts'
+        })()
+        return (
+          <div
+            style={{
+              fontSize: '0.8125rem',
+              color: 'var(--admin-text-muted)',
+              margin: '0.75rem 0 0.5rem 0',
+            }}
+          >
+            Showing <strong style={{ color: 'var(--admin-text)' }}>{rows.length}</strong>{' '}
+            {noun}
+          </div>
+        )
+      })()}
 
       {rows.length === 0 ? (
         <EmptyState
