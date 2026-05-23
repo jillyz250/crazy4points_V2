@@ -227,16 +227,25 @@ function renderJillsTake(html: string | null | undefined): string {
   const inner = /<(p|em|strong)\b/i.test(html)
     ? html
     : `<p style="margin:0;">${esc(html)}</p>`
-  // White block, gold ribbon BEHIND just the eyebrow text — "Jill's Take"
-  // sits in a gold rectangle with white uppercase letters, body in italic
-  // Playfair on white below. Reads as a banner-tagged pull quote.
+  // Fancy ribbon: pointed-tail ends via CSS-border triangles. Center gold
+  // rectangle holds the white uppercase "Jill's Take" text; left + right
+  // 0-width cells use border tricks to create gold triangle tails pointing
+  // outward, making the whole thing read as an actual ribbon banner.
+  //
+  // Email-safety: Gmail web, Apple Mail, Outlook.com all render CSS
+  // border-triangle. Outlook desktop may drop the tails (graceful
+  // fallback — still shows the gold rectangle).
   return `
     <tr><td style="padding:32px 28px 8px;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#ffffff;">
         <tr><td style="padding:28px 32px;text-align:center;">
-          <p style="margin:0 0 20px;">
-            <span style="display:inline-block;background:${GOLD};color:#ffffff;padding:8px 24px;font-family:${FONT_UI};font-size:12px;letter-spacing:2.5px;text-transform:uppercase;font-weight:700;">Jill's Take</span>
-          </p>
+          <table role="presentation" align="center" cellspacing="0" cellpadding="0" border="0" style="margin:0 auto 22px;">
+            <tr>
+              <td style="width:0;height:0;border-top:18px solid transparent;border-bottom:18px solid transparent;border-right:14px solid ${GOLD};font-size:0;line-height:0;mso-line-height-rule:exactly;">&nbsp;</td>
+              <td style="background:${GOLD};padding:0 26px;height:36px;font-family:${FONT_UI};font-size:12px;letter-spacing:2.5px;text-transform:uppercase;color:#ffffff;font-weight:700;line-height:36px;white-space:nowrap;">Jill&#39;s Take</td>
+              <td style="width:0;height:0;border-top:18px solid transparent;border-bottom:18px solid transparent;border-left:14px solid ${GOLD};font-size:0;line-height:0;mso-line-height-rule:exactly;">&nbsp;</td>
+            </tr>
+          </table>
           <div style="font-family:${FONT_DISPLAY};font-size:18px;line-height:1.6;color:${BODY};font-style:italic;max-width:480px;margin:0 auto;">${inner}</div>
         </td></tr>
       </table>
