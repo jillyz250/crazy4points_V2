@@ -19,10 +19,6 @@ const BODY = '#1A1A1A'
 const MUTED = '#4A4A4A'
 const BORDER = '#E6DEEE'
 const PAGE_BG = '#f4eef8'
-/** Warm cream wash for Sweet Spot — pairs with gold border, breaks out
- *  of the all-purple sameness of SOFT_BG so the section visually pops as
- *  "the deal of the week" instead of blending. */
-const CREAM_BG = '#FAF4E6'
 
 const FONT_DISPLAY = "'Playfair Display', Georgia, serif"
 const FONT_BODY = "'Lato', 'Helvetica Neue', Arial, sans-serif"
@@ -126,7 +122,7 @@ function renderBigStory(slots: NewsletterSlots, origin: string): string {
   // with Sweet Spot's gold accent.
   return `
     <tr><td style="padding:24px 28px 0;">
-      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:${SOFT_BG};border:1px solid ${BORDER};border-radius:12px;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#ffffff;border:1px solid ${BORDER};border-radius:12px;">
         <tr><td style="padding:26px 28px 18px;">
           ${headline}
           ${bodyHtml(slots.big_story_html)}
@@ -179,7 +175,7 @@ function renderSweetSpot(sp: NewsletterSweetSpot | null): string {
   const explainer = sp.mechanic_explainer ? bodyHtml(sp.mechanic_explainer) : ''
   return `
     <tr><td style="padding:32px 28px 0;">
-      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:2px solid ${GOLD};border-radius:12px;background:${CREAM_BG};">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:2px solid ${GOLD};border-radius:12px;background:${SOFT_BG};">
         <tr><td style="padding:22px 24px;">
           <p style="margin:0 0 6px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${GOLD};font-weight:700;">Sweet Spot of the Week</p>
           <h2 style="margin:0 0 12px;font-family:${FONT_DISPLAY};font-size:22px;line-height:1.3;color:${PURPLE};">${esc(sp.topic)}</h2>
@@ -199,33 +195,23 @@ function fmtBonusDate(iso: string | null): string {
 
 function renderCurrentBonuses(bonuses: CurrentBonusRow[] | undefined, origin: string): string {
   if (!bonuses || bonuses.length === 0) return ''
-  const rows = bonuses
+  // Clean list — just clickable titles + inline end-date. No per-row
+  // backgrounds or boxes. Eyebrow above, list below, breathing room.
+  const items = bonuses
     .map((b) => {
       const url = b.slug ? `${origin}/alerts/${esc(b.slug)}` : '#'
       const endLabel = fmtBonusDate(b.end_date)
       return `
-        <tr><td style="padding:8px 0;border-bottom:1px solid ${BORDER};">
-          <a href="${url}" style="text-decoration:none;color:inherit;display:block;">
-            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-              <tr>
-                <td style="vertical-align:top;padding-right:12px;">
-                  <p style="margin:0;font-family:${FONT_BODY};font-size:14px;line-height:1.45;color:${BODY};font-weight:600;">${esc(b.title)}</p>
-                </td>
-                <td style="vertical-align:top;text-align:right;white-space:nowrap;">
-                  <p style="margin:0;font-family:${FONT_UI};font-size:11px;color:${MUTED};">${esc(endLabel)} →</p>
-                </td>
-              </tr>
-            </table>
-          </a>
-        </td></tr>`
+        <p style="margin:0 0 10px;font-family:${FONT_BODY};font-size:15px;line-height:1.45;color:${BODY};">
+          <a href="${url}" style="color:${PURPLE};text-decoration:underline;font-weight:600;">${esc(b.title)}</a>
+          <span style="color:${MUTED};font-size:13px;margin-left:6px;">&middot; ${esc(endLabel)}</span>
+        </p>`
     })
     .join('')
   return `
     <tr><td style="padding:32px 28px 0;">
-      <p style="margin:0 0 8px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${MUTED};font-weight:700;">Active transfer + point bonuses</p>
-      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:${SOFT_BG};border-radius:10px;padding:4px 14px;">
-        ${rows}
-      </table>
+      <p style="margin:0 0 14px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${MUTED};font-weight:700;">Active transfer + point bonuses</p>
+      ${items}
     </td></tr>`
 }
 
@@ -330,18 +316,10 @@ export function renderNewsletterV2Html({
         ${renderGame(slots.game, origin)}
         ${renderJillsTake(slots.jills_take_html)}
 
-        <!-- Forwarding line — editorial closer, NOT legal fine print. Lives
-             above the footer so it gets the body-text treatment it deserves
-             instead of competing with the disclaimer for attention. -->
-        <tr><td style="padding:32px 28px 4px;text-align:center;">
-          <p style="margin:0;font-family:${FONT_DISPLAY};font-size:16px;font-style:italic;color:${BODY};line-height:1.5;">Forward this to a friend who's better at points than you.</p>
-        </td></tr>
-
-        <!-- Footer — pure fine print. Affiliate + financial-advice
-             disclaimer + links row, no editorial content. -->
-        <tr><td style="padding:28px 28px 24px;border-top:1px solid ${BORDER};background:${SOFT_BG};text-align:center;">
-          <p style="margin:0 auto 14px;max-width:460px;font-family:${FONT_UI};font-size:10px;color:${MUTED};line-height:1.6;font-style:italic;">Heads up: some links here may be affiliate links. If you apply for a card through them, we may earn a commission at no cost to you &mdash; it helps keep the lights on. Editorial picks are never for sale, and always double-check terms with the issuer before you transfer points or apply. Content is informational, not financial advice.</p>
-          <div style="height:1px;background:${BORDER};max-width:120px;margin:0 auto 16px;line-height:1px;font-size:0;">&nbsp;</div>
+        <!-- Footer — pure fine print. Tightened: one short italic
+             disclaimer line + links row. No editorial content. -->
+        <tr><td style="padding:20px 28px 18px;border-top:1px solid ${BORDER};background:${SOFT_BG};text-align:center;">
+          <p style="margin:0 auto 10px;max-width:480px;font-family:${FONT_UI};font-size:10px;color:${MUTED};line-height:1.55;font-style:italic;">Affiliate links may earn us a commission at no cost to you. Editorial picks are independent. Informational only &mdash; verify all terms with the issuer.</p>
           <p style="margin:0;font-family:${FONT_UI};font-size:11px;color:${MUTED};letter-spacing:0.3px;">crazy4points.com &middot; <a href="${origin}/privacy" style="color:${MUTED};text-decoration:underline;">Privacy</a> &middot; <a href="${origin}/affiliate-disclosure" style="color:${MUTED};text-decoration:underline;">Affiliate Disclosure</a> &middot; <a href="${recipientEmail ? unsubscribeUrlFor(recipientEmail, origin) : `${origin}/unsubscribe`}" style="color:${MUTED};text-decoration:underline;">Unsubscribe</a></p>
         </td></tr>
 
