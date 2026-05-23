@@ -6,25 +6,30 @@ import { Badge } from '@/components/admin/ui/Badge'
 import { Card } from '@/components/admin/ui/Card'
 import { EmptyState } from '@/components/admin/ui/EmptyState'
 import { publishAlertAction, expireAlertAction } from '../alerts/actions'
+import { archiveVariantAction } from './actions'
 import ConfirmButton from '@/components/admin/ConfirmButton'
 
 /**
- * Phase 4 — Unified Drafts hub.
+ * Phase 4 v2 — Drafts hub with Smart Views.
  *
- * Reads from content_variants directly (the source of truth post-Wave 3a)
- * and joins topics for slug + summary. Filter chips lean on the columns
- * promoted in migration 327 (voice_pass, confidence_level, action_type,
- * variant_schema_version) so they're indexed, not jsonb scans.
- *
- * Invariant D1 — bare /admin/drafts shows ALL formats. Filtering happens
- * only when a chip is selected. Future-proofs for blog + social variants.
+ * Smart Views replace the user-assembles-filters model. Six curated entry
+ * points cover ~90% of editorial moments. Manual filter chip grid stays
+ * available behind a disclosure for power-user / edge-case slicing.
  *
  * URL params:
- *   ?format=alert|blog|all       (default: all)
- *   ?status=published|...|all    (default: all)
- *   ?voice=fail                  (only show voice_pass=false)
- *   ?sort=updated|voice|start    (default: updated)
+ *   ?view=needs_review (default) | expiring_soon | socials_pending |
+ *         stale_drafts | recently_expired | all
+ *   Manual override params (only respected when view=all):
+ *     ?format=... ?status=... ?sort=...
  */
+
+type SmartViewKey =
+  | 'needs_review'
+  | 'expiring_soon'
+  | 'socials_pending'
+  | 'stale_drafts'
+  | 'recently_expired'
+  | 'all'
 
 type FormatKey =
   | 'all' | 'alert' | 'blog' | 'newsletter'
@@ -32,37 +37,21 @@ type FormatKey =
 type StatusKey = 'all' | 'draft' | 'needs_review' | 'published' | 'expired' | 'archived'
 type SortKey = 'updated' | 'published' | 'expiring'
 
-type ChipTone = 'neutral' | 'purple' | 'green' | 'red' | 'amber' | 'blue' | 'muted'
+const SOCIAL_FORMATS = ['facebook', 'instagram', 'linkedin', 'x']
+const ALL_FORMATS = ['alert', 'blog', 'newsletter', 'facebook', 'instagram', 'linkedin', 'x', 'threads']
 
-// Per-chip tone — color semantic that survives both inactive (tinted text)
-// and active (full color fill) states. See .chip--<tone> in globals.css.
-const FORMAT_OPTIONS: { key: FormatKey; label: string; tone: ChipTone }[] = [
-  { key: 'all',        label: 'All',        tone: 'neutral' },
-  { key: 'alert',      label: 'Alerts',     tone: 'purple' },
-  { key: 'blog',       label: 'Blog',       tone: 'purple' },
-  { key: 'newsletter', label: 'Newsletter', tone: 'purple' },
-  { key: 'facebook',   label: 'Facebook',   tone: 'blue' },
-  { key: 'instagram',  label: 'Instagram',  tone: 'blue' },
-  { key: 'linkedin',   label: 'LinkedIn',   tone: 'blue' },
-  { key: 'x',          label: 'X',          tone: 'blue' },
-  { key: 'threads',    label: 'Threads',    tone: 'blue' },
-]
-
-const STATUS_OPTIONS: { key: StatusKey; label: string; tone: ChipTone }[] = [
-  { key: 'all',          label: 'All',          tone: 'neutral' },
-  { key: 'needs_review', label: 'Needs review', tone: 'amber' },
-  { key: 'draft',        label: 'Draft',        tone: 'neutral' },
-  { key: 'published',    label: 'Published',    tone: 'green' },
-  // Expired is derived: variant.status stays 'published' but topic.end_date
-  // is in the past. The trigger projects 'expired' on the alerts mirror.
-  { key: 'expired',      label: 'Expired',      tone: 'red' },
-  { key: 'archived',     label: 'Archived',     tone: 'muted' },
-]
-
-const SORT_OPTIONS: { key: SortKey; label: string; tone: ChipTone }[] = [
-  { key: 'updated',   label: 'Recently edited',  tone: 'neutral' },
-  { key: 'published', label: 'Recently published', tone: 'neutral' },
-  { key: 'expiring',  label: 'Expires soonest',  tone: 'neutral' },
+interface SmartView {
+  key: SmartViewKey
+  label: string
+  icon?: string
+}
+const SMART_VIEWS: SmartView[] = [
+  { key: 'needs_review',     label: 'Needs review',     icon: '⚠' },
+  { key: 'expiring_soon',    label: 'Expiring soon',    icon: '📅' },
+  { key: 'socials_pending',  label: 'Socials pending',  icon: '📣' },
+  { key: 'stale_drafts',     label: 'Stale drafts',     icon: '🕰' },
+  { key: 'recently_expired', label: 'Recently expired', icon: '📜' },
+  { key: 'all',              label: 'Show all' },
 ]
 
 const STATUS_TONE: Record<string, { label: string; tone: 'success' | 'warning' | 'danger' | 'neutral' | 'accent' }> = {
@@ -78,123 +67,213 @@ interface DraftRow {
   variant_id: string
   alert_id: string | null
   topic_id: string
-  slug: string
+  topic_title: string
   format: string
-  title: string
+  variant_title: string
   status: string
-  voice_pass: boolean | null
-  voice_score: number | null
-  confidence_level: string | null
-  action_type: string | null
   original_alert_type: string | null
-  start_date: string | null
-  short_slug: string | null
   end_date: string | null
   updated_at: string | null
+  published_at: string | null
 }
 
-function buildHref(
-  params: { format?: FormatKey; status?: StatusKey; voice?: 'fail'; sort?: SortKey },
-  override: Partial<typeof params>,
-): string {
-  const merged = { ...params, ...override }
-  const qs = new URLSearchParams()
-  if (merged.format && merged.format !== 'all') qs.set('format', merged.format)
-  if (merged.status && merged.status !== 'all') qs.set('status', merged.status)
-  if (merged.voice === 'fail') qs.set('voice', 'fail')
-  if (merged.sort && merged.sort !== 'updated') qs.set('sort', merged.sort)
-  const s = qs.toString()
-  return s ? `/admin/drafts?${s}` : '/admin/drafts'
+function relativeTime(iso: string | null): string {
+  if (!iso) return '—'
+  const ms = Date.now() - new Date(iso).getTime()
+  if (ms < 60_000) return 'just now'
+  const mins = Math.round(ms / 60_000)
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.round(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.round(hours / 24)
+  if (days < 30) return `${days}d ago`
+  const months = Math.round(days / 30)
+  return `${months}mo ago`
 }
 
-export default async function AdminDraftsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ format?: string; status?: string; voice?: string; sort?: string }>
-}) {
-  const sp = await searchParams
-  const VALID_FORMATS = ['alert', 'blog', 'newsletter', 'facebook', 'instagram', 'linkedin', 'x', 'threads']
-  const format = (sp.format && VALID_FORMATS.includes(sp.format) ? sp.format : 'all') as FormatKey
-  const status = (sp.status && ['draft', 'needs_review', 'published', 'expired', 'archived'].includes(sp.status) ? sp.status : 'all') as StatusKey
-  const voice: 'fail' | undefined = sp.voice === 'fail' ? 'fail' : undefined
-  const sort = (sp.sort && ['updated', 'published', 'expiring'].includes(sp.sort) ? sp.sort : 'updated') as SortKey
-  const filters: { format: FormatKey; status: StatusKey; voice: 'fail' | undefined; sort: SortKey } = {
-    format, status, voice, sort,
+function formatDate(iso: string | null): string {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+// All counts run in parallel via Promise.all. Each is a separate `select(*, count=exact, head=true)`
+// query — cheap, indexed, no row payload.
+type Supa = ReturnType<typeof createAdminClient>
+interface ViewCounts {
+  needs_review: number
+  expiring_soon: number
+  socials_pending: number
+  stale_drafts: number
+  recently_expired: number
+  all: number
+  new_since_yesterday: number
+}
+
+async function loadViewCounts(supabase: Supa): Promise<ViewCounts> {
+  const nowIso = new Date().toISOString()
+  const in7dIso = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+  const past7dIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+  const staleCutoffIso = past7dIso // 7d
+  const yesterdayIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+
+  const [
+    needsReview,
+    expiringSoon,
+    publishedAlertIds,
+    topicsWithSocials,
+    staleDrafts,
+    recentlyExpired,
+    all,
+    newSinceYesterday,
+  ] = await Promise.all([
+    supabase.from('content_variants').select('*', { count: 'exact', head: true }).eq('status', 'needs_review'),
+    supabase
+      .from('content_variants')
+      .select('*, topics:topics!inner(end_date)', { count: 'exact', head: true })
+      .eq('status', 'published')
+      .gte('topics.end_date', nowIso)
+      .lte('topics.end_date', in7dIso),
+    // For socials_pending we need a 2-query join: published alerts + topics that have any social
+    supabase
+      .from('content_variants')
+      .select('topic_id')
+      .eq('format', 'alert')
+      .eq('status', 'published'),
+    supabase
+      .from('content_variants')
+      .select('topic_id')
+      .in('format', SOCIAL_FORMATS),
+    supabase
+      .from('content_variants')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'draft')
+      .lt('updated_at', staleCutoffIso),
+    supabase
+      .from('content_variants')
+      .select('*, topics:topics!inner(end_date)', { count: 'exact', head: true })
+      .eq('status', 'published')
+      .gte('topics.end_date', past7dIso)
+      .lte('topics.end_date', nowIso),
+    supabase.from('content_variants').select('*', { count: 'exact', head: true }),
+    supabase.from('content_variants').select('*', { count: 'exact', head: true }).gte('created_at', yesterdayIso),
+  ])
+
+  const publishedAlertTopics = new Set((publishedAlertIds.data ?? []).map((r) => r.topic_id))
+  const topicsThatHaveSocials = new Set((topicsWithSocials.data ?? []).map((r) => r.topic_id))
+  const socialsPending = [...publishedAlertTopics].filter((id) => !topicsThatHaveSocials.has(id)).length
+
+  return {
+    needs_review:        needsReview.count ?? 0,
+    expiring_soon:       expiringSoon.count ?? 0,
+    socials_pending:     socialsPending,
+    stale_drafts:        staleDrafts.count ?? 0,
+    recently_expired:    recentlyExpired.count ?? 0,
+    all:                 all.count ?? 0,
+    new_since_yesterday: newSinceYesterday.count ?? 0,
   }
+}
 
-  const supabase = createAdminClient()
+async function loadRows(supabase: Supa, view: SmartViewKey): Promise<DraftRow[]> {
+  const nowIso = new Date().toISOString()
+  const in7dIso = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+  const past7dIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+
   let query = supabase
     .from('content_variants')
     .select(
-      'id, topic_id, format, title, status, voice_pass, voice_score, confidence_level, action_type, original_alert_type, start_date, short_slug, updated_at, published_at, topics:topics!inner(id, slug, end_date, metadata)',
+      'id, topic_id, format, title, status, original_alert_type, start_date, updated_at, published_at, ' +
+      'topics:topics!inner(id, slug, title, end_date, metadata)',
     )
+    .order('updated_at', { ascending: false, nullsFirst: false })
+    .limit(200)
 
-  if (format !== 'all') query = query.eq('format', format)
-  // Expired is derived: variant.status='published' AND topic.end_date is past.
-  // The trigger projects 'expired' to alerts.status but variant stays
-  // published; filter is computed in JS after fetch so we keep all the
-  // indexed-column wins on the base query.
-  if (status !== 'all' && status !== 'expired') query = query.eq('status', status)
-  if (status === 'expired') query = query.eq('status', 'published')
-  if (voice === 'fail') query = query.eq('voice_pass', false)
-
-  if (sort === 'published') query = query.order('published_at', { ascending: false, nullsFirst: false })
-  else if (sort === 'expiring') query = query.order('end_date', { referencedTable: 'topics', ascending: true, nullsFirst: false })
-  else query = query.order('updated_at', { ascending: false, nullsFirst: false })
-
-  query = query.limit(200)
-  const { data: rawRows, error } = await query
-
-  if (error) {
-    return (
-      <div>
-        <PageHeader title="Drafts" description="Unified hub for every content variant." />
-        <Card>
-          <p style={{ color: 'var(--admin-danger)' }}>Failed to load drafts: {error.message}</p>
-        </Card>
-      </div>
-    )
+  if (view === 'needs_review') {
+    query = query.eq('status', 'needs_review')
+  } else if (view === 'expiring_soon') {
+    query = query.eq('status', 'published').gte('topics.end_date', nowIso).lte('topics.end_date', in7dIso)
+  } else if (view === 'stale_drafts') {
+    query = query.eq('status', 'draft').lt('updated_at', past7dIso)
+  } else if (view === 'recently_expired') {
+    query = query.eq('status', 'published').gte('topics.end_date', past7dIso).lte('topics.end_date', nowIso)
   }
+  // socials_pending + all are handled below (no SQL filter)
 
-  const nowMs = Date.now()
-  let rows: DraftRow[] = (rawRows ?? []).map((r) => {
+  const { data: rawRows, error } = await query
+  if (error) return []
+
+  // Supabase's joined-select inference collapses with chained .order/.limit/conditional
+  // .eq calls — cast to the shape we know the query returns.
+  type RawRow = {
+    id: string; topic_id: string; format: string; title: string; status: string;
+    original_alert_type: string | null; start_date: string | null;
+    updated_at: string | null; published_at: string | null;
+    topics: { id: string; slug: string; title: string; end_date: string | null; metadata: unknown } | Array<{ id: string; slug: string; title: string; end_date: string | null; metadata: unknown }>;
+  }
+  let rows: DraftRow[] = ((rawRows ?? []) as unknown as RawRow[]).map((r) => {
     const t = Array.isArray(r.topics) ? r.topics[0] : r.topics
     const alertId = (t?.metadata as { original_alert_id?: string } | null)?.original_alert_id ?? null
     return {
       variant_id: r.id as string,
       alert_id: alertId,
       topic_id: r.topic_id as string,
-      slug: (t?.slug as string) ?? '',
+      topic_title: (t?.title as string) ?? (r.title as string),
       format: r.format as string,
-      title: r.title as string,
+      variant_title: r.title as string,
       status: r.status as string,
-      voice_pass: r.voice_pass as boolean | null,
-      voice_score: r.voice_score as number | null,
-      confidence_level: r.confidence_level as string | null,
-      action_type: r.action_type as string | null,
       original_alert_type: r.original_alert_type as string | null,
-      start_date: r.start_date as string | null,
-      short_slug: r.short_slug as string | null,
       end_date: (t?.end_date as string | null) ?? null,
       updated_at: r.updated_at as string | null,
+      published_at: r.published_at as string | null,
     }
   })
 
-  // Apply the derived expired/published distinction:
-  //   • "Published" chip wants ONLY currently-live rows (end_date null or in future)
-  //   • "Expired" chip wants ONLY rows whose end_date is past
-  // Both queries pulled status='published'; this split happens in JS.
-  if (status === 'expired') {
-    rows = rows.filter(r => r.end_date && new Date(r.end_date).getTime() < nowMs)
-  } else if (status === 'published') {
-    rows = rows.filter(r => !r.end_date || new Date(r.end_date).getTime() >= nowMs)
+  // Post-filter for socials_pending: published alert rows whose topic has no social variants
+  if (view === 'socials_pending') {
+    const { data: allSocials } = await supabase
+      .from('content_variants')
+      .select('topic_id')
+      .in('format', SOCIAL_FORMATS)
+    const topicsWithSocials = new Set((allSocials ?? []).map((r) => r.topic_id))
+    rows = rows.filter(
+      (r) => r.format === 'alert' && r.status === 'published' && !topicsWithSocials.has(r.topic_id),
+    )
   }
+
+  return rows
+}
+
+function buildHref(view: SmartViewKey): string {
+  if (view === 'needs_review') return '/admin/drafts'  // needs_review is default; clean URL
+  return `/admin/drafts?view=${view}`
+}
+
+export default async function AdminDraftsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string }>
+}) {
+  const sp = await searchParams
+  const validViews: SmartViewKey[] = ['needs_review', 'expiring_soon', 'socials_pending', 'stale_drafts', 'recently_expired', 'all']
+  const view: SmartViewKey = (sp.view && validViews.includes(sp.view as SmartViewKey) ? sp.view : 'needs_review') as SmartViewKey
+
+  const supabase = createAdminClient()
+  const [counts, rows] = await Promise.all([loadViewCounts(supabase), loadRows(supabase, view)])
+
+  // Subhead summary — only show non-zero counts so it reads as a real status line.
+  const summaryParts: string[] = []
+  if (counts.needs_review > 0) summaryParts.push(`${counts.needs_review} ${counts.needs_review === 1 ? 'draft needs' : 'drafts need'} review`)
+  if (counts.socials_pending > 0) summaryParts.push(`${counts.socials_pending} ${counts.socials_pending === 1 ? 'social' : 'socials'} pending`)
+  if (counts.new_since_yesterday > 0) summaryParts.push(`${counts.new_since_yesterday} new since yesterday`)
+  const summary = summaryParts.length > 0 ? summaryParts.join(' · ') : 'All caught up. Nothing in the queue.'
+
+  const activeView = SMART_VIEWS.find((v) => v.key === view) ?? SMART_VIEWS[0]
 
   return (
     <div>
       <PageHeader
         title="Drafts"
-        description="Every content variant — alerts today, blog + social as those formats come online."
+        description={summary}
         actions={
           <LinkButton href="/admin/alerts/new" variant="primary">
             + New Alert
@@ -202,63 +281,61 @@ export default async function AdminDraftsPage({
         }
       />
 
-      {/* Filter chip rows — format, status, voice failure toggle, sort.
-          Phase 4 ships Alert only; other formats greyed but visible so the
-          hub reads as a multi-format home from day one (D1 invariant). */}
+      {/* Smart Views row */}
       <Card>
-        <div style={{ display: 'grid', gap: '0.75rem' }}>
-          <ChipRow
-            label="Format"
-            options={FORMAT_OPTIONS.map((o) => ({
-              key: o.key,
-              label: o.label,
-              tone: o.tone,
-              active: filters.format === o.key,
-              href: buildHref(filters, { format: o.key }),
-            }))}
-          />
-          <ChipRow
-            label="Status"
-            options={STATUS_OPTIONS.map((o) => ({
-              key: o.key,
-              label: o.label,
-              tone: o.tone,
-              active: filters.status === o.key,
-              href: buildHref(filters, { status: o.key }),
-            }))}
-          />
-          <ChipRow
-            label="Filters"
-            options={[
-              {
-                key: 'voice-fail',
-                label: '✗ Voice failed',
-                tone: 'red' as ChipTone,
-                active: filters.voice === 'fail',
-                href: buildHref(filters, { voice: filters.voice === 'fail' ? undefined : 'fail' }),
-              },
-            ]}
-          />
-          <ChipRow
-            label="Sort"
-            options={SORT_OPTIONS.map((o) => ({
-              key: o.key,
-              label: o.label,
-              tone: o.tone,
-              active: filters.sort === o.key,
-              href: buildHref(filters, { sort: o.key }),
-            }))}
-          />
+        <div
+          style={{
+            fontSize: '0.6875rem',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            color: 'var(--admin-text-muted)',
+            marginBottom: '0.625rem',
+          }}
+        >
+          Start with
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+          {SMART_VIEWS.map((v) => {
+            const count = counts[v.key]
+            const isActive = view === v.key
+            return (
+              <Link
+                key={v.key}
+                href={buildHref(v.key)}
+                scroll={false}
+                className={`smart-view${isActive ? ' smart-view--active' : ''}${count === 0 ? ' smart-view--empty' : ''}`}
+              >
+                {v.icon && <span style={{ fontSize: '1rem' }}>{v.icon}</span>}
+                <span>{v.label}</span>
+                <span className="smart-view__count">{count}</span>
+              </Link>
+            )
+          })}
         </div>
       </Card>
 
-      <div style={{ marginTop: '0.75rem', fontSize: '0.8125rem', color: 'var(--admin-text-muted)' }}>
-        {rows.length} {rows.length === 1 ? 'draft' : 'drafts'}
-        {rows.length === 200 && ' (showing first 200)'}
-      </div>
+      {/* State line */}
+      {rows.length > 0 && (
+        <div
+          style={{
+            fontSize: '0.8125rem',
+            color: 'var(--admin-text-muted)',
+            margin: '0.75rem 0 0.5rem 0',
+          }}
+        >
+          Showing <strong style={{ color: 'var(--admin-text)' }}>{rows.length}</strong>{' '}
+          {rows.length === 1 ? 'draft' : 'drafts'} · &quot;{activeView.label}&quot;
+        </div>
+      )}
 
       {rows.length === 0 ? (
-        <EmptyState title="No drafts match these filters" description="Loosen the filters or create a new draft." />
+        <EmptyState
+          title={view === 'needs_review' ? 'All caught up' : 'No drafts match this view'}
+          description={view === 'needs_review'
+            ? 'Nothing waiting for review. Triage some intel or check back later.'
+            : 'Try a different Smart View, or hit "Show all" to see everything.'}
+        />
       ) : (
         <Card>
           <div style={{ overflowX: 'auto' }}>
@@ -269,65 +346,56 @@ export default async function AdminDraftsPage({
                   <th>Format</th>
                   <th>Type</th>
                   <th>Status</th>
-                  <th>Voice</th>
+                  <th>Updated</th>
                   <th>Expires</th>
                   <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r) => {
-                  // Derive "expired" badge: variant.status stays 'published',
-                  // but if topic.end_date is past, surface it as Expired.
-                  const isExpired = r.status === 'published' && r.end_date && new Date(r.end_date).getTime() < nowMs
+                  const isExpired = r.status === 'published' && r.end_date && new Date(r.end_date).getTime() < Date.now()
                   const displayStatus = isExpired ? 'expired' : r.status
                   const s = STATUS_TONE[displayStatus] ?? STATUS_TONE.draft
-                  const voiceCell =
-                    r.voice_pass === true ? (
-                      <Badge tone="success">✓ {r.voice_score ?? ''}</Badge>
-                    ) : r.voice_pass === false ? (
-                      <Badge tone="danger">✗ {r.voice_score ?? ''}</Badge>
-                    ) : (
-                      <span style={{ color: 'var(--admin-text-muted)' }}>—</span>
-                    )
+                  const formatTone =
+                    r.format === 'alert' ? 'accent'
+                    : SOCIAL_FORMATS.includes(r.format) ? 'success'  // tinted; using success since blue not on Badge tones
+                    : 'neutral'
+                  // Social variants surface parent topic title for scannability
+                  const displayTitle = SOCIAL_FORMATS.includes(r.format) ? r.topic_title : r.variant_title
+                  // Edit link: alerts → alert editor; socials → per-platform editor
+                  const editHref = SOCIAL_FORMATS.includes(r.format)
+                    ? `/admin/drafts/${r.variant_id}/edit-social`
+                    : r.alert_id ? `/admin/alerts/${r.alert_id}/edit` : '#'
                   return (
                     <tr key={r.variant_id}>
-                      <td style={{ color: 'var(--admin-text)', fontWeight: 500 }}>{r.title}</td>
-                      <td style={{ color: 'var(--admin-text-muted)', textTransform: 'capitalize' }}>{r.format}</td>
+                      <td style={{ color: 'var(--admin-text)', fontWeight: 500 }}>
+                        <Link href={editHref} style={{ color: 'inherit', textDecoration: 'none' }}>
+                          {displayTitle}
+                        </Link>
+                      </td>
+                      <td style={{ textTransform: 'capitalize' }}>
+                        <Badge tone={formatTone}>{r.format}</Badge>
+                      </td>
                       <td style={{ color: 'var(--admin-text-muted)', textTransform: 'capitalize' }}>
                         {(r.original_alert_type ?? '').replace(/_/g, ' ') || '—'}
                       </td>
                       <td>
                         <Badge tone={s.tone}>{s.label}</Badge>
                       </td>
-                      <td>{voiceCell}</td>
-                      <td style={{ color: 'var(--admin-text-muted)' }}>
-                        {r.end_date
-                          ? new Date(r.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                          : '—'}
+                      <td style={{ color: 'var(--admin-text-muted)', whiteSpace: 'nowrap' }}>
+                        {relativeTime(r.updated_at)}
+                      </td>
+                      <td style={{ color: 'var(--admin-text-muted)', whiteSpace: 'nowrap' }}>
+                        {r.end_date ? formatDate(r.end_date) : '—'}
                       </td>
                       <td>
-                        <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-end' }}>
-                          {/* Format-aware edit link — socials get their own per-platform editor */}
-                          {['facebook', 'instagram', 'linkedin', 'x'].includes(r.format) ? (
-                            <Link
-                              href={`/admin/drafts/${r.variant_id}/edit-social`}
-                              className="admin-btn admin-btn-ghost admin-btn-sm"
-                            >
-                              Edit
-                            </Link>
-                          ) : r.alert_id && (
-                            <Link
-                              href={`/admin/alerts/${r.alert_id}/edit`}
-                              className="admin-btn admin-btn-ghost admin-btn-sm"
-                            >
-                              Edit
-                            </Link>
-                          )}
-                          {/* Publish + Expire buttons only on ALERT format. Social
-                              variants ship via copy-paste; their "publish" is
-                              "mark posted" which lives on the per-platform editor.
-                              Without this guard, clicking Publish on a social row
-                              would (wrongly) republish the underlying alert. */}
+                        <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-end', alignItems: 'center' }}>
+                          <Link
+                            href={editHref}
+                            className="admin-btn admin-btn-ghost admin-btn-sm"
+                          >
+                            Edit
+                          </Link>
                           {r.format === 'alert' && r.alert_id && (r.status === 'draft' || r.status === 'needs_review') && (
                             <form action={publishAlertAction.bind(null, r.alert_id)}>
                               <button type="submit" className="admin-btn admin-btn-secondary admin-btn-sm">
@@ -338,11 +406,18 @@ export default async function AdminDraftsPage({
                           {r.format === 'alert' && r.alert_id && r.status === 'published' && (
                             <ConfirmButton
                               action={expireAlertAction.bind(null, r.alert_id)}
-                              confirmMessage={`Expire "${r.title}"?\n\nThis sets end_date=now and hides the alert from active surfaces. URL stays live but reads "expired". You can restore by clearing end_date on the topic.`}
+                              confirmMessage={`Expire "${r.topic_title}"?\n\nSets end_date=now and hides the alert from active surfaces. URL stays live but reads "expired".`}
                             >
                               Expire
                             </ConfirmButton>
                           )}
+                          <ConfirmButton
+                            action={archiveVariantAction.bind(null, r.variant_id) as unknown as () => Promise<unknown>}
+                            confirmMessage={`Archive "${r.topic_title}" (${r.format})?\n\nRow drops out of the active queue. Data stays in the DB for audit; find it under the Archived chip if you need it back.`}
+                            variant="danger"
+                          >
+                            Archive
+                          </ConfirmButton>
                         </div>
                       </td>
                     </tr>
@@ -353,42 +428,6 @@ export default async function AdminDraftsPage({
           </div>
         </Card>
       )}
-    </div>
-  )
-}
-
-function ChipRow({
-  label,
-  options,
-}: {
-  label: string
-  options: { key: string; label: string; active: boolean; href: string; tone?: ChipTone }[]
-}) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexWrap: 'wrap' }}>
-      <span
-        style={{
-          fontSize: '0.6875rem',
-          fontWeight: 700,
-          textTransform: 'uppercase',
-          letterSpacing: '0.08em',
-          color: 'var(--admin-text-muted)',
-          marginRight: '0.5rem',
-          minWidth: '4.5rem',
-        }}
-      >
-        {label}
-      </span>
-      {options.map((o) => (
-        <Link
-          key={o.key}
-          href={o.href}
-          className={`chip chip--${o.tone ?? 'neutral'}${o.active ? ' chip--active' : ''}`}
-          scroll={false}
-        >
-          {o.label}
-        </Link>
-      ))}
     </div>
   )
 }
