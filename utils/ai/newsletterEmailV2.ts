@@ -140,6 +140,45 @@ function renderSweetSpot(sp: NewsletterSweetSpot | null): string {
     </td></tr>`
 }
 
+function fmtBonusDate(iso: string | null): string {
+  if (!iso) return 'No end date'
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return 'No end date'
+  return `Ends ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+}
+
+function renderCurrentBonuses(bonuses: CurrentBonusRow[] | undefined, origin: string): string {
+  if (!bonuses || bonuses.length === 0) return ''
+  const rows = bonuses
+    .map((b) => {
+      const url = b.slug ? `${origin}/alerts/${esc(b.slug)}` : '#'
+      const endLabel = fmtBonusDate(b.end_date)
+      return `
+        <tr><td style="padding:8px 0;border-bottom:1px solid ${BORDER};">
+          <a href="${url}" style="text-decoration:none;color:inherit;display:block;">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+              <tr>
+                <td style="vertical-align:top;padding-right:12px;">
+                  <p style="margin:0;font-family:${FONT_BODY};font-size:14px;line-height:1.45;color:${BODY};font-weight:600;">${esc(b.title)}</p>
+                </td>
+                <td style="vertical-align:top;text-align:right;white-space:nowrap;">
+                  <p style="margin:0;font-family:${FONT_UI};font-size:11px;color:${MUTED};">${esc(endLabel)} →</p>
+                </td>
+              </tr>
+            </table>
+          </a>
+        </td></tr>`
+    })
+    .join('')
+  return `
+    <tr><td style="padding:32px 28px 0;">
+      <p style="margin:0 0 8px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${MUTED};font-weight:700;">Active transfer + point bonuses</p>
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:${SOFT_BG};border-radius:10px;padding:4px 14px;">
+        ${rows}
+      </table>
+    </td></tr>`
+}
+
 function renderJillsTake(html: string | null | undefined): string {
   if (!html) return ''
   // Render inside an italic block; respect authored HTML if present, else wrap as-is.
@@ -153,6 +192,14 @@ function renderJillsTake(html: string | null | undefined): string {
     </td></tr>`
 }
 
+export interface CurrentBonusRow {
+  id: string
+  slug: string | null
+  title: string
+  alert_type: 'transfer_bonus' | 'point_purchase'
+  end_date: string | null
+}
+
 export interface RenderNewsletterV2Args {
   slots: NewsletterSlots
   weekOf: string
@@ -163,6 +210,9 @@ export interface RenderNewsletterV2Args {
    *  (e.g. admin preview without a real subscriber), the footer falls back
    *  to the public /unsubscribe page. */
   recipientEmail?: string
+  /** Live rate-sheet rows — every active transfer / point-purchase bonus,
+   *  pulled at render time. Section auto-hides when empty. */
+  currentBonuses?: CurrentBonusRow[]
 }
 
 export function renderNewsletterV2Html({
@@ -171,6 +221,7 @@ export function renderNewsletterV2Html({
   origin = 'https://crazy4points.com',
   isPreview = false,
   recipientEmail,
+  currentBonuses,
 }: RenderNewsletterV2Args): string {
   const logoUrl = `${origin}/crazy4points-logo.png`
   const subject = slots.subject || 'Crazy4Points — Weekly'
@@ -212,6 +263,7 @@ export function renderNewsletterV2Html({
         ${renderGame(slots.game, origin)}
         ${renderBigStory(slots, origin)}
         ${renderSweetSpot(slots.sweet_spot)}
+        ${renderCurrentBonuses(currentBonuses, origin)}
         ${renderAlsoHappening(slots.also_happening, origin)}
         ${renderJillsTake(slots.jills_take_html)}
 

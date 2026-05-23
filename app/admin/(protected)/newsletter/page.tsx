@@ -6,6 +6,7 @@ import type { NewsletterSlots, AlsoHappeningItem } from '@/utils/ai/newsletterSl
 import type { VerifyClaim } from '@/utils/ai/verifyAlertDraft'
 import type { MissingFact } from '@/utils/ai/verifyBigStoryDraft'
 import { getNewsletterInputs } from '@/utils/ai/runBuildNewsletter'
+import { getActiveBonusAlerts, type ActiveBonusAlert } from '@/utils/ai/getActiveBonusAlerts'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Card } from '@/components/admin/ui/Card'
 import { Badge } from '@/components/admin/ui/Badge'
@@ -110,6 +111,7 @@ export default async function NewsletterAdminPage({
   // generator would consider) so the editor can show a picker. Skip the
   // query if we have no current draft or the newsletter is already sent.
   let candidates: BigStoryCandidate[] = []
+  let activeBonuses: ActiveBonusAlert[] = []
   if (current && current.status !== 'sent') {
     try {
       const inputs = await getNewsletterInputs()
@@ -126,6 +128,11 @@ export default async function NewsletterAdminPage({
       }))
     } catch {
       candidates = []
+    }
+    try {
+      activeBonuses = await getActiveBonusAlerts()
+    } catch {
+      activeBonuses = []
     }
   }
 
@@ -146,6 +153,7 @@ export default async function NewsletterAdminPage({
             bigStoryMissingFacts={current.big_story_missing_facts ?? []}
             sweetSpotRefId={current.sweet_spot_ref_id}
             sweetSpotRefType={current.sweet_spot_ref_type}
+            activeBonuses={activeBonuses}
           />
           {/* Don't show the inputs preview for already-sent newsletters. */}
           {current.status !== 'sent' && <InputsPreview />}
