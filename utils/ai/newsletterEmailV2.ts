@@ -357,12 +357,26 @@ export function formatWeekOf(weekOf: string): string {
   return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
 }
 
-/** Newsletter dateline = the date subscribers actually receive (or see) it.
- *  For sent newsletters, use sent_at so archives keep the real send date.
- *  For everything else (drafts, previews, test sends), use NOW — that's
- *  what the email is dated when it actually goes out, not the Monday the
- *  draft was started. */
-export function formatNewsletterDate(row: { sent_at?: string | null }): string {
+/** Newsletter dateline. Priority:
+ *   1. display_date (editor override, YYYY-MM-DD) — what to print for sends
+ *      prepared today but going out tomorrow
+ *   2. sent_at (archive) — preserves real send date on already-sent rows
+ *   3. NOW — default fallback for fresh drafts / previews
+ */
+export function formatNewsletterDate(row: {
+  display_date?: string | null
+  sent_at?: string | null
+}): string {
+  if (row.display_date) {
+    // YYYY-MM-DD parses as UTC midnight; force UTC timezone in format so
+    // it renders as the same calendar day regardless of server locale.
+    const d = new Date(row.display_date + 'T00:00:00Z')
+    if (!Number.isNaN(d.getTime())) {
+      return d.toLocaleDateString('en-US', {
+        month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC',
+      })
+    }
+  }
   const d = row.sent_at ? new Date(row.sent_at) : new Date()
   if (Number.isNaN(d.getTime())) return ''
   return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })

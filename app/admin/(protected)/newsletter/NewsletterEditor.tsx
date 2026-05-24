@@ -563,6 +563,22 @@ export default function NewsletterEditor({
         />
       </div>
 
+      {/* Display date override (optional) */}
+      <div style={sectionStyle}>
+        <label style={labelStyle}>Display date (optional — overrides header date)</label>
+        <input
+          type="date"
+          value={slots.display_date ?? ''}
+          onChange={(e) => patch('display_date', e.target.value || null)}
+          className="admin-input"
+          disabled={isSent}
+          style={{ maxWidth: '14rem' }}
+        />
+        <p style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)', marginTop: '0.25rem' }}>
+          Leave empty to use the send date. Set this if you&apos;re drafting today to send tomorrow — the email header will show the date you pick here.
+        </p>
+      </div>
+
       {/* Hero kicker (optional) */}
       <div style={sectionStyle}>
         <label style={labelStyle}>Hero eyebrow (optional, above "Week of …")</label>

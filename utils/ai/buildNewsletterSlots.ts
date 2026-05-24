@@ -202,7 +202,7 @@ function validateSweetSpot(s: unknown): NewsletterSweetSpot | null {
   }
 }
 
-function validateSlots(raw: unknown): Omit<NewsletterSlots, 'subject' | 'game' | 'jill_prompt' | 'big_story_ref_id' | 'big_story_ref_type'> & {
+function validateSlots(raw: unknown): Omit<NewsletterSlots, 'subject' | 'game' | 'jill_prompt' | 'display_date' | 'big_story_ref_id' | 'big_story_ref_type'> & {
   big_story_ref_id: string | null
   big_story_ref_type: 'alert' | 'intel' | null
 } {
@@ -248,7 +248,7 @@ function validateSlots(raw: unknown): Omit<NewsletterSlots, 'subject' | 'game' |
 
 export async function buildNewsletterSlots(
   input: BuildSlotsInput,
-): Promise<Omit<NewsletterSlots, 'subject' | 'game' | 'jill_prompt'> | null> {
+): Promise<Omit<NewsletterSlots, 'subject' | 'game' | 'jill_prompt' | 'display_date'> | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
     console.warn('[buildNewsletterSlots] ANTHROPIC_API_KEY missing')
