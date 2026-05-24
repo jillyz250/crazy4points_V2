@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/utils/supabase/server'
 import type { AlertType, IntelItemInsert } from '@/utils/supabase/queries'
 import { writeAlertVariant } from '@/utils/content/writeAlertVariant'
+import { sanitizeSummary } from '@/utils/intel/sanitizeSummary'
 
 interface IntelFinding {
   source_url?: string
@@ -74,7 +75,11 @@ export async function POST(req: NextRequest) {
       const result = await writeAlertVariant(supabase, {
         slug,
         title: item.headline,
-        summary: item.raw_text?.slice(0, 300) ?? item.headline,
+        // raw_text from scraped blogs frequently starts with footer/nav
+        // cruft ("back to top[Facebook](...)") — strip URLs, markdown
+        // links, and known boilerplate before storing as the summary.
+        // Fall back to headline if cleaning leaves nothing usable.
+        summary: sanitizeSummary(item.raw_text) ?? item.headline,
         type: (item.alert_type ?? 'industry_news') as AlertType,
         status: 'pending_review',
         action_type: 'monitor',
