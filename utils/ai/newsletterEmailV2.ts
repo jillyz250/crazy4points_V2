@@ -338,13 +338,14 @@ export function renderNewsletterV2Html({
           <p style="margin:0 0 8px;font-family:${FONT_UI};font-size:11px;color:${MUTED};letter-spacing:0.6px;text-transform:uppercase;font-weight:600;">Follow us on social media</p>
           <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 14px;">
             <tr>
-              <td style="padding:0 4px;">
+              <td style="padding:0 8px;">
                 <a href="https://www.facebook.com/profile.php?id=61589408162571" style="text-decoration:none;display:inline-block;">
-                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="background:#1877F2;border-radius:50%;width:32px;height:32px;">
-                    <tr>
-                      <td align="center" valign="middle" style="width:32px;height:32px;font-family:Helvetica,Arial,sans-serif;font-size:20px;font-weight:900;color:#ffffff;line-height:32px;font-style:italic;">f</td>
-                    </tr>
-                  </table>
+                  <img src="${origin}/social/facebook.png" alt="Facebook" width="32" height="32" style="display:block;border:0;outline:none;text-decoration:none;width:32px;height:32px;" />
+                </a>
+              </td>
+              <td style="padding:0 8px;">
+                <a href="https://www.instagram.com/crazy4points/" style="text-decoration:none;display:inline-block;">
+                  <img src="${origin}/social/instagram.png" alt="Instagram" width="32" height="32" style="display:block;border:0;outline:none;text-decoration:none;width:32px;height:32px;" />
                 </a>
               </td>
             </tr>
