@@ -17,6 +17,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Alert, AlertType } from '@/utils/supabase/queries'
 import { isSupported } from '@/utils/ai/claimStatus'
 import type { VerifyClaim } from '@/utils/ai/verifyAlertDraft'
+import { summaryContainsScrapeNoise } from '@/utils/intel/sanitizeSummary'
 
 export type GateStatus = 'pass' | 'fail' | 'overridden' | 'not-applicable'
 
@@ -50,6 +51,7 @@ export async function checkAlertGates(
     | 'terms_waived_reason'
     | 'voice_pass'
     | 'fact_check_claims'
+    | 'summary'
   >
 ): Promise<GateReport> {
   // Load any prior overrides for this alert — an override means the
@@ -82,6 +84,17 @@ export async function checkAlertGates(
         `Draft is only ${wordCount} word${wordCount === 1 ? '' : 's'} — need at least ${MIN_WORD_COUNT} to qualify as a real article. Either flesh it out, or archive if it's a discarded test.`
       )
     }
+  }
+
+  // 0.5) Summary noise gate — refuse to publish if the summary still
+  //      contains scrape cruft (URLs, markdown links, "back to top").
+  //      raw_text from blogs often starts with footer/nav text; this
+  //      gate catches the case where the editor didn't rewrite the
+  //      placeholder summary before publishing.
+  if (summaryContainsScrapeNoise(alert.summary)) {
+    failures.push(
+      'Summary contains scraped page noise (URL, markdown link, or "back to top"). Rewrite the summary before publishing.'
+    )
   }
 
   // 1) T&C gate
