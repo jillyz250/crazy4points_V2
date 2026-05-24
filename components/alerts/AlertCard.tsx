@@ -40,36 +40,37 @@ export default function AlertCard({ alert }: { alert: SanityAlert }) {
 
   return (
     <div className="group relative flex flex-col gap-3 rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] p-5 shadow-[var(--shadow-soft)] transition-shadow hover:shadow-md">
-      {/* Full-bleed card link — sits behind interactive elements */}
+      {/* Card-wide link layer — overlay via ::before so clicks land on the
+          whole card. Program pills below break out with z-10 so they remain
+          independently clickable. */}
       <Link
         href={`/alerts/${alert.slug.current}`}
-        className="absolute inset-0 z-0 rounded-[var(--radius-card)]"
         aria-label={alert.title}
+        className="absolute inset-0 z-0 rounded-[var(--radius-card)]"
       />
 
       {/* Type badge */}
-      <span className={`relative z-10 self-start rounded-full px-2.5 py-0.5 font-ui text-[10px] font-semibold uppercase tracking-[0.1em] ${badge.cls}`}>
+      <span className={`pointer-events-none relative z-0 self-start rounded-full px-2.5 py-0.5 font-ui text-[10px] font-semibold uppercase tracking-[0.1em] ${badge.cls}`}>
         {badge.label}
       </span>
 
-      {/* Title */}
-      <h3 className="relative z-10 font-display text-base font-semibold leading-snug text-[var(--color-primary)] group-hover:underline">
+      {/* Title — underlined so it reads as a link */}
+      <h3 className="pointer-events-none relative z-0 font-display text-base font-semibold leading-snug text-[var(--color-primary)] underline decoration-1 underline-offset-4 decoration-[var(--color-border-soft)] group-hover:decoration-[var(--color-primary)]">
         {alert.title}
       </h3>
 
       {/* Summary */}
-      <p className="relative z-10 line-clamp-2 font-body text-sm text-[var(--color-text-secondary)]">
+      <p className="pointer-events-none relative z-0 line-clamp-2 font-body text-sm text-[var(--color-text-secondary)]">
         {alert.summary}
       </p>
 
-      {/* Programs — individual clickable pills */}
+      {/* Programs — individual clickable pills (z-10 so they win clicks over the card link) */}
       {visiblePrograms.length > 0 && (
         <div className="relative z-10 flex flex-wrap gap-1.5">
           {visiblePrograms.map((slug) => (
             <Link
               key={slug}
               href={`/programs/${slug}`}
-              onClick={(e) => e.stopPropagation()}
               className="rounded-full border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-2 py-0.5 font-ui text-[10px] font-medium text-[var(--color-primary)] hover:border-[var(--color-primary)]"
             >
               {getProgramName(slug)}
@@ -83,7 +84,7 @@ export default function AlertCard({ alert }: { alert: SanityAlert }) {
         </div>
       )}
 
-      <div className="relative z-10 mt-auto flex items-center justify-between gap-2 pt-1">
+      <div className="pointer-events-none relative z-0 mt-auto flex items-center justify-between gap-2 pt-1">
         {/* End date */}
         {endLabel && (
           <span className={`font-ui text-xs font-medium ${isExpired ? 'text-slate-400' : isExpiringSoon ? 'text-red-600' : 'text-[var(--color-text-secondary)]'}`}>

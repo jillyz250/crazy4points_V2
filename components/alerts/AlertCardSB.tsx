@@ -102,32 +102,29 @@ export default function AlertCardSB({ alert }: { alert: AlertWithPrograms }) {
   const overflow = sortedPrograms.length - visible.length
 
   return (
-    <div className={`group relative flex flex-col gap-3 rounded-[var(--radius-card)] border border-[var(--color-border-soft)] border-l-4 ${urg.border} ${urg.bg} p-5 shadow-[var(--shadow-soft)] transition-shadow hover:shadow-md`}>
-      {/* Full-bleed card link */}
-      <Link
-        href={`/alerts/${alert.slug}`}
-        className="absolute inset-0 z-0 rounded-[var(--radius-card)]"
-        aria-label={alert.title}
-      />
-
+    <Link
+      href={`/alerts/${alert.slug}`}
+      aria-label={alert.title}
+      className={`group flex flex-col gap-3 rounded-[var(--radius-card)] border border-[var(--color-border-soft)] border-l-4 ${urg.border} ${urg.bg} p-5 shadow-[var(--shadow-soft)] transition-shadow hover:shadow-md`}
+    >
       {/* Type badge */}
-      <span className={`relative z-10 self-start rounded-full px-2.5 py-0.5 font-ui text-[10px] font-semibold uppercase tracking-[0.1em] ${badge.cls}`}>
+      <span className={`self-start rounded-full px-2.5 py-0.5 font-ui text-[10px] font-semibold uppercase tracking-[0.1em] ${badge.cls}`}>
         {badge.label}
       </span>
 
-      {/* Title */}
-      <h3 className="relative z-10 font-display text-base font-semibold leading-snug text-[var(--color-primary)] group-hover:underline">
+      {/* Title — underlined + brand purple so it reads as a link */}
+      <h3 className="font-display text-base font-semibold leading-snug text-[var(--color-primary)] underline decoration-1 underline-offset-4 decoration-[var(--color-border-soft)] group-hover:decoration-[var(--color-primary)]">
         {alert.title}
       </h3>
 
       {/* Summary */}
-      <p className="relative z-10 line-clamp-2 font-body text-sm text-[var(--color-text-secondary)]">
+      <p className="line-clamp-2 font-body text-sm text-[var(--color-text-secondary)]">
         {alert.summary}
       </p>
 
       {/* Program pills — bottom of card */}
       {visible.length > 0 && (
-        <div className="relative z-10 flex flex-wrap gap-1">
+        <div className="flex flex-wrap gap-1">
           {visible.map((ap) => (
             <span
               key={ap.id}
@@ -148,13 +145,13 @@ export default function AlertCardSB({ alert }: { alert: AlertWithPrograms }) {
         </div>
       )}
 
-      <div className="relative z-10 mt-auto flex items-center justify-between gap-2 pt-1">
+      <div className="mt-auto flex items-center justify-between gap-2 pt-1">
         {endLabel && (
           <span className={`font-ui text-xs ${isExpired ? 'text-slate-400' : urg.labelCls}`}>
             {endLabel}
           </span>
         )}
       </div>
-    </div>
+    </Link>
   )
 }

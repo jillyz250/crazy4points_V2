@@ -62,7 +62,7 @@ export default function AlertHeroCardSB({ alert }: { alert: AlertWithPrograms })
         )}
       </div>
 
-      <h2 className="font-display text-xl font-bold leading-tight text-[var(--color-primary)] group-hover:underline md:text-2xl">
+      <h2 className="font-display text-xl font-bold leading-tight text-[var(--color-primary)] group-hover:underline group-hover:decoration-1 group-hover:underline-offset-4 md:text-2xl">
         {alert.title}
       </h2>
 
