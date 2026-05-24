@@ -337,7 +337,7 @@ export function renderNewsletterV2Html({
              disclaimer line + links row. No editorial content. -->
         <tr><td style="padding:20px 28px 18px;border-top:1px solid ${BORDER};background:${SOFT_BG};text-align:center;">
           <p style="margin:0 auto 10px;max-width:480px;font-family:${FONT_UI};font-size:10px;color:${MUTED};line-height:1.55;font-style:italic;">Affiliate links may earn us a commission at no cost to you. Editorial picks are independent. Informational only &mdash; verify all terms with the issuer.</p>
-          <p style="margin:0;font-family:${FONT_UI};font-size:11px;color:${MUTED};letter-spacing:0.3px;">crazy4points.com &middot; <a href="${origin}/privacy" style="color:${MUTED};text-decoration:underline;">Privacy</a> &middot; <a href="${origin}/affiliate-disclosure" style="color:${MUTED};text-decoration:underline;">Affiliate Disclosure</a> &middot; <a href="${recipientEmail ? unsubscribeUrlFor(recipientEmail, origin) : `${origin}/unsubscribe`}" style="color:${MUTED};text-decoration:underline;">Unsubscribe</a></p>
+          <p style="margin:0;font-family:${FONT_UI};font-size:11px;color:${MUTED};letter-spacing:0.3px;">crazy4points.com &middot; <a href="${origin}/privacy" style="color:${MUTED};text-decoration:underline;">Privacy</a> &middot; <a href="${origin}/affiliate-disclosure" style="color:${MUTED};text-decoration:underline;">Affiliate Disclosure</a> &middot; <a href="https://www.facebook.com/profile.php?id=61589408162571" style="color:${MUTED};text-decoration:underline;">Facebook</a> &middot; <a href="${recipientEmail ? unsubscribeUrlFor(recipientEmail, origin) : `${origin}/unsubscribe`}" style="color:${MUTED};text-decoration:underline;">Unsubscribe</a></p>
         </td></tr>
 
       </table>
