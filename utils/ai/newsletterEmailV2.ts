@@ -183,7 +183,7 @@ function renderSweetSpot(sp: NewsletterSweetSpot | null): string {
           <p style="margin:0 0 6px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${GOLD};font-weight:700;">Sweet Spot of the Week</p>
           <h2 style="margin:0 0 12px;font-family:${FONT_DISPLAY};font-size:22px;line-height:1.3;color:${PURPLE};">${esc(sp.topic)}</h2>
           ${explainer}
-          ${uses ? `<ul style="margin:0;padding:0 0 0 18px;">${uses}</ul>` : ''}
+          ${uses ? `<p style="margin:18px 0 8px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${GOLD};font-weight:700;">Good for</p><ul style="margin:0;padding:0 0 0 18px;">${uses}</ul>` : ''}
         </td></tr>
       </table>
     </td></tr>`
