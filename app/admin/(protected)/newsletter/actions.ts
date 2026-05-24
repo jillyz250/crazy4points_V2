@@ -19,12 +19,13 @@ const FROM = process.env.RESEND_FROM ?? 'Crazy4Points <hello@crazy4points.com>'
 const ADMIN_EMAIL = process.env.BRIEF_RECIPIENT ?? 'jillzeller6@gmail.com'
 
 const SLOT_SELECT =
-  'id, week_of, sent_at, subject, subject_options, status, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_html, big_story_claims, big_story_missing_facts, sweet_spot_ref_type, sweet_spot_ref_id, sweet_spot, also_happening, jills_take_html, game_slug, game_title, game_clue_text'
+  'id, week_of, sent_at, display_date, subject, subject_options, status, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_html, big_story_claims, big_story_missing_facts, sweet_spot_ref_type, sweet_spot_ref_id, sweet_spot, also_happening, jills_take_html, game_slug, game_title, game_clue_text'
 
 interface SlotRow {
   id: string
   week_of: string
   sent_at: string | null
+  display_date: string | null
   subject: string | null
   subject_options: string[] | null
   status: 'draft' | 'sent' | 'failed'
@@ -48,6 +49,7 @@ interface SlotRow {
 function rowToSlots(row: SlotRow): NewsletterSlots {
   return {
     hero_kicker: row.hero_kicker,
+    display_date: row.display_date,
     game: {
       slug: row.game_slug,
       title: row.game_title,
@@ -87,6 +89,7 @@ export async function saveSlotsAction(id: string, slots: NewsletterSlots) {
       subject: slots.subject || null,
       subject_options: slots.subject_options,
       hero_kicker: slots.hero_kicker,
+      display_date: slots.display_date,
       jill_prompt: slots.jill_prompt,
       big_story_ref_type: slots.big_story_ref_type,
       big_story_ref_id: slots.big_story_ref_id,

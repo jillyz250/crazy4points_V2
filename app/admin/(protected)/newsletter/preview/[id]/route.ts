@@ -25,12 +25,13 @@ import type {
 } from '@/utils/ai/newsletterSlots'
 
 const SLOT_SELECT =
-  'id, week_of, sent_at, subject, subject_options, status, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_html, sweet_spot, also_happening, jills_take_html, game_slug, game_title, game_clue_text'
+  'id, week_of, sent_at, display_date, subject, subject_options, status, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_html, sweet_spot, also_happening, jills_take_html, game_slug, game_title, game_clue_text'
 
 type Row = {
   id: string
   week_of: string
   sent_at: string | null
+  display_date: string | null
   subject: string | null
   subject_options: string[] | null
   status: 'draft' | 'sent' | 'failed'
@@ -50,6 +51,7 @@ type Row = {
 function rowToSlots(r: Row): NewsletterSlots {
   return {
     hero_kicker: r.hero_kicker,
+    display_date: r.display_date,
     game: { slug: r.game_slug, title: r.game_title, clue_text: r.game_clue_text },
     big_story_ref_type: r.big_story_ref_type,
     big_story_ref_id: r.big_story_ref_id,

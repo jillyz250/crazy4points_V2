@@ -31,6 +31,7 @@ type NewsletterRow = {
   subject_options: string[] | null
   status: 'draft' | 'sent' | 'failed'
   sent_at: string | null
+  display_date: string | null
   recipient_count: number | null
   created_at: string
   // V2 slot columns (migration 222)
@@ -54,6 +55,7 @@ type NewsletterRow = {
 function rowToSlots(r: NewsletterRow): NewsletterSlots {
   return {
     hero_kicker: r.hero_kicker,
+    display_date: r.display_date,
     game: { slug: r.game_slug, title: r.game_title, clue_text: r.game_clue_text },
     big_story_ref_type: r.big_story_ref_type,
     big_story_ref_id: r.big_story_ref_id,
@@ -89,7 +91,7 @@ export default async function NewsletterAdminPage({
   const { data: rowsData } = await supabase
     .from('newsletters')
     .select(
-      'id, week_of, subject, subject_options, status, sent_at, recipient_count, created_at, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_html, big_story_claims, big_story_missing_facts, sweet_spot_ref_type, sweet_spot_ref_id, sweet_spot, also_happening, jills_take_html, game_slug, game_title, game_clue_text',
+      'id, week_of, subject, subject_options, status, sent_at, display_date, recipient_count, created_at, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_html, big_story_claims, big_story_missing_facts, sweet_spot_ref_type, sweet_spot_ref_id, sweet_spot, also_happening, jills_take_html, game_slug, game_title, game_clue_text',
     )
     .order('week_of', { ascending: false })
     .limit(12)

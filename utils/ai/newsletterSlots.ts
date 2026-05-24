@@ -50,6 +50,13 @@ export interface NewsletterSlots {
   /** Optional eyebrow above "Week of …" line. Empty = none. */
   hero_kicker: string | null
 
+  /**
+   * Editor-set display date (YYYY-MM-DD). When null, the renderer falls
+   * back to sent_at (if sent) → today. Use this to set the date the
+   * newsletter is going out so subscribers see the right header date.
+   */
+  display_date: string | null
+
   // ── Game ─────────────────────────────────────────────────────
   game: NewsletterGameSlot
 
@@ -84,6 +91,7 @@ export interface NewsletterSlots {
  */
 export const EMPTY_SLOTS: NewsletterSlots = {
   hero_kicker: null,
+  display_date: null,
   game: { slug: null, title: null, clue_text: null },
   big_story_ref_type: null,
   big_story_ref_id: null,
