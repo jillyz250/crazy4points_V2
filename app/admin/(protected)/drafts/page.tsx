@@ -204,7 +204,9 @@ async function loadViewCounts(supabase: Supa): Promise<ViewCounts> {
   }
 }
 
-async function loadRows(supabase: Supa, view: SmartViewKey): Promise<DraftRow[]> {
+type SortBy = 'updated' | 'published' | 'expiring'
+
+async function loadRows(supabase: Supa, view: SmartViewKey, sort: SortBy = 'updated'): Promise<DraftRow[]> {
   const nowIso = new Date().toISOString()
   const in7dIso = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
   const past7dIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
@@ -216,8 +218,17 @@ async function loadRows(supabase: Supa, view: SmartViewKey): Promise<DraftRow[]>
       'id, topic_id, format, title, status, original_alert_type, start_date, updated_at, published_at, ' +
       'topics:topics!inner(id, slug, title, end_date, metadata)',
     )
-    .order('updated_at', { ascending: false, nullsFirst: false })
     .limit(200)
+
+  // Sort: dropdown options. "Expiring" sorts soonest first (non-null
+  // end_date ascending); rows without end_date fall to the bottom.
+  if (sort === 'published') {
+    query = query.order('published_at', { ascending: false, nullsFirst: false })
+  } else if (sort === 'expiring') {
+    query = query.order('topics(end_date)', { ascending: true, nullsFirst: false })
+  } else {
+    query = query.order('updated_at', { ascending: false, nullsFirst: false })
+  }
 
   if (view === 'needs_review') {
     query = query.eq('status', 'needs_review')
@@ -300,14 +311,16 @@ function buildHref(view: SmartViewKey): string {
 export default async function AdminDraftsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string }>
+  searchParams: Promise<{ view?: string; sort?: string }>
 }) {
   const sp = await searchParams
   const validViews: SmartViewKey[] = ['needs_review', 'published_alerts', 'expiring_soon', 'socials_pending', 'stale_drafts', 'recently_expired', 'all']
   const view: SmartViewKey = (sp.view && validViews.includes(sp.view as SmartViewKey) ? sp.view : 'needs_review') as SmartViewKey
+  const validSorts: SortBy[] = ['updated', 'published', 'expiring']
+  const sort: SortBy = (sp.sort && validSorts.includes(sp.sort as SortBy) ? sp.sort : 'updated') as SortBy
 
   const supabase = createAdminClient()
-  const [counts, rows] = await Promise.all([loadViewCounts(supabase), loadRows(supabase, view)])
+  const [counts, rows] = await Promise.all([loadViewCounts(supabase), loadRows(supabase, view, sort)])
 
   // Subhead summary — only show non-zero counts so it reads as a real status line.
   const summaryParts: string[] = []
@@ -363,15 +376,23 @@ export default async function AdminDraftsPage({
         </div>
       </Card>
 
-      {/* State line */}
+      {/* Sort dropdown + state line — sort lets the editor reorder
+          published alerts (and other views) by recency or expiry, not just
+          last-updated. Driven by ?sort= URL param so it survives reloads. */}
       {rows.length > 0 && (
         <div
           style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '0.5rem',
             fontSize: '0.8125rem',
             color: 'var(--admin-text-muted)',
             margin: '0.75rem 0 0.5rem 0',
           }}
         >
+          <div>
           Showing <strong style={{ color: 'var(--admin-text)' }}>{rows.length}</strong>{' '}
           {(() => {
             if (view === 'socials_pending')   return rows.length === 1 ? 'published alert that needs social variants' : 'published alerts that need social variants'
@@ -382,6 +403,38 @@ export default async function AdminDraftsPage({
             if (view === 'published_alerts')  return rows.length === 1 ? 'published alert' : 'published alerts'
             return rows.length === 1 ? 'draft' : 'drafts'
           })()}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+            <label htmlFor="sort-select" style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Sort by:</label>
+            {(['updated', 'published', 'expiring'] as const).map((s) => {
+              const params = new URLSearchParams()
+              if (view !== 'needs_review') params.set('view', view)
+              if (s !== 'updated') params.set('sort', s)
+              const qs = params.toString()
+              const href = qs ? `/admin/drafts?${qs}` : '/admin/drafts'
+              const label = s === 'updated' ? 'Updated' : s === 'published' ? 'Published' : 'Expiring soon'
+              const isActive = sort === s
+              return (
+                <Link
+                  key={s}
+                  href={href}
+                  scroll={false}
+                  style={{
+                    fontSize: '0.75rem',
+                    padding: '0.1875rem 0.5rem',
+                    borderRadius: '999px',
+                    border: '1px solid var(--admin-border)',
+                    background: isActive ? 'var(--admin-accent)' : 'transparent',
+                    color: isActive ? 'white' : 'var(--admin-text)',
+                    textDecoration: 'none',
+                    fontWeight: isActive ? 600 : 400,
+                  }}
+                >
+                  {label}
+                </Link>
+              )
+            })}
+          </div>
         </div>
       )}
 
@@ -399,12 +452,13 @@ export default async function AdminDraftsPage({
               <thead>
                 <tr>
                   <th>Title</th>
+                  <th>Action</th>
                   <th>Format</th>
                   <th>Type</th>
                   <th>Status</th>
                   <th>Updated</th>
                   <th>Expires</th>
-                  <th style={{ textAlign: 'right' }}>Actions</th>
+                  <th style={{ textAlign: 'right' }}>More</th>
                 </tr>
               </thead>
               <tbody>
@@ -429,6 +483,26 @@ export default async function AdminDraftsPage({
                           {displayTitle}
                         </Link>
                       </td>
+                      {/* Primary action — Publish for drafts, Expire for
+                          published. Sits right after Title so it's reachable
+                          without horizontal scrolling. */}
+                      <td>
+                        {r.format === 'alert' && r.alert_id && (r.status === 'draft' || r.status === 'needs_review') && (
+                          <form action={publishAlertAction.bind(null, r.alert_id)}>
+                            <button type="submit" className="admin-btn admin-btn-primary admin-btn-sm">
+                              Publish
+                            </button>
+                          </form>
+                        )}
+                        {r.format === 'alert' && r.alert_id && r.status === 'published' && !isExpired && (
+                          <ConfirmButton
+                            action={expireAlertAction.bind(null, r.alert_id)}
+                            confirmMessage={`Expire "${r.topic_title}"?\n\nSets end_date=now and hides the alert from active surfaces. URL stays live but reads "expired".`}
+                          >
+                            Expire
+                          </ConfirmButton>
+                        )}
+                      </td>
                       <td style={{ textTransform: 'capitalize' }}>
                         <Badge tone={formatTone}>{r.format}</Badge>
                       </td>
@@ -452,21 +526,6 @@ export default async function AdminDraftsPage({
                           >
                             Edit
                           </Link>
-                          {r.format === 'alert' && r.alert_id && (r.status === 'draft' || r.status === 'needs_review') && (
-                            <form action={publishAlertAction.bind(null, r.alert_id)}>
-                              <button type="submit" className="admin-btn admin-btn-secondary admin-btn-sm">
-                                Publish
-                              </button>
-                            </form>
-                          )}
-                          {r.format === 'alert' && r.alert_id && r.status === 'published' && (
-                            <ConfirmButton
-                              action={expireAlertAction.bind(null, r.alert_id)}
-                              confirmMessage={`Expire "${r.topic_title}"?\n\nSets end_date=now and hides the alert from active surfaces. URL stays live but reads "expired".`}
-                            >
-                              Expire
-                            </ConfirmButton>
-                          )}
                           <ConfirmButton
                             action={archiveVariantAction.bind(null, r.variant_id) as unknown as () => Promise<unknown>}
                             confirmMessage={`Archive "${r.topic_title}" (${r.format})?\n\nRow drops out of the active queue. Data stays in the DB for audit; find it under the Archived chip if you need it back.`}
