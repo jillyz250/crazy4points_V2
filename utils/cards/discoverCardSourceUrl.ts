@@ -319,9 +319,16 @@ export async function discoverCardSourceUrl({
   const suggestions = (toolUseBlock.input ?? {}) as Suggestions
 
   // Verify each suggested URL with a HEAD request before surfacing to the
-  // editor. Drops any 404/forbidden suggestion to null so the editor only
-  // sees verified URLs — kills the "suggested URL turns out to be a 404"
-  // class of bugs at the source.
+  // editor. Drops dead suggestions to null so the editor only sees verified
+  // URLs — kills the "suggested URL turns out to be a 404" class of bugs.
+  //
+  // Exception: 403/401 ("forbidden") from CDN bot-blocking (Citi, AA,
+  // Southwest, JetBlue all run Akamai or similar) is NOT a real "URL is
+  // dead" signal — Firecrawl reaches these fine when the editor actually
+  // scrapes them. Without this exception, the Discover URL flow returned
+  // all-null suggestions for every Citi card because every URL came back
+  // 403 from plain HEAD even though they're real, scrapeable pages.
+  // Same pattern would have killed the flow for AA / Southwest co-brands.
   const slots: Array<keyof Suggestions> = [
     'source_url',
     'guide_to_benefits_url',
@@ -334,7 +341,7 @@ export async function discoverCardSourceUrl({
       const entry = suggestions[slot]
       if (!entry?.url) return
       const result = await checkUrl(entry.url)
-      if (!result.ok) {
+      if (!result.ok && result.reason !== 'forbidden') {
         suggestions[slot] = null
       }
     }),
