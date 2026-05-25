@@ -46,6 +46,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Reference',
     items: [
       { href: '/admin/programs', label: 'Programs', abbr: 'Pr' },
+      { href: '/admin/issuers', label: 'Issuers', abbr: 'Is' },
       { href: '/admin/cards', label: 'Cards', abbr: 'Cd' },
       { href: '/admin/tokens', label: 'Tokens', abbr: 'Tk' },
       { href: '/admin/partner-redemptions', label: 'Partner Redemptions', abbr: 'PR' },
