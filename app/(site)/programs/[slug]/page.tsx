@@ -15,6 +15,7 @@ import LiveBarsHero, { OTHER_LIVE_TYPES } from '@/components/programs/LiveBarsHe
 import SimpleTileGrid from '@/components/programs/SimpleTileGrid'
 import IntroBlock from '@/components/programs/IntroBlock'
 import { getActivePromosForProgram, type PromoReward } from '@/utils/supabase/promoQueries'
+import { expandIntroTokens } from '@/utils/programs/expandIntroTokens'
 
 // Editorial content; rarely changes intra-day. Admin publish flow can call
 // revalidatePath() to bust this cache on demand, so 1 hour is safe.
@@ -29,11 +30,14 @@ export async function generateMetadata({
   try {
     const supabase = createAdminClient()
     const { program } = await getAlertsByProgramSlug(supabase, slug)
+    // Expand {<slug>_airline_count} / _hotel_count / _partner_count tokens
+    // before truncating — so SEO description shows real counts, not raw tokens.
+    const expandedIntro = await expandIntroTokens(program.intro, supabase)
     // Per-program meta description — uses intro (truncated to ~155 chars)
     // when set, falls back to a sensible generic. Search engines surface
     // this verbatim under the SERP title; AI assistants weight it heavily.
-    const cleanIntro = program.intro
-      ? program.intro.replace(/\s+/g, ' ').trim().slice(0, 155)
+    const cleanIntro = expandedIntro
+      ? expandedIntro.replace(/\s+/g, ' ').trim().slice(0, 155)
       : null
     const description =
       cleanIntro ??
@@ -108,6 +112,10 @@ export default async function ProgramPage({
     if (!program.content_updated_at) {
       notFound()
     }
+    // Resolve any {<slug>_airline_count} / _hotel_count / _partner_count tokens
+    // in the intro so downstream renderers (IntroBlock, JSON-LD description,
+    // markdown export) all see the same expanded text.
+    program.intro = await expandIntroTokens(program.intro, supabase)
   } catch {
     notFound()
   }
