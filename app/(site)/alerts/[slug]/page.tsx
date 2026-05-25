@@ -188,16 +188,18 @@ export default async function AlertDetailPage({ params }: Props) {
           )}
         </div>
 
-        {/* Title — big breathing room below so the H1 doesn't crowd
-            the body. */}
-        <h1 className="mb-10 font-display text-3xl font-bold leading-snug text-[var(--color-primary)] md:text-4xl">
+        {/* Title — sized like an editorial article headline (NYT-ish),
+            not a marketing hero. Lighter weight (semibold not bold) so
+            it doesn't feel shouted. Tight leading keeps multi-line
+            titles compact. */}
+        <h1 className="mb-12 font-display text-xl font-semibold leading-tight text-[var(--color-primary)] md:text-2xl">
           {alert.title}
         </h1>
 
         {/* Summary — treated as a lead paragraph with generous space
             on either side so it doesn't get sandwiched between the
-            big H1 and the Why-this-matters callout. */}
-        <p className="mb-12 font-body text-lg leading-relaxed text-[var(--color-text-secondary)]">
+            H1 and the Why-this-matters callout. */}
+        <p className="mb-14 font-body text-lg leading-relaxed text-[var(--color-text-secondary)]">
           {alert.summary}
         </p>
 
