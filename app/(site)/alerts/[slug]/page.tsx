@@ -177,7 +177,7 @@ export default async function AlertDetailPage({ params }: Props) {
         </nav>
 
         {/* Type badge + expiry */}
-        <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="mb-6 flex flex-wrap items-center gap-3">
           <span className={`rounded-full px-3 py-1 font-ui text-xs font-semibold uppercase tracking-[0.1em] ${badge.cls}`}>
             {badge.label}
           </span>
@@ -195,17 +195,11 @@ export default async function AlertDetailPage({ params }: Props) {
           {alert.title}
         </h1>
 
-        {/* Editorial divider — visually closes the title block so the
-            summary reads as its own beat, not a continuation of the
-            headline. Tight spacing above + moderate below keeps the
-            title-rule unit compact, then the real cushion lives below
-            the summary instead. */}
-        <hr className="mb-8 border-t border-[var(--color-border-soft)]" />
+        {/* Editorial divider — visually closes the title block. */}
+        <hr className="mb-6 border-t border-[var(--color-border-soft)]" />
 
-        {/* Summary — big bottom margin so it sits well above the
-            Why-this-matters callout (where the eye needs a real break
-            before the next visual block). */}
-        <p className="mb-20 font-body text-lg leading-relaxed text-[var(--color-text-secondary)]">
+        {/* Summary */}
+        <p className="mb-6 font-body text-lg leading-relaxed text-[var(--color-text-secondary)]">
           {alert.summary}
         </p>
 
@@ -214,7 +208,7 @@ export default async function AlertDetailPage({ params }: Props) {
             label so it reads as a labeled callout, generous padding.
             Was reading as continuous prose under the summary before. */}
         {alert.why_this_matters && (
-          <div className="mb-12 rounded-[var(--radius-card)] border-l-4 border-[var(--color-primary)] bg-[var(--color-background-soft)] py-5 pl-6 pr-5">
+          <div className="mb-6 rounded-[var(--radius-card)] border-l-4 border-[var(--color-primary)] bg-[var(--color-background-soft)] py-5 pl-6 pr-5">
             <p className="mb-2 font-ui text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-primary)]">
               Why this matters
             </p>
@@ -229,7 +223,7 @@ export default async function AlertDetailPage({ params }: Props) {
             published). Signals to readers that specifics could shift. */}
         {alert.terms_waived_reason && (
           <div
-            className="mb-8 rounded-[var(--radius-card)] border-l-4 border-amber-500 bg-amber-50 p-4"
+            className="mb-6 rounded-[var(--radius-card)] border-l-4 border-amber-500 bg-amber-50 p-4"
             role="note"
           >
             <p className="mb-1 font-ui text-[11px] font-semibold uppercase tracking-[0.08em] text-amber-900">
@@ -248,7 +242,7 @@ export default async function AlertDetailPage({ params }: Props) {
             to feel like a real editorial article block rather than a
             soft tinted box. Extra padding for breathing room. */}
         {descriptionHtml && (
-          <div className="mb-10 overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-white shadow-[var(--shadow-soft)]">
+          <div className="mb-6 overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-white shadow-[var(--shadow-soft)]">
             <div className="h-1 bg-[var(--color-primary)]" />
             <div className="p-7 sm:p-8">
               <div
@@ -260,7 +254,7 @@ export default async function AlertDetailPage({ params }: Props) {
         )}
 
         {/* Meta grid */}
-        <dl className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <dl className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
           {alert.start_date && (
             <div>
               <dt className="mb-0.5 font-ui text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">Start Date</dt>
