@@ -191,19 +191,21 @@ export default async function AlertDetailPage({ params }: Props) {
         {/* Title — sized like an editorial article headline (NYT-ish),
             not a marketing hero. Lighter weight (semibold) so it
             doesn't feel shouted. */}
-        <h1 className="mb-10 font-display text-xl font-semibold leading-tight text-[var(--color-primary)] md:text-2xl">
+        <h1 className="mb-6 font-display text-xl font-semibold leading-tight text-[var(--color-primary)] md:text-2xl">
           {alert.title}
         </h1>
 
         {/* Editorial divider — visually closes the title block so the
             summary reads as its own beat, not a continuation of the
-            headline. */}
-        <hr className="mb-12 border-t border-[var(--color-border-soft)]" />
+            headline. Tight spacing above + moderate below keeps the
+            title-rule unit compact, then the real cushion lives below
+            the summary instead. */}
+        <hr className="mb-8 border-t border-[var(--color-border-soft)]" />
 
-        {/* Summary — generous whitespace on both sides, treated as a
-            lead paragraph between title (above the rule) and the
-            Why-this-matters callout (below). */}
-        <p className="mb-16 font-body text-lg leading-relaxed text-[var(--color-text-secondary)]">
+        {/* Summary — big bottom margin so it sits well above the
+            Why-this-matters callout (where the eye needs a real break
+            before the next visual block). */}
+        <p className="mb-20 font-body text-lg leading-relaxed text-[var(--color-text-secondary)]">
           {alert.summary}
         </p>
 
