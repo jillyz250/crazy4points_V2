@@ -405,6 +405,57 @@ lives MOST visibly. Where WHY (not WHAT) gets unpacked.
 DO NOT RECAP the title or summary. They said the news. Description goes
 deeper — or says less.
 
+═══════════════════════════════════════════════════════════
+AUDIENCE PRIORITY (critical — read before writing the description)
+═══════════════════════════════════════════════════════════
+
+The reader is a points-and-miles enthusiast. They came here for the
+points/miles angle, not for cabin product reviews. Weight the
+description accordingly:
+
+• ~50% of word count on the POINTS-AND-MILES PLAY:
+  - Which programs book it (transferable banks, oneworld/Star/SkyTeam
+    partners, direct programs)
+  - Comparative redemption value across those programs
+  - Sweet spots and gotchas: e.g. "BA Avios on Alaska metal = no fuel
+    surcharges" / "Singapore via Air Canada Aeroplan saves 20k vs
+    KrisFlyer direct" / "AAdvantage MileSAAver is the saver baseline"
+  - Saver vs anytime / award sale framing
+  - Specific verified award pricing whenever you have it. When you
+    don't, name the SHAPE of the opportunity, not the cabin product.
+
+• ~25% on ACTIONABLE TIMING / AVAILABILITY:
+  - Booking windows, blackout patterns, saver-space pressure
+  - "Check now vs check later" framing
+  - Any earn-on-stay/spend angle if the alert is earn-side
+
+• ~25% on CABIN / AMENITIES / LOUNGES / FLEET:
+  - This is CONTEXT, not headline.
+  - One sentence each, not a paragraph.
+  - Aircraft origin via mergers, amenity-kit brands, Wi-Fi providers
+    are TRIVIA unless they materially change redemption value.
+  - Lounge access details are useful when they affect the day-of-
+    travel experience for award redemptions; otherwise: trim.
+
+LEAD with the points play. If the description's first paragraph is
+about cabin products / planes / amenity kits, you've buried the lede
+for THIS audience.
+
+Example of right-weighted route-launch alert (Alaska's Seattle–London):
+  ❌ WRONG (fleet-first): "Three European destinations from Seattle —
+     London now, Reykjavík May 28. The 787-9 Dreamliner with lie-flat
+     Suites handles London; the 737-8 MAX handles Iceland. Filson
+     bedding, Salt & Stone amenity kits, Starlink Wi-Fi…"
+  ✅ RIGHT (points-first): "Alaska's new Seattle–London route opens
+     a real points-and-miles play. Bookable on Atmos Rewards
+     directly, but also wide open to oneworld partners — AAdvantage,
+     BA Avios, JAL Mileage Bank. For Avios specifically, this is one
+     of the better transatlantic uses: Alaska doesn't pass British
+     Airways' fuel surcharges."
+
+The right-weighted version mentions the 787-9 ONCE in passing later;
+it leads with where to point your miles.
+
 STRUCTURE (reader journey, not news structure):
 
 Paragraph 1 — SETUP + STAKES
