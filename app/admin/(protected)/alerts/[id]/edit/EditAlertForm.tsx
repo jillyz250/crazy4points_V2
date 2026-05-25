@@ -7,6 +7,7 @@ import type { GateReport } from '@/utils/alerts/publishGates'
 import type { AlertOverrideRow } from '@/utils/supabase/alertOverrides'
 import FactCheckWarnings from '@/components/admin/FactCheckWarnings'
 import AlertGapsBanner from '@/components/admin/AlertGapsBanner'
+import EditorialValueAddBox from '@/components/admin/EditorialValueAddBox'
 import QuickFixVoiceButton from '@/components/admin/QuickFixVoiceButton'
 import PipelineActionsPanel from '@/components/admin/PipelineActionsPanel'
 import ShortUrlCopy from '@/components/admin/ShortUrlCopy'
@@ -231,6 +232,11 @@ export default function EditAlertForm({
       <div style={{ marginBottom: '1.25rem' }}>
         <FactCheckWarnings alertId={alert.id} claims={alert.fact_check_claims} />
       </div>
+
+      {/* Admin-only: writer's claimed editorial value-add beyond
+          raw_text. Visible during drafting so the editor can decide to
+          publish vs. regenerate at a glance. Never reaches readers. */}
+      <EditorialValueAddBox items={alert.editorial_value_add} />
 
       <TextField name="title" label="Title" required defaultValue={alert.title} />
       <TextField name="summary" label="Summary" required defaultValue={alert.summary} />
