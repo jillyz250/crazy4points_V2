@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { createAdminClient } from '@/utils/supabase/server'
 import { countUnresolvedSystemErrors, getRefreshQueueCount, getRefreshQueue } from '@/utils/supabase/queries'
+import { countHardcodedHits } from '@/utils/programs/auditHardcodedCounts'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Card } from '@/components/admin/ui/Card'
 import { LinkButton } from '@/components/admin/ui/Button'
@@ -50,6 +51,7 @@ async function loadStats() {
     currentNewsletter,
     refreshQueueCount,
     refreshQueueTopFive,
+    tokenCandidates,
   ] = await Promise.all([
     supabase.from('alerts').select('id', { count: 'exact', head: true }).eq('status', 'pending_review'),
     supabase.from('intel_items').select('id', { count: 'exact', head: true }).eq('processed', false).is('rejected_at', null).gte('created_at', dayAgo),
@@ -60,6 +62,7 @@ async function loadStats() {
     supabase.from('newsletters').select('week_of, status').order('week_of', { ascending: false }).limit(1).maybeSingle(),
     getRefreshQueueCount(supabase),
     getRefreshQueue(supabase, { limit: 5 }),
+    countHardcodedHits(supabase).catch(() => 0),
   ])
 
   return {
@@ -72,6 +75,7 @@ async function loadStats() {
     currentNewsletter: currentNewsletter.data as { week_of: string; status: string } | null,
     refreshQueueCount,
     refreshQueueTopFive,
+    tokenCandidates,
   }
 }
 
@@ -121,6 +125,13 @@ export default async function AdminDashboard() {
       tone: stats.unresolvedErrors > 0 ? 'danger' : 'success',
       href: '/admin/errors',
       hint: stats.unresolvedErrors > 0 ? 'investigate' : 'none open',
+    },
+    {
+      label: 'Token candidates',
+      value: stats.tokenCandidates,
+      tone: stats.tokenCandidates > 0 ? 'warning' : 'success',
+      href: '/admin/tokens',
+      hint: stats.tokenCandidates > 0 ? 'hardcoded counts in copy' : 'all tokenized',
     },
     {
       label: 'Refresh queue',
