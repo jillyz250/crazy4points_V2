@@ -198,8 +198,12 @@ export default async function AlertDetailPage({ params }: Props) {
         {/* Editorial divider — visually closes the title block. */}
         <hr className="mb-6 border-t border-[var(--color-border-soft)]" />
 
-        {/* Summary */}
-        <p className="mb-6 font-body text-lg leading-relaxed text-[var(--color-text-secondary)]">
+        {/* Summary — extra bottom margin (mb-14 ≈ 56px = uniform gap +
+            one body line of pure whitespace) per Jill's "full blank
+            line after the summary" request. This is the only boundary
+            where we break the uniform 1.5em rule, because the eye
+            needs a real beat before the Why-this-matters callout. */}
+        <p className="mb-14 font-body text-lg leading-relaxed text-[var(--color-text-secondary)]">
           {alert.summary}
         </p>
 
