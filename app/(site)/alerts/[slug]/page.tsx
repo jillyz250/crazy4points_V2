@@ -198,12 +198,13 @@ export default async function AlertDetailPage({ params }: Props) {
         {/* Editorial divider — visually closes the title block. */}
         <hr className="mb-6 border-t border-[var(--color-border-soft)]" />
 
-        {/* Summary — extra bottom margin (mb-14 ≈ 56px = uniform gap +
-            one body line of pure whitespace) per Jill's "full blank
-            line after the summary" request. This is the only boundary
-            where we break the uniform 1.5em rule, because the eye
-            needs a real beat before the Why-this-matters callout. */}
-        <p className="mb-14 font-body text-lg leading-relaxed text-[var(--color-text-secondary)]">
+        {/* Summary — DRAMATIC bottom margin (mb-32 ≈ 128px) per Jill:
+            "after May 31 in the screenshot and before the purple block
+            there should be an entire row or area of just white." This
+            intentionally breaks the uniform 1.5em rule because that
+            specific transition from summary → callout is the most
+            visually important pause on the page. */}
+        <p className="mb-32 font-body text-lg leading-relaxed text-[var(--color-text-secondary)]">
           {alert.summary}
         </p>
 
