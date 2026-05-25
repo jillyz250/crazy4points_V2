@@ -209,7 +209,7 @@ export default async function AlertDetailPage({ params }: Props) {
             matters callout below. If a CSS-class-based mb-* doesn't
             visibly render, this WILL because there's no class name
             for a stale bundle to be missing. */}
-        <div aria-hidden style={{ height: '96px' }} />
+        <div aria-hidden style={{ height: '48px' }} />
 
         {/* Editorial subhead — "Why this matters" in the writer's voice.
             Styled as a pull-quote: soft purple background, eyebrow
