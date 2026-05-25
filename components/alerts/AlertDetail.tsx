@@ -81,7 +81,7 @@ export default function AlertDetail({
         </nav>
 
         {/* ── Hero ── */}
-        <header className="mb-10 flex flex-col gap-5">
+        <header className="mb-14 flex flex-col gap-6">
           {/* Badges row */}
           <div className="flex flex-wrap items-center gap-2">
             <span
@@ -96,8 +96,9 @@ export default function AlertDetail({
             {alert.title}
           </h1>
 
-          {/* Summary */}
-          <p className="font-body text-lg leading-relaxed text-[var(--color-text-secondary)]">
+          {/* Summary — extra top margin gives the title room to breathe
+              before the body text starts. */}
+          <p className="mt-2 font-body text-lg leading-relaxed text-[var(--color-text-secondary)]">
             {alert.summary}
           </p>
 
@@ -144,9 +145,14 @@ export default function AlertDetail({
           </div>
         </header>
 
+        {/* Visual rest between summary and full body — without this
+            divider the italic intro paragraph reads as flush against
+            the summary and the page feels cramped. */}
+        <hr className="my-10 border-t border-[var(--color-border-soft)]" />
+
         {/* ── Description section ── */}
-        <section aria-label="Full description" className="mb-10">
-          <h2 className="mb-4 font-display text-xl font-semibold text-[var(--color-primary)]">
+        <section aria-label="Full description" className="mb-12">
+          <h2 className="mb-6 font-display text-xl font-semibold text-[var(--color-primary)]">
             Full Details
           </h2>
 
