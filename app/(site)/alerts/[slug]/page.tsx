@@ -184,21 +184,26 @@ export default async function AlertDetailPage({ params }: Props) {
           )}
         </div>
 
-        {/* Title */}
-        <h1 className="mb-4 font-display text-3xl font-bold leading-snug text-[var(--color-primary)] md:text-4xl">
+        {/* Title — extra bottom margin so the big H1 doesn't crowd the
+            summary directly underneath. */}
+        <h1 className="mb-6 font-display text-3xl font-bold leading-snug text-[var(--color-primary)] md:text-4xl">
           {alert.title}
         </h1>
 
         {/* Summary */}
-        <p className="mb-4 font-body text-lg text-[var(--color-text-secondary)]">
+        <p className="mb-6 font-body text-lg leading-relaxed text-[var(--color-text-secondary)]">
           {alert.summary}
         </p>
 
-        {/* Editorial subhead — why this matters in the writer's voice. */}
+        {/* Editorial subhead — why this matters in the writer's voice.
+            Sits inside a left-rule callout so it's visually distinct
+            from the summary above (was reading as continuous prose). */}
         {alert.why_this_matters && (
-          <p className="mb-8 font-body text-base italic leading-relaxed text-[var(--color-text-primary)]">
-            {alert.why_this_matters}
-          </p>
+          <div className="mb-10 border-l-2 border-[var(--color-primary)] pl-4">
+            <p className="font-body text-base italic leading-relaxed text-[var(--color-text-primary)]">
+              {alert.why_this_matters}
+            </p>
+          </div>
         )}
 
         {/* "Terms still developing" notice — set when admin shipped without
