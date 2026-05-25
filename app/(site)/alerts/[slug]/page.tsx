@@ -188,22 +188,26 @@ export default async function AlertDetailPage({ params }: Props) {
           )}
         </div>
 
-        {/* Title — extra bottom margin so the big H1 doesn't crowd the
-            summary directly underneath. */}
-        <h1 className="mb-6 font-display text-3xl font-bold leading-snug text-[var(--color-primary)] md:text-4xl">
+        {/* Title — big breathing room below so the H1 doesn't crowd
+            the body. */}
+        <h1 className="mb-8 font-display text-3xl font-bold leading-snug text-[var(--color-primary)] md:text-4xl">
           {alert.title}
         </h1>
 
         {/* Summary */}
-        <p className="mb-6 font-body text-lg leading-relaxed text-[var(--color-text-secondary)]">
+        <p className="mb-8 font-body text-lg leading-relaxed text-[var(--color-text-secondary)]">
           {alert.summary}
         </p>
 
-        {/* Editorial subhead — why this matters in the writer's voice.
-            Sits inside a left-rule callout so it's visually distinct
-            from the summary above (was reading as continuous prose). */}
+        {/* Editorial subhead — "Why this matters" in the writer's voice.
+            Styled as a pull-quote: soft purple background, eyebrow
+            label so it reads as a labeled callout, generous padding.
+            Was reading as continuous prose under the summary before. */}
         {alert.why_this_matters && (
-          <div className="mb-10 border-l-2 border-[var(--color-primary)] pl-4">
+          <div className="mb-12 rounded-[var(--radius-card)] border-l-4 border-[var(--color-primary)] bg-[var(--color-background-soft)] py-5 pl-6 pr-5">
+            <p className="mb-2 font-ui text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-primary)]">
+              Why this matters
+            </p>
             <p className="font-body text-base italic leading-relaxed text-[var(--color-text-primary)]">
               {alert.why_this_matters}
             </p>
