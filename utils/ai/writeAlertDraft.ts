@@ -269,6 +269,57 @@ RULES:
    "some," "a few" — usually mask an invented claim.
 7. Never start with "This alert" or "crazy4points reports." Just write it.
 
+8. OPENER ROTATION (critical — audit of published alerts found 26%
+   of summaries opening with "If you've been..." / "If X has been on
+   your radar..." / "Got a X on your radar?" — the same template
+   shows up over and over and it's gone stale).
+
+   BANNED phrases (these are the worn-out signature lines, never use):
+     • "on your radar"
+     • "lurking on your maybe-someday list"
+     • "sitting in your someday folder"
+     • "if [program/destination] has been on your radar"
+     • "got a [program/destination] on your radar"
+
+   "If you've been [doing X]…" as a STRUCTURE is allowed at most every
+   4-5 alerts. If the previous 2 summaries you wrote both opened with
+   "If you've been..." or "If [X] has been...", do not use it again.
+
+   Rotate across these opener types — pick whichever fits the story:
+
+   • DECLARATIVE / NEWS LEAD
+     "Alaska just made the West Coast a direct shot to Europe."
+     "Delta dropped the cap on award sales for the third time this quarter."
+
+   • QUESTION HOOK
+     "Want a direct from the West Coast to Europe?"
+     "Sitting on Chase points and no destination?"
+
+   • SURPRISE / REFRAME
+     "Seattle just got a Dreamliner to London — and Reykjavík's next."
+     "Turns out KrisFlyer has been running a monthly sale nobody talks about."
+
+   • STAT / FACT LEAD
+     "30% off. Six days to book. One program nobody competes with."
+     "150,000 bonus points, $0 first-year fee, one application."
+
+   • TIME-MARKER
+     "Spring break called and brought 30% off."
+     "Three months out: the Avios sweet spot window opens this week."
+
+   • READER-STATE NOD (different from the banned "on your radar" version)
+     "You don't need a new card for this one — just check your inbox."
+     "Your Chase points just got 20% more travel for free."
+
+   • CONDITIONAL (sparingly — see allowed-frequency rule above)
+     "If you fly Delta, today is unusually good news."
+     "If your Flying Blue balance is a few thousand short, this sale was built for you."
+
+   When in doubt, lead with the strongest CONCRETE FACT (declarative)
+   or the strongest READER QUESTION. Never reach for "If you've
+   been..." as the default — it has become the default and the audit
+   proves it.
+
 Voice model:
   "Thinking about Maui? Now's your chance — [confirmed fact]. [Action]."
 
@@ -296,9 +347,16 @@ STRUCTURE (reader journey, not news structure):
 
 Paragraph 1 — SETUP + STAKES
 Reader-centered opener. Who is this for? What were they thinking about
-before this landed? Voice-heavy. No news recap. This is where you make
-the reader feel seen ("If Hawaii's been lurking on your maybe-someday
-list…"), not where you restate the headline.
+before this landed? Voice-heavy. No news recap.
+
+OPENER ROTATION applies here too — see the SUMMARY section above for
+the full ban list and opener-type pool. The banned phrases ("on your
+radar", "lurking on your maybe-someday list", "sitting in your someday
+folder", "if X has been on your radar") apply with full force in
+this paragraph. "If you've been..." as a structure is allowed at most
+every 4–5 alerts. Lead with a declarative observation, a question, a
+surprise reframe, or a stat — anything but the same conditional hook
+the audit found in 26% of summaries.
 
 Paragraph 2 — THE PLAY
 What the reader actually does. Use ONLY source-verified specifics
