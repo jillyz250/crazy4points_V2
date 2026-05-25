@@ -5,6 +5,7 @@ import { marked } from 'marked'
 import { createClient } from '@/utils/supabase/server'
 import { getAlertBySlug } from '@/utils/supabase/queries'
 import { daysUntilEndOfDay } from '@/lib/alertExpiry'
+import { normalizeAlertDescription } from '@/utils/alerts/normalizeDescription'
 
 // Published alert content; stable after publish.
 export const revalidate = 3600
@@ -123,8 +124,11 @@ export default async function AlertDetailPage({ params }: Props) {
   // Render description as markdown — promo alerts use a hybrid format
   // (voicey paragraphs + a "What qualifies" bulleted block). Other alert
   // types are still prose-only so markdown is just a passthrough for them.
+  // Normalize "Label: value" paragraph sequences into proper markdown
+  // bullets so the page doesn't render as flat prose when the writer
+  // drifted from the bullet format (see utils/alerts/normalizeDescription.ts).
   const descriptionHtml = alert.description
-    ? await marked.parse(alert.description, { async: true })
+    ? await marked.parse(normalizeAlertDescription(alert.description), { async: true })
     : null
 
   // JSON-LD Article schema. Tells Google + AI assistants that crazy4points
@@ -225,13 +229,19 @@ export default async function AlertDetailPage({ params }: Props) {
         )}
 
         {/* Description — rendered as markdown so promo alerts can use the
-            hybrid voicey-prose + "What qualifies" bullet block format. */}
+            hybrid voicey-prose + "What qualifies" bullet block format.
+            Card has a brand-purple top accent stripe + white background
+            to feel like a real editorial article block rather than a
+            soft tinted box. Extra padding for breathing room. */}
         {descriptionHtml && (
-          <div className="mb-8 rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] p-6">
-            <div
-              className="rg-prose font-body text-base leading-relaxed text-[var(--color-text-primary)]"
-              dangerouslySetInnerHTML={{ __html: descriptionHtml }}
-            />
+          <div className="mb-10 overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-white shadow-[var(--shadow-soft)]">
+            <div className="h-1 bg-[var(--color-primary)]" />
+            <div className="p-7 sm:p-8">
+              <div
+                className="rg-prose font-body text-base leading-relaxed text-[var(--color-text-primary)]"
+                dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+              />
+            </div>
           </div>
         )}
 

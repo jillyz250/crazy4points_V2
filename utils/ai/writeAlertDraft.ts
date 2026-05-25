@@ -508,6 +508,12 @@ THREE PARTS in this exact order:
        at the end of bullets where it adds value (judgment, runway
        framing, low-bar / high-bar callout).
      • Use markdown bullet syntax: "- **Field:** value *(aside)*"
+     • CRITICAL: each bullet MUST start with "- " (hyphen + space). DO
+       NOT write the bullets as separate paragraphs like
+         "Booking window: ..."
+         "Travel window: ..."
+       That renders as a flat wall of paragraphs on the page. The
+       hyphen prefix is non-optional.
      • Order bullets by reader-impact: status tier first if required,
        then booking window, then spend, then stay length, then travel
        window, then registration, then exclusions.
