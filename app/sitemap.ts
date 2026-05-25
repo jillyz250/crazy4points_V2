@@ -10,6 +10,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let programEntries: MetadataRoute.Sitemap = []
   let blogEntries: MetadataRoute.Sitemap = []
   let cardEntries: MetadataRoute.Sitemap = []
+  let issuerEntries: MetadataRoute.Sitemap = []
 
   try {
     const supabase = await createClient()
@@ -71,6 +72,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'weekly' as const,
       priority: 0.8,
     }))
+
+    // Issuer hub pages — one per bank.
+    const { data: issuers } = await supabase
+      .from('issuers')
+      .select('slug, updated_at')
+
+    issuerEntries = (issuers ?? []).map((i: { slug: string; updated_at: string | null }) => ({
+      url: `${BASE_URL}/issuers/${i.slug}`,
+      lastModified: i.updated_at ?? undefined,
+      changeFrequency: 'weekly' as const,
+      priority: 0.7,
+    }))
   } catch {
     // Supabase unavailable — return static pages only
   }
@@ -82,5 +95,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/daily-brief`, changeFrequency: 'hourly', priority: 0.9 },
   ]
 
-  return [...staticPages, ...programEntries, ...cardEntries, ...blogEntries, ...alertEntries]
+  return [...staticPages, ...programEntries, ...issuerEntries, ...cardEntries, ...blogEntries, ...alertEntries]
 }
