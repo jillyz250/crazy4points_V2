@@ -9,6 +9,7 @@
 import { notFound } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import { programToMarkdown } from '@/lib/programs/programToMarkdown'
+import { expandIntroTokens } from '@/utils/programs/expandIntroTokens'
 
 // Markdown export of program content; stable with the page itself.
 export const revalidate = 3600
@@ -30,6 +31,10 @@ export async function GET(_req: Request, { params }: RouteParams) {
     .maybeSingle()
 
   if (error || !data) notFound()
+
+  // Expand intro tokens before serializing so the markdown export matches
+  // what users see on the HTML page.
+  data.intro = await expandIntroTokens(data.intro, supabase)
 
   const md = programToMarkdown(data)
 
