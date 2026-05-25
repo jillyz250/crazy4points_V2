@@ -209,21 +209,25 @@ export default async function AlertDetailPage({ params }: Props) {
             matters callout below. If a CSS-class-based mb-* doesn't
             visibly render, this WILL because there's no class name
             for a stale bundle to be missing. */}
-        <div aria-hidden style={{ height: '48px' }} />
+        <div aria-hidden style={{ height: '36px' }} />
 
         {/* Editorial subhead — "Why this matters" in the writer's voice.
             Styled as a pull-quote: soft purple background, eyebrow
             label so it reads as a labeled callout, generous padding.
-            Was reading as continuous prose under the summary before. */}
+            Inline-style spacers on either side (36px) for the same
+            cache-proof reason as the spacer above. */}
         {alert.why_this_matters && (
-          <div className="mb-6 rounded-[var(--radius-card)] border-l-4 border-[var(--color-primary)] bg-[var(--color-background-soft)] py-5 pl-6 pr-5">
-            <p className="mb-2 font-ui text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-primary)]">
-              Why this matters
-            </p>
-            <p className="font-body text-base italic leading-relaxed text-[var(--color-text-primary)]">
-              {alert.why_this_matters}
-            </p>
-          </div>
+          <>
+            <div className="rounded-[var(--radius-card)] border-l-4 border-[var(--color-primary)] bg-[var(--color-background-soft)] py-5 pl-6 pr-5">
+              <p className="mb-2 font-ui text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-primary)]">
+                Why this matters
+              </p>
+              <p className="font-body text-base italic leading-relaxed text-[var(--color-text-primary)]">
+                {alert.why_this_matters}
+              </p>
+            </div>
+            <div aria-hidden style={{ height: '36px' }} />
+          </>
         )}
 
         {/* "Terms still developing" notice — set when admin shipped without
