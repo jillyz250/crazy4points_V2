@@ -142,6 +142,14 @@ export interface Alert {
   fact_check_claims: unknown | null
   fact_check_at: string | null
   revision_log: unknown | null
+  /**
+   * Admin-only QC log. Writer-emitted list of editorial value-add items
+   * (each: {label, evidence}) — what the writer added beyond raw_text.
+   * Never shown publicly. Surfaced in /admin/alerts/[id]/edit so the
+   * editor can decide to publish or regenerate at-a-glance.
+   * See utils/ai/writeAlertDraft.ts NO PLAGIARISM section.
+   */
+  editorial_value_add: unknown | null
   is_hot: boolean
   /** When the most recent reject / soft-reject / publish decision was made. */
   decided_at: string | null
@@ -315,7 +323,7 @@ export type AlertWithPrograms = Alert & {
   alert_programs: (AlertProgram & { programs: Program })[]
 }
 
-export type AlertInsert = Omit<Alert, 'id' | 'created_at' | 'updated_at' | 'computed_score' | 'score_last_computed_at' | 'approved_at' | 'source_intel_id' | 'fact_check_claims' | 'fact_check_at' | 'revision_log' | 'decided_at' | 'revisit_after' | 'rejected_reason' | 'why_this_matters' | 'override_reason' | 'voice_checked_at' | 'voice_pass' | 'voice_notes' | 'originality_checked_at' | 'originality_pass' | 'originality_notes' | 'short_slug' | 'voice_score' | 'voice_lead_mode' | 'terms_waived_reason' | 'context_loaded_at'>
+export type AlertInsert = Omit<Alert, 'id' | 'created_at' | 'updated_at' | 'computed_score' | 'score_last_computed_at' | 'approved_at' | 'source_intel_id' | 'fact_check_claims' | 'fact_check_at' | 'revision_log' | 'decided_at' | 'revisit_after' | 'rejected_reason' | 'why_this_matters' | 'override_reason' | 'voice_checked_at' | 'voice_pass' | 'voice_notes' | 'originality_checked_at' | 'originality_pass' | 'originality_notes' | 'short_slug' | 'voice_score' | 'voice_lead_mode' | 'terms_waived_reason' | 'context_loaded_at' | 'editorial_value_add'>
 
 // Phase 2 — decision memory.
 // How long Scout suppresses similar findings after each decision, in days.

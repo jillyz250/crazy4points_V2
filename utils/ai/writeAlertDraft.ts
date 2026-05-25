@@ -54,6 +54,16 @@ export interface AlertDraft {
    * etc.). Free-form names allowed if a field doesn't fit the catalog.
    */
   gaps_acknowledged: string[]
+  /**
+   * Admin-only QC log. List of editorial value-add items the writer
+   * claims to have contributed BEYOND the raw_text source. Never shown
+   * to readers. Surfaced in /admin/alerts/[id]/edit so the editor can
+   * eyeball whether the draft earned its keep or just paraphrased.
+   *
+   * Bound by NO FABRICATION + NO PLAGIARISM rules. If the writer can't
+   * point to genuine value-add, return [].
+   */
+  editorial_value_add: Array<{ label: string; evidence: string }>
 }
 
 const SYSTEM_PROMPT = `You are the writer described in the PERSONA below. Embody this persona for every piece of output. The persona is the authoritative voice — if any rule later in this prompt conflicts with it, the persona wins.
@@ -394,6 +404,57 @@ lives MOST visibly. Where WHY (not WHAT) gets unpacked.
 
 DO NOT RECAP the title or summary. They said the news. Description goes
 deeper — or says less.
+
+═══════════════════════════════════════════════════════════
+AUDIENCE PRIORITY (critical — read before writing the description)
+═══════════════════════════════════════════════════════════
+
+The reader is a points-and-miles enthusiast. They came here for the
+points/miles angle, not for cabin product reviews. Weight the
+description accordingly:
+
+• ~50% of word count on the POINTS-AND-MILES PLAY:
+  - Which programs book it (transferable banks, oneworld/Star/SkyTeam
+    partners, direct programs)
+  - Comparative redemption value across those programs
+  - Sweet spots and gotchas: e.g. "BA Avios on Alaska metal = no fuel
+    surcharges" / "Singapore via Air Canada Aeroplan saves 20k vs
+    KrisFlyer direct" / "AAdvantage MileSAAver is the saver baseline"
+  - Saver vs anytime / award sale framing
+  - Specific verified award pricing whenever you have it. When you
+    don't, name the SHAPE of the opportunity, not the cabin product.
+
+• ~25% on ACTIONABLE TIMING / AVAILABILITY:
+  - Booking windows, blackout patterns, saver-space pressure
+  - "Check now vs check later" framing
+  - Any earn-on-stay/spend angle if the alert is earn-side
+
+• ~25% on CABIN / AMENITIES / LOUNGES / FLEET:
+  - This is CONTEXT, not headline.
+  - One sentence each, not a paragraph.
+  - Aircraft origin via mergers, amenity-kit brands, Wi-Fi providers
+    are TRIVIA unless they materially change redemption value.
+  - Lounge access details are useful when they affect the day-of-
+    travel experience for award redemptions; otherwise: trim.
+
+LEAD with the points play. If the description's first paragraph is
+about cabin products / planes / amenity kits, you've buried the lede
+for THIS audience.
+
+Example of right-weighted route-launch alert (Alaska's Seattle–London):
+  ❌ WRONG (fleet-first): "Three European destinations from Seattle —
+     London now, Reykjavík May 28. The 787-9 Dreamliner with lie-flat
+     Suites handles London; the 737-8 MAX handles Iceland. Filson
+     bedding, Salt & Stone amenity kits, Starlink Wi-Fi…"
+  ✅ RIGHT (points-first): "Alaska's new Seattle–London route opens
+     a real points-and-miles play. Bookable on Atmos Rewards
+     directly, but also wide open to oneworld partners — AAdvantage,
+     BA Avios, JAL Mileage Bank. For Avios specifically, this is one
+     of the better transatlantic uses: Alaska doesn't pass British
+     Airways' fuel surcharges."
+
+The right-weighted version mentions the 787-9 ONCE in passing later;
+it leads with where to point your miles.
 
 STRUCTURE (reader journey, not news structure):
 
@@ -1037,11 +1098,35 @@ SCHEMA
   "secondary_program_slugs": ["<slug>", ...],
   "start_date": "<ISO 8601 or null>",
   "end_date": "<ISO 8601 or null>",
-  "gaps_acknowledged": ["<field_name>", ...]
+  "gaps_acknowledged": ["<field_name>", ...],
+  "editorial_value_add": [
+    { "label": "<1-line description of the value-add>", "evidence": "<why this is beyond the source>" },
+    ...
+  ]
 }
 
-gaps_acknowledged is required (use [] if no gaps). See GAP DISCIPLINE
-for what to list.`
+gaps_acknowledged is required (use [] if no gaps). See GAP DISCIPLINE.
+
+editorial_value_add is required (use [] if you can't honestly identify
+ANY genuine value-add — that's a signal to the editor that the draft
+is press-release paraphrase and should probably be regenerated).
+
+Examples of valid editorial_value_add items:
+  { "label": "Sweet spot framing — 787-9 lie-flat Suites is the best long-haul Atmos redemption",
+    "evidence": "Source mentions the Suites product but never frames it as a sweet spot or compares to alternatives." }
+  { "label": "Timing play — book Reykjavík saver availability before July eclipse rush",
+    "evidence": "Source mentions the August 2026 eclipse but never names a booking deadline." }
+  { "label": "Comparative angle — vs Icelandair 757 lie-flat, the 737-8 MAX is a downgrade",
+    "evidence": "Source describes the cabin product but never benchmarks it." }
+  { "label": "Lounge tier mapping — Mileage Plan Gold = oneworld Sapphire (Business lounges)",
+    "evidence": "Source says 'Admirals Club access' generally, not the specific status mapping." }
+
+DO NOT list paraphrased source facts as value-add. If the bullet would
+read the same on the airline's own announcement, it's not value-add —
+omit it.
+
+Admin-only — never shown publicly. Be honest. An empty array is better
+than a fluffy one.`
 
 function extractJson(text: string): string {
   const trimmed = text.trim()
@@ -1091,6 +1176,29 @@ function validate(draft: unknown, programs: WriteDraftProgram[]): AlertDraft {
         seen.add(g)
         return true
       })
+  }
+
+  // Normalize editorial_value_add — array of { label, evidence } objects.
+  // Missing/malformed → empty array (no editorial value-add claimed).
+  // Both label and evidence must be non-empty strings to count.
+  if (!Array.isArray(d.editorial_value_add)) {
+    d.editorial_value_add = []
+  } else {
+    d.editorial_value_add = d.editorial_value_add
+      .filter((item): item is { label: string; evidence: string } => {
+        return (
+          item != null &&
+          typeof item === 'object' &&
+          typeof (item as { label?: unknown }).label === 'string' &&
+          typeof (item as { evidence?: unknown }).evidence === 'string' &&
+          (item as { label: string }).label.trim().length > 0 &&
+          (item as { evidence: string }).evidence.trim().length > 0
+        )
+      })
+      .map((item) => ({
+        label: item.label.trim(),
+        evidence: item.evidence.trim(),
+      }))
   }
 
   return d

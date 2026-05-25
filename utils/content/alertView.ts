@@ -159,6 +159,7 @@ export function mapVariantRowToAlertView(row: VariantRow): AlertView {
     fact_check_claims: Array.isArray(t?.fact_ledger) ? t.fact_ledger : [],
     fact_check_at: t?.verified_at ?? null,
     revision_log: null,
+    editorial_value_add: (variantMeta as { editorial_value_add?: unknown } | null)?.editorial_value_add ?? null,
     is_hot: pickBoolean(editorialScores, 'is_hot') ?? false,
     decided_at: null,
     revisit_after: null,

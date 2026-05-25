@@ -544,6 +544,7 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
           start_date: draft.start_date,
           revision_log: [...existingLog, regenEntry],
           gaps: mergedGaps,
+          editorial_value_add: Array.isArray(draft.editorial_value_add) ? draft.editorial_value_add : [],
           voice_pass: wec.voice?.passed ?? null,
           voice_score: wec.voice?.score ?? null,
           voice_lead_mode: wec.voice?.lead_mode_detected ?? null,
