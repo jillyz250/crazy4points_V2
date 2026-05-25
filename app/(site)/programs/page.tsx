@@ -212,10 +212,13 @@ function AllianceFilter({ current }: { current: Alliance | null }) {
         const isCurrent = chip.key === 'all' ? current === null : chip.key === current
         const href =
           chip.key === 'all' ? '/programs?type=airline' : `/programs?type=airline&alliance=${chip.key}`
-        const baseClass = 'rounded-full px-3 py-1 font-ui text-xs font-medium transition-colors'
+        const baseClass = 'rounded-full px-3 py-1 font-ui text-xs transition-colors border'
+        // Active state: soft purple background + primary text + primary border.
+        // (Was solid dark purple + white — too heavy visually and hard to read
+        // against the surrounding chip row.)
         const stateClass = isCurrent
-          ? 'bg-[var(--color-primary)] text-white'
-          : 'bg-[var(--color-background-soft)] text-[var(--color-text-primary)] hover:bg-[var(--color-border-soft)]'
+          ? 'bg-[var(--color-background-soft)] text-[var(--color-primary)] border-[var(--color-primary)] font-semibold'
+          : 'bg-[var(--color-background-soft)] text-[var(--color-text-primary)] border-transparent font-medium hover:bg-[var(--color-border-soft)]'
         return (
           <Link key={chip.key} href={href} className={`${baseClass} ${stateClass}`}>
             {chip.label}

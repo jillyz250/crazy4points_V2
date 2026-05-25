@@ -100,16 +100,60 @@ export default function TagProgramsPicker({
         ))}
       </div>
       {selected.size > 0 && (
-        <p
-          style={{
-            fontSize: '0.75rem',
-            color: 'var(--admin-accent)',
-            marginTop: '0.5rem',
-            fontWeight: 600,
-          }}
-        >
-          {selected.size} program{selected.size !== 1 ? 's' : ''} tagged
-        </p>
+        <div style={{ marginTop: '0.5rem' }}>
+          <p
+            style={{
+              fontSize: '0.75rem',
+              color: 'var(--admin-accent)',
+              marginBottom: '0.375rem',
+              fontWeight: 600,
+            }}
+          >
+            {selected.size} program{selected.size !== 1 ? 's' : ''} tagged
+          </p>
+          {/* List the currently-checked program names as removable pills so
+              the editor can see what's tagged without scrolling the full
+              list above. Click the × on a pill to untag. */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
+            {programs
+              .filter((p) => selected.has(p.id))
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => toggle(p.id)}
+                  title="Click to remove this tag"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.375rem',
+                    padding: '0.25rem 0.5rem 0.25rem 0.625rem',
+                    fontSize: '0.75rem',
+                    fontWeight: 500,
+                    color: 'var(--color-primary)',
+                    background: 'var(--color-background-soft)',
+                    border: '1px solid var(--color-primary)',
+                    borderRadius: '999px',
+                    cursor: 'pointer',
+                    fontFamily: 'var(--font-ui)',
+                  }}
+                >
+                  {p.name}
+                  <span
+                    aria-hidden
+                    style={{
+                      fontSize: '0.875rem',
+                      lineHeight: 1,
+                      opacity: 0.6,
+                    }}
+                  >
+                    ×
+                  </span>
+                </button>
+              ))}
+          </div>
+        </div>
       )}
     </div>
   )
