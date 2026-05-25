@@ -198,15 +198,18 @@ export default async function AlertDetailPage({ params }: Props) {
         {/* Editorial divider — visually closes the title block. */}
         <hr className="mb-6 border-t border-[var(--color-border-soft)]" />
 
-        {/* Summary — DRAMATIC bottom margin (mb-32 ≈ 128px) per Jill:
-            "after May 31 in the screenshot and before the purple block
-            there should be an entire row or area of just white." This
-            intentionally breaks the uniform 1.5em rule because that
-            specific transition from summary → callout is the most
-            visually important pause on the page. */}
-        <p className="mb-32 font-body text-lg leading-relaxed text-[var(--color-text-secondary)]">
+        {/* Summary */}
+        <p className="font-body text-lg leading-relaxed text-[var(--color-text-secondary)]">
           {alert.summary}
         </p>
+
+        {/* Hard whitespace spacer — INLINE STYLE (not Tailwind class)
+            so it survives any cached CSS bundle. Renders as a 96px
+            tall empty block between the summary and the Why-this-
+            matters callout below. If a CSS-class-based mb-* doesn't
+            visibly render, this WILL because there's no class name
+            for a stale bundle to be missing. */}
+        <div aria-hidden style={{ height: '96px' }} />
 
         {/* Editorial subhead — "Why this matters" in the writer's voice.
             Styled as a pull-quote: soft purple background, eyebrow
