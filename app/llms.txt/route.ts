@@ -95,6 +95,24 @@ export async function GET() {
     lines.push('')
   }
 
+  // Issuer hub pages — one per card-issuing bank. Auto-derives the bank's
+  // entire card lineup (flexible + co-brand grouped by partner).
+  const { data: issuers } = await supabase
+    .from('issuers')
+    .select('slug, name, intro')
+    .order('name', { ascending: true })
+  if (issuers && issuers.length > 0) {
+    lines.push('## Card issuers (banks)')
+    lines.push('')
+    for (const i of issuers as Array<{ slug: string; name: string; intro: string | null }>) {
+      const summary = i.intro
+        ? i.intro.replace(/\s+/g, ' ').trim().slice(0, 200)
+        : `${i.name} card lineup, transfer partners, and current alerts.`
+      lines.push(`- [${i.name}](${BASE_URL}/issuers/${i.slug}): ${summary}`)
+    }
+    lines.push('')
+  }
+
   // Optional: pointers for AI assistants to other site sections
   lines.push('## Site sections')
   lines.push('')
