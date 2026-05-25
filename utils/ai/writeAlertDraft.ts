@@ -1262,29 +1262,49 @@ PAYLOAD
     : ''
   const userContent = reviseHeader + payloadJson
 
-  try {
-    const client = new Anthropic({ apiKey })
-    const message = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1500,
-      // Prompt caching — SYSTEM_PROMPT is a stable ~15K-token system prompt.
-      // Cache it (5-min TTL) so consecutive calls within the same admin
-      // session pay 90% less for input tokens. Cache write costs $3.75/M
-      // (vs $3/M input) once; cache read costs $0.30/M (10x cheaper).
-      system: [
-        { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
-      ],
-      messages: [{ role: 'user', content: userContent }],
-    })
-    await logUsage(message, 'writeAlertDraft')
+  // Surface failures upward instead of swallowing into a generic null.
+  // Callers (writeEditCheck → alerts/actions.ts) wrap us in try/catch and
+  // surface `errMessage(err)` to the admin UI. Returning null instead of
+  // throwing forced a generic "writeAlertDraft returned null" message;
+  // the actual reason (validation, JSON parse, API error) was only visible
+  // in Vercel runtime logs.
+  const client = new Anthropic({ apiKey })
+  const message = await client.messages.create({
+    model: 'claude-sonnet-4-6',
+    // 4000 (was 1500). Drafts with long descriptions + any chattiness ate
+    // the 1500 budget before the JSON closed. 4000 is comfortable headroom.
+    max_tokens: 4000,
+    // Prompt caching — SYSTEM_PROMPT is a stable ~15K-token system prompt.
+    // Cache it (5-min TTL) so consecutive calls within the same admin
+    // session pay 90% less for input tokens. Cache write costs $3.75/M
+    // (vs $3/M input) once; cache read costs $0.30/M (10x cheaper).
+    system: [
+      { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
+    ],
+    // Prefill assistant turn with `{` to force Claude to start its response
+    // INSIDE the JSON object. Kills the "First, let me think..." preamble
+    // class of failures by removing any room for prose before the JSON.
+    // The API returns only the continuation, so we prepend `{` below.
+    messages: [
+      { role: 'user', content: userContent },
+      { role: 'assistant', content: '{' },
+    ],
+  })
+  await logUsage(message, 'writeAlertDraft')
 
-    const block = message.content[0]
-    if (block.type !== 'text') return null
-
-    const parsed = JSON.parse(extractJson(block.text))
-    return validate(parsed, args.programs)
-  } catch (err) {
-    console.error('[writeAlertDraft] Sonnet call or validation failed:', err)
-    return null
+  const block = message.content[0]
+  if (!block || block.type !== 'text') {
+    throw new Error(`writeAlertDraft: unexpected response shape (first block type=${block?.type ?? 'none'})`)
   }
+
+  // Prepend the prefill `{` since the API returns only the continuation.
+  const rawText = '{' + block.text
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(extractJson(rawText))
+  } catch (parseErr) {
+    const preview = rawText.slice(0, 200).replace(/\s+/g, ' ')
+    throw new Error(`writeAlertDraft: JSON parse failed — ${(parseErr as Error).message}. Response preview: ${preview}`)
+  }
+  return validate(parsed, args.programs)
 }
