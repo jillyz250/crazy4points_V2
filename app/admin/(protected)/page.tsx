@@ -40,6 +40,8 @@ async function loadStats() {
   const supabase = createAdminClient()
   const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
 
+  const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString()
+
   const [
     pendingReview,
     unprocessedIntel,
@@ -50,6 +52,8 @@ async function loadStats() {
     currentNewsletter,
     refreshQueueCount,
     refreshQueueTopFive,
+    pendingBonusObs,
+    staleBonusSources,
   ] = await Promise.all([
     supabase.from('alerts').select('id', { count: 'exact', head: true }).eq('status', 'pending_review'),
     supabase.from('intel_items').select('id', { count: 'exact', head: true }).eq('processed', false).is('rejected_at', null).gte('created_at', dayAgo),
@@ -60,6 +64,8 @@ async function loadStats() {
     supabase.from('newsletters').select('week_of, status').order('week_of', { ascending: false }).limit(1).maybeSingle(),
     getRefreshQueueCount(supabase),
     getRefreshQueue(supabase, { limit: 5 }),
+    supabase.from('transfer_bonus_observations').select('id', { count: 'exact', head: true }).eq('status', 'new'),
+    supabase.from('programs').select('id', { count: 'exact', head: true }).not('transfer_bonuses_source_url', 'is', null).or(`transfer_bonuses_scraped_at.is.null,transfer_bonuses_scraped_at.lt.${fourteenDaysAgo}`),
   ])
 
   return {
@@ -72,6 +78,8 @@ async function loadStats() {
     currentNewsletter: currentNewsletter.data as { week_of: string; status: string } | null,
     refreshQueueCount,
     refreshQueueTopFive,
+    pendingBonusObs: pendingBonusObs.count ?? 0,
+    staleBonusSources: staleBonusSources.count ?? 0,
   }
 }
 
@@ -128,6 +136,18 @@ export default async function AdminDashboard() {
       tone: stats.refreshQueueCount > 50 ? 'danger' : stats.refreshQueueCount > 0 ? 'warning' : 'success',
       href: '/admin/refresh-queue',
       hint: stats.refreshQueueCount > 0 ? 'cards / programs / properties' : 'all current',
+    },
+    {
+      label: 'Transfer bonuses',
+      value: stats.pendingBonusObs,
+      tone: stats.staleBonusSources > 0 ? 'danger' : stats.pendingBonusObs > 0 ? 'warning' : 'success',
+      href: '/admin/transfer-bonuses',
+      hint:
+        stats.staleBonusSources > 0
+          ? `${stats.staleBonusSources} source${stats.staleBonusSources === 1 ? '' : 's'} stale (>14d)`
+          : stats.pendingBonusObs > 0
+            ? 'pending review'
+            : 'all current',
     },
   ]
 
