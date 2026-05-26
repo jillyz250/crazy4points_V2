@@ -1281,13 +1281,15 @@ PAYLOAD
     system: [
       { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
     ],
-    // Prefill assistant turn with `{` to force Claude to start its response
-    // INSIDE the JSON object. Kills the "First, let me think..." preamble
-    // class of failures by removing any room for prose before the JSON.
-    // The API returns only the continuation, so we prepend `{` below.
+    // Sonnet 4.6+ does not support assistant message prefill ("This model
+    // does not support assistant message prefill. The conversation must
+    // end with a user message."). Earlier we prefilled `{` to force
+    // JSON-first responses; with 4.6 we rely on extractJson() to peel any
+    // preamble Claude adds and the JSON-only system-prompt rules to keep
+    // the response well-formed. If preamble drift becomes a problem, the
+    // next step is structured outputs / tool-use, not prefill.
     messages: [
       { role: 'user', content: userContent },
-      { role: 'assistant', content: '{' },
     ],
   })
   await logUsage(message, 'writeAlertDraft')
@@ -1297,8 +1299,7 @@ PAYLOAD
     throw new Error(`writeAlertDraft: unexpected response shape (first block type=${block?.type ?? 'none'})`)
   }
 
-  // Prepend the prefill `{` since the API returns only the continuation.
-  const rawText = '{' + block.text
+  const rawText = block.text
   let parsed: unknown
   try {
     parsed = JSON.parse(extractJson(rawText))
