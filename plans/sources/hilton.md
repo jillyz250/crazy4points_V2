@@ -74,6 +74,7 @@ Reference list of every URL used to author the public page at `/programs/hilton`
 | 2026-05-26 | Hampton in 5-pt earn list | My draft included Hampton in the cut-to-5pt brands | Hilton.com benefits page does NOT list Hampton in the 5-pt group. The 5-pt brands are Home2 Suites, Homewood Suites, Spark, Tru, Apartment Collection. Hampton stays at 10 pts. LivSmart Studios earns 3 pts. Applied in patch 347. |
 | 2026-05-26 | Surpass $50/quarter Hilton Credit | Not surfaced on hilton.com summary page | Verified via Firecrawl Interact pass on Amex Surpass page (Jill's verification): $50 quarterly statement credit on eligible Hilton portfolio purchases. Applied in patch 348. |
 | 2026-05-26 | 60-night 30K one-time milestone bonus | Not surfaced on hilton.com benefits summary | Verified via Firecrawl Interact pass on Hilton tier-updates page (Jill's verification): one-time 30K bonus at exactly 60 nights, stacks with 10K recurring. Applied in patch 348. |
+| 2026-05-26 | Singapore KrisFlyer transfer ratio from Hilton | NerdWallet: 10,000 Hilton -> 500 KrisFlyer (20:1). UP / AwardWallet / MileLion / Singapore Airlines own page / Liberate Loyalty / Bleisure Traveller: 4,000 Hilton -> 500 KrisFlyer (8:1) | 5+ sources including Singapore Airlines' own page confirm 8:1 (= 10:1.25) with 4,000-point minimum. NerdWallet outlier — likely stale. Migration 350 already uses the correct 8:1. |
 
 ## Notes / followups
 
