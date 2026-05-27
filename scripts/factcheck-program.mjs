@@ -27,8 +27,10 @@
 //   - Drift detection cron
 //   - Auto-rewrite on fact change
 
-import { readFileSync, existsSync } from 'node:fs'
+import { readFileSync, existsSync, readdirSync } from 'node:fs'
+import { join } from 'node:path'
 import { createClient } from '@supabase/supabase-js'
+import Anthropic from '@anthropic-ai/sdk'
 
 // ── Env loading ──────────────────────────────────────────────────────────
 try {
@@ -42,10 +44,14 @@ try {
 const FIRECRAWL_KEY = process.env.FIRECRAWL_API_KEY
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY
 if (!FIRECRAWL_KEY) throw new Error('FIRECRAWL_API_KEY missing')
 if (!SUPABASE_URL || !SUPABASE_KEY) throw new Error('Supabase env missing')
+if (!ANTHROPIC_KEY) throw new Error('ANTHROPIC_API_KEY missing (needed for Phase 2 Haiku extraction + source-relevance check)')
 
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY)
+const anthropic = new Anthropic({ apiKey: ANTHROPIC_KEY })
+const HAIKU_MODEL = 'claude-haiku-4-5-20251001'
 
 // ── Args ──────────────────────────────────────────────────────────────────
 const args = Object.fromEntries(
@@ -59,9 +65,12 @@ const dryRun = !!args.dry
 const extractOnly = !!args['extract-only']
 const factId = typeof args['fact-id'] === 'string' ? args['fact-id'] : null
 const claimsFile = typeof args.claims === 'string' ? args.claims : null
+const fromScrape = !!args['from-scrape']                  // Phase 2: extract from /tmp/research/<slug>/*.md
+const useRegex = !!args['use-regex']                       // Fallback to Phase 1 regex extraction (no Haiku cost)
+const skipRelevanceCheck = !!args['skip-relevance']        // Skip Phase 2 source-relevance LLM check
 
 if (!slug && !factId) {
-  console.error('Usage: factcheck-program.mjs --slug=<slug> [--dry|--extract-only|--claims=<file>]')
+  console.error('Usage: factcheck-program.mjs --slug=<slug> [--dry|--extract-only|--from-scrape|--use-regex|--skip-relevance|--claims=<file>]')
   console.error('   or: factcheck-program.mjs --fact-id=<uuid>')
   process.exit(1)
 }
@@ -146,12 +155,129 @@ function classifyCategory(claim) {
   return 'general'
 }
 
+// ── Phase 2: Claude Haiku claim extraction ───────────────────────────────
+// Replaces regex-based extraction with LLM extraction. Produces clean,
+// deduplicated, semantically normalized factual claims — drops headings,
+// narrative framing, hedged opinion. Cost: ~$0.01-0.03 per program.
+// Fall back to regex with --use-regex flag.
+
+async function extractClaimsViaHaiku(proseBlob) {
+  if (!proseBlob || proseBlob.trim().length < 50) return []
+  const prompt = `You are a fact-extraction assistant for a points-and-miles editorial site.
+
+Below is editorial prose about a loyalty program. Extract a deduplicated list of ATOMIC FACTUAL CLAIMS - assertions that can be independently verified against external sources.
+
+INCLUDE claims like:
+- "Diamond status qualifies at 50 nights, 25 stays, or $11,500 USD spend"
+- "Amex Membership Rewards transfers to Hilton Honors at 1:2 ratio"
+- "5th Night Free benefit applies on award stays of 5+ consecutive nights"
+- "Spark by Hilton base earn rate dropped to 5 points per dollar effective Jan 8, 2026"
+
+EXCLUDE:
+- Headings or section labels (e.g. "FNR earn paths (current 2026):")
+- Hedged opinions ("typically", "usually", "often")
+- Narrative framing ("The losses come from booking...", "Here's the move")
+- Voice/editorial color ("absurd value", "killer perk")
+- Strategy advice ("Use Rakuten as your accumulator")
+
+Output a JSON array of strings, one claim per element. Each claim should be:
+- A single self-contained declarative sentence
+- Written so a fact-checker could search for it
+- Free of markdown formatting (no ** or bullets)
+- 10-200 characters
+
+Output JSON only, no preamble or explanation. Example:
+["Diamond status requires 50 nights, 25 stays, or $11,500 spend per calendar year.", "Amex MR transfers to Hilton at 1:2 ratio."]
+
+PROSE TO EXTRACT FROM:
+${proseBlob.slice(0, 18000)}`
+
+  try {
+    const msg = await anthropic.messages.create({
+      model: HAIKU_MODEL,
+      max_tokens: 4000,
+      messages: [{ role: 'user', content: prompt }],
+    })
+    const block = msg.content[0]
+    if (block?.type !== 'text') return []
+    // Extract JSON array from response (Haiku sometimes wraps in markdown)
+    const jsonMatch = block.text.match(/\[[\s\S]*\]/)
+    if (!jsonMatch) return []
+    const claims = JSON.parse(jsonMatch[0])
+    if (!Array.isArray(claims)) return []
+    return claims
+      .filter((c) => typeof c === 'string' && c.length >= 10 && c.length <= 400)
+      .map((c) => c.trim())
+  } catch (err) {
+    console.error('[haiku-extract] failed:', err.message)
+    return []
+  }
+}
+
+// ── Phase 2: Source-relevance check ──────────────────────────────────────
+// After Firecrawl returns candidate sources, ask Haiku to confirm each
+// snippet actually backs the claim (not just keyword-matches). Catches the
+// NerdWallet false positive case (matched a Chase Sapphire article to a
+// Hilton 120% bonus claim).
+// Cost: ~$0.001 per source check. Skip with --skip-relevance.
+
+async function checkSourceRelevance(claim, source) {
+  if (!source.snippet) return true  // can't judge without snippet; default include
+  const prompt = `Does the following SNIPPET back up the CLAIM? Answer with only "YES" or "NO".
+
+CLAIM: ${claim}
+
+SNIPPET (from ${source.url}): ${source.snippet}
+
+A snippet "backs up" a claim if it confirms the key facts. Mere keyword overlap is not enough - the snippet must actually address what the claim asserts.
+
+Answer:`
+  try {
+    const msg = await anthropic.messages.create({
+      model: HAIKU_MODEL,
+      max_tokens: 5,
+      messages: [{ role: 'user', content: prompt }],
+    })
+    const block = msg.content[0]
+    if (block?.type !== 'text') return true
+    return /^\s*YES/i.test(block.text)
+  } catch (err) {
+    console.error('[haiku-relevance] failed:', err.message)
+    return true  // on error, don't filter — preserve Phase 1 behavior
+  }
+}
+
+// ── Phase 2: --from-scrape mode (read /tmp/research/<slug>/*.md) ─────────
+// Used when a program has no existing prose (e.g. IHG isn't authored yet).
+// Reads the markdown output from scripts/research-program.mjs and extracts
+// claims from those raw scrapes via Haiku.
+
+function readResearchScrape(slug) {
+  const dir = `/tmp/research/${slug}`
+  if (!existsSync(dir)) return null
+  try {
+    const files = readdirSync(dir).filter((f) => f.endsWith('.md'))
+    if (files.length === 0) return null
+    const chunks = []
+    for (const f of files) {
+      const txt = readFileSync(join(dir, f), 'utf8')
+      // Strip 404 pages + chrome
+      if (txt.includes('404 ERROR') && txt.length < 2000) continue
+      chunks.push(`# Source: ${f}\n\n${txt}`)
+    }
+    return chunks.join('\n\n---\n\n')
+  } catch (err) {
+    console.error(`[from-scrape] read failed: ${err.message}`)
+    return null
+  }
+}
+
 // ── Claim extraction from prose ──────────────────────────────────────────
 // Phase 1 heuristic: split prose into sentences, filter to ones matching a
 // VERIFIABLE pattern (specific number+unit, ratio, named issuer, status tier
 // + qualifier) and NOT matching reject patterns (voicey openers, hedge words).
 // Plus normalize-and-dedupe so paraphrases of the same fact collapse.
-// Phase 2 swaps in Claude Haiku for smarter LLM-based extraction.
+// Phase 2 swaps in Claude Haiku for smarter LLM-based extraction (above).
 
 const VERIFIABLE_PATTERNS = [
   /\b\d{1,3}(?:,\d{3})+\b/,                                       // numbers with commas (15,000)
@@ -304,6 +430,19 @@ async function verifyClaim(claim, category) {
     }
   }
 
+  // Phase 2: relevance check — ask Haiku whether the snippet actually backs
+  // the claim. Drops false-positive keyword matches (e.g. NerdWallet Chase
+  // Sapphire article matching a Hilton 120% bonus claim).
+  if (!skipRelevanceCheck) {
+    const checkOne = async (s) => ({ source: s, relevant: await checkSourceRelevance(claim, s) })
+    const officialChecks = await Promise.all(officialSources.map(checkOne))
+    const blogChecks = await Promise.all(blogSources.map(checkOne))
+    officialSources.length = 0
+    blogSources.length = 0
+    for (const { source, relevant } of officialChecks) if (relevant) officialSources.push(source)
+    for (const { source, relevant } of blogChecks) if (relevant) blogSources.push(source)
+  }
+
   const risk = classifyRisk(claim)
 
   // Tier 1: official source present
@@ -393,14 +532,75 @@ async function runForProgram() {
     process.exit(1)
   }
 
-  // Extract claims — from --claims file if provided, else from existing prose
+  // Empty programs (no prose yet) MUST use --from-scrape or --claims
+  const hasProse = program.intro || program.how_to_spend || program.sweet_spots ||
+                   (Array.isArray(program.tier_benefits) && program.tier_benefits.length > 0)
+  if (!hasProse && !fromScrape && !claimsFile) {
+    console.error(`Program ${slug} has no prose to extract from.`)
+    console.error(`Either run with --from-scrape (after research-program.mjs)`)
+    console.error(`or with --claims=<file> (manual claim list).`)
+    process.exit(1)
+  }
+
+  // Extract claims — source precedence:
+  //   1. --claims=<file>: one claim per line (manual override)
+  //   2. --from-scrape: read /tmp/research/<slug>/*.md (for empty programs like IHG)
+  //   3. default: extract from program's existing prose (intro, tier_benefits, etc.)
+  //
+  // Extraction method:
+  //   - default: Phase 2 Haiku LLM extraction (cleaner, deduped, semantic)
+  //   - --use-regex: Phase 1 regex extraction (faster, free, more noise)
   let claims
   if (claimsFile && existsSync(claimsFile)) {
     claims = readFileSync(claimsFile, 'utf8').split('\n').map((l) => l.trim()).filter(Boolean)
     console.log(`Loaded ${claims.length} claims from ${claimsFile}`)
+  } else if (fromScrape) {
+    const scrapeText = readResearchScrape(slug)
+    if (!scrapeText) {
+      console.error(`No research scrape found at /tmp/research/${slug}/ — run scripts/research-program.mjs --slug=${slug} first`)
+      process.exit(1)
+    }
+    if (useRegex) {
+      // Regex extraction not designed for raw markdown — degrade gracefully but warn
+      console.warn('[from-scrape + use-regex] regex extraction is heuristic-based; quality suffers on raw markdown. Recommend dropping --use-regex.')
+      claims = extractClaimsFromProse(scrapeText)
+    } else {
+      console.log(`Reading ${scrapeText.length}c of research scrape for ${slug}...`)
+      console.log(`Calling Haiku to extract atomic factual claims (~$0.01-0.03)...`)
+      claims = await extractClaimsViaHaiku(scrapeText)
+    }
+    console.log(`Extracted ${claims.length} claims from /tmp/research/${slug}/*.md`)
   } else {
-    claims = extractAllClaims(program)
-    console.log(`Extracted ${claims.length} claims from ${program.name} prose`)
+    if (useRegex) {
+      claims = extractAllClaims(program)
+      console.log(`Extracted ${claims.length} claims from ${program.name} prose (regex)`)
+    } else {
+      // Concatenate all prose fields + transfer_partners as a single blob for Haiku
+      const proseParts = []
+      for (const field of ['intro', 'how_to_spend', 'sweet_spots', 'quirks', 'lounge_access', 'award_chart']) {
+        if (typeof program[field] === 'string' && program[field].trim()) {
+          proseParts.push(`## ${field.toUpperCase()}\n${program[field]}`)
+        }
+      }
+      if (Array.isArray(program.tier_benefits)) {
+        proseParts.push(`## TIER_BENEFITS\n${JSON.stringify(program.tier_benefits, null, 2)}`)
+      }
+      // Synthesize transfer_partner claims (these are structured, not prose — keep regex synthesis)
+      const tpClaims = []
+      for (const field of ['transfer_partners', 'transfer_partners_outbound']) {
+        if (Array.isArray(program[field])) {
+          for (const p of program[field]) {
+            if (p?.from_slug && p?.ratio) {
+              tpClaims.push(`${program.slug} to ${p.from_slug} transfer ratio is ${p.ratio}.`)
+            }
+          }
+        }
+      }
+      console.log(`Calling Haiku to extract atomic factual claims from ${program.name} prose (~$0.01-0.03)...`)
+      const haikuClaims = await extractClaimsViaHaiku(proseParts.join('\n\n'))
+      claims = [...haikuClaims, ...tpClaims]
+      console.log(`Extracted ${claims.length} claims (${haikuClaims.length} from Haiku + ${tpClaims.length} synthesized from transfer_partners)`)
+    }
   }
 
   if (extractOnly) {

@@ -49,15 +49,28 @@ export default async function ProgramFactsPage({
     .maybeSingle()
   if (!program) notFound()
 
-  const { data: facts } = await supabase
-    .from('program_facts')
-    .select('id, program_slug, claim_text, category, verdict, risk_level, sources, third_party_fallback, disposition, override_reason, reviewed_at, reviewed_by, prior_version_id')
-    .eq('program_slug', slug)
-    .is('superseded_at', null)
-    .order('verdict', { ascending: true })
-    .order('risk_level', { ascending: true })
+  const [{ data: facts }, { data: links }] = await Promise.all([
+    supabase
+      .from('program_facts')
+      .select('id, program_slug, claim_text, category, verdict, risk_level, sources, third_party_fallback, disposition, override_reason, reviewed_at, reviewed_by, prior_version_id')
+      .eq('program_slug', slug)
+      .is('superseded_at', null)
+      .order('verdict', { ascending: true })
+      .order('risk_level', { ascending: true }),
+    supabase
+      .from('prose_fact_links')
+      .select('field_name, fact_id')
+      .eq('program_slug', slug),
+  ])
 
   const allFacts = (facts ?? []) as Fact[]
+
+  // Build fact_id -> Set<field_name> map for "linked to" badges on each card
+  const linkedFieldsByFactId = new Map<string, Set<string>>()
+  for (const link of (links ?? []) as Array<{ fact_id: string; field_name: string }>) {
+    if (!linkedFieldsByFactId.has(link.fact_id)) linkedFieldsByFactId.set(link.fact_id, new Set())
+    linkedFieldsByFactId.get(link.fact_id)!.add(link.field_name)
+  }
 
   // Filter based on show param
   const filteredFacts =
@@ -159,9 +172,9 @@ export default async function ProgramFactsPage({
         />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <FactSection title="⚠️ Needs clarification" facts={byVerdict.needs_clarification} defaultExpanded />
-          <FactSection title="❌ Incorrect (default action: remove)" facts={byVerdict.incorrect} defaultExpanded />
-          <FactSection title="✅ Verified (auto-locked)" facts={byVerdict.verified} defaultExpanded={show !== 'untriaged'} />
+          <FactSection title="⚠️ Needs clarification" facts={byVerdict.needs_clarification} defaultExpanded linkedFieldsByFactId={linkedFieldsByFactId} />
+          <FactSection title="❌ Incorrect (default action: remove)" facts={byVerdict.incorrect} defaultExpanded linkedFieldsByFactId={linkedFieldsByFactId} />
+          <FactSection title="✅ Verified (auto-locked)" facts={byVerdict.verified} defaultExpanded={show !== 'untriaged'} linkedFieldsByFactId={linkedFieldsByFactId} />
         </div>
       )}
     </div>
@@ -203,10 +216,12 @@ function FactSection({
   title,
   facts,
   defaultExpanded,
+  linkedFieldsByFactId,
 }: {
   title: string
   facts: Fact[]
   defaultExpanded: boolean
+  linkedFieldsByFactId: Map<string, Set<string>>
 }) {
   if (facts.length === 0) return null
   return (
@@ -216,7 +231,7 @@ function FactSection({
       </summary>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.75rem' }}>
         {facts.map((f) => (
-          <FactCard key={f.id} fact={f} />
+          <FactCard key={f.id} fact={f} linkedFields={[...(linkedFieldsByFactId.get(f.id) ?? [])]} />
         ))}
       </div>
     </details>

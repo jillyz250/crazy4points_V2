@@ -4,6 +4,7 @@ import type { Metadata } from 'next'
 import { createAdminClient } from '@/utils/supabase/server'
 import ProgramPageContentEditor from '../../ProgramPageContentEditor'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
+import LinkedFactsPanel from './LinkedFactsPanel'
 
 export const dynamic = 'force-dynamic'
 
@@ -93,6 +94,8 @@ export default async function ProgramEditPage({ params }: Props) {
           alwaysOpen
         />
       </div>
+
+      <LinkedFactsPanel slug={program.slug} />
     </div>
   )
 }
