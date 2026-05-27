@@ -107,20 +107,14 @@ export default async function ProgramFactsPage({
         }
       />
 
-      {/* Summary metric strip */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-          gap: '0.5rem',
-          marginBottom: '1rem',
-        }}
-      >
-        <Metric label="Verified" value={allByVerdict.verified.length} tone="success" />
-        <Metric label="Needs review" value={allByVerdict.needs_clarification.length} tone={allByVerdict.needs_clarification.length > 0 ? 'warning' : 'neutral'} />
-        <Metric label="Incorrect" value={allByVerdict.incorrect.length} tone={allByVerdict.incorrect.length > 0 ? 'danger' : 'neutral'} />
-        <Metric label="Untriaged" value={untriagedCount} tone={untriagedCount > 0 ? 'warning' : 'success'} />
-      </div>
+      {/* Summary: prominent triage status banner + smaller breakdown rows */}
+      <TriageStatusBanner
+        total={allFacts.length}
+        untriaged={untriagedCount}
+        verdictCounts={allByVerdict}
+        facts={allFacts}
+      />
+
 
       {/* Run fact-check — CLI only in Phase 1 (Vercel serverless can't background long jobs) */}
       <Card style={{ marginBottom: '1.5rem' }}>
@@ -181,22 +175,92 @@ export default async function ProgramFactsPage({
   )
 }
 
-function Metric({ label, value, tone }: { label: string; value: number; tone: 'success' | 'warning' | 'danger' | 'neutral' }) {
-  const colorByTone: Record<string, string> = {
-    success: '#2e7d32',
-    warning: '#c47a00',
-    danger: '#b91c1c',
-    neutral: 'var(--admin-text, #1a1a1a)',
+function TriageStatusBanner({
+  total,
+  untriaged,
+  verdictCounts,
+  facts,
+}: {
+  total: number
+  untriaged: number
+  verdictCounts: { verified: Fact[]; needs_clarification: Fact[]; incorrect: Fact[] }
+  facts: Fact[]
+}) {
+  const isClear = untriaged === 0 && total > 0
+  const dispositionCounts: Record<string, number> = {}
+  for (const f of facts) {
+    const d = f.disposition ?? 'none'
+    dispositionCounts[d] = (dispositionCounts[d] ?? 0) + 1
   }
+
+  const bannerBg = isClear ? 'rgba(46, 125, 50, 0.08)' : 'rgba(196, 122, 0, 0.08)'
+  const bannerBorder = isClear ? 'rgba(46, 125, 50, 0.35)' : 'rgba(196, 122, 0, 0.35)'
+  const bannerFg = isClear ? '#2e7d32' : '#c47a00'
+
+  const headline = total === 0
+    ? 'Ledger is empty — run fact-check to populate'
+    : isClear
+      ? `✓ All ${total} facts triaged`
+      : `⚠️ ${untriaged} of ${total} facts need your attention`
+
+  const dispoOrder = ['auto_locked', 'kept', 'reworded', 'removed', 'deferred']
+  const dispositionParts: string[] = []
+  for (const d of dispoOrder) {
+    const n = dispositionCounts[d] ?? 0
+    if (n > 0) dispositionParts.push(`${n} ${d.replace('_', '-')}`)
+  }
+  if (dispositionCounts.none > 0) dispositionParts.push(`${dispositionCounts.none} untriaged`)
+
   return (
-    <Card style={{ padding: '0.875rem 1rem' }}>
-      <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, color: 'var(--admin-text-muted)' }}>
-        {label}
+    <div style={{ marginBottom: '1rem' }}>
+      {/* Prominent triage status */}
+      <div
+        style={{
+          background: bannerBg,
+          border: `1px solid ${bannerBorder}`,
+          borderRadius: '0.5rem',
+          padding: '1rem 1.25rem',
+          marginBottom: '0.5rem',
+        }}
+      >
+        <div style={{ fontSize: '1.125rem', fontWeight: 700, color: bannerFg }}>
+          {headline}
+        </div>
+        {total > 0 && (
+          <div style={{ fontSize: '0.8125rem', color: 'var(--admin-text-muted)', marginTop: '0.25rem' }}>
+            <strong>Your triage:</strong> {dispositionParts.length > 0 ? dispositionParts.join(' · ') : '—'}
+          </div>
+        )}
       </div>
-      <div style={{ fontSize: '1.5rem', fontWeight: 600, color: colorByTone[tone], marginTop: '0.25rem' }}>
-        {value}
-      </div>
-    </Card>
+
+      {/* Smaller breakdown: script verdicts (informational only) */}
+      {total > 0 && (
+        <div
+          style={{
+            background: 'rgba(0, 0, 0, 0.02)',
+            border: '1px solid var(--admin-border)',
+            borderRadius: '0.5rem',
+            padding: '0.625rem 1rem',
+            fontSize: '0.75rem',
+            color: 'var(--admin-text-muted)',
+            display: 'flex',
+            gap: '0.5rem',
+            alignItems: 'baseline',
+            flexWrap: 'wrap',
+          }}
+        >
+          <strong style={{ marginRight: '0.25rem' }}>What the script said (informational):</strong>
+          <span style={{ color: '#2e7d32', fontWeight: 600 }}>✅ {verdictCounts.verified.length} verified</span>
+          <span style={{ color: 'var(--admin-text-muted)' }}>·</span>
+          <span style={{ color: '#c47a00', fontWeight: 600 }}>⚠️ {verdictCounts.needs_clarification.length} needs review</span>
+          <span style={{ color: 'var(--admin-text-muted)' }}>·</span>
+          <span style={{ color: '#b91c1c', fontWeight: 600 }}>❌ {verdictCounts.incorrect.length} incorrect</span>
+          <span style={{ marginLeft: 'auto', fontStyle: 'italic', fontSize: '0.6875rem' }}>
+            Verdicts never change — they&apos;re the script&apos;s snapshot. Your dispositions above are what you control.
+          </span>
+        </div>
+      )}
+    </div>
   )
 }
 
