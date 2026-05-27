@@ -98,7 +98,17 @@ function SaveButton() {
   )
 }
 
-export default function FactCard({ fact }: { fact: Fact }) {
+const FIELD_LABEL: Record<string, string> = {
+  intro: 'Intro',
+  sweet_spots: 'Sweet spots',
+  quirks: 'Quirks',
+  how_to_spend: 'How to spend',
+  lounge_access: 'Lounge access',
+  tier_benefits: 'Tier benefits',
+  award_chart: 'Award chart',
+}
+
+export default function FactCard({ fact, linkedFields = [] }: { fact: Fact; linkedFields?: string[] }) {
   const [state, formAction] = useActionState<SetDispositionResult, FormData>(setDisposition, null)
   const [showReason, setShowReason] = useState(!!fact.override_reason)
   const isTriaged = !!fact.disposition && fact.disposition !== 'auto_locked'
@@ -144,6 +154,30 @@ export default function FactCard({ fact }: { fact: Fact }) {
           {fact.reviewed_by && <> · by {fact.reviewed_by}</>}
         </span>
       </div>
+
+      {linkedFields.length > 0 ? (
+        <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'baseline', flexWrap: 'wrap', marginBottom: '0.375rem', fontSize: '0.6875rem', color: 'var(--admin-text-muted)' }}>
+          <span style={{ marginRight: '0.25rem' }}>🔗 Cited in:</span>
+          {linkedFields.map((f) => (
+            <span
+              key={f}
+              style={{
+                padding: '0.0625rem 0.375rem',
+                background: 'rgba(46, 125, 50, 0.08)',
+                borderRadius: '9999px',
+                color: '#2e7d32',
+                fontWeight: 600,
+              }}
+            >
+              {FIELD_LABEL[f] ?? f}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <div style={{ marginBottom: '0.375rem', fontSize: '0.6875rem', color: 'var(--admin-text-muted)', fontStyle: 'italic' }}>
+          ⚪ Orphaned — not currently cited in any prose paragraph
+        </div>
+      )}
 
       <div style={{ fontSize: '0.9375rem', marginBottom: '0.5rem' }}>{fact.claim_text}</div>
 
