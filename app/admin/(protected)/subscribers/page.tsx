@@ -118,6 +118,8 @@ export default async function SubscribersPage({
                     <th>Email</th>
                     <th>Name</th>
                     <th>Subscribed</th>
+                    <th>Source</th>
+                    <th>Converted on</th>
                     <th>Status</th>
                     <th style={{ textAlign: 'right' }}>Actions</th>
                   </tr>
@@ -133,6 +135,27 @@ export default async function SubscribersPage({
                       </td>
                       <td style={{ color: 'var(--admin-text-muted)', whiteSpace: 'nowrap' }}>
                         {formatDate(s.subscribed_at)}
+                      </td>
+                      <td style={{ color: 'var(--admin-text-muted)', fontSize: '0.8125rem' }}>
+                        {s.signup_source ? (
+                          <Badge tone="neutral">{s.signup_source.replace(/_/g, ' ')}</Badge>
+                        ) : (
+                          <span style={{ color: 'var(--admin-text-subtle)' }}>—</span>
+                        )}
+                      </td>
+                      <td style={{ color: 'var(--admin-text-muted)', fontSize: '0.8125rem' }}>
+                        {s.referrer_path ? (
+                          <a
+                            href={s.referrer_path}
+                            target="_blank"
+                            rel="noopener"
+                            style={{ color: 'var(--admin-link, #2563eb)', wordBreak: 'break-all' }}
+                          >
+                            {s.referrer_path}
+                          </a>
+                        ) : (
+                          <span style={{ color: 'var(--admin-text-subtle)' }} title="Not captured for pre-2026-05-27 signups">—</span>
+                        )}
                       </td>
                       <td>
                         <Badge tone={s.active ? 'success' : 'neutral'}>
