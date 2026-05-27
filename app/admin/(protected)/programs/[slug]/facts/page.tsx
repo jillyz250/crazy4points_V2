@@ -5,7 +5,7 @@ import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Card } from '@/components/admin/ui/Card'
 import { Badge } from '@/components/admin/ui/Badge'
 import { EmptyState } from '@/components/admin/ui/EmptyState'
-import { runFactCheck, reverifyFact, setDisposition } from './actions'
+import { setDisposition } from './actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -116,21 +116,29 @@ export default async function ProgramFactsPage({
         <Metric label="Total" value={factList.length} tone="neutral" />
       </div>
 
-      {/* Run fact-check action */}
+      {/* Run fact-check — CLI only in Phase 1 (Vercel serverless can't background long jobs) */}
       <Card style={{ marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
-          <div style={{ flex: '1 1 auto', minWidth: '200px' }}>
-            <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>Run fact-check</div>
-            <div style={{ fontSize: '0.8125rem', color: 'var(--admin-text-muted)' }}>
-              Extracts claims from the program&apos;s prose, runs parallel verification against the trusted-blog allowlist + official issuer sources, writes verdicts here. Takes 2-10 min depending on prose length.
+        <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>Run fact-check</div>
+        <div style={{ fontSize: '0.8125rem', color: 'var(--admin-text-muted)', marginBottom: '0.75rem' }}>
+          Phase 1: run from your laptop terminal. Takes 2-10 minutes depending on prose length. Phase 4 will add a one-button background queue.
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <div>
+            <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, color: 'var(--admin-text-muted)', marginBottom: '0.25rem' }}>
+              Full program fact-check
             </div>
+            <pre style={{ background: 'rgba(0,0,0,0.05)', padding: '0.5rem 0.75rem', borderRadius: '0.25rem', fontSize: '0.8125rem', margin: 0 }}>
+              {`node scripts/factcheck-program.mjs --slug=${slug}`}
+            </pre>
           </div>
-          <form action={runFactCheck}>
-            <input type="hidden" name="slug" value={slug} />
-            <button type="submit" className="admin-btn admin-btn-primary admin-btn-sm">
-              Run fact-check on {program.name}
-            </button>
-          </form>
+          <div>
+            <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, color: 'var(--admin-text-muted)', marginBottom: '0.25rem' }}>
+              Extract only (no DB writes, just print claims)
+            </div>
+            <pre style={{ background: 'rgba(0,0,0,0.05)', padding: '0.5rem 0.75rem', borderRadius: '0.25rem', fontSize: '0.8125rem', margin: 0 }}>
+              {`node scripts/factcheck-program.mjs --slug=${slug} --extract-only`}
+            </pre>
+          </div>
         </div>
       </Card>
 
@@ -272,12 +280,12 @@ function FactRow({ fact, slug }: { fact: Fact; slug: string }) {
           </button>
         </form>
 
-        <form action={reverifyFact} style={{ marginLeft: 'auto' }}>
-          <input type="hidden" name="id" value={fact.id} />
-          <button type="submit" className="admin-btn admin-btn-secondary admin-btn-sm" style={{ fontSize: '0.75rem' }}>
-            Re-verify this fact
-          </button>
-        </form>
+        <details style={{ marginLeft: 'auto', fontSize: '0.75rem' }}>
+          <summary style={{ cursor: 'pointer', color: 'var(--admin-text-muted)' }}>Re-verify CLI</summary>
+          <pre style={{ background: 'rgba(0,0,0,0.05)', padding: '0.375rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.75rem', margin: '0.25rem 0 0', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+            {`node scripts/factcheck-program.mjs --fact-id=${fact.id}`}
+          </pre>
+        </details>
       </div>
     </div>
   )
