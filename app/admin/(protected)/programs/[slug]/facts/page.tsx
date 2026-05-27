@@ -3,9 +3,8 @@ import { notFound } from 'next/navigation'
 import { createAdminClient } from '@/utils/supabase/server'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Card } from '@/components/admin/ui/Card'
-import { Badge } from '@/components/admin/ui/Badge'
 import { EmptyState } from '@/components/admin/ui/EmptyState'
-import { setDisposition } from './actions'
+import FactCard from './FactCard'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,44 +24,22 @@ type Fact = {
   prior_version_id: string | null
 }
 
-const VERDICT_LABEL: Record<Fact['verdict'], string> = {
-  verified: 'Verified',
-  needs_clarification: 'Needs clarification',
-  incorrect: 'Incorrect',
-}
-const VERDICT_TONE: Record<Fact['verdict'], 'success' | 'warning' | 'danger'> = {
-  verified: 'success',
-  needs_clarification: 'warning',
-  incorrect: 'danger',
-}
-const RISK_TONE: Record<Fact['risk_level'], 'danger' | 'warning' | 'neutral'> = {
-  high: 'danger',
-  medium: 'warning',
-  low: 'neutral',
-}
-const DISPOSITION_OPTIONS = [
-  { value: 'auto_locked', label: 'Auto-locked' },
-  { value: 'kept', label: 'Kept' },
-  { value: 'reworded', label: 'Reworded' },
-  { value: 'removed', label: 'Removed' },
-  { value: 'deferred', label: 'Deferred' },
-] as const
-
-function formatAge(iso: string): string {
-  const ms = Date.now() - new Date(iso).getTime()
-  const hours = Math.floor(ms / 3_600_000)
-  if (hours < 1) return 'just now'
-  if (hours < 24) return `${hours}h ago`
-  const days = Math.floor(hours / 24)
-  return `${days}d ago`
+// "Triaged" = editor took action. auto_locked counts as triaged because it
+// means the script auto-applied a verified verdict; editor doesn't need to look.
+function isTriaged(f: Fact): boolean {
+  return !!f.disposition
 }
 
 export default async function ProgramFactsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>
+  searchParams: Promise<{ show?: string }>
 }) {
   const { slug } = await params
+  const { show = 'untriaged' } = await searchParams
+
   const supabase = createAdminClient()
 
   const { data: program } = await supabase
@@ -80,12 +57,28 @@ export default async function ProgramFactsPage({
     .order('verdict', { ascending: true })
     .order('risk_level', { ascending: true })
 
-  const factList = (facts ?? []) as Fact[]
+  const allFacts = (facts ?? []) as Fact[]
+
+  // Filter based on show param
+  const filteredFacts =
+    show === 'all' ? allFacts :
+    show === 'triaged' ? allFacts.filter(isTriaged) :
+    allFacts.filter((f) => !isTriaged(f))  // default: untriaged
+
   const byVerdict = {
-    verified: factList.filter((f) => f.verdict === 'verified'),
-    needs_clarification: factList.filter((f) => f.verdict === 'needs_clarification'),
-    incorrect: factList.filter((f) => f.verdict === 'incorrect'),
+    needs_clarification: filteredFacts.filter((f) => f.verdict === 'needs_clarification'),
+    incorrect: filteredFacts.filter((f) => f.verdict === 'incorrect'),
+    verified: filteredFacts.filter((f) => f.verdict === 'verified'),
   }
+
+  // Counts use ALL facts (not filtered) so the metrics don't change with filter
+  const allByVerdict = {
+    verified: allFacts.filter((f) => f.verdict === 'verified'),
+    needs_clarification: allFacts.filter((f) => f.verdict === 'needs_clarification'),
+    incorrect: allFacts.filter((f) => f.verdict === 'incorrect'),
+  }
+  const triagedCount = allFacts.filter(isTriaged).length
+  const untriagedCount = allFacts.length - triagedCount
 
   return (
     <div>
@@ -110,10 +103,10 @@ export default async function ProgramFactsPage({
           marginBottom: '1rem',
         }}
       >
-        <Metric label="Verified" value={byVerdict.verified.length} tone="success" />
-        <Metric label="Needs review" value={byVerdict.needs_clarification.length} tone={byVerdict.needs_clarification.length > 0 ? 'warning' : 'neutral'} />
-        <Metric label="Incorrect" value={byVerdict.incorrect.length} tone={byVerdict.incorrect.length > 0 ? 'danger' : 'neutral'} />
-        <Metric label="Total" value={factList.length} tone="neutral" />
+        <Metric label="Verified" value={allByVerdict.verified.length} tone="success" />
+        <Metric label="Needs review" value={allByVerdict.needs_clarification.length} tone={allByVerdict.needs_clarification.length > 0 ? 'warning' : 'neutral'} />
+        <Metric label="Incorrect" value={allByVerdict.incorrect.length} tone={allByVerdict.incorrect.length > 0 ? 'danger' : 'neutral'} />
+        <Metric label="Untriaged" value={untriagedCount} tone={untriagedCount > 0 ? 'warning' : 'success'} />
       </div>
 
       {/* Run fact-check — CLI only in Phase 1 (Vercel serverless can't background long jobs) */}
@@ -142,16 +135,33 @@ export default async function ProgramFactsPage({
         </div>
       </Card>
 
-      {factList.length === 0 ? (
+      {/* Filter toggle */}
+      <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '1rem', alignItems: 'center' }}>
+        <span style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)', marginRight: '0.5rem' }}>Show:</span>
+        <FilterTab label={`Untriaged (${untriagedCount})`} slug={slug} value="untriaged" active={show === 'untriaged'} />
+        <FilterTab label={`Triaged (${triagedCount})`} slug={slug} value="triaged" active={show === 'triaged'} />
+        <FilterTab label={`All (${allFacts.length})`} slug={slug} value="all" active={show === 'all'} />
+      </div>
+
+      {allFacts.length === 0 ? (
         <EmptyState
           title="No facts yet"
           description={`Run fact-check above to populate the ledger for ${program.name}.`}
         />
+      ) : filteredFacts.length === 0 ? (
+        <EmptyState
+          title={show === 'untriaged' ? '🎉 All triaged!' : 'No facts in this view'}
+          description={
+            show === 'untriaged'
+              ? `You've triaged every fact in ${program.name}. Switch to "All" or "Triaged" to review past decisions.`
+              : `No facts match the current filter. Try switching to "All".`
+          }
+        />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <FactSection title="⚠️ Needs clarification" facts={byVerdict.needs_clarification} defaultExpanded slug={slug} />
-          <FactSection title="❌ Incorrect (default action: remove)" facts={byVerdict.incorrect} defaultExpanded slug={slug} />
-          <FactSection title="✅ Verified (auto-locked)" facts={byVerdict.verified} defaultExpanded={false} slug={slug} />
+          <FactSection title="⚠️ Needs clarification" facts={byVerdict.needs_clarification} defaultExpanded />
+          <FactSection title="❌ Incorrect (default action: remove)" facts={byVerdict.incorrect} defaultExpanded />
+          <FactSection title="✅ Verified (auto-locked)" facts={byVerdict.verified} defaultExpanded={show !== 'untriaged'} />
         </div>
       )}
     </div>
@@ -160,7 +170,7 @@ export default async function ProgramFactsPage({
 
 function Metric({ label, value, tone }: { label: string; value: number; tone: 'success' | 'warning' | 'danger' | 'neutral' }) {
   const colorByTone: Record<string, string> = {
-    success: 'var(--admin-success, #2f855a)',
+    success: '#2e7d32',
     warning: '#c47a00',
     danger: '#b91c1c',
     neutral: 'var(--admin-text, #1a1a1a)',
@@ -177,16 +187,26 @@ function Metric({ label, value, tone }: { label: string; value: number; tone: 's
   )
 }
 
+function FilterTab({ label, slug, value, active }: { label: string; slug: string; value: string; active: boolean }) {
+  return (
+    <Link
+      href={`/admin/programs/${slug}/facts?show=${value}`}
+      className={`admin-btn admin-btn-sm ${active ? 'admin-btn-primary' : 'admin-btn-ghost'}`}
+      style={{ fontSize: '0.75rem' }}
+    >
+      {label}
+    </Link>
+  )
+}
+
 function FactSection({
   title,
   facts,
   defaultExpanded,
-  slug,
 }: {
   title: string
   facts: Fact[]
   defaultExpanded: boolean
-  slug: string
 }) {
   if (facts.length === 0) return null
   return (
@@ -196,97 +216,9 @@ function FactSection({
       </summary>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.75rem' }}>
         {facts.map((f) => (
-          <FactRow key={f.id} fact={f} slug={slug} />
+          <FactCard key={f.id} fact={f} />
         ))}
       </div>
     </details>
-  )
-}
-
-function FactRow({ fact, slug }: { fact: Fact; slug: string }) {
-  void slug
-  return (
-    <div
-      style={{
-        border: '1px solid var(--admin-border)',
-        borderRadius: '0.5rem',
-        padding: '0.75rem',
-        background: 'var(--admin-surface, #fff)',
-      }}
-    >
-      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'baseline', flexWrap: 'wrap', marginBottom: '0.375rem' }}>
-        <Badge tone={VERDICT_TONE[fact.verdict]}>{VERDICT_LABEL[fact.verdict]}</Badge>
-        <Badge tone={RISK_TONE[fact.risk_level]}>{fact.risk_level.toUpperCase()}</Badge>
-        {fact.category && <Badge tone="neutral">{fact.category}</Badge>}
-        {fact.third_party_fallback && <Badge tone="warning">third-party fallback</Badge>}
-        <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--admin-text-muted)' }}>
-          Last verified {formatAge(fact.reviewed_at)}
-          {fact.reviewed_by && <> · by {fact.reviewed_by}</>}
-        </span>
-      </div>
-
-      <div style={{ fontSize: '0.9375rem', marginBottom: '0.5rem' }}>{fact.claim_text}</div>
-
-      {fact.sources.length > 0 && (
-        <details>
-          <summary style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)', cursor: 'pointer' }}>
-            Sources ({fact.sources.length})
-          </summary>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', marginTop: '0.5rem' }}>
-            {fact.sources.map((s, i) => (
-              <div
-                key={i}
-                style={{
-                  padding: '0.5rem',
-                  background: 'rgba(0,0,0,0.03)',
-                  borderRadius: '0.25rem',
-                  fontSize: '0.8125rem',
-                }}
-              >
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'baseline' }}>
-                  {s.is_official && <Badge tone="success">official</Badge>}
-                  <a href={s.url} target="_blank" rel="noopener" style={{ color: 'var(--admin-link)', wordBreak: 'break-all' }}>
-                    {s.url}
-                  </a>
-                  {s.publication_date && (
-                    <span style={{ color: 'var(--admin-text-muted)', fontSize: '0.75rem' }}>
-                      ({s.publication_date})
-                    </span>
-                  )}
-                </div>
-                {s.snippet && <div style={{ marginTop: '0.25rem', color: 'var(--admin-text-muted)', fontStyle: 'italic' }}>&ldquo;{s.snippet}&rdquo;</div>}
-              </div>
-            ))}
-          </div>
-        </details>
-      )}
-
-      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-        <form action={setDisposition} style={{ display: 'flex', gap: '0.375rem', alignItems: 'center' }}>
-          <input type="hidden" name="id" value={fact.id} />
-          <label style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)' }}>Disposition:</label>
-          <select
-            name="disposition"
-            defaultValue={fact.disposition ?? ''}
-            style={{ fontSize: '0.8125rem', padding: '0.25rem 0.375rem', border: '1px solid var(--admin-border)', borderRadius: '0.25rem' }}
-          >
-            <option value="">— none —</option>
-            {DISPOSITION_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-          <button type="submit" className="admin-btn admin-btn-ghost admin-btn-sm" style={{ fontSize: '0.75rem' }}>
-            Save
-          </button>
-        </form>
-
-        <details style={{ marginLeft: 'auto', fontSize: '0.75rem' }}>
-          <summary style={{ cursor: 'pointer', color: 'var(--admin-text-muted)' }}>Re-verify CLI</summary>
-          <pre style={{ background: 'rgba(0,0,0,0.05)', padding: '0.375rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.75rem', margin: '0.25rem 0 0', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-            {`node scripts/factcheck-program.mjs --fact-id=${fact.id}`}
-          </pre>
-        </details>
-      </div>
-    </div>
   )
 }
