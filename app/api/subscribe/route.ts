@@ -29,8 +29,23 @@ const ALLOWED_SOURCES = new Set([
   'api_direct',
 ])
 
+// Sanitize a client-supplied referrer path.
+// Accept: pathname only (must start with /). Strip query string + hash.
+// Cap at 500 chars (avoid abusive payloads). Reject anything else as NULL.
+function sanitizeReferrerPath(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null
+  const trimmed = raw.trim()
+  if (!trimmed || !trimmed.startsWith('/')) return null
+  // Strip query + hash
+  const path = trimmed.split('?')[0].split('#')[0]
+  if (path.length === 0 || path.length > 500) return null
+  // Whitelist-ish: paths should look like /word/word/word; allow standard URL chars
+  if (!/^\/[A-Za-z0-9/_\-.~]*$/.test(path)) return null
+  return path
+}
+
 export async function POST(req: NextRequest) {
-  const { email, firstName, lastName, website, source } = await req.json()
+  const { email, firstName, lastName, website, source, referrerPath } = await req.json()
 
   // Honeypot — bots fill hidden fields; humans don't see it.
   if (website && String(website).trim() !== '') {
@@ -54,6 +69,8 @@ export async function POST(req: NextRequest) {
 
   const validatedSource =
     typeof source === 'string' && ALLOWED_SOURCES.has(source) ? source : 'api_direct'
+
+  const validatedReferrerPath = sanitizeReferrerPath(referrerPath)
 
   const supabase = createAdminClient()
 
@@ -92,13 +109,17 @@ export async function POST(req: NextRequest) {
     }
     // Reactivate unsubscribed user. Preserve the original signup_source
     // (don't overwrite history); only stamp it if it was NULL on the legacy row.
+    // Also overwrite referrer_path with the current one — the most recent
+    // resub gives us a fresh signal of what content brought them back.
+    const reactivateUpdate: Record<string, unknown> = {
+      active: true,
+      first_name: firstName?.trim() || null,
+      last_name: lastName?.trim() || null,
+    }
+    if (validatedReferrerPath) reactivateUpdate.referrer_path = validatedReferrerPath
     const { error: reactivateError } = await supabase
       .from('subscribers')
-      .update({
-        active: true,
-        first_name: firstName?.trim() || null,
-        last_name: lastName?.trim() || null,
-      })
+      .update(reactivateUpdate)
       .eq('id', existing.id)
     if (reactivateError) {
       console.error('[subscribe] Reactivate error:', reactivateError)
@@ -113,6 +134,7 @@ export async function POST(req: NextRequest) {
         first_name: firstName?.trim() || null,
         last_name: lastName?.trim() || null,
         signup_source: validatedSource,
+        referrer_path: validatedReferrerPath,
       })
     if (dbError) {
       console.error('[subscribe] DB error:', dbError)

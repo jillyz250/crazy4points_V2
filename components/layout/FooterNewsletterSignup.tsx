@@ -26,10 +26,11 @@ export default function FooterNewsletterSignup() {
     setStatus('loading')
     setMessage('')
 
+    const referrerPath = typeof window !== 'undefined' ? window.location.pathname : null
     const res = await fetch('/api/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, firstName, lastName, website, source: 'footer' }),
+      body: JSON.stringify({ email, firstName, lastName, website, source: 'footer', referrerPath }),
     })
 
     const data = await res.json().catch(() => ({}))

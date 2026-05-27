@@ -16,10 +16,11 @@ export default function NewsletterSignup() {
     setStatus('loading')
     setMessage('')
 
+    const referrerPath = typeof window !== 'undefined' ? window.location.pathname : null
     const res = await fetch('/api/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, firstName, lastName, website, source: 'homepage_hero' }),
+      body: JSON.stringify({ email, firstName, lastName, website, source: 'homepage_hero', referrerPath }),
     })
 
     const data = await res.json()
