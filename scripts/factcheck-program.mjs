@@ -147,62 +147,90 @@ function classifyCategory(claim) {
 }
 
 // ── Claim extraction from prose ──────────────────────────────────────────
-// Phase 1 heuristic: split prose into sentences, filter to sentences with
-// numbers, percentages, ratios, or named entities. Imperfect but unblocks
-// the ledger. Phase 2 swaps in Claude Haiku for smarter extraction.
+// Phase 1 heuristic: split prose into sentences, filter to ones matching a
+// VERIFIABLE pattern (specific number+unit, ratio, named issuer, status tier
+// + qualifier) and NOT matching reject patterns (voicey openers, hedge words).
+// Plus normalize-and-dedupe so paraphrases of the same fact collapse.
+// Phase 2 swaps in Claude Haiku for smarter LLM-based extraction.
 
-const CLAIM_INDICATORS = [
-  /\b\d/,                          // any digit
-  /\bonly\b/i,                     // absolute words
-  /\bevery\b/i,
-  /\brequires?\b/i,
-  /\bmust\b/i,
-  /\bincludes?\b/i,
-  /\beligible\b/i,
-  /\b(do|does) not\b/i,
+const VERIFIABLE_PATTERNS = [
+  /\b\d{1,3}(?:,\d{3})+\b/,                                       // numbers with commas (15,000)
+  /\b\d+\s*(points?|miles?|nights?|stays?|cents?|cpp|%|x)\b/i,    // numbers with units
+  /\b\d+:\d+(\.\d+)?\b/,                                          // ratios
+  /\b\$\d+/,                                                       // dollar amounts
+  /\b(silver|gold|platinum|diamond|elite|reserve)\s+(status|tier|qualify|requires?|membership)\b/i, // tier mentions
+  /\b(transfer|ratio|bonus|fee|expire|cap|threshold|minimum)\b.*\d/i, // structural fact + number
+  /\b(amex|chase|citi|capital one|bilt|wells fargo|membership rewards|thankyou|ultimate rewards)\b.*\b(transfer|ratio|point|mile)/i, // issuer-specific
+  /\b(free night|fnr|certificate|anniversary)\b.*\d/i,
 ]
+
+const REJECT_PATTERNS = [
+  /\b(losses come|wins come|catch:|note:|the catch|here's|here is|the move)\b/i,
+  /\b(typically|usually|generally|often|sometimes|maybe|perhaps|likely)\b/i,  // hedge words = opinion
+  /\b(real travel|quietly|absurd|stupid|cute|cool|nice|amazing|incredible|killer)\b/i,  // voice words
+  /^\s*\[/,                                                         // markdown link/image stubs
+]
+
+function normalizeForDedupe(s) {
+  return s
+    .toLowerCase()
+    .replace(/\*\*/g, '')
+    .replace(/^[*•\-\d\.\)]+\s*/, '')
+    .replace(/[^\w\s:%.\-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/\b(the|a|an|that|this|those|these|its|their|your|our|of|on|in|at|to|for)\b/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
 
 function extractClaimsFromProse(prose) {
   if (!prose || typeof prose !== 'string') return []
-  // Split by sentence terminators (., !, ?, newline + bullet)
   const sentences = prose
     .replace(/\r\n/g, '\n')
     .split(/(?<=[.!?])\s+|\n\s*[-*•]\s+|\n{2,}/)
     .map((s) => s.replace(/^\s*[-*•]\s+/, '').trim())
     .filter((s) => s.length > 20 && s.length < 400)
-  // Keep sentences that contain at least one claim indicator
-  return sentences.filter((s) => CLAIM_INDICATORS.some((re) => re.test(s)))
+  return sentences.filter((s) => {
+    if (!VERIFIABLE_PATTERNS.some((re) => re.test(s))) return false
+    if (REJECT_PATTERNS.some((re) => re.test(s))) return false
+    return true
+  })
 }
 
 function extractAllClaims(program) {
-  const claims = new Set()
-  // intro / how_to_spend / sweet_spots / quirks / lounge_access / award_chart
+  // Collect raw candidate claims first
+  const raw = []
   for (const field of ['intro', 'how_to_spend', 'sweet_spots', 'quirks', 'lounge_access', 'award_chart']) {
     const txt = program[field]
-    if (typeof txt === 'string') extractClaimsFromProse(txt).forEach((c) => claims.add(c))
+    if (typeof txt === 'string') raw.push(...extractClaimsFromProse(txt))
   }
-  // tier_benefits (JSONB array of { name, qualification, benefits })
   if (Array.isArray(program.tier_benefits)) {
     for (const tier of program.tier_benefits) {
-      if (tier?.qualification) extractClaimsFromProse(tier.qualification).forEach((c) => claims.add(c))
+      if (tier?.qualification) raw.push(...extractClaimsFromProse(tier.qualification))
       if (Array.isArray(tier?.benefits)) {
-        for (const b of tier.benefits) extractClaimsFromProse(b).forEach((c) => claims.add(c))
+        for (const b of tier.benefits) raw.push(...extractClaimsFromProse(b))
       }
     }
   }
-  // transfer_partners + transfer_partners_outbound (each entry is a claim)
+  // transfer_partners + outbound — each entry is a synthesized claim
   for (const field of ['transfer_partners', 'transfer_partners_outbound']) {
     if (Array.isArray(program[field])) {
       for (const p of program[field]) {
-        const partnerName = p.from_slug
-        const ratio = p.ratio
-        if (partnerName && ratio) {
-          claims.add(`${program.slug} to ${partnerName} transfer ratio is ${ratio}.`)
+        if (p?.from_slug && p?.ratio) {
+          raw.push(`${program.slug} to ${p.from_slug} transfer ratio is ${p.ratio}.`)
         }
       }
     }
   }
-  return [...claims]
+  // Normalize-and-dedupe — collapse paraphrases of the same fact (lowercase,
+  // strip articles + punctuation + bullets). Keep the FIRST raw form of each
+  // normalized key so the editor still sees the original prose.
+  const seen = new Map()
+  for (const c of raw) {
+    const key = normalizeForDedupe(c)
+    if (!seen.has(key)) seen.set(key, c)
+  }
+  return [...seen.values()]
 }
 
 // ── Firecrawl search ─────────────────────────────────────────────────────
