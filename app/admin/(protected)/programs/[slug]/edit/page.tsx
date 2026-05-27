@@ -44,6 +44,13 @@ export default async function ProgramEditPage({ params }: Props) {
               </Link>
             )}
             <Link
+              href={`/admin/programs/${program.slug}/facts`}
+              className="admin-btn admin-btn-secondary admin-btn-sm"
+              title="Per-fact verification ledger — run fact-check, review verdicts, manage drift"
+            >
+              Facts →
+            </Link>
+            <Link
               href={`/programs/${program.slug}`}
               target="_blank"
               rel="noopener noreferrer"
