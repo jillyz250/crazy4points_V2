@@ -4,6 +4,28 @@ Authored 2026-05-27 after Phase 2c of the facts ledger shipped. Validated throug
 
 Memory entry: `~/.claude/projects/.../memory/project_three_layer_knowledge_graph.md`
 
+## Audit-locked phase summary (2026-05-27)
+
+| Phase | Scope | Estimate |
+|---|---|---|
+| **A** | sweet_spots: table + 8 schema fixes + Haiku backfill (default `is_active=false`) + dual-path render + cross-program reverse lookup + structured CRUD + paste-markdown escape hatch + draft-program integration | **8-10 hrs** |
+| **A.5** | Citation tracking wired into blog/alert/newsletter publish paths + orphan cleanup script | 3-4 hrs |
+| **B1** | quirks structuring | **3-4 hrs (OPTIONAL — consider skipping)** |
+| **B2** | lounge_access structuring (matrix-shaped, most complex) | 5-6 hrs |
+| **B3** | how_to_spend structuring | 3-4 hrs |
+| **C** | Drift propagation (extend facts-ledger Phase 4 cron to walk citation graph) | 3 hrs |
+| **D1+** | Cross-program UI features (Sweet Spot of the Week, comparison, etc.) | 4-6 hrs per feature |
+
+**Realistic total to ship the foundation (A through C):** 25-30 hrs.
+**With first cross-program UI feature (D1):** 30-35 hrs.
+
+Phase A schema is audit-locked below. 8 schema fixes baked in. Cross-program
+authority rule (currency owns, partner reverse-queries) baked in. Paste-markdown
+admin escape hatch baked in. Backfill default `is_active=false` baked in.
+90-day deprecation deadline for prose fallback baked in.
+
+---
+
 ## The shift
 
 From "CMS with prose fields" → "knowledge graph with three layers of citation."
@@ -77,40 +99,63 @@ This eliminates:
 
 ---
 
-## Phase A — program_sweet_spots (~6-7 hrs)
+## Phase A — program_sweet_spots (~8-10 hrs realistic)
 
-### Migration: `program_sweet_spots`
+> **Audit verdict (2026-05-27):** original estimate of 6-7 hrs was optimistic.
+> Realistic with all 8 schema fixes + cross-program reverse-lookup + paste-markdown
+> admin path baked in from day 1 is 8-10 hrs. Don't underscope this.
+
+### Migration: `program_sweet_spots` (audit-locked v2)
+
+Changes from original draft: add `points_cost_type` enum, `expires_at`,
+`partner_slugs` (plural), `created_by` + `updated_by`, `display_image_url`.
 
 ```sql
+create type sweet_spot_points_cost_type as enum ('fixed', 'range', 'starts_at', 'dynamic');
+
 create table program_sweet_spots (
   id                          uuid primary key default gen_random_uuid(),
   program_slug                text not null,
-  title                       text not null,        -- "Hilton Cancun all-inclusive"
-  points_cost_text            text,                 -- display string ("80K-130K pts/night")
-  points_cost_low             integer,              -- band low (for sortable queries)
-  points_cost_high            integer,              -- band high
-  cpp_estimate                numeric(4,2),         -- 0.65 = 0.65 cents per point
-  cash_value_ref              text,                 -- "$650+/night" — comparable rate
-  description                 text not null,        -- 1-3 sentence why-it-matters
-  tags                        text[] default '{}',  -- ['all-inclusive', 'caribbean', '5th-night-eligible']
-  applies_to_transfers_from   text[] default '{}',  -- slugs of currencies that transfer in
-  partner_slug                text,                 -- if cross-program redemption (e.g. via airline transfer)
-  fact_ids                    uuid[] default '{}',  -- links to program_facts rows that back this
-  is_active                   boolean not null default true,
+  title                       text not null,                            -- "Hilton Cancun all-inclusive"
+  points_cost_type            sweet_spot_points_cost_type not null,     -- AUDIT FIX #1
+  points_cost_text            text,                                     -- display string ("80K-130K pts/night")
+  points_cost_low             integer,                                  -- nullable for 'dynamic' or 'starts_at'
+  points_cost_high            integer,                                  -- nullable for 'dynamic' or 'starts_at'
+  cpp_estimate                numeric(4,2),                             -- 0.65 = 0.65 cents per point
+  cash_value_ref              text,                                     -- "$650+/night" — comparable rate
+  description                 text not null,                            -- 1-3 sentence why-it-matters
+  tags                        text[] default '{}',                      -- AUDIT FIX #2: controlled vocab needed (see below)
+  applies_to_transfers_from   jsonb default '[]'::jsonb,                -- AUDIT FIX #3: was text[], now [{from_slug, optimal_when_bonus_active?}]
+  partner_slugs               text[] default '{}',                      -- AUDIT FIX #7: was singular, multi-partner sweet spots exist
+  fact_ids                    uuid[] default '{}',                      -- links to program_facts rows
+  is_active                   boolean not null default false,           -- AUDIT FIX (Risk 2): default false; backfill rows need editor review
   display_order               integer default 0,
+  display_image_url           text,                                     -- AUDIT FIX #8: for future image-rich rendering
+  expires_at                  timestamptz,                              -- AUDIT FIX #5: temporary sweet spots (during bonus periods)
   verified_at                 timestamptz not null default now(),
   superseded_at               timestamptz,
   prior_version_id            uuid references program_sweet_spots(id),
-  created_at                  timestamptz not null default now()
+  created_by                  text,                                     -- AUDIT FIX #6: editorial provenance
+  updated_by                  text,                                     -- AUDIT FIX #6
+  created_at                  timestamptz not null default now(),
+  updated_at                  timestamptz not null default now()
 );
 
 create index program_sweet_spots_program_idx on program_sweet_spots (program_slug, superseded_at);
 create index program_sweet_spots_active_idx on program_sweet_spots (is_active, program_slug)
   where superseded_at is null;
+create index program_sweet_spots_partner_idx on program_sweet_spots using gin (partner_slugs);
 create index program_sweet_spots_tags_idx on program_sweet_spots using gin (tags);
-create index program_sweet_spots_transfers_idx on program_sweet_spots using gin (applies_to_transfers_from);
 create index program_sweet_spots_facts_idx on program_sweet_spots using gin (fact_ids);
+create index program_sweet_spots_expires_idx on program_sweet_spots (expires_at)
+  where expires_at is not null and superseded_at is null;
 ```
+
+### Controlled tag vocabulary (AUDIT FIX #2)
+
+Either a separate `sweet_spot_tag_options` lookup table OR an autocomplete UI
+backed by `SELECT DISTINCT unnest(tags) FROM program_sweet_spots`. Pick at
+Phase A build time. Without this, tag drift kills queryability within 10 programs.
 
 ### Migration: `content_sweet_spot_citations`
 
@@ -138,23 +183,57 @@ create index content_citations_content_idx on content_sweet_spot_citations (cont
 
 Expected cost: ~$0.30 across all ~30 programs with sweet_spots.
 
-### Public render update
+### Cross-program authority + reverse lookup (AUDIT LOCK-IN)
+
+**Ownership rule (locked):** sweet spots are owned by the CURRENCY program (the
+program whose points are spent). Example: "ANA business class via Virgin Atlantic
+Flying Club" lives on Virgin's program page, with `partner_slugs = ['ana']`.
+
+**Visibility rule:** Public render on BOTH owner + partner program pages.
+
+Render query for any program page:
+```sql
+SELECT * FROM program_sweet_spots
+WHERE (program_slug = $slug OR $slug = ANY(partner_slugs))
+  AND is_active = true
+  AND superseded_at IS NULL
+  AND (expires_at IS NULL OR expires_at > now())
+ORDER BY display_order, cpp_estimate DESC NULLS LAST;
+```
+
+UI groups results: "From {slug}'s own program" + "From partner currencies".
+
+This MUST be implemented in Phase A render, not deferred.
+
+### Public render update (with dual-path deprecation deadline)
 
 `app/(site)/programs/[slug]/page.tsx` and any sweet-spot-rendering component:
-- Query `program_sweet_spots WHERE program_slug = slug AND is_active = true AND superseded_at IS NULL`
+- Use the cross-program query above to fetch structured rows
 - If non-empty: render from structured (newer path)
 - Else: fall back to `programs.sweet_spots` markdown (legacy path)
 
-This dual-render path lets us migrate programs gradually without breaking public pages.
+**Deprecation deadline:** 90 days post-Phase-A-merge. All programs migrated to
+structured, prose fallback path + `programs.sweet_spots` column DROPPED. Set
+the deadline in a calendar reminder OR memory note. Without a deadline, the
+dual path lingers indefinitely (AUDIT RISK #3).
 
-### Admin editor
+### Admin editor (with paste-markdown escape hatch)
 
 `app/admin/(protected)/programs/[slug]/edit/page.tsx`:
-- Replace markdown textarea for `sweet_spots` with a structured CRUD list
-- Per sweet spot row: inline form (title, points cost low/high/text, cpp, description, tags multiselect, applies_to_transfers_from multiselect, fact_ids picker)
+
+**Path 1 — Structured CRUD list (primary):**
+- Per sweet spot row: inline form (title, points_cost_type, low/high/text, cpp,
+  description, tags autocomplete, applies_to_transfers_from JSONB form,
+  partner_slugs multiselect, expires_at date picker, fact_ids picker)
 - Add/remove/reorder buttons
 - "+ New sweet spot" at bottom
-- Each row links to `/admin/programs/[slug]/sweet-spots/[uuid]` for deep edit + citation tracking
+- Each row links to `/admin/programs/[slug]/sweet-spots/[uuid]` for deep edit
+
+**Path 2 — "Paste raw markdown" escape hatch (AUDIT FIX Risk #1 mitigation):**
+- Modal/expandable section: "Paste markdown bullets here, Haiku will parse them"
+- User pastes markdown → preview shows parsed structured rows → user confirms or edits → save
+- This keeps markdown's authoring speed for editors who prefer it
+- Without this, editor adoption fails and structured data degrades
 
 ### Update `draft-program.mjs`
 
@@ -176,14 +255,32 @@ Add admin reverse-query: per sweet spot, show "Cited in: 3 blogs · 1 alert" wit
 
 ---
 
-## Phase B — Other prose fields (~10-15 hrs, later)
+## Phase B — Other prose fields (~12-14 hrs total across 3 sub-phases)
 
-Same pattern, each its own table. Suggested order:
-1. `program_quirks` (~4 hrs)
-2. `program_lounge_access_rules` (~5 hrs — more complex with tier eligibility matrix)
-3. `program_redemption_types` for how_to_spend (~3 hrs)
+**AUDIT VERDICT:** Lumping these together was wrong. Each is a separate phase
+with different complexity. Phase B1 (quirks) may not be worth doing at all.
 
-Each migration follows Phase A's template: table + backfill script (Haiku parses markdown) + dual-render + admin CRUD + draft-program writes structured.
+### Phase B1 — quirks structuring (~3-4 hrs) — **OPTIONAL, CONSIDER SKIPPING**
+
+Quirks have low re-use (mostly per-program informational) and low drift
+sensitivity. Structuring adds admin friction without unlocking much value
+for blogs/alerts. Recommendation: leave as prose unless a specific use case
+emerges that needs structured quirks.
+
+### Phase B2 — lounge_access structuring (~5-6 hrs)
+
+Most complex sub-phase. Schema must capture:
+- `tier` (Silver / Gold / Diamond etc.)
+- `lounge_type` (Executive Lounge / alliance partner / paid)
+- `eligibility` (rules for guests, fare class exclusions, etc.)
+- `paid_options` (day pass cost, eligibility rules)
+- Matrix-shaped: one tier might have access to multiple lounge types with
+  different rules per type.
+
+### Phase B3 — how_to_spend structuring (~3-4 hrs)
+
+Redemption type categories: award stays, suite upgrades, FNRs, transfers,
+experiences. Each row is a redemption mechanic with cost framing.
 
 ---
 
