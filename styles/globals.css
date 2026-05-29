@@ -1231,7 +1231,7 @@ a.admin-btn-primary:hover:not(:disabled) {
   font-family: var(--font-ui);
   font-size: 0.75rem;
   font-weight: 500;
-  color: var(--color-text-secondary);
+  color: var(--color-primary);
   text-decoration: none;
   transition: color 0.12s ease;
 }

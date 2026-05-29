@@ -134,6 +134,9 @@ NOTE: intro and sweet_spots are EDITORIAL-ONLY fields handled by the human edito
 - hubs: hub airport list. Usually on the airline's main "About" or route map page. Rare standalone page.
 - parent_program_slug: only relevant for sub-programs (e.g. KLM under Flying Blue, Iberia under Avios). Return null for standalone programs.
 - tier_benefits: status tier benefits per level (Silver/Gold/Premier 1K/Platinum/etc). Look for "Elite Status", "Premier", "Medallion", "Loyalty Tiers", "Status Benefits".
+- transfer_partners: the program's transfer-partner / point-conversion page. For airlines and transferable currencies, the "Transfer Partners" / "Airline & Hotel Partners" page; for HOTELS, the "Convert points to miles" / "Airline Partners" page (where the program's points transfer OUT to airlines). Look for "Partners", "Transfer", "Convert points", "Airline partners", "conditions/airlines". This is a high-value page that is easy to miss — always surface it if a candidate matches.
+- award_category_chart (HOTELS ONLY — null for airlines/alliances): the category award chart showing points-per-night by category with off-peak / standard / peak bands. Look for "Award Chart", "Redemption Chart", "Points per night", "Categories".
+- free_night_certs (HOTELS ONLY — null for airlines/alliances): co-brand credit-card Free Night Certificate / Free Night Award rules. Look for "Free Night", "Annual Free Night", "Anniversary Night", "category ceiling".
 
 SCOUT SOURCES (time-sensitive content for the alerts pipeline — NOT for static program-page content):
 - promo_source: the program's "Current Offers" / "Promotions" / "Bonus Miles" page. Examples: united.com/.../mp-offers.html, delta.com/.../skymiles-offers.html, marriott.com/.../current-promotions.mi. Time-sensitive content; bonuses change weekly.
@@ -153,6 +156,9 @@ OUTPUT FORMAT — return ONLY valid JSON, no prose. DO NOT include intro or swee
   "lounge_access": { ... } | null,
   "quirks": { ... } | null,
   "award_chart": { ... } | null,
+  "transfer_partners": { ... } | null,
+  "award_category_chart": { ... } | null,
+  "free_night_certs": { ... } | null,
   "alliance": { ... } | null,
   "hubs": { ... } | null,
   "parent_program_slug": { ... } | null,
