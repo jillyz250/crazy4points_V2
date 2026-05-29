@@ -1763,8 +1763,9 @@ export default function DecisionEnginePage() {
               ))}
             </div>
 
-            {/* Handle — desktop only */}
-            <div className="hidden md:block">
+            {/* Handle — wide desktop only (needs ~114px of room to the right of
+                the machine; below xl it gets clipped by main's overflowX:hidden) */}
+            <div className="hidden xl:block">
               <PullHandle pulled={handlePulled} onClick={canSpin ? handleSpin : () => {}} />
             </div>
 
