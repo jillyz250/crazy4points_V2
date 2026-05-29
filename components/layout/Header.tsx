@@ -6,28 +6,28 @@ import { useState } from "react";
 import { BLOG_CATEGORIES } from "@/lib/blog/categories";
 import type { ResourceNavCounts } from "@/utils/supabase/queries";
 
-// Single "Tools" menu — the old Hub and Tools dropdowns merged into one, since
-// both held interactive tools and the split confused visitors. The Points Hub
-// overview leads (featured); guided tools follow; a divider separates the
-// interactive tools (Alliance Explorer, Decision Engine). `divider: true`
-// marks an item that should render a separator above it.
-const toolsMenu: { label: string; comingSoon: boolean; href: string | null; featured?: boolean; divider?: boolean }[] = [
-  { label: "The Points Hub — overview", comingSoon: false, href: "/hub", featured: true },
-  { label: "Should I Transfer?", comingSoon: false, href: "/hub/should-i-transfer", divider: true },
-  { label: "Best Way to Book It", comingSoon: false, href: "/hub/best-way-to-book" },
-  { label: "Will My Free Night Cert Fit?", comingSoon: true, href: "/hub/fnc-fit" },
-  { label: "Earn Path", comingSoon: false, href: "/hub/earn-path" },
-  { label: "Don't Sleep On These", comingSoon: false, href: "/hub/dont-sleep" },
-  { label: "Where Can My Points Take Me?", comingSoon: false, href: "/hub/where-can-i-go" },
-  { label: "Alliance Explorer", comingSoon: false, href: "/tools/alliances", divider: true },
-  { label: "Decision Engine", comingSoon: false, href: "/decision-engine" },
+// "Tools" menu — Tier 1 only: a tool takes YOUR input and computes a personal
+// answer you couldn't get by just reading. Interactive reference (Alliance
+// Explorer, Best Way to Book It) and editorial (Earn Path, Don't Sleep, Hub
+// overview) live under Resources → Points Hub instead. The Decision Engine is
+// the gold CTA, not a "tool" (it's a discovery hook, not a calculator).
+// Each tool owns a color that matches its homepage tile, rendered as a dot.
+const toolsMenu: { label: string; href: string; color: string; comingSoon?: boolean }[] = [
+  { label: "Should I Transfer?", href: "/hub/should-i-transfer", color: "#6B2D8F" },
+  { label: "Where Can My Points Take Me?", href: "/hub/where-can-i-go", color: "#2563EB" },
+  { label: "Compare Credit Cards", href: "/programs?type=credit_card", color: "#059669" },
+  { label: "Will My Free Night Cert Fit?", href: "/hub/fnc-fit", color: "#D4AF37", comingSoon: true },
 ];
 
-const RESOURCE_ITEMS: { label: string; key: keyof ResourceNavCounts; href: string }[] = [
+// Resources — content/reference. Program directories carry a live count and
+// gate to "Coming Soon" when empty; Points Hub is a plain link to the hub
+// landing page (which itself surfaces the editorial + reference tools).
+const RESOURCE_ITEMS: { label: string; key?: keyof ResourceNavCounts; href: string }[] = [
   { label: "Airlines", key: "airline", href: "/programs?type=airline" },
   { label: "Alliances", key: "alliance", href: "/programs?type=alliance" },
   { label: "Hotels", key: "hotel", href: "/programs?type=hotel" },
   { label: "Credit Cards", key: "credit_card", href: "/programs?type=credit_card" },
+  { label: "Points Hub", href: "/hub" },
 ];
 
 // BLOG dropdown items — mirrors the editorial taxonomy in
@@ -52,7 +52,7 @@ export default function Header({
   const [menuOpen, setMenuOpen] = useState(false);
   // Mobile-only expand state — desktop dropdowns use CSS hover via group-hover.
   const [toolsOpen, setToolsOpen] = useState(false);
-  const [programsOpen, setProgramsOpen] = useState(false);
+  const [resourcesOpen, setResourcesOpen] = useState(false);
   const [blogOpen, setBlogOpen] = useState(false);
 
   return (
@@ -88,9 +88,8 @@ export default function Header({
               <span className="absolute -bottom-1 left-0 h-0.5 w-full origin-left scale-x-0 bg-[var(--color-accent)] transition-transform duration-200 group-hover:scale-x-100" />
             </Link>
 
-            {/* Tools dropdown — Points Hub overview + guided tools + the two
-                interactive tools (Alliance Explorer, Decision Engine). This is
-                the old Hub and Tools menus merged into one. */}
+            {/* Tools dropdown — Tier 1 tools only, each with a color dot that
+                matches its homepage tile. */}
             <div className="group relative">
               <button
                 type="button"
@@ -103,50 +102,44 @@ export default function Header({
               </button>
               <div className="invisible absolute left-0 top-full z-50 w-72 pt-2 group-hover:visible">
                 <div className="rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] py-1 shadow-[var(--shadow-soft)]">
-                  {toolsMenu.map((item) => (
-                    <div key={item.label}>
-                      {item.divider && (
-                        <div className="my-1 mx-3 border-t border-[var(--color-border-soft)]" />
-                      )}
-                      {item.comingSoon ? (
-                        <span className="flex items-center justify-between px-4 py-2.5 font-ui text-xs text-[var(--color-text-secondary)] opacity-50">
+                  {toolsMenu.map((item) =>
+                    item.comingSoon ? (
+                      <span
+                        key={item.label}
+                        className="flex items-center justify-between gap-3 px-4 py-2.5 font-ui text-xs text-[var(--color-text-secondary)] opacity-60"
+                      >
+                        <span className="flex items-center gap-2.5">
+                          <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ background: item.color }} />
                           {item.label}
-                          <span className="ml-3 shrink-0 rounded bg-[var(--color-background-soft)] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-secondary)]">
-                            Coming Soon
-                          </span>
                         </span>
-                      ) : item.featured ? (
-                        <Link
-                          href={item.href!}
-                          className="flex items-center justify-between px-4 py-2.5 font-ui text-xs font-bold text-[var(--color-primary)] hover:bg-[var(--color-background-soft)]"
-                        >
-                          {item.label}
-                          <span className="ml-3 shrink-0 rounded-full bg-[var(--color-accent)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#1A1A1A]">
-                            New
-                          </span>
-                        </Link>
-                      ) : (
-                        <Link
-                          href={item.href!}
-                          className="flex items-center px-4 py-2.5 font-ui text-xs font-medium text-[var(--color-text-primary)] hover:text-[var(--color-primary)]"
-                        >
-                          {item.label}
-                        </Link>
-                      )}
-                    </div>
-                  ))}
+                        <span className="shrink-0 rounded bg-[var(--color-background-soft)] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-secondary)]">
+                          Coming Soon
+                        </span>
+                      </span>
+                    ) : (
+                      <Link
+                        key={item.label}
+                        href={item.href}
+                        className="flex items-center gap-2.5 px-4 py-2.5 font-ui text-xs font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-background-soft)] hover:text-[var(--color-primary)]"
+                      >
+                        <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ background: item.color }} />
+                        {item.label}
+                      </Link>
+                    )
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Programs dropdown — reference directory (was "Resources").
-                Airlines / Alliances / Hotels / Credit Cards with live counts. */}
+            {/* Resources dropdown — content/reference. Program directories
+                (Airlines / Alliances / Hotels) carry live counts; Points Hub
+                is a plain link to the hub landing page. */}
             <div className="group relative">
               <button
                 type="button"
                 className="flex items-center gap-1 font-ui !text-xs font-medium uppercase tracking-[0.14em] text-[var(--color-text-secondary)] hover:text-[var(--color-primary)]"
               >
-                Programs
+                Resources
                 <svg className="h-3 w-3 shrink-0 transition-transform duration-200 group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
@@ -154,7 +147,7 @@ export default function Header({
               <div className="invisible absolute left-0 top-full z-50 w-56 pt-2 group-hover:visible">
                 <div className="rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] py-1 shadow-[var(--shadow-soft)]">
                   {RESOURCE_ITEMS.map((item) => {
-                    const count = resourceCounts[item.key] ?? 0;
+                    const count = item.key ? (resourceCounts[item.key] ?? 0) : 1;
                     return count > 0 ? (
                       <Link
                         key={item.label}
@@ -253,7 +246,7 @@ export default function Header({
             Alerts
           </Link>
 
-          {/* Mobile Tools — Hub + Tools merged (mirrors desktop) */}
+          {/* Mobile Tools — Tier 1 only, color dots (mirrors desktop) */}
           <button
             type="button"
             className="flex min-h-[44px] w-full items-center justify-between border-b border-[var(--color-border-soft)] px-6 font-ui text-sm font-medium uppercase tracking-[0.14em] text-[var(--color-text-secondary)]"
@@ -269,51 +262,43 @@ export default function Header({
               item.comingSoon ? (
                 <span
                   key={item.label}
-                  className="flex min-h-[44px] items-center justify-between border-b border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-8 font-ui text-sm text-[var(--color-text-secondary)] opacity-50"
+                  className="flex min-h-[44px] items-center justify-between border-b border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-8 font-ui text-sm text-[var(--color-text-secondary)] opacity-60"
                 >
-                  {item.label}
+                  <span className="flex items-center gap-2.5">
+                    <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ background: item.color }} />
+                    {item.label}
+                  </span>
                   <span className="ml-3 shrink-0 rounded bg-[var(--color-border-soft)] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-secondary)]">
                     Coming Soon
                   </span>
                 </span>
-              ) : item.featured ? (
-                <Link
-                  key={item.label}
-                  href={item.href!}
-                  onClick={() => setMenuOpen(false)}
-                  className="flex min-h-[44px] items-center justify-between border-b border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-8 font-ui text-sm font-bold text-[var(--color-primary)]"
-                >
-                  {item.label}
-                  <span className="ml-3 shrink-0 rounded-full bg-[var(--color-accent)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#1A1A1A]">
-                    New
-                  </span>
-                </Link>
               ) : (
                 <Link
                   key={item.label}
-                  href={item.href!}
+                  href={item.href}
                   onClick={() => setMenuOpen(false)}
-                  className="flex min-h-[44px] items-center border-b border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-8 font-ui text-sm font-medium text-[var(--color-text-primary)] hover:text-[var(--color-primary)]"
+                  className="flex min-h-[44px] items-center gap-2.5 border-b border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-8 font-ui text-sm font-medium text-[var(--color-text-primary)] hover:text-[var(--color-primary)]"
                 >
+                  <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ background: item.color }} />
                   {item.label}
                 </Link>
               )
             )}
 
-          {/* Mobile Programs — same auto-link rule as desktop */}
+          {/* Mobile Resources — same auto-link rule as desktop */}
           <button
             type="button"
             className="flex min-h-[44px] w-full items-center justify-between border-b border-[var(--color-border-soft)] px-6 font-ui text-sm font-medium uppercase tracking-[0.14em] text-[var(--color-text-secondary)]"
-            onClick={() => setProgramsOpen((o) => !o)}
+            onClick={() => setResourcesOpen((o) => !o)}
           >
-            Programs
+            Resources
             <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d={programsOpen ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"} />
+              <path strokeLinecap="round" strokeLinejoin="round" d={resourcesOpen ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"} />
             </svg>
           </button>
-          {programsOpen &&
+          {resourcesOpen &&
             RESOURCE_ITEMS.map((item) => {
-              const count = resourceCounts[item.key] ?? 0;
+              const count = item.key ? (resourceCounts[item.key] ?? 0) : 1;
               return count > 0 ? (
                 <Link
                   key={item.label}
