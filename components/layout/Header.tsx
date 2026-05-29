@@ -6,18 +6,20 @@ import { useState } from "react";
 import { BLOG_CATEGORIES } from "@/lib/blog/categories";
 import type { ResourceNavCounts } from "@/utils/supabase/queries";
 
-const hubItems: { label: string; comingSoon: boolean; href: string | null; featured?: boolean }[] = [
+// Single "Tools" menu — the old Hub and Tools dropdowns merged into one, since
+// both held interactive tools and the split confused visitors. The Points Hub
+// overview leads (featured); guided tools follow; a divider separates the
+// interactive tools (Alliance Explorer, Decision Engine). `divider: true`
+// marks an item that should render a separator above it.
+const toolsMenu: { label: string; comingSoon: boolean; href: string | null; featured?: boolean; divider?: boolean }[] = [
   { label: "The Points Hub — overview", comingSoon: false, href: "/hub", featured: true },
-  { label: "Should I Transfer?", comingSoon: false, href: "/hub/should-i-transfer" },
+  { label: "Should I Transfer?", comingSoon: false, href: "/hub/should-i-transfer", divider: true },
   { label: "Best Way to Book It", comingSoon: false, href: "/hub/best-way-to-book" },
   { label: "Will My Free Night Cert Fit?", comingSoon: true, href: "/hub/fnc-fit" },
   { label: "Earn Path", comingSoon: false, href: "/hub/earn-path" },
   { label: "Don't Sleep On These", comingSoon: false, href: "/hub/dont-sleep" },
   { label: "Where Can My Points Take Me?", comingSoon: false, href: "/hub/where-can-i-go" },
-];
-
-const toolsItems: { label: string; comingSoon: boolean; href: string | null; featured?: boolean }[] = [
-  { label: "Alliance Explorer", comingSoon: false, href: "/tools/alliances" },
+  { label: "Alliance Explorer", comingSoon: false, href: "/tools/alliances", divider: true },
   { label: "Decision Engine", comingSoon: false, href: "/decision-engine" },
 ];
 
@@ -48,11 +50,10 @@ export default function Header({
 }) {
   const [logoError, setLogoError] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  // Mobile-only expand state — desktop dropdowns use CSS hover via group-hover.
   const [toolsOpen, setToolsOpen] = useState(false);
-  const [hubOpen, setHubOpen] = useState(false);
-  // Mobile-only — desktop dropdown uses CSS hover via group-hover.
-  // Blog is folded into Resources; no separate blogOpen state needed.
-  const [resourcesOpen, setResourcesOpen] = useState(false);
+  const [programsOpen, setProgramsOpen] = useState(false);
+  const [blogOpen, setBlogOpen] = useState(false);
 
   return (
     <header className="sticky top-0 z-50 border-b border-[var(--color-border-soft)] bg-[var(--color-background)]">
@@ -87,53 +88,9 @@ export default function Header({
               <span className="absolute -bottom-1 left-0 h-0.5 w-full origin-left scale-x-0 bg-[var(--color-accent)] transition-transform duration-200 group-hover:scale-x-100" />
             </Link>
 
-            {/* Hub dropdown — Points Hub landing + 6 sub-tools */}
-            <div className="group relative">
-              <button
-                type="button"
-                className="flex items-center gap-1 font-ui !text-xs font-medium uppercase tracking-[0.14em] text-[var(--color-text-secondary)] hover:text-[var(--color-primary)]"
-              >
-                Hub
-                <svg className="h-3 w-3 shrink-0 transition-transform duration-200 group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-              <div className="invisible absolute left-0 top-full z-50 w-72 pt-2 group-hover:visible">
-                <div className="rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] py-1 shadow-[var(--shadow-soft)]">
-                  {hubItems.map((item, idx) => {
-                    const prevFeatured = idx > 0 && hubItems[idx - 1].featured
-                    const showDivider = idx === 1 && prevFeatured
-                    return (
-                      <div key={item.label}>
-                        {showDivider && (
-                          <div className="my-1 mx-3 border-t border-[var(--color-border-soft)]" />
-                        )}
-                        {item.featured ? (
-                          <Link
-                            href={item.href!}
-                            className="flex items-center justify-between px-4 py-2.5 font-ui text-xs font-bold text-[var(--color-primary)] hover:bg-[var(--color-background-soft)]"
-                          >
-                            {item.label}
-                            <span className="ml-3 shrink-0 rounded-full bg-[var(--color-accent)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#1A1A1A]">
-                              New
-                            </span>
-                          </Link>
-                        ) : (
-                          <Link
-                            href={item.href!}
-                            className="flex items-center px-4 py-2.5 font-ui text-xs font-medium text-[var(--color-text-primary)] hover:text-[var(--color-primary)]"
-                          >
-                            {item.label}
-                          </Link>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            </div>
-
-            {/* Tools dropdown */}
+            {/* Tools dropdown — Points Hub overview + guided tools + the two
+                interactive tools (Alliance Explorer, Decision Engine). This is
+                the old Hub and Tools menus merged into one. */}
             <div className="group relative">
               <button
                 type="button"
@@ -144,68 +101,57 @@ export default function Header({
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
-              <div className="invisible absolute left-0 top-full z-50 w-64 pt-2 group-hover:visible">
+              <div className="invisible absolute left-0 top-full z-50 w-72 pt-2 group-hover:visible">
                 <div className="rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] py-1 shadow-[var(--shadow-soft)]">
-                  {toolsItems.map((item, idx) => {
-                    const prevFeatured = idx > 0 && toolsItems[idx - 1].featured
-                    const showDivider =
-                      (idx === 1 && prevFeatured) ||
-                      (item.label === "Alliance Explorer" && idx > 1)
-                    return (
-                      <div key={item.label}>
-                        {showDivider && (
-                          <div className="my-1 mx-3 border-t border-[var(--color-border-soft)]" />
-                        )}
-                        {item.comingSoon ? (
-                          <span className="flex items-center justify-between px-4 py-2.5 font-ui text-xs text-[var(--color-text-secondary)] opacity-50">
-                            {item.label}
-                            <span className="ml-3 shrink-0 rounded bg-[var(--color-background-soft)] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-secondary)]">
-                              Coming Soon
-                            </span>
+                  {toolsMenu.map((item) => (
+                    <div key={item.label}>
+                      {item.divider && (
+                        <div className="my-1 mx-3 border-t border-[var(--color-border-soft)]" />
+                      )}
+                      {item.comingSoon ? (
+                        <span className="flex items-center justify-between px-4 py-2.5 font-ui text-xs text-[var(--color-text-secondary)] opacity-50">
+                          {item.label}
+                          <span className="ml-3 shrink-0 rounded bg-[var(--color-background-soft)] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-secondary)]">
+                            Coming Soon
                           </span>
-                        ) : item.featured ? (
-                          <Link
-                            href={item.href!}
-                            className="flex items-center justify-between px-4 py-2.5 font-ui text-xs font-bold text-[var(--color-primary)] hover:bg-[var(--color-background-soft)]"
-                          >
-                            {item.label}
-                            <span className="ml-3 shrink-0 rounded-full bg-[var(--color-accent)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#1A1A1A]">
-                              New
-                            </span>
-                          </Link>
-                        ) : (
-                          <Link
-                            href={item.href!}
-                            className="flex items-center px-4 py-2.5 font-ui text-xs font-medium text-[var(--color-text-primary)] hover:text-[var(--color-primary)]"
-                          >
-                            {item.label}
-                          </Link>
-                        )}
-                      </div>
-                    )
-                  })}
+                        </span>
+                      ) : item.featured ? (
+                        <Link
+                          href={item.href!}
+                          className="flex items-center justify-between px-4 py-2.5 font-ui text-xs font-bold text-[var(--color-primary)] hover:bg-[var(--color-background-soft)]"
+                        >
+                          {item.label}
+                          <span className="ml-3 shrink-0 rounded-full bg-[var(--color-accent)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#1A1A1A]">
+                            New
+                          </span>
+                        </Link>
+                      ) : (
+                        <Link
+                          href={item.href!}
+                          className="flex items-center px-4 py-2.5 font-ui text-xs font-medium text-[var(--color-text-primary)] hover:text-[var(--color-primary)]"
+                        >
+                          {item.label}
+                        </Link>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
 
-            {/* Resources dropdown — programs index (Airlines / Alliances /
-                Hotels / Credit Cards) plus Blog (All Posts + categories)
-                below a divider. Blog used to be its own top-level item;
-                folded in here to thin the desktop nav. */}
+            {/* Programs dropdown — reference directory (was "Resources").
+                Airlines / Alliances / Hotels / Credit Cards with live counts. */}
             <div className="group relative">
               <button
                 type="button"
                 className="flex items-center gap-1 font-ui !text-xs font-medium uppercase tracking-[0.14em] text-[var(--color-text-secondary)] hover:text-[var(--color-primary)]"
               >
-                Resources
+                Programs
                 <svg className="h-3 w-3 shrink-0 transition-transform duration-200 group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
-              {/* right-0 (not left-0) so the panel doesn't overflow the
-                  viewport at md (Resources is now the rightmost dropdown
-                  before Newsletter, and the blog sub-list grows it). */}
-              <div className="invisible absolute right-0 top-full z-50 w-64 pt-2 group-hover:visible">
+              <div className="invisible absolute left-0 top-full z-50 w-56 pt-2 group-hover:visible">
                 <div className="rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] py-1 shadow-[var(--shadow-soft)]">
                   {RESOURCE_ITEMS.map((item) => {
                     const count = resourceCounts[item.key] ?? 0;
@@ -229,10 +175,25 @@ export default function Header({
                       </span>
                     );
                   })}
-                  <div className="my-1 mx-3 border-t border-[var(--color-border-soft)]" />
-                  <div className="px-4 pt-1 pb-0.5 font-ui text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-secondary)]">
-                    Blog
-                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Blog dropdown — now its own top-level item (was folded into
+                Resources). All Posts + the editorial categories. */}
+            <div className="group relative">
+              <button
+                type="button"
+                className="flex items-center gap-1 font-ui !text-xs font-medium uppercase tracking-[0.14em] text-[var(--color-text-secondary)] hover:text-[var(--color-primary)]"
+              >
+                Blog
+                <svg className="h-3 w-3 shrink-0 transition-transform duration-200 group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {/* right-0 so the rightmost dropdown doesn't overflow the viewport. */}
+              <div className="invisible absolute right-0 top-full z-50 w-56 pt-2 group-hover:visible">
+                <div className="rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] py-1 shadow-[var(--shadow-soft)]">
                   {blogItems.map((item) => (
                     <Link
                       key={item.label}
@@ -242,13 +203,6 @@ export default function Header({
                       {item.label}
                     </Link>
                   ))}
-                  <div className="my-1 mx-3 border-t border-[var(--color-border-soft)]" />
-                  <Link
-                    href="/newsletter"
-                    className="flex items-center px-4 py-2.5 font-ui text-xs font-medium text-[var(--color-text-primary)] hover:text-[var(--color-primary)]"
-                  >
-                    Newsletter
-                  </Link>
                 </div>
               </div>
             </div>
@@ -299,43 +253,7 @@ export default function Header({
             Alerts
           </Link>
 
-          {/* Mobile Hub — expandable list */}
-          <button
-            type="button"
-            className="flex min-h-[44px] w-full items-center justify-between border-b border-[var(--color-border-soft)] px-6 font-ui text-sm font-medium uppercase tracking-[0.14em] text-[var(--color-text-secondary)]"
-            onClick={() => setHubOpen((o) => !o)}
-          >
-            Hub
-            <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d={hubOpen ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"} />
-            </svg>
-          </button>
-          {hubOpen &&
-            hubItems.map((item) =>
-              item.featured ? (
-                <Link
-                  key={item.label}
-                  href={item.href!}
-                  onClick={() => setMenuOpen(false)}
-                  className="flex min-h-[44px] items-center justify-between border-b border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-8 font-ui text-sm font-bold text-[var(--color-primary)]"
-                >
-                  {item.label}
-                  <span className="ml-3 shrink-0 rounded-full bg-[var(--color-accent)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#1A1A1A]">
-                    New
-                  </span>
-                </Link>
-              ) : (
-                <Link
-                  key={item.label}
-                  href={item.href!}
-                  onClick={() => setMenuOpen(false)}
-                  className="flex min-h-[44px] items-center border-b border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-8 font-ui text-sm font-medium text-[var(--color-text-primary)] hover:text-[var(--color-primary)]"
-                >
-                  {item.label}
-                </Link>
-              )
-            )}
-
+          {/* Mobile Tools — Hub + Tools merged (mirrors desktop) */}
           <button
             type="button"
             className="flex min-h-[44px] w-full items-center justify-between border-b border-[var(--color-border-soft)] px-6 font-ui text-sm font-medium uppercase tracking-[0.14em] text-[var(--color-text-secondary)]"
@@ -347,7 +265,7 @@ export default function Header({
             </svg>
           </button>
           {toolsOpen &&
-            toolsItems.map((item) =>
+            toolsMenu.map((item) =>
               item.comingSoon ? (
                 <span
                   key={item.label}
@@ -382,46 +300,21 @@ export default function Header({
               )
             )}
 
-          {/* Mobile Resources — same auto-link rule as desktop */}
+          {/* Mobile Programs — same auto-link rule as desktop */}
           <button
             type="button"
             className="flex min-h-[44px] w-full items-center justify-between border-b border-[var(--color-border-soft)] px-6 font-ui text-sm font-medium uppercase tracking-[0.14em] text-[var(--color-text-secondary)]"
-            onClick={() => setResourcesOpen((o) => !o)}
+            onClick={() => setProgramsOpen((o) => !o)}
           >
-            Resources
+            Programs
             <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d={resourcesOpen ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"} />
+              <path strokeLinecap="round" strokeLinejoin="round" d={programsOpen ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"} />
             </svg>
           </button>
-          {resourcesOpen && (
-            <>
-              {RESOURCE_ITEMS.map((item) => {
-                const count = resourceCounts[item.key] ?? 0;
-                return count > 0 ? (
-                  <Link
-                    key={item.label}
-                    href={item.href}
-                    onClick={() => setMenuOpen(false)}
-                    className="flex min-h-[44px] items-center border-b border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-8 font-ui text-sm font-medium text-[var(--color-text-primary)] hover:text-[var(--color-primary)]"
-                  >
-                    {item.label}
-                  </Link>
-                ) : (
-                  <span
-                    key={item.label}
-                    className="flex min-h-[44px] items-center justify-between border-b border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-8 font-ui text-sm text-[var(--color-text-secondary)] opacity-50"
-                  >
-                    {item.label}
-                    <span className="ml-3 shrink-0 rounded bg-[var(--color-border-soft)] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-secondary)]">
-                      Coming Soon
-                    </span>
-                  </span>
-                );
-              })}
-              <div className="border-b border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-8 pt-3 pb-1 font-ui text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-secondary)]">
-                Blog
-              </div>
-              {blogItems.map((item) => (
+          {programsOpen &&
+            RESOURCE_ITEMS.map((item) => {
+              const count = resourceCounts[item.key] ?? 0;
+              return count > 0 ? (
                 <Link
                   key={item.label}
                   href={item.href}
@@ -430,16 +323,41 @@ export default function Header({
                 >
                   {item.label}
                 </Link>
-              ))}
+              ) : (
+                <span
+                  key={item.label}
+                  className="flex min-h-[44px] items-center justify-between border-b border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-8 font-ui text-sm text-[var(--color-text-secondary)] opacity-50"
+                >
+                  {item.label}
+                  <span className="ml-3 shrink-0 rounded bg-[var(--color-border-soft)] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-secondary)]">
+                    Coming Soon
+                  </span>
+                </span>
+              );
+            })}
+
+          {/* Mobile Blog — now its own top-level item */}
+          <button
+            type="button"
+            className="flex min-h-[44px] w-full items-center justify-between border-b border-[var(--color-border-soft)] px-6 font-ui text-sm font-medium uppercase tracking-[0.14em] text-[var(--color-text-secondary)]"
+            onClick={() => setBlogOpen((o) => !o)}
+          >
+            Blog
+            <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d={blogOpen ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"} />
+            </svg>
+          </button>
+          {blogOpen &&
+            blogItems.map((item) => (
               <Link
-                href="/newsletter"
+                key={item.label}
+                href={item.href}
                 onClick={() => setMenuOpen(false)}
                 className="flex min-h-[44px] items-center border-b border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-8 font-ui text-sm font-medium text-[var(--color-text-primary)] hover:text-[var(--color-primary)]"
               >
-                Newsletter
+                {item.label}
               </Link>
-            </>
-          )}
+            ))}
         </nav>
       )}
     </header>

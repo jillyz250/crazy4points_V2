@@ -2,7 +2,6 @@ import Link from "next/link";
 import HomeHeroV2 from "@/components/home/HomeHeroV2";
 import RedAlertBar from "@/components/home/RedAlertBar";
 import HomeToolsBand from "@/components/home/HomeToolsBand";
-import NewsletterSignup from "@/components/home/NewsletterSignup";
 import AlertsGridSB from "@/components/alerts/AlertsGridSB";
 import { createAdminClient } from "@/utils/supabase/server";
 import { selectAlertViewFromVariants, type AlertView, type AlertViewWithPrograms } from "@/utils/content/alertView";
@@ -95,25 +94,29 @@ export default async function HomePage() {
 
   const { visible: hotAlerts, overflowCount } = selectHotAlerts(active);
 
-  // Latest alerts grid — most recent published first, top 6.
+  // Latest alerts — most recent published first. Kept small (3) and placed
+  // below the tools band: the homepage leads with what you can DO, then shows
+  // a light sample of what's happening. Depth lives at /alerts.
   const latestAlerts = [...active]
     .sort((a, b) => {
       const ap = a.published_at ? new Date(a.published_at).getTime() : 0;
       const bp = b.published_at ? new Date(b.published_at).getTime() : 0;
       return bp - ap;
     })
-    .slice(0, 6);
+    .slice(0, 3);
 
   return (
     <>
       <RedAlertBar alerts={hotAlerts} overflowCount={overflowCount} />
       <HomeHeroV2 lastUpdated={lastUpdated} />
 
+      <HomeToolsBand />
+
       {latestAlerts.length > 0 && (
-        <section className="border-b border-[var(--color-border-soft)] bg-[var(--color-background)] py-12 md:py-16">
+        <section className="bg-[var(--color-background)] py-12 md:py-16">
           <div className="rg-container px-6 md:px-8">
-            <div className="mb-8 flex items-baseline justify-between gap-4">
-              <h2 className="font-display text-2xl font-semibold text-[var(--color-primary)] md:text-3xl">
+            <div className="mb-7 flex items-baseline justify-between gap-4">
+              <h2 className="font-display text-xl font-semibold text-[var(--color-primary)] md:text-2xl">
                 Latest alerts
               </h2>
               <Link
@@ -127,22 +130,6 @@ export default async function HomePage() {
           </div>
         </section>
       )}
-
-      <HomeToolsBand />
-
-      <section className="bg-[var(--color-background-soft)] py-12 md:py-16">
-        <div className="rg-container px-6 md:px-8">
-          <div className="mx-auto mb-8 max-w-2xl text-center">
-            <h2 className="font-display text-2xl font-semibold text-[var(--color-primary)] md:text-3xl">
-              Never miss a points move
-            </h2>
-            <p className="mt-3 font-body text-[var(--color-text-secondary)]">
-              The alerts worth caring about, in your inbox. No spam, just the good stuff.
-            </p>
-          </div>
-          <NewsletterSignup />
-        </div>
-      </section>
     </>
   );
 }
