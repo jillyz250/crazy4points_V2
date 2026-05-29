@@ -4,6 +4,7 @@ import type { Airport, RouteBucket } from '@/lib/airports'
 import { mapRouteToBucket, distanceMiles } from '@/lib/airports'
 import type { AwardChartProgram, AwardCostResult, Cabin } from '@/lib/awardChart'
 import { computeAwardCost } from '@/lib/awardChart.compute'
+import { carrierAllowedOnRoute } from '@/lib/carrierNetworks'
 
 /** Row enriched with chart-computed cost when the program has a chart authored. */
 export interface EnrichedRedemptionRow extends PartnerRedemptionWithPrograms {
@@ -110,7 +111,16 @@ export async function getRedemptionsForRoute(
   }
   const deduped = Array.from(bestByKey.values())
 
-  return deduped.slice().sort((a, b) => {
+  // Carrier-presence filter: redemption rows are gated by a COARSE regional
+  // bucket, so a carrier whose network doesn't reach one of the two airports
+  // can leak in (e.g. Alaska on LGA->CMH). For North-America routes, drop rows
+  // whose operating carrier doesn't serve BOTH endpoints. Fails open for
+  // long-haul international routes and for carriers we haven't mapped yet.
+  const filtered = deduped.filter((row) =>
+    carrierAllowedOnRoute(row.operating_carrier?.slug ?? null, origin, destination),
+  )
+
+  return filtered.slice().sort((a, b) => {
     const aRank = sortKey(a)
     const bRank = sortKey(b)
     if (aRank == null && bRank == null) return 0

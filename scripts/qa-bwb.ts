@@ -9,6 +9,7 @@
 import { readFileSync } from 'node:fs'
 import { findAirport, mapRouteToBucket, ROUTE_BUCKET_LABELS, distanceMiles, type RouteBucket } from '../lib/airports'
 import { computeAwardCost } from '../lib/awardChart.compute'
+import { carrierAllowedOnRoute } from '../lib/carrierNetworks'
 import type { AwardChartProgram, Cabin } from '../lib/awardChart'
 
 for (const line of readFileSync('.env.local', 'utf8').split('\n')) {
@@ -122,7 +123,9 @@ async function main() {
     }
     if (prefer) best.set(key, e)
   }
-  const results = Array.from(best.values()).sort((a, b) => (a.typical ?? 9e9) - (b.typical ?? 9e9))
+  const results = Array.from(best.values())
+    .filter((e) => carrierAllowedOnRoute(e.r.operating_carrier?.slug ?? null, from, to))
+    .sort((a, b) => (a.typical ?? 9e9) - (b.typical ?? 9e9))
   for (const { r, res, typical } of results) {
     const shown = res ? fmt(res.miles) : (r.cost_miles_low != null ? `${fmt(r.cost_miles_low)}–${fmt(r.cost_miles_high)}` : '—')
     console.log(`  ${(r.currency_program?.name || '?').padEnd(24)} via ${(r.operating_carrier?.name || '-').padEnd(20)} ${shown.padStart(11)}  [${res ? res.source : 'stored'}] ${r.region_or_route}`)
