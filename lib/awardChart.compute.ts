@@ -31,7 +31,7 @@ import type {
   ZoneChart,
 } from './awardChart'
 import type { Airport } from './airports'
-import { distanceMiles, mapRouteToBucket } from './airports'
+import { distanceMiles, mapRouteToBucket, ROUTE_BUCKET_LABELS } from './airports'
 
 // ─── Public API ────────────────────────────────────────────────────────────
 
@@ -141,7 +141,7 @@ function computeOneForBucket(
       const partner = chart.partners[partnerSlug]
       const cost = partner?.matrix[bucket]?.[cabin]
       if (cost == null) return null
-      return { miles: cost, typical: cost, exact: true, source: 'chart', band: bucket }
+      return { miles: cost, typical: cost, exact: true, source: 'chart', band: ROUTE_BUCKET_LABELS[bucket] }
     }
     case 'dynamic': {
       const partner = chart.partners[partnerSlug]
@@ -152,7 +152,7 @@ function computeOneForBucket(
         typical: pct.p50,
         exact: false,
         source: 'dynamic_estimate',
-        band: bucket,
+        band: ROUTE_BUCKET_LABELS[bucket],
         notes: 'Dynamic pricing — expect the typical figure on most days.',
       }
     }
@@ -279,7 +279,7 @@ function computeZone(
     typical: cost,
     exact: true,
     source: 'chart',
-    band: bucket,
+    band: ROUTE_BUCKET_LABELS[bucket],
   }
 }
 
@@ -364,7 +364,7 @@ function computeDynamic(
       typical: pct.p50,
       exact: false,
       source: 'dynamic_estimate',
-      band: bucket,
+      band: ROUTE_BUCKET_LABELS[bucket],
       notes: 'Dynamic pricing — expect the typical figure on most days.',
     }
   }

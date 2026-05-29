@@ -49,7 +49,7 @@ export default function BestWayToBookForm({
     >
       <datalist id="airport-codes">
         {airports.map((a) => (
-          <option key={a.iata} value={a.iata}>{`${a.iata} — ${a.city}, ${a.country}`}</option>
+          <option key={a.iata} value={a.iata}>{`${a.iata} — ${a.city}, ${a.state ?? a.country}`}</option>
         ))}
       </datalist>
 

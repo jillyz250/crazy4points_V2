@@ -22,6 +22,8 @@ export interface Airport {
   iata: string
   name: string
   city: string
+  /** US state/territory code (e.g. "OH", "PR"). Present for US airports only. */
+  state?: string
   country: string
   country_code: string
   region: AirportRegion
