@@ -50,10 +50,16 @@ export function UrlStatusBadgeView({ result }: { result: UrlCheckResult | null }
 }
 
 /**
- * Inline "Test URL" button. Reads the sibling `<input name={inputName}>` from
- * the same form (or any nearby form) at click-time, runs the server action,
- * and shows a badge with the result. No page reload — saves the 5–15 min
- * round-trip of submitting an extraction against a 404.
+ * Inline "Test URL" button. Reads the sibling `<input name={inputName}>` or
+ * `<textarea name={inputName}>` from the same form (or any nearby form) at
+ * click-time, runs the server action, and shows a badge with the result.
+ *
+ * For textareas, splits by newline and validates each URL — aggregate result
+ * surfaces a per-URL pass/fail count so multi-URL fields get a real signal,
+ * not just "the first one works."
+ *
+ * No page reload — saves the 5–15 min round-trip of submitting an extraction
+ * against a 404.
  */
 export function TestUrlButton({
   inputName,
@@ -63,31 +69,59 @@ export function TestUrlButton({
   action: (formData: FormData) => Promise<UrlCheckResult>
 }) {
   const [result, setResult] = useState<UrlCheckResult | null>(null)
+  const [aggregate, setAggregate] = useState<{ ok: number; fail: number; total: number } | null>(null)
   const [pending, startTransition] = useTransition()
 
   function handleClick(e: React.MouseEvent<HTMLButtonElement>) {
     const button = e.currentTarget
     const form = button.closest('form')
-    const input = form?.querySelector<HTMLInputElement>(`input[name="${inputName}"]`)
-    const url = input?.value?.trim() ?? ''
-    if (!url) {
+    const input = form?.querySelector<HTMLInputElement | HTMLTextAreaElement>(
+      `input[name="${inputName}"], textarea[name="${inputName}"]`,
+    )
+    const raw = input?.value?.trim() ?? ''
+    if (!raw) {
       setResult({ ok: false, status: 0, reason: 'unreachable' })
+      setAggregate(null)
       return
     }
-    const fd = new FormData()
-    fd.set('url', url)
+
+    // Split on newlines for textareas; single-URL inputs become a one-item list.
+    const urls = raw.split(/\n+/).map((u) => u.trim()).filter((u) => u.length > 0)
+
     startTransition(async () => {
-      try {
-        const r = await action(fd)
-        setResult(r)
-      } catch {
-        setResult({ ok: false, status: 0, reason: 'unreachable' })
+      if (urls.length === 1) {
+        const fd = new FormData()
+        fd.set('url', urls[0])
+        try {
+          setResult(await action(fd))
+          setAggregate(null)
+        } catch {
+          setResult({ ok: false, status: 0, reason: 'unreachable' })
+        }
+        return
       }
+
+      // Multi-URL: run all in parallel, aggregate counts.
+      const results = await Promise.all(
+        urls.map(async (u) => {
+          const fd = new FormData()
+          fd.set('url', u)
+          try {
+            return await action(fd)
+          } catch {
+            return { ok: false as const, status: 0, reason: 'unreachable' as const }
+          }
+        }),
+      )
+      const ok = results.filter((r) => r.ok).length
+      const fail = results.length - ok
+      setAggregate({ ok, fail, total: results.length })
+      setResult(null)
     })
   }
 
   return (
-    <span className="inline-flex items-center gap-2">
+    <span className="inline-flex items-center gap-2 flex-wrap">
       <button
         type="button"
         onClick={handleClick}
@@ -97,7 +131,24 @@ export function TestUrlButton({
       >
         {pending ? 'Testing…' : 'Test URL'}
       </button>
-      <UrlStatusBadgeView result={result} />
+      {aggregate ? (
+        <span
+          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-ui text-[10px] font-semibold ${
+            aggregate.fail === 0
+              ? 'bg-emerald-100 text-emerald-900'
+              : aggregate.ok === 0
+                ? 'bg-red-100 text-red-900'
+                : 'bg-amber-100 text-amber-900'
+          }`}
+          title={`${aggregate.ok}/${aggregate.total} URL(s) reachable`}
+        >
+          {aggregate.fail === 0
+            ? `✅ ${aggregate.ok}/${aggregate.total} OK`
+            : `${aggregate.ok}/${aggregate.total} OK · ${aggregate.fail} failed`}
+        </span>
+      ) : (
+        <UrlStatusBadgeView result={result} />
+      )}
     </span>
   )
 }

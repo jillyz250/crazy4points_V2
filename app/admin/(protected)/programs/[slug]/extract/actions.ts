@@ -7,6 +7,21 @@ import { applyProgramField, skipProgramField, isApplyableField } from '@/utils/p
 import { mergeExtractedField, isMergeableField } from '@/utils/programs/mergeExtractedField'
 import { verifyExtractedField, isVerifiableField } from '@/utils/programs/verifyExtractedField'
 import { discoverSourceUrls } from '@/utils/programs/discoverSourceUrls'
+import { checkUrl, type UrlCheckResult } from '@/utils/admin/checkUrl'
+
+/**
+ * Validate a single URL on demand — backs the inline "Test URL" button on the
+ * per-field URL textareas. Lets the editor confirm a URL resolves before
+ * clicking Run extraction, so we stop burning Firecrawl + Sonnet on 404s.
+ * Ported from cards extract page (PR ported 2026-05-29).
+ */
+export async function validateUrlAction(formData: FormData): Promise<UrlCheckResult> {
+  const url = String(formData.get('url') ?? '').trim()
+  if (!url) {
+    return { ok: false, status: 0, reason: 'unreachable' }
+  }
+  return checkUrl(url)
+}
 
 /**
  * Run extraction on a program. Writes to program_extractions cache only —

@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { createAdminClient } from '@/utils/supabase/server'
 import RunExtractionButton from '@/components/admin/cards/RunExtractionButton'
 import ExtractionActionButton from '@/components/admin/cards/ExtractionActionButton'
+import { TestUrlButton } from '@/components/admin/cards/UrlStatusBadge'
 import ProgramFieldDiff from '@/components/admin/programs/ProgramFieldDiff'
 import ExtractionCopyButtons from '@/components/admin/programs/ExtractionCopyButtons'
 import ManualMarkdownInput from '@/components/admin/programs/ManualMarkdownInput'
@@ -15,6 +16,7 @@ import {
   discoverProgramSourceUrls,
   applyDiscoveredUrls,
   registerScoutSource,
+  validateUrlAction,
 } from './actions'
 
 export const dynamic = 'force-dynamic'
@@ -381,7 +383,12 @@ export default async function ProgramExtractPage({
                       className="rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-white px-3 py-1.5 font-mono text-sm"
                       style={{ fontSize: '0.875rem', resize: 'vertical' }}
                     />
-                    <span className="font-body text-[11px] text-[var(--color-text-secondary)]">{f.hint}</span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-body text-[11px] text-[var(--color-text-secondary)]">{f.hint}</span>
+                      {f.recommended && (
+                        <TestUrlButton inputName={`field_url_${f.key}`} action={validateUrlAction} />
+                      )}
+                    </div>
                   </div>
                 </label>
               )

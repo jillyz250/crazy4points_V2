@@ -1,13 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 
 type NavItem = {
   href: string
   label: string
   abbr: string
-  match?: (pathname: string) => boolean
+  /** Optional match override. `search` is the current query string (without the `?`). */
+  match?: (pathname: string, search?: string) => boolean
   /** Key into the `badges` prop (set by the parent layout). */
   badgeKey?: 'refreshQueue'
 }
@@ -46,6 +47,24 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Reference',
     items: [
       { href: '/admin/programs', label: 'Programs', abbr: 'Pr' },
+      {
+        href: '/admin/programs?type=loyalty_program',
+        label: 'Currencies',
+        abbr: 'Cu',
+        match: (p, search) => p === '/admin/programs' && (search ?? '').includes('type=loyalty_program'),
+      },
+      {
+        href: '/admin/programs?type=hotel',
+        label: 'Hotels',
+        abbr: 'Ho',
+        match: (p, search) => p === '/admin/programs' && (search ?? '').includes('type=hotel'),
+      },
+      {
+        href: '/admin/programs?type=ota',
+        label: 'OTAs',
+        abbr: 'Ot',
+        match: (p, search) => p === '/admin/programs' && (search ?? '').includes('type=ota'),
+      },
       { href: '/admin/issuers', label: 'Issuers', abbr: 'Is' },
       { href: '/admin/cards', label: 'Cards', abbr: 'Cd' },
       { href: '/admin/tokens', label: 'Tokens', abbr: 'Tk' },
@@ -77,15 +96,24 @@ export type AdminNavBadges = {
   refreshQueue?: number
 }
 
-function defaultIsActive(pathname: string, href: string): boolean {
-  // Strip any query string from the href before comparing.
-  const justPath = href.split('?')[0]
+function defaultIsActive(pathname: string, href: string, search?: string): boolean {
+  const [justPath, hrefQuery] = href.split('?')
   if (justPath === '/admin') return pathname === '/admin'
-  return pathname === justPath || pathname.startsWith(justPath + '/')
+  const pathMatches = pathname === justPath || pathname.startsWith(justPath + '/')
+  if (!pathMatches) return false
+  // When the href carries a query (e.g. ?type=hotel), require it to be active.
+  // When the href has no query, only highlight when no recognized filter is
+  // active — so /admin/programs doesn't co-light with /admin/programs?type=hotel.
+  if (hrefQuery) {
+    return (search ?? '').includes(hrefQuery)
+  }
+  return !(search ?? '').includes('type=')
 }
 
 export default function AdminNav({ badges = {} }: { badges?: AdminNavBadges }) {
   const pathname = usePathname() ?? '/admin'
+  const searchParams = useSearchParams()
+  const search = searchParams?.toString() ?? ''
 
   return (
     <nav className="admin-nav">
@@ -94,8 +122,8 @@ export default function AdminNav({ badges = {} }: { badges?: AdminNavBadges }) {
           {group.label && <div className="admin-nav-group-label">{group.label}</div>}
           {group.items.map((item) => {
             const active = item.match
-              ? item.match(pathname)
-              : defaultIsActive(pathname, item.href)
+              ? item.match(pathname, search)
+              : defaultIsActive(pathname, item.href, search)
             const badgeCount = item.badgeKey ? badges[item.badgeKey] ?? 0 : 0
             return (
               <Link
