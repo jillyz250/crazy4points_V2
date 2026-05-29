@@ -47,6 +47,8 @@ const ALLOWED_FIELDS = [
   'hubs',
   'parent_program_slug',
   'tier_benefits',
+  'award_category_chart',
+  'free_night_certs',
 ] as const
 export type ApplyableField = typeof ALLOWED_FIELDS[number]
 

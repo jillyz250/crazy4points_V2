@@ -221,6 +221,31 @@ export interface TierBenefitRow {
   benefits: string[]
 }
 
+/** One row in programs.award_category_chart (hotels). Off/standard/peak point
+ *  bands per award category. source_quote + confidence are extraction-time
+ *  provenance, preserved on the row so each band stays individually verifiable. */
+export interface AwardCategoryRow {
+  category: string
+  off_peak: string | null
+  standard: string | null
+  peak: string | null
+  notes?: string | null
+  source_quote?: string | null
+  confidence?: 'high' | 'medium' | 'low'
+}
+
+/** One row in programs.free_night_certs (hotels). One per co-brand card that
+ *  issues a Free Night Certificate. */
+export interface FreeNightCertRow {
+  card: string
+  category_ceiling: string | null
+  blackouts: string | null
+  expiry: string | null
+  notes?: string | null
+  source_quote?: string | null
+  confidence?: 'high' | 'medium' | 'low'
+}
+
 export interface TierCrossoverRow {
   alliance_tier: 'Emerald' | 'Sapphire' | 'Ruby' | 'Elite Plus' | 'Elite' | 'Gold' | 'Silver' | string
   member_tier: string
@@ -276,6 +301,10 @@ export interface Program {
   alliance: Alliance | null
   hubs: string[] | null
   member_programs: MemberProgramRow[] | null
+  /** HOTEL ONLY — category award chart (off-peak/standard/peak point bands). Null for airlines. */
+  award_category_chart: AwardCategoryRow[] | null
+  /** HOTEL ONLY — Free Night Certificate rules per co-brand card. Null for airlines. */
+  free_night_certs: FreeNightCertRow[] | null
   content_updated_at: string | null
   notes: string | null
   last_verified: string | null

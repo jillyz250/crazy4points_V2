@@ -39,6 +39,8 @@ const FIELDS: FieldSpec[] = [
   { key: 'alliance', label: 'Alliance' },
   { key: 'hubs', label: 'Hubs' },
   { key: 'parent_program_slug', label: 'Parent program' },
+  { key: 'award_category_chart', label: 'Category award chart' },
+  { key: 'free_night_certs', label: 'Free Night Certs' },
 ]
 
 function formatValue(value: unknown): string {

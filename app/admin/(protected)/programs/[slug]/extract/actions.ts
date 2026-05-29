@@ -40,7 +40,7 @@ export async function runProgramExtraction(formData: FormData): Promise<void> {
   // Each field's value is a textarea — one URL per line. Trim, filter empties.
   // Store as array (single URL = single-item array; empty = null).
   const fieldSourceUrls: Record<string, string[] | null> = {}
-  const fieldNames = ['intro', 'sweet_spots', 'lounge_access', 'quirks', 'award_chart', 'tier_benefits', 'alliance', 'hubs', 'parent_program_slug']
+  const fieldNames = ['intro', 'sweet_spots', 'lounge_access', 'quirks', 'award_chart', 'tier_benefits', 'alliance', 'hubs', 'parent_program_slug', 'award_category_chart', 'free_night_certs']
   for (const field of fieldNames) {
     const raw = String(formData.get(`field_url_${field}`) ?? '').trim()
     if (!raw) {

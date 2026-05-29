@@ -4,6 +4,8 @@ import SimpleTile from './SimpleTile'
 import TransferPartnersTable from './TransferPartnersTable'
 import TierBenefitsTable from './TierBenefitsTable'
 import MemberProgramsTable from './MemberProgramsTable'
+import HotelAwardChartTable from './HotelAwardChartTable'
+import FreeNightCertsTable from './FreeNightCertsTable'
 
 /**
  * Uniform 2-column tile grid for program-page reference sections.
@@ -25,8 +27,11 @@ export default async function SimpleTileGrid({
   programNameBySlug: Map<string, string>
 }) {
   const isAlliance = program.type === 'alliance'
+  const isHotel = program.type === 'hotel'
 
   const hasAwardChart = !!program.award_chart?.trim() && !isAlliance
+  const hasCategoryChart = (program.award_category_chart?.length ?? 0) > 0 && !isAlliance
+  const hasFreeNightCerts = (program.free_night_certs?.length ?? 0) > 0 && !isAlliance
   // INBOUND partners: programs that transfer INTO this one (closed-loop
   // airline co-brands). OUTBOUND partners: where this program's points go
   // (transferable currencies + hotels + Avios family). Each gets its own
@@ -80,10 +85,21 @@ export default async function SimpleTileGrid({
         </SimpleTile>
       )}
 
+      {hasCategoryChart && (
+        <SimpleTile
+          title="Award category chart"
+          description="Points per night by category, with off-peak, standard, and peak pricing."
+          cta="See the bands"
+          preview="What a night costs, category by category."
+        >
+          <HotelAwardChartTable rows={program.award_category_chart!} />
+        </SimpleTile>
+      )}
+
       {sweetSpotsHtml && (
         <SimpleTile
           title="Sweet spots"
-          description="The redemptions worth their weight. Hand-picked, not algorithm-picked."
+          description="Where your points punch above their weight."
           cta="Show me the picks"
           preview="Where this currency genuinely shines."
         >
@@ -119,9 +135,9 @@ export default async function SimpleTileGrid({
       {hasPartners && (
         <SimpleTile
           title="Ways to earn more"
-          description={`${partnerCount} ways to feed this currency. Friends with benefits.`}
+          description="How to get more points."
           cta="See inbound paths"
-          preview={`${partnerCount} program${partnerCount === 1 ? '' : 's'} that transfer in.`}
+          preview={`${partnerCount} program${partnerCount === 1 ? '' : 's'} that transfer${partnerCount === 1 ? 's' : ''} in.`}
         >
           <p
             style={{
@@ -163,10 +179,25 @@ export default async function SimpleTileGrid({
         </SimpleTile>
       )}
 
+      {hasFreeNightCerts && (
+        <SimpleTile
+          title="Free Night Certificates"
+          description="Annual free-night awards from co-brand cards, with category ceilings and conditions."
+          cta="See the certs"
+          preview="The yearly free nights and where they work."
+        >
+          <FreeNightCertsTable rows={program.free_night_certs!} />
+        </SimpleTile>
+      )}
+
       {loungeAccessHtml && (
         <SimpleTile
           title="Lounge access"
-          description="Where to vanish before takeoff. Your status (or ticket) opens which doors."
+          description={
+            isHotel
+              ? 'Club lounges and breakfast: who gets in.'
+              : 'Where to vanish before takeoff. Your status (or ticket) opens which doors.'
+          }
           cta="See the rules"
           preview="Who gets in, who doesn't, and the carve-outs."
         >

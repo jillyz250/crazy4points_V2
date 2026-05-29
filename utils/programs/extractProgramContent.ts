@@ -23,7 +23,7 @@ import { fetchFirecrawl, fetchFirecrawlInteractive } from '@/utils/ai/firecrawl'
 import { logUsage } from '@/utils/ai/logUsage'
 import { createAdminClient } from '@/utils/supabase/server'
 import {
-  PROGRAM_EXTRACTION_SYSTEM_PROMPT,
+  buildProgramExtractionSystemPrompt,
   buildProgramExtractionUserPrompt,
 } from '@/utils/programs/programExtractionPrompt'
 import { reviewProgramExtraction } from '@/utils/programs/reviewProgramExtraction'
@@ -44,6 +44,8 @@ export type ProgramExtractableField =
   | 'alliance'
   | 'hubs'
   | 'parent_program_slug'
+  | 'award_category_chart'
+  | 'free_night_certs'
 
 export const ALL_EXTRACTABLE_FIELDS: ProgramExtractableField[] = [
   'intro',
@@ -55,6 +57,8 @@ export const ALL_EXTRACTABLE_FIELDS: ProgramExtractableField[] = [
   'alliance',
   'hubs',
   'parent_program_slug',
+  'award_category_chart',
+  'free_night_certs',
 ]
 
 /**
@@ -86,6 +90,8 @@ function emptyExtraction(): ProgramExtraction {
     alliance: nullField,
     hubs: nullField,
     parent_program_slug: nullField,
+    award_category_chart: { rows: [], source_quote: null, confidence: 'low' },
+    free_night_certs: { rows: [], source_quote: null, confidence: 'low' },
     extraction_warnings: [],
   }
 }
@@ -351,7 +357,7 @@ export async function extractProgramContent({
         system: [
           {
             type: 'text',
-            text: PROGRAM_EXTRACTION_SYSTEM_PROMPT,
+            text: buildProgramExtractionSystemPrompt(programType),
             cache_control: { type: 'ephemeral' },
           },
         ],

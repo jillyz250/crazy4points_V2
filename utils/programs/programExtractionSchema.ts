@@ -21,6 +21,35 @@ export type ProgramTierRow = {
   benefits: string[]
 }
 
+/**
+ * One row in the award_category_chart jsonb (hotels). Each band carries its
+ * own source_quote + confidence so every category is individually verifiable.
+ * Matches AwardCategoryRow in queries.ts.
+ */
+export type ProgramAwardCategoryRow = {
+  category: string
+  off_peak: string | null
+  standard: string | null
+  peak: string | null
+  notes?: string | null
+  source_quote: string | null
+  confidence: 'high' | 'medium' | 'low'
+}
+
+/**
+ * One row in the free_night_certs jsonb (hotels). One row per co-brand card
+ * that issues a Free Night Certificate. Matches FreeNightCertRow in queries.ts.
+ */
+export type ProgramFreeNightCertRow = {
+  card: string
+  category_ceiling: string | null
+  blackouts: string | null
+  expiry: string | null
+  notes?: string | null
+  source_quote: string | null
+  confidence: 'high' | 'medium' | 'low'
+}
+
 export type ProgramExtraction = {
   // Short editorial paragraph — Sonnet writes 1-3 sentences in brand voice.
   // Goes to programs.intro.
@@ -61,6 +90,23 @@ export type ProgramExtraction = {
   // Slug of the parent loyalty program if this is a sub-program.
   // Goes to programs.parent_program_slug.
   parent_program_slug: ProgramExtracted<string>
+
+  // HOTEL ONLY — award category chart (category → off-peak/standard/peak
+  // point bands). Goes to programs.award_category_chart (jsonb). Empty rows
+  // for airlines / programs without a category chart.
+  award_category_chart: {
+    rows: ProgramAwardCategoryRow[]
+    source_quote: string | null
+    confidence: 'high' | 'medium' | 'low'
+  }
+
+  // HOTEL ONLY — Free Night Certificate rules per co-brand card.
+  // Goes to programs.free_night_certs (jsonb). Empty rows otherwise.
+  free_night_certs: {
+    rows: ProgramFreeNightCertRow[]
+    source_quote: string | null
+    confidence: 'high' | 'medium' | 'low'
+  }
 
   // Warnings — fields the model tried but couldn't verify, or checklist items not found.
   extraction_warnings: string[]

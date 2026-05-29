@@ -61,6 +61,8 @@ function buildReviewUserPrompt(
     hubs: pass1.hubs?.value && pass1.hubs.value.length > 0 ? 'POPULATED — do not modify' : 'NULL — look for content',
     parent_program_slug: pass1.parent_program_slug?.value ? 'POPULATED — do not modify' : 'NULL — look for content',
     tier_benefits: pass1.tier_benefits?.rows?.length ? 'POPULATED — do not modify' : 'NULL — look for content',
+    award_category_chart: pass1.award_category_chart?.rows?.length ? 'POPULATED — do not modify' : 'NULL — look for content',
+    free_night_certs: pass1.free_night_certs?.rows?.length ? 'POPULATED — do not modify' : 'NULL — look for content',
   }
 
   return `Review the program extraction for: ${programName}

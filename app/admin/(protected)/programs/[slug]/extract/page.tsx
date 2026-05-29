@@ -47,6 +47,7 @@ export default async function ProgramExtractPage({
       id, slug, name, type,
       intro, sweet_spots, lounge_access, quirks, award_chart,
       tier_benefits, alliance, hubs, parent_program_slug,
+      award_category_chart, free_night_certs,
       extraction_source_url, field_source_urls, suggested_field_urls,
       content_updated_at, last_verified
     `)
@@ -74,6 +75,7 @@ export default async function ProgramExtractPage({
 
   const defaultSourceUrl = program.extraction_source_url ?? ''
   const storedFieldUrls = ((program.field_source_urls as Record<string, string | null> | null) ?? {})
+  const isHotel = program.type === 'hotel'
 
   // Field metadata for the per-field URL inputs.
   // recommended=true means we suggest extraction; default URL hint shows
@@ -94,6 +96,13 @@ export default async function ProgramExtractPage({
     { key: 'alliance', label: 'Alliance', hint: 'About page or any page that names the alliance.', recommended: true },
     { key: 'hubs', label: 'Hubs', hint: 'About page or route map listing hub airports.', recommended: true },
     { key: 'parent_program_slug', label: 'Parent program', hint: 'Only for sub-programs (e.g., KLM under Flying Blue).', recommended: false },
+    // HOTEL-ONLY fields — appended only for type='hotel' programs.
+    ...(isHotel
+      ? ([
+          { key: 'award_category_chart', label: 'Category award chart', hint: 'Award chart page — point bands per category (off-peak/standard/peak).', recommended: true },
+          { key: 'free_night_certs', label: 'Free Night Certs', hint: 'Co-brand card page(s) — Free Night Certificate category ceiling, blackouts, expiry.', recommended: true },
+        ] as FieldConfig[])
+      : []),
   ]
   const extraction = (latest?.extraction as Record<string, unknown> | undefined) ?? null
   const appliedFields = ((latest?.applied_fields as Record<string, string> | null) ?? {})
@@ -108,7 +117,7 @@ export default async function ProgramExtractPage({
   const verifications = ((latest?.verifications as Record<string, VerificationRow> | null) ?? {})
 
   // The fields we extract, in display order
-  const FIELDS: { key: 'intro' | 'sweet_spots' | 'lounge_access' | 'quirks' | 'award_chart' | 'tier_benefits' | 'alliance' | 'hubs' | 'parent_program_slug'; label: string; description: string }[] = [
+  const FIELDS: { key: 'intro' | 'sweet_spots' | 'lounge_access' | 'quirks' | 'award_chart' | 'tier_benefits' | 'alliance' | 'hubs' | 'parent_program_slug' | 'award_category_chart' | 'free_night_certs'; label: string; description: string }[] = [
     { key: 'intro', label: 'Intro', description: 'Short editorial paragraph (1-3 sentences, brand voice).' },
     { key: 'sweet_spots', label: 'Sweet spots', description: 'Best redemption picks with point amounts.' },
     { key: 'lounge_access', label: 'Lounge access', description: 'Who can access which lounges, fees, conditions.' },
@@ -118,6 +127,12 @@ export default async function ProgramExtractPage({
     { key: 'alliance', label: 'Alliance', description: 'Global alliance membership (oneworld / SkyTeam / Star Alliance).' },
     { key: 'hubs', label: 'Hubs', description: 'Primary hub airport IATA codes.' },
     { key: 'parent_program_slug', label: 'Parent program', description: 'Slug of the parent loyalty program (most are null).' },
+    ...(isHotel
+      ? ([
+          { key: 'award_category_chart', label: 'Category award chart', description: 'Per-category point bands (off-peak/standard/peak), one row per category.' },
+          { key: 'free_night_certs', label: 'Free Night Certs', description: 'Free Night Certificate rules per co-brand card (category ceiling, blackouts, expiry).' },
+        ] as const)
+      : []),
   ]
 
   return (
@@ -514,6 +529,8 @@ export default async function ProgramExtractPage({
               alliance: program.alliance,
               hubs: program.hubs,
               parent_program_slug: program.parent_program_slug,
+              award_category_chart: program.award_category_chart,
+              free_night_certs: program.free_night_certs,
             }}
             extraction={extraction as Record<string, unknown>}
             appliedFields={appliedFields}
