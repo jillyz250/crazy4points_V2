@@ -71,7 +71,7 @@ export default function Header({
                 width={1317}
                 height={509}
                 priority
-                className="h-16 w-auto md:h-24"
+                className="h-[3.2rem] w-auto md:h-[4.8rem]"
                 onError={() => setLogoError(true)}
               />
             )}
