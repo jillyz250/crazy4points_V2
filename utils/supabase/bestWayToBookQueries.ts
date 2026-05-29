@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { PartnerRedemptionWithPrograms, RedemptionCabin } from '@/utils/supabase/queries'
 import type { Airport, RouteBucket } from '@/lib/airports'
-import { mapRouteToBucket } from '@/lib/airports'
+import { mapRouteToBucket, distanceMiles } from '@/lib/airports'
 import type { AwardChartProgram, AwardCostResult, Cabin } from '@/lib/awardChart'
 import { computeAwardCost } from '@/lib/awardChart.compute'
 
@@ -89,7 +89,28 @@ export async function getRedemptionsForRoute(
     return { ...r, computed_cost: computed }
   })
 
-  return enriched.slice().sort((a, b) => {
+  // Dedup: partner_redemptions stores ONE ROW PER DISTANCE BAND per
+  // (currency, carrier). The tool recomputes cost from the actual route
+  // distance, so every band-row of the same pairing yields the SAME computed
+  // price — they'd render as identical duplicate rows. Collapse them:
+  //   - chart-computed rows: one row per (currency, carrier) — all bands
+  //     recompute to the same number, so any survivor is correct. Keep the
+  //     cheapest sort key (defensive; they should be equal).
+  //   - stored-cost rows (no chart yet): only collapse exact-duplicate ranges,
+  //     since distinct stored bands carry genuinely different numbers and we
+  //     can't recompute which applies — leave those for per-program authoring.
+  const routeDistance = distanceMiles(origin, destination)
+  const bestByKey = new Map<string, EnrichedRedemptionRow>()
+  for (const row of enriched) {
+    const key = row.computed_cost
+      ? `c:${row.currency_program_id}|${row.operating_carrier_id ?? ''}`
+      : `s:${row.currency_program_id}|${row.operating_carrier_id ?? ''}|${row.cost_miles_low ?? ''}|${row.cost_miles_high ?? ''}`
+    const existing = bestByKey.get(key)
+    if (!existing || preferRow(row, existing, routeDistance)) bestByKey.set(key, row)
+  }
+  const deduped = Array.from(bestByKey.values())
+
+  return deduped.slice().sort((a, b) => {
     const aRank = sortKey(a)
     const bRank = sortKey(b)
     if (aRank == null && bRank == null) return 0
@@ -97,6 +118,52 @@ export async function getRedemptionsForRoute(
     if (bRank == null) return -1
     return aRank - bRank
   })
+}
+
+/**
+ * Tie-break for duplicate band-rows of the same (currency, carrier). When the
+ * cost is chart-computed, every band-row recomputes to the SAME number, but
+ * each carries a different stored band LABEL in region_or_route (e.g. "AA
+ * distance band 3 (1151-2000 mi)"). The stored cost_miles columns are stale
+ * (they predate the chart rebuild), so we pick the band whose MILEAGE RANGE —
+ * parsed from the label — actually contains this route's distance. That keeps
+ * the printed label honest (no band-3 label on a band-2 route). Falls back to
+ * the band whose range is nearest the distance, then to the cheaper stored
+ * midpoint for chart-less rows.
+ */
+function preferRow(
+  candidate: EnrichedRedemptionRow,
+  current: EnrichedRedemptionRow,
+  routeDistance: number,
+): boolean {
+  if (candidate.computed_cost && current.computed_cost) {
+    const cand = bandMiss(candidate.region_or_route, routeDistance)
+    const cur = bandMiss(current.region_or_route, routeDistance)
+    if (cand !== cur) return cand < cur
+    // Bands equally (mis)matched — keep the cheaper computed cost.
+    return candidate.computed_cost.typical < current.computed_cost.typical
+  }
+  const a = sortKey(candidate)
+  const b = sortKey(current)
+  if (a == null) return false
+  if (b == null) return true
+  return a < b
+}
+
+/**
+ * How badly a row's labeled mileage band misses the route distance.
+ * 0 when the distance falls inside the band; otherwise the gap to the nearest
+ * edge; Infinity when no "<lo>-<hi> mi" range is present in the label.
+ */
+function bandMiss(label: string | null, distance: number): number {
+  if (!label) return Number.POSITIVE_INFINITY
+  const m = label.match(/([\d,]+)\s*[-–]\s*([\d,]+)\s*mi/i)
+  if (!m) return Number.POSITIVE_INFINITY
+  const lo = Number(m[1].replace(/,/g, ''))
+  const hi = Number(m[2].replace(/,/g, ''))
+  if (Number.isNaN(lo) || Number.isNaN(hi)) return Number.POSITIVE_INFINITY
+  if (distance >= lo && distance <= hi) return 0
+  return distance < lo ? lo - distance : distance - hi
 }
 
 function sortKey(row: EnrichedRedemptionRow): number | null {
