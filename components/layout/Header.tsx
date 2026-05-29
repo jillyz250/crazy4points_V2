@@ -57,7 +57,7 @@ export default function Header({
   return (
     <header className="sticky top-0 z-50 border-b border-[var(--color-border-soft)] bg-[var(--color-background)]">
       <div className="rg-container px-6 md:px-8">
-        <div className="flex h-24 items-center justify-between">
+        <div className="flex h-24 items-center justify-between md:h-28">
           <Link href="/" className="flex items-center">
             {logoError ? (
               <span className="font-display text-2xl font-semibold tracking-tight text-[var(--color-text-primary)]">
@@ -68,10 +68,10 @@ export default function Header({
               <Image
                 src="/crazy4points-logo.png"
                 alt="Crazy4Points logo"
-                width={520}
-                height={340}
+                width={1317}
+                height={509}
                 priority
-                className="h-14 w-auto md:h-20"
+                className="h-16 w-auto md:h-24"
                 onError={() => setLogoError(true)}
               />
             )}
@@ -242,25 +242,24 @@ export default function Header({
                       {item.label}
                     </Link>
                   ))}
+                  <div className="my-1 mx-3 border-t border-[var(--color-border-soft)]" />
+                  <Link
+                    href="/newsletter"
+                    className="flex items-center px-4 py-2.5 font-ui text-xs font-medium text-[var(--color-text-primary)] hover:text-[var(--color-primary)]"
+                  >
+                    Newsletter
+                  </Link>
                 </div>
               </div>
             </div>
-
-            <Link
-              href="/newsletter"
-              className="group relative font-ui text-xs font-medium uppercase tracking-[0.14em] text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-primary)]"
-            >
-              Newsletter
-              <span className="absolute -bottom-1 left-0 h-0.5 w-full origin-left scale-x-0 bg-[var(--color-accent)] transition-transform duration-200 group-hover:scale-x-100" />
-            </Link>
           </nav>
 
           <div className="flex items-center gap-4">
-            {/* Two-part CTA — lg+ only. Hidden at md (768-1024px) where the
-                desktop nav already fills the row; the Decision Engine link
-                lives in the Tools dropdown there. */}
-            <div className="hidden lg:inline-flex items-center gap-2">
-              <span className="font-display text-[13px] italic tracking-wide text-[var(--color-primary)]">
+            {/* Two-part CTA — md+ (the nav lightened up once Newsletter moved
+                into Resources, so the button now fits at md). The "Spin the"
+                prefix only shows at lg+ to save space at md. */}
+            <div className="hidden md:inline-flex items-center gap-2">
+              <span className="hidden font-display text-[13px] italic tracking-wide text-[var(--color-primary)] lg:inline">
                 Spin the
               </span>
               <Link
@@ -432,16 +431,15 @@ export default function Header({
                   {item.label}
                 </Link>
               ))}
+              <Link
+                href="/newsletter"
+                onClick={() => setMenuOpen(false)}
+                className="flex min-h-[44px] items-center border-b border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-8 font-ui text-sm font-medium text-[var(--color-text-primary)] hover:text-[var(--color-primary)]"
+              >
+                Newsletter
+              </Link>
             </>
           )}
-
-          <Link
-            href="/newsletter"
-            onClick={() => setMenuOpen(false)}
-            className="flex min-h-[44px] items-center border-b border-[var(--color-border-soft)] px-6 font-ui text-sm font-medium uppercase tracking-[0.14em] text-[var(--color-text-secondary)]"
-          >
-            Newsletter
-          </Link>
         </nav>
       )}
     </header>
