@@ -135,7 +135,7 @@ function TransferBonusOption({
           textDecoration: 'none',
         }}
       >
-        Run the math in Should I Transfer? →
+        See live Transfer Bonuses →
       </Link>
     </>
   )

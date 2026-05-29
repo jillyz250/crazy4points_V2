@@ -6,9 +6,9 @@ import type { ActiveTransferBonus } from '@/utils/supabase/transferBonusQueries'
 import ShouldITransferClient from '@/components/hub/ShouldITransferClient'
 
 export const metadata: Metadata = {
-  title: 'Should I Transfer? — The Points Hub — crazy4points',
+  title: 'Transfer Bonuses — The Points Hub — crazy4points',
   description:
-    'Active transfer bonuses, the real math, and what breaks the deal. The calm adult in the points-and-miles room.',
+    'Every live transfer bonus across Amex, Chase, Citi, Cap One, and Bilt — with the real math and what breaks the deal. The calm adult in the points-and-miles room.',
   alternates: {
     canonical: 'https://www.crazy4points.com/hub/should-i-transfer',
   },
@@ -60,7 +60,7 @@ export default async function Page() {
             lineHeight: 1.1,
           }}
         >
-          Should I Transfer?
+          Transfer Bonuses
         </h1>
         <p
           style={{

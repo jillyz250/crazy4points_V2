@@ -20,9 +20,9 @@ export const revalidate = 300
 
 const TOOLS = [
   {
-    title: 'Should I Transfer?',
+    title: 'Transfer Bonuses',
     description:
-      'Active transfer bonuses, the math, and what breaks the deal. The calm adult in the room.',
+      'Every live transfer bonus, the math, and what breaks the deal. The calm adult in the room.',
     icon: '🔄',
     href: '/hub/should-i-transfer',
     status: 'live' as const,

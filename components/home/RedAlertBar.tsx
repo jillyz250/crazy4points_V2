@@ -110,7 +110,7 @@ export default function RedAlertBar({ alerts, overflowCount }: Props) {
   return (
     <section
       aria-label="Hot alerts"
-      className="border-y border-red-300 bg-red-100"
+      className="border-y border-red-300 bg-gradient-to-b from-red-50 via-red-100 to-red-200/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.5),inset_0_-2px_6px_rgba(153,27,27,0.12)]"
     >
       <div className="rg-container px-6 md:px-8">
         <div className="flex items-center gap-3 py-2.5 md:gap-5 md:py-3">

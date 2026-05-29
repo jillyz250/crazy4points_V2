@@ -13,7 +13,7 @@ import type { ResourceNavCounts } from "@/utils/supabase/queries";
 // the gold CTA, not a "tool" (it's a discovery hook, not a calculator).
 // Each tool owns a color that matches its homepage tile, rendered as a dot.
 const toolsMenu: { label: string; href: string; color: string; comingSoon?: boolean }[] = [
-  { label: "Should I Transfer?", href: "/hub/should-i-transfer", color: "#6B2D8F" },
+  { label: "Best Way to Book It", href: "/hub/best-way-to-book", color: "#6B2D8F" },
   { label: "Where Can My Points Take Me?", href: "/hub/where-can-i-go", color: "#2563EB" },
   { label: "Compare Credit Cards", href: "/programs?type=credit_card", color: "#059669" },
   { label: "Will My Free Night Cert Fit?", href: "/hub/fnc-fit", color: "#D4AF37", comingSoon: true },

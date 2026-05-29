@@ -20,15 +20,15 @@ type Tool = {
 
 const TOOLS: Tool[] = [
   {
-    label: "Should I Transfer?",
-    href: "/hub/should-i-transfer",
-    blurb: "Sitting on points? Find out if transferring beats booking through the portal — with the math.",
-    cta: "Find out",
+    label: "Best Way to Book It",
+    href: "/hub/best-way-to-book",
+    blurb: "Punch in a route — JFK to HNL — and we'll show you every smart way to book it, sorted by miles with the catch up front.",
+    cta: "Find the route",
     accent: "#6B2D8F",
     tint: "#F1E7F8",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
-        <path d="M4 8h13l-3.5-3.5M20 16H7l3.5 3.5" />
+        <path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z" />
       </svg>
     ),
   },
@@ -94,7 +94,7 @@ function TileInner({ tool }: { tool: Tool }) {
 
       <span
         aria-hidden
-        className="inline-flex h-12 w-12 items-center justify-center rounded-xl text-white shadow-sm transition-transform duration-200 group-hover:scale-105"
+        className="inline-flex h-12 w-12 items-center justify-center rounded-xl text-white shadow-[0_4px_12px_-2px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.25)] transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:scale-105"
         style={{ background: tool.accent }}
       >
         {tool.icon}
@@ -137,7 +137,7 @@ export default function HomeToolsBand() {
         <div className="mx-auto grid max-w-3xl gap-4 sm:grid-cols-2">
           {TOOLS.map((tool) => {
             const baseClass =
-              "group relative flex flex-col gap-3 overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border-soft)] p-6 shadow-[var(--shadow-soft)] transition-all duration-200";
+              "group relative flex flex-col gap-3 overflow-hidden rounded-[var(--radius-card)] border border-white/60 p-6 shadow-[0_1px_2px_rgba(26,26,26,0.04),0_8px_24px_-12px_rgba(26,26,26,0.18),inset_0_1px_0_rgba(255,255,255,0.7)] ring-1 ring-[var(--color-border-soft)] transition-all duration-300 will-change-transform";
             const wash = {
               background: `linear-gradient(135deg, ${tool.tint} 0%, var(--color-background) 62%)`,
             } as React.CSSProperties;
@@ -158,7 +158,7 @@ export default function HomeToolsBand() {
               <Link
                 key={tool.label}
                 href={tool.href}
-                className={`${baseClass} hover:-translate-y-1 hover:shadow-md`}
+                className={`${baseClass} hover:-translate-y-1.5 hover:shadow-[0_2px_4px_rgba(26,26,26,0.05),0_24px_40px_-16px_rgba(26,26,26,0.28),inset_0_1px_0_rgba(255,255,255,0.8)]`}
                 style={wash}
               >
                 <TileInner tool={tool} />
