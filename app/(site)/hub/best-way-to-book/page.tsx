@@ -12,7 +12,7 @@ import ChartDisclaimer from '@/components/hub/ChartDisclaimer'
 export const metadata: Metadata = {
   title: 'Best Way to Book It — The Points Hub — crazy4points',
   description:
-    'Punch in any route. We surface every smart way to book it with points — sorted by miles, with cash fees and gotchas inline.',
+    'Punch in any route. We show you some of the ways you can book it with points — sorted by miles, with cash fees and gotchas inline.',
   alternates: { canonical: 'https://www.crazy4points.com/hub/best-way-to-book' },
 }
 
@@ -94,11 +94,11 @@ export default async function Page({
             maxWidth: '40rem',
           }}
         >
-          Pick a route. We&apos;ll surface the programs we&apos;ve authored
-          for that route region, ranked by typical miles cost — with cash
-          fees and the catches inline. Coverage expands as we add programs;
-          if a program you expect isn&apos;t here yet, it&apos;s on the
-          roadmap, not missing on purpose.
+          Pick a route. We&apos;ll show you some of the ways you can book it
+          with points, ranked by typical miles cost — with cash fees and the
+          catches inline. Coverage expands as we add programs; if a program
+          you expect isn&apos;t here yet, it&apos;s on the roadmap, not missing
+          on purpose.
         </p>
 
         <ChartDisclaimer />

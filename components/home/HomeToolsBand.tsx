@@ -22,7 +22,7 @@ const TOOLS: Tool[] = [
   {
     label: "Best Way to Book It",
     href: "/hub/best-way-to-book",
-    blurb: "Punch in a route — JFK to HNL — and we'll show you every smart way to book it, sorted by miles with the catch up front.",
+    blurb: "Punch in a route — JFK to HNL — and we'll show you some of the ways you can book it with points, sorted by miles with the catch up front.",
     cta: "Find the route",
     accent: "#6B2D8F",
     tint: "#F1E7F8",

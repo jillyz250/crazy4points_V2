@@ -33,6 +33,9 @@ export type RouteBucket =
   | 'us-short'
   | 'us-medium'
   | 'us-long'
+  | 'us-mexico-carib'
+  | 'us-camerica'
+  | 'us-canada'
   | 'us-eu-east'
   | 'us-eu-west'
   | 'us-japan'
@@ -132,13 +135,18 @@ export function mapRouteToBucket(
       case 'south-america':
         return 'us-samerica'
       case 'mexico-carib':
+        // US <-> Mexico / Caribbean is its OWN region on award charts. It is
+        // NOT domestic — programs price it on a North-America/regional rate,
+        // not the us-medium distance band. (Distance-based programs like the
+        // Avios family still price it by flown distance via the chart compute.)
+        return 'us-mexico-carib'
       case 'central-america':
-        // Treat near-international as us-medium for chart purposes
-        // (most charts price these like domestic)
-        return 'us-medium'
+        return 'us-camerica'
       case 'canada':
-        // Canada often prices like US domestic on the major charts
-        return distanceMiles(origin, destination) < 2500 ? 'us-medium' : 'us-long'
+        // Canada is international too. Some charts price it like US domestic,
+        // but it gets its own bucket so the label is honest and rows can be
+        // tagged per program.
+        return 'us-canada'
       default:
         return null
     }
@@ -155,6 +163,9 @@ export const ROUTE_BUCKET_LABELS: Record<RouteBucket, string> = {
   'us-short': 'Within US — short-haul',
   'us-medium': 'Within US — medium-haul',
   'us-long': 'Within US — long-haul',
+  'us-mexico-carib': 'US ↔ Mexico / Caribbean',
+  'us-camerica': 'US ↔ Central America',
+  'us-canada': 'US ↔ Canada',
   'us-eu-east': 'US East Coast ↔ Europe',
   'us-eu-west': 'US West Coast ↔ Europe',
   'us-japan': 'US ↔ Japan / Korea',
