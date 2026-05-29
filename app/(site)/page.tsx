@@ -1,7 +1,11 @@
+import Link from "next/link";
 import HomeHeroV2 from "@/components/home/HomeHeroV2";
 import RedAlertBar from "@/components/home/RedAlertBar";
+import HomeToolsBand from "@/components/home/HomeToolsBand";
+import NewsletterSignup from "@/components/home/NewsletterSignup";
+import AlertsGridSB from "@/components/alerts/AlertsGridSB";
 import { createAdminClient } from "@/utils/supabase/server";
-import { selectAlertViewFromVariants, type AlertView } from "@/utils/content/alertView";
+import { selectAlertViewFromVariants, type AlertView, type AlertViewWithPrograms } from "@/utils/content/alertView";
 import { isAlertActiveET } from "@/lib/alerts/expiry";
 import type { Metadata } from "next";
 
@@ -81,7 +85,7 @@ export default async function HomePage() {
   // match legacy getActiveAlerts semantics exactly (the adapter's activeOnly
   // uses UTC `now()`, which differs from ET by 4–12h and would over/under-
   // exclude rows near the day boundary).
-  const allPublished = await selectAlertViewFromVariants(supabase, { status: "published" });
+  const allPublished = await selectAlertViewFromVariants(supabase, { status: "published", withPrograms: true }) as AlertViewWithPrograms[];
   const active = allPublished.filter((a) => isAlertActiveET(a.end_date));
 
   const lastUpdated = active.length > 0
@@ -91,10 +95,54 @@ export default async function HomePage() {
 
   const { visible: hotAlerts, overflowCount } = selectHotAlerts(active);
 
+  // Latest alerts grid — most recent published first, top 6.
+  const latestAlerts = [...active]
+    .sort((a, b) => {
+      const ap = a.published_at ? new Date(a.published_at).getTime() : 0;
+      const bp = b.published_at ? new Date(b.published_at).getTime() : 0;
+      return bp - ap;
+    })
+    .slice(0, 6);
+
   return (
     <>
       <RedAlertBar alerts={hotAlerts} overflowCount={overflowCount} />
       <HomeHeroV2 lastUpdated={lastUpdated} />
+
+      {latestAlerts.length > 0 && (
+        <section className="border-b border-[var(--color-border-soft)] bg-[var(--color-background)] py-12 md:py-16">
+          <div className="rg-container px-6 md:px-8">
+            <div className="mb-8 flex items-baseline justify-between gap-4">
+              <h2 className="font-display text-2xl font-semibold text-[var(--color-primary)] md:text-3xl">
+                Latest alerts
+              </h2>
+              <Link
+                href="/alerts"
+                className="shrink-0 font-ui text-xs font-semibold uppercase tracking-[0.1em] text-[var(--color-primary)] transition-colors hover:text-[var(--color-accent)]"
+              >
+                View all alerts &rarr;
+              </Link>
+            </div>
+            <AlertsGridSB alerts={latestAlerts} />
+          </div>
+        </section>
+      )}
+
+      <HomeToolsBand />
+
+      <section className="bg-[var(--color-background-soft)] py-12 md:py-16">
+        <div className="rg-container px-6 md:px-8">
+          <div className="mx-auto mb-8 max-w-2xl text-center">
+            <h2 className="font-display text-2xl font-semibold text-[var(--color-primary)] md:text-3xl">
+              Never miss a points move
+            </h2>
+            <p className="mt-3 font-body text-[var(--color-text-secondary)]">
+              The alerts worth caring about, in your inbox. No spam, just the good stuff.
+            </p>
+          </div>
+          <NewsletterSignup />
+        </div>
+      </section>
     </>
   );
 }
