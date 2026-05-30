@@ -6,7 +6,7 @@ import type { EnrichedRedemptionRow } from '@/utils/supabase/bestWayToBookQuerie
 import type { RedemptionCabin } from '@/utils/supabase/queries'
 import { AIRPORTS, findAirport, mapRouteToBucket, distanceMiles, ROUTE_BUCKET_LABELS } from '@/lib/airports'
 import BestWayToBookForm from '@/components/hub/BestWayToBookForm'
-import BestWayToBookResultRow from '@/components/hub/BestWayToBookResultRow'
+import BestWayToBookCarrierGroup, { groupByCarrier } from '@/components/hub/BestWayToBookCarrierGroup'
 import ChartDisclaimer from '@/components/hub/ChartDisclaimer'
 
 export const metadata: Metadata = {
@@ -198,27 +198,33 @@ export default async function Page({
                 </p>
               </div>
             ) : (
-              <>
-                <div
-                  style={{
-                    marginBottom: '0.75rem',
-                    fontFamily: 'var(--font-ui)',
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    letterSpacing: '0.06em',
-                    textTransform: 'uppercase',
-                    color: 'var(--color-text-secondary)',
-                  }}
-                >
-                  {rows.length}{' '}
-                  {rows.length === 1 ? 'way' : 'ways'} to book · lowest miles first
-                </div>
-                <div style={{ display: 'grid', gap: '0.75rem' }}>
-                  {rows.map((r, i) => (
-                    <BestWayToBookResultRow key={r.id} r={r} rank={i + 1} />
-                  ))}
-                </div>
-              </>
+              (() => {
+                const groups = groupByCarrier(rows)
+                return (
+                  <>
+                    <div
+                      style={{
+                        marginBottom: '0.75rem',
+                        fontFamily: 'var(--font-ui)',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        letterSpacing: '0.06em',
+                        textTransform: 'uppercase',
+                        color: 'var(--color-text-secondary)',
+                      }}
+                    >
+                      {groups.length}{' '}
+                      {groups.length === 1 ? 'airline' : 'airlines'} fly this ·
+                      cheapest first
+                    </div>
+                    <div style={{ display: 'grid', gap: '0.75rem' }}>
+                      {groups.map((g, i) => (
+                        <BestWayToBookCarrierGroup key={g.carrierId} group={g} rank={i + 1} />
+                      ))}
+                    </div>
+                  </>
+                )
+              })()
             )}
           </>
         )}
