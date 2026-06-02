@@ -45,6 +45,13 @@ export default async function ProgramEditPage({ params }: Props) {
               </Link>
             )}
             <Link
+              href={`/admin/programs/${program.slug}/extract`}
+              className="admin-btn admin-btn-secondary admin-btn-sm"
+              title="Open the content extractor — paste source markdown to extract program fields"
+            >
+              Extract →
+            </Link>
+            <Link
               href={`/admin/programs/${program.slug}/facts`}
               className="admin-btn admin-btn-secondary admin-btn-sm"
               title="Per-fact verification ledger — run fact-check, review verdicts, manage drift"

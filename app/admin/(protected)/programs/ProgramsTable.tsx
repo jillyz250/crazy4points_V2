@@ -379,6 +379,13 @@ export default function ProgramsTable({ programs }: { programs: Program[] }) {
                         >
                           ↗
                         </Link>
+                        <Link
+                          href={`/admin/programs/${program.slug}/extract`}
+                          className="admin-btn admin-btn-ghost admin-btn-sm"
+                          title="Open the content extractor (paste source markdown to extract program fields)"
+                        >
+                          Extract
+                        </Link>
                       </div>
                     </td>
 
