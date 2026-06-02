@@ -40,3 +40,41 @@ export async function archiveVariantAction(
   revalidatePath('/admin/drafts')
   return { ok: true }
 }
+
+/**
+ * Snooze a draft variant to a future date. Hidden from the "Needs review"
+ * view until snoozed_until passes; surfaces under the "Snoozed" chip while
+ * it waits. Drafts-page side: 1d / 7d / 14d / 30d preset buttons + custom
+ * date input (see DraftSnoozeButton).
+ */
+export async function snoozeVariantAction(formData: FormData): Promise<void> {
+  const variantId = String(formData.get('variant_id') ?? '').trim()
+  const snoozedUntilRaw = String(formData.get('snoozed_until') ?? '').trim()
+  if (!variantId || !snoozedUntilRaw) return
+  const snoozedUntil = new Date(snoozedUntilRaw)
+  if (Number.isNaN(snoozedUntil.getTime())) return
+
+  const supabase = createAdminClient()
+  await supabase
+    .from('content_variants')
+    .update({ snoozed_until: snoozedUntil.toISOString() })
+    .eq('id', variantId)
+
+  revalidatePath('/admin/drafts')
+}
+
+/**
+ * Reverse a snooze. Surfaces the variant back in "Needs review" immediately.
+ */
+export async function unsnoozeVariantAction(formData: FormData): Promise<void> {
+  const variantId = String(formData.get('variant_id') ?? '').trim()
+  if (!variantId) return
+
+  const supabase = createAdminClient()
+  await supabase
+    .from('content_variants')
+    .update({ snoozed_until: null })
+    .eq('id', variantId)
+
+  revalidatePath('/admin/drafts')
+}
