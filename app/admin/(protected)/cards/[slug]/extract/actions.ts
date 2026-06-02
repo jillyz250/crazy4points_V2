@@ -210,13 +210,14 @@ export async function saveManualWelcomeBonus(formData: FormData): Promise<void> 
   const bonusCurrency = String(formData.get('bonus_currency') ?? '').trim()
   const spendRequired = parseInt(String(formData.get('spend_required_usd') ?? ''), 10)
   const spendWindowMonths = parseInt(String(formData.get('spend_window_months') ?? ''), 10)
+  const spendWindowDays = parseInt(String(formData.get('spend_window_days') ?? ''), 10)
   const baselineRaw = String(formData.get('baseline_bonus_amount') ?? '').trim()
   const baseline = baselineRaw ? parseInt(baselineRaw, 10) : null
   const sourceUrl = String(formData.get('source_url') ?? '').trim()
   const notes = String(formData.get('notes') ?? '').trim() || null
 
-  if (!slug || !Number.isFinite(bonusAmount) || !bonusCurrency || !Number.isFinite(spendRequired) || !Number.isFinite(spendWindowMonths)) {
-    console.error('[card-extract] manual welcome bonus — missing required fields')
+  if (!slug || !Number.isFinite(bonusAmount) || !bonusCurrency || !Number.isFinite(spendRequired) || (!Number.isFinite(spendWindowMonths) && !Number.isFinite(spendWindowDays))) {
+    console.error('[card-extract] manual welcome bonus — missing required fields (need a spend window in months or days)')
     return
   }
 
@@ -255,7 +256,8 @@ export async function saveManualWelcomeBonus(formData: FormData): Promise<void> 
     bonus_amount: bonusAmount,
     bonus_currency: bonusCurrency,
     spend_required_usd: spendRequired,
-    spend_window_months: spendWindowMonths,
+    spend_window_months: Number.isFinite(spendWindowMonths) ? spendWindowMonths : null,
+    spend_window_days: Number.isFinite(spendWindowDays) ? spendWindowDays : null,
     baseline_bonus_amount: effectiveBaseline,
     is_elevated: isElevated,
     is_current: true,

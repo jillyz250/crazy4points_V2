@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { createAdminClient } from '@/utils/supabase/server'
-import { getCardDetailBySlug } from '@/utils/supabase/queries'
+import { getCardDetailBySlug, spendWindowLabel, spendWindowShort } from '@/utils/supabase/queries'
 import type { CreditCardBenefit, TransferPartnerRow } from '@/utils/supabase/queries'
 import { getExperienceProgramsForCard } from '@/utils/cards/getExperiencePrograms'
 import TransferPartnersTable from '@/components/programs/TransferPartnersTable'
@@ -350,8 +350,8 @@ export default async function CardPage({
           return {
             '@type': 'Offer',
             description: sub.spend_required_usd
-              ? `Earn ${wb.short} after spending $${sub.spend_required_usd.toLocaleString()} in the first ${sub.spend_window_months} months.`
-              : `Earn ${wb.short}${sub.spend_window_months ? ` within the first ${sub.spend_window_months} months` : ''}.${sub.extras ? ' ' + sub.extras : ''}`,
+              ? `Earn ${wb.short} after spending $${sub.spend_required_usd.toLocaleString()} in the first ${spendWindowLabel(sub) ?? '3 months'}.`
+              : `Earn ${wb.short}${spendWindowLabel(sub) ? ` within the first ${spendWindowLabel(sub)}` : ''}.${sub.extras ? ' ' + sub.extras : ''}`,
           }
         })()
       : undefined,
@@ -674,8 +674,8 @@ export default async function CardPage({
         const hasSpendReq = typeof sub.spend_required_usd === 'number' && sub.spend_required_usd > 0
         const wb = formatWelcomeBonus(sub.bonus_amount, sub.bonus_currency, sub.tiered_bonuses)
         const preview = hasSpendReq
-          ? `${wb.short} · $${sub.spend_required_usd!.toLocaleString()} spend in ${sub.spend_window_months}mo`
-          : `${wb.short}${sub.spend_window_months ? ` · within ${sub.spend_window_months}mo` : ''} · no min spend`
+          ? `${wb.short} · $${sub.spend_required_usd!.toLocaleString()} spend in ${spendWindowShort(sub) ?? '3mo'}`
+          : `${wb.short}${spendWindowShort(sub) ? ` · within ${spendWindowShort(sub)}` : ''} · no min spend`
         const description = hasSpendReq
           ? 'What you get for signing up and hitting the minimum spend.'
           : 'What you get for signing up — no minimum spend required.'
@@ -717,7 +717,7 @@ export default async function CardPage({
                     <li style={{ marginBottom: '0.4rem' }}>
                       <strong>{sub.bonus_amount.toLocaleString()} {pluralizeCurrency(sub.bonus_amount, sub.bonus_currency)}</strong> after spending{' '}
                       <strong>${sub.spend_required_usd!.toLocaleString()}</strong> in the first{' '}
-                      <strong>{sub.spend_window_months} months</strong>
+                      <strong>{spendWindowLabel(sub) ?? `${sub.spend_window_months} months`}</strong>
                     </li>
                     {(sub.tiered_bonuses ?? [])
                       .filter((t) => t.bonus_amount !== sub.bonus_amount)
@@ -747,13 +747,13 @@ export default async function CardPage({
                 <p style={{ marginBottom: '0.5rem' }}>
                   <strong>{wb.short}</strong> after spending{' '}
                   <strong>${sub.spend_required_usd!.toLocaleString()}</strong> in the first{' '}
-                  <strong>{sub.spend_window_months} months</strong>.
+                  <strong>{spendWindowLabel(sub) ?? `${sub.spend_window_months} months`}</strong>.
                 </p>
               )
             ) : (
               <p style={{ marginBottom: '0.5rem' }}>
                 <strong>{wb.short}</strong>
-                {sub.spend_window_months ? <> within the first <strong>{sub.spend_window_months} months</strong></> : null}
+                {spendWindowLabel(sub) ? <> within the first <strong>{spendWindowLabel(sub)}</strong></> : null}
                 . No minimum spend required.
               </p>
             )}

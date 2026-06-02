@@ -96,7 +96,7 @@ export default async function CardExtractPage({
   // in credit_card_welcome_bonuses, not what was returned in the extraction JSONB.
   const { data: currentWelcomeBonus } = await supabase
     .from('credit_card_welcome_bonuses')
-    .select('bonus_amount, bonus_currency, spend_required_usd, spend_window_months, baseline_bonus_amount, is_elevated, tiered_bonuses, extras')
+    .select('bonus_amount, bonus_currency, spend_required_usd, spend_window_months, spend_window_days, baseline_bonus_amount, is_elevated, tiered_bonuses, extras')
     .eq('card_id', card.id)
     .eq('is_current', true)
     .maybeSingle()
@@ -104,7 +104,7 @@ export default async function CardExtractPage({
   // If we have a saved welcome bonus (manual or auto-saved), merge it into the
   // extraction view so ExtractionReview renders the truth.
   type Wb = {
-    main: { bonus_amount: number | null; bonus_currency: string | null; spend_required_usd: number | null; spend_window_months: number | null }
+    main: { bonus_amount: number | null; bonus_currency: string | null; spend_required_usd: number | null; spend_window_months: number | null; spend_window_days: number | null }
     baseline_bonus_amount: number | null
     is_elevated: boolean
     tiered: unknown[]
@@ -121,6 +121,7 @@ export default async function CardExtractPage({
             bonus_currency: currentWelcomeBonus.bonus_currency,
             spend_required_usd: currentWelcomeBonus.spend_required_usd,
             spend_window_months: currentWelcomeBonus.spend_window_months,
+            spend_window_days: currentWelcomeBonus.spend_window_days,
           },
           baseline_bonus_amount: currentWelcomeBonus.baseline_bonus_amount,
           is_elevated: currentWelcomeBonus.is_elevated,

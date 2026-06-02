@@ -346,7 +346,8 @@ Return ONE JSON object with this exact top-level shape:
       "bonus_amount": <number|null>,
       "bonus_currency": <string|null>,
       "spend_required_usd": <number|null>,
-      "spend_window_months": <number|null>
+      "spend_window_months": <number|null>,
+      "spend_window_days": <number|null>
     },
     "baseline_bonus_amount": <number|null>,
     "is_elevated": <boolean>,
@@ -355,6 +356,12 @@ Return ONE JSON object with this exact top-level shape:
     "source_quote": <string|null>,
     "confidence": "high"|"medium"|"low"
   },
+  // SPEND WINDOW UNITS: match what the issuer actually writes. If the page says
+  // a number of DAYS ("within the first 90 days", "100 days"), set
+  // spend_window_days to that number and leave spend_window_months null. If it
+  // says MONTHS ("first 3 months", "within 6 months"), set spend_window_months
+  // and leave spend_window_days null. Do NOT convert days to months or vice
+  // versa - preserve the issuer's exact unit.
   "earn_rates": [
     {
       "category": <string>,

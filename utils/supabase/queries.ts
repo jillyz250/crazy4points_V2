@@ -2091,7 +2091,8 @@ export interface CreditCardWelcomeBonus {
   bonus_amount: number
   bonus_currency: string
   spend_required_usd: number | null
-  spend_window_months: number
+  spend_window_months: number | null
+  spend_window_days: number | null
   extras: string | null
   estimated_value_usd: number | null
   window_start: string | null
@@ -2119,6 +2120,30 @@ export interface CreditCardWelcomeBonus {
   baseline_bonus_amount: number | null
   created_at: string
   updated_at: string
+}
+
+/**
+ * Render the SUB spend window in the unit the issuer actually publishes.
+ * Prefers exact days (Barclays "90 days") over months (Chase "3 months").
+ * Returns null when neither is set (no-min-spend / trigger bonuses).
+ */
+export function spendWindowLabel(
+  sub: Pick<CreditCardWelcomeBonus, 'spend_window_days' | 'spend_window_months'>,
+): string | null {
+  if (sub.spend_window_days && sub.spend_window_days > 0) return `${sub.spend_window_days} days`
+  if (sub.spend_window_months && sub.spend_window_months > 0) {
+    return `${sub.spend_window_months} month${sub.spend_window_months === 1 ? '' : 's'}`
+  }
+  return null
+}
+
+/** Compact form for previews ("90d" / "3mo"). Null when no window set. */
+export function spendWindowShort(
+  sub: Pick<CreditCardWelcomeBonus, 'spend_window_days' | 'spend_window_months'>,
+): string | null {
+  if (sub.spend_window_days && sub.spend_window_days > 0) return `${sub.spend_window_days}d`
+  if (sub.spend_window_months && sub.spend_window_months > 0) return `${sub.spend_window_months}mo`
+  return null
 }
 
 export interface ProgramTransfer {
