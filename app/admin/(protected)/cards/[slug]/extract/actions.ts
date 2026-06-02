@@ -537,16 +537,20 @@ export async function setCardManualOverride(formData: FormData): Promise<void> {
 
 /**
  * Sonnet-draft a good_to_know block for this card in Jill's voice, using
- * existing good_to_know on other cards as few-shot voice samples. Saves
- * directly to credit_cards.good_to_know so the textarea picks it up on
- * page revalidation.
+ * existing good_to_know on other cards as few-shot voice samples.
+ *
+ * Returns the draft text (does NOT auto-save) so the editor can review and
+ * edit in the textarea before committing via Save. Returning a result also
+ * lets the UI surface errors instead of failing silently.
  *
  * Editor's responsibility: review before publishing. Sonnet is a writing
  * assistant, not a final authority. ~$0.02 per call.
  */
-export async function draftGoodToKnowAction(formData: FormData): Promise<void> {
+export async function draftGoodToKnowAction(
+  formData: FormData,
+): Promise<{ ok: true; draft: string } | { ok: false; error: string }> {
   const slug = String(formData.get('slug') ?? '').trim()
-  if (!slug) return
+  if (!slug) return { ok: false, error: 'Missing card slug.' }
 
   const supabase = createAdminClient()
   const { data: card } = await supabase
@@ -556,24 +560,17 @@ export async function draftGoodToKnowAction(formData: FormData): Promise<void> {
     .single()
   if (!card) {
     console.error(`[good-to-know] card not found: ${slug}`)
-    return
+    return { ok: false, error: `Card not found: ${slug}` }
   }
 
   const result = await draftGoodToKnow({ supabase, cardId: card.id as string })
   if (!result.ok) {
     console.error(`[good-to-know] draft failed: ${result.error}`)
-    return
+    return { ok: false, error: result.error }
   }
 
-  await supabase
-    .from('credit_cards')
-    .update({ good_to_know: result.draft, updated_at: new Date().toISOString() })
-    .eq('id', card.id)
-
-  console.log(`[good-to-know] saved draft for ${slug} (${result.voiceSamplesUsed} voice samples, ${result.draft.length} chars)`)
-
-  revalidatePath(`/admin/cards/${slug}/extract`)
-  revalidatePath(`/cards/${slug}`)
+  console.log(`[good-to-know] drafted for ${slug} (${result.voiceSamplesUsed} voice samples, ${result.draft.length} chars)`)
+  return { ok: true, draft: result.draft }
 }
 
 /**
