@@ -21,6 +21,9 @@ import { checkCardUrls, hasAnyBrokenUrl, type UrlChecks } from '@/utils/admin/ch
 import { TestUrlButton, UrlStatusBadgeView } from '@/components/admin/cards/UrlStatusBadge'
 
 export const dynamic = 'force-dynamic'
+// Sonnet good_to_know drafts + extraction runs can take 30-60s; the default
+// function timeout kills them mid-run (the "shows running then nothing" bug).
+export const maxDuration = 120
 
 /**
  * Admin extract route — kicks off a Firecrawl + Claude extraction for a

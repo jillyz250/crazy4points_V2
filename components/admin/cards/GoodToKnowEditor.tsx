@@ -26,7 +26,9 @@ export default function GoodToKnowEditor({
 }) {
   const [text, setText] = useState(initialValue ?? '')
   const [showSaved, setShowSaved] = useState(false)
-  const hasContent = (initialValue ?? '').trim().length > 0
+  const [draftError, setDraftError] = useState<string | null>(null)
+  const [draftLoaded, setDraftLoaded] = useState(false)
+  const hasContent = text.trim().length > 0
   const bulletCount = (text.match(/^\s*-\s/gm) ?? []).length
 
   return (
@@ -82,13 +84,35 @@ export default function GoodToKnowEditor({
         existing curated cards as voice samples — review and edit before saving.
       </p>
 
-      <form action={draftGoodToKnowAction} style={{ marginBottom: '1rem' }}>
+      <form
+        action={async (fd: FormData) => {
+          setDraftError(null)
+          setDraftLoaded(false)
+          const res = await draftGoodToKnowAction(fd)
+          if (res.ok) {
+            setText(res.draft)
+            setDraftLoaded(true)
+            setTimeout(() => setDraftLoaded(false), 4000)
+          } else {
+            setDraftError(res.error)
+          }
+        }}
+        style={{ marginBottom: '1rem' }}
+      >
         <input type="hidden" name="slug" value={slug} />
         <DraftButton hasExisting={hasContent} />
-        {hasContent && (
-          <span style={{ marginLeft: '0.75rem', fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
-            ⚠️ Drafting will REPLACE the current good_to_know. Copy first if you want to preserve.
-          </span>
+        <span style={{ marginLeft: '0.75rem', fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
+          Loads a draft into the editor below for review — nothing saves until you click <strong>Save</strong>.
+        </span>
+        {draftLoaded && (
+          <div style={{ marginTop: '0.5rem', fontSize: '0.8125rem', color: 'var(--color-primary)', fontWeight: 600 }}>
+            ✓ Draft loaded below — review, edit, then Save.
+          </div>
+        )}
+        {draftError && (
+          <div style={{ marginTop: '0.5rem', fontSize: '0.8125rem', color: '#b91c1c', fontWeight: 600 }}>
+            ✕ Draft failed: {draftError}
+          </div>
         )}
       </form>
 
