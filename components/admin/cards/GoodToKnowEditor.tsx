@@ -28,6 +28,7 @@ export default function GoodToKnowEditor({
   const [showSaved, setShowSaved] = useState(false)
   const [draftError, setDraftError] = useState<string | null>(null)
   const [draftLoaded, setDraftLoaded] = useState(false)
+  const [auditIssues, setAuditIssues] = useState<Array<{ claim: string; problem: string; severity: string }> | null>(null)
   const hasContent = text.trim().length > 0
   const bulletCount = (text.match(/^\s*-\s/gm) ?? []).length
 
@@ -119,9 +120,11 @@ export default function GoodToKnowEditor({
       <form
         action={async (fd: FormData) => {
           setShowSaved(false)
-          await saveGoodToKnowAction(fd)
+          setAuditIssues(null)
+          const res = await saveGoodToKnowAction(fd)
           setShowSaved(true)
           setTimeout(() => setShowSaved(false), 3000)
+          setAuditIssues(res?.issues ?? [])
         }}
       >
         <input type="hidden" name="slug" value={slug} />
@@ -156,6 +159,38 @@ export default function GoodToKnowEditor({
           </span>
         </div>
       </form>
+
+      {/* Accuracy guardrail results — auto-run on every save against the
+          card's COMPLETE record. */}
+      {auditIssues !== null && (
+        auditIssues.length === 0 ? (
+          <div style={{ marginTop: '0.75rem', fontSize: '0.8125rem', color: 'var(--color-primary)', fontWeight: 600 }}>
+            ✓ Accuracy check passed — no conflicts with the card data.
+          </div>
+        ) : (
+          <div
+            style={{
+              marginTop: '0.75rem',
+              padding: '0.75rem 1rem',
+              border: '1px solid #f59e0b',
+              background: '#fffbeb',
+              borderRadius: 'var(--radius-ui)',
+            }}
+          >
+            <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#92400e', marginBottom: '0.4rem' }}>
+              ⚠️ Accuracy check flagged {auditIssues.length} possible {auditIssues.length === 1 ? 'conflict' : 'conflicts'} with the card data — review before trusting:
+            </div>
+            <ul style={{ margin: 0, paddingLeft: '1.1rem', fontSize: '0.8125rem', color: '#7c2d12', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+              {auditIssues.map((iss, i) => (
+                <li key={i}>
+                  <strong style={{ textTransform: 'uppercase', fontSize: '0.6875rem' }}>[{iss.severity}]</strong>{' '}
+                  <em>&ldquo;{iss.claim}&rdquo;</em> — {iss.problem}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )
+      )}
     </section>
   )
 }

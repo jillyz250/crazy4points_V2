@@ -6,6 +6,7 @@ import { extractCardBenefits } from '@/utils/cards/extractCardBenefits'
 import { saveExtractedBenefits } from '@/utils/cards/saveExtractedBenefits'
 import { discoverCardSourceUrl } from '@/utils/cards/discoverCardSourceUrl'
 import { draftGoodToKnow } from '@/utils/cards/draftGoodToKnow'
+import { auditGoodToKnow, type GtkAuditIssue } from '@/utils/cards/auditGoodToKnow'
 import { setManualOverride } from '@/utils/admin/manualOverride'
 import { checkUrl, type UrlCheckResult } from '@/utils/admin/checkUrl'
 import type { CardExtraction } from '@/utils/cards/cardExtractionSchema'
@@ -574,23 +575,36 @@ export async function draftGoodToKnowAction(
 }
 
 /**
- * Save good_to_know directly from the textarea on the extract page.
- * Editor uses this after editing the Sonnet draft.
+ * Save good_to_know directly from the textarea on the extract page, then run
+ * the accuracy guardrail: the saved text is fact-checked against the card's
+ * COMPLETE record and any conflicts are returned so the editor sees them
+ * inline. This makes the QC un-skippable - every save is audited against full
+ * data (the gap that let unreviewed/inaccurate callouts ship before).
  */
-export async function saveGoodToKnowAction(formData: FormData): Promise<void> {
+export async function saveGoodToKnowAction(
+  formData: FormData,
+): Promise<{ ok: boolean; issues: GtkAuditIssue[] }> {
   const slug = String(formData.get('slug') ?? '').trim()
   const value = String(formData.get('good_to_know') ?? '')
-  if (!slug) return
+  if (!slug) return { ok: false, issues: [] }
 
   const supabase = createAdminClient()
-  await supabase
+  const { data: card } = await supabase
     .from('credit_cards')
     .update({
       good_to_know: value.trim() || null,
       updated_at: new Date().toISOString(),
     })
     .eq('slug', slug)
+    .select('id')
+    .single()
 
   revalidatePath(`/admin/cards/${slug}/extract`)
   revalidatePath(`/cards/${slug}`)
+
+  // Guardrail: audit the freshly-saved text against the complete card record.
+  const issues = card && value.trim()
+    ? await auditGoodToKnow(supabase, card.id as string, value.trim())
+    : []
+  return { ok: true, issues }
 }
