@@ -548,8 +548,19 @@ export default async function CardPage({
         </nav>
       )}
 
-      {/* Good to know callout — surfaces 3-7 things readers most often miss before applying */}
-      {card.good_to_know && (
+      {/* Good to know callout — surfaces 3-7 things readers most often miss before applying.
+          Parse tolerantly: accept lines with or without a leading "- ", and only
+          render the section when at least one real bullet survives (a null/empty/
+          whitespace value must never show a bare header). */}
+      {(() => {
+        const gtkBullets = (card.good_to_know ?? '')
+          .split('\n')
+          .map((l) => l.trim())
+          .filter(Boolean)
+          .map((l) => (l.startsWith('- ') ? l.slice(2).trim() : l))
+          .filter(Boolean)
+        if (gtkBullets.length === 0) return null
+        return (
         <section
           style={{
             marginBottom: '2.5rem',
@@ -607,12 +618,8 @@ export default async function CardPage({
               color: 'var(--color-text-primary)',
             }}
           >
-            {card.good_to_know
-              .split('\n')
-              .map((line) => line.trim())
-              .filter((line) => line.startsWith('- '))
-              .map((line, i) => {
-                const text = line.slice(2)
+            {gtkBullets
+              .map((text, i) => {
                 const isWarning = /^(NO\s|Heads up|Important|Watch out|Note:)/i.test(text)
                 // Bold the lead phrase — everything before the first " - " or " (" or
                 // ". " — the rest is detail. Makes the bullets scannable.
@@ -652,7 +659,8 @@ export default async function CardPage({
               })}
           </ul>
         </section>
-      )}
+        )
+      })()}
 
       {/* Intro */}
       {card.intro && (
