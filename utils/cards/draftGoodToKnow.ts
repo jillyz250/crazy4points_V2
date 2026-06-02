@@ -77,6 +77,8 @@ interface BenefitContext {
   value_amount: number | null
   value_unit: string | null
   frequency: string | null
+  spend_threshold_usd: number | null
+  coverage_amount: number | null
 }
 
 interface EarnRateContext {
@@ -116,12 +118,14 @@ function buildPrompt(
 
   const benefitsBlock = benefits.length
     ? benefits
-        .slice(0, 25)
+        .slice(0, 30)
         .map((b) => {
           const val = b.value_amount
             ? ` ($${b.value_amount}${b.value_unit ? '/' + b.value_unit : ''}${b.frequency ? '/' + b.frequency : ''})`
             : ''
-          return `- ${b.name}${val}${b.description ? ': ' + b.description.slice(0, 200) : ''}`
+          const unlock = b.spend_threshold_usd ? ` [UNLOCKS after $${b.spend_threshold_usd.toLocaleString()} annual spend]` : ''
+          const cov = b.coverage_amount ? ` [coverage up to $${b.coverage_amount.toLocaleString()}]` : ''
+          return `- ${b.name}${val}${unlock}${cov}${b.description ? ': ' + b.description.slice(0, 200) : ''}`
         })
         .join('\n')
     : '(none)'
@@ -160,17 +164,30 @@ VOICE FINGERPRINT:
 - Em-dashes ("—") are OK in DRAFTS but will be converted to hyphens before save
 
 STRUCTURAL RULES:
-- 5-7 bullets, no more
+- 5-8 bullets, no more
 - Each bullet starts with "- "
 - First sentence of each bullet is the LEAD PHRASE (gets bolded by renderer)
 - For warning bullets (gotchas, exclusions, NO-something rules), start with "NO " — the renderer gives those a gold dot
 - Plain ASCII preferred (the SQL pipeline strips smart quotes anyway)
 
+COMPLETENESS RULES (cover the high-value stuff readers most want surfaced):
+- If any benefit shows "[UNLOCKS after $X annual spend]", you MUST surface it — spend-tier unlocks (elite status, free nights, companion tickets, big credits at a spend threshold) are exactly what people miss. Name the threshold and what it unlocks.
+- If the data has a lounge benefit, an annual travel/hotel/airline credit, a companion pass/ticket, a free-night award, or conferred elite status, cover the most valuable of these in a bullet.
+- Surface activation/registration requirements (credits or perks that "require activation" / "after registering") — easy-to-miss money.
+
+CAP RULES (drafts get this wrong BOTH ways — read carefully):
+- The earn-rate "(cap $X)" number alone does NOT tell you whether the cap is per-category or shared across several categories. You MUST read the earn-rate/benefit DESCRIPTION and notes to decide.
+- MANY cards SHARE one cap across multiple bonus categories. The description will say "combined", "combined with", "shared", or "across [categories]". When it does, describe it as a single shared cap (e.g. "$8,000 combined across gas and dining") — do NOT split it into a separate cap per category.
+- Only describe caps as separate per-category buckets when the description makes that explicit. When the description is silent on shared-vs-separate, state the cap amount without asserting which it is.
+
 FACT RULES (CRITICAL):
-1. ONLY claim facts present in the card data below. Do not invent new benefits, rules, or comparisons.
+1. ONLY claim facts present in the card data below. Do not invent new benefits, rules, restrictions, or comparisons.
 2. If you don't have a specific number from the data, don't make one up. Generalize ("steep annual fee" is OK; "$695/year" without source is NOT OK).
-3. Common claims to AVOID unless explicitly in the data: card-vs-card comparisons (only OK if both data points are below), 5/24 rule, Chase velocity rules, Amex velocity rules ("2/90"), "lifetime" language unless verbatim from issuer.
-4. Insurance descriptions should be DESCRIPTIVE not INSTRUCTIONAL. Never tell readers to "decline coverage" or "ditch" anything at a rental counter — that's insurance advice we can't give.
+3. Do NOT NARROW or invent restrictions the data doesn't state. If the data says "3x flights", write "3x flights" — do NOT limit it to specific airlines, "direct booking only", or add exclusions that aren't in the data. Same for insurance: don't invent a deductible, a coverage tier (primary/secondary), or a time window the data doesn't state.
+4. Do NOT invent specific terms: authorized-user fees, transfer ratios or transfer partners, rotating-category mechanics, exact day/hour windows, or expiration dates — unless they appear in the data.
+5. Common claims to AVOID unless explicitly in the data: card-vs-card comparisons (only OK if both data points are below), 5/24 rule, Chase velocity rules, Amex velocity rules ("2/90"), "lifetime" language unless verbatim from issuer.
+6. Insurance descriptions should be DESCRIPTIVE not INSTRUCTIONAL. Never tell readers to "decline coverage" or "ditch" anything at a rental counter — that's insurance advice we can't give.
+7. Do NOT tell the reader to "verify with the issuer" or note that data "isn't confirmed" — that internal hedge must never appear in a published callout. If you can't support a claim, omit it.
 
 CARD DATA:
 
@@ -248,7 +265,7 @@ export async function draftGoodToKnow({
   const [benefitsRes, earnRatesRes, wbRes] = await Promise.all([
     supabase
       .from('credit_card_benefits')
-      .select('name, category, description, value_amount, value_unit, frequency')
+      .select('name, category, description, value_amount, value_unit, frequency, spend_threshold_usd, coverage_amount')
       .eq('card_id', cardId)
       .order('sort_order'),
     supabase
