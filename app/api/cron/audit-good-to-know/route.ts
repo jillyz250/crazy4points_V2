@@ -62,15 +62,23 @@ async function handle(request: Request) {
     .map((f) => ({ slug: f.slug, issues: f.issues.filter((i) => i.severity === 'high' || i.severity === 'med') }))
     .filter((f) => f.issues.length > 0)
 
-  if (escalate.length && process.env.RESEND_API_KEY) {
+  // Always email a summary - clean or flagged - so the audit is never silent.
+  // A missing weekly email then signals the cron itself didn't run.
+  if (process.env.RESEND_API_KEY) {
     const resend = new Resend(process.env.RESEND_API_KEY)
+    const subject = escalate.length
+      ? `good_to_know audit: ${escalate.length} card${escalate.length === 1 ? '' : 's'} flagged`
+      : `good_to_know audit: all ${targets.length} clean`
     const rows = escalate.map((f) =>
       `<h3 style="margin:14px 0 4px">${f.slug}</h3><ul style="margin:0">${f.issues.map((i) => `<li><b>[${i.severity}]</b> &ldquo;${i.claim}&rdquo; &mdash; ${i.problem}</li>`).join('')}</ul>`).join('')
+    const body = escalate.length
+      ? `<p>The weekly good_to_know accuracy audit checked <b>${targets.length}</b> cards and flagged <b>${escalate.length}</b> against current card data. Review and fix in /admin/cards/[slug]/extract.</p>${rows}`
+      : `<p>The weekly good_to_know accuracy audit checked <b>${targets.length}</b> cards. No conflicts with the card data - all clean.</p>`
     await resend.emails.send({
       from: process.env.RESEND_FROM ?? 'crazy4points <intel@crazy4points.com>',
       to: 'jillzeller6@gmail.com',
-      subject: `Card good_to_know drift: ${escalate.length} card${escalate.length === 1 ? '' : 's'} flagged`,
-      html: `<p>The weekly good_to_know accuracy audit flagged ${escalate.length} card${escalate.length === 1 ? '' : 's'} against current card data. Review and fix in /admin/cards/[slug]/extract.</p>${rows}`,
+      subject,
+      html: body,
     }).catch(() => {})
   }
 
