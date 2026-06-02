@@ -62,6 +62,7 @@ function RatioCell({ row, currentCardSlug }: { row: TransferPartnerRow; currentC
   const baseStyle: React.CSSProperties = {
     fontFamily: 'var(--font-ui)',
     fontWeight: 600,
+    whiteSpace: 'nowrap',
   }
 
   if (!row.tiers || row.tiers.length === 0) {
