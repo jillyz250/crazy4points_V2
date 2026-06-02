@@ -116,8 +116,27 @@ function RatioCell({ row, currentCardSlug }: { row: TransferPartnerRow; currentC
   )
 }
 
+/**
+ * Public-render guard. A row is publishable only if it has a usable ratio
+ * (or a tier with a usable ratio). Draft/placeholder markers like
+ * "unconfirmed" / "tbd" / "" must NEVER reach a public page — they leak
+ * internal verification state to readers. Keep this list in sync with the
+ * data-cleanup predicate.
+ */
+const DRAFT_RATIO_MARKERS = new Set([
+  '', '-', '—', 'unconfirmed', 'tbd', 'unknown', 'pending', 'n/a', 'na', 'verify', 'needs verification', 'varies',
+])
+function ratioUsable(ratio: unknown): boolean {
+  if (typeof ratio !== 'string') return false
+  return !DRAFT_RATIO_MARKERS.has(ratio.trim().toLowerCase())
+}
+export function isPublishableTransferRow(row: TransferPartnerRow): boolean {
+  if (Array.isArray(row.tiers) && row.tiers.some((t) => ratioUsable(t.ratio))) return true
+  return ratioUsable(row.ratio)
+}
+
 export default function TransferPartnersTable({
-  rows,
+  rows: allRows,
   programNameBySlug,
   direction = 'inbound',
   currentCardSlug,
@@ -130,6 +149,8 @@ export default function TransferPartnersTable({
    *  all tiers stacked. */
   currentCardSlug?: string
 }) {
+  // Strip any draft/unconfirmed rows before they can reach a public page.
+  const rows = (allRows ?? []).filter(isPublishableTransferRow)
   if (rows.length === 0) return null
   const partnerColumnLabel = direction === 'outbound' ? 'To' : 'From'
 

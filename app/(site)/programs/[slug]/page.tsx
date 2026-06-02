@@ -13,6 +13,7 @@ import CardsThatEarnIntoProgram from '@/components/cards/CardsThatEarnIntoProgra
 import ActivePromosSection from '@/components/programs/ActivePromosSection'
 import LiveBarsHero, { OTHER_LIVE_TYPES } from '@/components/programs/LiveBarsHero'
 import SimpleTileGrid from '@/components/programs/SimpleTileGrid'
+import { isPublishableTransferRow } from '@/components/programs/TransferPartnersTable'
 import IntroBlock from '@/components/programs/IntroBlock'
 import { getActivePromosForProgram, type PromoReward } from '@/utils/supabase/promoQueries'
 import { expandIntroTokens } from '@/utils/programs/expandIntroTokens'
@@ -323,8 +324,8 @@ export default async function ProgramPage({
             ...(program.intro ? [{ id: 'intro', label: 'Intro' }] : []),
             ...(program.award_chart ? [{ id: 'award-chart', label: 'Award chart' }] : []),
             ...((program.award_category_chart?.length ?? 0) > 0 && program.type !== 'alliance' ? [{ id: 'category-chart', label: 'Category chart' }] : []),
-            ...((program.transfer_partners_outbound?.length ?? 0) > 0 && program.type !== 'alliance' ? [{ id: 'transfer-partners', label: 'Transfer partners' }] : []),
-            ...((program.transfer_partners?.length ?? 0) > 0 && program.type !== 'alliance' ? [{ id: 'ways-to-earn', label: 'Ways to earn more' }] : []),
+            ...((program.transfer_partners_outbound ?? []).filter(isPublishableTransferRow).length > 0 && program.type !== 'alliance' ? [{ id: 'transfer-partners', label: 'Transfer partners' }] : []),
+            ...((program.transfer_partners ?? []).filter(isPublishableTransferRow).length > 0 && program.type !== 'alliance' ? [{ id: 'ways-to-earn', label: 'Ways to earn more' }] : []),
             ...(program.type === 'alliance' && (program.member_programs?.length ?? 0) > 0 ? [{ id: 'member-airlines', label: 'Member airlines' }] : []),
             ...(program.how_to_spend ? [{ id: 'how-to-spend', label: 'How to spend' }] : []),
             ...(program.sweet_spots ? [{ id: 'sweet-spots', label: 'Sweet spots' }] : []),
