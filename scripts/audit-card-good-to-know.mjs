@@ -29,16 +29,22 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const onlySlug = (process.argv.find((a) => a.startsWith('--slug=')) || '').split('=')[1] || null
 
 async function fullRecord(card) {
-  const [benRes, earnRes, wbRes, progRes] = await Promise.all([
+  const [benRes, earnRes, wbRes, progRes, issRes] = await Promise.all([
     sb.from('credit_card_benefits').select('name, benefit_type, category, description, value_amount, value_unit, frequency, spend_threshold_usd, coverage_amount').eq('card_id', card.id).order('sort_order'),
     sb.from('credit_card_earn_rates').select('category, multiplier, booking_channel, cap_amount_usd, cap_period, notes').eq('card_id', card.id).order('multiplier', { ascending: false }),
     sb.from('credit_card_welcome_bonuses').select('bonus_amount, bonus_currency, spend_required_usd, spend_window_months, spend_window_days, extras, tiered_bonuses').eq('card_id', card.id).eq('is_current', true).maybeSingle(),
     card.currency_program_id ? sb.from('programs').select('name, transfer_partners_outbound').eq('id', card.currency_program_id).maybeSingle() : Promise.resolve({ data: null }),
+    card.issuer_id ? sb.from('issuers').select('name').eq('id', card.issuer_id).maybeSingle() : Promise.resolve({ data: null }),
   ])
   const benefits = (benRes.data ?? []).map((b) =>
     `- ${b.name} [type:${b.benefit_type}]${b.spend_threshold_usd ? ` [UNLOCKS after $${b.spend_threshold_usd.toLocaleString()} spend]` : ''}${b.coverage_amount ? ` [coverage up to $${b.coverage_amount.toLocaleString()}]` : ''}${b.value_amount ? ` ($${b.value_amount}${b.value_unit ? '/' + b.value_unit : ''}${b.frequency ? '/' + b.frequency : ''})` : ''}: ${b.description ?? ''}`).join('\n')
+  // NOTE: the bare cap_amount_usd does NOT say whether a cap is per-category or
+  // shared across categories - that lives in the benefit/earn DESCRIPTION
+  // ("combined with", "shared", "across X and Y"). Do NOT annotate caps as
+  // per-category here; let the descriptions carry the truth (an earlier version
+  // injected "THIS CATEGORY ONLY" and caused false flags on combined-cap cards).
   const earn = (earnRes.data ?? []).map((e) =>
-    `- ${e.multiplier}x ${e.category}${e.booking_channel ? ` (${e.booking_channel})` : ''}${e.cap_amount_usd ? ` [cap $${e.cap_amount_usd.toLocaleString()}/${e.cap_period} - THIS CATEGORY ONLY]` : ''}${e.notes ? ` :: ${e.notes}` : ''}`).join('\n')
+    `- ${e.multiplier}x ${e.category}${e.booking_channel ? ` (${e.booking_channel})` : ''}${e.cap_amount_usd ? ` [cap $${e.cap_amount_usd.toLocaleString()}/${e.cap_period}]` : ''}${e.notes ? ` :: ${e.notes}` : ''}`).join('\n')
   const w = wbRes.data
   const wb = w ? `${w.bonus_amount} ${w.bonus_currency} after $${w.spend_required_usd} in ${w.spend_window_days ? w.spend_window_days + ' days' : w.spend_window_months + ' months'}. ${w.extras ?? ''}${(w.tiered_bonuses && w.tiered_bonuses.length) ? ' Tiers: ' + JSON.stringify(w.tiered_bonuses) : ''}` : '(none)'
   const prog = progRes.data
@@ -46,6 +52,7 @@ async function fullRecord(card) {
     ? `Currency "${prog.name}" transfers to: ${prog.transfer_partners_outbound.map((p) => `${p.from_slug} ${p.ratio}${p.tiers ? ' (card-tiered)' : ''}`).join(', ')}`
     : '(no transfer partners / not a transferable-currency card)'
   return `Name: ${card.name}
+Issuer: ${issRes.data?.name ?? '(not in data)'}
 Annual fee: ${card.annual_fee_usd}
 FX fee: ${card.foreign_transaction_fee_pct}%
 Authorized user fee: ${card.authorized_user_fee_usd ?? '(not in data)'}
@@ -59,7 +66,9 @@ ${benefits || '(none)'}`
 
 const PROMPT = (data, gtk) => `Fact-check a credit-card "Good to know" callout against the card's COMPLETE structured record below (the only source of truth). The record includes full benefit descriptions, earn-rate notes, transfer partners, and fee fields - so if a claim is supported anywhere in it, it is NOT an error.
 
-Flag a bullet ONLY when it genuinely CONFLICTS with the record: a wrong number/fee/ratio, an invented restriction the record contradicts, a benefit the record shows the card does NOT have, or two earn categories described as sharing one cap when the record shows separate per-category caps ("THIS CATEGORY ONLY"). Do NOT flag: style/voice, reasonable context, or anything supported anywhere in the record (including notes, transfer partners, and the fee fields). If a fact simply isn't in the record but isn't contradicted by it, do NOT flag it.
+Flag a bullet ONLY when it genuinely CONFLICTS with the record: a wrong number/fee/ratio, an invented restriction the record contradicts, or a benefit the record shows the card does NOT have. Do NOT flag: style/voice, reasonable context, or anything supported anywhere in the record (including notes, transfer partners, issuer, and the fee fields). If a fact simply isn't in the record but isn't contradicted by it, do NOT flag it.
+
+CAPS: whether an earn-rate cap is per-category or shared/combined across categories is determined ONLY by the benefit/earn-rate DESCRIPTIONS ("combined with", "shared", "across X and Y") - NOT by the bare cap number. Do not flag a "combined cap" claim unless a description explicitly says the categories have separate per-category caps, and do not flag a "separate cap" claim unless a description explicitly says "combined"/"shared".
 
 CARD RECORD:
 ${data}
@@ -69,8 +78,8 @@ ${gtk}
 
 Return ONLY compact JSON: {"issues":[{"claim":"<short quote>","problem":"<the specific conflict with the record>","severity":"high|med|low"}]}. Empty array if everything checks out.`
 
-let q = sb.from('credit_cards').select('id, slug, name, annual_fee_usd, foreign_transaction_fee_pct, authorized_user_fee_usd, currency_program_id, good_to_know').eq('status', 'active').not('good_to_know', 'is', null).order('slug')
-if (onlySlug) q = sb.from('credit_cards').select('id, slug, name, annual_fee_usd, foreign_transaction_fee_pct, authorized_user_fee_usd, currency_program_id, good_to_know').eq('slug', onlySlug)
+let q = sb.from('credit_cards').select('id, slug, name, annual_fee_usd, foreign_transaction_fee_pct, authorized_user_fee_usd, currency_program_id, issuer_id, good_to_know').eq('status', 'active').not('good_to_know', 'is', null).order('slug')
+if (onlySlug) q = sb.from('credit_cards').select('id, slug, name, annual_fee_usd, foreign_transaction_fee_pct, authorized_user_fee_usd, currency_program_id, issuer_id, good_to_know').eq('slug', onlySlug)
 const { data: cards } = await q
 
 const flagged = []
