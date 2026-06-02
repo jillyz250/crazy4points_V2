@@ -87,9 +87,21 @@ export default function ManualWelcomeBonusForm({
             name="spend_window_months"
             type="number"
             min="1"
-            required
             defaultValue={defaultWindowMonths ?? ''}
             placeholder="e.g., 3 or 6"
+            className="rounded-[var(--radius-ui)] border border-amber-300 bg-white px-3 py-2 font-body text-base"
+            style={{ fontSize: '1rem' }}
+          />
+          <span className="mt-1 font-body text-[10px] text-amber-700">Use months OR days, matching the issuer&rsquo;s wording.</span>
+        </label>
+
+        <label className="flex flex-col">
+          <span className="mb-1 font-ui text-[10px] uppercase tracking-wide text-amber-900">Spend window (days)</span>
+          <input
+            name="spend_window_days"
+            type="number"
+            min="1"
+            placeholder="e.g., 90"
             className="rounded-[var(--radius-ui)] border border-amber-300 bg-white px-3 py-2 font-body text-base"
             style={{ fontSize: '1rem' }}
           />

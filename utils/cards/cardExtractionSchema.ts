@@ -32,6 +32,7 @@ export type WelcomeBonusExtraction = {
     bonus_currency: string | null  // 'Ultimate Rewards' | 'Membership Rewards' | 'cash back' | etc.
     spend_required_usd: number | null
     spend_window_months: number | null
+    spend_window_days: number | null  // set when the issuer states the window in days ("first 90 days"); else null
   }
   // The card's STANDARD welcome offer when no limited-time elevation is active.
   // Detected from strike-through patterns: "125,000 [strike] 150,000" — 125K

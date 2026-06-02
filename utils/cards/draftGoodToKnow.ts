@@ -93,6 +93,7 @@ interface WelcomeBonusContext {
   bonus_currency: string | null
   spend_required_usd: number | null
   spend_window_months: number | null
+  spend_window_days: number | null
   extras: string | null
 }
 
@@ -136,8 +137,11 @@ function buildPrompt(
         .join('\n')
     : '(none)'
 
+  const wbWindow = welcomeBonus?.spend_window_days
+    ? `${welcomeBonus.spend_window_days} days`
+    : `${welcomeBonus?.spend_window_months ?? '?'} months`
   const wbBlock = welcomeBonus
-    ? `${welcomeBonus.bonus_amount?.toLocaleString() ?? '?'} ${welcomeBonus.bonus_currency ?? 'points'} after $${welcomeBonus.spend_required_usd?.toLocaleString() ?? '?'} in ${welcomeBonus.spend_window_months ?? '?'} months${welcomeBonus.extras ? ` (extras: ${welcomeBonus.extras})` : ''}`
+    ? `${welcomeBonus.bonus_amount?.toLocaleString() ?? '?'} ${welcomeBonus.bonus_currency ?? 'points'} after $${welcomeBonus.spend_required_usd?.toLocaleString() ?? '?'} in ${wbWindow}${welcomeBonus.extras ? ` (extras: ${welcomeBonus.extras})` : ''}`
     : '(none / not currently disclosed)'
 
   return `You are drafting a "Good to know before you apply" callout for a credit card on crazy4points.com. This block is the editor's voice layer — what she'd tell a friend who's about to apply. Match the voice of the samples below EXACTLY.
@@ -254,7 +258,7 @@ export async function draftGoodToKnow({
       .order('multiplier', { ascending: false }),
     supabase
       .from('credit_card_welcome_bonuses')
-      .select('bonus_amount, bonus_currency, spend_required_usd, spend_window_months, extras')
+      .select('bonus_amount, bonus_currency, spend_required_usd, spend_window_months, spend_window_days, extras')
       .eq('card_id', cardId)
       .eq('is_current', true)
       .maybeSingle(),
