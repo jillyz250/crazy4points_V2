@@ -6,8 +6,9 @@ import { Badge } from '@/components/admin/ui/Badge'
 import { Card } from '@/components/admin/ui/Card'
 import { EmptyState } from '@/components/admin/ui/EmptyState'
 import { publishAlertAction, expireAlertAction } from '../alerts/actions'
-import { archiveVariantAction } from './actions'
+import { archiveVariantAction, unsnoozeVariantAction } from './actions'
 import ConfirmButton from '@/components/admin/ConfirmButton'
+import { DraftSnoozeButton } from '@/components/admin/drafts/DraftSnoozeButton'
 
 /**
  * Phase 4 v2 — Drafts hub with Smart Views.
@@ -30,6 +31,7 @@ type SmartViewKey =
   | 'socials_pending'
   | 'stale_drafts'
   | 'recently_expired'
+  | 'snoozed'
   | 'all'
 
 type FormatKey =
@@ -53,6 +55,7 @@ const SMART_VIEWS: SmartView[] = [
   { key: 'socials_pending',  label: 'Needs socials' },
   { key: 'stale_drafts',     label: 'Stale drafts' },
   { key: 'recently_expired', label: 'Recently expired' },
+  { key: 'snoozed',          label: 'Snoozed' },
   { key: 'all',              label: 'Show all' },
 ]
 
@@ -77,6 +80,7 @@ interface DraftRow {
   end_date: string | null
   updated_at: string | null
   published_at: string | null
+  snoozed_until: string | null
 }
 
 function relativeTime(iso: string | null): string {
@@ -109,6 +113,7 @@ interface ViewCounts {
   socials_pending: number
   stale_drafts: number
   recently_expired: number
+  snoozed: number
   all: number
   new_since_yesterday: number
 }
@@ -129,10 +134,18 @@ async function loadViewCounts(supabase: Supa): Promise<ViewCounts> {
     topicsWithSocials,
     staleDrafts,
     recentlyExpired,
+    snoozed,
     all,
     newSinceYesterday,
   ] = await Promise.all([
-    supabase.from('content_variants').select('*', { count: 'exact', head: true }).eq('status', 'needs_review'),
+    // Needs review = needs_review status, NOT currently snoozed (snoozed_until
+    // null or already in the past). Snoozed-but-not-yet-woken rows live under
+    // their own chip.
+    supabase
+      .from('content_variants')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'needs_review')
+      .or(`snoozed_until.is.null,snoozed_until.lte.${nowIso}`),
     // Published alerts — the editorial library. format=alert + status=published,
     // no recency/expiry filter (those are separate views). This is the
     // "I need to edit a specific published alert" workflow.
@@ -171,6 +184,12 @@ async function loadViewCounts(supabase: Supa): Promise<ViewCounts> {
       .eq('status', 'published')
       .gte('topics.end_date', past7dIso)
       .lte('topics.end_date', nowIso),
+    // Snoozed = needs_review status with a wake date still in the future.
+    supabase
+      .from('content_variants')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'needs_review')
+      .gt('snoozed_until', nowIso),
     supabase.from('content_variants').select('*', { count: 'exact', head: true }),
     supabase.from('content_variants').select('*', { count: 'exact', head: true }).gte('created_at', yesterdayIso),
   ])
@@ -199,6 +218,7 @@ async function loadViewCounts(supabase: Supa): Promise<ViewCounts> {
     socials_pending:     socialsPending,
     stale_drafts:        staleDrafts.count ?? 0,
     recently_expired:    recentlyExpired.count ?? 0,
+    snoozed:             snoozed.count ?? 0,
     all:                 all.count ?? 0,
     new_since_yesterday: newSinceYesterday.count ?? 0,
   }
@@ -215,7 +235,7 @@ async function loadRows(supabase: Supa, view: SmartViewKey, sort: SortBy = 'upda
   let query = supabase
     .from('content_variants')
     .select(
-      'id, topic_id, format, title, status, original_alert_type, start_date, updated_at, published_at, ' +
+      'id, topic_id, format, title, status, original_alert_type, start_date, updated_at, published_at, snoozed_until, ' +
       'topics:topics!inner(id, slug, title, end_date, metadata)',
     )
     .limit(200)
@@ -231,7 +251,10 @@ async function loadRows(supabase: Supa, view: SmartViewKey, sort: SortBy = 'upda
   }
 
   if (view === 'needs_review') {
-    query = query.eq('status', 'needs_review')
+    // Exclude rows snoozed to a future date — they live under the Snoozed chip.
+    query = query.eq('status', 'needs_review').or(`snoozed_until.is.null,snoozed_until.lte.${nowIso}`)
+  } else if (view === 'snoozed') {
+    query = query.eq('status', 'needs_review').gt('snoozed_until', nowIso)
   } else if (view === 'published_alerts') {
     query = query.eq('format', 'alert').eq('status', 'published')
   } else if (view === 'expiring_soon') {
@@ -261,7 +284,7 @@ async function loadRows(supabase: Supa, view: SmartViewKey, sort: SortBy = 'upda
   type RawRow = {
     id: string; topic_id: string; format: string; title: string; status: string;
     original_alert_type: string | null; start_date: string | null;
-    updated_at: string | null; published_at: string | null;
+    updated_at: string | null; published_at: string | null; snoozed_until: string | null;
     topics: { id: string; slug: string; title: string; end_date: string | null; metadata: unknown } | Array<{ id: string; slug: string; title: string; end_date: string | null; metadata: unknown }>;
   }
   let rows: DraftRow[] = ((rawRows ?? []) as unknown as RawRow[]).map((r) => {
@@ -279,6 +302,7 @@ async function loadRows(supabase: Supa, view: SmartViewKey, sort: SortBy = 'upda
       end_date: (t?.end_date as string | null) ?? null,
       updated_at: r.updated_at as string | null,
       published_at: r.published_at as string | null,
+      snoozed_until: r.snoozed_until as string | null,
     }
   })
 
@@ -314,7 +338,7 @@ export default async function AdminDraftsPage({
   searchParams: Promise<{ view?: string; sort?: string }>
 }) {
   const sp = await searchParams
-  const validViews: SmartViewKey[] = ['needs_review', 'published_alerts', 'expiring_soon', 'socials_pending', 'stale_drafts', 'recently_expired', 'all']
+  const validViews: SmartViewKey[] = ['needs_review', 'published_alerts', 'expiring_soon', 'socials_pending', 'stale_drafts', 'recently_expired', 'snoozed', 'all']
   const view: SmartViewKey = (sp.view && validViews.includes(sp.view as SmartViewKey) ? sp.view : 'needs_review') as SmartViewKey
   const validSorts: SortBy[] = ['updated', 'published', 'expiring']
   const sort: SortBy = (sp.sort && validSorts.includes(sp.sort as SortBy) ? sp.sort : 'updated') as SortBy
@@ -400,6 +424,7 @@ export default async function AdminDraftsPage({
             if (view === 'recently_expired')  return rows.length === 1 ? 'alert that expired recently' : 'alerts that expired recently'
             if (view === 'stale_drafts')      return rows.length === 1 ? 'draft idle for 7+ days' : 'drafts idle for 7+ days'
             if (view === 'needs_review')      return rows.length === 1 ? 'draft needs review' : 'drafts need review'
+            if (view === 'snoozed')           return rows.length === 1 ? 'snoozed draft' : 'snoozed drafts'
             if (view === 'published_alerts')  return rows.length === 1 ? 'published alert' : 'published alerts'
             return rows.length === 1 ? 'draft' : 'drafts'
           })()}
@@ -520,6 +545,24 @@ export default async function AdminDraftsPage({
                       </td>
                       <td>
                         <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-end', alignItems: 'center' }}>
+                          {/* Snooze — defer a needs-review draft out of the queue
+                              until a chosen date. In the Snoozed view, show the
+                              wake date + an Unsnooze button instead. */}
+                          {view === 'snoozed' ? (
+                            <>
+                              <span style={{ color: 'var(--admin-text-muted)', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
+                                wakes {formatDate(r.snoozed_until)}
+                              </span>
+                              <form action={unsnoozeVariantAction}>
+                                <input type="hidden" name="variant_id" value={r.variant_id} />
+                                <button type="submit" className="admin-btn admin-btn-ghost admin-btn-sm">
+                                  Unsnooze
+                                </button>
+                              </form>
+                            </>
+                          ) : (
+                            r.status === 'needs_review' && <DraftSnoozeButton variantId={r.variant_id} />
+                          )}
                           <Link
                             href={editHref}
                             className="admin-btn admin-btn-ghost admin-btn-sm"
