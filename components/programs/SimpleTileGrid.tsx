@@ -1,7 +1,7 @@
 import { marked } from 'marked'
 import type { Program } from '@/utils/supabase/queries'
 import SimpleTile from './SimpleTile'
-import TransferPartnersTable from './TransferPartnersTable'
+import TransferPartnersTable, { isPublishableTransferRow } from './TransferPartnersTable'
 import TierBenefitsTable from './TierBenefitsTable'
 import MemberProgramsTable from './MemberProgramsTable'
 import HotelAwardChartTable from './HotelAwardChartTable'
@@ -36,8 +36,10 @@ export default async function SimpleTileGrid({
   // airline co-brands). OUTBOUND partners: where this program's points go
   // (transferable currencies + hotels + Avios family). Each gets its own
   // tile when present. See migration 301.
-  const inboundCount = program.transfer_partners?.length ?? 0
-  const outboundCount = program.transfer_partners_outbound?.length ?? 0
+  // Count only publishable rows — draft/unconfirmed rows must not gate or
+  // label a section (they're filtered out of the table render too).
+  const inboundCount = (program.transfer_partners ?? []).filter(isPublishableTransferRow).length
+  const outboundCount = (program.transfer_partners_outbound ?? []).filter(isPublishableTransferRow).length
   const hasPartners = inboundCount > 0 && !isAlliance
   const hasOutboundPartners = outboundCount > 0 && !isAlliance
   const hasMembers = isAlliance && (program.member_programs?.length ?? 0) > 0
