@@ -48,7 +48,7 @@ export default function NewsletterSignup() {
           </p>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="rounded-xl border border-[var(--color-border-soft)] bg-[var(--color-background)] px-8 py-10">
+        <form onSubmit={handleSubmit} className="rounded-xl border border-[var(--color-border-soft)] bg-[var(--color-background)] px-5 py-8 sm:px-8 sm:py-10">
           {/* Honeypot — hidden from humans, bots fill it. Do not remove.
               Field is named "subject" (not "website") and tagged with the
               ignore attributes that 1Password / LastPass / Bitwarden / Dashlane
@@ -89,7 +89,7 @@ export default function NewsletterSignup() {
             />
             <input
               type="email"
-              placeholder="Your email address"
+              placeholder="Email address"
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
