@@ -2528,6 +2528,8 @@ export interface FinderCard {
   benefitTypes: string[]
   /** Description-derived feature flags not captured as a benefit_type (e.g. late_checkout). */
   features: string[]
+  /** Earn-rate categories where the card earns >1x (for "earns bonus on" filtering). */
+  bonusCategories: string[]
   topEarn: Array<{ category: string; multiplier: number }>
   sub: { bonus_amount: number; bonus_currency: string; estimated_value_usd: number | null } | null
 }
@@ -2598,6 +2600,7 @@ export async function listCardsForFinder(supabase: SupabaseClient): Promise<Find
     benefitFamilies: Array.from(famByCard.get(c.id) ?? []).sort(),
     benefitTypes: Array.from(typeByCard.get(c.id) ?? []).sort(),
     features: lateCheckoutCards.has(c.id) ? ['late_checkout'] : [],
+    bonusCategories: Array.from(new Set((earnByCard.get(c.id) ?? []).filter((e) => e.multiplier > 1).map((e) => e.category))),
     topEarn: (earnByCard.get(c.id) ?? []).sort((a, b) => b.multiplier - a.multiplier).slice(0, 3),
     sub: subByCard.get(c.id) ?? null,
   }))

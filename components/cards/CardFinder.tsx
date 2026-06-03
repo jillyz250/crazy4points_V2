@@ -67,6 +67,27 @@ function formatBonus(amount: number, currency: string): string {
   return currency === 'USD' ? `$${amount.toLocaleString()}` : `${amount.toLocaleString()} ${currency}`
 }
 
+// "Earns bonus on…" — canonical spend categories mapped to the messy earn-rate
+// category slugs. A card matches if it earns >1x in any mapped category.
+const EARN_CATEGORIES: Array<{ key: string; label: string; cats: string[] }> = [
+  { key: 'dining', label: 'Dining & restaurants', cats: ['dining', 'dining_other', 'dining_citi_nights'] },
+  { key: 'groceries', label: 'Groceries', cats: ['groceries', 'online_grocery', 'groceries_us_supermarkets'] },
+  { key: 'gas', label: 'Gas & EV charging', cats: ['gas', 'gas_stations', 'ev_charging'] },
+  { key: 'flights', label: 'Flights', cats: ['flights', 'airfare_portal', 'airline', 'airline_tickets'] },
+  { key: 'hotels', label: 'Hotels', cats: ['hotels', 'hotels_through_portal', 'marriott', 'ihg', 'hyatt', 'hyatt_purchases'] },
+  { key: 'travel', label: 'Travel (general / portal)', cats: ['travel', 'travel_through_portal', 'car_rentals', 'car_rentals_through_portal', 'hotels_cars_attractions_portal'] },
+  { key: 'streaming', label: 'Streaming & media', cats: ['streaming', 'internet_phone_tv'] },
+  { key: 'transit', label: 'Transit & commuting', cats: ['transit', 'local_transit'] },
+  { key: 'rideshare', label: 'Rideshare & food delivery', cats: ['lyft', 'doordash'] },
+  { key: 'drugstores', label: 'Drugstores', cats: ['drug_stores'] },
+  { key: 'fitness', label: 'Fitness / gym', cats: ['fitness_gym', 'fitness_clubs', 'peloton'] },
+  { key: 'office', label: 'Office & advertising (business)', cats: ['office_supplies', 'advertising', 'marketing', 'shipping', 'business_purchases'] },
+]
+function cardEarnsOn(c: FinderCard, key: string): boolean {
+  const e = EARN_CATEGORIES.find((x) => x.key === key)
+  return !!e && e.cats.some((cat) => c.bonusCategories.includes(cat))
+}
+
 const NETWORKS = [['visa', 'Visa'], ['mastercard', 'Mastercard'], ['amex', 'Amex']] as const
 
 interface Filters {
@@ -74,6 +95,7 @@ interface Filters {
   maxFee: number
   networks: string[]
   benefits: string[]
+  earns: string[]
   issuers: string[]
   noFx: boolean
   q: string
@@ -89,7 +111,7 @@ export default function CardFinder({
   transferSources: Record<string, string[]>
 }) {
   const feeMax = useMemo(() => Math.max(...cards.map((c) => c.annualFee ?? 0), 0), [cards])
-  const defaults: Filters = useMemo(() => ({ cardType: 'all', maxFee: feeMax, networks: [], benefits: [], issuers: [], noFx: false, q: '' }), [feeMax])
+  const defaults: Filters = useMemo(() => ({ cardType: 'all', maxFee: feeMax, networks: [], benefits: [], earns: [], issuers: [], noFx: false, q: '' }), [feeMax])
 
   const [target, setTarget] = useState('')
   const [showFilters, setShowFilters] = useState(false)
@@ -115,6 +137,7 @@ export default function CardFinder({
     if (f.noFx && !c.noFxFee) return false
     if (f.issuers.length && !f.issuers.includes(c.issuerName)) return false
     if (selected.length && !selected.every((b) => cardHas(c, b))) return false
+    if (f.earns.length && !f.earns.every((k) => cardEarnsOn(c, k))) return false
     if (ql && !`${c.name} ${c.issuerName}`.toLowerCase().includes(ql)) return false
     return true
   }
@@ -144,7 +167,7 @@ export default function CardFinder({
 
   const targetName = programOptions.find((p) => p.slug === target)?.name ?? ''
   const resultCount = grouped ? grouped.direct.length + grouped.transfer.length : base.length
-  const activeFilters = (applied.cardType !== 'all' ? 1 : 0) + (applied.maxFee < feeMax ? 1 : 0) + applied.networks.length + applied.benefits.length + applied.issuers.length + (applied.noFx ? 1 : 0)
+  const activeFilters = (applied.cardType !== 'all' ? 1 : 0) + (applied.maxFee < feeMax ? 1 : 0) + applied.networks.length + applied.benefits.length + applied.earns.length + applied.issuers.length + (applied.noFx ? 1 : 0)
 
   return (
     <div style={{ display: 'grid', gap: '1.5rem', gridTemplateColumns: 'minmax(0, 1fr)' }}>
@@ -194,6 +217,14 @@ export default function CardFinder({
                     ))}
                   </div>
                 </div>
+              ))}
+            </div>
+          </Field>
+
+          <Field label="Earns bonus points on (all selected)">
+            <div style={chipRow}>
+              {EARN_CATEGORIES.map((e) => (
+                <Chip key={e.key} on={draft.earns.includes(e.key)} onClick={() => setD({ earns: toggle(draft.earns, e.key) })}>{e.label}</Chip>
               ))}
             </div>
           </Field>
