@@ -2524,6 +2524,10 @@ export interface FinderCard {
   /** Co-brand program this card earns directly (e.g. Marriott Bonvoy) — for co-brand cards. */
   coBrand: { slug: string; name: string } | null
   benefitFamilies: string[]
+  /** Distinct benefit_type values (the specific benefits, e.g. free_night_award). */
+  benefitTypes: string[]
+  /** Description-derived feature flags not captured as a benefit_type (e.g. late_checkout). */
+  features: string[]
   topEarn: Array<{ category: string; multiplier: number }>
   sub: { bonus_amount: number; bonus_currency: string; estimated_value_usd: number | null } | null
 }
@@ -2548,19 +2552,26 @@ export async function listCardsForFinder(supabase: SupabaseClient): Promise<Find
   const ids = rows.map((c) => c.id)
   if (ids.length === 0) return []
 
-  const [progRes, benRes, earnRes, subRes] = await Promise.all([
+  const [progRes, benRes, earnRes, subRes, featRes] = await Promise.all([
     supabase.from('programs').select('id, slug, name'),
-    supabase.from('credit_card_benefits').select('card_id, benefit_family').in('card_id', ids).not('benefit_family', 'is', null),
+    supabase.from('credit_card_benefits').select('card_id, benefit_family, benefit_type').in('card_id', ids).not('benefit_family', 'is', null),
     supabase.from('credit_card_earn_rates').select('card_id, category, multiplier').in('card_id', ids),
     supabase.from('credit_card_welcome_bonuses').select('card_id, bonus_amount, bonus_currency, estimated_value_usd').in('card_id', ids).eq('is_current', true),
+    supabase.from('credit_card_benefits').select('card_id').in('card_id', ids).or('name.ilike.%late check%,description.ilike.%late check%'),
   ])
   const progById = new Map<string, { slug: string; name: string }>()
   for (const p of (progRes.data ?? []) as Array<{ id: string; slug: string; name: string }>) progById.set(p.id, { slug: p.slug, name: p.name })
   const famByCard = new Map<string, Set<string>>()
-  for (const b of (benRes.data ?? []) as Array<{ card_id: string; benefit_family: string }>) {
+  const typeByCard = new Map<string, Set<string>>()
+  for (const b of (benRes.data ?? []) as Array<{ card_id: string; benefit_family: string; benefit_type: string | null }>) {
     if (!famByCard.has(b.card_id)) famByCard.set(b.card_id, new Set())
     famByCard.get(b.card_id)!.add(b.benefit_family)
+    if (b.benefit_type) {
+      if (!typeByCard.has(b.card_id)) typeByCard.set(b.card_id, new Set())
+      typeByCard.get(b.card_id)!.add(b.benefit_type)
+    }
   }
+  const lateCheckoutCards = new Set((featRes.data ?? []).map((r: { card_id: string }) => r.card_id))
   const earnByCard = new Map<string, Array<{ category: string; multiplier: number }>>()
   for (const e of (earnRes.data ?? []) as Array<{ card_id: string; category: string; multiplier: number }>) {
     if (!earnByCard.has(e.card_id)) earnByCard.set(e.card_id, [])
@@ -2585,6 +2596,8 @@ export async function listCardsForFinder(supabase: SupabaseClient): Promise<Find
     currency: c.currency_program_id ? progById.get(c.currency_program_id) ?? null : null,
     coBrand: c.co_brand_program_id ? progById.get(c.co_brand_program_id) ?? null : null,
     benefitFamilies: Array.from(famByCard.get(c.id) ?? []).sort(),
+    benefitTypes: Array.from(typeByCard.get(c.id) ?? []).sort(),
+    features: lateCheckoutCards.has(c.id) ? ['late_checkout'] : [],
     topEarn: (earnByCard.get(c.id) ?? []).sort((a, b) => b.multiplier - a.multiplier).slice(0, 3),
     sub: subByCard.get(c.id) ?? null,
   }))
