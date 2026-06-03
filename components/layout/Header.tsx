@@ -6,13 +6,13 @@ import { useState } from "react";
 import { BLOG_CATEGORIES } from "@/lib/blog/categories";
 import type { ResourceNavCounts } from "@/utils/supabase/queries";
 
-// "Tools" menu — the three tools that are LIVE today. Everything else (program
-// directories, the hub finders) sits under Resources as Coming Soon until built.
-// Each tool owns a color that matches its homepage tile, rendered as a dot.
-const toolsMenu: { label: string; href: string; color: string; comingSoon?: boolean }[] = [
-  { label: "Decision Engine", href: "/decision-engine", color: "#D4AF37" },
-  { label: "Credit Card Comparison", href: "/cards", color: "#059669" },
-  { label: "Alliance Explorer", href: "/tools/alliances", color: "#6B2D8F" },
+// "Tools" menu — the live tools, plus My Wallet (Coming Soon). Program
+// directories live under Resources.
+const toolsMenu: { label: string; href: string; comingSoon?: boolean }[] = [
+  { label: "Decision Engine", href: "/decision-engine" },
+  { label: "Credit Card Comparison", href: "/cards" },
+  { label: "Alliance Explorer", href: "/tools/alliances" },
+  { label: "My Wallet", href: "/wallet", comingSoon: true },
 ];
 
 // Resources — content/reference + the interactive/editorial finders that used to
