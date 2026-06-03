@@ -110,77 +110,77 @@ export default function RedAlertBar({ alerts, overflowCount }: Props) {
   return (
     <section
       aria-label="Hot alerts"
-      className="border-y border-red-300 bg-gradient-to-b from-red-50 via-red-100 to-red-200/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.5),inset_0_-2px_6px_rgba(153,27,27,0.12)]"
+      className="border-b border-[var(--color-border-soft)] bg-[var(--color-background-soft)]"
     >
       <div className="rg-container px-6 md:px-8">
-        <div className="flex items-center gap-3 py-2.5 md:gap-5 md:py-3">
-          <span
-            aria-hidden
-            className="shrink-0 rounded-full bg-red-600 px-2.5 py-1 font-ui text-[11px] font-bold uppercase tracking-[0.15em] text-white shadow-sm"
-          >
-            🔥 Hot Alerts
+        <div className="flex items-center gap-3 py-2.5 md:gap-4 md:py-3">
+          {/* Clean label — no emoji. A small pulsing brand dot carries the
+              "live" signal instead of a heavy red surface. */}
+          <span className="flex shrink-0 items-center gap-2 font-ui text-[11px] font-bold uppercase tracking-[0.15em] text-[var(--color-primary)]">
+            <span className="relative flex h-2 w-2" aria-hidden>
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--color-primary)] opacity-60" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--color-primary)]" />
+            </span>
+            Alerts
           </span>
 
-          <div className="flex flex-1 items-center gap-2 overflow-x-auto md:gap-3">
-            {alerts.map((alert) => {
-              const expiry = expiryPill(alert.end_date);
-              const fresh = isPublishedToday(alert.published_at);
-              const cat = categoryPill(alert.type);
-              return (
-                <Link
-                  key={alert.id}
-                  href={`/alerts/${alert.slug}`}
-                  className="group flex shrink-0 items-center gap-2 rounded-full border border-red-200 bg-white px-3 py-1.5 font-ui text-xs transition hover:border-red-400 hover:bg-red-50"
-                  title={alert.title}
-                >
-                  {/* NEW pill — only on day-of-publish (NY calendar). Drops
-                      the moment the date rolls over the next morning. */}
-                  {fresh && (
-                    <span className="shrink-0 rounded-sm bg-amber-400 px-1.5 py-px font-ui text-[9px] font-bold uppercase tracking-wider text-amber-900">
-                      New
-                    </span>
-                  )}
-
-                  {/* Category pill — always present, color-coded per type */}
-                  <span
-                    className={`shrink-0 rounded-full px-2 py-0.5 font-ui text-[10px] font-semibold ${cat.cls}`}
+          {/* Scroll region with left + right fade overlays so the row never
+              guillotines a chip — the fade signals "more, keep scrolling". */}
+          <div className="relative min-w-0 flex-1">
+            <div className="flex items-center gap-2 overflow-x-auto scroll-smooth pr-6 [-ms-overflow-style:none] [scrollbar-width:none] md:gap-3 [&::-webkit-scrollbar]:hidden">
+              {alerts.map((alert) => {
+                const expiry = expiryPill(alert.end_date);
+                const fresh = isPublishedToday(alert.published_at);
+                const cat = categoryPill(alert.type);
+                return (
+                  <Link
+                    key={alert.id}
+                    href={`/alerts/${alert.slug}`}
+                    className="group flex shrink-0 items-center gap-2 rounded-full border border-[var(--color-border-soft)] bg-white px-3 py-1.5 font-ui text-xs transition hover:border-[var(--color-primary)] hover:bg-[var(--color-background-soft)]"
+                    title={alert.title}
                   >
-                    {cat.label}
-                  </span>
-
-                  {/* Title — full, no truncation. Chip is variable width. */}
-                  <span className="font-medium text-[var(--color-text-primary)] group-hover:text-red-700">
-                    {alert.title}
-                  </span>
-
-                  {/* Right-side urgency pill — only when end_date is set.
-                      Evergreen alerts have no right pill (clean chip). */}
-                  {expiry && (
-                    <span
-                      className={`shrink-0 rounded-full px-2 py-0.5 font-ui text-[10px] font-semibold ${PILL_CLASS[expiry.tone]}`}
-                    >
-                      {expiry.label}
+                    {fresh && (
+                      <span className="shrink-0 rounded-sm bg-amber-400 px-1.5 py-px font-ui text-[9px] font-bold uppercase tracking-wider text-amber-900">
+                        New
+                      </span>
+                    )}
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 font-ui text-[10px] font-semibold ${cat.cls}`}>
+                      {cat.label}
                     </span>
-                  )}
-                </Link>
-              );
-            })}
+                    <span className="font-medium text-[var(--color-text-primary)] group-hover:text-[var(--color-primary)]">
+                      {alert.title}
+                    </span>
+                    {expiry && (
+                      <span className={`shrink-0 rounded-full px-2 py-0.5 font-ui text-[10px] font-semibold ${PILL_CLASS[expiry.tone]}`}>
+                        {expiry.label}
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
 
-            {/* Overflow pill — links to /alerts when there are more than the
-                visible set. Volume signal so reader knows there's depth. */}
-            {overflowCount > 0 && (
-              <Link
-                href="/alerts"
-                className="shrink-0 rounded-full border border-red-300 bg-white px-3 py-1.5 font-ui text-xs font-semibold text-red-700 transition hover:bg-red-100"
-              >
-                +{overflowCount} more →
-              </Link>
-            )}
+              {overflowCount > 0 && (
+                <Link
+                  href="/alerts"
+                  className="shrink-0 rounded-full border border-[var(--color-primary)]/30 bg-white px-3 py-1.5 font-ui text-xs font-semibold text-[var(--color-primary)] transition hover:bg-[var(--color-background-soft)]"
+                >
+                  +{overflowCount} more →
+                </Link>
+              )}
+            </div>
+
+            {/* Edge fades (decorative, never clip hitboxes — pointer-events-none) */}
+            <div aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-5 bg-gradient-to-r from-[var(--color-background-soft)] to-transparent" />
+            <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 flex w-8 items-center justify-end bg-gradient-to-l from-[var(--color-background-soft)] to-transparent">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5 text-[var(--color-text-secondary)]">
+                <path d="m9 18 6-6-6-6" />
+              </svg>
+            </div>
           </div>
 
           <Link
             href="/alerts"
-            className="hidden shrink-0 font-ui text-xs font-medium uppercase tracking-[0.1em] text-red-700 transition-colors hover:text-red-900 md:inline"
+            className="hidden shrink-0 font-ui text-xs font-medium uppercase tracking-[0.1em] text-[var(--color-primary)] transition-colors hover:text-[var(--color-primary-hover)] md:inline"
           >
             View all →
           </Link>
