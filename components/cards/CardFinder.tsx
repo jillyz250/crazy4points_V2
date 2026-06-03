@@ -53,6 +53,41 @@ function cardHas(c: FinderCard, b: BenefitFilter): boolean {
   return !!b.types && b.types.some((t) => c.benefitTypes.includes(t))
 }
 
+// Earn-rate category slugs -> human labels.
+const EARN_LABELS: Record<string, string> = {
+  travel_through_portal: 'travel (portal)', rotating_quarterly: 'rotating (activate)',
+  drug_stores: 'drugstores', grocery_stores: 'groceries', gas_stations: 'gas',
+  dining: 'dining', travel: 'travel', base: 'everything else', streaming: 'streaming',
+  online_retail: 'online shopping', transit: 'transit', office_supply_stores: 'office supply',
+}
+function earnLabel(cat: string): string {
+  return EARN_LABELS[cat] ?? cat.replace(/_/g, ' ')
+}
+function formatBonus(amount: number, currency: string): string {
+  return currency === 'USD' ? `$${amount.toLocaleString()}` : `${amount.toLocaleString()} ${currency}`
+}
+
+// "Earns bonus on…" — canonical spend categories mapped to the messy earn-rate
+// category slugs. A card matches if it earns >1x in any mapped category.
+const EARN_CATEGORIES: Array<{ key: string; label: string; cats: string[] }> = [
+  { key: 'dining', label: 'Dining & restaurants', cats: ['dining', 'dining_other', 'dining_citi_nights'] },
+  { key: 'groceries', label: 'Groceries', cats: ['groceries', 'online_grocery', 'groceries_us_supermarkets'] },
+  { key: 'gas', label: 'Gas & EV charging', cats: ['gas', 'gas_stations', 'ev_charging'] },
+  { key: 'flights', label: 'Flights', cats: ['flights', 'airfare_portal', 'airline', 'airline_tickets'] },
+  { key: 'hotels', label: 'Hotels', cats: ['hotels', 'hotels_through_portal', 'marriott', 'ihg', 'hyatt', 'hyatt_purchases'] },
+  { key: 'travel', label: 'Travel (general / portal)', cats: ['travel', 'travel_through_portal', 'car_rentals', 'car_rentals_through_portal', 'hotels_cars_attractions_portal'] },
+  { key: 'streaming', label: 'Streaming & media', cats: ['streaming', 'internet_phone_tv'] },
+  { key: 'transit', label: 'Transit & commuting', cats: ['transit', 'local_transit'] },
+  { key: 'rideshare', label: 'Rideshare & food delivery', cats: ['lyft', 'doordash'] },
+  { key: 'drugstores', label: 'Drugstores', cats: ['drug_stores'] },
+  { key: 'fitness', label: 'Fitness / gym', cats: ['fitness_gym', 'fitness_clubs', 'peloton'] },
+  { key: 'office', label: 'Office & advertising (business)', cats: ['office_supplies', 'advertising', 'marketing', 'shipping', 'business_purchases'] },
+]
+function cardEarnsOn(c: FinderCard, key: string): boolean {
+  const e = EARN_CATEGORIES.find((x) => x.key === key)
+  return !!e && e.cats.some((cat) => c.bonusCategories.includes(cat))
+}
+
 const NETWORKS = [['visa', 'Visa'], ['mastercard', 'Mastercard'], ['amex', 'Amex']] as const
 
 interface Filters {
@@ -60,6 +95,7 @@ interface Filters {
   maxFee: number
   networks: string[]
   benefits: string[]
+  earns: string[]
   issuers: string[]
   noFx: boolean
   q: string
@@ -75,7 +111,7 @@ export default function CardFinder({
   transferSources: Record<string, string[]>
 }) {
   const feeMax = useMemo(() => Math.max(...cards.map((c) => c.annualFee ?? 0), 0), [cards])
-  const defaults: Filters = useMemo(() => ({ cardType: 'all', maxFee: feeMax, networks: [], benefits: [], issuers: [], noFx: false, q: '' }), [feeMax])
+  const defaults: Filters = useMemo(() => ({ cardType: 'all', maxFee: feeMax, networks: [], benefits: [], earns: [], issuers: [], noFx: false, q: '' }), [feeMax])
 
   const [target, setTarget] = useState('')
   const [showFilters, setShowFilters] = useState(false)
@@ -94,16 +130,26 @@ export default function CardFinder({
     const ql = f.q.trim().toLowerCase()
     const selected = f.benefits.map((k) => benefitByKey.get(k)!).filter(Boolean)
     if (f.cardType !== 'all' && c.cardType !== f.cardType) return false
-    if ((c.annualFee ?? 0) > f.maxFee) return false
+    // Fee cap: a known fee must be within it. When a cap is set, exclude
+    // unknown-fee (unauthored) cards rather than treating them as $0.
+    if (f.maxFee < feeMax && (c.annualFee == null || c.annualFee > f.maxFee)) return false
     if (f.networks.length && (!c.network || !f.networks.includes(c.network))) return false
     if (f.noFx && !c.noFxFee) return false
     if (f.issuers.length && !f.issuers.includes(c.issuerName)) return false
     if (selected.length && !selected.every((b) => cardHas(c, b))) return false
+    if (f.earns.length && !f.earns.every((k) => cardEarnsOn(c, k))) return false
     if (ql && !`${c.name} ${c.issuerName}`.toLowerCase().includes(ql)) return false
     return true
   }
 
-  const base = useMemo(() => cards.filter((c) => passes(c, applied)), [cards, applied]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Authored, fleshed-out cards rank above bare/unauthored ones; then by fee.
+  const byRelevance = (a: FinderCard, b: FinderCard) => {
+    const ax = a.benefitTypes.length > 0 || a.sub != null ? 0 : 1
+    const bx = b.benefitTypes.length > 0 || b.sub != null ? 0 : 1
+    if (ax !== bx) return ax - bx
+    return (a.annualFee ?? Infinity) - (b.annualFee ?? Infinity)
+  }
+  const base = useMemo(() => cards.filter((c) => passes(c, applied)).sort(byRelevance), [cards, applied]) // eslint-disable-line react-hooks/exhaustive-deps
   const draftCount = useMemo(() => cards.filter((c) => passes(c, draft)).length, [cards, draft]) // eslint-disable-line react-hooks/exhaustive-deps
   const search = () => { setApplied(draft); setShowFilters(false); requestAnimationFrame(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })) }
   const reset = () => { setDraft(defaults); setApplied(defaults) }
@@ -116,13 +162,12 @@ export default function CardFinder({
       if (c.coBrand?.slug === target || c.currency?.slug === target) direct.push(c)
       else if (c.currency && sources.has(c.currency.slug) && c.transferEligibility !== 'none') transfer.push(c)
     }
-    const byFee = (a: FinderCard, b: FinderCard) => (a.annualFee ?? Infinity) - (b.annualFee ?? Infinity)
-    return { direct: direct.sort(byFee), transfer: transfer.sort(byFee) }
-  }, [base, target, transferSources])
+    return { direct: direct.sort(byRelevance), transfer: transfer.sort(byRelevance) }
+  }, [base, target, transferSources]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const targetName = programOptions.find((p) => p.slug === target)?.name ?? ''
   const resultCount = grouped ? grouped.direct.length + grouped.transfer.length : base.length
-  const activeFilters = (applied.cardType !== 'all' ? 1 : 0) + (applied.maxFee < feeMax ? 1 : 0) + applied.networks.length + applied.benefits.length + applied.issuers.length + (applied.noFx ? 1 : 0)
+  const activeFilters = (applied.cardType !== 'all' ? 1 : 0) + (applied.maxFee < feeMax ? 1 : 0) + applied.networks.length + applied.benefits.length + applied.earns.length + applied.issuers.length + (applied.noFx ? 1 : 0)
 
   return (
     <div style={{ display: 'grid', gap: '1.5rem', gridTemplateColumns: 'minmax(0, 1fr)' }}>
@@ -172,6 +217,14 @@ export default function CardFinder({
                     ))}
                   </div>
                 </div>
+              ))}
+            </div>
+          </Field>
+
+          <Field label="Earns bonus points on (all selected)">
+            <div style={chipRow}>
+              {EARN_CATEGORIES.map((e) => (
+                <Chip key={e.key} on={draft.earns.includes(e.key)} onClick={() => setD({ earns: toggle(draft.earns, e.key) })}>{e.label}</Chip>
               ))}
             </div>
           </Field>
@@ -244,11 +297,16 @@ function CardTile({ c, showTransferNote }: { c: FinderCard; showTransferNote?: b
         {c.issuerName}{c.network ? ` · ${c.network[0].toUpperCase() + c.network.slice(1)}` : ''}
       </div>
       <div style={{ fontWeight: 600, fontSize: '1.0625rem', marginBottom: '0.5rem', lineHeight: 1.3 }}>{c.name}</div>
-      <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'baseline', flexWrap: 'wrap', marginBottom: has.length ? '0.625rem' : 0 }}>
-        <Stat label="Annual fee" value={c.annualFee === 0 ? '$0' : c.annualFee != null ? `$${c.annualFee}` : '—'} />
-        {c.sub && <Stat label="Welcome bonus" value={c.sub.bonus_amount.toLocaleString()} />}
+      <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'baseline', flexWrap: 'wrap', marginBottom: (has.length || c.topEarn.length) ? '0.625rem' : 0 }}>
+        <Stat label="Annual fee" value={c.annualFee === 0 ? '$0' : c.annualFee != null ? `$${c.annualFee}` : 'See card'} />
+        {c.sub && <Stat label="Welcome bonus" value={formatBonus(c.sub.bonus_amount, c.sub.bonus_currency)} />}
         {c.noFxFee && <Stat label="FX fee" value="None" />}
       </div>
+      {c.topEarn.length > 0 && (
+        <div style={{ fontFamily: 'var(--font-ui)', fontSize: '0.8125rem', color: 'var(--color-text-primary)', marginBottom: has.length ? '0.625rem' : 0 }}>
+          {c.topEarn.map((e) => `${e.multiplier % 1 === 0 ? e.multiplier : e.multiplier.toFixed(1)}x ${earnLabel(e.category)}`).join(' · ')}
+        </div>
+      )}
       {has.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3125rem' }}>
           {has.map((b) => <span key={b.key} style={famBadge}>{b.label}</span>)}
