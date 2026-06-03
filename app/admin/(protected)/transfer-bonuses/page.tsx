@@ -34,7 +34,7 @@ type ProgramRow = {
 const TIER_AWARE: Record<string, string> = {
   citi: 'Premium cards (Strata Elite, Prestige) transfer 1:1; no-AF cards 1:0.7. Scope bonus to premium tier only.',
   chase: 'Premium cards (Sapphire, Ink Preferred/Premier) transfer; no-AF cards pool only. Scope to premium tier.',
-  'wells-fargo-rewards': 'Only Autograph + Autograph Journey transfer. Other WF cards excluded.',
+  'wells-fargo': 'Only Autograph + Autograph Journey transfer. Other WF cards excluded.',
 }
 
 function freshnessTone(scrapedAt: string | null): 'success' | 'warning' | 'danger' | 'neutral' {
