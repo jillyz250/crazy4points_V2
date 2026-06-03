@@ -34,8 +34,10 @@ export default function HomeHeroV2({ lastUpdated }: Props) {
             Alerts on the points moves actually worth caring about. We track the chaos so you don&rsquo;t have to.
           </p>
 
+          {/* "Start here" -> newsletter signup for now; the /start-here page is
+              backlogged pending curated content. */}
           <Link
-            href="/start-here"
+            href="/newsletter"
             className="mt-2 inline-flex items-center rounded-md bg-[var(--color-accent)] px-7 py-3.5 font-ui text-sm font-semibold uppercase tracking-[0.1em] text-[var(--color-primary)] shadow-sm transition hover:bg-[var(--color-accent-hover)] hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)]"
           >
             Start here →

@@ -6,13 +6,13 @@ import { useState } from "react";
 import { BLOG_CATEGORIES } from "@/lib/blog/categories";
 import type { ResourceNavCounts } from "@/utils/supabase/queries";
 
-// "Tools" menu — the three tools that are LIVE today. Everything else (program
-// directories, the hub finders) sits under Resources as Coming Soon until built.
-// Each tool owns a color that matches its homepage tile, rendered as a dot.
-const toolsMenu: { label: string; href: string; color: string; comingSoon?: boolean }[] = [
-  { label: "Decision Engine", href: "/decision-engine", color: "#D4AF37" },
-  { label: "Credit Card Comparison", href: "/cards", color: "#059669" },
-  { label: "Alliance Explorer", href: "/tools/alliances", color: "#6B2D8F" },
+// "Tools" menu — the live tools, plus My Wallet (Coming Soon). Program
+// directories live under Resources.
+const toolsMenu: { label: string; href: string; comingSoon?: boolean }[] = [
+  { label: "Decision Engine", href: "/decision-engine" },
+  { label: "Credit Card Comparison", href: "/cards" },
+  { label: "Alliance Explorer", href: "/tools/alliances" },
+  { label: "My Wallet", href: "/wallet", comingSoon: true },
 ];
 
 // Resources — content/reference + the interactive/editorial finders that used to
@@ -25,15 +25,13 @@ const RESOURCE_ITEMS: {
   href: string;
   comingSoon?: boolean;
 }[] = [
-  // All Coming Soon until built. (Alliance Explorer is live under Tools, so the
-  // alliance program directory is omitted here to avoid two "alliance" entries.)
-  { label: "Best Way to Book It", href: "/hub/best-way-to-book", comingSoon: true },
-  { label: "Where Can My Points Take Me?", href: "/hub/where-can-i-go", comingSoon: true },
-  { label: "Will My Free Night Cert Fit?", href: "/hub/fnc-fit", comingSoon: true },
+  // Program directories (live via their counts) + the Points Hub (coming soon).
+  // The hub finders (Best Way to Book, Where Can I Go, FNC Fit) now live INSIDE
+  // the Points Hub, so they're off the nav.
+  { label: "Airlines", key: "airline", href: "/programs?type=airline" },
+  { label: "Hotels", key: "hotel", href: "/programs?type=hotel" },
+  { label: "Alliances", key: "alliance", href: "/programs?type=alliance" },
   { label: "Points Hub", href: "/hub", comingSoon: true },
-  { label: "Airlines", key: "airline", href: "/programs?type=airline", comingSoon: true },
-  { label: "Hotels", key: "hotel", href: "/programs?type=hotel", comingSoon: true },
-  { label: "Credit Cards", key: "credit_card", href: "/programs?type=credit_card", comingSoon: true },
 ];
 
 // BLOG dropdown items — mirrors the editorial taxonomy in
@@ -94,11 +92,48 @@ export default function Header({
               <span className="absolute -bottom-1 left-0 h-0.5 w-full origin-left scale-x-0 bg-[var(--color-accent)] transition-transform duration-200 group-hover:scale-x-100" />
             </Link>
 
-            {/* Resources dropdown — content/reference + the interactive finders.
-                Program directories (Airlines / Alliances / Hotels / Credit Cards)
-                carry live counts and gate to Coming Soon when empty; plain links
-                and the explicit comingSoon flag cover the tools and hub. Sits to
-                the LEFT of Tools per the nav order. */}
+            {/* Tools dropdown — the three live tools. Sits to the LEFT of
+                Resources per the nav order. (No color dots.) */}
+            <div className="group relative">
+              <button
+                type="button"
+                className="flex items-center gap-1 font-ui !text-xs font-medium uppercase tracking-[0.14em] text-[var(--color-text-secondary)] hover:text-[var(--color-primary)]"
+              >
+                Tools
+                <svg className="h-3 w-3 shrink-0 transition-transform duration-200 group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              <div className="invisible absolute left-0 top-full z-50 w-72 pt-2 group-hover:visible">
+                <div className="rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] py-1 shadow-[var(--shadow-soft)]">
+                  {toolsMenu.map((item) =>
+                    item.comingSoon ? (
+                      <span
+                        key={item.label}
+                        className="flex items-center justify-between gap-3 px-4 py-2.5 font-ui text-xs text-[var(--color-text-secondary)] opacity-60"
+                      >
+                        {item.label}
+                        <span className="shrink-0 rounded bg-[var(--color-background-soft)] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-secondary)]">
+                          Coming Soon
+                        </span>
+                      </span>
+                    ) : (
+                      <Link
+                        key={item.label}
+                        href={item.href}
+                        className="flex items-center px-4 py-2.5 font-ui text-xs font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-background-soft)] hover:text-[var(--color-primary)]"
+                      >
+                        {item.label}
+                      </Link>
+                    )
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Resources dropdown — program directories (Airlines / Hotels /
+                Alliances) carry live counts; Points Hub is Coming Soon. Sits to
+                the RIGHT of Tools. */}
             <div className="group relative">
               <button
                 type="button"
@@ -134,50 +169,6 @@ export default function Header({
                       </Link>
                     );
                   })}
-                </div>
-              </div>
-            </div>
-
-            {/* Tools dropdown — the two finders that compute a personal answer
-                (Decision Engine + Credit Card Comparison), each with a color dot
-                matching its homepage tile. */}
-            <div className="group relative">
-              <button
-                type="button"
-                className="flex items-center gap-1 font-ui !text-xs font-medium uppercase tracking-[0.14em] text-[var(--color-text-secondary)] hover:text-[var(--color-primary)]"
-              >
-                Tools
-                <svg className="h-3 w-3 shrink-0 transition-transform duration-200 group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-              <div className="invisible absolute left-0 top-full z-50 w-72 pt-2 group-hover:visible">
-                <div className="rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] py-1 shadow-[var(--shadow-soft)]">
-                  {toolsMenu.map((item) =>
-                    item.comingSoon ? (
-                      <span
-                        key={item.label}
-                        className="flex items-center justify-between gap-3 px-4 py-2.5 font-ui text-xs text-[var(--color-text-secondary)] opacity-60"
-                      >
-                        <span className="flex items-center gap-2.5">
-                          <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ background: item.color }} />
-                          {item.label}
-                        </span>
-                        <span className="shrink-0 rounded bg-[var(--color-background-soft)] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-secondary)]">
-                          Coming Soon
-                        </span>
-                      </span>
-                    ) : (
-                      <Link
-                        key={item.label}
-                        href={item.href}
-                        className="flex items-center gap-2.5 px-4 py-2.5 font-ui text-xs font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-background-soft)] hover:text-[var(--color-primary)]"
-                      >
-                        <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ background: item.color }} />
-                        {item.label}
-                      </Link>
-                    )
-                  )}
                 </div>
               </div>
             </div>
@@ -256,8 +247,43 @@ export default function Header({
             Alerts
           </Link>
 
-          {/* Mobile Resources — content + finders, mirrors desktop order (left
-              of Tools). Auto-link with count + comingSoon gating. */}
+          {/* Mobile Tools — the three live tools (no color dots), mirrors
+              desktop order (left of Resources). */}
+          <button
+            type="button"
+            className="flex min-h-[44px] w-full items-center justify-between border-b border-[var(--color-border-soft)] px-6 font-ui text-sm font-medium uppercase tracking-[0.14em] text-[var(--color-text-secondary)]"
+            onClick={() => setToolsOpen((o) => !o)}
+          >
+            Tools
+            <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d={toolsOpen ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"} />
+            </svg>
+          </button>
+          {toolsOpen &&
+            toolsMenu.map((item) =>
+              item.comingSoon ? (
+                <span
+                  key={item.label}
+                  className="flex min-h-[44px] items-center justify-between border-b border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-8 font-ui text-sm text-[var(--color-text-secondary)] opacity-60"
+                >
+                  {item.label}
+                  <span className="ml-3 shrink-0 rounded bg-[var(--color-border-soft)] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-secondary)]">
+                    Coming Soon
+                  </span>
+                </span>
+              ) : (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  onClick={() => setMenuOpen(false)}
+                  className="flex min-h-[44px] items-center border-b border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-8 font-ui text-sm font-medium text-[var(--color-text-primary)] hover:text-[var(--color-primary)]"
+                >
+                  {item.label}
+                </Link>
+              )
+            )}
+
+          {/* Mobile Resources — Airlines / Hotels / Alliances + Points Hub. */}
           <button
             type="button"
             className="flex min-h-[44px] w-full items-center justify-between border-b border-[var(--color-border-soft)] px-6 font-ui text-sm font-medium uppercase tracking-[0.14em] text-[var(--color-text-secondary)]"
@@ -293,46 +319,6 @@ export default function Header({
                 </Link>
               );
             })}
-
-          {/* Mobile Tools — Decision Engine + Credit Card Comparison, color dots
-              (mirrors desktop) */}
-          <button
-            type="button"
-            className="flex min-h-[44px] w-full items-center justify-between border-b border-[var(--color-border-soft)] px-6 font-ui text-sm font-medium uppercase tracking-[0.14em] text-[var(--color-text-secondary)]"
-            onClick={() => setToolsOpen((o) => !o)}
-          >
-            Tools
-            <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d={toolsOpen ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"} />
-            </svg>
-          </button>
-          {toolsOpen &&
-            toolsMenu.map((item) =>
-              item.comingSoon ? (
-                <span
-                  key={item.label}
-                  className="flex min-h-[44px] items-center justify-between border-b border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-8 font-ui text-sm text-[var(--color-text-secondary)] opacity-60"
-                >
-                  <span className="flex items-center gap-2.5">
-                    <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ background: item.color }} />
-                    {item.label}
-                  </span>
-                  <span className="ml-3 shrink-0 rounded bg-[var(--color-border-soft)] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-secondary)]">
-                    Coming Soon
-                  </span>
-                </span>
-              ) : (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  onClick={() => setMenuOpen(false)}
-                  className="flex min-h-[44px] items-center gap-2.5 border-b border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-8 font-ui text-sm font-medium text-[var(--color-text-primary)] hover:text-[var(--color-primary)]"
-                >
-                  <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ background: item.color }} />
-                  {item.label}
-                </Link>
-              )
-            )}
 
           {/* Mobile Blog — now its own top-level item */}
           <button
