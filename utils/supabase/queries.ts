@@ -2507,6 +2507,89 @@ export async function getCardsThatEarnIntoProgram(
   return result
 }
 
+// --- Card Finder -----------------------------------------------------------
+export interface FinderCard {
+  id: string
+  slug: string
+  name: string
+  issuerName: string
+  annualFee: number | null
+  cardType: CardType
+  network: string | null
+  transferEligibility: 'direct' | 'pool_to_unlock' | 'restricted' | 'none' | null
+  fxFeePct: number | null
+  noFxFee: boolean
+  /** Canonical currency this card earns into (e.g. Membership Rewards) — for transferable cards. */
+  currency: { slug: string; name: string } | null
+  /** Co-brand program this card earns directly (e.g. Marriott Bonvoy) — for co-brand cards. */
+  coBrand: { slug: string; name: string } | null
+  benefitFamilies: string[]
+  topEarn: Array<{ category: string; multiplier: number }>
+  sub: { bonus_amount: number; bonus_currency: string; estimated_value_usd: number | null } | null
+}
+
+/**
+ * Every active, open card with the facets the finder filters on. The dataset is
+ * small (~90 cards) so we return all of it and filter client-side.
+ */
+export async function listCardsForFinder(supabase: SupabaseClient): Promise<FinderCard[]> {
+  const { data: cards, error } = await supabase
+    .from('credit_cards')
+    .select('id, slug, name, annual_fee_usd, card_type, network, transfer_eligibility, foreign_transaction_fee_pct, currency_program_id, co_brand_program_id, issuer:issuers!issuer_id(name)')
+    .eq('is_active', true)
+    .eq('closed_to_new_applicants', false)
+    .order('name')
+  if (error) throw error
+  const rows = (cards ?? []) as unknown as Array<{
+    id: string; slug: string; name: string; annual_fee_usd: number | null; card_type: CardType
+    network: string | null; transfer_eligibility: FinderCard['transferEligibility']; foreign_transaction_fee_pct: number | null
+    currency_program_id: string | null; co_brand_program_id: string | null; issuer: { name: string } | null
+  }>
+  const ids = rows.map((c) => c.id)
+  if (ids.length === 0) return []
+
+  const [progRes, benRes, earnRes, subRes] = await Promise.all([
+    supabase.from('programs').select('id, slug, name'),
+    supabase.from('credit_card_benefits').select('card_id, benefit_family').in('card_id', ids).not('benefit_family', 'is', null),
+    supabase.from('credit_card_earn_rates').select('card_id, category, multiplier').in('card_id', ids),
+    supabase.from('credit_card_welcome_bonuses').select('card_id, bonus_amount, bonus_currency, estimated_value_usd').in('card_id', ids).eq('is_current', true),
+  ])
+  const progById = new Map<string, { slug: string; name: string }>()
+  for (const p of (progRes.data ?? []) as Array<{ id: string; slug: string; name: string }>) progById.set(p.id, { slug: p.slug, name: p.name })
+  const famByCard = new Map<string, Set<string>>()
+  for (const b of (benRes.data ?? []) as Array<{ card_id: string; benefit_family: string }>) {
+    if (!famByCard.has(b.card_id)) famByCard.set(b.card_id, new Set())
+    famByCard.get(b.card_id)!.add(b.benefit_family)
+  }
+  const earnByCard = new Map<string, Array<{ category: string; multiplier: number }>>()
+  for (const e of (earnRes.data ?? []) as Array<{ card_id: string; category: string; multiplier: number }>) {
+    if (!earnByCard.has(e.card_id)) earnByCard.set(e.card_id, [])
+    earnByCard.get(e.card_id)!.push({ category: e.category, multiplier: e.multiplier })
+  }
+  const subByCard = new Map<string, FinderCard['sub']>()
+  for (const s of (subRes.data ?? []) as Array<{ card_id: string; bonus_amount: number; bonus_currency: string; estimated_value_usd: number | null }>) {
+    subByCard.set(s.card_id, { bonus_amount: s.bonus_amount, bonus_currency: s.bonus_currency, estimated_value_usd: s.estimated_value_usd })
+  }
+
+  return rows.map((c) => ({
+    id: c.id,
+    slug: c.slug,
+    name: c.name,
+    issuerName: c.issuer?.name ?? '',
+    annualFee: c.annual_fee_usd,
+    cardType: c.card_type,
+    network: c.network,
+    transferEligibility: c.transfer_eligibility,
+    fxFeePct: c.foreign_transaction_fee_pct,
+    noFxFee: c.foreign_transaction_fee_pct === 0,
+    currency: c.currency_program_id ? progById.get(c.currency_program_id) ?? null : null,
+    coBrand: c.co_brand_program_id ? progById.get(c.co_brand_program_id) ?? null : null,
+    benefitFamilies: Array.from(famByCard.get(c.id) ?? []).sort(),
+    topEarn: (earnByCard.get(c.id) ?? []).sort((a, b) => b.multiplier - a.multiplier).slice(0, 3),
+    sub: subByCard.get(c.id) ?? null,
+  }))
+}
+
 export interface CardDetailBundle {
   card: CreditCard
   issuer: Issuer
