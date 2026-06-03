@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import type { FinderCard } from '@/utils/supabase/queries'
 
@@ -55,6 +55,16 @@ function cardHas(c: FinderCard, b: BenefitFilter): boolean {
 
 const NETWORKS = [['visa', 'Visa'], ['mastercard', 'Mastercard'], ['amex', 'Amex']] as const
 
+interface Filters {
+  cardType: 'all' | 'personal' | 'business'
+  maxFee: number
+  networks: string[]
+  benefits: string[]
+  issuers: string[]
+  noFx: boolean
+  q: string
+}
+
 export interface ProgramOption { slug: string; name: string }
 
 export default function CardFinder({
@@ -65,35 +75,38 @@ export default function CardFinder({
   transferSources: Record<string, string[]>
 }) {
   const feeMax = useMemo(() => Math.max(...cards.map((c) => c.annualFee ?? 0), 0), [cards])
+  const defaults: Filters = useMemo(() => ({ cardType: 'all', maxFee: feeMax, networks: [], benefits: [], issuers: [], noFx: false, q: '' }), [feeMax])
+
   const [target, setTarget] = useState('')
-  const [cardType, setCardType] = useState<'all' | 'personal' | 'business'>('all')
-  const [maxFee, setMaxFee] = useState(feeMax)
-  const [networks, setNetworks] = useState<string[]>([])
-  const [benefits, setBenefits] = useState<string[]>([])
-  const [issuers, setIssuers] = useState<string[]>([])
-  const [noFx, setNoFx] = useState(false)
-  const [q, setQ] = useState('')
   const [showFilters, setShowFilters] = useState(false)
+  // `draft` = what the panel controls edit; `applied` = what the results use.
+  // Nothing filters until the user hits Search.
+  const [draft, setDraft] = useState<Filters>(defaults)
+  const [applied, setApplied] = useState<Filters>(defaults)
+  const resultsRef = useRef<HTMLParagraphElement>(null)
 
   const allIssuers = useMemo(() => Array.from(new Set(cards.map((c) => c.issuerName).filter(Boolean))).sort(), [cards])
   const benefitByKey = useMemo(() => new Map(ALL_BENEFITS.map((b) => [b.key, b])), [])
-  const toggle = (arr: string[], v: string, set: (x: string[]) => void) =>
-    set(arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v])
+  const setD = (patch: Partial<Filters>) => setDraft((d) => ({ ...d, ...patch }))
+  const toggle = (arr: string[], v: string) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v])
 
-  const base = useMemo(() => {
-    const ql = q.trim().toLowerCase()
-    const selected = benefits.map((k) => benefitByKey.get(k)!).filter(Boolean)
-    return cards.filter((c) => {
-      if (cardType !== 'all' && c.cardType !== cardType) return false
-      if ((c.annualFee ?? 0) > maxFee) return false
-      if (networks.length && (!c.network || !networks.includes(c.network))) return false
-      if (noFx && !c.noFxFee) return false
-      if (issuers.length && !issuers.includes(c.issuerName)) return false
-      if (selected.length && !selected.every((b) => cardHas(c, b))) return false
-      if (ql && !`${c.name} ${c.issuerName}`.toLowerCase().includes(ql)) return false
-      return true
-    })
-  }, [cards, cardType, maxFee, networks, noFx, issuers, benefits, benefitByKey, q])
+  const passes = (c: FinderCard, f: Filters) => {
+    const ql = f.q.trim().toLowerCase()
+    const selected = f.benefits.map((k) => benefitByKey.get(k)!).filter(Boolean)
+    if (f.cardType !== 'all' && c.cardType !== f.cardType) return false
+    if ((c.annualFee ?? 0) > f.maxFee) return false
+    if (f.networks.length && (!c.network || !f.networks.includes(c.network))) return false
+    if (f.noFx && !c.noFxFee) return false
+    if (f.issuers.length && !f.issuers.includes(c.issuerName)) return false
+    if (selected.length && !selected.every((b) => cardHas(c, b))) return false
+    if (ql && !`${c.name} ${c.issuerName}`.toLowerCase().includes(ql)) return false
+    return true
+  }
+
+  const base = useMemo(() => cards.filter((c) => passes(c, applied)), [cards, applied]) // eslint-disable-line react-hooks/exhaustive-deps
+  const draftCount = useMemo(() => cards.filter((c) => passes(c, draft)).length, [cards, draft]) // eslint-disable-line react-hooks/exhaustive-deps
+  const search = () => { setApplied(draft); setShowFilters(false); requestAnimationFrame(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })) }
+  const reset = () => { setDraft(defaults); setApplied(defaults) }
 
   const grouped = useMemo(() => {
     if (!target) return null
@@ -109,8 +122,7 @@ export default function CardFinder({
 
   const targetName = programOptions.find((p) => p.slug === target)?.name ?? ''
   const resultCount = grouped ? grouped.direct.length + grouped.transfer.length : base.length
-  const activeFilters = (cardType !== 'all' ? 1 : 0) + (maxFee < feeMax ? 1 : 0) + networks.length + benefits.length + issuers.length + (noFx ? 1 : 0)
-  const reset = () => { setCardType('all'); setMaxFee(feeMax); setNetworks([]); setBenefits([]); setIssuers([]); setNoFx(false); setQ('') }
+  const activeFilters = (applied.cardType !== 'all' ? 1 : 0) + (applied.maxFee < feeMax ? 1 : 0) + applied.networks.length + applied.benefits.length + applied.issuers.length + (applied.noFx ? 1 : 0)
 
   return (
     <div style={{ display: 'grid', gap: '1.5rem', gridTemplateColumns: 'minmax(0, 1fr)' }}>
@@ -129,20 +141,20 @@ export default function CardFinder({
       {showFilters && (
         <div style={{ ...panel, display: 'grid', gap: '1.25rem' }}>
           <Field label="Search">
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Card or issuer name" style={inputStyle} />
+            <input value={draft.q} onChange={(e) => setD({ q: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') search() }} placeholder="Card or issuer name" style={inputStyle} />
           </Field>
 
           <Field label="Card type">
             <div style={chipRow}>
               {(['all', 'personal', 'business'] as const).map((t) => (
-                <Chip key={t} on={cardType === t} onClick={() => setCardType(t)}>{t === 'all' ? 'All' : t[0].toUpperCase() + t.slice(1)}</Chip>
+                <Chip key={t} on={draft.cardType === t} onClick={() => setD({ cardType: t })}>{t === 'all' ? 'All' : t[0].toUpperCase() + t.slice(1)}</Chip>
               ))}
             </div>
           </Field>
 
-          <Field label={maxFee >= feeMax ? 'Max annual fee: Any' : `Max annual fee: $${maxFee}`}>
-            <input type="range" min={0} max={feeMax} step={5} value={maxFee}
-              onChange={(e) => setMaxFee(Number(e.target.value))}
+          <Field label={draft.maxFee >= feeMax ? 'Max annual fee: Any' : `Max annual fee: $${draft.maxFee}`}>
+            <input type="range" min={0} max={feeMax} step={5} value={draft.maxFee}
+              onChange={(e) => setD({ maxFee: Number(e.target.value) })}
               style={{ width: '100%', accentColor: 'var(--color-primary)' }} />
             <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-ui)', fontSize: '0.6875rem', color: 'var(--color-text-secondary)' }}>
               <span>$0</span><span>${feeMax}</span>
@@ -156,7 +168,7 @@ export default function CardFinder({
                   <div style={{ fontFamily: 'var(--font-ui)', fontSize: '0.6875rem', fontWeight: 700, color: 'var(--color-primary)', marginBottom: '0.4375rem' }}>{g.group}</div>
                   <div style={chipRow}>
                     {g.items.map((b) => (
-                      <Chip key={b.key} on={benefits.includes(b.key)} onClick={() => toggle(benefits, b.key, setBenefits)}>{b.label}</Chip>
+                      <Chip key={b.key} on={draft.benefits.includes(b.key)} onClick={() => setD({ benefits: toggle(draft.benefits, b.key) })}>{b.label}</Chip>
                     ))}
                   </div>
                 </div>
@@ -167,7 +179,7 @@ export default function CardFinder({
           <Field label="Network">
             <div style={chipRow}>
               {NETWORKS.map(([v, lbl]) => (
-                <Chip key={v} on={networks.includes(v)} onClick={() => toggle(networks, v, setNetworks)}>{lbl}</Chip>
+                <Chip key={v} on={draft.networks.includes(v)} onClick={() => setD({ networks: toggle(draft.networks, v) })}>{lbl}</Chip>
               ))}
             </div>
           </Field>
@@ -175,21 +187,26 @@ export default function CardFinder({
           <Field label="Issuer">
             <div style={chipRow}>
               {allIssuers.map((i) => (
-                <Chip key={i} on={issuers.includes(i)} onClick={() => toggle(issuers, i, setIssuers)}>{i}</Chip>
+                <Chip key={i} on={draft.issuers.includes(i)} onClick={() => setD({ issuers: toggle(draft.issuers, i) })}>{i}</Chip>
               ))}
             </div>
           </Field>
 
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }} className="rg-tap-target">
-            <input type="checkbox" checked={noFx} onChange={(e) => setNoFx(e.target.checked)} style={{ width: 18, height: 18 }} />
+            <input type="checkbox" checked={draft.noFx} onChange={(e) => setD({ noFx: e.target.checked })} style={{ width: 18, height: 18 }} />
             <span style={{ fontFamily: 'var(--font-ui)', fontSize: '0.9375rem' }}>No foreign transaction fee</span>
           </label>
 
-          <button onClick={reset} style={clearBtn}>Clear filters</button>
+          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <button onClick={search} style={searchBtn} className="rg-tap-target">
+              Search — show {draftCount} {draftCount === 1 ? 'card' : 'cards'}
+            </button>
+            <button onClick={reset} style={clearBtn}>Clear filters</button>
+          </div>
         </div>
       )}
 
-      <p style={{ fontFamily: 'var(--font-ui)', fontSize: '0.875rem', color: 'var(--color-text-secondary)', margin: 0 }}>
+      <p ref={resultsRef} style={{ fontFamily: 'var(--font-ui)', fontSize: '0.875rem', color: 'var(--color-text-secondary)', margin: 0, scrollMarginTop: '1rem' }}>
         {resultCount} {resultCount === 1 ? 'card' : 'cards'}{target ? ` for ${targetName}` : ''}
       </p>
 
@@ -284,3 +301,4 @@ const tile: React.CSSProperties = { display: 'block', padding: '1rem 1.125rem', 
 const famBadge: React.CSSProperties = { fontFamily: 'var(--font-ui)', fontSize: '0.6875rem', padding: '0.1875rem 0.5rem', borderRadius: '999px', background: 'var(--color-background-soft)', border: '1px solid var(--color-border-soft)', color: 'var(--color-text-secondary)' }
 const filtersToggle: React.CSSProperties = { fontFamily: 'var(--font-ui)', fontSize: '0.9375rem', fontWeight: 600, padding: '0.625rem 1rem', borderRadius: 'var(--radius-ui)', border: '1px solid var(--color-border-soft)', background: 'var(--color-background)', color: 'var(--color-primary)', cursor: 'pointer', justifySelf: 'start' }
 const clearBtn: React.CSSProperties = { fontFamily: 'var(--font-ui)', fontSize: '0.8125rem', color: 'var(--color-text-secondary)', background: 'none', border: 'none', cursor: 'pointer', justifySelf: 'start', padding: 0, textDecoration: 'underline' }
+const searchBtn: React.CSSProperties = { fontFamily: 'var(--font-ui)', fontSize: '0.9375rem', fontWeight: 700, padding: '0.75rem 1.5rem', borderRadius: 'var(--radius-ui)', border: 'none', background: 'var(--color-primary)', color: '#fff', cursor: 'pointer', minHeight: 44 }
