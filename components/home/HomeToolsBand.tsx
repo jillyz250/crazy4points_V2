@@ -20,37 +20,10 @@ type Tool = {
 
 const TOOLS: Tool[] = [
   {
-    label: "Best Way to Book It",
-    href: "/hub/best-way-to-book",
-    blurb: "Punch in a route — JFK to HNL — and we'll show you some of the ways you can book it with points, sorted by miles with the catch up front.",
-    cta: "Find the route",
-    accent: "#6B2D8F",
-    tint: "#F1E7F8",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
-        <path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z" />
-      </svg>
-    ),
-  },
-  {
-    label: "Where Can My Points Take Me?",
-    href: "/hub/where-can-i-go",
-    blurb: "Tell us your balance — we'll show you the trips you can actually book right now.",
-    cta: "See destinations",
-    accent: "#2563EB",
-    tint: "#E5EDFD",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
-        <circle cx="12" cy="12" r="9" />
-        <path d="M3 12h18M12 3c2.5 2.6 3.9 6 4 9-.1 3-1.5 6.4-4 9-2.5-2.6-3.9-6-4-9 .1-3 1.5-6.4 4-9z" />
-      </svg>
-    ),
-  },
-  {
-    label: "Compare Credit Cards",
-    href: "/programs?type=credit_card",
-    blurb: "Put two cards head-to-head — earn rates, transfer partners, and welcome offers, side by side.",
-    cta: "Compare cards",
+    label: "Credit Card Comparison",
+    href: "/cards",
+    blurb: "Filter cards by the program, perks, and spending you care about — and see which earn a program directly vs. by transfer.",
+    cta: "Find your card",
     accent: "#059669",
     tint: "#DEF4EC",
     icon: (
@@ -61,16 +34,30 @@ const TOOLS: Tool[] = [
     ),
   },
   {
-    label: "Will My Free Night Cert Fit?",
-    href: "/hub/fnc-fit",
-    blurb: "Got a free night certificate? Check whether it covers the hotel you actually want.",
-    cta: "Coming soon",
-    accent: "#D4AF37",
-    tint: "#FBF4DD",
-    comingSoon: true,
+    label: "Alliance Explorer",
+    href: "/tools/alliances",
+    blurb: "oneworld, SkyTeam, and Star Alliance — tier ladders, lounge access, and status equivalency at a glance.",
+    cta: "Explore alliances",
+    accent: "#6B2D8F",
+    tint: "#F1E7F8",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
-        <path d="M3 18v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5M3 18v2M21 18v2M3 13V7a2 2 0 0 1 2-2h6v6" />
+        <circle cx="12" cy="12" r="9" />
+        <path d="M3 12h18M12 3c2.5 2.6 3.9 6 4 9-.1 3-1.5 6.4-4 9-2.5-2.6-3.9-6-4-9 .1-3 1.5-6.4 4-9z" />
+      </svg>
+    ),
+  },
+  {
+    label: "Decision Engine",
+    href: "/decision-engine",
+    blurb: "Not sure where to go? Spin it — with or without filters — for a points-trip idea.",
+    cta: "Spin it",
+    accent: "#D4AF37",
+    tint: "#FBF4DD",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
+        <path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15l-1.9-4.1L5.5 9l4.6-1.4L12 3z" />
+        <path d="M18 14l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7.7-1.8z" />
       </svg>
     ),
   },
@@ -130,11 +117,11 @@ export default function HomeToolsBand() {
             Tools to plan your next trip
           </h2>
           <p className="mt-3 font-body text-[var(--color-text-secondary)]">
-            Tell them what you've got — they'll do the thinking and hand back an answer.
+            Compare cards, explore the alliances, or spin up a trip idea — all live now.
           </p>
         </div>
 
-        <div className="mx-auto grid max-w-3xl gap-4 sm:grid-cols-2">
+        <div className="mx-auto grid max-w-4xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {TOOLS.map((tool) => {
             const baseClass =
               "group relative flex flex-col gap-3 overflow-hidden rounded-[var(--radius-card)] border border-white/60 p-6 shadow-[0_1px_2px_rgba(26,26,26,0.04),0_8px_24px_-12px_rgba(26,26,26,0.18),inset_0_1px_0_rgba(255,255,255,0.7)] ring-1 ring-[var(--color-border-soft)] transition-all duration-300 will-change-transform";

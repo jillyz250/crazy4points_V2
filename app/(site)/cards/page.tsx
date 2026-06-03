@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { createAdminClient } from '@/utils/supabase/server'
 import { listCardsForFinder } from '@/utils/supabase/queries'
-import CardFinder, { type ProgramOption } from '@/components/cards/CardFinder'
+import CardFinder, { type ProgramOption, type FinderInitial } from '@/components/cards/CardFinder'
 
 export const revalidate = 3600
 
@@ -12,7 +12,20 @@ export const metadata: Metadata = {
   alternates: { canonical: 'https://www.crazy4points.com/cards' },
 }
 
-export default async function CardFinderPage() {
+export default async function CardFinderPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ benefits?: string; earns?: string; fee?: string; type?: string; program?: string }>
+}) {
+  const sp = await searchParams
+  const initial: FinderInitial = {
+    target: sp.program || undefined,
+    benefits: sp.benefits ? sp.benefits.split(',').filter(Boolean) : undefined,
+    earns: sp.earns ? sp.earns.split(',').filter(Boolean) : undefined,
+    maxFee: sp.fee != null && sp.fee !== '' ? Number(sp.fee) : undefined,
+    cardType: sp.type === 'business' || sp.type === 'personal' ? sp.type : undefined,
+  }
+
   const supabase = createAdminClient()
   const [cards, { data: progs }] = await Promise.all([
     listCardsForFinder(supabase),
@@ -50,7 +63,7 @@ export default async function CardFinderPage() {
           benefits, fee, network, and issuer.
         </p>
       </header>
-      <CardFinder cards={cards} programOptions={programOptions} transferSources={transferSources} />
+      <CardFinder cards={cards} programOptions={programOptions} transferSources={transferSources} initial={initial} />
     </div>
   )
 }

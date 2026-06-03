@@ -103,17 +103,36 @@ interface Filters {
 
 export interface ProgramOption { slug: string; name: string }
 
+export interface FinderInitial {
+  target?: string
+  benefits?: string[]
+  earns?: string[]
+  maxFee?: number
+  cardType?: 'personal' | 'business'
+}
+
 export default function CardFinder({
-  cards, programOptions, transferSources,
+  cards, programOptions, transferSources, initial,
 }: {
   cards: FinderCard[]
   programOptions: ProgramOption[]
   transferSources: Record<string, string[]>
+  /** Pre-applied filters from URL params (deep links from /start-here etc.). */
+  initial?: FinderInitial
 }) {
   const feeMax = useMemo(() => Math.max(...cards.map((c) => c.annualFee ?? 0), 0), [cards])
-  const defaults: Filters = useMemo(() => ({ cardType: 'all', maxFee: feeMax, networks: [], benefits: [], earns: [], issuers: [], noFx: false, q: '' }), [feeMax])
+  const defaults: Filters = useMemo(() => ({
+    cardType: initial?.cardType ?? 'all',
+    maxFee: initial?.maxFee ?? feeMax,
+    networks: [],
+    benefits: initial?.benefits ?? [],
+    earns: initial?.earns ?? [],
+    issuers: [],
+    noFx: false,
+    q: '',
+  }), [feeMax, initial])
 
-  const [target, setTarget] = useState('')
+  const [target, setTarget] = useState(initial?.target ?? '')
   const [showFilters, setShowFilters] = useState(false)
   // `draft` = what the panel controls edit; `applied` = what the results use.
   // Nothing filters until the user hits Search.

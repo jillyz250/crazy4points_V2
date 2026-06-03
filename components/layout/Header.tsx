@@ -6,13 +6,13 @@ import { useState } from "react";
 import { BLOG_CATEGORIES } from "@/lib/blog/categories";
 import type { ResourceNavCounts } from "@/utils/supabase/queries";
 
-// "Tools" menu — narrowed to the two that compute a personal answer from YOUR
-// input. The Decision Engine is the flagship (also the gold CTA on the right);
-// Credit Card Comparison is an interactive tool still in build. Each tool owns
-// a color that matches its homepage tile, rendered as a dot.
+// "Tools" menu — the three tools that are LIVE today. Everything else (program
+// directories, the hub finders) sits under Resources as Coming Soon until built.
+// Each tool owns a color that matches its homepage tile, rendered as a dot.
 const toolsMenu: { label: string; href: string; color: string; comingSoon?: boolean }[] = [
   { label: "Decision Engine", href: "/decision-engine", color: "#D4AF37" },
-  { label: "Credit Card Comparison", href: "#", color: "#059669", comingSoon: true },
+  { label: "Credit Card Comparison", href: "/cards", color: "#059669" },
+  { label: "Alliance Explorer", href: "/tools/alliances", color: "#6B2D8F" },
 ];
 
 // Resources — content/reference + the interactive/editorial finders that used to
@@ -25,14 +25,15 @@ const RESOURCE_ITEMS: {
   href: string;
   comingSoon?: boolean;
 }[] = [
-  { label: "Best Way to Book It", href: "/hub/best-way-to-book" },
-  { label: "Where Can My Points Take Me?", href: "/hub/where-can-i-go" },
+  // All Coming Soon until built. (Alliance Explorer is live under Tools, so the
+  // alliance program directory is omitted here to avoid two "alliance" entries.)
+  { label: "Best Way to Book It", href: "/hub/best-way-to-book", comingSoon: true },
+  { label: "Where Can My Points Take Me?", href: "/hub/where-can-i-go", comingSoon: true },
   { label: "Will My Free Night Cert Fit?", href: "/hub/fnc-fit", comingSoon: true },
-  { label: "Points Hub", href: "/hub" },
-  { label: "Airlines", key: "airline", href: "/programs?type=airline" },
-  { label: "Alliances", key: "alliance", href: "/programs?type=alliance" },
-  { label: "Hotels", key: "hotel", href: "/programs?type=hotel" },
-  { label: "Credit Cards", key: "credit_card", href: "/programs?type=credit_card" },
+  { label: "Points Hub", href: "/hub", comingSoon: true },
+  { label: "Airlines", key: "airline", href: "/programs?type=airline", comingSoon: true },
+  { label: "Hotels", key: "hotel", href: "/programs?type=hotel", comingSoon: true },
+  { label: "Credit Cards", key: "credit_card", href: "/programs?type=credit_card", comingSoon: true },
 ];
 
 // BLOG dropdown items — mirrors the editorial taxonomy in
