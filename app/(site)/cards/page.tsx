@@ -58,9 +58,8 @@ export default async function CardFinderPage({
       <header style={{ maxWidth: '46rem', marginBottom: '2rem' }}>
         <h1 style={{ marginBottom: '0.75rem' }}>Credit Card Finder</h1>
         <p style={{ fontSize: '1.0625rem', color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>
-          Start with the program you want points in — we&rsquo;ll split cards into the ones that earn it
-          directly and the ones whose flexible points transfer in. Or skip the program and filter by
-          benefits, fee, network, and issuer.
+          Filter by the benefits, points program, and budget you actually care about — and see which
+          cards earn a program directly versus by transfer.
         </p>
       </header>
       <CardFinder cards={cards} programOptions={programOptions} transferSources={transferSources} initial={initial} />

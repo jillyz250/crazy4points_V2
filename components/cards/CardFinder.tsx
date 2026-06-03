@@ -91,6 +91,7 @@ function cardEarnsOn(c: FinderCard, key: string): boolean {
 const NETWORKS = [['visa', 'Visa'], ['mastercard', 'Mastercard'], ['amex', 'Amex']] as const
 
 interface Filters {
+  target: string
   cardType: 'all' | 'personal' | 'business'
   maxFee: number
   networks: string[]
@@ -122,6 +123,7 @@ export default function CardFinder({
 }) {
   const feeMax = useMemo(() => Math.max(...cards.map((c) => c.annualFee ?? 0), 0), [cards])
   const defaults: Filters = useMemo(() => ({
+    target: initial?.target ?? '',
     cardType: initial?.cardType ?? 'all',
     maxFee: initial?.maxFee ?? feeMax,
     networks: [],
@@ -132,7 +134,6 @@ export default function CardFinder({
     q: '',
   }), [feeMax, initial])
 
-  const [target, setTarget] = useState(initial?.target ?? '')
   const [showFilters, setShowFilters] = useState(false)
   // `draft` = what the panel controls edit; `applied` = what the results use.
   // Nothing filters until the user hits Search.
@@ -161,11 +162,9 @@ export default function CardFinder({
     return true
   }
 
-  // Authored, fleshed-out cards rank above bare/unauthored ones; then by fee.
+  // Fully-authored cards rank above the "coming soon" ones; then by fee.
   const byRelevance = (a: FinderCard, b: FinderCard) => {
-    const ax = a.benefitTypes.length > 0 || a.sub != null ? 0 : 1
-    const bx = b.benefitTypes.length > 0 || b.sub != null ? 0 : 1
-    if (ax !== bx) return ax - bx
+    if (a.authored !== b.authored) return a.authored ? -1 : 1
     return (a.annualFee ?? Infinity) - (b.annualFee ?? Infinity)
   }
   const base = useMemo(() => cards.filter((c) => passes(c, applied)).sort(byRelevance), [cards, applied]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -174,36 +173,43 @@ export default function CardFinder({
   const reset = () => { setDraft(defaults); setApplied(defaults) }
 
   const grouped = useMemo(() => {
-    if (!target) return null
-    const sources = new Set(transferSources[target] ?? [])
+    if (!applied.target) return null
+    const sources = new Set(transferSources[applied.target] ?? [])
     const direct: FinderCard[] = []; const transfer: FinderCard[] = []
     for (const c of base) {
-      if (c.coBrand?.slug === target || c.currency?.slug === target) direct.push(c)
+      if (c.coBrand?.slug === applied.target || c.currency?.slug === applied.target) direct.push(c)
       else if (c.currency && sources.has(c.currency.slug) && c.transferEligibility !== 'none') transfer.push(c)
     }
     return { direct: direct.sort(byRelevance), transfer: transfer.sort(byRelevance) }
-  }, [base, target, transferSources]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [base, applied.target, transferSources]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const targetName = programOptions.find((p) => p.slug === target)?.name ?? ''
+  const targetName = programOptions.find((p) => p.slug === applied.target)?.name ?? ''
   const resultCount = grouped ? grouped.direct.length + grouped.transfer.length : base.length
-  const activeFilters = (applied.cardType !== 'all' ? 1 : 0) + (applied.maxFee < feeMax ? 1 : 0) + applied.networks.length + applied.benefits.length + applied.earns.length + applied.issuers.length + (applied.noFx ? 1 : 0)
+  const activeFilters = (applied.target ? 1 : 0) + (applied.cardType !== 'all' ? 1 : 0) + (applied.maxFee < feeMax ? 1 : 0) + applied.networks.length + applied.benefits.length + applied.earns.length + applied.issuers.length + (applied.noFx ? 1 : 0)
 
   return (
     <div style={{ display: 'grid', gap: '1.5rem', gridTemplateColumns: 'minmax(0, 1fr)' }}>
-      <div style={panel}>
-        <label style={labelStyle} htmlFor="target">I want points in…</label>
-        <select id="target" value={target} onChange={(e) => setTarget(e.target.value)} style={inputStyle}>
-          <option value="">Any program — show me all cards</option>
-          {programOptions.map((p) => <option key={p.slug} value={p.slug}>{p.name}</option>)}
-        </select>
+      {/* Prominent "start here" filter entry — filtering is the main action. */}
+      <div style={ctaPanel}>
+        <p style={{ fontFamily: 'var(--font-ui)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-primary)', margin: 0 }}>Start here</p>
+        <h2 style={{ fontSize: '1.375rem', margin: '0.25rem 0 0.25rem' }}>Filter by the benefits you&rsquo;re looking for</h2>
+        <p style={{ fontFamily: 'var(--font-ui)', fontSize: '0.9375rem', color: 'var(--color-text-secondary)', margin: '0 0 1rem' }}>
+          Lounge access, free nights, no foreign fees, a specific points program &mdash; tell us what matters and we&rsquo;ll match the cards.
+        </p>
+        <button onClick={() => setShowFilters((s) => !s)} style={searchBtn} className="rg-tap-target">
+          {showFilters ? 'Hide filters' : 'Choose your filters'}{activeFilters ? ` (${activeFilters})` : ''}
+        </button>
       </div>
-
-      <button onClick={() => setShowFilters((s) => !s)} style={filtersToggle} className="rg-tap-target">
-        {showFilters ? 'Hide filters' : 'Filters'}{activeFilters ? ` (${activeFilters})` : ''}
-      </button>
 
       {showFilters && (
         <div style={{ ...panel, display: 'grid', gap: '1.25rem' }}>
+          <Field label="Points program (optional)">
+            <select value={draft.target} onChange={(e) => setD({ target: e.target.value })} style={inputStyle}>
+              <option value="">Any program</option>
+              {programOptions.map((p) => <option key={p.slug} value={p.slug}>{p.name}</option>)}
+            </select>
+          </Field>
+
           <Field label="Search">
             <input value={draft.q} onChange={(e) => setD({ q: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') search() }} placeholder="Card or issuer name" style={inputStyle} />
           </Field>
@@ -279,7 +285,7 @@ export default function CardFinder({
       )}
 
       <p ref={resultsRef} style={{ fontFamily: 'var(--font-ui)', fontSize: '0.875rem', color: 'var(--color-text-secondary)', margin: 0, scrollMarginTop: '1rem' }}>
-        {resultCount} {resultCount === 1 ? 'card' : 'cards'}{target ? ` for ${targetName}` : ''}
+        {resultCount} {resultCount === 1 ? 'card' : 'cards'}{applied.target ? ` for ${targetName}` : ''}
       </p>
 
       {grouped ? (
@@ -307,6 +313,18 @@ function Group({ title, subtitle, cards, showTransferNote }: { title: string; su
 }
 
 function CardTile({ c, showTransferNote }: { c: FinderCard; showTransferNote?: boolean }) {
+  // Not fully authored yet -> greyed, non-clickable "coming soon" tile.
+  if (!c.authored) {
+    return (
+      <div style={{ ...tile, position: 'relative', cursor: 'default', opacity: 0.62 }} aria-label={`${c.name} (coming soon)`}>
+        <span style={comingSoonBadge}>Coming soon</span>
+        <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: '0.375rem' }}>
+          {c.issuerName}{c.network ? ` · ${c.network[0].toUpperCase() + c.network.slice(1)}` : ''}
+        </div>
+        <div style={{ fontWeight: 600, fontSize: '1.0625rem', lineHeight: 1.3, color: 'var(--color-text-secondary)' }}>{c.name}</div>
+      </div>
+    )
+  }
   const pool = showTransferNote && c.transferEligibility === 'pool_to_unlock'
   // Show the specific benefits THIS card has, from our recognizable taxonomy.
   const has = ALL_BENEFITS.filter((b) => cardHas(c, b)).slice(0, 5)
@@ -370,12 +388,13 @@ function Empty() {
 }
 
 const panel: React.CSSProperties = { border: '1px solid var(--color-border-soft)', borderRadius: 'var(--radius-card)', background: 'var(--color-background-soft)', padding: '1.125rem' }
+const ctaPanel: React.CSSProperties = { border: '1px solid var(--color-border-soft)', borderRadius: 'var(--radius-card)', background: 'linear-gradient(135deg, var(--color-background-soft) 0%, var(--color-background) 70%)', padding: '1.5rem', boxShadow: 'var(--shadow-soft)' }
+const comingSoonBadge: React.CSSProperties = { position: 'absolute', top: '0.625rem', right: '0.625rem', fontFamily: 'var(--font-ui)', fontSize: '0.625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-secondary)', background: 'var(--color-background-soft)', border: '1px solid var(--color-border-soft)', borderRadius: '999px', padding: '0.1875rem 0.5rem' }
 const labelStyle: React.CSSProperties = { fontFamily: 'var(--font-ui)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: '0.5rem', display: 'block' }
 const inputStyle: React.CSSProperties = { width: '100%', fontSize: '1rem', fontFamily: 'var(--font-ui)', padding: '0.625rem 0.75rem', borderRadius: 'var(--radius-ui)', border: '1px solid var(--color-border-soft)', background: 'var(--color-background)', color: 'var(--color-text-primary)' }
 const chipRow: React.CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }
 const grid: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: '1rem' }
 const tile: React.CSSProperties = { display: 'block', padding: '1rem 1.125rem', border: '1px solid var(--color-border-soft)', borderRadius: 'var(--radius-card)', background: 'var(--color-background)', textDecoration: 'none', color: 'var(--color-text-primary)' }
 const famBadge: React.CSSProperties = { fontFamily: 'var(--font-ui)', fontSize: '0.6875rem', padding: '0.1875rem 0.5rem', borderRadius: '999px', background: 'var(--color-background-soft)', border: '1px solid var(--color-border-soft)', color: 'var(--color-text-secondary)' }
-const filtersToggle: React.CSSProperties = { fontFamily: 'var(--font-ui)', fontSize: '0.9375rem', fontWeight: 600, padding: '0.625rem 1rem', borderRadius: 'var(--radius-ui)', border: '1px solid var(--color-border-soft)', background: 'var(--color-background)', color: 'var(--color-primary)', cursor: 'pointer', justifySelf: 'start' }
 const clearBtn: React.CSSProperties = { fontFamily: 'var(--font-ui)', fontSize: '0.8125rem', color: 'var(--color-text-secondary)', background: 'none', border: 'none', cursor: 'pointer', justifySelf: 'start', padding: 0, textDecoration: 'underline' }
 const searchBtn: React.CSSProperties = { fontFamily: 'var(--font-ui)', fontSize: '0.9375rem', fontWeight: 700, padding: '0.75rem 1.5rem', borderRadius: 'var(--radius-ui)', border: 'none', background: 'var(--color-primary)', color: '#fff', cursor: 'pointer', minHeight: 44 }

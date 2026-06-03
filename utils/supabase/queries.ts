@@ -2519,6 +2519,8 @@ export interface FinderCard {
   transferEligibility: 'direct' | 'pool_to_unlock' | 'restricted' | 'none' | null
   fxFeePct: number | null
   noFxFee: boolean
+  /** Fully authored (has a good_to_know writeup). Unauthored cards render greyed "coming soon". */
+  authored: boolean
   /** Canonical currency this card earns into (e.g. Membership Rewards) — for transferable cards. */
   currency: { slug: string; name: string } | null
   /** Co-brand program this card earns directly (e.g. Marriott Bonvoy) — for co-brand cards. */
@@ -2541,7 +2543,7 @@ export interface FinderCard {
 export async function listCardsForFinder(supabase: SupabaseClient): Promise<FinderCard[]> {
   const { data: cards, error } = await supabase
     .from('credit_cards')
-    .select('id, slug, name, annual_fee_usd, card_type, network, transfer_eligibility, foreign_transaction_fee_pct, currency_program_id, co_brand_program_id, issuer:issuers!issuer_id(name)')
+    .select('id, slug, name, annual_fee_usd, card_type, network, transfer_eligibility, foreign_transaction_fee_pct, currency_program_id, co_brand_program_id, good_to_know, issuer:issuers!issuer_id(name)')
     .eq('is_active', true)
     .eq('closed_to_new_applicants', false)
     .order('name')
@@ -2549,7 +2551,7 @@ export async function listCardsForFinder(supabase: SupabaseClient): Promise<Find
   const rows = (cards ?? []) as unknown as Array<{
     id: string; slug: string; name: string; annual_fee_usd: number | null; card_type: CardType
     network: string | null; transfer_eligibility: FinderCard['transferEligibility']; foreign_transaction_fee_pct: number | null
-    currency_program_id: string | null; co_brand_program_id: string | null; issuer: { name: string } | null
+    currency_program_id: string | null; co_brand_program_id: string | null; good_to_know: string | null; issuer: { name: string } | null
   }>
   const ids = rows.map((c) => c.id)
   if (ids.length === 0) return []
@@ -2595,6 +2597,7 @@ export async function listCardsForFinder(supabase: SupabaseClient): Promise<Find
     transferEligibility: c.transfer_eligibility,
     fxFeePct: c.foreign_transaction_fee_pct,
     noFxFee: c.foreign_transaction_fee_pct === 0,
+    authored: !!(c.good_to_know && c.good_to_know.trim()),
     currency: c.currency_program_id ? progById.get(c.currency_program_id) ?? null : null,
     coBrand: c.co_brand_program_id ? progById.get(c.co_brand_program_id) ?? null : null,
     benefitFamilies: Array.from(famByCard.get(c.id) ?? []).sort(),
