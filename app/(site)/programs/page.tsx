@@ -27,9 +27,9 @@ const CATEGORY_LABEL: Record<ResourceCategory, { title: string; lede: string; ct
     cta: 'View program',
   },
   credit_card: {
-    title: 'Credit Cards',
-    lede: 'Cards we cover — earning rates, sign-up bonuses, and which programs they transfer into.',
-    cta: 'View card',
+    title: 'Points & Currencies',
+    lede: 'Transferable points currencies — Membership Rewards, Ultimate Rewards, Capital One Miles and more — plus where each one transfers.',
+    cta: 'View program',
   },
 }
 
@@ -156,7 +156,7 @@ function CategoryTabs({
     { key: 'airline', label: 'Airlines' },
     { key: 'alliance', label: 'Alliances' },
     { key: 'hotel', label: 'Hotels' },
-    { key: 'credit_card', label: 'Credit Cards' },
+    { key: 'credit_card', label: 'Points & Currencies' },
   ]
   return (
     <nav
