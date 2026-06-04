@@ -13,7 +13,7 @@ export default function CardsThatEarnIntoProgram({
   return (
     <div>
       <p style={{ fontSize: '0.9375rem', color: 'var(--color-text-secondary)', marginBottom: '1rem' }}>
-        Cards that earn into {programName} directly (co-branded) or via flexible-currency transfers.
+        Cards that earn {programName} directly, or that transfer into it from a flexible-currency program.
       </p>
       <div
         style={{
@@ -51,11 +51,15 @@ function CardTile({ entry }: { entry: CardThatEarnsIn }) {
           textTransform: 'uppercase',
           letterSpacing: '0.06em',
           fontWeight: 600,
-          color: relationship === 'direct_co_brand' ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+          color: relationship === 'transfer_partner' ? 'var(--color-text-secondary)' : 'var(--color-primary)',
           marginBottom: '0.375rem',
         }}
       >
-        {relationship === 'direct_co_brand' ? 'Direct co-brand' : 'Via transfer partner'} · {issuer.name}
+        {relationship === 'direct_co_brand'
+          ? 'Direct co-brand'
+          : relationship === 'direct_earn'
+            ? 'Earns directly'
+            : 'Via transfer partner'} · {issuer.name}
       </div>
       <div style={{ fontWeight: 600, fontSize: '1.0625rem', marginBottom: '0.5rem', lineHeight: 1.3 }}>
         {card.name}
