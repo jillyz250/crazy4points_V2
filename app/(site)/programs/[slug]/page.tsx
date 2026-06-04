@@ -2,8 +2,8 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { createAdminClient } from '@/utils/supabase/server'
-import { getAlertsByProgramSlug, getAllPrograms, getPropertiesForProgram, getCardsThatEarnIntoProgram, getPartnerRedemptionsByCurrency } from '@/utils/supabase/queries'
-import type { AlertWithPrograms, HotelProperty, CardThatEarnsIn, PartnerRedemptionWithPrograms } from '@/utils/supabase/queries'
+import { getAlertsByProgramSlug, getAllPrograms, getPropertiesForProgram, getCardsThatEarnIntoProgram, getPartnerRedemptionsByCurrency, getInboundTransferSources } from '@/utils/supabase/queries'
+import type { AlertWithPrograms, HotelProperty, CardThatEarnsIn, PartnerRedemptionWithPrograms, TransferPartnerRow } from '@/utils/supabase/queries'
 import AlertsGridSB from '@/components/alerts/AlertsGridSB'
 import ExpiredAlertsList from '@/components/alerts/ExpiredAlertsList'
 import { isAlertActive, isAlertFresh } from '@/lib/alertExpiry'
@@ -140,6 +140,17 @@ export default async function ProgramPage({
     earnIntoCards = await getCardsThatEarnIntoProgram(supabase, program.id)
   } catch (err) {
     console.error('[programs/[slug]] getCardsThatEarnIntoProgram failed:', err)
+  }
+
+  // "Ways to earn more" is derived from other programs' outbound lists (the
+  // source of truth) so it can never drift from the currency/hotel pages.
+  let inboundRows: TransferPartnerRow[] = []
+  if (program.type !== 'alliance') {
+    try {
+      inboundRows = await getInboundTransferSources(supabase, slug)
+    } catch (err) {
+      console.error('[programs/[slug]] getInboundTransferSources failed:', err)
+    }
   }
 
   // Partner redemptions — currency direction only. Drives bilateral-partner
@@ -325,7 +336,7 @@ export default async function ProgramPage({
             ...(program.award_chart ? [{ id: 'award-chart', label: 'Award chart' }] : []),
             ...((program.award_category_chart?.length ?? 0) > 0 && program.type !== 'alliance' ? [{ id: 'category-chart', label: 'Category chart' }] : []),
             ...((program.transfer_partners_outbound ?? []).filter(isPublishableTransferRow).length > 0 && program.type !== 'alliance' ? [{ id: 'transfer-partners', label: 'Transfer partners' }] : []),
-            ...((program.transfer_partners ?? []).filter(isPublishableTransferRow).length > 0 && program.type !== 'alliance' ? [{ id: 'ways-to-earn', label: 'Ways to earn more' }] : []),
+            ...(inboundRows.filter(isPublishableTransferRow).length > 0 && program.type !== 'alliance' ? [{ id: 'ways-to-earn', label: 'Ways to earn more' }] : []),
             ...(program.type === 'alliance' && (program.member_programs?.length ?? 0) > 0 ? [{ id: 'member-airlines', label: 'Member airlines' }] : []),
             ...(program.how_to_spend ? [{ id: 'how-to-spend', label: 'How to spend' }] : []),
             ...(program.sweet_spots ? [{ id: 'sweet-spots', label: 'Sweet spots' }] : []),
@@ -344,7 +355,7 @@ export default async function ProgramPage({
 
         {/* Simple uniform-grid tile cards for reference sections.
             Each tile click expands inline (server-rendered <details>). */}
-        <SimpleTileGrid program={program} programNameBySlug={programNameBySlug} />
+        <SimpleTileGrid program={program} programNameBySlug={programNameBySlug} inboundRows={inboundRows} />
 
         {/* Per-property table — hotels only. */}
         {properties.length > 0 && (
@@ -405,7 +416,7 @@ export default async function ProgramPage({
         )}
 
         {/* Alerts heading — only show when content above exists, to mark transition */}
-        {(program.intro || (program.transfer_partners?.length ?? 0) > 0 || (program.transfer_partners_outbound?.length ?? 0) > 0 || program.sweet_spots || program.quirks || properties.length > 0) && (
+        {(program.intro || inboundRows.length > 0 || (program.transfer_partners_outbound?.length ?? 0) > 0 || program.sweet_spots || program.quirks || properties.length > 0) && (
           <h2
             id="alerts"
             style={{

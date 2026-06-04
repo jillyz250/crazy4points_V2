@@ -1,5 +1,5 @@
 import { marked } from 'marked'
-import type { Program } from '@/utils/supabase/queries'
+import type { Program, TransferPartnerRow } from '@/utils/supabase/queries'
 import SimpleTile from './SimpleTile'
 import TransferPartnersTable, { isPublishableTransferRow } from './TransferPartnersTable'
 import TierBenefitsTable from './TierBenefitsTable'
@@ -22,9 +22,14 @@ import FreeNightCertsTable from './FreeNightCertsTable'
 export default async function SimpleTileGrid({
   program,
   programNameBySlug,
+  inboundRows,
 }: {
   program: Program
   programNameBySlug: Map<string, string>
+  /** "Ways to earn more" rows derived from other programs' outbound lists
+   *  (the source of truth). When provided, replaces the legacy
+   *  program.transfer_partners column so the section can never drift. */
+  inboundRows?: TransferPartnerRow[]
 }) {
   const isAlliance = program.type === 'alliance'
   const isHotel = program.type === 'hotel'
@@ -38,7 +43,8 @@ export default async function SimpleTileGrid({
   // tile when present. See migration 301.
   // Count only publishable rows — draft/unconfirmed rows must not gate or
   // label a section (they're filtered out of the table render too).
-  const inboundCount = (program.transfer_partners ?? []).filter(isPublishableTransferRow).length
+  const waysToEarnRows = inboundRows ?? program.transfer_partners ?? []
+  const inboundCount = waysToEarnRows.filter(isPublishableTransferRow).length
   const outboundCount = (program.transfer_partners_outbound ?? []).filter(isPublishableTransferRow).length
   const hasPartners = inboundCount > 0 && !isAlliance
   const hasOutboundPartners = outboundCount > 0 && !isAlliance
@@ -152,7 +158,7 @@ export default async function SimpleTileGrid({
             Programs that transfer points or miles into {program.name}.
           </p>
           <TransferPartnersTable
-            rows={program.transfer_partners ?? []}
+            rows={waysToEarnRows}
             programNameBySlug={programNameBySlug}
             direction="inbound"
           />
