@@ -23,7 +23,10 @@ export interface IntegrityFinding {
 }
 
 const KEBAB = /^[a-z0-9-]+$/
-const RATIO = /^\d+(\.\d+)?:\d+(\.\d+)?$/
+// A numeric ratio token anywhere in the string. Annotated ratios like
+// "3:1 with 5K bonus per 60K block" or "1:1.65 (65% bonus through May 15)" are
+// legitimate and pass; only ratios with NO numeric ratio at all are suspect.
+const RATIO_TOKEN = /\d+(?:\.\d+)?\s*:\s*\d+(?:\.\d+)?/
 // Draft/placeholder ratios that are filtered at render but shouldn't sit in
 // published data either. Kept in sync with TransferPartnersTable.
 const DRAFT_MARKERS = new Set(['', '-', '—', 'unconfirmed', 'tbd', 'unknown', 'pending', 'n/a', 'na', 'verify', 'needs verification', 'varies'])
@@ -39,11 +42,28 @@ interface ProgramRow {
   transfer_partners_outbound: TransferPartnerRow[] | null
 }
 
-function ratioOk(row: TransferPartnerRow): boolean {
+function ratioStrings(row: TransferPartnerRow): string[] {
   if (Array.isArray(row.tiers) && row.tiers.length > 0) {
-    return row.tiers.some((t) => typeof t.ratio === 'string' && RATIO.test(t.ratio.trim()))
+    return row.tiers.map((t) => t.ratio).filter((r): r is string => typeof r === 'string')
   }
-  return typeof row.ratio === 'string' && RATIO.test(row.ratio.trim())
+  return typeof row.ratio === 'string' ? [row.ratio] : []
+}
+
+/**
+ * Classify a row's ratio. Returns null when fine. Tiers of badness:
+ *   - contains a numeric ratio token (incl. annotated)        -> OK
+ *   - empty / draft marker ("tbd", "varies")                  -> draft_ratio (med)
+ *   - non-numeric but has digits (e.g. "2,000 pts : 30 NZ$")  -> nonstandard_ratio (low, informational)
+ *   - no digits at all                                        -> bad_ratio_format (high)
+ */
+function classifyRatio(row: TransferPartnerRow): { check: string; severity: IntegritySeverity } | null {
+  const strs = ratioStrings(row)
+  if (strs.length === 0) return { check: 'draft_ratio', severity: 'med' }
+  if (strs.some((s) => RATIO_TOKEN.test(s))) return null
+  const joined = strs.join(' ').trim().toLowerCase()
+  if (DRAFT_MARKERS.has(joined)) return { check: 'draft_ratio', severity: 'med' }
+  if (/\d/.test(joined)) return { check: 'nonstandard_ratio', severity: 'low' }
+  return { check: 'bad_ratio_format', severity: 'high' }
 }
 
 export async function runIntegrityChecks(supabase: SupabaseClient): Promise<IntegrityFinding[]> {
@@ -104,17 +124,29 @@ export async function runIntegrityChecks(supabase: SupabaseClient): Promise<Inte
           detail: `Outbound target "${fromSlug}" exists but is inactive - link goes to an unpublished page.`,
         })
       }
-      // CHECK: ratio not in N:M format (and not a known draft marker, which is
-      // its own leak class).
-      if (p.is_active && !ratioOk(row)) {
-        const raw = typeof row.ratio === 'string' ? row.ratio.trim().toLowerCase() : ''
-        const isDraft = DRAFT_MARKERS.has(raw)
+      // CHECK: impossible edge - a hotel/airline/loyalty program "transferring"
+      // TO a credit-card currency. Currencies are sources, not destinations;
+      // this is always a backwards/stale edge.
+      if (target && p.type !== 'credit_card' && target.type === 'credit_card') {
         findings.push({
-          check: isDraft ? 'draft_ratio' : 'bad_ratio_format',
-          severity: isDraft ? 'med' : 'high',
+          check: 'impossible_edge',
+          severity: 'high',
           programSlug: p.slug,
-          detail: `Outbound to "${fromSlug}" has ${isDraft ? 'a draft/placeholder' : 'a non-numeric'} ratio "${row.ratio}".`,
+          detail: `Outbound to credit-card currency "${fromSlug}" is the wrong direction - currencies transfer INTO ${p.slug}, not out of it. Remove this edge.`,
         })
+      }
+      // CHECK: ratio format (annotated numeric ratios pass; see classifyRatio).
+      if (p.is_active) {
+        const rc = classifyRatio(row)
+        if (rc) {
+          const shown = typeof row.ratio === 'string' && row.ratio ? row.ratio : ratioStrings(row).join(' / ') || '(empty)'
+          findings.push({
+            check: rc.check,
+            severity: rc.severity,
+            programSlug: p.slug,
+            detail: `Outbound to "${fromSlug}" has a ${rc.check === 'draft_ratio' ? 'draft/placeholder' : rc.check === 'nonstandard_ratio' ? 'non-standard (descriptive)' : 'non-numeric'} ratio "${shown}".`,
+          })
+        }
       }
     }
 
