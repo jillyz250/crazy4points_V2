@@ -47,6 +47,10 @@
     {
       "path": "/api/cron/data-integrity",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/announcement-monitor",
+      "schedule": "30 8 * * *"
     }
   ]
 }
