@@ -59,8 +59,15 @@ interface ClassifierProgram {
 }
 
 const CLASSIFY_SCHEMA_HINT = `Return ONLY a JSON array (possibly empty). Each item:
-{"program_slug": "<one of the provided slugs, or null>", "signal_type": "devaluation|new_partner|ended_partner|ratio_change|other", "summary": "<=160 chars describing the specific change", "confidence": "high|med|low"}
-Only include items that announce an ACTUAL CHANGE to a points/miles TRANSFER relationship or award ratio for one of the listed programs. Ignore generic guides, deals, and credit-card sign-up offers.`
+{"program_slug": "<one of the provided slugs>", "signal_type": "devaluation|new_partner|ended_partner|ratio_change", "summary": "<=160 chars: the specific change", "confidence": "high|med|low"}
+
+INCLUDE ONLY a PERMANENT change to one of the listed programs' TRANSFER-PARTNER ROSTER or AWARD/TRANSFER RATIO:
+- new_partner: a transfer partner was added
+- ended_partner: a transfer partner was removed / partnership ending
+- devaluation: an award or transfer ratio got worse
+- ratio_change: a transfer/award ratio changed (either direction)
+
+EXCLUDE entirely (return nothing for these): temporary transfer BONUSES, "buy/purchase points" promotions, credit-card benefit / sign-up-bonus / annual-fee changes, award-space or route news, fare sales, generic guides, and anything that is not a permanent transfer-partner or ratio change. program_slug must be one of the provided slugs. If unsure, OMIT it — precision matters more than recall.`
 
 async function classifyWithHaiku(
   sourceName: string,
@@ -94,12 +101,22 @@ ${CLASSIFY_SCHEMA_HINT}`
     const json = text.slice(text.indexOf('['), text.lastIndexOf(']') + 1)
     const parsed = JSON.parse(json) as Array<{ program_slug: string | null; signal_type: string; summary: string; confidence: string }>
     const validSlugs = new Set(programs.map((p) => p.slug))
-    const validTypes = new Set(['devaluation', 'new_partner', 'ended_partner', 'ratio_change', 'other'])
+    const validTypes = new Set(['devaluation', 'new_partner', 'ended_partner', 'ratio_change'])
     return parsed
-      .filter((x) => x && typeof x.summary === 'string' && x.summary.trim())
+      .filter(
+        (x) =>
+          x &&
+          typeof x.summary === 'string' &&
+          x.summary.trim() &&
+          // Require a real change type AND a mapped program - drops the "other"
+          // noise (card-benefit news, buy-points promos, generic deals).
+          validTypes.has(x.signal_type) &&
+          typeof x.program_slug === 'string' &&
+          validSlugs.has(x.program_slug),
+      )
       .map((x) => ({
-        programSlug: x.program_slug && validSlugs.has(x.program_slug) ? x.program_slug : null,
-        signalType: (validTypes.has(x.signal_type) ? x.signal_type : 'other') as ChangeSignal['signalType'],
+        programSlug: x.program_slug as string,
+        signalType: x.signal_type as ChangeSignal['signalType'],
         summary: x.summary.trim().slice(0, 200),
         confidence: (['high', 'med', 'low'].includes(x.confidence) ? x.confidence : 'med') as ChangeSignal['confidence'],
       }))
