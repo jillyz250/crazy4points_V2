@@ -2414,7 +2414,10 @@ export async function getRecentExtractions(
 export interface CardThatEarnsIn {
   card: CreditCard
   issuer: Pick<Issuer, 'slug' | 'name'>
-  relationship: 'direct_co_brand' | 'transfer_partner'
+  /** direct_co_brand = co-brand card (airline/hotel); direct_earn = card whose
+   *  flexible currency IS this program (e.g. Venture earns Capital One Miles);
+   *  transfer_partner = card whose currency transfers into this program. */
+  relationship: 'direct_co_brand' | 'direct_earn' | 'transfer_partner'
   current_welcome_bonus: Pick<CreditCardWelcomeBonus, 'bonus_amount' | 'bonus_currency' | 'estimated_value_usd'> | null
 }
 
@@ -2428,6 +2431,16 @@ export async function getCardsThatEarnIntoProgram(
     .eq('co_brand_program_id', programId)
     .eq('is_active', true)
   if (directError) throw directError
+
+  // Cards whose flexible currency IS this program (e.g. Venture/Spark earn
+  // Capital One Miles; Amex Platinum earns Membership Rewards). Essential for
+  // transferable-currency pages, which have no co-brand cards of their own.
+  const { data: earnCurrencyCards, error: earnError } = await supabase
+    .from('credit_cards')
+    .select('*, issuer:issuers!issuer_id(slug, name)')
+    .eq('currency_program_id', programId)
+    .eq('is_active', true)
+  if (earnError) throw earnError
 
   const { data: transferRows } = await supabase
     .from('program_transfers')
@@ -2447,8 +2460,10 @@ export async function getCardsThatEarnIntoProgram(
     transferCards = (tCards ?? []) as Array<CreditCard & { issuer: Pick<Issuer, 'slug' | 'name'> }>
   }
 
+  const earnCards = (earnCurrencyCards ?? []) as Array<CreditCard & { issuer: Pick<Issuer, 'slug' | 'name'> }>
   const allCards = [
     ...((directCards ?? []) as Array<CreditCard & { issuer: Pick<Issuer, 'slug' | 'name'> }>),
+    ...earnCards,
     ...transferCards,
   ]
   const cardIds = allCards.map((c) => c.id)
@@ -2483,6 +2498,17 @@ export async function getCardsThatEarnIntoProgram(
       current_welcome_bonus: subsByCardId.get(card.id) ?? null,
     })
   }
+  for (const card of earnCards) {
+    if (seen.has(card.id)) continue
+    seen.add(card.id)
+    const { issuer, ...rest } = card
+    result.push({
+      card: rest as CreditCard,
+      issuer,
+      relationship: 'direct_earn',
+      current_welcome_bonus: subsByCardId.get(card.id) ?? null,
+    })
+  }
   for (const card of transferCards) {
     if (seen.has(card.id)) continue
     seen.add(card.id)
@@ -2495,10 +2521,11 @@ export async function getCardsThatEarnIntoProgram(
     })
   }
 
+  const rank = (r: CardThatEarnsIn['relationship']) => (r === 'transfer_partner' ? 1 : 0)
   result.sort((a, b) => {
-    if (a.relationship !== b.relationship) {
-      return a.relationship === 'direct_co_brand' ? -1 : 1
-    }
+    const ra = rank(a.relationship)
+    const rb = rank(b.relationship)
+    if (ra !== rb) return ra - rb
     const aFee = a.card.annual_fee_usd ?? Number.POSITIVE_INFINITY
     const bFee = b.card.annual_fee_usd ?? Number.POSITIVE_INFINITY
     return aFee - bFee
