@@ -2534,6 +2534,56 @@ export async function getCardsThatEarnIntoProgram(
   return result
 }
 
+/**
+ * Derive a program's "Ways to earn more" list from the SOURCE side, so it can
+ * never drift from the currency/hotel pages. Returns every active program whose
+ * transfer_partners_outbound includes `destSlug`, shaped as inbound rows
+ * (from_slug = the source program) for TransferPartnersTable.
+ *
+ * This replaces reading the legacy `programs.transfer_partners` column, which
+ * drifted (stale ratios, junk slugs). Outbound is the single source of truth;
+ * is_active filtering drops the deprecated duplicate currency rows
+ * (amex-membership-rewards, etc.).
+ */
+const INBOUND_CURRENCY_ORDER = ['amex', 'chase', 'citi', 'capital-one', 'bilt', 'wells-fargo']
+export async function getInboundTransferSources(
+  supabase: SupabaseClient,
+  destSlug: string,
+): Promise<TransferPartnerRow[]> {
+  const { data } = await supabase
+    .from('programs')
+    .select('slug, transfer_partners_outbound')
+    .eq('is_active', true)
+    .not('transfer_partners_outbound', 'is', null)
+
+  const rows: TransferPartnerRow[] = []
+  for (const s of (data ?? []) as Array<{ slug: string; transfer_partners_outbound: TransferPartnerRow[] | null }>) {
+    if (s.slug === destSlug) continue
+    const match = (s.transfer_partners_outbound ?? []).find((r) => r.from_slug === destSlug)
+    if (!match) continue
+    rows.push({
+      from_slug: s.slug,
+      ratio: match.ratio,
+      notes: match.notes ?? null,
+      bonus_active: !!match.bonus_active,
+      tiers: match.tiers ?? null,
+    })
+  }
+
+  // Currencies first (in a stable order), then everything else alphabetically.
+  rows.sort((a, b) => {
+    const ia = INBOUND_CURRENCY_ORDER.indexOf(a.from_slug)
+    const ib = INBOUND_CURRENCY_ORDER.indexOf(b.from_slug)
+    if (ia !== -1 || ib !== -1) {
+      if (ia === -1) return 1
+      if (ib === -1) return -1
+      return ia - ib
+    }
+    return a.from_slug.localeCompare(b.from_slug)
+  })
+  return rows
+}
+
 // --- Card Finder -----------------------------------------------------------
 export interface FinderCard {
   id: string

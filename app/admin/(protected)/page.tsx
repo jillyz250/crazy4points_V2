@@ -33,6 +33,8 @@ const TILES: Tile[] = [
   { title: 'Scrapes', description: 'Auto-refresh history from Firecrawl scrapes of program pages.', href: '/admin/scrapes', cta: 'View' },
   { title: 'Promo Queue', description: 'Scraped promo deals awaiting review. Approve / reject / publish.', href: '/admin/promos', cta: 'Review' },
   { title: 'Transfer Bonuses', description: 'Scraped transfer-bonus changes (new / ended / changed) awaiting review.', href: '/admin/transfer-bonuses', cta: 'Review' },
+  { title: 'Data Integrity', description: 'Daily structural audit of the program/transfer graph — orphan/junk slugs, ratios, dupes.', href: '/admin/data-integrity', cta: 'View' },
+  { title: 'Change Signals', description: 'Daily newsroom/blog scan for transfer-partner & ratio changes affecting our data.', href: '/admin/change-signals', cta: 'Review' },
   { title: 'AI Usage', description: 'Anthropic API spend by day, caller, and model.', href: '/admin/ai-usage', cta: 'View' },
   { title: 'Analytics', description: 'GA4 — active users, key events, top cities, top pages.', href: '/admin/analytics', cta: 'View' },
 ]

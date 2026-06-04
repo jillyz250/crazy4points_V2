@@ -43,6 +43,14 @@
     {
       "path": "/api/cron/audit-good-to-know",
       "schedule": "0 13 * * 1"
+    },
+    {
+      "path": "/api/cron/data-integrity",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/announcement-monitor",
+      "schedule": "30 8 * * *"
     }
   ]
 }
