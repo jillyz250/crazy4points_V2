@@ -171,6 +171,11 @@ function renderOfferBucket(label: string, items: OfferItem[], origin: string): s
     seen.add(key)
     return true
   })
+  // One line per offer — this section is a compact rundown/index, not full
+  // cards. Headline links to the full alert (built-in "see more"), with the
+  // deadline as a gold tag. No blurb: keeps the section short so the email
+  // doesn't blow past Gmail's ~102KB clip threshold and cut off later
+  // sections (Jill's Take renders below this).
   const rows = unique
     .map((it) => {
       const href = it.link_url
@@ -180,24 +185,10 @@ function renderOfferBucket(label: string, items: OfferItem[], origin: string): s
         ? `<a href="${esc(href)}" style="color:${BODY};text-decoration:none;">${esc(it.headline)}</a>`
         : esc(it.headline)
       const deadline = it.deadline
-        ? ` <span style="font-family:${FONT_UI};font-size:12px;font-weight:600;color:${GOLD};">${esc(it.deadline)}</span>`
+        ? ` <span style="font-family:${FONT_UI};font-size:12px;font-weight:600;color:${GOLD};white-space:nowrap;">${esc(it.deadline)}</span>`
         : ''
-      // Skip the blurb when it's empty or just echoes the headline (e.g. an
-      // alert whose summary was set to its own title) — otherwise the title
-      // appears to render twice.
-      const blurbText = (it.blurb ?? '').trim()
-      const headlineText = (it.headline ?? '').trim()
-      const showBlurb =
-        blurbText.length > 0 &&
-        blurbText.toLowerCase() !== headlineText.toLowerCase() &&
-        !headlineText.toLowerCase().startsWith(blurbText.toLowerCase()) &&
-        !blurbText.toLowerCase().startsWith(headlineText.toLowerCase())
-      const blurb = showBlurb
-        ? `<p style="margin:0 0 12px;font-family:${FONT_BODY};font-size:13px;line-height:1.5;color:${MUTED};">${esc(it.blurb)}</p>`
-        : '<div style="height:12px;line-height:12px;font-size:0;">&nbsp;</div>'
       return `
-        <p style="margin:0 0 2px;font-family:${FONT_DISPLAY};font-size:15px;line-height:1.3;color:${BODY};font-weight:600;">${headline}${deadline}</p>
-        ${blurb}`
+        <p style="margin:0 0 7px;font-family:${FONT_BODY};font-size:14px;line-height:1.4;color:${BODY};">${headline}${deadline}</p>`
     })
     .join('')
   return `
