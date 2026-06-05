@@ -227,7 +227,13 @@ export default async function SimpleTileGrid({
       {quirksHtml && (
         <SimpleTile
           title="Tips & quirks"
-          description="Stopover rules, surcharges, the stuff nobody tells you until you've been burned once."
+          description={
+            isHotel
+              ? "Resort fees, blackout dates, points expiry, the stuff nobody tells you until you've been burned once."
+              : isAlliance
+                ? "Tier mapping, lounge access, award rules, the stuff nobody tells you until you've been burned once."
+                : "Stopover rules, surcharges, the stuff nobody tells you until you've been burned once."
+          }
           cta="Spill the gotchas"
           preview="The fine print, decoded."
         >
