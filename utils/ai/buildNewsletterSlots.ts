@@ -241,6 +241,7 @@ function validateSlots(raw: unknown): Omit<NewsletterSlots, 'subject' | 'game' |
     big_story_html: r.big_story_html ?? null,
     sweet_spot: validateSweetSpot(r.sweet_spot),
     also_happening,
+    active_offers: null,
     jills_take_html: r.jills_take_html ?? null,
     subject_options,
   }

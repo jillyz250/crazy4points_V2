@@ -25,7 +25,7 @@ import type {
 } from '@/utils/ai/newsletterSlots'
 
 const SLOT_SELECT =
-  'id, week_of, sent_at, display_date, subject, subject_options, status, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_html, sweet_spot, also_happening, jills_take_html, game_slug, game_title, game_clue_text'
+  'id, week_of, sent_at, display_date, subject, subject_options, status, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_html, sweet_spot, also_happening, active_offers, jills_take_html, game_slug, game_title, game_clue_text'
 
 type Row = {
   id: string
@@ -42,6 +42,7 @@ type Row = {
   big_story_html: string | null
   sweet_spot: NewsletterSweetSpot | null
   also_happening: AlsoHappeningItem[] | null
+  active_offers: NewsletterSlots['active_offers']
   jills_take_html: string | null
   game_slug: string | null
   game_title: string | null
@@ -58,6 +59,7 @@ function rowToSlots(r: Row): NewsletterSlots {
     big_story_html: r.big_story_html,
     sweet_spot: r.sweet_spot ?? null,
     also_happening: Array.isArray(r.also_happening) ? r.also_happening : [],
+    active_offers: r.active_offers ?? null,
     jills_take_html: r.jills_take_html,
     jill_prompt: r.jill_prompt,
     subject: r.subject ?? r.subject_options?.[0] ?? '',
