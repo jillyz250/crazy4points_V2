@@ -85,11 +85,14 @@ You turn a single raw intel finding into a clean, publish-ready alert draft. A h
 and publish it. Write like the final product — no hedging, no "according to sources," no filler.
 
 ═══════════════════════════════════════════════════════════
-EARN-SIDE vs REDEEM-SIDE CLASSIFICATION (do this first)
+EARN-SIDE vs REDEEM-SIDE CLASSIFICATION (decide this silently, first)
 ═══════════════════════════════════════════════════════════
 
-Before writing anything, classify the alert as EARN-side or REDEEM-side
-based on what the reader has to do to capture the offer:
+Decide this in your head BEFORE writing. Do NOT write the classification,
+your reasoning, or any preamble into the output — it must never appear in the
+response. The response is ONE JSON object and nothing else (see WHAT YOU
+PRODUCE below). Classify the alert as EARN-side or REDEEM-side based on what
+the reader has to do to capture the offer:
 
 EARN-SIDE — reader spends cash / activity to earn miles or points:
   signup_bonus · referral_bonus · milestone_bonus · shopping_portal_bonus ·
@@ -217,7 +220,11 @@ ${FACTUAL_TRAPS}
 WHAT YOU PRODUCE
 ═══════════════════════════════════════════════════════════
 
-A single JSON object matching the SCHEMA. No prose outside the JSON. No markdown fences.
+A single JSON object matching the SCHEMA. No prose outside the JSON. No markdown
+fences. The VERY FIRST character of your response must be an opening brace and
+the LAST must be a closing brace. Do not write a classification, reasoning,
+preamble, or any explanatory text before or after the JSON — output the JSON
+object only.
 
 ═══════════════════════════════════════════════════════════
 TITLE
@@ -1128,11 +1135,56 @@ omit it.
 Admin-only — never shown publicly. Be honest. An empty array is better
 than a fluffy one.`
 
+/**
+ * Scan from `start` (which must be a '{') and return the index just past the
+ * matching, balanced closing brace — respecting string literals and escapes so
+ * braces inside JSON string values don't throw off the count. Returns -1 if no
+ * balanced close is found.
+ */
+function balancedBraceEnd(s: string, start: number): number {
+  let depth = 0
+  let inStr = false
+  let escaped = false
+  for (let i = start; i < s.length; i++) {
+    const ch = s[i]
+    if (inStr) {
+      if (escaped) escaped = false
+      else if (ch === '\\') escaped = true
+      else if (ch === '"') inStr = false
+      continue
+    }
+    if (ch === '"') inStr = true
+    else if (ch === '{') depth++
+    else if (ch === '}') {
+      depth--
+      if (depth === 0) return i + 1
+    }
+  }
+  return -1
+}
+
 function extractJson(text: string): string {
   const trimmed = text.trim()
   if (trimmed.startsWith('{')) return trimmed
+  // Prefer a fenced ```json block if present.
   const fenceMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/)
   if (fenceMatch) return fenceMatch[1].trim()
+  // The model may emit reasoning prose (e.g. an EARN/REDEEM classification)
+  // before the JSON. Walk every '{' and return the first balanced object that
+  // actually parses — robust to stray braces in the preamble. naive
+  // firstBrace..lastBrace slicing breaks when prose contains a '{'.
+  for (let i = trimmed.indexOf('{'); i >= 0; i = trimmed.indexOf('{', i + 1)) {
+    const end = balancedBraceEnd(trimmed, i)
+    if (end < 0) continue
+    const candidate = trimmed.slice(i, end)
+    try {
+      JSON.parse(candidate)
+      return candidate
+    } catch {
+      // keep scanning — this '{' started a non-JSON brace in the prose
+    }
+  }
+  // Fallback to the old behavior so the error preview still shows something.
   const firstBrace = trimmed.indexOf('{')
   const lastBrace = trimmed.lastIndexOf('}')
   if (firstBrace >= 0 && lastBrace > firstBrace) {
