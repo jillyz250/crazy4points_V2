@@ -43,6 +43,7 @@ const TILES: Tile[] = [
 async function loadStats() {
   const supabase = createAdminClient()
   const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+  const nowIso = new Date().toISOString()
 
   const [
     pendingReview,
@@ -56,7 +57,15 @@ async function loadStats() {
     refreshQueueTopFive,
     tokenCandidates,
   ] = await Promise.all([
-    supabase.from('alerts').select('id', { count: 'exact', head: true }).eq('status', 'pending_review'),
+    // Match the /admin/drafts "Needs review" chip exactly: needs_review variants
+    // that are NOT currently snoozed (snoozed-but-not-woken live under their own
+    // chip). Counting raw alerts.status='pending_review' here over-counted
+    // because it ignored snooze + the content_variants source of truth.
+    supabase
+      .from('content_variants')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'needs_review')
+      .or(`snoozed_until.is.null,snoozed_until.lte.${nowIso}`),
     supabase.from('intel_items').select('id', { count: 'exact', head: true }).eq('processed', false).is('rejected_at', null).gte('created_at', dayAgo),
     supabase.from('content_ideas').select('id', { count: 'exact', head: true }).in('status', ['new', 'queued', 'drafted']),
     supabase.from('subscribers').select('id', { count: 'exact', head: true }).eq('active', true),
@@ -99,7 +108,7 @@ export default async function AdminDashboard() {
       label: 'Pending review',
       value: stats.pendingReview,
       tone: stats.pendingReview > 0 ? 'warning' : 'neutral',
-      href: '/admin/alerts',
+      href: '/admin/drafts?view=needs_review',
       hint: stats.pendingReview > 0 ? 'needs approve/reject' : 'all clear',
     },
     {
