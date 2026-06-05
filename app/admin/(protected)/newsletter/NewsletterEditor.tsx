@@ -565,8 +565,19 @@ export default function NewsletterEditor({
         )}
         <BigStoryMissingFacts missing={bigStoryMissing} />
         <BigStoryFactCheck claims={bigStoryClaims} />
+        <label style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)', display: 'block', margin: '0 0 0.25rem' }}>
+          Article headline (separate from the subject line — blank falls back to the subject)
+        </label>
+        <input
+          value={slots.big_story_title ?? ''}
+          onChange={(e) => patch('big_story_title', e.target.value || null)}
+          placeholder="e.g. Wellness Travel Worth Your Points"
+          className="admin-input"
+          style={{ marginBottom: '0.625rem', fontSize: '1rem', fontWeight: 600 }}
+          disabled={isSent}
+        />
         <p style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)', margin: '0 0 0.5rem' }}>
-          ~150 words, plain HTML. Use {'<p>'} for paragraphs and one {'<ul>'} of bullets. The renderer adds the section heading. Edit freely after generation.
+          Article body — ~150 words, plain HTML. Use {'<p>'} for paragraphs and one {'<ul>'} of bullets. Edit freely after generation.
         </p>
         <textarea
           value={slots.big_story_html ?? ''}

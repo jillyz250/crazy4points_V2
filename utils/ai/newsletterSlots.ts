@@ -82,6 +82,9 @@ export interface NewsletterSlots {
   // ── Big Story ─────────────────────────────────────────────────
   big_story_ref_type: 'alert' | 'intel' | null
   big_story_ref_id: string | null
+  /** Article headline, independent of the email subject line. When null the
+   *  renderer falls back to the subject so existing drafts keep working. */
+  big_story_title: string | null
   /** Pre-rendered HTML for the body (paragraphs + ul). The renderer wraps it in section chrome. */
   big_story_html: string | null
 
@@ -117,6 +120,7 @@ export const EMPTY_SLOTS: NewsletterSlots = {
   game: { slug: null, title: null, clue_text: null },
   big_story_ref_type: null,
   big_story_ref_id: null,
+  big_story_title: null,
   big_story_html: null,
   sweet_spot: null,
   also_happening: [],

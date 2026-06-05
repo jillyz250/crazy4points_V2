@@ -20,7 +20,7 @@ const FROM = process.env.RESEND_FROM ?? 'Crazy4Points <hello@crazy4points.com>'
 const ADMIN_EMAIL = process.env.BRIEF_RECIPIENT ?? 'jillzeller6@gmail.com'
 
 const SLOT_SELECT =
-  'id, week_of, sent_at, display_date, subject, subject_options, status, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_html, big_story_claims, big_story_missing_facts, sweet_spot_ref_type, sweet_spot_ref_id, sweet_spot, also_happening, jills_take_html, game_slug, game_title, game_clue_text, active_offers'
+  'id, week_of, sent_at, display_date, subject, subject_options, status, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_title, big_story_html, big_story_claims, big_story_missing_facts, sweet_spot_ref_type, sweet_spot_ref_id, sweet_spot, also_happening, jills_take_html, game_slug, game_title, game_clue_text, active_offers'
 
 interface SlotRow {
   id: string
@@ -34,6 +34,7 @@ interface SlotRow {
   jill_prompt: string | null
   big_story_ref_type: 'alert' | 'intel' | null
   big_story_ref_id: string | null
+  big_story_title: string | null
   big_story_html: string | null
   big_story_claims: VerifyClaim[] | null
   big_story_missing_facts: MissingFact[] | null
@@ -59,6 +60,7 @@ function rowToSlots(row: SlotRow): NewsletterSlots {
     },
     big_story_ref_type: row.big_story_ref_type,
     big_story_ref_id: row.big_story_ref_id,
+    big_story_title: row.big_story_title ?? null,
     big_story_html: row.big_story_html,
     sweet_spot: row.sweet_spot ?? null,
     also_happening: Array.isArray(row.also_happening) ? row.also_happening : [],
@@ -96,6 +98,7 @@ export async function saveSlotsAction(id: string, slots: NewsletterSlots) {
       jill_prompt: slots.jill_prompt,
       big_story_ref_type: slots.big_story_ref_type,
       big_story_ref_id: slots.big_story_ref_id,
+      big_story_title: slots.big_story_title,
       big_story_html: slots.big_story_html,
       sweet_spot: slots.sweet_spot,
       also_happening: slots.also_happening,

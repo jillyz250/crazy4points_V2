@@ -238,6 +238,7 @@ function validateSlots(raw: unknown): Omit<NewsletterSlots, 'subject' | 'game' |
     hero_kicker: r.hero_kicker ? String(r.hero_kicker).slice(0, 80) : null,
     big_story_ref_id: r.big_story_ref_id ?? null,
     big_story_ref_type: r.big_story_ref_type ?? null,
+    big_story_title: null,
     big_story_html: r.big_story_html ?? null,
     sweet_spot: validateSweetSpot(r.sweet_spot),
     also_happening,
