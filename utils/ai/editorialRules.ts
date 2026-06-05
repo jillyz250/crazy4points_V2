@@ -40,6 +40,18 @@ OFF-LIMITS:
   if the sentence before didn't land, rewrite it, don't footnote it.
 • Program-name restating: don't say "Flying Blue, Air France-KLM's loyalty program"
   after you already said Flying Blue. The reader knows.
+• AI-slop words — never use, swap for the plain word: "delve into" (look at),
+  "leverage"/"harness" (use), "seamless" (smooth/easy), "robust" (solid/reliable),
+  "navigate" (handle), "unlock" (get/access), "elevate" (improve), "comprehensive"
+  (full/complete), "pivotal" (key), "transformative"/"innovative"/"cutting-edge"
+  (name the specific thing or cut), "empower" (help/let), "revolutionize" (change),
+  "vibrant"/"bustling" (a specific adjective), "tapestry"/"realm"/"landscape" (cut).
+• AI-slop scaffolding — cut the preamble, just say the thing: "It's important to
+  note," "It's essential to," "In today's [X] world," "Furthermore," "Moreover,"
+  "Embark on a journey," "Dive into."
+• Em-dash overuse: one per piece, max — prefer a comma, period, or colon.
+• Rule of three: vary list length (use 2 or 4 items) — three-item lists everywhere
+  is a tell that copy was AI-generated.
 • Anything that sounds mean, preachy, or smug`
 
 // ─────────────────────────────────────────────────────────────────────────
