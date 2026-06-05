@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { unstable_cache } from 'next/cache'
 import { createAdminClient } from '@/utils/supabase/server'
 import { isComingSoon } from '@/components/programs/hyattRegions'
 
@@ -11,6 +12,12 @@ import { isComingSoon } from '@/components/programs/hyattRegions'
 // loyalty options (Hyatt today; Marriott / Hilton / IHG once seeded).
 //
 // Coming-soon properties are excluded — readers can't book them.
+//
+// EGRESS: the destinations table and per-country hotel rosters are CACHED
+// (daily revalidate) and filtered/sampled in memory, so a spin no longer
+// pulls ~1,500 hotel rows from Supabase on every click. The whole per-country
+// set is cached, which also fixes a latent bug — the old `.limit(1500)` could
+// return an arbitrary slice that missed the spun city's hotels entirely.
 
 type Filters = {
   month?: string | null
@@ -72,6 +79,23 @@ interface HotelRowWithProgram {
 // substantive without overwhelming when many programs are seeded.
 const SAMPLES_PER_PROGRAM = 2
 
+// Continents most US-based readers consider for vacation. Used as the default
+// scope when the user hasn't explicitly picked a continent. Level 3/4 advisory
+// destinations are always hidden (editorial decision), regardless of filter.
+const SAFER_DEFAULT_CONTINENTS = ['north_america', 'central_america', 'caribbean', 'europe']
+
+const DEST_SELECT =
+  'title, slug, country, continent, vibe, summary_short, weather_by_month, trip_length, who_is_going, image_url, advisory_level, advisory_url, advisory_summary'
+const HOTEL_SELECT =
+  'id, name, brand, city, country, category, off_peak_points, standard_points, peak_points, hotel_url, all_inclusive, notes, programs!inner(slug, name)'
+
+// Per-country cache cap. The US has ~4,500 hotels; capping keeps each cache
+// entry comfortably under the data-cache size limit (so caching actually
+// engages) while covering far more than the old combined 1,500 limit.
+const HOTELS_PER_COUNTRY_CAP = 3000
+
+const CACHE_DAY = 86400
+
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr]
   for (let i = a.length - 1; i > 0; i--) {
@@ -85,6 +109,50 @@ function flattenProgram(programs: HotelRowWithProgram['programs']): { slug: stri
   if (!programs) return null
   if (Array.isArray(programs)) return programs[0] ?? null
   return programs
+}
+
+// --- Cached source reads (the egress fix) ----------------------------------
+// Destinations rarely change; cache the whole (small) table once/day and filter
+// in memory. Hotels are cached per country once/day so a spin reads from cache
+// instead of hitting Supabase. Both use the service-role client (no cookies),
+// which is safe inside unstable_cache.
+
+const getCachedDestinations = unstable_cache(
+  async (): Promise<DestinationRow[]> => {
+    const supabase = createAdminClient()
+    const { data, error } = await supabase.from('destinations').select(DEST_SELECT)
+    if (error) {
+      console.error('[decision-engine] destinations fetch failed:', error)
+      return []
+    }
+    return (data ?? []) as DestinationRow[]
+  },
+  ['de-destinations-v1'],
+  { revalidate: CACHE_DAY },
+)
+
+function getCachedHotelsForCountry(country: string): Promise<HotelRowWithProgram[]> {
+  return unstable_cache(
+    async (): Promise<HotelRowWithProgram[]> => {
+      const supabase = createAdminClient()
+      const { data, error } = await supabase
+        .from('hotel_properties')
+        .select(HOTEL_SELECT)
+        .eq('country', country)
+        .limit(HOTELS_PER_COUNTRY_CAP)
+      if (error) {
+        console.error(`[decision-engine] hotels fetch failed for ${country}:`, error)
+        return []
+      }
+      // Pre-filter coming-soon and drop `notes` from the cached payload to keep
+      // the entry small (notes is only needed for the coming-soon check).
+      return ((data ?? []) as unknown as HotelRowWithProgram[])
+        .filter((r) => !isComingSoon(r.notes))
+        .map((r) => ({ ...r, notes: null }))
+    },
+    ['de-hotels-v1', country],
+    { revalidate: CACHE_DAY },
+  )()
 }
 
 function buildSampleHotels(
@@ -184,66 +252,35 @@ function buildSampleHotels(
 
 export async function POST(request: Request) {
   const filters: Filters = await request.json().catch(() => ({}))
-  const supabase = createAdminClient()
 
-  let query = supabase
-    .from('destinations')
-    .select('title, slug, country, continent, vibe, summary_short, weather_by_month, trip_length, who_is_going, image_url, advisory_level, advisory_url, advisory_summary')
-
-  if (filters.continent)  query = query.eq('continent', filters.continent)
-  if (filters.vibe)       query = query.contains('vibe', [filters.vibe])
-  if (filters.tripLength) query = query.contains('trip_length', [filters.tripLength])
-  if (filters.whoIsGoing) query = query.contains('who_is_going', [filters.whoIsGoing])
-
-  // Default-spin scope:
-  //   1. Restrict to continents most US-based readers actually consider
-  //      for vacation: North America, Central America, Caribbean, Europe.
-  //      Asia / South America / Middle East / Africa / South Pacific
-  //      surface only when the user explicitly picks that continent.
-  //      This rule drops when filters.continent is set, so picking "Asia"
-  //      returns Asia destinations.
-  //   2. ALWAYS hide Level 3 ("Reconsider Travel") and Level 4 ("Do Not
-  //      Travel") destinations — applies even when a continent is picked.
-  //      Editorial decision: we don't surface DE picks where the State
-  //      Dept advises against travel, regardless of how the user filtered.
-  const SAFER_DEFAULT_CONTINENTS = ['north_america', 'central_america', 'caribbean', 'europe']
-  if (!filters.continent) {
-    query = query.in('continent', SAFER_DEFAULT_CONTINENTS)
-  }
-  query = query.or('advisory_level.is.null,advisory_level.lt.3')
-
-  const { data, error } = await query
-  if (error) {
-    console.error('[decision-engine] query failed:', error)
-    return NextResponse.json({ destinations: [], error: error.message }, { status: 500 })
-  }
-
-  let rows = (data ?? []) as DestinationRow[]
-
-  // Month filter: weather must be 'great' or 'good' for the picked month.
-  // Done in JS because JSONB key filtering via supabase-js is awkward.
-  if (filters.month) {
-    rows = rows.filter(r => {
-      const w = r.weather_by_month?.[filters.month!]
-      return w === 'great' || w === 'good'
-    })
-  }
+  // All destination filtering now happens in memory over the cached table.
+  const all = await getCachedDestinations()
+  const rows = all.filter((r) => {
+    if (filters.continent && r.continent !== filters.continent) return false
+    if (filters.vibe && !(r.vibe ?? []).includes(filters.vibe)) return false
+    if (filters.tripLength && !(r.trip_length ?? []).includes(filters.tripLength)) return false
+    if (filters.whoIsGoing && !(r.who_is_going ?? []).includes(filters.whoIsGoing)) return false
+    // Default scope when no continent picked.
+    if (!filters.continent && !SAFER_DEFAULT_CONTINENTS.includes(r.continent ?? '')) return false
+    // Always hide Level 3/4 advisory destinations.
+    if (!(r.advisory_level == null || r.advisory_level < 3)) return false
+    // Month: weather must be 'great' or 'good' for the picked month.
+    if (filters.month) {
+      const w = r.weather_by_month?.[filters.month]
+      if (w !== 'great' && w !== 'good') return false
+    }
+    return true
+  })
 
   const picked = shuffle(rows).slice(0, 3)
 
-  // Hotels enrichment — one query covering all 3 destination countries
+  // Hotels enrichment — read each picked country's roster from cache.
   let hotelsByDest = new Map<string, SampleHotel[]>()
   const countries = [...new Set(picked.map((d) => d.country).filter((c): c is string => !!c))]
   if (countries.length > 0) {
     try {
-      const { data: hotelRows } = await supabase
-        .from('hotel_properties')
-        .select(
-          'id, name, brand, city, country, category, off_peak_points, standard_points, peak_points, hotel_url, all_inclusive, notes, programs!inner(slug, name)'
-        )
-        .in('country', countries)
-        .limit(1500)
-      hotelsByDest = buildSampleHotels(picked, (hotelRows ?? []) as unknown as HotelRowWithProgram[])
+      const hotelArrays = await Promise.all(countries.map((c) => getCachedHotelsForCountry(c)))
+      hotelsByDest = buildSampleHotels(picked, hotelArrays.flat())
     } catch (err) {
       console.error('[decision-engine] hotels enrichment failed:', err)
     }
