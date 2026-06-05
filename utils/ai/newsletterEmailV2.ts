@@ -182,8 +182,8 @@ function renderOfferBucket(label: string, items: OfferItem[], origin: string): s
         ? (it.link_url.startsWith('http') ? it.link_url : `${origin}${it.link_url}`)
         : ''
       const headline = href
-        ? `<a href="${esc(href)}" style="color:${BODY};text-decoration:none;">${esc(it.headline)}</a>`
-        : esc(it.headline)
+        ? `<a href="${esc(href)}" style="color:${LINK_BLUE};text-decoration:underline;font-weight:600;">${esc(it.headline)}</a>`
+        : `<span style="font-weight:600;">${esc(it.headline)}</span>`
       const deadline = it.deadline
         ? ` <span style="font-family:${FONT_UI};font-size:12px;font-weight:600;color:${GOLD};white-space:nowrap;">${esc(it.deadline)}</span>`
         : ''
