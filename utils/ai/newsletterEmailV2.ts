@@ -162,7 +162,16 @@ function renderAlsoHappening(items: AlsoHappeningItem[], origin: string): string
 
 function renderOfferBucket(label: string, items: OfferItem[], origin: string): string {
   if (!items || items.length === 0) return ''
-  const rows = items
+  // Dedupe within a bucket by headline (defensive against the same offer being
+  // pulled twice).
+  const seen = new Set<string>()
+  const unique = items.filter((it) => {
+    const key = (it.headline ?? '').trim().toLowerCase()
+    if (!key || seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+  const rows = unique
     .map((it) => {
       const href = it.link_url
         ? (it.link_url.startsWith('http') ? it.link_url : `${origin}${it.link_url}`)
@@ -173,9 +182,22 @@ function renderOfferBucket(label: string, items: OfferItem[], origin: string): s
       const deadline = it.deadline
         ? ` <span style="font-family:${FONT_UI};font-size:12px;font-weight:600;color:${GOLD};">${esc(it.deadline)}</span>`
         : ''
+      // Skip the blurb when it's empty or just echoes the headline (e.g. an
+      // alert whose summary was set to its own title) — otherwise the title
+      // appears to render twice.
+      const blurbText = (it.blurb ?? '').trim()
+      const headlineText = (it.headline ?? '').trim()
+      const showBlurb =
+        blurbText.length > 0 &&
+        blurbText.toLowerCase() !== headlineText.toLowerCase() &&
+        !headlineText.toLowerCase().startsWith(blurbText.toLowerCase()) &&
+        !blurbText.toLowerCase().startsWith(headlineText.toLowerCase())
+      const blurb = showBlurb
+        ? `<p style="margin:0 0 12px;font-family:${FONT_BODY};font-size:13px;line-height:1.5;color:${MUTED};">${esc(it.blurb)}</p>`
+        : '<div style="height:12px;line-height:12px;font-size:0;">&nbsp;</div>'
       return `
         <p style="margin:0 0 2px;font-family:${FONT_DISPLAY};font-size:15px;line-height:1.3;color:${BODY};font-weight:600;">${headline}${deadline}</p>
-        <p style="margin:0 0 12px;font-family:${FONT_BODY};font-size:13px;line-height:1.5;color:${MUTED};">${esc(it.blurb)}</p>`
+        ${blurb}`
     })
     .join('')
   return `
@@ -365,7 +387,6 @@ export function renderNewsletterV2Html({
 
         ${renderBigStory(slots, origin)}
         ${renderSweetSpot(slots.sweet_spot)}
-        ${renderCurrentBonuses(currentBonuses, origin)}
         ${renderAlsoHappening(slots.also_happening, origin)}
         ${renderActiveOffers(slots.active_offers, origin)}
         ${renderGame(slots.game, origin)}
