@@ -112,12 +112,12 @@ function renderGame(game: NewsletterSlots['game'], origin: string): string {
 
 function renderBigStory(slots: NewsletterSlots, origin: string): string {
   if (!slots.big_story_html) return ''
-  // Big Story now leads with the chosen subject line as a 28px Playfair
-  // headline. The inbox subject + article headline align by design — they
-  // anchor to the same locked alert, so reusing the subject keeps the
-  // editorial throughline tight without requiring a new field.
-  const headline = slots.subject
-    ? `<h1 style="margin:0 0 14px;font-family:${FONT_DISPLAY};font-size:28px;line-height:1.2;color:${BODY};font-weight:700;">${esc(slots.subject)}</h1>`
+  // Big Story headline uses its own title field, independent of the email
+  // subject line. Falls back to the subject for older drafts that predate the
+  // big_story_title field.
+  const headlineText = slots.big_story_title || slots.subject
+  const headline = headlineText
+    ? `<h1 style="margin:0 0 14px;font-family:${FONT_DISPLAY};font-size:28px;line-height:1.2;color:${BODY};font-weight:700;">${esc(headlineText)}</h1>`
     : ''
   // Soft purple wash on the Big Story so it reads as a deliberate featured
   // section (tier 2) — sits visually between plain white content and the

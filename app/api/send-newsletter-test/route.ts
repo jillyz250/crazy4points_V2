@@ -9,7 +9,7 @@ export const maxDuration = 60
 const resend = new Resend(process.env.RESEND_API_KEY)
 
 const SLOT_SELECT =
-  'id, week_of, sent_at, display_date, subject, subject_options, status, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_html, sweet_spot, also_happening, active_offers, jills_take_html, game_slug, game_title, game_clue_text'
+  'id, week_of, sent_at, display_date, subject, subject_options, status, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_title, big_story_html, sweet_spot, also_happening, active_offers, jills_take_html, game_slug, game_title, game_clue_text'
 
 interface SlotRow {
   id: string
@@ -23,6 +23,7 @@ interface SlotRow {
   jill_prompt: string | null
   big_story_ref_type: 'alert' | 'intel' | null
   big_story_ref_id: string | null
+  big_story_title: string | null
   big_story_html: string | null
   sweet_spot: NewsletterSlots['sweet_spot'] | null
   also_happening: AlsoHappeningItem[] | null
@@ -70,6 +71,7 @@ export async function GET(req: NextRequest) {
     game: { slug: row.game_slug, title: row.game_title, clue_text: row.game_clue_text },
     big_story_ref_type: row.big_story_ref_type,
     big_story_ref_id: row.big_story_ref_id,
+    big_story_title: row.big_story_title ?? null,
     big_story_html: row.big_story_html,
     sweet_spot: row.sweet_spot ?? null,
     also_happening: Array.isArray(row.also_happening) ? row.also_happening : [],
