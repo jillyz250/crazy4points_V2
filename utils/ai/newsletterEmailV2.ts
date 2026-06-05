@@ -160,6 +160,21 @@ function renderAlsoHappening(items: AlsoHappeningItem[], origin: string): string
     </td></tr>`
 }
 
+// Split a normalized headline into [programLead, rest] so the renderer can
+// bold the program. The natural boundary is the first ":" or "→" (program/
+// product before it, offer detail after); fall back to the first word for
+// titles with no delimiter (e.g. "Amex Membership Rewards to ...").
+function splitHeadline(h: string): [string, string] {
+  const c = h.indexOf(':')
+  const a = h.indexOf('→') // →
+  const cands = [c, a].filter((i) => i > 0)
+  const idx = cands.length ? Math.min(...cands) : -1
+  if (idx > 0) return [h.slice(0, idx), h.slice(idx)]
+  const sp = h.indexOf(' ')
+  if (sp > 0) return [h.slice(0, sp), h.slice(sp)]
+  return [h, '']
+}
+
 function renderOfferBucket(label: string, items: OfferItem[], origin: string): string {
   if (!items || items.length === 0) return ''
   // Dedupe within a bucket by headline (defensive against the same offer being
@@ -181,9 +196,11 @@ function renderOfferBucket(label: string, items: OfferItem[], origin: string): s
       const href = it.link_url
         ? (it.link_url.startsWith('http') ? it.link_url : `${origin}${it.link_url}`)
         : ''
+      const [lead, rest] = splitHeadline(it.headline)
+      const linkInner = `<strong style="font-weight:700;">${esc(lead)}</strong><span style="font-weight:400;">${esc(rest)}</span>`
       const headline = href
-        ? `<a href="${esc(href)}" style="color:${LINK_BLUE};text-decoration:underline;font-weight:600;">${esc(it.headline)}</a>`
-        : `<span style="font-weight:600;">${esc(it.headline)}</span>`
+        ? `<a href="${esc(href)}" style="color:${LINK_BLUE};text-decoration:underline;">${linkInner}</a>`
+        : linkInner
       const deadline = it.deadline
         ? ` <span style="font-family:${FONT_UI};font-size:12px;font-weight:600;color:${GOLD};white-space:nowrap;">${esc(it.deadline)}</span>`
         : ''
