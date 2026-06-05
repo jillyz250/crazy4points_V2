@@ -135,10 +135,8 @@ async function reverifyProgram(
   slug: string,
   slugList: string,
   validSlugs: Set<string>,
+  source: { url: string; label: string },
 ): Promise<VerificationFinding[]> {
-  const source = VERIFICATION_SOURCES[slug]
-  if (!source) return []
-
   const { data: prog } = await supabase
     .from('programs')
     .select('name, transfer_partners_outbound')
@@ -172,34 +170,27 @@ async function reverifyProgram(
 
   const out: { partnerSlug: string | null; partnerName: string | null; findingType: VerificationFindingType; ours: string | null; theirs: string | null; confidence: VerificationFinding['confidence']; summary: string }[] = []
 
-  // WRONG_RATIO + MISSING (source-driven, deterministic).
+  // WRONG_RATIO only - the one deterministic, slug-robust signal (both sides
+  // matched the same slug; the ratio math is unarguable). GHOST and matched-slug
+  // MISSING are deliberately NOT emitted - they're dominated by false positives
+  // from imperfect extraction + slug-granularity. Removed partners are caught by
+  // the announcement monitor + manual audits instead.
   for (const [pSlug, sp] of sourceBySlug) {
     if (ourMap.has(pSlug)) {
       const ours = ourMap.get(pSlug) ?? null
       if (!ratiosEqual(ours, sp.ratio)) {
         out.push({ partnerSlug: pSlug, partnerName: sp.source_name, findingType: 'wrong_ratio', ours, theirs: sp.ratio, confidence: 'high', summary: `Ratio differs: we store ${ours}, ${source.label} shows ${sp.ratio}.` })
       }
-    } else if (sourceLooksComplete) {
-      out.push({ partnerSlug: pSlug, partnerName: sp.source_name, findingType: 'missing', ours: 'absent', theirs: sp.ratio, confidence: 'med', summary: `${source.label} lists ${sp.source_name} (${sp.ratio ?? 'ratio n/a'}); we don't have it.` })
     }
   }
 
-  // GHOST (our slugs absent from a complete-looking source roster).
-  if (sourceLooksComplete) {
-    for (const [pSlug, ratio] of ourMap) {
-      if (!sourceBySlug.has(pSlug)) {
-        out.push({ partnerSlug: pSlug, partnerName: null, findingType: 'ghost', ours: ratio, theirs: 'absent', confidence: 'med', summary: `We list ${pSlug} but ${source.label}'s roster doesn't - possible removed partner (verify on the issuer page).` })
-      }
-    }
-  }
-
-  // MISSING with no slug match (potential genuinely-new partner we have no row
-  // for). Low confidence - could be a name the model couldn't map. Only when the
-  // source looks complete, capped to avoid noise.
+  // MISSING only for a partner the source names that maps to NO slug we have -
+  // i.e. a genuinely unknown program (a real "should we add this?" lead, like
+  // China Southern was). Low confidence; capped; gated on a complete scrape.
   if (sourceLooksComplete) {
     for (const sp of unmatched.slice(0, 6)) {
       if (!sp.ratio) continue
-      out.push({ partnerSlug: null, partnerName: sp.source_name, findingType: 'missing', ours: 'absent', theirs: sp.ratio, confidence: 'low', summary: `${source.label} lists "${sp.source_name}" (${sp.ratio}) - not in our roster or slug list. New partner?` })
+      out.push({ partnerSlug: null, partnerName: sp.source_name, findingType: 'missing', ours: 'absent', theirs: sp.ratio, confidence: 'low', summary: `${source.label} lists "${sp.source_name}" (${sp.ratio}) - not in our slug list at all. New partner?` })
     }
   }
 
@@ -217,8 +208,6 @@ async function reverifyProgram(
  * reverified_at on each processed. Returns all findings produced this run.
  */
 export async function reverifyDue(supabase: SupabaseClient, limit = 8): Promise<VerificationFinding[]> {
-  const sourceSlugs = Object.keys(VERIFICATION_SOURCES)
-
   const { data: allProgs } = await supabase.from('programs').select('slug, name').eq('is_active', true)
   const validSlugs = new Set<string>()
   for (const p of (allProgs ?? []) as Array<{ slug: string }>) validSlugs.add(p.slug)
@@ -226,19 +215,22 @@ export async function reverifyDue(supabase: SupabaseClient, limit = 8): Promise<
     .map((p: { slug: string; name: string }) => `${p.slug} = ${p.name}`)
     .join('\n')
 
+  // Enrollment is data-driven: any active program with a reverify_source_url set.
+  // Authoring a new program + filling that field auto-enrolls it - no code change.
   const { data: due } = await supabase
     .from('programs')
-    .select('slug, reverified_at')
-    .in('slug', sourceSlugs)
+    .select('slug, reverify_source_url, reverify_source_label, reverified_at')
+    .eq('is_active', true)
+    .not('reverify_source_url', 'is', null)
     .order('reverified_at', { ascending: true, nullsFirst: true })
     .limit(limit)
-  const slugs = (due ?? []).map((p: { slug: string }) => p.slug)
 
   const findings: VerificationFinding[] = []
-  for (const slug of slugs) {
-    const f = await reverifyProgram(supabase, slug, slugList, validSlugs)
+  for (const row of (due ?? []) as Array<{ slug: string; reverify_source_url: string; reverify_source_label: string | null }>) {
+    const source = { url: row.reverify_source_url, label: row.reverify_source_label ?? 'source' }
+    const f = await reverifyProgram(supabase, row.slug, slugList, validSlugs, source)
     findings.push(...f)
-    await supabase.from('programs').update({ reverified_at: new Date().toISOString() }).eq('slug', slug)
+    await supabase.from('programs').update({ reverified_at: new Date().toISOString() }).eq('slug', row.slug)
   }
   return findings
 }
