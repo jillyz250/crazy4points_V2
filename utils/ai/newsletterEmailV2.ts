@@ -209,7 +209,7 @@ function renderActiveOffers(offers: ActiveOffers | null, origin: string): string
   if (!offers) return ''
   const buckets =
     renderOfferBucket('Transfer bonuses', offers.transfer_bonuses ?? [], origin) +
-    renderOfferBucket('Earning promos', offers.earning_promos ?? [], origin) +
+    renderOfferBucket('Other Promos & Experiences', offers.earning_promos ?? [], origin) +
     renderOfferBucket('Points purchase bonuses', offers.purchase_bonuses ?? [], origin)
   if (!buckets) return ''
   return `

@@ -800,7 +800,7 @@ export default function NewsletterEditor({
           const ao = slots.active_offers
           const buckets: Array<[string, OfferItem[]]> = [
             ['Transfer bonuses', ao?.transfer_bonuses ?? []],
-            ['Earning promos', ao?.earning_promos ?? []],
+            ['Other Promos & Experiences', ao?.earning_promos ?? []],
             ['Points purchase bonuses', ao?.purchase_bonuses ?? []],
           ]
           const total = buckets.reduce((n, [, items]) => n + items.length, 0)
