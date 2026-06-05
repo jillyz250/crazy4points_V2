@@ -9,7 +9,7 @@
  * V2 reads from new column shape (migration 222). V1 renderer
  * (newsletterEmail.ts) stays in place for legacy/already-sent newsletters.
  */
-import type { NewsletterSlots, AlsoHappeningItem, NewsletterSweetSpot } from './newsletterSlots'
+import type { NewsletterSlots, AlsoHappeningItem, NewsletterSweetSpot, ActiveOffers, OfferItem } from './newsletterSlots'
 import { unsubscribeUrlFor } from '@/utils/email/unsubscribeToken'
 
 const PURPLE = '#6B2D8F'
@@ -157,6 +157,43 @@ function renderAlsoHappening(items: AlsoHappeningItem[], origin: string): string
     <tr><td style="padding:32px 28px 0;">
       <p style="margin:0 0 12px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${MUTED};font-weight:700;">Also Happening</p>
       ${cards}
+    </td></tr>`
+}
+
+function renderOfferBucket(label: string, items: OfferItem[], origin: string): string {
+  if (!items || items.length === 0) return ''
+  const rows = items
+    .map((it) => {
+      const href = it.link_url
+        ? (it.link_url.startsWith('http') ? it.link_url : `${origin}${it.link_url}`)
+        : ''
+      const headline = href
+        ? `<a href="${esc(href)}" style="color:${BODY};text-decoration:none;">${esc(it.headline)}</a>`
+        : esc(it.headline)
+      const deadline = it.deadline
+        ? ` <span style="font-family:${FONT_UI};font-size:12px;font-weight:600;color:${GOLD};">${esc(it.deadline)}</span>`
+        : ''
+      return `
+        <p style="margin:0 0 2px;font-family:${FONT_DISPLAY};font-size:15px;line-height:1.3;color:${BODY};font-weight:600;">${headline}${deadline}</p>
+        <p style="margin:0 0 12px;font-family:${FONT_BODY};font-size:13px;line-height:1.5;color:${MUTED};">${esc(it.blurb)}</p>`
+    })
+    .join('')
+  return `
+    <p style="margin:0 0 8px;font-family:${FONT_UI};font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:${PURPLE};font-weight:700;">${esc(label)}</p>
+    ${rows}`
+}
+
+function renderActiveOffers(offers: ActiveOffers | null, origin: string): string {
+  if (!offers) return ''
+  const buckets =
+    renderOfferBucket('Transfer bonuses', offers.transfer_bonuses ?? [], origin) +
+    renderOfferBucket('Earning promos', offers.earning_promos ?? [], origin) +
+    renderOfferBucket('Points purchase bonuses', offers.purchase_bonuses ?? [], origin)
+  if (!buckets) return ''
+  return `
+    <tr><td style="padding:32px 28px 0;">
+      <p style="margin:0 0 14px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${MUTED};font-weight:700;">Live Offers</p>
+      ${buckets}
     </td></tr>`
 }
 
@@ -330,6 +367,7 @@ export function renderNewsletterV2Html({
         ${renderSweetSpot(slots.sweet_spot)}
         ${renderCurrentBonuses(currentBonuses, origin)}
         ${renderAlsoHappening(slots.also_happening, origin)}
+        ${renderActiveOffers(slots.active_offers, origin)}
         ${renderGame(slots.game, origin)}
         ${renderJillsTake(slots.jills_take_html)}
 

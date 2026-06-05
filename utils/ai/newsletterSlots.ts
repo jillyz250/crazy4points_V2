@@ -20,6 +20,25 @@ export interface AlsoHappeningItem {
   alert_id?: string | null
 }
 
+/** One offer card in the "Live Offers" section. */
+export interface OfferItem {
+  headline: string
+  /** 1 sentence, plain. */
+  blurb: string
+  /** Relative path (e.g. "/alerts/slug") or absolute URL. */
+  link_url: string
+  /** Human-readable deadline, e.g. "Ends July 7". Empty/null = none. */
+  deadline?: string | null
+  alert_id?: string | null
+}
+
+/** "Live Offers" roundup — three buckets, auto-filled from active alerts. */
+export interface ActiveOffers {
+  transfer_bonuses: OfferItem[]
+  earning_promos: OfferItem[]
+  purchase_bonuses: OfferItem[]
+}
+
 export interface SweetSpotBestUse {
   /** Specific property/route/award/redemption — concrete, with numbers when possible. */
   name: string
@@ -73,6 +92,9 @@ export interface NewsletterSlots {
   // ── Also Happening ────────────────────────────────────────────
   also_happening: AlsoHappeningItem[]
 
+  // ── Live Offers (auto-filled from active alerts) ──────────────
+  active_offers: ActiveOffers | null
+
   // ── Jill's Take ───────────────────────────────────────────────
   jills_take_html: string | null
 
@@ -98,6 +120,7 @@ export const EMPTY_SLOTS: NewsletterSlots = {
   big_story_html: null,
   sweet_spot: null,
   also_happening: [],
+  active_offers: null,
   jills_take_html: null,
   jill_prompt: null,
   subject: '',

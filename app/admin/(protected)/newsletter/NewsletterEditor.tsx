@@ -20,8 +20,9 @@ import {
   lockSweetSpotAction,
   unlockSweetSpotAction,
   generateSweetSpotFromLockAction,
+  pullActiveOffersAction,
 } from './actions'
-import type { NewsletterSlots, AlsoHappeningItem, NewsletterSweetSpot, SweetSpotBestUse } from '@/utils/ai/newsletterSlots'
+import type { NewsletterSlots, AlsoHappeningItem, NewsletterSweetSpot, SweetSpotBestUse, OfferItem } from '@/utils/ai/newsletterSlots'
 import type { BigStoryCandidate } from './page'
 import type { VerifyClaim } from '@/utils/ai/verifyAlertDraft'
 import type { MissingFact } from '@/utils/ai/verifyBigStoryDraft'
@@ -190,6 +191,20 @@ export default function NewsletterEditor({
     const next = slots.also_happening.slice()
     ;[next[i], next[j]] = [next[j], next[i]]
     setAlso(next)
+  }
+
+  function handlePullOffers() {
+    setError(null)
+    setMessage(null)
+    start(async () => {
+      try {
+        const r = await pullActiveOffersAction(id)
+        setSlots((prev) => ({ ...prev, active_offers: r.offers }))
+        setMessage(`Pulled ${r.counts.transfer} transfer, ${r.counts.earning} earning, ${r.counts.purchase} purchase offers.`)
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Failed to pull offers')
+      }
+    })
   }
 
   function addAlso() {
@@ -769,6 +784,40 @@ export default function NewsletterEditor({
         {!isSent && (
           <button type="button" onClick={addAlso} style={btnSecondary}>+ Add card</button>
         )}
+      </div>
+
+      {/* Live Offers (auto from active alerts) */}
+      <div style={sectionStyle}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.5rem' }}>
+          <label style={labelStyle}>🟢 Live Offers (auto from active alerts)</label>
+          {!isSent && (
+            <button type="button" onClick={handlePullOffers} disabled={isPending} style={btnSecondary}>
+              {isPending ? 'Working…' : 'Pull live offers'}
+            </button>
+          )}
+        </div>
+        {(() => {
+          const ao = slots.active_offers
+          const buckets: Array<[string, OfferItem[]]> = [
+            ['Transfer bonuses', ao?.transfer_bonuses ?? []],
+            ['Earning promos', ao?.earning_promos ?? []],
+            ['Points purchase bonuses', ao?.purchase_bonuses ?? []],
+          ]
+          const total = buckets.reduce((n, [, items]) => n + items.length, 0)
+          if (total === 0) {
+            return <p style={{ fontSize: '0.8125rem', color: 'var(--admin-text-muted)', margin: 0 }}>No offers pulled yet. Click &ldquo;Pull live offers&rdquo; to fill from active published alerts.</p>
+          }
+          return buckets.filter(([, items]) => items.length > 0).map(([label, items]) => (
+            <div key={label} style={{ marginBottom: '0.75rem' }}>
+              <p style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-primary, #6B2D8F)', fontWeight: 700, margin: '0 0 0.25rem' }}>{label} ({items.length})</p>
+              {items.map((it, i) => (
+                <div key={i} style={{ fontSize: '0.8125rem', marginBottom: '0.25rem' }}>
+                  <strong>{it.headline}</strong>{it.deadline ? ` — ${it.deadline}` : ''}
+                </div>
+              ))}
+            </div>
+          ))
+        })()}
       </div>
 
       {/* Jill's Take */}
