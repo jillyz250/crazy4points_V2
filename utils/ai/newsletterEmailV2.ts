@@ -287,33 +287,25 @@ function renderCurrentBonuses(bonuses: CurrentBonusRow[] | undefined, origin: st
 
 function renderJillsTake(html: string | null | undefined): string {
   if (!html) return ''
-  // Luxe pull-quote treatment: white background, gold-ribbon top + bottom
-  // borders, sparkle-bookended eyebrow, Playfair italic body centered with
-  // constrained max-width. Reads as a magazine pull-quote / signed editorial
-  // closer — distinct from every other section's purple-tint blocks.
-  const inner = /<(p|em|strong)\b/i.test(html)
-    ? html
-    : `<p style="margin:0;">${esc(html)}</p>`
-  // Fancy ribbon: pointed-tail ends via CSS-border triangles. Center gold
-  // rectangle holds the white uppercase "Jill's Take" text; left + right
-  // 0-width cells use border tricks to create gold triangle tails pointing
-  // outward, making the whole thing read as an actual ribbon banner.
-  //
-  // Email-safety: Gmail web, Apple Mail, Outlook.com all render CSS
-  // border-triangle. Outlook desktop may drop the tails (graceful
-  // fallback — still shows the gold rectangle).
+  // Contained "signed note" card: soft-purple background, gold border + gold
+  // ribbon eyebrow, Playfair italic body left-aligned for readability with
+  // even paragraph spacing. Reads as a boxed editorial closer.
+  const raw = /<(p|em|strong)\b/i.test(html) ? html : `<p>${esc(html)}</p>`
+  // Normalize paragraph spacing on pass-through <p> tags so multiple
+  // paragraphs don't run together (email clients zero out default margins).
+  const inner = raw.replace(/<p>/gi, '<p style="margin:0 0 14px;">')
   return `
-    <tr><td style="padding:32px 28px 8px;">
-      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#ffffff;">
-        <tr><td style="padding:28px 32px;text-align:center;">
-          <table role="presentation" align="center" cellspacing="0" cellpadding="0" border="0" style="margin:0 auto 22px;">
+    <tr><td style="padding:28px 28px 8px;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:${SOFT_BG};border:1px solid ${GOLD};border-radius:12px;">
+        <tr><td style="padding:24px 28px 22px;text-align:center;">
+          <table role="presentation" align="center" cellspacing="0" cellpadding="0" border="0" style="margin:0 auto 18px;">
             <tr>
               <td style="width:0;height:0;border-top:18px solid transparent;border-bottom:18px solid transparent;border-right:14px solid ${GOLD};font-size:0;line-height:0;mso-line-height-rule:exactly;">&nbsp;</td>
-              <td style="background:${GOLD};padding:0 26px;height:36px;font-family:${FONT_UI};font-size:12px;letter-spacing:2.5px;text-transform:uppercase;color:#ffffff;font-weight:700;line-height:36px;white-space:nowrap;">Jill&#39;s Take</td>
+              <td style="background:${GOLD};padding:0 26px;height:34px;font-family:${FONT_UI};font-size:12px;letter-spacing:2.5px;text-transform:uppercase;color:#ffffff;font-weight:700;line-height:34px;white-space:nowrap;">Jill&#39;s Take</td>
               <td style="width:0;height:0;border-top:18px solid transparent;border-bottom:18px solid transparent;border-left:14px solid ${GOLD};font-size:0;line-height:0;mso-line-height-rule:exactly;">&nbsp;</td>
             </tr>
           </table>
-          <div style="font-family:${FONT_DISPLAY};font-size:18px;line-height:1.6;color:${BODY};font-style:italic;max-width:480px;margin:0 auto;">${inner}</div>
+          <div style="font-family:${FONT_DISPLAY};font-size:17px;line-height:1.6;color:${BODY};font-style:italic;text-align:left;">${inner}</div>
         </td></tr>
       </table>
     </td></tr>`
