@@ -72,6 +72,7 @@ const EARN_CATEGORY_LABELS: Record<string, string> = {
   flights_through_portal: 'Flights (through portal)',
   hotels: 'Hotels',
   hotels_through_portal: 'Hotels (through portal)',
+  hotels_cars_attractions_portal: 'Hotels & cars (through portal)',
   groceries: 'Groceries',
   groceries_us_supermarkets: 'Groceries (US supermarkets)',
   gas: 'Gas',
@@ -834,13 +835,14 @@ export default async function CardPage({
               <>Earn currency: <Link href={`/programs/${currency_program.slug}`} style={{ color: 'var(--color-primary)' }}>{currency_program.name}</Link>.</>
             )}
           </p>
-          <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <div className="rg-table-scroll">
+          <table className="admin-table" style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '2px solid var(--color-border-soft)' }}>
-                <th style={{ textAlign: 'left', padding: '0.5rem 0.75rem' }}>Category</th>
-                <th style={{ textAlign: 'right', padding: '0.5rem 0.75rem' }}>Multiplier</th>
+                <th style={{ textAlign: 'left', padding: '0.5rem 0.75rem', width: showChannel ? '34%' : '38%' }}>Category</th>
+                <th style={{ textAlign: 'right', padding: '0.5rem 0.75rem', width: '14%' }}>Rate</th>
                 {showChannel && (
-                  <th style={{ textAlign: 'left', padding: '0.5rem 0.75rem' }}>Channel</th>
+                  <th style={{ textAlign: 'left', padding: '0.5rem 0.75rem', width: '16%' }}>Channel</th>
                 )}
                 <th style={{ textAlign: 'left', padding: '0.5rem 0.75rem' }}>Notes</th>
               </tr>
@@ -848,20 +850,21 @@ export default async function CardPage({
             <tbody>
               {earn_rates.map((r) => (
                 <tr key={r.id} style={{ borderBottom: '1px solid var(--color-border-soft)' }}>
-                  <td style={{ padding: '0.625rem 0.75rem', fontWeight: 500 }}>{formatEarnCategory(r.category)}</td>
+                  <td style={{ padding: '0.625rem 0.75rem', fontWeight: 500, overflowWrap: 'break-word' }}>{formatEarnCategory(r.category)}</td>
                   <td style={{ padding: '0.625rem 0.75rem', textAlign: 'right', fontWeight: 600 }}>{Number(r.multiplier)}x</td>
                   {showChannel && (
                     <td style={{ padding: '0.625rem 0.75rem', color: 'var(--color-text-secondary)' }}>
                       {r.booking_channel === 'any' ? '—' : r.booking_channel}
                     </td>
                   )}
-                  <td style={{ padding: '0.625rem 0.75rem', color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
+                  <td style={{ padding: '0.625rem 0.75rem', color: 'var(--color-text-secondary)', fontSize: '0.875rem', overflowWrap: 'anywhere' }}>
                     {r.notes ?? ''}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
         </SimpleTile>
         )
       })()}
