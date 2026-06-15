@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { assertAdmin } from '@/lib/auth/admin'
 import { createAdminClient } from '@/utils/supabase/server'
 import { logSystemError } from '@/utils/supabase/queries'
 import { writeArticleBody } from '@/utils/ai/writeArticleBody'
@@ -234,6 +235,7 @@ export async function updateContentIdeaStatusAction(
   id: string,
   status: string
 ): Promise<void> {
+  await assertAdmin()
   if (!VALID.includes(status as IdeaStatus)) {
     throw new Error(`Invalid status: ${status}`)
   }
@@ -322,6 +324,7 @@ export async function resolveIntelConflictAction(
   resolution: typeof VALID_RESOLUTIONS[number],
   note: string | null = null
 ): Promise<void> {
+  await assertAdmin()
   if (!VALID_RESOLUTIONS.includes(resolution)) {
     throw new Error(`Invalid conflict resolution: ${resolution}`)
   }
@@ -355,6 +358,7 @@ export type WriteArticleResult =
   | { ok: false; error: string }
 
 export async function writeArticleAction(id: string): Promise<WriteArticleResult> {
+  await assertAdmin()
   const supabase = createAdminClient()
   const { data: idea, error: fetchErr } = await supabase
     .from('content_ideas')
@@ -450,6 +454,7 @@ export type FactCheckResult =
   | { ok: false; error: string }
 
 export async function factCheckArticleAction(id: string): Promise<FactCheckResult> {
+  await assertAdmin()
   const supabase = createAdminClient()
   const { data: idea, error: fetchErr } = await supabase
     .from('content_ideas')
@@ -516,6 +521,7 @@ export type VoiceCheckResult =
   | { ok: false; error: string }
 
 export async function voiceCheckArticleAction(id: string): Promise<VoiceCheckResult> {
+  await assertAdmin()
   const supabase = createAdminClient()
   const { data: idea, error: fetchErr } = await supabase
     .from('content_ideas')
@@ -550,6 +556,7 @@ export type CheckArticleResult =
   | { ok: false; error: string }
 
 export async function checkArticleAction(id: string): Promise<CheckArticleResult> {
+  await assertAdmin()
   const supabase = createAdminClient()
   const { data: idea, error: fetchErr } = await supabase
     .from('content_ideas')
@@ -646,6 +653,7 @@ export type PipelineResult =
   | { ok: false; error: string }
 
 export async function runAllChecksAction(id: string): Promise<PipelineResult> {
+  await assertAdmin()
   const supabase = createAdminClient()
   const { data: idea, error: fetchErr } = await supabase
     .from('content_ideas')
@@ -706,6 +714,7 @@ export type OriginalityActionResult =
   | { ok: false; error: string }
 
 export async function checkOriginalityAction(id: string): Promise<OriginalityActionResult> {
+  await assertAdmin()
   const supabase = createAdminClient()
   const { data: idea, error: fetchErr } = await supabase
     .from('content_ideas')
@@ -810,6 +819,7 @@ export type RewriteForOriginalityResult =
 export async function rewriteForOriginalityAction(
   id: string
 ): Promise<RewriteForOriginalityResult> {
+  await assertAdmin()
   const supabase = createAdminClient()
   const { data: idea, error: fetchErr } = await supabase
     .from('content_ideas')
@@ -914,6 +924,7 @@ export type SourceTextPreview =
 export async function getSourceTextPreviewAction(
   id: string
 ): Promise<SourceTextPreview> {
+  await assertAdmin()
   const supabase = createAdminClient()
   const { data: idea, error: fetchErr } = await supabase
     .from('content_ideas')
@@ -941,6 +952,7 @@ export async function updateContentIdeaNotesAction(
   id: string,
   formData: FormData
 ): Promise<void> {
+  await assertAdmin()
   const notes = (formData.get('notes') as string | null) ?? ''
   const supabase = createAdminClient()
   const { error } = await supabase
@@ -973,6 +985,7 @@ export async function updateArticleBodyAction(
   id: string,
   body: string
 ): Promise<UpdateArticleBodyResult> {
+  await assertAdmin()
   const trimmed = body.trim()
   if (!trimmed) {
     return { ok: false, error: 'Article body cannot be empty.' }
@@ -1005,6 +1018,7 @@ export async function updateContentIdeaOverrideAction(
   id: string,
   formData: FormData
 ): Promise<void> {
+  await assertAdmin()
   const value = (formData.get('override_reason') as string | null)?.trim() ?? ''
   const supabase = createAdminClient()
   const { error } = await supabase
@@ -1025,6 +1039,7 @@ export async function updateContentIdeaTypingAction(
   id: string,
   formData: FormData,
 ): Promise<void> {
+  await assertAdmin()
   const { isValidContentType, isValidActivityFrame } = await import('@/lib/admin/contentTaxonomy')
   const rawType = (formData.get('content_type') as string | null)?.trim() ?? ''
   const rawFrame = (formData.get('activity_frame') as string | null)?.trim() ?? ''
@@ -1086,6 +1101,7 @@ export async function updateContentIdeaBlogFieldsAction(
   _prevState: BlogFieldsResult | null,
   formData: FormData
 ): Promise<BlogFieldsResult> {
+  await assertAdmin()
   try {
     const rawCategory = (formData.get('category') as string | null)?.trim() ?? ''
     const rawExcerpt = (formData.get('excerpt') as string | null)?.trim() ?? ''
@@ -1218,6 +1234,7 @@ export async function createIdeaFromPromptAction(
   _prevState: CreateFromPromptResult | null,
   formData: FormData
 ): Promise<CreateFromPromptResult> {
+  await assertAdmin()
   try {
     const prompt = (formData.get('prompt') as string | null)?.trim() ?? ''
     if (prompt.length < 30) {
@@ -1310,6 +1327,7 @@ export type RewriteFromFactsActionResult =
 export async function rewriteFromVerifiedFactsAction(
   id: string
 ): Promise<RewriteFromFactsActionResult> {
+  await assertAdmin()
   const supabase = createAdminClient()
 
   const { data: idea, error: fetchErr } = await supabase

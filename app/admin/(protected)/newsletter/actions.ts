@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { Resend } from 'resend'
+import { assertAdmin } from '@/lib/auth/admin'
 import { createAdminClient } from '@/utils/supabase/server'
 import { renderNewsletterV2Html, formatNewsletterDate } from '@/utils/ai/newsletterEmailV2'
 import type { NewsletterSlots } from '@/utils/ai/newsletterSlots'
@@ -87,6 +88,7 @@ async function loadSlotRow(id: string): Promise<{
 }
 
 export async function saveSlotsAction(id: string, slots: NewsletterSlots) {
+  await assertAdmin()
   const supabase = createAdminClient()
   const { error } = await supabase
     .from('newsletters')
@@ -116,6 +118,7 @@ export async function saveSlotsAction(id: string, slots: NewsletterSlots) {
 }
 
 export async function pullActiveOffersAction(id: string) {
+  await assertAdmin()
   const supabase = createAdminClient()
   const offers = await getActiveOffers(supabase)
   const { error } = await supabase
@@ -137,6 +140,7 @@ export async function pullActiveOffersAction(id: string) {
 }
 
 export async function runNowAction() {
+  await assertAdmin()
   const result = await runBuildNewsletter({ force: true })
   if (!result.ok) throw new Error(result.error)
   revalidatePath('/admin/newsletter')
@@ -155,6 +159,7 @@ export async function runNowAction() {
  *                        alert only — does not touch other slots.
  */
 export async function lockBigStoryAction(id: string, alertId: string) {
+  await assertAdmin()
   const supabase = createAdminClient()
   const { error } = await supabase
     .from('newsletters')
@@ -173,6 +178,7 @@ export async function lockBigStoryAction(id: string, alertId: string) {
 }
 
 export async function unlockBigStoryAction(id: string) {
+  await assertAdmin()
   const supabase = createAdminClient()
   const { error } = await supabase
     .from('newsletters')
@@ -199,6 +205,7 @@ export async function unlockBigStoryAction(id: string) {
  * behavior is preserved (Sonnet picks).
  */
 export async function lockSweetSpotAction(id: string, alertId: string) {
+  await assertAdmin()
   const supabase = createAdminClient()
   const { error } = await supabase
     .from('newsletters')
@@ -217,6 +224,7 @@ export async function lockSweetSpotAction(id: string, alertId: string) {
 }
 
 export async function generateSweetSpotFromLockAction(id: string) {
+  await assertAdmin()
   const { row } = await loadSlotRow(id)
   if (row.status === 'sent') {
     throw new Error('This newsletter has already been sent.')
@@ -258,6 +266,7 @@ export async function generateSweetSpotFromLockAction(id: string) {
 }
 
 export async function unlockSweetSpotAction(id: string) {
+  await assertAdmin()
   const supabase = createAdminClient()
   const { error } = await supabase
     .from('newsletters')
@@ -274,6 +283,7 @@ export async function unlockSweetSpotAction(id: string) {
 }
 
 export async function generateSubjectOptionsFromLockAction(id: string) {
+  await assertAdmin()
   const { row } = await loadSlotRow(id)
   if (row.status === 'sent') {
     throw new Error('This newsletter has already been sent.')
@@ -312,6 +322,7 @@ export async function generateSubjectOptionsFromLockAction(id: string) {
 }
 
 export async function generateBigStoryFromLockAction(id: string) {
+  await assertAdmin()
   const { row } = await loadSlotRow(id)
   if (row.status === 'sent') {
     throw new Error('This newsletter has already been sent.')
@@ -401,6 +412,7 @@ export async function generateBigStoryFromLockAction(id: string) {
  *   they should see what everyone else saw, not a "preview" copy.
  */
 export async function sendTestAction(id: string, toOverride?: string) {
+  await assertAdmin()
   const { row } = await loadSlotRow(id)
   const slots = rowToSlots(row)
 
@@ -434,6 +446,7 @@ export async function sendTestAction(id: string, toOverride?: string) {
 }
 
 export async function sendToSubscribersAction(id: string, confirmWord: string) {
+  await assertAdmin()
   if (confirmWord !== 'Send') {
     throw new Error('Confirmation failed. Type the word "Send" exactly to confirm.')
   }

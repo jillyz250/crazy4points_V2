@@ -13,6 +13,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { assertAdmin } from '@/lib/auth/admin'
 import { createAdminClient } from '@/utils/supabase/server'
 import { ingestItem } from '@/utils/intel/ingestItem'
 import { sanitizeInboundHtml } from '@/utils/intel/email-inbound/sanitizeHtml'
@@ -33,6 +34,7 @@ interface SavedPayload {
 }
 
 export async function promoteQuarantine(formData: FormData): Promise<void> {
+  await assertAdmin()
   const quarantineId = String(formData.get('quarantine_id') ?? '').trim()
   if (!quarantineId) return
 
@@ -141,6 +143,7 @@ export async function promoteQuarantine(formData: FormData): Promise<void> {
 }
 
 export async function discardQuarantine(formData: FormData): Promise<void> {
+  await assertAdmin()
   const quarantineId = String(formData.get('quarantine_id') ?? '').trim()
   if (!quarantineId) return
   const note = String(formData.get('discard_note') ?? '').trim().slice(0, 500) || null

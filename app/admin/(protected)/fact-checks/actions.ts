@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { assertAdmin } from '@/lib/auth/admin'
 import { createAdminClient } from '@/utils/supabase/server'
 import { verifyAlertDraft, webVerifyClaims, type VerifyClaim } from '@/utils/ai/verifyAlertDraft'
 import { buildProgramReferenceForDraft } from '@/utils/ai/programReferenceData'
@@ -30,6 +31,7 @@ export interface ReviseActionResult {
  * through content_variants + topics.
  */
 export async function reverifyAlertClaimsAction(alertId: string): Promise<ReverifyResult> {
+  await assertAdmin()
   const supabase = createAdminClient()
 
   const refs = await findVariantByAlertId(supabase, alertId)
@@ -106,6 +108,7 @@ export async function reverifyAlertClaimsAction(alertId: string): Promise<Reveri
  * revision_log) and writes the refreshed claims to topic.fact_ledger.
  */
 export async function reviseAlertAction(alertId: string): Promise<ReviseActionResult> {
+  await assertAdmin()
   const supabase = createAdminClient()
 
   const refs = await findVariantByAlertId(supabase, alertId)

@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { assertAdmin } from '@/lib/auth/admin'
 import { createAdminClient } from '@/utils/supabase/server'
 
 /**
@@ -10,6 +11,7 @@ import { createAdminClient } from '@/utils/supabase/server'
  */
 
 export async function applySignal(formData: FormData): Promise<void> {
+  await assertAdmin()
   const id = String(formData.get('id') ?? '').trim()
   if (!id) return
   const supabase = createAdminClient()
@@ -40,6 +42,7 @@ export async function applySignal(formData: FormData): Promise<void> {
 }
 
 export async function dismissSignal(formData: FormData): Promise<void> {
+  await assertAdmin()
   const id = String(formData.get('id') ?? '').trim()
   if (!id) return
   const supabase = createAdminClient()

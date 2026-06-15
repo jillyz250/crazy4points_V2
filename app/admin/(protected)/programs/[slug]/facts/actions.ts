@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { assertAdmin } from '@/lib/auth/admin'
 import { createAdminClient } from '@/utils/supabase/server'
 
 /**
@@ -33,6 +34,7 @@ export async function setDisposition(
   _prevState: SetDispositionResult,
   formData: FormData,
 ): Promise<SetDispositionResult> {
+  await assertAdmin()
   const id = String(formData.get('id') ?? '').trim()
   const dispositionInput = String(formData.get('disposition') ?? '').trim()
   const overrideReasonInput = String(formData.get('override_reason') ?? '').trim()

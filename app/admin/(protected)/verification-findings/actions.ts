@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { assertAdmin } from '@/lib/auth/admin'
 import { createAdminClient } from '@/utils/supabase/server'
 
 /**
@@ -11,6 +12,7 @@ import { createAdminClient } from '@/utils/supabase/server'
  * rule), then dismisses the finding to clear the queue.
  */
 export async function dismissFinding(formData: FormData): Promise<void> {
+  await assertAdmin()
   const id = String(formData.get('id') ?? '').trim()
   if (!id) return
   const supabase = createAdminClient()

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { ADMIN_SESSION_COOKIE, verifyAdminSession } from '@/lib/auth/session'
 
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const host = request.headers.get('host') || ''
   const pathname = request.nextUrl.pathname
 
@@ -8,6 +9,21 @@ export function proxy(request: NextRequest) {
   const botFiles = ['/robots.txt', '/sitemap.xml']
   if (botFiles.includes(pathname)) {
     return NextResponse.next()
+  }
+
+  // Defense-in-depth admin gate. The authoritative check is per-action
+  // assertAdmin() (layouts/proxy don't run on every Server Action), but gating
+  // /admin/** here blocks unauthenticated page loads and action POSTs early.
+  // /admin/login must stay open so the user can authenticate.
+  if (pathname.startsWith('/admin') && !pathname.startsWith('/admin/login')) {
+    const token = request.cookies.get(ADMIN_SESSION_COOKIE)?.value
+    const session = await verifyAdminSession(token)
+    if (!session) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/admin/login'
+      url.search = ''
+      return NextResponse.redirect(url)
+    }
   }
 
   // Redirect apex domain to www

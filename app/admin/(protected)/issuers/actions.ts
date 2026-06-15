@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { assertAdmin } from '@/lib/auth/admin'
 import { createAdminClient } from '@/utils/supabase/server'
 
 export type IssuerUpdate = {
@@ -15,6 +16,7 @@ export async function updateIssuerAction(
   slug: string,
   data: IssuerUpdate,
 ): Promise<{ error?: string }> {
+  await assertAdmin()
   if (!data.name?.trim()) return { error: 'Name is required.' }
 
   const supabase = createAdminClient()

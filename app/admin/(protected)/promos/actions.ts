@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { assertAdmin } from '@/lib/auth/admin'
 import { createAdminClient, createClient } from '@/utils/supabase/server'
 import { runAllScrapers, type ScrapeBatchResult } from '@/utils/scraper/runAllScrapers'
 
@@ -31,6 +32,7 @@ async function getReviewerEmail(): Promise<string> {
  * summary.
  */
 export async function runScrapersNowAction(): Promise<ScrapeBatchResult> {
+  await assertAdmin()
   const result = await runAllScrapers('admin-manual')
   revalidatePath('/admin/promos')
   return result
@@ -41,6 +43,7 @@ export async function runScrapersNowAction(): Promise<ScrapeBatchResult> {
  * visible on public surfaces (e.g. /programs/[slug] Active Promos).
  */
 export async function approveAndPublishAction(id: string): Promise<void> {
+  await assertAdmin()
   const reviewerEmail = await getReviewerEmail()
   const supabase = createAdminClient()
   const { error } = await supabase
@@ -60,6 +63,7 @@ export async function approveAndPublishAction(id: string): Promise<void> {
  * a follow-up "publish" action.
  */
 export async function approveHoldAction(id: string): Promise<void> {
+  await assertAdmin()
   const reviewerEmail = await getReviewerEmail()
   const supabase = createAdminClient()
   const { error } = await supabase
@@ -78,6 +82,7 @@ export async function approveHoldAction(id: string): Promise<void> {
  * Publish a previously-held approved row.
  */
 export async function publishApprovedAction(id: string): Promise<void> {
+  await assertAdmin()
   const reviewerEmail = await getReviewerEmail()
   const supabase = createAdminClient()
   const { error } = await supabase
@@ -98,6 +103,7 @@ export async function publishApprovedAction(id: string): Promise<void> {
  * through that shouldn't have.
  */
 export async function unpublishAction(id: string): Promise<void> {
+  await assertAdmin()
   const reviewerEmail = await getReviewerEmail()
   const supabase = createAdminClient()
   const { error } = await supabase
@@ -118,6 +124,7 @@ export async function unpublishAction(id: string): Promise<void> {
  * the scraper sees it again on a future run.
  */
 export async function rejectAction(id: string, reason?: string): Promise<void> {
+  await assertAdmin()
   const reviewerEmail = await getReviewerEmail()
   const supabase = createAdminClient()
   const { error } = await supabase
@@ -139,6 +146,7 @@ export async function rejectAction(id: string, reason?: string): Promise<void> {
  * "we considered this and said no thanks" from "this is wrong."
  */
 export async function ignoreAction(id: string): Promise<void> {
+  await assertAdmin()
   const reviewerEmail = await getReviewerEmail()
   const supabase = createAdminClient()
   const { error } = await supabase
@@ -162,6 +170,7 @@ export async function bulkApproveAndPublishAction(ids: string[]): Promise<{
   succeeded: number
   failed: number
 }> {
+  await assertAdmin()
   if (ids.length === 0) return { succeeded: 0, failed: 0 }
   const reviewerEmail = await getReviewerEmail()
   const supabase = createAdminClient()

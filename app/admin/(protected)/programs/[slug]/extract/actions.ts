@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { assertAdmin } from '@/lib/auth/admin'
 import { createAdminClient } from '@/utils/supabase/server'
 import { extractProgramContent } from '@/utils/programs/extractProgramContent'
 import { applyProgramField, skipProgramField, isApplyableField } from '@/utils/programs/applyProgramField'
@@ -16,6 +17,7 @@ import { checkUrl, type UrlCheckResult } from '@/utils/admin/checkUrl'
  * Ported from cards extract page (PR ported 2026-05-29).
  */
 export async function validateUrlAction(formData: FormData): Promise<UrlCheckResult> {
+  await assertAdmin()
   const url = String(formData.get('url') ?? '').trim()
   if (!url) {
     return { ok: false, status: 0, reason: 'unreachable' }
@@ -28,6 +30,7 @@ export async function validateUrlAction(formData: FormData): Promise<UrlCheckRes
  * does NOT touch programs.* (per-field approval is editor-driven).
  */
 export async function runProgramExtraction(formData: FormData): Promise<void> {
+  await assertAdmin()
   const slug = String(formData.get('slug') ?? '').trim()
   const interactive = formData.get('interactive') === 'on'
 
@@ -205,6 +208,7 @@ async function autoVerifyAllFields(
  * the extraction row.
  */
 export async function applyExtractedField(formData: FormData): Promise<void> {
+  await assertAdmin()
   const slug = String(formData.get('slug') ?? '').trim()
   const field = String(formData.get('field') ?? '').trim()
   const extractionId = String(formData.get('extraction_id') ?? '').trim()
@@ -273,6 +277,7 @@ export async function applyExtractedField(formData: FormData): Promise<void> {
  * Mark a field as skipped on the extraction row. Doesn't touch programs.*.
  */
 export async function skipExtractedField(formData: FormData): Promise<void> {
+  await assertAdmin()
   const slug = String(formData.get('slug') ?? '').trim()
   const field = String(formData.get('field') ?? '').trim()
   const extractionId = String(formData.get('extraction_id') ?? '').trim()
@@ -290,6 +295,7 @@ export async function skipExtractedField(formData: FormData): Promise<void> {
  * uses the merged value when present.
  */
 export async function mergeProgramField(formData: FormData): Promise<void> {
+  await assertAdmin()
   const slug = String(formData.get('slug') ?? '').trim()
   const field = String(formData.get('field') ?? '').trim()
   const extractionId = String(formData.get('extraction_id') ?? '').trim()
@@ -351,6 +357,7 @@ export async function mergeProgramField(formData: FormData): Promise<void> {
  * programs.suggested_field_urls so the editor can review and apply.
  */
 export async function discoverProgramSourceUrls(formData: FormData): Promise<void> {
+  await assertAdmin()
   const slug = String(formData.get('slug') ?? '').trim()
   const startingUrl = String(formData.get('starting_url') ?? '').trim()
 
@@ -493,6 +500,7 @@ async function upsertScoutSource({
  * the static program page but DOES belong in the alerts pipeline.
  */
 export async function registerScoutSource(formData: FormData): Promise<void> {
+  await assertAdmin()
   const slug = String(formData.get('slug') ?? '').trim()
   const url = String(formData.get('url') ?? '').trim()
   const programName = String(formData.get('program_name') ?? '').trim()
@@ -513,6 +521,7 @@ export async function registerScoutSource(formData: FormData): Promise<void> {
  * where the suggestion is null.
  */
 export async function applyDiscoveredUrls(formData: FormData): Promise<void> {
+  await assertAdmin()
   const slug = String(formData.get('slug') ?? '').trim()
   if (!slug) return
 
@@ -557,6 +566,7 @@ export async function applyDiscoveredUrls(formData: FormData): Promise<void> {
  * Apply picks up corrected_value when present.
  */
 export async function verifyProgramField(formData: FormData): Promise<void> {
+  await assertAdmin()
   const slug = String(formData.get('slug') ?? '').trim()
   const field = String(formData.get('field') ?? '').trim()
   const extractionId = String(formData.get('extraction_id') ?? '').trim()
@@ -621,6 +631,7 @@ export async function verifyProgramField(formData: FormData): Promise<void> {
  * hubs, alliance) should be edited via /admin/programs/[slug]/edit instead.
  */
 export async function saveManualOverride(formData: FormData): Promise<void> {
+  await assertAdmin()
   const slug = String(formData.get('slug') ?? '').trim()
   const field = String(formData.get('field') ?? '').trim()
   const extractionId = String(formData.get('extraction_id') ?? '').trim()
@@ -661,6 +672,7 @@ export async function saveManualOverride(formData: FormData): Promise<void> {
  * Mark the entire extraction as completed (editor done reviewing).
  */
 export async function completeExtraction(formData: FormData): Promise<void> {
+  await assertAdmin()
   const slug = String(formData.get('slug') ?? '').trim()
   const extractionId = String(formData.get('extraction_id') ?? '').trim()
   if (!slug || !extractionId) return

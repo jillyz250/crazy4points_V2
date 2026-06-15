@@ -1,6 +1,7 @@
 'use server'
 
 import { redirect } from 'next/navigation'
+import { assertAdmin } from '@/lib/auth/admin'
 import { createAdminClient } from '@/utils/supabase/server'
 import { getAlertById } from '@/utils/supabase/queries'
 import type { AlertType, AlertStatus, AlertActionType, ConfidenceLevel } from '@/utils/supabase/queries'
@@ -21,6 +22,7 @@ function toSlug(title: string): string {
 }
 
 export async function createAlertAction(formData: FormData): Promise<ActionResult> {
+  await assertAdmin()
   try {
     const title = formData.get('title') as string
     const type = formData.get('type') as AlertType

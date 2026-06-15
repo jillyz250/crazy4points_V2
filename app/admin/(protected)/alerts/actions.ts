@@ -2,6 +2,7 @@
 
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
+import { assertAdmin } from '@/lib/auth/admin'
 import { createAdminClient } from '@/utils/supabase/server'
 import {
   incrementSourceApproved,
@@ -90,6 +91,7 @@ async function trackSourceApprovalIfNeeded(
 }
 
 export async function acknowledgeFactCheckClaimAction(alertId: string, claimIndex: number) {
+  await assertAdmin()
   const supabase = createAdminClient()
   // Wave 3a: claims live on topic.fact_ledger. Read from there, mutate, write back.
   const refs = await findVariantByAlertId(supabase, alertId)
@@ -111,6 +113,7 @@ export async function acknowledgeFactCheckClaimAction(alertId: string, claimInde
 }
 
 export async function publishAlertAction(id: string): Promise<void> {
+  await assertAdmin()
   const supabase = createAdminClient()
   // Wave 3a: still read via getAlertById (alerts is the mirror, fine for reads).
   // Status flip + short_slug now flows through publishAlertVariant — direct
@@ -150,6 +153,7 @@ export async function overrideAndPublishAlertAction(
   id: string,
   overrides: Array<{ gate: OverrideGate; reason: string }>
 ): Promise<void> {
+  await assertAdmin()
   const supabase = createAdminClient()
   for (const o of overrides) {
     const res = await logAlertOverride(supabase, {
@@ -201,6 +205,7 @@ export async function bulkRegeneratePendingAlertsAction(
   daysWindow = 30,
   maxAlerts = 25
 ): Promise<{ ok: true; processed: number; failed: number; skipped: number } | { ok: false; error: string }> {
+  await assertAdmin()
   const supabase = createAdminClient()
   const since = new Date(Date.now() - daysWindow * 24 * 60 * 60 * 1000).toISOString()
   const { data: targets, error } = await supabase
@@ -236,6 +241,7 @@ export async function bulkRegeneratePendingAlertsAction(
 }
 
 export async function approveIntelAlertAction(id: string) {
+  await assertAdmin()
   const supabase = createAdminClient()
   const prev = await getAlertById(supabase, id)
   const now = new Date().toISOString()
@@ -257,6 +263,7 @@ export async function approveIntelAlertAction(id: string) {
 }
 
 export async function bulkApproveIntelAlertsAction(ids: string[]) {
+  await assertAdmin()
   if (!Array.isArray(ids) || ids.length === 0) return
   const supabase = createAdminClient()
   const now = new Date().toISOString()
@@ -284,6 +291,7 @@ export async function bulkApproveIntelAlertsAction(ids: string[]) {
 }
 
 export async function bulkRejectAlertsAction(ids: string[]) {
+  await assertAdmin()
   if (!Array.isArray(ids) || ids.length === 0) return
   const supabase = createAdminClient()
   for (const id of ids) {
@@ -296,6 +304,7 @@ export async function bulkRejectAlertsAction(ids: string[]) {
 }
 
 export async function rejectAlertAction(id: string) {
+  await assertAdmin()
   const supabase = createAdminClient()
   await rejectAlertVariant(supabase, id, { kind: 'rejected' })
   redirect('/admin/alerts')
@@ -312,6 +321,7 @@ export async function rejectAlertAction(id: string) {
  * + alerts.revisit_after so Scout's dedup keeps working.
  */
 export async function softRejectAlertAction(id: string, days: number) {
+  await assertAdmin()
   const supabase = createAdminClient()
   const safeDays = Math.max(1, Math.min(180, Math.round(days)))
   const revisitAfter = new Date(Date.now() + safeDays * 24 * 60 * 60 * 1000).toISOString()
@@ -334,6 +344,7 @@ export interface RegenerateResult {
 // description/action_type/dates/programs and appends a 'regenerate' entry to
 // revision_log with the prior copy so you can eyeball before/after.
 export async function regenerateAlertDraftAction(alertId: string): Promise<RegenerateResult> {
+  await assertAdmin()
   const supabase = createAdminClient()
 
   // Wave 3a: read alert state via variant/topic. The alerts row is the
@@ -745,6 +756,7 @@ export async function regenerateAlertDraftAction(alertId: string): Promise<Regen
 }
 
 export async function expireAlertAction(id: string) {
+  await assertAdmin()
   const supabase = createAdminClient()
   await expireAlertVariant(supabase, id)
   redirect('/admin/alerts')
@@ -771,6 +783,7 @@ export type AlertQuickFixVoiceResult =
   | { ok: false; error: string }
 
 export async function quickFixVoiceAlertAction(id: string): Promise<AlertQuickFixVoiceResult> {
+  await assertAdmin()
   const { voiceFixArticle } = await import('@/utils/ai/voiceFixArticle')
   const supabase = createAdminClient()
 
@@ -829,6 +842,7 @@ export type AlertFactCheckResult =
  * extra_context + program_reference + alliance_context.
  */
 export async function factCheckAlertAction(id: string): Promise<AlertFactCheckResult> {
+  await assertAdmin()
   const supabase = createAdminClient()
 
   // Wave 3a: read from topic + variant via findVariantByAlertId, not alerts.
@@ -922,6 +936,7 @@ export async function factCheckAlertAction(id: string): Promise<AlertFactCheckRe
 }
 
 export async function voiceCheckAlertAction(id: string): Promise<AlertVoiceCheckResult> {
+  await assertAdmin()
   const supabase = createAdminClient()
 
   // Wave 3a: read variant.title/body + topic.summary; write voice fields to variant.metadata.
@@ -958,6 +973,7 @@ export type AlertOriginalityCheckResult =
   | { ok: false; error: string }
 
 export async function originalityCheckAlertAction(id: string): Promise<AlertOriginalityCheckResult> {
+  await assertAdmin()
   const supabase = createAdminClient()
 
   // Wave 3a: read variant + topic; write originality fields to variant.metadata.
@@ -1037,6 +1053,7 @@ export async function saveAndRunAllChecksAction(
   verifiedTerms: string,
   termsWaivedReason?: string,
 ): Promise<AlertPipelineResult> {
+  await assertAdmin()
   const supabase = createAdminClient()
   const persistRes = await persistTermsFields(supabase, id, verifiedTerms, termsWaivedReason)
   if (!persistRes.ok) return persistRes
@@ -1059,6 +1076,7 @@ export async function saveTermsAndRegenerateAction(
   verifiedTerms: string,
   termsWaivedReason?: string,
 ): Promise<RegenerateResult> {
+  await assertAdmin()
   const supabase = createAdminClient()
   const persistRes = await persistTermsFields(supabase, id, verifiedTerms, termsWaivedReason)
   if (!persistRes.ok) return { ok: false, error: persistRes.error }
@@ -1087,6 +1105,7 @@ async function persistTermsFields(
 }
 
 export async function runAllChecksAlertAction(id: string): Promise<AlertPipelineResult> {
+  await assertAdmin()
   // Regenerate already runs writer + fact-check + web-verify in one shot.
   const regen = await regenerateAlertDraftAction(id)
   if (!regen.ok) {

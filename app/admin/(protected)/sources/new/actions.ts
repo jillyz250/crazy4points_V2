@@ -1,6 +1,7 @@
 'use server'
 
 import { redirect } from 'next/navigation'
+import { assertAdmin } from '@/lib/auth/admin'
 import { createAdminClient } from '@/utils/supabase/server'
 import { createSource } from '@/utils/supabase/queries'
 import type { SourceType } from '@/utils/supabase/queries'
@@ -9,6 +10,7 @@ import { actionError, isRedirectError, type ActionResult } from '@/lib/admin/act
 const ALLOWED_INTAKE_METHODS = new Set(['scrape', 'email', 'x', 'grok', 'manual'])
 
 export async function createSourceAction(formData: FormData): Promise<ActionResult> {
+  await assertAdmin()
   try {
     const name = (formData.get('name') as string)?.trim()
     const url = (formData.get('url') as string)?.trim()

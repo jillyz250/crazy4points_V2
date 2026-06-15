@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { assertAdmin } from '@/lib/auth/admin'
 import { createAdminClient } from '@/utils/supabase/server'
 
 /**
@@ -12,6 +13,7 @@ import { createAdminClient } from '@/utils/supabase/server'
  * refresh queue for one cadence cycle.
  */
 export async function acknowledgeScrapeAction(formData: FormData): Promise<void> {
+  await assertAdmin()
   const programSlug = String(formData.get('program_slug') ?? '')
   if (!programSlug) return
 

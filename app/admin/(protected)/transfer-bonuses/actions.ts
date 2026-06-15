@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { assertAdmin } from '@/lib/auth/admin'
 import { createAdminClient } from '@/utils/supabase/server'
 
 /**
@@ -14,6 +15,7 @@ import { createAdminClient } from '@/utils/supabase/server'
  * the queue so the dashboard only shows real work.
  */
 export async function dismissObservation(formData: FormData): Promise<void> {
+  await assertAdmin()
   const id = String(formData.get('id') ?? '').trim()
   const reason = String(formData.get('reason') ?? '').trim() || null
   if (!id) return

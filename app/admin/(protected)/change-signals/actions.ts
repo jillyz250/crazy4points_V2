@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { assertAdmin } from '@/lib/auth/admin'
 import { createAdminClient } from '@/utils/supabase/server'
 
 /**
@@ -12,6 +13,7 @@ import { createAdminClient } from '@/utils/supabase/server'
  * (per the issuer-source rule), then dismisses the signal to clear the queue.
  */
 export async function dismissSignal(formData: FormData): Promise<void> {
+  await assertAdmin()
   const id = String(formData.get('id') ?? '').trim()
   if (!id) return
   const supabase = createAdminClient()
