@@ -140,7 +140,8 @@ export default async function AdminCardsListPage({
   if (extractFilter) {
     filtered = filtered.filter((c) => {
       const latest = latestByCard.get(c.id)
-      if (extractFilter === 'never') return !latest && c.status !== 'defunct'
+      // Match the "to author" count: exclude defunct + closed-to-new-applicants.
+      if (extractFilter === 'never') return !latest && c.status !== 'defunct' && c.status !== 'closed_to_new_apps'
       return latest?.status === extractFilter
     })
   }
