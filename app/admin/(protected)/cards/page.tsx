@@ -198,7 +198,13 @@ export default async function AdminCardsListPage({
   const totalCards = cards.length
   const savedCount = Array.from(latestByCard.values()).filter((v) => v.status === 'saved').length
   const failedCount = Array.from(latestByCard.values()).filter((v) => v.status === 'failed').length
-  const neverCount = totalCards - latestByCard.size
+  // "Never extracted" should reflect the real authoring backlog — only cards that
+  // are still candidates for extraction. Defunct and closed-to-new-applicants cards
+  // will never be extracted, so exclude them from the count (they stay visible in
+  // the table via the status filter).
+  const neverCount = cards.filter(
+    (c) => c.status !== 'defunct' && c.status !== 'closed_to_new_apps' && !latestByCard.has(c.id),
+  ).length
 
   // Helper to build URLs preserving other filters
   function buildUrl(overrides: Record<string, string | undefined>): string {
