@@ -62,7 +62,10 @@ function RatioCell({ row, currentCardSlug }: { row: TransferPartnerRow; currentC
   const baseStyle: React.CSSProperties = {
     fontFamily: 'var(--font-ui)',
     fontWeight: 600,
-    whiteSpace: 'nowrap',
+    // No nowrap: ratios can carry a parenthetical example
+    // ("1:0.8 (1,000 Amex MR = 800 TrueBlue)") that must wrap inside the cell
+    // rather than overflow into the Notes column.
+    overflowWrap: 'break-word',
   }
 
   if (!row.tiers || row.tiers.length === 0) {
@@ -172,9 +175,9 @@ export default function TransferPartnersTable({
         }}
       >
         <colgroup>
-          <col style={{ width: '28%' }} />
-          <col style={{ width: '18%' }} />
-          <col style={{ width: '54%' }} />
+          <col style={{ width: '26%' }} />
+          <col style={{ width: '26%' }} />
+          <col style={{ width: '48%' }} />
         </colgroup>
         <thead>
           <tr style={{ borderBottom: '1px solid var(--color-border-soft)' }}>
