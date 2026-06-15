@@ -461,22 +461,20 @@ export default async function CardPage({
             return (
               <div>
                 <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)' }}>Welcome bonus</div>
-                <div style={{ fontSize: '1.5rem', fontWeight: 600 }}>
-                  {wb.amount}
-                  {wb.unit && <span style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}> {wb.unit}</span>}
-                </div>
-                {sub.is_elevated && (
-                  <div style={{ marginTop: '0.3rem', fontFamily: 'var(--font-ui)', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                    <span style={{ background: 'var(--color-accent)', color: '#3a2b00', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, padding: '0.12rem 0.5rem', borderRadius: '999px' }}>
-                      🕐 Limited-time
+                <div style={{ fontSize: '1.5rem', fontWeight: 600, display: 'flex', alignItems: 'baseline', gap: '0.45rem', flexWrap: 'wrap' }}>
+                  {sub.is_elevated && sub.baseline_bonus_amount != null && sub.baseline_bonus_amount !== sub.bonus_amount && (
+                    <span style={{ textDecoration: 'line-through', textDecorationColor: 'var(--color-accent)', textDecorationThickness: '2px', color: 'var(--color-text-secondary)', fontWeight: 500, fontSize: '1.1rem' }}>
+                      {sub.baseline_bonus_amount.toLocaleString()}
                     </span>
-                    {sub.baseline_bonus_amount != null && sub.baseline_bonus_amount !== sub.bonus_amount && (
-                      <span style={{ color: 'var(--color-text-secondary)' }}>
-                        standard {sub.baseline_bonus_amount.toLocaleString()}
-                      </span>
-                    )}
-                  </div>
-                )}
+                  )}
+                  <span>{wb.amount}</span>
+                  {wb.unit && <span style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}> {wb.unit}</span>}
+                  {sub.is_elevated && (
+                    <span style={{ alignSelf: 'center', background: 'var(--color-accent)', color: '#3a2b00', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, fontSize: '0.65rem', padding: '0.18rem 0.55rem', borderRadius: '999px', fontFamily: 'var(--font-ui)', whiteSpace: 'nowrap' }}>
+                      Elevated offer
+                    </span>
+                  )}
+                </div>
               </div>
             )
           })()}
