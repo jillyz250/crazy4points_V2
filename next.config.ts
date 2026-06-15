@@ -31,6 +31,7 @@ const nextConfig: NextConfig = {
       { source: '/programs/shangri_la', destination: '/programs/shangri-la', permanent: true },
       { source: '/programs/expedia_one_key', destination: '/programs/expedia-one-key', permanent: true },
       { source: '/programs/star_alliance', destination: '/programs/star-alliance', permanent: true },
+      { source: '/cards/hilton-honors-aspire', destination: '/cards/amex-hilton-honors-aspire', permanent: true },
     ]
   },
 };
