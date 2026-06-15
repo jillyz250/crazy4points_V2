@@ -57,6 +57,7 @@ async function loadStats() {
     refreshQueueCount,
     refreshQueueTopFive,
     tokenCandidates,
+    bonusSignals,
   ] = await Promise.all([
     // Match the /admin/drafts "Needs review" chip exactly: needs_review variants
     // that are NOT currently snoozed (snoozed-but-not-woken live under their own
@@ -76,6 +77,7 @@ async function loadStats() {
     getRefreshQueueCount(supabase),
     getRefreshQueue(supabase, { limit: 5 }),
     countHardcodedHits(supabase).catch(() => 0),
+    supabase.from('card_bonus_signals').select('id', { count: 'exact', head: true }).eq('status', 'new'),
   ])
 
   return {
@@ -89,6 +91,7 @@ async function loadStats() {
     refreshQueueCount,
     refreshQueueTopFive,
     tokenCandidates,
+    bonusSignals: bonusSignals.count ?? 0,
   }
 }
 
@@ -111,6 +114,13 @@ export default async function AdminDashboard() {
       tone: stats.pendingReview > 0 ? 'warning' : 'neutral',
       href: '/admin/drafts?view=needs_review',
       hint: stats.pendingReview > 0 ? 'needs approve/reject' : 'all clear',
+    },
+    {
+      label: 'Welcome-bonus changes',
+      value: stats.bonusSignals,
+      tone: stats.bonusSignals > 0 ? 'warning' : 'neutral',
+      href: '/admin/card-bonus-signals',
+      hint: stats.bonusSignals > 0 ? "cards whose live SUB changed" : 'all current',
     },
     {
       label: 'Unprocessed intel (24h)',
