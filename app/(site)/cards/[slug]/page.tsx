@@ -465,6 +465,18 @@ export default async function CardPage({
                   {wb.amount}
                   {wb.unit && <span style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}> {wb.unit}</span>}
                 </div>
+                {sub.is_elevated && (
+                  <div style={{ marginTop: '0.3rem', fontFamily: 'var(--font-ui)', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                    <span style={{ background: 'var(--color-accent)', color: '#3a2b00', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, padding: '0.12rem 0.5rem', borderRadius: '999px' }}>
+                      🕐 Limited-time
+                    </span>
+                    {sub.baseline_bonus_amount != null && sub.baseline_bonus_amount !== sub.bonus_amount && (
+                      <span style={{ color: 'var(--color-text-secondary)' }}>
+                        standard {sub.baseline_bonus_amount.toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             )
           })()}
