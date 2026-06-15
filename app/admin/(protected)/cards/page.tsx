@@ -140,7 +140,7 @@ export default async function AdminCardsListPage({
   if (extractFilter) {
     filtered = filtered.filter((c) => {
       const latest = latestByCard.get(c.id)
-      if (extractFilter === 'never') return !latest
+      if (extractFilter === 'never') return !latest && c.status !== 'defunct'
       return latest?.status === extractFilter
     })
   }
@@ -198,7 +198,14 @@ export default async function AdminCardsListPage({
   const totalCards = cards.length
   const savedCount = Array.from(latestByCard.values()).filter((v) => v.status === 'saved').length
   const failedCount = Array.from(latestByCard.values()).filter((v) => v.status === 'failed').length
-  const neverCount = totalCards - latestByCard.size
+  // "To author" = active cards with no extraction yet. Defunct and
+  // closed-to-new-applicants cards aren't part of the authoring backlog (you
+  // won't author a card nobody can get), so exclude both — they were inflating
+  // this number. They stay visible in the table via the status filter.
+  const defunctCount = cards.filter((c) => c.status === 'defunct').length
+  const neverCount = cards.filter(
+    (c) => c.status !== 'defunct' && c.status !== 'closed_to_new_apps' && !latestByCard.has(c.id),
+  ).length
 
   // Helper to build URLs preserving other filters
   function buildUrl(overrides: Record<string, string | undefined>): string {
@@ -226,7 +233,7 @@ export default async function AdminCardsListPage({
       <header className="mb-4">
         <h1 className="font-display text-3xl font-semibold text-[var(--color-primary)]">Credit cards</h1>
         <p className="mt-1 font-body text-sm text-[var(--color-text-secondary)]">
-          {totalCards} total · {savedCount} fully extracted · {failedCount} failed · {neverCount} never extracted
+          {totalCards} total · {savedCount} fully extracted · {failedCount} failed · {neverCount} to author · {defunctCount} defunct
         </p>
       </header>
 

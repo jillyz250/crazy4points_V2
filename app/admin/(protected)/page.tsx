@@ -35,6 +35,7 @@ const TILES: Tile[] = [
   { title: 'Transfer Bonuses', description: 'Scraped transfer-bonus changes (new / ended / changed) awaiting review.', href: '/admin/transfer-bonuses', cta: 'Review' },
   { title: 'Data Integrity', description: 'Daily structural audit of the program/transfer graph — orphan/junk slugs, ratios, dupes.', href: '/admin/data-integrity', cta: 'View' },
   { title: 'Change Signals', description: 'Daily newsroom/blog scan for transfer-partner & ratio changes affecting our data.', href: '/admin/change-signals', cta: 'Review' },
+  { title: 'Welcome-Bonus Signals', description: "Daily scan of each card's welcome-bonus source page; flags live sign-up bonuses that differ from our data.", href: '/admin/card-bonus-signals', cta: 'Review' },
   { title: 'Re-verification', description: 'Weekly sweep comparing our transfer ratios to current rosters; flags discrepancies.', href: '/admin/verification-findings', cta: 'Review' },
   { title: 'AI Usage', description: 'Anthropic API spend by day, caller, and model.', href: '/admin/ai-usage', cta: 'View' },
   { title: 'Analytics', description: 'GA4 — active users, key events, top cities, top pages.', href: '/admin/analytics', cta: 'View' },
@@ -56,6 +57,7 @@ async function loadStats() {
     refreshQueueCount,
     refreshQueueTopFive,
     tokenCandidates,
+    bonusSignals,
   ] = await Promise.all([
     // Match the /admin/drafts "Needs review" chip exactly: needs_review variants
     // that are NOT currently snoozed (snoozed-but-not-woken live under their own
@@ -75,6 +77,7 @@ async function loadStats() {
     getRefreshQueueCount(supabase),
     getRefreshQueue(supabase, { limit: 5 }),
     countHardcodedHits(supabase).catch(() => 0),
+    supabase.from('card_bonus_signals').select('id', { count: 'exact', head: true }).eq('status', 'new'),
   ])
 
   return {
@@ -88,6 +91,7 @@ async function loadStats() {
     refreshQueueCount,
     refreshQueueTopFive,
     tokenCandidates,
+    bonusSignals: bonusSignals.count ?? 0,
   }
 }
 
@@ -110,6 +114,13 @@ export default async function AdminDashboard() {
       tone: stats.pendingReview > 0 ? 'warning' : 'neutral',
       href: '/admin/drafts?view=needs_review',
       hint: stats.pendingReview > 0 ? 'needs approve/reject' : 'all clear',
+    },
+    {
+      label: 'Welcome-bonus changes',
+      value: stats.bonusSignals,
+      tone: stats.bonusSignals > 0 ? 'warning' : 'neutral',
+      href: '/admin/card-bonus-signals',
+      hint: stats.bonusSignals > 0 ? "cards whose live SUB changed" : 'all current',
     },
     {
       label: 'Unprocessed intel (24h)',

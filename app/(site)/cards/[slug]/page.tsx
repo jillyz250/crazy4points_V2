@@ -25,6 +25,9 @@ export async function generateMetadata({
     return {
       title: `${bundle.card.name}`,
       description: bundle.card.intro?.slice(0, 200) ?? `${bundle.card.name} review and benefits`,
+      // Cards closed to new applicants stay live for existing cardholders but are
+      // kept out of search indexing (also excluded from the sitemap + finder).
+      ...(bundle.card.closed_to_new_applicants ? { robots: { index: false, follow: true } } : {}),
     }
   } catch {
     return { title: 'Card' }
@@ -72,6 +75,7 @@ const EARN_CATEGORY_LABELS: Record<string, string> = {
   flights_through_portal: 'Flights (through portal)',
   hotels: 'Hotels',
   hotels_through_portal: 'Hotels (through portal)',
+  hotels_cars_attractions_portal: 'Hotels & cars (through portal)',
   groceries: 'Groceries',
   groceries_us_supermarkets: 'Groceries (US supermarkets)',
   gas: 'Gas',
@@ -461,9 +465,19 @@ export default async function CardPage({
             return (
               <div>
                 <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)' }}>Welcome bonus</div>
-                <div style={{ fontSize: '1.5rem', fontWeight: 600 }}>
-                  {wb.amount}
+                <div style={{ fontSize: '1.5rem', fontWeight: 600, display: 'flex', alignItems: 'baseline', gap: '0.45rem', flexWrap: 'wrap' }}>
+                  {sub.is_elevated && sub.baseline_bonus_amount != null && sub.baseline_bonus_amount !== sub.bonus_amount && (
+                    <span style={{ textDecoration: 'line-through', textDecorationColor: '#D92D20', textDecorationThickness: '3px', color: 'var(--color-text-secondary)', fontWeight: 500, fontSize: '1.1rem' }}>
+                      {sub.baseline_bonus_amount.toLocaleString()}
+                    </span>
+                  )}
+                  <span>{wb.amount}</span>
                   {wb.unit && <span style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}> {wb.unit}</span>}
+                  {sub.is_elevated && (
+                    <span style={{ alignSelf: 'center', color: '#D92D20', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 800, fontSize: '0.66rem', fontFamily: 'var(--font-ui)', whiteSpace: 'nowrap', marginLeft: '0.4rem' }}>
+                      Elevated offer
+                    </span>
+                  )}
                 </div>
               </div>
             )
@@ -713,6 +727,14 @@ export default async function CardPage({
                 🕐 Limited-time offer
               </div>
             )}
+            {sub.is_elevated &&
+              sub.baseline_bonus_amount != null &&
+              sub.baseline_bonus_amount !== sub.bonus_amount && (
+                <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', margin: '-0.25rem 0 0.75rem' }}>
+                  This is an elevated, limited-time offer — the standard bonus is{' '}
+                  <strong>{sub.baseline_bonus_amount.toLocaleString()} {pluralizeCurrency(sub.baseline_bonus_amount, sub.bonus_currency)}</strong>.
+                </p>
+              )}
             {hasSpendReq ? (
               wb.isTiered ? (
                 // Tiered bonus: break out main offer + each additional tier
@@ -816,13 +838,14 @@ export default async function CardPage({
               <>Earn currency: <Link href={`/programs/${currency_program.slug}`} style={{ color: 'var(--color-primary)' }}>{currency_program.name}</Link>.</>
             )}
           </p>
-          <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <div className="rg-table-scroll">
+          <table className="admin-table" style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '2px solid var(--color-border-soft)' }}>
-                <th style={{ textAlign: 'left', padding: '0.5rem 0.75rem' }}>Category</th>
-                <th style={{ textAlign: 'right', padding: '0.5rem 0.75rem' }}>Multiplier</th>
+                <th style={{ textAlign: 'left', padding: '0.5rem 0.75rem', width: showChannel ? '34%' : '38%' }}>Category</th>
+                <th style={{ textAlign: 'right', padding: '0.5rem 0.75rem', width: '14%' }}>Rate</th>
                 {showChannel && (
-                  <th style={{ textAlign: 'left', padding: '0.5rem 0.75rem' }}>Channel</th>
+                  <th style={{ textAlign: 'left', padding: '0.5rem 0.75rem', width: '16%' }}>Channel</th>
                 )}
                 <th style={{ textAlign: 'left', padding: '0.5rem 0.75rem' }}>Notes</th>
               </tr>
@@ -830,20 +853,21 @@ export default async function CardPage({
             <tbody>
               {earn_rates.map((r) => (
                 <tr key={r.id} style={{ borderBottom: '1px solid var(--color-border-soft)' }}>
-                  <td style={{ padding: '0.625rem 0.75rem', fontWeight: 500 }}>{formatEarnCategory(r.category)}</td>
+                  <td style={{ padding: '0.625rem 0.75rem', fontWeight: 500, overflowWrap: 'break-word' }}>{formatEarnCategory(r.category)}</td>
                   <td style={{ padding: '0.625rem 0.75rem', textAlign: 'right', fontWeight: 600 }}>{Number(r.multiplier)}x</td>
                   {showChannel && (
                     <td style={{ padding: '0.625rem 0.75rem', color: 'var(--color-text-secondary)' }}>
                       {r.booking_channel === 'any' ? '—' : r.booking_channel}
                     </td>
                   )}
-                  <td style={{ padding: '0.625rem 0.75rem', color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
+                  <td style={{ padding: '0.625rem 0.75rem', color: 'var(--color-text-secondary)', fontSize: '0.875rem', overflowWrap: 'anywhere' }}>
                     {r.notes ?? ''}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
         </SimpleTile>
         )
       })()}
