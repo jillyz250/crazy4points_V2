@@ -713,6 +713,14 @@ export default async function CardPage({
                 🕐 Limited-time offer
               </div>
             )}
+            {sub.is_elevated &&
+              sub.baseline_bonus_amount != null &&
+              sub.baseline_bonus_amount !== sub.bonus_amount && (
+                <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', margin: '-0.25rem 0 0.75rem' }}>
+                  This is an elevated, limited-time offer — the standard bonus is{' '}
+                  <strong>{sub.baseline_bonus_amount.toLocaleString()} {pluralizeCurrency(sub.baseline_bonus_amount, sub.bonus_currency)}</strong>.
+                </p>
+              )}
             {hasSpendReq ? (
               wb.isTiered ? (
                 // Tiered bonus: break out main offer + each additional tier
