@@ -198,11 +198,14 @@ export default async function AdminCardsListPage({
   const totalCards = cards.length
   const savedCount = Array.from(latestByCard.values()).filter((v) => v.status === 'saved').length
   const failedCount = Array.from(latestByCard.values()).filter((v) => v.status === 'failed').length
-  // "To author" = active cards with no extraction yet. Defunct cards carry their
-  // own status and aren't part of the authoring backlog, so exclude them (they
-  // were inflating this number).
+  // "To author" = active cards with no extraction yet. Defunct and
+  // closed-to-new-applicants cards aren't part of the authoring backlog (you
+  // won't author a card nobody can get), so exclude both — they were inflating
+  // this number. They stay visible in the table via the status filter.
   const defunctCount = cards.filter((c) => c.status === 'defunct').length
-  const neverCount = cards.filter((c) => c.status !== 'defunct' && !latestByCard.has(c.id)).length
+  const neverCount = cards.filter(
+    (c) => c.status !== 'defunct' && c.status !== 'closed_to_new_apps' && !latestByCard.has(c.id),
+  ).length
 
   // Helper to build URLs preserving other filters
   function buildUrl(overrides: Record<string, string | undefined>): string {
