@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/utils/supabase/server'
-import { updateAlert, incrementSourceApproved } from '@/utils/supabase/queries'
+import { incrementSourceApproved } from '@/utils/supabase/queries'
+import { publishAlertVariant, rejectAlertVariant } from '@/utils/content/writeAlertVariant'
 import { verifyBulkActionToken, type BulkActionKind } from '@/utils/ai/bulkActionToken'
 
 const TOKEN_TTL_HOURS = 48
@@ -112,13 +113,23 @@ export async function GET(req: NextRequest) {
         await logAction(supabase, payload.brief_id, { ...payload, result: 'noop', message: `status=${alert.status}` })
         return okPage('Already decided', `This alert is already ${alert.status}. No change made.`)
       }
-      const updated = await updateAlert(supabase, alert.id, {
-        status: 'published',
-        published_at: new Date().toISOString(),
+      // Write through the variant pipeline — direct writes to `alerts` are
+      // blocked by the G6 trigger (migration 323). publishAlertVariant flips
+      // the variant to published; the sync trigger mirrors it to alerts.
+      await publishAlertVariant(supabase, alert.id, {
         approved_at: new Date().toISOString(),
+        shortSlugGenerator: async (title) => {
+          try {
+            const { generateUniqueShortSlug } = await import('@/utils/alerts/generateShortSlug')
+            return await generateUniqueShortSlug(supabase, title, alert.id)
+          } catch (err) {
+            console.error('[bulk-action] short_slug generation failed:', err)
+            return null
+          }
+        },
       })
-      if (updated.source_intel_id) {
-        await incrementSourceApproved(supabase, updated.source_intel_id).catch(() => {})
+      if (alert.source_intel_id) {
+        await incrementSourceApproved(supabase, alert.source_intel_id).catch(() => {})
       }
       await logAction(supabase, payload.brief_id, { ...payload, result: 'ok' })
       return okPage('Published', 'The alert is now live on the site.')
@@ -141,7 +152,7 @@ export async function GET(req: NextRequest) {
         await logAction(supabase, payload.brief_id, { ...payload, result: 'noop', message: `status=${alert.status}` })
         return okPage('Already decided', `This alert is already ${alert.status}. No change made.`)
       }
-      await updateAlert(supabase, alert.id, { status: 'rejected' })
+      await rejectAlertVariant(supabase, alert.id, { kind: 'rejected' })
       await logAction(supabase, payload.brief_id, { ...payload, result: 'ok' })
       return okPage('Rejected', 'The alert has been rejected and will not be published.')
     }
