@@ -470,8 +470,8 @@ export default async function CardPage({
                   <span>{wb.amount}</span>
                   {wb.unit && <span style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}> {wb.unit}</span>}
                   {sub.is_elevated && (
-                    <span style={{ alignSelf: 'center', background: 'linear-gradient(135deg, #F0D470 0%, #D4AF37 55%, #B8932F 100%)', color: '#3a2b00', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 800, fontSize: '0.72rem', padding: '0.3rem 0.75rem', borderRadius: '999px', fontFamily: 'var(--font-ui)', whiteSpace: 'nowrap', boxShadow: '0 2px 10px rgba(212,175,55,0.5)' }}>
-                      ✨ Elevated offer
+                    <span style={{ alignSelf: 'center', color: '#D92D20', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 800, fontSize: '0.72rem', fontFamily: 'var(--font-ui)', whiteSpace: 'nowrap' }}>
+                      Elevated offer
                     </span>
                   )}
                 </div>
