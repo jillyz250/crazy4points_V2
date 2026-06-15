@@ -64,6 +64,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .from('credit_cards')
       .select('slug, updated_at')
       .eq('is_active', true)
+      .eq('closed_to_new_applicants', false)
       .order('updated_at', { ascending: false })
 
     cardEntries = (cards ?? []).map((c: { slug: string; updated_at: string | null }) => ({
