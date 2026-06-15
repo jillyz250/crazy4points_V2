@@ -25,6 +25,9 @@ export async function generateMetadata({
     return {
       title: `${bundle.card.name}`,
       description: bundle.card.intro?.slice(0, 200) ?? `${bundle.card.name} review and benefits`,
+      // Cards closed to new applicants stay live for existing cardholders but are
+      // kept out of search indexing (also excluded from the sitemap + finder).
+      ...(bundle.card.closed_to_new_applicants ? { robots: { index: false, follow: true } } : {}),
     }
   } catch {
     return { title: 'Card' }
