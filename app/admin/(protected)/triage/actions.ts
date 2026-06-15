@@ -2,6 +2,7 @@
 
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
+import { assertAdmin } from '@/lib/auth/admin'
 import { createAdminClient } from '@/utils/supabase/server'
 import { writeEditCheck } from '@/utils/ai/writeEditCheck'
 import { buildExtraContext } from '@/utils/ai/buildExtraContext'
@@ -24,6 +25,7 @@ import { selectAlertViewFromVariants } from '@/utils/content/alertView'
  * as separate explicit actions, so cost is visible at each step.
  */
 export async function writeAlertFromCandidate(formData: FormData): Promise<void> {
+  await assertAdmin()
   const intelId = String(formData.get('intel_id') ?? '').trim()
   if (!intelId) return
 
@@ -177,6 +179,7 @@ export async function writeAlertFromCandidate(formData: FormData): Promise<void>
  * Same data shape as writeAlertFromCandidate, just no Sonnet call.
  */
 export async function stageAlertFromCandidate(formData: FormData): Promise<void> {
+  await assertAdmin()
   const intelId = String(formData.get('intel_id') ?? '').trim()
   if (!intelId) return
 
@@ -277,6 +280,7 @@ const PRESET_REJECT_REASONS = new Set([
 ])
 
 export async function dismissCandidate(formData: FormData): Promise<void> {
+  await assertAdmin()
   const intelId = String(formData.get('intel_id') ?? '').trim()
   if (!intelId) return
 
@@ -314,6 +318,7 @@ export async function dismissCandidate(formData: FormData): Promise<void> {
  * custom date input (Phase 1d.4 wires the UI).
  */
 export async function snoozeIntel(formData: FormData): Promise<void> {
+  await assertAdmin()
   const intelId = String(formData.get('intel_id') ?? '').trim()
   const snoozedUntilRaw = String(formData.get('snoozed_until') ?? '').trim()
   if (!intelId || !snoozedUntilRaw) return
@@ -333,6 +338,7 @@ export async function snoozeIntel(formData: FormData): Promise<void> {
  * Reverse a snooze. Surfaces the item back in Active immediately.
  */
 export async function unsnoozeIntel(formData: FormData): Promise<void> {
+  await assertAdmin()
   const intelId = String(formData.get('intel_id') ?? '').trim()
   if (!intelId) return
 

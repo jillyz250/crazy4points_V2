@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { assertAdmin } from '@/lib/auth/admin'
 import { createAdminClient } from '@/utils/supabase/server'
 import { extractCardBenefits } from '@/utils/cards/extractCardBenefits'
 import { saveExtractedBenefits } from '@/utils/cards/saveExtractedBenefits'
@@ -17,6 +18,7 @@ import type { CardExtraction } from '@/utils/cards/cardExtractionSchema'
  * Extraction, so we stop burning Sonnet calls on 404s.
  */
 export async function validateUrlAction(formData: FormData): Promise<UrlCheckResult> {
+  await assertAdmin()
   const url = String(formData.get('url') ?? '').trim()
   if (!url) {
     return { ok: false, status: 0, reason: 'unreachable' }
@@ -31,6 +33,7 @@ export async function validateUrlAction(formData: FormData): Promise<UrlCheckRes
  * Returns a result the page can render directly.
  */
 export async function runExtractionAndSave(formData: FormData): Promise<void> {
+  await assertAdmin()
   const slug = String(formData.get('slug') ?? '').trim()
   const sourceUrl = String(formData.get('source_url') ?? '').trim()
   const interactive = formData.get('interactive') === 'on'
@@ -132,6 +135,7 @@ export async function runExtractionAndSave(formData: FormData): Promise<void> {
  * re-persist, or when the save step failed and we want to retry.
  */
 export async function resaveExtraction(formData: FormData): Promise<void> {
+  await assertAdmin()
   const extractionId = String(formData.get('extraction_id') ?? '').trim()
   if (!extractionId) return
 
@@ -187,6 +191,7 @@ export async function resaveExtraction(formData: FormData): Promise<void> {
  * Mark an extraction as rejected (will not be applied to the card).
  */
 export async function rejectExtraction(formData: FormData): Promise<void> {
+  await assertAdmin()
   const extractionId = String(formData.get('extraction_id') ?? '').trim()
   if (!extractionId) return
 
@@ -206,6 +211,7 @@ export async function rejectExtraction(formData: FormData): Promise<void> {
  * and stamp metadata so future audits know it was editorial entry.
  */
 export async function saveManualWelcomeBonus(formData: FormData): Promise<void> {
+  await assertAdmin()
   const slug = String(formData.get('slug') ?? '').trim()
   const bonusAmount = parseInt(String(formData.get('bonus_amount') ?? ''), 10)
   const bonusCurrency = String(formData.get('bonus_currency') ?? '').trim()
@@ -279,6 +285,7 @@ export async function saveManualWelcomeBonus(formData: FormData): Promise<void> 
  * extract page UI can show them with an "Apply" button.
  */
 export async function discoverCardUrlsAction(formData: FormData): Promise<void> {
+  await assertAdmin()
   const slug = String(formData.get('slug') ?? '').trim()
   const startingUrl = String(formData.get('starting_url') ?? '').trim()
 
@@ -323,6 +330,7 @@ export async function discoverCardUrlsAction(formData: FormData): Promise<void> 
  * suggestions to the sources table for the alerts pipeline.
  */
 export async function applyDiscoveredCardUrls(formData: FormData): Promise<void> {
+  await assertAdmin()
   const slug = String(formData.get('slug') ?? '').trim()
   if (!slug) return
 
@@ -449,6 +457,7 @@ export async function applyDiscoveredCardUrls(formData: FormData): Promise<void>
  * card-specific). Editor pastes the URL directly; no Sonnet involved.
  */
 export async function setCardUrlField(formData: FormData): Promise<void> {
+  await assertAdmin()
   const slug = String(formData.get('slug') ?? '').trim()
   const field = String(formData.get('field') ?? '').trim()
   const url = String(formData.get('url') ?? '').trim()
@@ -482,6 +491,7 @@ export async function setCardUrlField(formData: FormData): Promise<void> {
  * re-verification.
  */
 export async function setCardManualOverride(formData: FormData): Promise<void> {
+  await assertAdmin()
   const slug = String(formData.get('slug') ?? '').trim()
   const field = String(formData.get('field') ?? '').trim()
   const rawValue = String(formData.get('value') ?? '').trim()
@@ -550,6 +560,7 @@ export async function setCardManualOverride(formData: FormData): Promise<void> {
 export async function draftGoodToKnowAction(
   formData: FormData,
 ): Promise<{ ok: true; draft: string } | { ok: false; error: string }> {
+  await assertAdmin()
   const slug = String(formData.get('slug') ?? '').trim()
   if (!slug) return { ok: false, error: 'Missing card slug.' }
 
@@ -584,6 +595,7 @@ export async function draftGoodToKnowAction(
 export async function saveGoodToKnowAction(
   formData: FormData,
 ): Promise<{ ok: boolean; issues: GtkAuditIssue[] }> {
+  await assertAdmin()
   const slug = String(formData.get('slug') ?? '').trim()
   const value = String(formData.get('good_to_know') ?? '')
   if (!slug) return { ok: false, issues: [] }

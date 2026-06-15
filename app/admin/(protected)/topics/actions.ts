@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { assertAdmin } from '@/lib/auth/admin'
 import { createAdminClient } from '@/utils/supabase/server'
 import {
   createTopic,
@@ -79,6 +80,7 @@ function parseMultiValue(formData: FormData, key: string): string[] {
 export async function createTopicAction(
   formData: FormData,
 ): Promise<{ error?: string }> {
+  await assertAdmin()
   const title = String(formData.get('title') ?? '').trim()
   const explicitSlug = String(formData.get('slug') ?? '').trim().toLowerCase()
   const slug = explicitSlug || slugify(title)
@@ -135,6 +137,7 @@ export async function createTopicAction(
 export async function updateTopicAction(
   formData: FormData,
 ): Promise<{ error?: string }> {
+  await assertAdmin()
   const id = String(formData.get('id') ?? '').trim()
   const slug = String(formData.get('slug') ?? '').trim()
   if (!id) return { error: 'Missing topic id.' }
@@ -181,6 +184,7 @@ export async function updateTopicAction(
 export async function extractFactLedgerAction(
   formData: FormData,
 ): Promise<{ error?: string; entries?: FactLedgerEntry[] }> {
+  await assertAdmin()
   const id = String(formData.get('id') ?? '').trim()
   const slug = String(formData.get('slug') ?? '').trim()
   if (!id) return { error: 'Missing topic id.' }
@@ -217,6 +221,7 @@ export async function extractFactLedgerAction(
 export async function updateFactLedgerAction(
   formData: FormData,
 ): Promise<{ error?: string }> {
+  await assertAdmin()
   const id = String(formData.get('id') ?? '').trim()
   const slug = String(formData.get('slug') ?? '').trim()
   const ledgerJson = String(formData.get('fact_ledger') ?? '').trim()
@@ -253,6 +258,7 @@ export async function updateFactLedgerAction(
 export async function verifyTopicAction(
   formData: FormData,
 ): Promise<{ status?: 'verified' | 'partially_verified' | 'failed'; errors?: VerifyError[]; error?: string }> {
+  await assertAdmin()
   const id = String(formData.get('id') ?? '').trim()
   const slug = String(formData.get('slug') ?? '').trim()
   const verified_by =
@@ -305,6 +311,7 @@ export async function verifyTopicAction(
 export async function archiveTopicAction(
   formData: FormData,
 ): Promise<{ error?: string }> {
+  await assertAdmin()
   const id = String(formData.get('id') ?? '').trim()
   const slug = String(formData.get('slug') ?? '').trim()
   if (!id) return { error: 'Missing topic id.' }
@@ -345,6 +352,7 @@ export async function generateVariantAction(
   factGrepResult?: FactGrepResult
   status?: ContentVariant['status']
 }> {
+  await assertAdmin()
   const slug = String(formData.get('slug') ?? '').trim()
   const format = String(formData.get('format') ?? '').trim() as VariantFormat
   if (!slug) return { ok: false, error: 'Missing topic slug.' }
@@ -456,6 +464,7 @@ export async function updateVariantBodyAction(
   factGrepResult?: FactGrepResult
   status?: ContentVariant['status']
 }> {
+  await assertAdmin()
   const slug = String(formData.get('slug') ?? '').trim()
   const format = String(formData.get('format') ?? '').trim() as VariantFormat
   const body = String(formData.get('body') ?? '')
@@ -529,6 +538,7 @@ export async function updateVariantBodyAction(
 export async function publishVariantAction(
   formData: FormData,
 ): Promise<{ ok: boolean; error?: string; publishTargetUrl?: string | null }> {
+  await assertAdmin()
   const topicSlug = String(formData.get('topicSlug') ?? formData.get('slug') ?? '').trim()
   const format = String(formData.get('format') ?? '').trim() as VariantFormat
   const publishTargetUrlInput =
@@ -605,6 +615,7 @@ export async function publishVariantAction(
 export async function unpublishVariantAction(
   formData: FormData,
 ): Promise<{ ok: boolean; error?: string }> {
+  await assertAdmin()
   const topicSlug = String(formData.get('topicSlug') ?? formData.get('slug') ?? '').trim()
   const format = String(formData.get('format') ?? '').trim() as VariantFormat
 
@@ -656,6 +667,7 @@ export async function unpublishVariantAction(
 export async function approveVariantAction(
   formData: FormData,
 ): Promise<{ ok: boolean; error?: string }> {
+  await assertAdmin()
   const topicSlug = String(formData.get('topicSlug') ?? formData.get('slug') ?? '').trim()
   const format = String(formData.get('format') ?? '').trim() as VariantFormat
   if (!topicSlug) return { ok: false, error: 'Missing topic slug.' }
@@ -690,6 +702,7 @@ export async function approveVariantAction(
 export async function activateTopicAction(
   formData: FormData,
 ): Promise<{ error?: string }> {
+  await assertAdmin()
   const id = String(formData.get('id') ?? '').trim()
   const slug = String(formData.get('slug') ?? '').trim()
   if (!id) return { error: 'Missing topic id.' }

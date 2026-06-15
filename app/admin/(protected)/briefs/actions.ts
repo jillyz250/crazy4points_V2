@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { assertAdmin } from '@/lib/auth/admin'
 import { createAdminClient } from '@/utils/supabase/server'
 import { buildBriefEmail, type ApproveMeta, type BriefFinding } from '@/utils/ai/briefEmail'
 import type { EditorialPlan } from '@/utils/ai/generateEditorialPlan'
@@ -25,6 +26,7 @@ export interface RebuildResult {
 // build-brief run timed out before persisting HTML, or when you want to
 // re-preview an old brief with current alert data.
 export async function rebuildBriefHtmlAction(briefId: string): Promise<RebuildResult> {
+  await assertAdmin()
   const supabase = createAdminClient()
 
   const { data: brief, error: briefErr } = await supabase

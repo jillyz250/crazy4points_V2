@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { assertAdmin } from '@/lib/auth/admin'
 import { createAdminClient } from '@/utils/supabase/server'
 import {
   toggleProgramActive,
@@ -14,6 +15,7 @@ import type {
 } from '@/utils/supabase/queries'
 
 export async function toggleProgramAction(id: string, is_active: boolean) {
+  await assertAdmin()
   const supabase = createAdminClient()
   await toggleProgramActive(supabase, id, is_active)
   revalidatePath('/admin/programs')
@@ -26,6 +28,7 @@ const PROGRAM_TYPES: ProgramType[] = [
 const MONITOR_TIERS: MonitorTier[] = ['daily', 'weekly', 'monthly']
 
 export async function createProgramAction(formData: FormData): Promise<{ error?: string }> {
+  await assertAdmin()
   const slug = String(formData.get('slug') ?? '').trim().toLowerCase()
   const name = String(formData.get('name') ?? '').trim()
   const type = String(formData.get('type') ?? '') as ProgramType
@@ -53,6 +56,7 @@ export async function updateProgramPageContentAction(
   id: string,
   input: ProgramPageContentInput
 ): Promise<{ error?: string }> {
+  await assertAdmin()
   const supabase = createAdminClient()
   try {
     await updateProgramPageContent(supabase, id, input)

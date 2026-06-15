@@ -1,4 +1,3 @@
-import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import AdminNav from '@/components/admin/AdminNav'
@@ -6,6 +5,7 @@ import ErrorsBanner from '@/components/admin/ErrorsBanner'
 import SidebarShell from '@/components/admin/SidebarShell'
 import { createAdminClient } from '@/utils/supabase/server'
 import { getRefreshQueueCount } from '@/utils/supabase/queries'
+import { isAdminRequest } from '@/lib/auth/admin'
 
 async function loadNavBadges() {
   try {
@@ -19,10 +19,10 @@ async function loadNavBadges() {
 }
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const cookieStore = await cookies()
-  const session = cookieStore.get('admin_session')
-
-  if (!session) {
+  // Verifies the signed session cookie (not just its presence). This protects
+  // page reads; server actions additionally re-check via assertAdmin() because
+  // layouts do not run on every action invocation.
+  if (!(await isAdminRequest())) {
     redirect('/admin/login')
   }
 

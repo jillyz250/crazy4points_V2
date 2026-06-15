@@ -12,11 +12,13 @@
  * of the active Drafts queue but is recoverable via the Archived chip.
  */
 import { revalidatePath } from 'next/cache'
+import { assertAdmin } from '@/lib/auth/admin'
 import { createAdminClient } from '@/utils/supabase/server'
 
 export async function archiveVariantAction(
   variantId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await assertAdmin()
   const supabase = createAdminClient()
   const { data: variant } = await supabase
     .from('content_variants')
@@ -48,6 +50,7 @@ export async function archiveVariantAction(
  * date input (see DraftSnoozeButton).
  */
 export async function snoozeVariantAction(formData: FormData): Promise<void> {
+  await assertAdmin()
   const variantId = String(formData.get('variant_id') ?? '').trim()
   const snoozedUntilRaw = String(formData.get('snoozed_until') ?? '').trim()
   if (!variantId || !snoozedUntilRaw) return
@@ -67,6 +70,7 @@ export async function snoozeVariantAction(formData: FormData): Promise<void> {
  * Reverse a snooze. Surfaces the variant back in "Needs review" immediately.
  */
 export async function unsnoozeVariantAction(formData: FormData): Promise<void> {
+  await assertAdmin()
   const variantId = String(formData.get('variant_id') ?? '').trim()
   if (!variantId) return
 

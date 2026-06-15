@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { assertAdmin } from '@/lib/auth/admin'
 import { createAdminClient } from '@/utils/supabase/server'
 import {
   createPartnerRedemption,
@@ -32,6 +33,7 @@ function parseDateOrNull(raw: FormDataEntryValue | null): string | null {
 export async function createPartnerRedemptionAction(
   formData: FormData
 ): Promise<{ error?: string }> {
+  await assertAdmin()
   const currency_program_id = String(formData.get('currency_program_id') ?? '').trim()
   const operating_carrier_id = String(formData.get('operating_carrier_id') ?? '').trim()
   const cabin = String(formData.get('cabin') ?? '') as RedemptionCabin
@@ -106,6 +108,7 @@ export async function updatePartnerRedemptionAction(
   id: string,
   formData: FormData
 ): Promise<{ error?: string }> {
+  await assertAdmin()
   const cabin = String(formData.get('cabin') ?? '') as RedemptionCabin
   const pricing_model = String(formData.get('pricing_model') ?? 'fixed') as PricingModel
   const confidence = String(formData.get('confidence') ?? 'MED') as RedemptionConfidence
@@ -148,6 +151,7 @@ export async function updatePartnerRedemptionAction(
 export async function deletePartnerRedemptionAction(
   id: string
 ): Promise<{ error?: string }> {
+  await assertAdmin()
   const supabase = createAdminClient()
   try {
     await deletePartnerRedemption(supabase, id)
@@ -161,6 +165,7 @@ export async function deletePartnerRedemptionAction(
 export async function markVerifiedTodayAction(
   id: string
 ): Promise<{ error?: string }> {
+  await assertAdmin()
   const supabase = createAdminClient()
   const today = new Date().toISOString().slice(0, 10)
   try {

@@ -1,16 +1,19 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { assertAdmin } from '@/lib/auth/admin'
 import { createAdminClient } from '@/utils/supabase/server'
 import { setSubscriberActive, addSubscriber } from '@/utils/supabase/queries'
 
 export async function toggleSubscriberActiveAction(id: string, active: boolean) {
+  await assertAdmin()
   const supabase = createAdminClient()
   await setSubscriberActive(supabase, id, active)
   revalidatePath('/admin/subscribers')
 }
 
 export async function addSubscriberAction(formData: FormData) {
+  await assertAdmin()
   const email = String(formData.get('email') ?? '').trim()
   const first_name = String(formData.get('first_name') ?? '').trim()
   const last_name = String(formData.get('last_name') ?? '').trim()

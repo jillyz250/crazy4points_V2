@@ -20,6 +20,7 @@
 import { randomUUID } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { assertAdmin } from '@/lib/auth/admin'
 import { createAdminClient } from '@/utils/supabase/server'
 import { generateFacebook } from '@/utils/ai/variants/generateFacebook'
 import { generateInstagram } from '@/utils/ai/variants/generateInstagram'
@@ -57,6 +58,7 @@ export async function generateSocialVariantsAction(
    * Sonnet call ≈ $0.013). */
   platforms?: SocialFormat[],
 ): Promise<{ ok: true; group_id: string; variants: { format: SocialFormat; variant_id: string }[] } | { ok: false; error: string }> {
+  await assertAdmin()
   const supabase = createAdminClient()
   const topic = await loadTopic(supabase, topicId)
   if (!topic) return { ok: false, error: 'topic not found' }
@@ -134,6 +136,7 @@ export async function generateSocialVariantsAction(
 export async function regenerateSocialVariantAction(
   variantId: string,
 ): Promise<{ ok: true; variant_id: string; format: SocialFormat } | { ok: false; error: string }> {
+  await assertAdmin()
   const supabase = createAdminClient()
 
   const { data: variant } = await supabase
@@ -228,6 +231,7 @@ export async function markSocialVariantPostedAction(
   variantId: string,
   postUrl?: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await assertAdmin()
   const supabase = createAdminClient()
   const { data: variant } = await supabase
     .from('content_variants')

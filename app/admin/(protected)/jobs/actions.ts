@@ -1,6 +1,7 @@
 'use server'
 
 import { headers } from 'next/headers'
+import { assertAdmin } from '@/lib/auth/admin'
 
 export interface JobResult {
   ok: boolean
@@ -42,9 +43,11 @@ async function triggerJob(path: string): Promise<JobResult> {
 }
 
 export async function runScoutAction(): Promise<JobResult> {
+  await assertAdmin()
   return triggerJob('/api/run-scout')
 }
 
 export async function runBriefAction(): Promise<JobResult> {
+  await assertAdmin()
   return triggerJob('/api/build-brief')
 }

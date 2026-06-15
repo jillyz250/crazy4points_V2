@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { assertAdmin } from '@/lib/auth/admin'
 import { createAdminClient } from '@/utils/supabase/server'
 
 /**
@@ -11,6 +12,7 @@ import { createAdminClient } from '@/utils/supabase/server'
  * Adding a new tracked entity type = adding a case here.
  */
 export async function markVerifiedAction(formData: FormData): Promise<void> {
+  await assertAdmin()
   const entityType = String(formData.get('entity_type') ?? '')
   const entityId = String(formData.get('entity_id') ?? '')
 

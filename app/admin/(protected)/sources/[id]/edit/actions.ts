@@ -2,6 +2,7 @@
 
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
+import { assertAdmin } from '@/lib/auth/admin'
 import { createAdminClient } from '@/utils/supabase/server'
 import { updateSource } from '@/utils/supabase/queries'
 import type { SourceType } from '@/utils/supabase/queries'
@@ -11,6 +12,7 @@ export async function updateSourceAction(
   id: string,
   formData: FormData,
 ): Promise<ActionResult> {
+  await assertAdmin()
   try {
     const name = (formData.get('name') as string)?.trim()
     const url = (formData.get('url') as string)?.trim()

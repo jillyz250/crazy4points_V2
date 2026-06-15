@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { assertAdmin } from '@/lib/auth/admin'
 import { createAdminClient } from '@/utils/supabase/server'
 import {
   upsertHotelProperties,
@@ -108,6 +109,7 @@ export async function importPropertiesCsvAction(
   programSlug: string,
   csvText: string
 ): Promise<{ inserted: number; updated: number; skipped: number; errors: string[] }> {
+  await assertAdmin()
   const errors: string[] = []
   const parsed = parseCsv(csvText)
   if (parsed.length === 0) {
@@ -158,6 +160,7 @@ export async function updatePropertyAction(
   programSlug: string,
   patch: Partial<HotelPropertyInsert>
 ) {
+  await assertAdmin()
   const supabase = createAdminClient()
   await updateHotelProperty(supabase, id, patch)
   revalidatePath(`/admin/programs/${programSlug}/properties`)
@@ -165,6 +168,7 @@ export async function updatePropertyAction(
 }
 
 export async function deletePropertyAction(id: string, programSlug: string) {
+  await assertAdmin()
   const supabase = createAdminClient()
   await deleteHotelPropertyById(supabase, id)
   revalidatePath(`/admin/programs/${programSlug}/properties`)

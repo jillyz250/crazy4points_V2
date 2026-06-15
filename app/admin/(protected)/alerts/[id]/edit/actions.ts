@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { assertAdmin } from '@/lib/auth/admin'
 import { createAdminClient } from '@/utils/supabase/server'
 import { getAlertById, incrementSourceApproved } from '@/utils/supabase/queries'
 import type { AlertType, AlertStatus, AlertActionType, AlertGap, ConfidenceLevel } from '@/utils/supabase/queries'
@@ -70,6 +71,7 @@ export async function updateAlertAction(
   id: string,
   formData: FormData,
 ): Promise<ActionResult> {
+  await assertAdmin()
   try {
     const title = formData.get('title') as string
     const type = formData.get('type') as AlertType
