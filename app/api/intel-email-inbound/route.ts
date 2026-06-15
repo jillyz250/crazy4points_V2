@@ -24,6 +24,7 @@
 
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { Webhook } from 'svix'
 import { createAdminClient } from '@/utils/supabase/server'
 import { ingestItem } from '@/utils/intel/ingestItem'
 import { sanitizeInboundHtml, extractSafeUrls } from '@/utils/intel/email-inbound/sanitizeHtml'
@@ -38,38 +39,60 @@ export const maxDuration = 60
 const MAX_PAYLOAD_BYTES = 1_000_000 // 1 MB
 
 export async function POST(req: NextRequest) {
-  // --- 1. Signature verification --------------------------------------------
-  // Resend uses Svix-style HMAC. For initial setup we ALSO accept a simple
-  // Bearer token (set RESEND_INBOUND_WEBHOOK_SECRET) so testing is easy. In
-  // production both paths verify the secret matches.
-  const secret = process.env.RESEND_INBOUND_WEBHOOK_SECRET
-  if (secret) {
-    const auth = req.headers.get('authorization')
-    const svixSig = req.headers.get('svix-signature')
-    if (auth === `Bearer ${secret}`) {
-      // OK
-    } else if (svixSig) {
-      // TODO: full Svix HMAC verification once we see a real Resend payload.
-      // For now, accept presence of header — Resend will deliver via its own
-      // verified channel. Tighten to HMAC verify in a follow-up PR once we
-      // have a real sample to inspect.
-    } else {
-      return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 })
-    }
-  }
-
-  // --- 2. Size cap ----------------------------------------------------------
+  // --- 1. Size cap (cheap header check before reading the body) --------------
   const contentLength = parseInt(req.headers.get('content-length') ?? '0', 10)
   if (contentLength > MAX_PAYLOAD_BYTES) {
     await logIngestError('email', 'security', 'payload >1MB', { content_length: contentLength })
     return NextResponse.json({ ok: false, error: 'payload too large' }, { status: 413 })
   }
 
+  // Read the raw body ONCE — needed both for Svix HMAC verification (which
+  // signs the exact bytes) and for JSON parsing.
+  const rawBody = await req.text()
+  if (rawBody.length > MAX_PAYLOAD_BYTES) {
+    await logIngestError('email', 'security', 'payload >1MB (body)', { body_length: rawBody.length })
+    return NextResponse.json({ ok: false, error: 'payload too large' }, { status: 413 })
+  }
+
+  // --- 2. Signature verification --------------------------------------------
+  // Two accepted auth paths, both cryptographically enforced:
+  //   (a) Bearer RESEND_INBOUND_WEBHOOK_SECRET  — used by our synthetic tests.
+  //   (b) Svix HMAC signature, verified against RESEND_INBOUND_SIGNING_SECRET
+  //       (the `whsec_...` value from Resend's webhook settings).
+  // Fail CLOSED: a svix-signature header is only honored if it actually
+  // verifies. A missing signing secret with a signature present is rejected.
+  const secret = process.env.RESEND_INBOUND_WEBHOOK_SECRET
+  if (secret) {
+    const auth = req.headers.get('authorization')
+    const svixSig = req.headers.get('svix-signature')
+    if (auth === `Bearer ${secret}`) {
+      // OK — trusted test path.
+    } else if (svixSig) {
+      const signingSecret = process.env.RESEND_INBOUND_SIGNING_SECRET
+      if (!signingSecret) {
+        await logIngestError('email', 'security', 'svix signature present but RESEND_INBOUND_SIGNING_SECRET not set', {})
+        return NextResponse.json({ ok: false, error: 'signature verification unavailable' }, { status: 401 })
+      }
+      try {
+        new Webhook(signingSecret).verify(rawBody, {
+          'svix-id': req.headers.get('svix-id') ?? '',
+          'svix-timestamp': req.headers.get('svix-timestamp') ?? '',
+          'svix-signature': svixSig,
+        })
+      } catch {
+        await logIngestError('email', 'security', 'svix signature verification failed', {})
+        return NextResponse.json({ ok: false, error: 'invalid signature' }, { status: 401 })
+      }
+    } else {
+      return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 })
+    }
+  }
+
   // --- 3. Parse payload -----------------------------------------------------
   let payload: ResendInboundPayload
   let emailId: string | null = null
   try {
-    const raw = await req.json()
+    const raw = JSON.parse(rawBody)
     payload = normalizePayload(raw)
     emailId = extractEmailId(raw)
   } catch (err) {
