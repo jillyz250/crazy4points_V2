@@ -463,15 +463,15 @@ export default async function CardPage({
                 <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)' }}>Welcome bonus</div>
                 <div style={{ fontSize: '1.5rem', fontWeight: 600, display: 'flex', alignItems: 'baseline', gap: '0.45rem', flexWrap: 'wrap' }}>
                   {sub.is_elevated && sub.baseline_bonus_amount != null && sub.baseline_bonus_amount !== sub.bonus_amount && (
-                    <span style={{ textDecoration: 'line-through', textDecorationColor: 'var(--color-accent)', textDecorationThickness: '2px', color: 'var(--color-text-secondary)', fontWeight: 500, fontSize: '1.1rem' }}>
+                    <span style={{ textDecoration: 'line-through', textDecorationColor: '#D92D20', textDecorationThickness: '3px', color: 'var(--color-text-secondary)', fontWeight: 500, fontSize: '1.1rem' }}>
                       {sub.baseline_bonus_amount.toLocaleString()}
                     </span>
                   )}
                   <span>{wb.amount}</span>
                   {wb.unit && <span style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}> {wb.unit}</span>}
                   {sub.is_elevated && (
-                    <span style={{ alignSelf: 'center', background: 'var(--color-accent)', color: '#3a2b00', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, fontSize: '0.65rem', padding: '0.18rem 0.55rem', borderRadius: '999px', fontFamily: 'var(--font-ui)', whiteSpace: 'nowrap' }}>
-                      Elevated offer
+                    <span style={{ alignSelf: 'center', background: 'linear-gradient(135deg, #F0D470 0%, #D4AF37 55%, #B8932F 100%)', color: '#3a2b00', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 800, fontSize: '0.72rem', padding: '0.3rem 0.75rem', borderRadius: '999px', fontFamily: 'var(--font-ui)', whiteSpace: 'nowrap', boxShadow: '0 2px 10px rgba(212,175,55,0.5)' }}>
+                      ✨ Elevated offer
                     </span>
                   )}
                 </div>
