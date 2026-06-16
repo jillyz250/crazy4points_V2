@@ -23,6 +23,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/utils/supabase/server'
 import { extractCardBenefits } from '@/utils/cards/extractCardBenefits'
+import { assertCron } from '@/lib/auth/cron'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300  // 5 minutes for multiple sequential card extractions
@@ -39,17 +40,8 @@ export async function POST(request: Request) {
 
 async function handleCron(request: Request) {
   // Auth — only Vercel cron should reach this endpoint
-  const authHeader = request.headers.get('authorization')
-  const cronSecret = process.env.CRON_SECRET
-  if (!cronSecret) {
-    return NextResponse.json(
-      { ok: false, error: 'CRON_SECRET not configured on server' },
-      { status: 500 },
-    )
-  }
-  if (authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 })
-  }
+  const denied = assertCron(request)
+  if (denied) return denied
 
   const supabase = createAdminClient()
 

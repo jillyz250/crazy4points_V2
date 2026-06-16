@@ -12,6 +12,7 @@ import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createAdminClient } from '@/utils/supabase/server'
 import { scanAnnouncements } from '@/utils/integrity/scanAnnouncements'
+import { assertCron } from '@/lib/auth/cron'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
@@ -24,14 +25,8 @@ export async function POST(request: Request) {
 }
 
 async function handle(request: Request) {
-  const cronSecret = process.env.CRON_SECRET
-  if (cronSecret) {
-    const auth = request.headers.get('authorization')
-    const isVercelCron = request.headers.get('x-vercel-cron') != null
-    if (!isVercelCron && auth !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 })
-    }
-  }
+  const denied = assertCron(request)
+  if (denied) return denied
 
   const supabase = createAdminClient()
   let signals
