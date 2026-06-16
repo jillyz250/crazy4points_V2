@@ -53,8 +53,18 @@ properties run on Choice Privileges (slug `choice`) since the 2022-2023 split.
 | Miles & More | not noted | lifetime bar if points purchased/gifted |
 | SAS ratio | 7:1 (guessed) | CONFIRMED 7:1, 7-pt increments |
 
-## Residual flags
-- **Airline partner roster is partial.** Only SAS, Flying Blue, Miles & More are seeded
-  (confirmed). The full ~20-carrier list is in the logged-in member dropdown, not in any
-  public page. Expand `transfer_partners_outbound` when the dropdown is captured.
-- Avios removed Sept 2025 - do not re-add British Airways without re-verification.
+## Post-publish audit (2026-06-15, migration 448)
+- **Roster is SHORT, not ~20 (mischaracterization corrected).** Independent sources
+  (AwardWallet, FinanceBuzz 2026) + the official miles page confirm Radisson has only a
+  handful of airline partners. Seeded roster is now COMPLETE: SAS (7:1), Flying Blue
+  (10:1), Miles & More (10:1), British Airways Avios (10:1, retiring). Official partner
+  list page https://www.radissonhotels.com/en-us/partner/airlines/rewards/list is
+  Firecrawl/WebFetch-blocked (403) - could not enumerate directly, but cross-sources agree.
+- **Avios timing ERROR fixed.** Earlier draft said "dropped Sept 2025." Correct: Avios
+  was ANNOUNCED for removal Sept 2025 but the actual last-transfer deadline is
+  **30 September 2026** - so BA/Avios is STILL an active partner as of authoring
+  (2026-06-15). Re-added to outbound with a sunset note. Source:
+  https://www.headforpoints.com/2025/09/01/radisson-rewards-dropping-avios/
+  TRIGGER: after 2026-09-30, remove british-airways from transfer_partners_outbound.
+- Lounge framing CONFIRMED correct (VIP = exclusive VIP areas in select hotels; no
+  chain-wide lounge program). Source: upgradedpoints.com Radisson elite status guide.
