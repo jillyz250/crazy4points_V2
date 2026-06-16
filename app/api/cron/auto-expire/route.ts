@@ -14,6 +14,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/utils/supabase/server'
 import { autoExpirePublishedVariants } from '@/utils/lifecycle/autoExpire'
+import { assertCron } from '@/lib/auth/cron'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -26,13 +27,8 @@ export async function POST(request: Request) {
 }
 
 async function handle(request: Request) {
-  const cronSecret = process.env.CRON_SECRET
-  if (cronSecret) {
-    const auth = request.headers.get('authorization')
-    if (auth !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 })
-    }
-  }
+  const denied = assertCron(request)
+  if (denied) return denied
 
   const supabase = createAdminClient()
   const result = await autoExpirePublishedVariants(supabase)
