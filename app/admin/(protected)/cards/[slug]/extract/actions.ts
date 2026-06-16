@@ -124,8 +124,9 @@ export async function runExtractionAndSave(formData: FormData): Promise<void> {
     console.log(`[card-extract] saved card=${slug} benefits=${saveResult.benefitsSaved} earn=${saveResult.earnRatesSaved} wb=${saveResult.welcomeBonusSaved} historical_high=${saveResult.newHistoricalHigh}`)
   }
 
-  // 3. Revalidate the card's public page so the new data renders
+  // 3. Revalidate the card's public page + the finder listing so new data renders
   revalidatePath(`/cards/${slug}`)
+  revalidatePath('/cards')
   revalidatePath(`/admin/cards/${slug}/extract`)
 }
 
@@ -183,6 +184,7 @@ export async function resaveExtraction(formData: FormData): Promise<void> {
   const slug = (data as unknown as { credit_cards: { slug: string } }).credit_cards?.slug
   if (slug) {
     revalidatePath(`/cards/${slug}`)
+    revalidatePath('/cards')
     revalidatePath(`/admin/cards/${slug}/extract`)
   }
 }
@@ -276,6 +278,7 @@ export async function saveManualWelcomeBonus(formData: FormData): Promise<void> 
   })
 
   revalidatePath(`/cards/${slug}`)
+  revalidatePath('/cards')
   revalidatePath(`/admin/cards/${slug}/extract`)
 }
 
@@ -543,6 +546,7 @@ export async function setCardManualOverride(formData: FormData): Promise<void> {
 
   revalidatePath(`/admin/cards/${slug}/extract`)
   revalidatePath(`/cards/${slug}`)
+  revalidatePath('/cards')
   revalidatePath('/admin/manual-overrides')
 }
 
@@ -613,6 +617,7 @@ export async function saveGoodToKnowAction(
 
   revalidatePath(`/admin/cards/${slug}/extract`)
   revalidatePath(`/cards/${slug}`)
+  revalidatePath('/cards')
 
   // Guardrail: audit the freshly-saved text against the complete card record.
   const issues = card && value.trim()

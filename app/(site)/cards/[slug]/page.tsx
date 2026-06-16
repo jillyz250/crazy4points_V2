@@ -3,6 +3,7 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import { createAdminClient } from '@/utils/supabase/server'
 import { getCardDetailBySlug, spendWindowLabel, spendWindowShort } from '@/utils/supabase/queries'
+import { expandIntroTokens } from '@/utils/programs/expandIntroTokens'
 import type { CreditCardBenefit, TransferPartnerRow } from '@/utils/supabase/queries'
 import { getExperienceProgramsForCard } from '@/utils/cards/getExperiencePrograms'
 import TransferPartnersTable from '@/components/programs/TransferPartnersTable'
@@ -22,9 +23,10 @@ export async function generateMetadata({
     const supabase = createAdminClient()
     const bundle = await getCardDetailBySlug(supabase, slug)
     if (!bundle) return { title: 'Card' }
+    const intro = await expandIntroTokens(bundle.card.intro, supabase)
     return {
       title: `${bundle.card.name}`,
-      description: bundle.card.intro?.slice(0, 200) ?? `${bundle.card.name} review and benefits`,
+      description: intro.slice(0, 200) || `${bundle.card.name} review and benefits`,
       // Cards closed to new applicants stay live for existing cardholders but are
       // kept out of search indexing (also excluded from the sitemap + finder).
       ...(bundle.card.closed_to_new_applicants ? { robots: { index: false, follow: true } } : {}),
@@ -253,6 +255,11 @@ export default async function CardPage({
   const orderedCategories = BENEFIT_CATEGORY_ORDER.filter((c) => benefitGroups.has(c))
   const applyUrl = card.affiliate_url ?? card.official_url
 
+  // Expand any {slug_*_count} tokens so raw tokens never leak to the page or
+  // SEO metadata. Cards don't normally use tokens, but this matches the
+  // programs pages and guards against an editor pasting a tokenized intro.
+  const introExpanded = await expandIntroTokens(card.intro, supabase)
+
   // Transfer partners live on the currency program. Two distinct lists:
   //   - OUTBOUND (`transfer_partners_outbound`): where THIS program's points
   //     go. Populated for transferable currencies (UR, MR, TY, Cap1, Bilt)
@@ -337,7 +344,7 @@ export default async function CardPage({
     '@context': 'https://schema.org',
     '@type': 'CreditCard',
     name: card.name,
-    description: card.intro?.slice(0, 500) ?? `${card.name} — review and benefits`,
+    description: introExpanded.slice(0, 500) || `${card.name} — review and benefits`,
     url: `https://www.crazy4points.com/cards/${card.slug}`,
     annualPercentageRate: '19.24-27.74',
     feesAndCommissionsSpecification: card.annual_fee_usd
@@ -677,9 +684,9 @@ export default async function CardPage({
       })()}
 
       {/* Intro */}
-      {card.intro && (
+      {introExpanded && (
         <section style={{ marginBottom: '2.5rem', maxWidth: '46rem' }}>
-          <p style={{ fontSize: '1.0625rem', lineHeight: 1.65 }}>{card.intro}</p>
+          <p style={{ fontSize: '1.0625rem', lineHeight: 1.65 }}>{introExpanded}</p>
         </section>
       )}
 

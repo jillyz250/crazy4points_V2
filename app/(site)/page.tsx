@@ -8,12 +8,12 @@ import { selectAlertViewFromVariants, type AlertView, type AlertViewWithPrograms
 import { isAlertActiveET } from "@/lib/alerts/expiry";
 import type { Metadata } from "next";
 
-// Revalidate every 60s so the hot alerts bar can't go stale past a minute
-// when an alert expires or is unpublished. Without this, the homepage was
-// being statically rendered at build time and served from CDN until the
-// next deploy — meaning expired alerts kept showing in the hot bar with
-// 404'ing links.
-// Homepage surfaces alerts; new ones publish throughout the day.
+// Revalidate every 5 minutes so the hot alerts bar can't go badly stale when
+// an alert expires or is unpublished. Without this, the homepage was being
+// statically rendered at build time and served from CDN until the next deploy
+// — meaning expired alerts kept showing in the hot bar with 404'ing links.
+// 300s (not 60s) keeps regeneration cost low while staying fresh enough;
+// the homepage surfaces alerts that publish throughout the day.
 export const revalidate = 300;
 
 export const metadata: Metadata = {

@@ -72,7 +72,7 @@ export default async function BriefPreviewPage({
           sandbox="allow-same-origin allow-popups allow-top-navigation-by-user-activation"
           style={{
             width: '100%',
-            height: 'calc(100vh - 220px)',
+            height: 'calc(100dvh - 220px)',
             border: '1px solid var(--color-border-soft)',
             borderRadius: 'var(--radius-card)',
             background: '#FAF9F6',

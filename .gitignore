@@ -44,3 +44,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .claude/scheduled_tasks.lock
+
+# Claude Code agent worktrees — transient, never commit
+.claude/worktrees/
