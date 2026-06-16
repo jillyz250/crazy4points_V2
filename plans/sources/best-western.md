@@ -62,3 +62,30 @@ Direct point-to-mile CONVERSION ratio is set by BWI and NOT published (third-par
 reports near 5,000 BW = 1,000 miles / 5:1, flagged). ratio recorded as "varies."
 Note: the earlier-cited British Airways partner (blogs) is NOT on the current official
 page - correctly excluded. Airline-miles conversion remains a poor-value redemption.
+
+## Co-brand credit cards (authored 2026-06-15, migrations 453 + 454)
+Two current Visa cards, issued by **First Bank & Trust, Brookings SD** (serviced by
+Mercury Financial). Old FNBO Mastercards are closed/never in our DB. Both linked to the
+`best-western` program (co_brand + currency), so they auto-appear in "Cards that earn
+into Best Western Rewards."
+
+Source: official BW Visa page (https://www.bestwestern.com/en_US/offers/hotel-discounts/best-western-rewards-visa.html)
++ Mercury Guide to Benefits (https://www.mercurycards.com/cards/#/benefits) + Rewards T&C
+(free-night-award terms). All pasted/verified by Jill 2026-06-15.
+
+| | Visa Signature (`best-western-rewards-visa`) | Premium Visa Signature (`best-western-rewards-premium-visa`) |
+|---|---|---|
+| Annual fee | $0 | $89 |
+| FX fee | None | None |
+| Earn | 4X BW, 2X all | 10X BW, 4X gas+grocery, 2X all |
+| Status | auto Gold | auto Platinum |
+| Anniversary | 10,000 points | up to 2 free night awards |
+| Welcome | up to 40,000 (10k-40k variable) | up to 80,000 (20k-80k variable) |
+| Shared | Cell Phone Protection; Trip Delay up to $300 (>12h); Trip Cancel/Interrupt up to $2,000 | same |
+
+Corrections vs draft: dropped a blog-sourced "10% rate discount" (not on official page);
+dropped an unconfirmed $5k-spend trigger on the Signature anniversary bonus; removed
+early/late check-out from the Signature (Gold) description (it is a Platinum+ perk).
+Free-night-award terms: standard room, any Licensed Hotel, no published cap, room+tax
+only, expires per the date on the award. Welcome spend amount not published (variable
+by pre-approval).
