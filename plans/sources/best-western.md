@@ -42,14 +42,23 @@ and the upscale WorldHotels collection. **Authored:** 2026-06-15 | **Migrations:
 | Member rate | not noted | 7%+ off Flexible Rate (added) |
 | Diamond Select | implied extra perks | bonus % is the ONLY differentiator vs Diamond |
 
-## Residual flags
-- **Airline transfer roster NOT seeded (documented gap).** The official Convert-to-Miles
-  link 404s and the official Travel Partners page (https://www.bestwestern.com/en_US/best-western-rewards/travel-partners.html)
-  is Firecrawl/WebFetch-blocked (403). The T&C does not enumerate partners. Blogs
-  (NerdWallet/Milesopedia/thepointcalculator) cite ~13 partners at a typical 5,000 BW =
-  1,000 miles (5:1), naming Alaska/Atmos, Flying Blue, British Airways, Southwest - but
-  per card-data-source policy these are NOT seeded from blogs. transfer_partners_outbound
-  left empty; page notes "select airline partners, roster on official site."
-  TRIGGER: seed when the official roster (logged-in Travel Partners list) is captured.
-- Airline-miles conversion is a known poor-value redemption ("you almost always lose
-  value") - low priority to complete.
+## Airline partner roster (RESOLVED, migration 451)
+Official Travel Partners page pasted by Jill 2026-06-15. 10 airline partners seeded
+(PAYBACK Germany excluded - retail loyalty, not an airline). The page figures are
+EARN-INSTEAD-PER-NIGHT rates (miles/points earned per qualifying night if that airline
+is your earning preference), NOT conversion ratios:
+- Aeromexico Rewards - 800 pts/night
+- Air Canada Aeroplan - 250 miles/night
+- Air France-KLM Flying Blue - 250 miles/night
+- Atmos (Alaska) - 250 pts/night
+- Avianca LifeMiles - 250 miles/night
+- Cathay Asia Miles - 250 miles/night
+- SAS EuroBonus - 600 pts/night
+- Southwest Rapid Rewards - 600 pts/night
+- United MileagePlus - 250 miles/night
+- Virgin Atlantic Flying Club - 500 pts/night
+
+Direct point-to-mile CONVERSION ratio is set by BWI and NOT published (third-party
+reports near 5,000 BW = 1,000 miles / 5:1, flagged). ratio recorded as "varies."
+Note: the earlier-cited British Airways partner (blogs) is NOT on the current official
+page - correctly excluded. Airline-miles conversion remains a poor-value redemption.
