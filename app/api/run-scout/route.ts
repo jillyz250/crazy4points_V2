@@ -52,8 +52,8 @@ export const maxDuration = 300
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
   const manualSecret = req.headers.get('x-intel-secret')
-  const isCron = authHeader === `Bearer ${process.env.CRON_SECRET}`
-  const isManual = manualSecret === process.env.INTEL_API_SECRET
+  const isCron = !!process.env.CRON_SECRET && authHeader === `Bearer ${process.env.CRON_SECRET}`
+  const isManual = !!process.env.INTEL_API_SECRET && manualSecret === process.env.INTEL_API_SECRET
 
   if (!isCron && !isManual) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
