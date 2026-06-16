@@ -6,6 +6,7 @@ import { createClient } from '@/utils/supabase/server'
 import { getAlertBySlug } from '@/utils/supabase/queries'
 import { daysUntilEndOfDay } from '@/lib/alertExpiry'
 import { normalizeAlertDescription } from '@/utils/alerts/normalizeDescription'
+import { sanitizeArticleHtml } from '@/lib/blog/sanitize'
 
 // Published alert content; stable after publish.
 export const revalidate = 3600
@@ -128,7 +129,9 @@ export default async function AlertDetailPage({ params }: Props) {
   // bullets so the page doesn't render as flat prose when the writer
   // drifted from the bullet format (see utils/alerts/normalizeDescription.ts).
   const descriptionHtml = alert.description
-    ? await marked.parse(normalizeAlertDescription(alert.description), { async: true })
+    ? sanitizeArticleHtml(
+        await marked.parse(normalizeAlertDescription(alert.description), { async: true })
+      )
     : null
 
   // JSON-LD Article schema. Tells Google + AI assistants that crazy4points

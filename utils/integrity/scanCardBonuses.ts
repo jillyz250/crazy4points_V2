@@ -125,9 +125,29 @@ export async function scanCardBonuses(supabase: SupabaseClient): Promise<CardBon
     })
   }
 
+  // Bound Firecrawl/Haiku spend per run. The monitored set grows with the card
+  // catalog, so scanning every card daily is unbounded cost. Cap to
+  // MAX_CARDS_PER_RUN and rotate the window by day (deterministic) so every card
+  // is still covered over a few days.
+  const MAX_CARDS_PER_RUN = 25
+  cards.sort((a, b) => a.card_slug.localeCompare(b.card_slug))
+  let selectedCards = cards
+  if (cards.length > MAX_CARDS_PER_RUN) {
+    const dayIndex = Math.floor(Date.now() / 86_400_000)
+    const start = (dayIndex * MAX_CARDS_PER_RUN) % cards.length
+    selectedCards = Array.from(
+      { length: MAX_CARDS_PER_RUN },
+      (_, i) => cards[(start + i) % cards.length]
+    )
+    console.warn(
+      `[scanCardBonuses] ${cards.length} monitored cards; scanning ${MAX_CARDS_PER_RUN} this run ` +
+        `(rotating window start=${start}), skipping ${cards.length - MAX_CARDS_PER_RUN}`
+    )
+  }
+
   const signals: CardBonusSignal[] = []
 
-  for (const card of cards) {
+  for (const card of selectedCards) {
     const res = await fetchFirecrawl(card.source_url, { maxChars: 12000 })
     if (!res.ok) {
       console.warn(`[scanCardBonuses] ${card.card_slug} fetch failed: ${res.reason}`)

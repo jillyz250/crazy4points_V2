@@ -11,8 +11,25 @@
 
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/utils/supabase/server'
+import { isAdminRequest } from '@/lib/auth/admin'
 
 const FEED_URL = 'https://travel.state.gov/_res/rss/TAsTWs.xml'
+
+/**
+ * Authorize: an authenticated admin (session cookie), OR a Vercel cron / Bearer
+ * CRON_SECRET call (so this can be wired to a schedule later). Returns true if
+ * the caller is allowed.
+ */
+async function isAuthorized(req: Request): Promise<boolean> {
+  if (await isAdminRequest()) return true
+  const cronSecret = process.env.CRON_SECRET
+  if (cronSecret) {
+    const auth = req.headers.get('authorization')
+    const isVercelCron = req.headers.get('x-vercel-cron') != null
+    if (isVercelCron || auth === `Bearer ${cronSecret}`) return true
+  }
+  return false
+}
 
 interface ParsedAdvisory {
   country: string       // canonical country name as parsed from the title
@@ -114,7 +131,11 @@ function stripHtml(s: string): string {
   return s.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
 }
 
-export async function POST() {
+export async function POST(req: Request) {
+  if (!(await isAuthorized(req))) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+
   let xml: string
   try {
     const res = await fetch(FEED_URL, {
@@ -157,7 +178,7 @@ export async function POST() {
 
   const now = new Date().toISOString()
   let matched = 0
-  let unmatched: string[] = []
+  const unmatched: string[] = []
 
   for (const adv of advisories) {
     const ids = byCountry.get(adv.country.toLowerCase())
