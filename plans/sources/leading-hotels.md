@@ -58,6 +58,7 @@ Reference list of every URL used to author the public page at `/programs/leading
 |---|---|---|---|
 | 2026-06-17 | "Aurelian" invite-only tier | Blogs (NerdWallet/USNews) cite a third invite-only tier ~$10k spend; official compare page shows only Club + Sterling | DROPPED from the page — not published by LHW. Revisit if LHW documents it officially. |
 | 2026-06-17 | Citi no-AF transfer ratio | Blogs cite 1:0.175 for no-AF Citi; our DB models 1:0.14 (0.2 x 0.7, consistent with all other Citi standard partners) | Kept DB value (1:0.14). Citi's public page does not publish the numeric ratio; no-AF Citi cards are pool_to_unlock so the ratio does not surface on card pages anyway. |
+| 2026-06-17 | Year the USD 175 fee was dropped | First draft said "rebuilt in 2024"; actual fee elimination was July 2021 | CORRECTED (migration 466) to "dropped its old USD 175 annual fee back in 2021." Sources: Head for Points + Business Traveller, both 2021-07-09. Points earn/redeem model rolled out later (exact date not officially pinned). |
 
 ## Notes / followups
 
