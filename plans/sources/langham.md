@@ -40,6 +40,8 @@ Program note: DB row was legacy "Langham Club 1865"; renamed to "Brilliant by La
 | Late checkout 2pm (Sapphire) / 4pm (Ruby), excludes resorts | member-benefits (values official; tier map via Point Hacks) | HIGH values / MEDIUM tier-map |
 | Early check-in = Diamond and above | Point Hacks / TPG | MEDIUM (secondary; official matrix didn't preserve columns) |
 | Welcome amenity (Elite Amenity Pts / drink / dining credit; Ruby adds local gift) = Sapphire/Ruby | member-benefits (amenity options) + Point Hacks (tier map) | MEDIUM (tier map secondary) |
+| VIP events / member-exclusive experiences = Topaz and above, PURCHASE tickets (not free access) | Point Hacks full table | MEDIUM (secondary) -- CORRECTED migration 546 (was wrongly Sapphire/Ruby "access") |
+| Selection of preferred room type = tier cutoff UNCONFIRMED | member-benefits lists the row; Point Hacks "not mentioned for any tier" | LOW -- removed from tier_benefits, kept generic in lounge_access |
 | Award Points expire 24 months inactivity; Status Points reset annually | brilliantbylangham.com/faq | HIGH (official) |
 | Redemption is dynamic, no published chart, no blackout, full-cash-or-full-points | brilliantbylangham.com/points-redemption + faq + TPG | HIGH (official) |
 | Earn on up to 3 rooms/reservation; non-transferable; direct-booking only | brilliantbylangham.com/faq | HIGH (official) |
