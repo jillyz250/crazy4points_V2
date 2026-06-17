@@ -41,15 +41,15 @@ Reference list of every URL used to author the public page at `/programs/gha-dis
 | Member rates 5-10% off published direct rate | T&C section 4 | HIGH (official) |
 | Status downgrade one level at a time | T&C section 3.12 | HIGH (official) |
 | D$ valid for use on rooms, dining, spa, golf, Experiences | D$ page | HIGH (official) |
-| 60-plus member brands (full list in T&C section 4) | T&C | HIGH (official) |
-| 800-plus hotels, 100-plus countries | WebSearch (multiple 2026 sources) | MEDIUM (not directly scraped from official page) |
+| More than 40 member brands | T&C (lists ~55 brand names; external sources cite "45 distinct brands"; downgraded to "more than 40" — conservative and defensible) | MEDIUM (conflicting counts) |
+| Hundreds of properties, 100-plus countries | WebSearch (multiple 2026 sources) | MEDIUM (not directly scraped from official page) |
 
 ## Notes / followups
 
-- **Titanium breakfast brand list** at https://www.ghadiscovery.com/complimentary-breakfast/titanium-members — not scraped separately. If breakfast eligibility changes, check this page first.
+- **Titanium breakfast brand list** at https://www.ghadiscovery.com/complimentary-breakfast/titanium-members — page scraped but brand IDs in URL filter params could not be decoded to confirm specific brands. Page copy says "we're bringing it to more soon!" (not all GHA brands participate). Sweet spot now links to the official page instead of naming specific brands. If you want to verify exact brand list, load that URL in a browser — it shows a hotel grid filtered by breakfast-eligible brands.
 - **Status match promotions** run periodically (paid, half fee back in D$). No permanent URL — watch GHA promotions page.
 - **Mastercard status partnership** (instant Platinum/Titanium for cardholders) is a recurring promotion. Monitor GHA partners page.
-- **hotel_properties not seeded** — GHA has 800+ hotels across 60+ brands. Decision Engine will not surface GHA properties until scrape-properties.mjs backlog is addressed.
+- **hotel_properties not seeded** — GHA has hundreds of properties across 40+ brands. Decision Engine will not surface GHA properties until scrape-properties.mjs backlog is addressed.
 - **No airline transfer partners as of mid-2026** — the partners page lists only lifestyle partners (Plum Guide, Blacklane, SIXT, Regent Cruises, ASMALLWORLD, Wolseley restaurants). Monitor the partners page for any new airline addition.
 - **Buy D$ at discount** — GHA runs periodic 15% discount sales on D$. Pricing is login-gated; the discount figure is sourced from blog coverage (WebSearch), not official page. MEDIUM confidence on the exact discount percentage.
 
@@ -59,3 +59,5 @@ Reference list of every URL used to author the public page at `/programs/gha-dis
 |---|---|---|---|
 | 2026-06-17 | Breakfast availability at Platinum | Some blogs describe Platinum as including breakfast | T&C and official GHA page explicitly state Titanium-only. Blogs are wrong. |
 | 2026-06-17 | "faster than any other" Titanium path | Editorial superlative | Softened to "notably fast" per llm-audit. The 3-brand path is a documented real advantage without needing a comparative absolute. |
+| 2026-06-17 | "60-plus brands" brand count | T&C lists ~55 brand names but external sources cite "45 distinct brands"; official GHA marketing says "40+ brands" | Downgraded to "more than 40 brands" — conservative and defensible from all sources. |
+| 2026-06-17 | "Anantara, Kempinski, Capella, Corinthia" breakfast brands | Could not verify specific brands from breakfast page scrape (brand IDs in URL params, not readable text) | Removed specific brand examples; sweet_spots now directs readers to official breakfast page. |
