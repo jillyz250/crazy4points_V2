@@ -48,7 +48,9 @@ Note: https://www.sonesta.com/sonesta-travel-pass and .../sonesta-travel-pass-te
 - **Clean authoring run.** Main page + FAQ scraped richly via Firecrawl. Both audits clean.
 - **Lean style applied:** avoided derived dollar/value math and exact bonus-multiplier percentages (Silver 50% / Platinum 100% appear in secondary sources but Gold's figure is unconfirmed; kept qualitative). Earn rate and tier night-counts kept (official, low-clutter).
 - **JetBlue/Lufthansa airline transfer (5:1)** seen in secondary sources is NOT on Sonesta's official partner page (which lists car rental, food delivery, fitness, fuel). Omitted per no-unsourced-claims rule -- verify on next refresh; if confirmed official, add to transfer_partners_outbound.
-- **Member benefits PDF not yet fetched** -- it has the exact per-tier bonus multipliers and full benefit matrix. Fetch on next refresh to firm up Gold's multiplier and any benefits the main-page icon grid didn't map.
+- **Member benefits PDF unparseable (2026-06-17 confidence re-check):** WebFetch returned the PDF as binary/compressed and could not extract the per-tier multiplier table. Exact bonus-multiplier percentages (Silver/Gold/Platinum) remain UNCONFIRMED -- page keeps them qualitative on purpose. On next refresh, fetch the PDF via a parser that handles binary PDFs (or read the saved copy) to firm up Gold's multiplier.
+- **Airline transfer omission VERIFIED correct (2026-06-17 re-check):** a fresh search returned mutually contradictory secondary claims -- JetBlue/Lufthansa 5:1 vs "no airline transfers" vs British Airways/Aeroplan/Iberia. None official. Confirms the decision to omit any airline-transfer claim. Re-verify only if Sonesta's official partner page ever lists a points-transfer airline.
+- **Possible devaluation signal:** a FrequentMiler page title flagged "reduced elite bonuses coming" for Sonesta. Unconfirmed detail -- not on the page. Watch for an elite-bonus-multiplier cut on next refresh.
 - **hotel_properties not seeded.** 1,100+ Sonesta properties. Decision Engine won't surface individual hotels until scrape-properties.mjs runs for sonesta.
 
 ## Fact-check disagreements / resolutions
