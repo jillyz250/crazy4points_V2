@@ -62,6 +62,8 @@ Reference list of every URL used to author the public page at `/programs/leading
 
 ## Notes / followups
 
+- **Buy-points pricing is login-gated (cannot be officially scraped).** The Manage Points page (https://www.lhw.com/collections/manage-points) only links out to the Points.com storefront (https://storefront.points.com/lhw/en-US/buy), which requires First Name + Last Name + Leaders Club Number + Email before showing any pricing. The ~12c list / ~6c-with-100%-bonus figures are therefore MEDIUM (3 blogs: AwardWallet, Frequent Miler, Upgraded Points) and properly hedged on the page. Do NOT re-attempt an official scrape on refresh - it's behind a member login. Buy MECHANICS (1,000-pt increments, 50,000/yr cap) ARE official (FAQ) and HIGH.
+- The ~8c/pt redemption value is likewise a blog estimate, not officially published (dynamic pricing) - MEDIUM, hedged.
 - Dynamic redemption: no chart to monitor for category devaluations; watch instead for changes to the ~8c/pt redemption value and the buy-points list price (~12c).
 - No co-brand credit card exists; only inbound transfer partner is Citi ThankYou.
 - Watch for Citi 25% transfer-bonus cadence (recurs periodically).
