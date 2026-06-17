@@ -26,7 +26,8 @@ Reference list of every URL used to author the public page at `/programs/mgm`. A
 |---|---|---|
 | Sapphire: 0-19,999 TCs; Pearl: 20,000-74,999 TCs | Upgraded Points (multiple sources agree) | MEDIUM (blog, official blocked) |
 | Gold: 75,000-199,999 TCs; Platinum: 200,000+ TCs; NOIR: invite-only | Upgraded Points + multiple sources | MEDIUM (blog, official blocked) |
-| Base earn: 4 TCs + 1 point per $1 on hotel/dining | Upgraded Points | MEDIUM (blog, not official) |
+| Base earn: 4 TCs per $1 on hotel/dining | single WebSearch summary blurb only | REMOVED from page 2026-06-17 -- too thin to publish (migration 534) |
+| Base earn: 1 point per $1 on hotel/dining | Upgraded Points | MEDIUM (blog, not official; points rate only) |
 | Casino gaming TC earn rates | NOT CAPTURED -- official site blocked | UNCONFIRMED |
 | Pearl celebration credit: $100 | TPG 2025 changes article | MEDIUM (blog) |
 | Gold celebration credit: $100 | TPG 2025 changes article | MEDIUM (blog) |
