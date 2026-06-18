@@ -20,11 +20,24 @@ const MAX_ITEMS = 10
 
 interface TierLite {
   bonus_amount?: unknown
+  spend_usd?: unknown
 }
 
-/** Total potential bonus = main + additional tiers (one echo of main de-duped). */
-function computeTotal(bonusAmount: number, tiers: TierLite[] | null): { total: number; tiered: boolean } {
+/**
+ * Bonus totals from main + additional tiers (one echo of main de-duped).
+ *   - displayTotal: everything, including $0-spend authorized-user/employee tiers
+ *     (this is the marketed "Up to X" headline).
+ *   - elevationTotal: spend-gated tiers only — used to decide whether the offer is
+ *     genuinely elevated. An AU bonus is a standing perk, not a promo, so a card
+ *     whose total only beats the baseline because of a $0-spend AU tier is NOT
+ *     elevated (e.g. United Business 100k + 10k AU vs a 100k baseline).
+ */
+function computeTotal(
+  bonusAmount: number,
+  tiers: TierLite[] | null,
+): { displayTotal: number; elevationTotal: number; tiered: boolean } {
   let extras = 0
+  let spendExtras = 0
   let echoSeen = false
   for (const t of Array.isArray(tiers) ? tiers : []) {
     const amt = typeof t?.bonus_amount === 'number' ? t.bonus_amount : NaN
@@ -34,8 +47,10 @@ function computeTotal(bonusAmount: number, tiers: TierLite[] | null): { total: n
       continue
     }
     extras += amt
+    // $0-spend tiers are authorized-user/employee bonuses, not a promo elevation.
+    if (t.spend_usd !== 0) spendExtras += amt
   }
-  return { total: bonusAmount + extras, tiered: extras > 0 }
+  return { displayTotal: bonusAmount + extras, elevationTotal: bonusAmount + spendExtras, tiered: extras > 0 }
 }
 
 function fmtDeadline(iso: string | null): string | null {
@@ -83,14 +98,15 @@ export async function getElevatedBonuses(supabase: SupabaseClient): Promise<Elev
     if (!card || !card.is_active || card.status !== 'active') continue
     if (r.bonus_amount == null || r.baseline_bonus_amount == null) continue
 
-    const { total, tiered } = computeTotal(r.bonus_amount, r.tiered_bonuses)
-    // Require a genuine elevation above the normal offer.
-    if (total <= r.baseline_bonus_amount) continue
+    const { displayTotal, elevationTotal, tiered } = computeTotal(r.bonus_amount, r.tiered_bonuses)
+    // Require a genuine elevation above the normal offer, ignoring $0-spend
+    // authorized-user/employee tiers (those aren't a promo elevation).
+    if (elevationTotal <= r.baseline_bonus_amount) continue
 
     items.push({
       card_name: card.name,
       baseline_amount: r.baseline_bonus_amount,
-      current_amount: total,
+      current_amount: displayTotal,
       is_tiered: tiered,
       currency: r.bonus_currency ?? 'points',
       spend_required_usd: r.spend_required_usd,
