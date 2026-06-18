@@ -9,7 +9,7 @@ export const maxDuration = 60
 const resend = new Resend(process.env.RESEND_API_KEY)
 
 const SLOT_SELECT =
-  'id, week_of, sent_at, display_date, subject, subject_options, status, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_title, big_story_html, sweet_spot, also_happening, active_offers, jills_take_html, game_slug, game_title, game_clue_text'
+  'id, week_of, sent_at, display_date, subject, subject_options, status, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_title, big_story_html, sweet_spot, also_happening, active_offers, elevated_bonuses, jills_take_html, game_slug, game_title, game_clue_text'
 
 interface SlotRow {
   id: string
@@ -28,6 +28,7 @@ interface SlotRow {
   sweet_spot: NewsletterSlots['sweet_spot'] | null
   also_happening: AlsoHappeningItem[] | null
   active_offers: NewsletterSlots['active_offers']
+  elevated_bonuses: NewsletterSlots['elevated_bonuses']
   jills_take_html: string | null
   game_slug: string | null
   game_title: string | null
@@ -76,6 +77,7 @@ export async function GET(req: NextRequest) {
     sweet_spot: row.sweet_spot ?? null,
     also_happening: Array.isArray(row.also_happening) ? row.also_happening : [],
     active_offers: row.active_offers ?? null,
+    elevated_bonuses: row.elevated_bonuses ?? null,
     jills_take_html: row.jills_take_html,
     jill_prompt: row.jill_prompt,
     subject: row.subject ?? row.subject_options?.[0] ?? 'Crazy4Points — Weekly',

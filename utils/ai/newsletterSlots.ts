@@ -39,6 +39,27 @@ export interface ActiveOffers {
   purchase_bonuses: OfferItem[]
 }
 
+/** One card in the "Elevated Welcome Bonuses" section (auto-filled from data). */
+export interface ElevatedBonusItem {
+  card_name: string
+  /** The normal, non-promo bonus (baseline_bonus_amount). */
+  baseline_amount: number
+  /** The current elevated bonus TOTAL (the "up to" headline for tiered cards). */
+  current_amount: number
+  /** True when current_amount is a multi-tier "up to" total (renders an "Up to" prefix). */
+  is_tiered: boolean
+  /** Currency label, e.g. "Membership Rewards points", "BreezePoints". */
+  currency: string
+  /** Minimum spend to earn the headline, e.g. 8000. Null = none/unknown. */
+  spend_required_usd: number | null
+  /** Human spend window, e.g. "6 months". Empty/null = none. */
+  spend_window_label: string | null
+  /** Relative path to the card page, e.g. "/cards/amex-gold". */
+  link_url: string
+  /** Human-readable expiry, e.g. "Ends June 30". Null = no known end. */
+  deadline: string | null
+}
+
 export interface SweetSpotBestUse {
   /** Specific property/route/award/redemption — concrete, with numbers when possible. */
   name: string
@@ -98,6 +119,10 @@ export interface NewsletterSlots {
   // ── Live Offers (auto-filled from active alerts) ──────────────
   active_offers: ActiveOffers | null
 
+  // ── Elevated Welcome Bonuses (auto-filled from card data) ─────
+  /** Null = not pulled yet; [] = pulled, none qualified. */
+  elevated_bonuses: ElevatedBonusItem[] | null
+
   // ── Jill's Take ───────────────────────────────────────────────
   jills_take_html: string | null
 
@@ -125,6 +150,7 @@ export const EMPTY_SLOTS: NewsletterSlots = {
   sweet_spot: null,
   also_happening: [],
   active_offers: null,
+  elevated_bonuses: null,
   jills_take_html: null,
   jill_prompt: null,
   subject: '',

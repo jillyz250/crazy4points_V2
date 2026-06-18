@@ -21,6 +21,7 @@ import {
   unlockSweetSpotAction,
   generateSweetSpotFromLockAction,
   pullActiveOffersAction,
+  pullElevatedBonusesAction,
 } from './actions'
 import type { NewsletterSlots, AlsoHappeningItem, NewsletterSweetSpot, SweetSpotBestUse, OfferItem } from '@/utils/ai/newsletterSlots'
 import type { BigStoryCandidate } from './page'
@@ -203,6 +204,20 @@ export default function NewsletterEditor({
         setMessage(`Pulled ${r.counts.transfer} transfer, ${r.counts.earning} earning, ${r.counts.purchase} purchase offers.`)
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to pull offers')
+      }
+    })
+  }
+
+  function handlePullElevated() {
+    setError(null)
+    setMessage(null)
+    start(async () => {
+      try {
+        const r = await pullElevatedBonusesAction(id)
+        setSlots((prev) => ({ ...prev, elevated_bonuses: r.elevated }))
+        setMessage(`Pulled ${r.count} elevated welcome bonus${r.count === 1 ? '' : 'es'}.`)
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Failed to pull elevated bonuses')
       }
     })
   }
@@ -826,6 +841,42 @@ export default function NewsletterEditor({
                   <strong>{it.headline}</strong>{it.deadline ? ` — ${it.deadline}` : ''}
                 </div>
               ))}
+            </div>
+          ))
+        })()}
+      </div>
+
+      {/* Elevated Welcome Bonuses (auto from card data) */}
+      <div style={sectionStyle}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.5rem' }}>
+          <label style={labelStyle}>📈 Elevated Welcome Bonuses (auto from card data)</label>
+          {!isSent && (
+            <button type="button" onClick={handlePullElevated} disabled={isPending} style={btnSecondary}>
+              {isPending ? 'Working…' : 'Pull elevated bonuses'}
+            </button>
+          )}
+        </div>
+        {(() => {
+          const items = slots.elevated_bonuses ?? []
+          if (items.length === 0) {
+            return <p style={{ fontSize: '0.8125rem', color: 'var(--admin-text-muted)', margin: 0 }}>None pulled yet. Click &ldquo;Pull elevated bonuses&rdquo; to fill from currently-elevated card offers.</p>
+          }
+          return items.map((it, i) => (
+            <div key={i} style={{ fontSize: '0.8125rem', marginBottom: '0.3rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <span style={{ flex: 1 }}>
+                <strong>{it.card_name}</strong> — {it.is_tiered ? 'Up to ' : ''}{it.current_amount.toLocaleString()} {it.currency}{' '}
+                <span style={{ color: 'var(--admin-text-muted)' }}>(normally {it.baseline_amount.toLocaleString()}{it.deadline ? ` · ${it.deadline}` : ''})</span>
+              </span>
+              {!isSent && (
+                <button
+                  type="button"
+                  onClick={() => setSlots((prev) => ({ ...prev, elevated_bonuses: (prev.elevated_bonuses ?? []).filter((_, j) => j !== i) }))}
+                  style={{ ...btnSecondary, padding: '0.1rem 0.45rem', fontSize: '0.75rem' }}
+                  aria-label={`Remove ${it.card_name}`}
+                >
+                  ✕
+                </button>
+              )}
             </div>
           ))
         })()}

@@ -243,6 +243,7 @@ function validateSlots(raw: unknown): Omit<NewsletterSlots, 'subject' | 'game' |
     sweet_spot: validateSweetSpot(r.sweet_spot),
     also_happening,
     active_offers: null,
+    elevated_bonuses: null,
     jills_take_html: r.jills_take_html ?? null,
     subject_options,
   }

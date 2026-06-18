@@ -9,7 +9,7 @@
  * V2 reads from new column shape (migration 222). V1 renderer
  * (newsletterEmail.ts) stays in place for legacy/already-sent newsletters.
  */
-import type { NewsletterSlots, AlsoHappeningItem, NewsletterSweetSpot, ActiveOffers, OfferItem } from './newsletterSlots'
+import type { NewsletterSlots, AlsoHappeningItem, NewsletterSweetSpot, ActiveOffers, OfferItem, ElevatedBonusItem } from './newsletterSlots'
 import { unsubscribeUrlFor } from '@/utils/email/unsubscribeToken'
 
 const PURPLE = '#6B2D8F'
@@ -227,6 +227,35 @@ function renderActiveOffers(offers: ActiveOffers | null, origin: string): string
     </td></tr>`
 }
 
+function renderElevatedBonuses(items: ElevatedBonusItem[] | null, origin: string): string {
+  if (!items || items.length === 0) return ''
+  const fmt = (n: number) => n.toLocaleString('en-US')
+  const rows = items
+    .map((it) => {
+      const url = `${origin}${it.link_url}`
+      const newAmt = `${it.is_tiered ? 'Up to ' : ''}${fmt(it.current_amount)}`
+      const spend = it.spend_required_usd
+        ? ` after $${fmt(it.spend_required_usd)}${it.spend_window_label ? ` in ${it.spend_window_label}` : ''}`
+        : ''
+      const deadline = it.deadline
+        ? `<span style="color:${MUTED};font-size:13px;margin-left:6px;">&middot; ${esc(it.deadline)}</span>`
+        : ''
+      return `
+        <p style="margin:0 0 12px;font-family:${FONT_BODY};font-size:15px;line-height:1.45;color:${BODY};">
+          <a href="${url}" style="color:${LINK_BLUE};text-decoration:underline;font-weight:600;">${esc(it.card_name)}</a>
+          <span> — <strong>${esc(newAmt)} ${esc(it.currency)}</strong>${esc(spend)}</span>
+          <span style="color:${MUTED};font-size:13px;"> (normally ${fmt(it.baseline_amount)})</span>
+          ${deadline}
+        </p>`
+    })
+    .join('')
+  return `
+    <tr><td style="padding:32px 28px 0;">
+      <p style="margin:0 0 14px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${MUTED};font-weight:700;">Elevated Welcome Bonuses</p>
+      ${rows}
+    </td></tr>`
+}
+
 function renderSweetSpot(sp: NewsletterSweetSpot | null): string {
   if (!sp || !sp.topic) return ''
   const uses = (sp.best_uses ?? [])
@@ -389,6 +418,7 @@ export function renderNewsletterV2Html({
         ${renderSweetSpot(slots.sweet_spot)}
         ${renderAlsoHappening(slots.also_happening, origin)}
         ${renderActiveOffers(slots.active_offers, origin)}
+        ${renderElevatedBonuses(slots.elevated_bonuses, origin)}
         ${renderGame(slots.game, origin)}
         ${renderJillsTake(slots.jills_take_html)}
 
