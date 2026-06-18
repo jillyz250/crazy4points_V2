@@ -347,52 +347,86 @@ export async function saveExtractedBenefits({
   // is OPTIONAL — autopay-triggered bonuses like Freedom Rise's $25 autopay
   // credit have no minimum-spend gate; the trigger condition lives in extras.
   if (wbMain?.bonus_amount && wbMain.bonus_currency && (wbMain.spend_window_months || wbMain.spend_window_days)) {
-    // Demote any existing current offer
-    await supabase
+    const today = now.slice(0, 10)
+
+    // Archive-on-change. Compare to the current offer: if it's UNCHANGED, just
+    // re-verify in place and create NO new row (this is what prevents the dupe
+    // pileups that produced 14 identical Chase Sapphire Reserve rows). If it
+    // CHANGED (or is the first offer), archive the prior row with a window_end
+    // and insert a new epoch with a window_start, so a real timeline accumulates.
+    const { data: cur } = await supabase
       .from('credit_card_welcome_bonuses')
-      .update({ is_current: false })
+      .select('id, bonus_amount, bonus_currency, spend_required_usd, spend_window_months, spend_window_days, tiered_bonuses')
       .eq('card_id', cardId)
       .eq('is_current', true)
-
-    // Check historical high
-    const { data: maxRow } = await supabase
-      .from('credit_card_welcome_bonuses')
-      .select('bonus_amount')
-      .eq('card_id', cardId)
-      .order('bonus_amount', { ascending: false })
-      .limit(1)
       .maybeSingle()
 
-    const previousMax = (maxRow?.bonus_amount as number | undefined) ?? 0
-    newHistoricalHigh = wbMain.bonus_amount >= previousMax && previousMax > 0
+    const newTiers = extraction.welcome_bonus.tiered ?? []
+    const unchanged =
+      !!cur &&
+      cur.bonus_amount === wbMain.bonus_amount &&
+      cur.bonus_currency === wbMain.bonus_currency &&
+      (cur.spend_required_usd ?? null) === (wbMain.spend_required_usd ?? null) &&
+      (cur.spend_window_months ?? null) === (wbMain.spend_window_months ?? null) &&
+      (cur.spend_window_days ?? null) === (wbMain.spend_window_days ?? null) &&
+      JSON.stringify(cur.tiered_bonuses ?? []) === JSON.stringify(newTiers)
 
-    // If it ties or beats previous max AND there was a previous max, this is a new high.
-    // First-ever offer is NOT marked historical_high (no comparison baseline yet).
+    if (unchanged) {
+      // Same offer — just re-verify; no new historical row.
+      await supabase
+        .from('credit_card_welcome_bonuses')
+        .update({ verified_at: now, last_verified: today })
+        .eq('id', cur!.id)
+      welcomeBonusSaved = true
+    } else {
+      // Close the prior offer's window (archive it), then insert the new epoch.
+      if (cur) {
+        await supabase
+          .from('credit_card_welcome_bonuses')
+          .update({ is_current: false, window_end: today })
+          .eq('id', cur.id)
+      }
 
-    // Baseline + elevated: if Sonnet didn't extract a baseline, default it to
-    // the current bonus_amount (no elevation detected). Recompute is_elevated
-    // defensively from baseline rather than trusting Sonnet's boolean.
-    const baseline = extraction.welcome_bonus.baseline_bonus_amount ?? wbMain.bonus_amount
-    const isElevated = wbMain.bonus_amount > baseline
+      // Historical high across this card's now-retained history.
+      const { data: maxRow } = await supabase
+        .from('credit_card_welcome_bonuses')
+        .select('bonus_amount')
+        .eq('card_id', cardId)
+        .order('bonus_amount', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      const previousMax = (maxRow?.bonus_amount as number | undefined) ?? 0
+      newHistoricalHigh = wbMain.bonus_amount >= previousMax && previousMax > 0
 
-    const { error: wbErr } = await supabase.from('credit_card_welcome_bonuses').insert({
-      card_id: cardId,
-      bonus_amount: wbMain.bonus_amount,
-      bonus_currency: wbMain.bonus_currency,
-      spend_required_usd: wbMain.spend_required_usd,
-      spend_window_months: wbMain.spend_window_months,
-      spend_window_days: wbMain.spend_window_days ?? null,
-      tiered_bonuses: extraction.welcome_bonus.tiered ?? [],
-      extras: extraction.welcome_bonus.extras,
-      baseline_bonus_amount: baseline,
-      is_elevated: isElevated,
-      is_current: true,
-      is_historical_high: newHistoricalHigh,
-      source_url: sourceUrl,
-      verified_at: now,
-    })
-    if (wbErr) return { ok: false, error: `welcome_bonuses insert failed: ${wbErr.message}` }
-    welcomeBonusSaved = true
+      // Baseline + elevated: prefer Sonnet's baseline. Otherwise, if the new offer
+      // jumped above the prior offer, the prior amount IS the baseline (auto-detect
+      // an elevation from the change itself); else baseline = the new amount.
+      const priorAmount = cur?.bonus_amount as number | undefined
+      const baseline =
+        extraction.welcome_bonus.baseline_bonus_amount ??
+        (priorAmount && wbMain.bonus_amount > priorAmount ? priorAmount : wbMain.bonus_amount)
+      const isElevated = wbMain.bonus_amount > baseline
+
+      const { error: wbErr } = await supabase.from('credit_card_welcome_bonuses').insert({
+        card_id: cardId,
+        bonus_amount: wbMain.bonus_amount,
+        bonus_currency: wbMain.bonus_currency,
+        spend_required_usd: wbMain.spend_required_usd,
+        spend_window_months: wbMain.spend_window_months,
+        spend_window_days: wbMain.spend_window_days ?? null,
+        tiered_bonuses: newTiers,
+        extras: extraction.welcome_bonus.extras,
+        baseline_bonus_amount: baseline,
+        is_elevated: isElevated,
+        is_current: true,
+        is_historical_high: newHistoricalHigh,
+        window_start: today,
+        source_url: sourceUrl,
+        verified_at: now,
+      })
+      if (wbErr) return { ok: false, error: `welcome_bonuses insert failed: ${wbErr.message}` }
+      welcomeBonusSaved = true
+    }
   }
 
   // ── 5. Mark extraction row as saved (clear any stale error_message) ────
