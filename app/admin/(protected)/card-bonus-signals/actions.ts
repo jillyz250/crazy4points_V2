@@ -23,6 +23,26 @@ export async function applySignal(formData: FormData): Promise<void> {
     .maybeSingle()
   if (!sig) return
 
+  // Guard: the detector reports a single FLAT amount/spend, so a one-click apply
+  // can only write flat fields. If the card's current offer is TIERED, a flat
+  // write would desync bonus_amount from its tiers and silently corrupt the
+  // "Up to X" total (the Breeze bug). Refuse and route the editor to a proper
+  // re-extraction, which rebuilds the full tiered offer + archives history.
+  const { data: cur } = await supabase
+    .from('credit_card_welcome_bonuses')
+    .select('tiered_bonuses')
+    .eq('card_id', sig.card_id)
+    .eq('is_current', true)
+    .maybeSingle()
+  const tiers = cur?.tiered_bonuses
+  if (Array.isArray(tiers) && tiers.length > 0) {
+    await supabase.from('card_bonus_signals').update({ status: 'needs_reextract' }).eq('id', id)
+    revalidatePath('/admin/card-bonus-signals')
+    throw new Error(
+      'This card has a tiered welcome bonus. A one-click apply would only write the flat headline number and break the "Up to X" total. Re-extract the card instead to update the full tiered offer.',
+    )
+  }
+
   const today = new Date().toISOString().slice(0, 10)
   const update: Record<string, unknown> = { last_verified: today, verified_at: new Date().toISOString() }
   if (sig.detected_amount != null) update.bonus_amount = sig.detected_amount
