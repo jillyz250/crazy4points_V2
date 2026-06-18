@@ -31,6 +31,7 @@ const RESOURCE_ITEMS: {
   { label: "Airlines", key: "airline", href: "/programs?type=airline" },
   { label: "Hotels", key: "hotel", href: "/programs?type=hotel" },
   { label: "Alliances", key: "alliance", href: "/programs?type=alliance" },
+  { label: "Experiences", href: "/experiences" },
   { label: "Points Hub", href: "/hub", comingSoon: true },
 ];
 

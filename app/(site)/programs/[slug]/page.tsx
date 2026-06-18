@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { createAdminClient } from '@/utils/supabase/server'
-import { getAlertsByProgramSlug, getAllPrograms, getPropertiesForProgram, getCardsThatEarnIntoProgram, getPartnerRedemptionsByCurrency, getInboundTransferSources } from '@/utils/supabase/queries'
+import { getAlertsByProgramSlug, getAllPrograms, getPropertiesForProgram, getCardsThatEarnIntoProgram, getPartnerRedemptionsByCurrency, getInboundTransferSources, getExperiencesForProgram } from '@/utils/supabase/queries'
 import type { AlertWithPrograms, HotelProperty, CardThatEarnsIn, PartnerRedemptionWithPrograms, TransferPartnerRow } from '@/utils/supabase/queries'
 import AlertsGridSB from '@/components/alerts/AlertsGridSB'
 import ExpiredAlertsList from '@/components/alerts/ExpiredAlertsList'
@@ -130,6 +130,15 @@ export default async function ProgramPage({
     } catch (err) {
       console.error('[programs/[slug]] getPropertiesForProgram failed:', err)
     }
+  }
+
+  // Experiences platform tied to this program (Moments / FIND / Entertainment,
+  // etc.). Cross-links to the /experiences directory. Empty for most programs.
+  let programExperiences: Awaited<ReturnType<typeof getExperiencesForProgram>> = []
+  try {
+    programExperiences = await getExperiencesForProgram(supabase, slug)
+  } catch (err) {
+    console.error('[programs/[slug]] getExperiencesForProgram failed:', err)
   }
 
   // Cards that earn into this program (direct co-brand + transfer-partner cards).
@@ -352,6 +361,29 @@ export default async function ProgramPage({
 
         {/* Intro paragraph stays visible — it's the on-ramp. */}
         <IntroBlock intro={program.intro} />
+
+        {/* Experiences cross-link — surfaces the program's experiences platform
+            (Moments / FIND / Entertainment, etc.) when one exists. */}
+        {programExperiences.length > 0 && (
+          <div
+            style={{ marginBottom: '2.5rem' }}
+            className="rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] p-5"
+          >
+            <p className="mb-2 font-ui text-xs uppercase tracking-wide text-[var(--color-text-secondary)]">
+              Experiences
+            </p>
+            {programExperiences.map((exp) => (
+              <a
+                key={exp.slug}
+                href={`/experiences/${exp.slug}`}
+                className="block font-display text-lg text-[var(--color-primary)] hover:underline"
+              >
+                {exp.name}
+                {exp.entry_point_label ? ` — ${exp.entry_point_label}` : ''} →
+              </a>
+            ))}
+          </div>
+        )}
 
         {/* Simple uniform-grid tile cards for reference sections.
             Each tile click expands inline (server-rendered <details>). */}

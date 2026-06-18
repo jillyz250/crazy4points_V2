@@ -3140,3 +3140,87 @@ export async function listProgramsForIndex(
     promoCount: promoCounts.get(r.id) ?? 0,
   }))
 }
+
+// ---------------------------------------------------------------------------
+// Experiences directory — programs that redeem points for experiences or give
+// cardholder presale/access. Separate table; cross-links to programs via
+// parent_program_slug. See plans/experiences-build-plan.md.
+// ---------------------------------------------------------------------------
+
+export type ExperienceMode = 'redeem' | 'access' | 'both'
+export type ExperienceParentType = 'hotel' | 'airline' | 'bank_currency' | 'card_network'
+
+export interface Experience {
+  id: string
+  slug: string
+  name: string
+  parent_program_slug: string | null
+  parent_program_label: string
+  parent_type: ExperienceParentType
+  mode: ExperienceMode
+  currency: string
+  region: string
+  intro: string | null
+  what_you_get: string | null
+  how_it_works: string | null
+  how_to_access: string | null
+  standout_examples: string | null
+  good_to_know: string | null
+  value_take: string | null
+  experience_types: string[]
+  pricing_models: string[]
+  inventory_style: string | null
+  min_points: number | null
+  entry_point_label: string | null
+  booking_partner: string | null
+  refundable: string | null
+  requires_card: string[]
+  country_restrictions: string[]
+  featured_events: { title: string; detail?: string }[]
+  official_url: string | null
+  source_urls: string[]
+  last_verified: string | null
+  sort_weight: number
+  status: string
+}
+
+/** All published experiences, for the /experiences hub (client filters/sorts). */
+export async function getExperiences(supabase: SupabaseClient): Promise<Experience[]> {
+  const { data, error } = await supabase
+    .from('experiences')
+    .select('*')
+    .eq('status', 'published')
+    .order('name', { ascending: true })
+  if (error) throw error
+  return (data ?? []) as Experience[]
+}
+
+/** A single experience by slug. */
+export async function getExperienceBySlug(
+  supabase: SupabaseClient,
+  slug: string,
+): Promise<Experience | null> {
+  const { data, error } = await supabase
+    .from('experiences')
+    .select('*')
+    .eq('slug', slug)
+    .eq('status', 'published')
+    .maybeSingle()
+  if (error) throw error
+  return (data as Experience) ?? null
+}
+
+/** Experiences tied to a program (for the cross-link on /programs/[slug]). */
+export async function getExperiencesForProgram(
+  supabase: SupabaseClient,
+  parentProgramSlug: string,
+): Promise<Pick<Experience, 'slug' | 'name' | 'mode' | 'entry_point_label'>[]> {
+  const { data, error } = await supabase
+    .from('experiences')
+    .select('slug, name, mode, entry_point_label')
+    .eq('status', 'published')
+    .eq('parent_program_slug', parentProgramSlug)
+    .order('name', { ascending: true })
+  if (error) throw error
+  return (data ?? []) as Pick<Experience, 'slug' | 'name' | 'mode' | 'entry_point_label'>[]
+}
