@@ -66,6 +66,68 @@ function classifyRatio(row: TransferPartnerRow): { check: string; severity: Inte
   return { check: 'bad_ratio_format', severity: 'high' }
 }
 
+/**
+ * Welcome-bonus tier-shape checks. Catches the two failure modes behind the
+ * 2026-06-18 Breeze bug (which rendered "Up to 100,000" for a real 50k offer):
+ *
+ *   1. double-count signature - bonus_amount holds the TOTAL and tiered_bonuses
+ *      holds the COMPONENTS (they sum to bonus_amount, no echo), so the headline
+ *      formatter adds them again. Convention: bonus_amount = the FIRST tier;
+ *      tiered_bonuses = the ADDITIONAL unlocks only.
+ *   2. malformed tier keys - a tier missing a numeric bonus_amount (the legacy
+ *      { amount, window_days } shape instead of { bonus_amount, timeline_months }),
+ *      which the card-page renderer reads as undefined and fails to display.
+ *
+ * Detection only - flags for review at /admin/data-integrity, never edits.
+ */
+async function checkWelcomeBonusTiers(supabase: SupabaseClient): Promise<IntegrityFinding[]> {
+  const { data } = await supabase
+    .from('credit_card_welcome_bonuses')
+    .select('bonus_amount, tiered_bonuses, credit_cards!inner(slug, name, is_active)')
+    .eq('is_current', true)
+    .not('tiered_bonuses', 'is', null)
+
+  const out: IntegrityFinding[] = []
+  for (const r of (data ?? []) as Array<{
+    bonus_amount: number | null
+    tiered_bonuses: unknown
+    credit_cards: { slug: string; name: string; is_active: boolean } | { slug: string; name: string; is_active: boolean }[]
+  }>) {
+    const card = Array.isArray(r.credit_cards) ? r.credit_cards[0] : r.credit_cards
+    if (!card || !card.is_active) continue
+    const tiers = Array.isArray(r.tiered_bonuses) ? (r.tiered_bonuses as Array<Record<string, unknown>>) : []
+    if (tiers.length === 0) continue
+
+    // CHECK: malformed tier keys (a tier with no numeric bonus_amount).
+    const badKeyTiers = tiers.filter((t) => typeof t?.bonus_amount !== 'number')
+    if (badKeyTiers.length > 0) {
+      out.push({
+        check: 'welcome_bonus_bad_tier_keys',
+        severity: 'high',
+        programSlug: null,
+        detail: `Card "${card.name}" (${card.slug}): ${badKeyTiers.length} of ${tiers.length} tiered_bonuses items lack a numeric bonus_amount (legacy "amount"/"window_days" shape). The welcome-bonus breakdown won't render. Use { bonus_amount, spend_usd, timeline_months }.`,
+      })
+      continue
+    }
+
+    // CHECK: double-count signature.
+    if (r.bonus_amount != null) {
+      const amounts = tiers.map((t) => t.bonus_amount as number)
+      const hasEcho = amounts.includes(r.bonus_amount)
+      const sum = amounts.reduce((a, b) => a + b, 0)
+      if (!hasEcho && sum === r.bonus_amount) {
+        out.push({
+          check: 'welcome_bonus_double_count',
+          severity: 'high',
+          programSlug: null,
+          detail: `Card "${card.name}" (${card.slug}): tiered_bonuses sum (${sum.toLocaleString()}) equals bonus_amount (${r.bonus_amount.toLocaleString()}) with no echo tier - the headline will double-count to "Up to ${(r.bonus_amount * 2).toLocaleString()}". bonus_amount should be the FIRST tier; tiered_bonuses should be the ADDITIONAL unlocks only.`,
+        })
+      }
+    }
+  }
+  return out
+}
+
 export async function runIntegrityChecks(supabase: SupabaseClient): Promise<IntegrityFinding[]> {
   const { data, error } = await supabase
     .from('programs')
@@ -179,6 +241,9 @@ export async function runIntegrityChecks(supabase: SupabaseClient): Promise<Inte
       }
     }
   }
+
+  // CHECK: welcome-bonus tier shape (double-count + malformed keys).
+  findings.push(...(await checkWelcomeBonusTiers(supabase)))
 
   // Sort: high -> med -> low, then by check, then slug.
   const rank: Record<IntegritySeverity, number> = { high: 0, med: 1, low: 2 }
