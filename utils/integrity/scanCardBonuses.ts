@@ -103,6 +103,17 @@ export async function scanCardBonuses(supabase: SupabaseClient): Promise<CardBon
     .eq('is_current', true)
     .not('source_url', 'is', null)
 
+  // A source_url shared by 2+ current cards is a multi-card COMPARISON page: the
+  // extractor can't reliably tell which card's offer is which (it once read
+  // JetBlue Plus's 60k off the comparison page and flagged it against the basic
+  // JetBlue Card's 10k). Skip those cards entirely -- they need per-card source
+  // URLs (preferred) or manual review. This also future-proofs against any new
+  // card that lands on a comparison page (e.g. Bilt, Best Western).
+  const urlCounts = new Map<string, number>()
+  for (const r of (rows ?? []) as Array<{ source_url: string }>) {
+    urlCounts.set(r.source_url, (urlCounts.get(r.source_url) ?? 0) + 1)
+  }
+
   const cards: MonitoredCard[] = []
   for (const r of (rows ?? []) as Array<{
     card_id: string
@@ -114,6 +125,10 @@ export async function scanCardBonuses(supabase: SupabaseClient): Promise<CardBon
   }>) {
     const c = Array.isArray(r.credit_cards) ? r.credit_cards[0] : r.credit_cards
     if (!c || !c.is_active || c.status !== 'active') continue
+    if ((urlCounts.get(r.source_url) ?? 0) > 1) {
+      console.warn(`[scanCardBonuses] skipping ${c.slug}: source_url shared by ${urlCounts.get(r.source_url)} cards (comparison page)`)
+      continue
+    }
     cards.push({
       card_id: r.card_id,
       card_slug: c.slug,
