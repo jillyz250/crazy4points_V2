@@ -436,7 +436,7 @@ const ROWS = [
     min_points: null, entry_point_label: 'Cardholder access',
     requires_card: ['Most Amex cards (presales)', 'Platinum / Centurion (By Invitation Only)'], refundable: 'N/A (cash ticket purchase)',
     featured_events: [{ title: 'Ticketmaster presales', detail: 'Preferred seating' }, { title: 'By Invitation Only', detail: 'Platinum / Centurion ultra-premium events' }],
-    official_url: 'https://www.americanexpress.com/en-us/benefits/entertainment-access/',
+    official_url: 'https://www.americanexpress.com/en-us/benefits/entertainment/',
     source_urls: ['https://www.americanexpress.com'],
   },
   {
@@ -455,7 +455,7 @@ const ROWS = [
     min_points: null, entry_point_label: 'Cardholder access',
     requires_card: ['Chase Sapphire', 'Freedom', 'select co-brands'], refundable: 'N/A (cash ticket purchase)',
     featured_events: [{ title: 'Sapphire festival lounges and pop-ups', detail: 'On-site perks' }],
-    official_url: 'https://www.chase.com/personal/credit-cards/chase-experiences',
+    official_url: 'https://www.chase.com/personal/events/experiences',
     source_urls: ['https://www.chase.com/personal/credit-cards/chase-experiences'],
   },
   {
@@ -512,7 +512,7 @@ const ROWS = [
     min_points: null, entry_point_label: 'Cardholder access',
     requires_card: ['Visa Signature', 'Visa Infinite'], refundable: 'N/A (cash where paid)',
     featured_events: [{ title: 'Issuer-delivered dining and event access', detail: 'Signature / Infinite' }],
-    official_url: 'https://usa.visa.com/pay-with-visa/visa-signature.html',
+    official_url: 'https://usa.visa.com/pay-with-visa/cards/visa-credit-cards/visa-infinite-credit-cards/experiences.html',
     source_urls: ['https://usa.visa.com'],
   },
 ]
