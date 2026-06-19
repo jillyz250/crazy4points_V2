@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
  * Create (or preview) the Firecrawl Monitor that watches each card's welcome-bonus
- * source page and pings our webhook on change. JSON-mode changeTracking extracts
- * {bonus_amount, spend_required_usd, currency} on every check; the webhook compares
- * the snapshot to our stored value and writes card_bonus_signals.
+ * source page and pings our webhook on change. Cheap MARKDOWN mode (1 credit/
+ * scrape) + a goal-judge detects bonus-relevant changes; the webhook then
+ * re-extracts only the changed page and writes card_bonus_signals.
  *
  * Monitored set mirrors scanCardBonuses: active cards with a current welcome bonus
  * and a source_url, EXCLUDING URLs shared by 2+ cards (comparison pages).
@@ -28,16 +28,6 @@ if (!WEBHOOK_SECRET) { console.error('Missing FIRECRAWL_WEBHOOK_SECRET (set it i
 
 const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 
-const CHANGE_SCHEMA = {
-  type: 'object',
-  properties: {
-    bonus_amount: { type: ['integer', 'null'], description: 'headline current sign-up bonus in points/miles, no commas; highest tier if "up to"/tiered' },
-    spend_required_usd: { type: ['integer', 'null'], description: 'minimum USD spend to earn it; 0 if none' },
-    currency: { type: ['string', 'null'], description: 'points/miles currency name' },
-  },
-}
-const EXTRACT_PROMPT =
-  'Extract the card\'s CURRENT primary welcome/sign-up bonus: the headline points or miles amount and the minimum USD spend to earn it. If the offer is "up to X" or tiered, use the highest current headline number. If there is no minimum spend, use 0. If the page shows no clear current welcome bonus, set the fields to null. Do not guess.'
 const GOAL =
   'Alert only when the card\'s sign-up/welcome bonus amount or its minimum required spend changes. Ignore design, marketing, legal, navigation, and any unrelated page changes.'
 
@@ -71,13 +61,14 @@ async function main() {
   const urls = await getMonitoredUrls()
   console.log(`Monitored URLs: ${urls.length}`)
 
+  // MARKDOWN mode (1 credit/scrape). The goal-judge runs on changed pages and
+  // tells us a bonus-relevant change happened; the webhook then re-extracts that
+  // one page. JSON-mode changeTracking would extract every page every check
+  // (~5 credits/page => ~5k/mo) and is intentionally avoided.
   const targets = chunk(urls, 50).map((group) => ({
     type: 'scrape',
     urls: group,
-    scrapeOptions: {
-      maxAge: 0,
-      formats: [{ type: 'changeTracking', modes: ['json'], prompt: EXTRACT_PROMPT, schema: CHANGE_SCHEMA }],
-    },
+    scrapeOptions: { maxAge: 0, formats: ['markdown'] },
   }))
 
   const payload = {

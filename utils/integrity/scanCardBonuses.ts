@@ -91,6 +91,25 @@ Rules:
   }
 }
 
+/**
+ * Extract the current welcome bonus for ONE card's source URL (Firecrawl scrape
+ * + Haiku read). Used by the Firecrawl Monitor webhook to re-extract only the
+ * page the monitor flagged as changed — so the expensive extraction runs on the
+ * rare change, not daily across the whole set. Returns null if unconfigured,
+ * the scrape failed, or no clear bonus was found.
+ */
+export async function extractCardBonusFromUrl(url: string, cardName: string): Promise<ExtractedBonus | null> {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) return null
+  const client = new Anthropic({ apiKey })
+  const res = await fetchFirecrawl(url, { maxChars: 12000 })
+  if (!res.ok) {
+    console.warn(`[extractCardBonusFromUrl] ${url} fetch failed: ${res.reason}`)
+    return null
+  }
+  return extractBonusWithHaiku(client, cardName, res.markdown)
+}
+
 export async function scanCardBonuses(supabase: SupabaseClient): Promise<CardBonusSignal[]> {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) return []

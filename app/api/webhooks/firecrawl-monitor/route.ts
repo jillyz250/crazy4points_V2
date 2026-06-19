@@ -4,11 +4,12 @@
  * cron writes), routed into /admin/card-bonus-signals. Flag-for-review only;
  * never edits a bonus.
  *
- * The monitor runs JSON-mode changeTracking with a {bonus_amount,
- * spend_required_usd, currency} schema, so each changed page carries a
- * snapshot.json with the freshly-extracted current offer. We compare that to our
- * STORED value (not just Firecrawl's prior snapshot) — identical semantics to the
- * cron — and only flag genuine differences.
+ * The monitor runs in cheap MARKDOWN mode (1 credit/scrape) with a goal, so each
+ * check only detects "did this card's page change?". When the goal-judge flags a
+ * MEANINGFUL change, this webhook re-extracts the CURRENT offer from that one
+ * page (Firecrawl + Haiku, via extractCardBonusFromUrl) and compares it to our
+ * STORED value — so the expensive extraction runs on the rare change, not daily
+ * across the whole set. Same content_hash as the cron => no duplicate signals.
  *
  * Auth: Firecrawl is configured to send `Authorization: Bearer
  * ${FIRECRAWL_WEBHOOK_SECRET}`; we reject anything else.
@@ -16,6 +17,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/utils/supabase/server'
 import type { CardBonusSignal } from '@/utils/integrity/scanCardBonuses'
+import { extractCardBonusFromUrl } from '@/utils/integrity/scanCardBonuses'
 import { signalContentHash, persistCardBonusSignals, emailFreshSignals } from '@/utils/integrity/cardBonusSignals'
 
 export const dynamic = 'force-dynamic'
@@ -26,7 +28,6 @@ interface MonitorPage {
   status: 'same' | 'new' | 'changed' | 'removed' | 'error'
   isMeaningful?: boolean
   judgment?: { confidence?: 'high' | 'med' | 'low' }
-  snapshot?: { json?: { bonus_amount?: number | null; spend_required_usd?: number | null; currency?: string | null } }
 }
 
 export async function POST(request: Request) {
@@ -46,14 +47,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: 'bad json' }, { status: 400 })
   }
 
-  // We only act on per-page events; check.completed is acknowledged and ignored.
+  // Only act on per-page events; check.completed is acknowledged and ignored.
   if (body.type !== 'monitor.page') return NextResponse.json({ ok: true, ignored: body.type })
 
-  const pages = (body.data ?? []).filter((p) => p.status === 'changed' && p.snapshot?.json)
+  // Re-extract only pages the goal-judge flagged as a MEANINGFUL change (skip
+  // cosmetic churn). isMeaningful===false means the judge ruled it noise.
+  const pages = (body.data ?? []).filter((p) => p.status === 'changed' && p.isMeaningful !== false)
   if (!pages.length) return NextResponse.json({ ok: true, changed: 0 })
 
   const supabase = createAdminClient()
   const signals: CardBonusSignal[] = []
+  let reextracted = 0
 
   for (const page of pages) {
     // Map the URL back to the one card that owns it (shared comparison-page URLs
@@ -68,10 +72,13 @@ export async function POST(request: Request) {
     const c = Array.isArray(row.credit_cards) ? row.credit_cards[0] : row.credit_cards
     if (!c || !c.is_active || c.status !== 'active') continue
 
-    const detectedAmount = page.snapshot!.json!.bonus_amount ?? null
-    const detectedSpend = page.snapshot!.json!.spend_required_usd ?? null
-    if (detectedAmount == null) continue // need a number to flag; precision over recall
+    // Re-extract the current offer from this one changed page.
+    const extracted = await extractCardBonusFromUrl(page.url, c.name)
+    reextracted++
+    if (!extracted || !extracted.found || extracted.bonus_amount == null) continue
 
+    const detectedAmount = extracted.bonus_amount
+    const detectedSpend = extracted.spend_required_usd
     const storedAmount = row.bonus_amount as number | null
     const storedSpend = row.spend_required_usd as number | null
     const amountChanged = storedAmount != null && detectedAmount !== storedAmount
@@ -81,7 +88,7 @@ export async function POST(request: Request) {
     const parts: string[] = []
     if (amountChanged) parts.push(`bonus ${storedAmount?.toLocaleString()} -> ${detectedAmount.toLocaleString()}`)
     if (spendChanged) parts.push(`spend $${storedSpend?.toLocaleString()} -> $${detectedSpend?.toLocaleString()}`)
-    const conf = page.judgment?.confidence
+    const conf = extracted.confidence ?? page.judgment?.confidence
     signals.push({
       contentHash: signalContentHash(row.card_id as string, detectedAmount, detectedSpend),
       cardId: row.card_id as string,
@@ -101,6 +108,6 @@ export async function POST(request: Request) {
   const fresh = await persistCardBonusSignals(supabase, signals)
   await emailFreshSignals(fresh, 'Firecrawl Monitor')
 
-  console.log(`[firecrawl-monitor] changed=${pages.length} flagged=${signals.length} new=${fresh.length}`)
-  return NextResponse.json({ ok: true, changed: pages.length, flagged: signals.length, new: fresh.length })
+  console.log(`[firecrawl-monitor] changed=${pages.length} reextracted=${reextracted} flagged=${signals.length} new=${fresh.length}`)
+  return NextResponse.json({ ok: true, changed: pages.length, reextracted, flagged: signals.length, new: fresh.length })
 }
