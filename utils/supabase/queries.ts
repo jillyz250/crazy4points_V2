@@ -3177,6 +3177,8 @@ export interface Experience {
   requires_card: string[]
   country_restrictions: string[]
   featured_events: { title: string; detail?: string }[]
+  recent_highlights: { title: string; detail?: string }[]
+  highlights_updated_at: string | null
   official_url: string | null
   source_urls: string[]
   last_verified: string | null

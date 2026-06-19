@@ -33,6 +33,13 @@ async function md(text: string | null): Promise<string | null> {
   return marked.parse(text, { async: true })
 }
 
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+function fmtDate(iso: string): string {
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (!m) return iso
+  return `${MONTHS[parseInt(m[2], 10) - 1]} ${parseInt(m[3], 10)}, ${m[1]}`
+}
+
 function Section({ title, html }: { title: string; html: string | null }) {
   if (!html) return null
   return (
@@ -101,6 +108,37 @@ export default async function ExperienceDetailPage({
           </a>
         )}
       </header>
+
+      {/* Recently featured — a real snapshot of current storefront inventory,
+          honestly dated. Only some programs expose this publicly. */}
+      {exp.recent_highlights.length > 0 && (
+        <section className="rg-sub-section border-t border-[var(--color-border-soft)]">
+          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="font-display text-2xl text-[var(--color-primary)]">Recently featured</h2>
+            {exp.highlights_updated_at && (
+              <span className="font-ui text-xs uppercase tracking-wide text-[var(--color-text-secondary)]">
+                as of {fmtDate(exp.highlights_updated_at)}
+              </span>
+            )}
+          </div>
+          <ul className="flex flex-col gap-2">
+            {exp.recent_highlights.map((h, i) => (
+              <li
+                key={i}
+                className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-4 py-2.5"
+              >
+                <span className="font-body text-[var(--color-text-primary)]">{h.title}</span>
+                {h.detail && (
+                  <span className="font-ui text-sm font-medium text-[var(--color-primary)]">{h.detail}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 font-body text-sm text-[var(--color-text-secondary)]">
+            Inventory rotates constantly — these are a snapshot, not a live list. Check {exp.official_url ? 'the site' : 'the program'} for what&apos;s bookable right now.
+          </p>
+        </section>
+      )}
 
       <Section title={isRedeem ? 'What you can redeem for' : 'What access you get'} html={whatHtml} />
       <Section title="How it works" html={howHtml} />
