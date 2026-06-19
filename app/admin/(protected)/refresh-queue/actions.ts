@@ -34,6 +34,21 @@ export async function markVerifiedAction(formData: FormData): Promise<void> {
     case 'issuer':
       table = 'issuers'
       break
+    case 'transfer_partners':
+      // entity_id is the program id; this entity tracks the program's
+      // transfer-partner data freshness via programs.transfer_partners_verified_at
+      // (separate from programs.last_verified). Stamp that field so the row
+      // drops out of the queue.
+      {
+        const { error } = await supabase
+          .from('programs')
+          .update({ transfer_partners_verified_at: new Date().toISOString() })
+          .eq('id', entityId)
+        if (error) throw error
+        revalidatePath('/admin/refresh-queue')
+        revalidatePath('/admin')
+        return
+      }
     case 'hotel_properties_program':
       // entity_id here is actually the program_id; bump every property's
       // last_verified at once so the program drops off the queue. The
