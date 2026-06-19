@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
 import { fetchFirecrawl } from '@/utils/ai/firecrawl'
+import { welcomeBonusDisplayTotal } from './cardBonusSignals'
 
 /**
  * Welcome-bonus monitor. For each active card that has a current welcome bonus
@@ -36,6 +37,7 @@ interface MonitoredCard {
   bonus_currency: string | null
   stored_amount: number | null
   stored_spend: number | null
+  stored_tiers: Array<{ bonus_amount?: unknown }> | null
 }
 
 // Tiny stable hash (matches scanAnnouncements) for the dedup key.
@@ -118,7 +120,7 @@ export async function scanCardBonuses(supabase: SupabaseClient): Promise<CardBon
   // Monitored set: active cards with a current welcome bonus + a source_url.
   const { data: rows } = await supabase
     .from('credit_card_welcome_bonuses')
-    .select('card_id, bonus_amount, bonus_currency, spend_required_usd, source_url, credit_cards!inner(slug, name, is_active, status)')
+    .select('card_id, bonus_amount, bonus_currency, spend_required_usd, tiered_bonuses, source_url, credit_cards!inner(slug, name, is_active, status)')
     .eq('is_current', true)
     .not('source_url', 'is', null)
 
@@ -139,6 +141,7 @@ export async function scanCardBonuses(supabase: SupabaseClient): Promise<CardBon
     bonus_amount: number | null
     bonus_currency: string | null
     spend_required_usd: number | null
+    tiered_bonuses: Array<{ bonus_amount?: unknown }> | null
     source_url: string
     credit_cards: { slug: string; name: string; is_active: boolean; status: string } | { slug: string; name: string; is_active: boolean; status: string }[]
   }>) {
@@ -156,6 +159,7 @@ export async function scanCardBonuses(supabase: SupabaseClient): Promise<CardBon
       bonus_currency: r.bonus_currency,
       stored_amount: r.bonus_amount,
       stored_spend: r.spend_required_usd,
+      stored_tiers: r.tiered_bonuses,
     })
   }
 
@@ -190,8 +194,15 @@ export async function scanCardBonuses(supabase: SupabaseClient): Promise<CardBon
     const extracted = await extractBonusWithHaiku(client, card.card_name, res.markdown)
     if (!extracted || !extracted.found || !extracted.bonus_amount) continue
 
+    // Tiered cards store stored_amount = first tier; the page headline (and the
+    // extractor) read the "Up to X" total. Real change only if detected matches
+    // NEITHER the first tier NOR the headline total.
+    const storedTotal =
+      card.stored_amount != null ? welcomeBonusDisplayTotal(card.stored_amount, card.stored_tiers) : null
     const amountChanged =
-      card.stored_amount != null && extracted.bonus_amount !== card.stored_amount
+      card.stored_amount != null &&
+      extracted.bonus_amount !== card.stored_amount &&
+      extracted.bonus_amount !== storedTotal
     const spendChanged =
       extracted.spend_required_usd != null &&
       card.stored_spend != null &&

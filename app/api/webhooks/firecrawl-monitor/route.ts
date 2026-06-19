@@ -18,7 +18,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/utils/supabase/server'
 import type { CardBonusSignal } from '@/utils/integrity/scanCardBonuses'
 import { extractCardBonusFromUrl } from '@/utils/integrity/scanCardBonuses'
-import { signalContentHash, persistCardBonusSignals, emailFreshSignals } from '@/utils/integrity/cardBonusSignals'
+import { signalContentHash, persistCardBonusSignals, emailFreshSignals, welcomeBonusDisplayTotal } from '@/utils/integrity/cardBonusSignals'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
     // are excluded from the monitor's target list, so this is 1:1).
     const { data: row } = await supabase
       .from('credit_card_welcome_bonuses')
-      .select('card_id, bonus_amount, bonus_currency, spend_required_usd, source_url, credit_cards!inner(slug, name, is_active, status)')
+      .select('card_id, bonus_amount, bonus_currency, spend_required_usd, tiered_bonuses, source_url, credit_cards!inner(slug, name, is_active, status)')
       .eq('is_current', true)
       .eq('source_url', page.url)
       .maybeSingle()
@@ -81,7 +81,11 @@ export async function POST(request: Request) {
     const detectedSpend = extracted.spend_required_usd
     const storedAmount = row.bonus_amount as number | null
     const storedSpend = row.spend_required_usd as number | null
-    const amountChanged = storedAmount != null && detectedAmount !== storedAmount
+    // Tiered cards store bonus_amount = first tier, but the page headline (and
+    // the extractor) read the "Up to X" total. Treat a detected value as a real
+    // change only if it matches NEITHER the first tier NOR the headline total.
+    const storedTotal = storedAmount != null ? welcomeBonusDisplayTotal(storedAmount, row.tiered_bonuses as Array<{ bonus_amount?: unknown }> | null) : null
+    const amountChanged = storedAmount != null && detectedAmount !== storedAmount && detectedAmount !== storedTotal
     const spendChanged = detectedSpend != null && storedSpend != null && detectedSpend !== storedSpend
     if (!amountChanged && !spendChanged) continue
 

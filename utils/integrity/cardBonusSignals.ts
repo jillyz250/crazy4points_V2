@@ -21,6 +21,31 @@ export function signalContentHash(cardId: string, amount: number | null, spend: 
 }
 
 /**
+ * The "Up to X" headline total for a welcome bonus = bonus_amount (first tier)
+ * plus any additional tiers, de-duping one echo of the main amount. Mirrors the
+ * card-page formatter + gatherElevatedBonuses. Tiered cards store bonus_amount =
+ * first tier, but the page headline (and the extractor) read this total — so the
+ * monitor must compare a detected value against BOTH to avoid false flags.
+ */
+export function welcomeBonusDisplayTotal(
+  bonusAmount: number,
+  tiers: Array<{ bonus_amount?: unknown }> | null | undefined,
+): number {
+  let extras = 0
+  let echoSeen = false
+  for (const t of Array.isArray(tiers) ? tiers : []) {
+    const amt = typeof t?.bonus_amount === 'number' ? t.bonus_amount : NaN
+    if (!Number.isFinite(amt)) continue
+    if (!echoSeen && amt === bonusAmount) {
+      echoSeen = true
+      continue
+    }
+    extras += amt
+  }
+  return bonusAmount + extras
+}
+
+/**
  * Upsert signals (new rows inserted, seen rows bump last_seen_at) and return the
  * ones that are genuinely NEW (so callers email only those).
  */
