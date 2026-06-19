@@ -203,7 +203,11 @@ export async function scanCardBonuses(supabase: SupabaseClient): Promise<CardBon
       card.stored_amount != null &&
       extracted.bonus_amount !== card.stored_amount &&
       extracted.bonus_amount !== storedTotal
+    // Spend threshold is ambiguous on tiered cards (the extractor may read the
+    // first-tier minimum or the combined spend), so only trust it on flat cards.
+    const hasTiers = Array.isArray(card.stored_tiers) && card.stored_tiers.length > 0
     const spendChanged =
+      !hasTiers &&
       extracted.spend_required_usd != null &&
       card.stored_spend != null &&
       extracted.spend_required_usd !== card.stored_spend

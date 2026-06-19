@@ -84,9 +84,13 @@ export async function POST(request: Request) {
     // Tiered cards store bonus_amount = first tier, but the page headline (and
     // the extractor) read the "Up to X" total. Treat a detected value as a real
     // change only if it matches NEITHER the first tier NOR the headline total.
-    const storedTotal = storedAmount != null ? welcomeBonusDisplayTotal(storedAmount, row.tiered_bonuses as Array<{ bonus_amount?: unknown }> | null) : null
+    const tiers = row.tiered_bonuses as Array<{ bonus_amount?: unknown }> | null
+    const hasTiers = Array.isArray(tiers) && tiers.length > 0
+    const storedTotal = storedAmount != null ? welcomeBonusDisplayTotal(storedAmount, tiers) : null
     const amountChanged = storedAmount != null && detectedAmount !== storedAmount && detectedAmount !== storedTotal
-    const spendChanged = detectedSpend != null && storedSpend != null && detectedSpend !== storedSpend
+    // Spend threshold is ambiguous on tiered cards (the extractor may read the
+    // first-tier minimum or the combined spend), so only trust it on flat cards.
+    const spendChanged = !hasTiers && detectedSpend != null && storedSpend != null && detectedSpend !== storedSpend
     if (!amountChanged && !spendChanged) continue
 
     const parts: string[] = []
