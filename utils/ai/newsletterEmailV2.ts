@@ -233,7 +233,12 @@ function renderElevatedBonuses(items: ElevatedBonusItem[] | null, origin: string
   const rows = items
     .map((it) => {
       const url = `${origin}${it.link_url}`
-      const newAmt = `${it.is_tiered ? 'Up to ' : ''}${fmt(it.current_amount)}`
+      // Cash-back cards store a USD currency (USD_cash_back / USD_cashback); render
+      // those as "$1,000" with no currency suffix instead of "1,000 USD_cash_back".
+      const isUsd = /^USD/i.test(it.currency)
+      const fmtAmt = (n: number) => (isUsd ? `$${fmt(n)}` : fmt(n))
+      const newAmt = `${it.is_tiered ? 'Up to ' : ''}${fmtAmt(it.current_amount)}`
+      const currencySuffix = isUsd ? '' : ` ${it.currency}`
       const spend = it.spend_required_usd
         ? ` after $${fmt(it.spend_required_usd)}${it.spend_window_label ? ` in ${it.spend_window_label}` : ''}`
         : ''
@@ -243,8 +248,8 @@ function renderElevatedBonuses(items: ElevatedBonusItem[] | null, origin: string
       return `
         <p style="margin:0 0 12px;font-family:${FONT_BODY};font-size:15px;line-height:1.45;color:${BODY};">
           <a href="${url}" style="color:${LINK_BLUE};text-decoration:underline;font-weight:600;">${esc(it.card_name)}</a>
-          <span> — <strong>${esc(newAmt)} ${esc(it.currency)}</strong>${esc(spend)}</span>
-          <span style="color:${MUTED};font-size:13px;"> (normally ${fmt(it.baseline_amount)})</span>
+          <span> — <strong>${esc(newAmt)}${esc(currencySuffix)}</strong>${esc(spend)}</span>
+          <span style="color:${MUTED};font-size:13px;"> (normally ${esc(fmtAmt(it.baseline_amount))})</span>
           ${deadline}
         </p>`
     })
