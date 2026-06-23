@@ -59,6 +59,7 @@ async function loadStats() {
     tokenCandidates,
     bonusSignals,
     changeSignals,
+    proseReview,
   ] = await Promise.all([
     // Match the /admin/drafts "Needs review" chip exactly: needs_review variants
     // that are NOT currently snoozed (snoozed-but-not-woken live under their own
@@ -80,6 +81,7 @@ async function loadStats() {
     countHardcodedHits(supabase).catch(() => 0),
     supabase.from('card_bonus_signals').select('id', { count: 'exact', head: true }).eq('status', 'new'),
     supabase.from('change_signals').select('id', { count: 'exact', head: true }).eq('status', 'new'),
+    supabase.from('credit_cards').select('id', { count: 'exact', head: true }).not('good_to_know_review_at', 'is', null),
   ])
 
   return {
@@ -95,6 +97,7 @@ async function loadStats() {
     tokenCandidates,
     bonusSignals: bonusSignals.count ?? 0,
     changeSignals: changeSignals.count ?? 0,
+    proseReview: proseReview.count ?? 0,
   }
 }
 
@@ -124,6 +127,13 @@ export default async function AdminDashboard() {
       tone: stats.bonusSignals > 0 ? 'warning' : 'neutral',
       href: '/admin/card-bonus-signals',
       hint: stats.bonusSignals > 0 ? "cards whose live SUB changed" : 'all current',
+    },
+    {
+      label: 'Prose to re-check',
+      value: stats.proseReview,
+      tone: stats.proseReview > 0 ? 'warning' : 'neutral',
+      href: '/admin/card-bonus-signals',
+      hint: stats.proseReview > 0 ? 'bonus changed - verify good_to_know' : 'all clear',
     },
     {
       label: 'Transfer-data changes',
