@@ -30,6 +30,6 @@ async function handle(request: Request) {
 
   const supabase = createAdminClient()
   const result = await sweepTriagedIntel(supabase)
-  console.log(`[intel-triage-sweep] rejectedCleared=${result.rejectedCleared} expiredArchived=${result.expiredArchived} errors=${result.errors}`)
+  console.log(`[intel-triage-sweep] rejectedCleared=${result.rejectedCleared} expiredArchived=${result.expiredArchived} newsletterIdeaArchived=${result.newsletterIdeaArchived} errors=${result.errors}`)
   return NextResponse.json(result, { status: result.ok ? 200 : 500 })
 }
