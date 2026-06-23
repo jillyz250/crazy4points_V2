@@ -9,6 +9,7 @@
  * context as regenerates.
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { isBonusActive } from '@/utils/programs/transferBonus'
 
 export interface FilledGap {
   field: string
@@ -56,7 +57,7 @@ function buildProgramSection(p: ProgramRow): string | null {
         const slug = typeof r.from_slug === 'string' ? r.from_slug : '?'
         const ratio = typeof r.ratio === 'string' ? r.ratio : '?'
         const notes = typeof r.notes === 'string' ? ` — ${r.notes}` : ''
-        const bonus = r.bonus_active === true ? '  🔥 BONUS ACTIVE' : ''
+        const bonus = isBonusActive(r) ? '  🔥 BONUS ACTIVE' : ''
         return `- ${slug} → ${ratio}${notes}${bonus}`
       })
       .join('\n')

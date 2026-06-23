@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Program, Alert, TransferPartnerRow } from '@/utils/supabase/queries'
+import { isBonusActive } from '@/utils/programs/transferBonus'
 
 export type EarnSortMode = 'fastest' | 'cheapest' | 'easiest'
 
@@ -101,7 +102,7 @@ export async function getEarnPathOptions(
         fromProgramSlug: tp.from_slug,
         ratio: tp.ratio ?? null,
         notes: tp.notes ?? null,
-        bonusActive: tp.bonus_active ?? null,
+        bonusActive: isBonusActive(tp),
       })
     }
   }

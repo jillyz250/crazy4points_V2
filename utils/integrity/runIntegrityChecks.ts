@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { TransferPartnerRow } from '@/utils/supabase/queries'
+import { bonusDaysRemaining } from '@/utils/programs/transferBonus'
 
 /**
  * Deterministic data-integrity checks for the program/transfer graph.
@@ -154,6 +155,44 @@ async function checkGoodToKnowReview(supabase: SupabaseClient): Promise<Integrit
   }))
 }
 
+/**
+ * Transfer-bonus expiry heads-up. Bonus badges self-hide once their
+ * bonus_end_date passes (see isBonusActive), so this is detection-only:
+ *  - 'transfer_bonus_expired' (low): flag still true but the date passed -
+ *    the badge is already gone; this just nudges a DB cleanup.
+ *  - 'transfer_bonus_expiring' (low): ends within 3 days - your window to
+ *    extend the date if the promo got prolonged, before it auto-hides.
+ */
+async function checkTransferBonusExpiry(supabase: SupabaseClient): Promise<IntegrityFinding[]> {
+  const { data } = await supabase
+    .from('programs')
+    .select('slug, transfer_partners_outbound')
+    .not('transfer_partners_outbound', 'is', null)
+  const out: IntegrityFinding[] = []
+  for (const p of (data ?? []) as ProgramRow[]) {
+    for (const row of p.transfer_partners_outbound ?? []) {
+      const days = bonusDaysRemaining(row)
+      if (days === null) continue
+      if (days < 0) {
+        out.push({
+          check: 'transfer_bonus_expired',
+          severity: 'low',
+          programSlug: p.slug,
+          detail: `Bonus flag for "${row.from_slug}" is still set true but ended ${-days} day(s) ago (${row.bonus_end_date}). Badge already hidden; clear the flag when convenient.`,
+        })
+      } else if (days <= 3) {
+        out.push({
+          check: 'transfer_bonus_expiring',
+          severity: 'low',
+          programSlug: p.slug,
+          detail: `Bonus for "${row.from_slug}" ends in ${days} day(s) (${row.bonus_end_date}) and will auto-hide after. Extend the end date if the promo was prolonged.`,
+        })
+      }
+    }
+  }
+  return out
+}
+
 export async function runIntegrityChecks(supabase: SupabaseClient): Promise<IntegrityFinding[]> {
   const { data, error } = await supabase
     .from('programs')
@@ -275,6 +314,9 @@ export async function runIntegrityChecks(supabase: SupabaseClient): Promise<Inte
   // change may have left the prose quoting an old figure). Set by the Apply
   // flow / re-extract; cleared when the editor next saves the prose.
   findings.push(...(await checkGoodToKnowReview(supabase)))
+
+  // CHECK: transfer-bonus flags expiring soon / past their end date.
+  findings.push(...(await checkTransferBonusExpiry(supabase)))
 
   // Sort: high -> med -> low, then by check, then slug.
   const rank: Record<IntegritySeverity, number> = { high: 0, med: 1, low: 2 }

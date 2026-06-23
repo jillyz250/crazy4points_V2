@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { TransferPartnerRow, TransferPartnerTier } from '@/utils/supabase/queries'
+import { isBonusActive } from '@/utils/programs/transferBonus'
 
 /**
  * Renders the structured transfer_partners JSONB as a clean responsive table.
@@ -195,12 +196,13 @@ export default function TransferPartnersTable({
         <tbody>
           {rows.map((row, i) => {
             const name = programNameBySlug.get(row.from_slug) ?? titleCaseSlug(row.from_slug)
+            const bonusLive = isBonusActive(row)
             return (
               <tr
                 key={`${row.from_slug}-${i}`}
                 style={{
                   borderBottom: i === rows.length - 1 ? 'none' : '1px solid var(--color-border-soft)',
-                  background: row.bonus_active ? 'rgba(212, 175, 55, 0.08)' : 'transparent',
+                  background: bonusLive ? 'rgba(212, 175, 55, 0.08)' : 'transparent',
                 }}
               >
                 <td style={{ padding: '0.75rem', fontWeight: 500, verticalAlign: 'top', wordBreak: 'break-word' }}>
@@ -210,7 +212,7 @@ export default function TransferPartnersTable({
                   >
                     {name}
                   </Link>
-                  {row.bonus_active && (
+                  {bonusLive && (
                     <span
                       style={{
                         marginLeft: '0.5rem',
