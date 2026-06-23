@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { marked } from 'marked'
+import { renderProseMarkdown } from '@/lib/blog/sanitize'
 import { createAdminClient } from '@/utils/supabase/server'
 import { getExperienceBySlug } from '@/utils/supabase/queries'
 
@@ -30,7 +30,7 @@ const MODE_LABEL: Record<string, string> = {
 
 async function md(text: string | null): Promise<string | null> {
   if (!text) return null
-  return marked.parse(text, { async: true })
+  return renderProseMarkdown(text)
 }
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']

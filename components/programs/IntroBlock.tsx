@@ -1,4 +1,4 @@
-import { marked } from 'marked'
+import { renderProseMarkdown } from '@/lib/blog/sanitize'
 
 /**
  * Standalone intro block on /programs/[slug]. Pulled out of
@@ -15,7 +15,7 @@ export default async function IntroBlock({
   intro: string | null
 }) {
   if (!intro?.trim()) return null
-  const html = await marked.parse(intro, { async: true })
+  const html = await renderProseMarkdown(intro)
   return (
     <section
       id="intro"

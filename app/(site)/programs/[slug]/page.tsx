@@ -17,6 +17,7 @@ import { isPublishableTransferRow } from '@/components/programs/TransferPartners
 import IntroBlock from '@/components/programs/IntroBlock'
 import { getActivePromosForProgram, type PromoReward } from '@/utils/supabase/promoQueries'
 import { expandIntroTokens } from '@/utils/programs/expandIntroTokens'
+import { safeJsonLd } from '@/lib/jsonLd'
 
 // Editorial content; rarely changes intra-day. Admin publish flow can call
 // revalidatePath() to bust this cache on demand, so 1 hour is safe.
@@ -299,7 +300,7 @@ export default async function ProgramPage({
     <section className="rg-major-section !pt-8">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
       />
       <div className="rg-container">
 
