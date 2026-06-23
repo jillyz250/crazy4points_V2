@@ -29,14 +29,21 @@ export function signalContentHash(cardId: string, amount: number | null, spend: 
  */
 export function welcomeBonusDisplayTotal(
   bonusAmount: number,
-  tiers: Array<{ bonus_amount?: unknown }> | null | undefined,
+  tiers: Array<{ bonus_amount?: unknown; spend_usd?: unknown }> | null | undefined,
+  baseSpend?: number | null,
 ): number {
   let extras = 0
   let echoSeen = false
   for (const t of Array.isArray(tiers) ? tiers : []) {
     const amt = typeof t?.bonus_amount === 'number' ? t.bonus_amount : NaN
     if (!Number.isFinite(amt)) continue
-    if (!echoSeen && amt === bonusAmount) {
+    // The first tier usually ECHOES the base offer (same amount + same spend);
+    // dedup it once. Matching amount ALONE wrongly swallowed a legitimate tier
+    // coincidentally equal to the base, so when we know the base spend AND the
+    // tier records its own spend, require the spend to match too.
+    const spend = typeof t?.spend_usd === 'number' ? t.spend_usd : null
+    const isEcho = amt === bonusAmount && (baseSpend == null || spend == null || spend === baseSpend)
+    if (!echoSeen && isEcho) {
       echoSeen = true
       continue
     }

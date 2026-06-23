@@ -37,7 +37,7 @@ interface MonitoredCard {
   bonus_currency: string | null
   stored_amount: number | null
   stored_spend: number | null
-  stored_tiers: Array<{ bonus_amount?: unknown }> | null
+  stored_tiers: Array<{ bonus_amount?: unknown; spend_usd?: unknown }> | null
 }
 
 // Tiny stable hash (matches scanAnnouncements) for the dedup key.
@@ -198,7 +198,7 @@ export async function scanCardBonuses(supabase: SupabaseClient): Promise<CardBon
     // extractor) read the "Up to X" total. Real change only if detected matches
     // NEITHER the first tier NOR the headline total.
     const storedTotal =
-      card.stored_amount != null ? welcomeBonusDisplayTotal(card.stored_amount, card.stored_tiers) : null
+      card.stored_amount != null ? welcomeBonusDisplayTotal(card.stored_amount, card.stored_tiers, card.stored_spend) : null
     const amountChanged =
       card.stored_amount != null &&
       extracted.bonus_amount !== card.stored_amount &&
