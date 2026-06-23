@@ -162,9 +162,9 @@ export default async function AdminDashboard() {
     {
       label: 'Open content ideas',
       value: stats.openIdeas,
-      tone: 'accent',
+      tone: stats.openIdeas > 250 ? 'warning' : 'accent',
       href: '/admin/content-ideas',
-      hint: 'new + queued + drafted',
+      hint: stats.openIdeas > 250 ? 'backing up - sweep may be stalled' : 'fresh ideas (stale ones auto-bank after 30d)',
     },
     {
       label: 'Active subscribers',
