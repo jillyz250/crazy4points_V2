@@ -1,6 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { TransferPartnerRow } from '@/utils/supabase/queries'
 import { bonusDaysRemaining } from '@/utils/programs/transferBonus'
+import { diagnoseBucketTypicalCost } from '@/lib/awardChart.compute'
+import type { AwardChartProgram, Cabin } from '@/lib/awardChart'
+import type { RouteBucket } from '@/lib/airports'
 
 /**
  * Deterministic data-integrity checks for the program/transfer graph.
@@ -251,6 +254,60 @@ async function checkCronHealth(supabase: SupabaseClient): Promise<IntegrityFindi
   return out
 }
 
+/**
+ * Award-chart coverage health. A structured chart "claims" to cover a partner on
+ * a bucket when the partner is in chart.partners AND the bucket is in the chart's
+ * explicit applies_to_buckets. We flag a claim that prices in NO cabin — the
+ * chart says it covers the route but the engine returns nothing (an incomplete
+ * chart, or an over-broad applies_to_buckets). Aggregating to (partner,bucket)
+ * — not per-cabin — avoids the premium_economy-gap false-positive flood (4,318
+ * cabin misses collapse to ~21 real (partner,bucket) signals). Detection only.
+ */
+const HEALTH_CABINS: Cabin[] = ['economy', 'premium_economy', 'business', 'first']
+
+async function checkAwardChartHealth(supabase: SupabaseClient): Promise<IntegrityFinding[]> {
+  const { data } = await supabase
+    .from('programs')
+    .select('slug, award_chart_structured')
+    .not('award_chart_structured', 'is', null)
+  const out: IntegrityFinding[] = []
+  for (const p of (data ?? []) as Array<{ slug: string; award_chart_structured: AwardChartProgram }>) {
+    const program = p.award_chart_structured
+    if (!program?.charts?.length) continue
+
+    // Union of EXPLICIT (partner, bucket) coverage claims across the program's
+    // charts. Charts with no applies_to_buckets make no explicit claim → skip
+    // (testing every bucket there is too speculative to be a useful signal).
+    const claims = new Set<string>()
+    for (const chart of program.charts) {
+      const buckets = (chart as { applies_to_buckets?: RouteBucket[] }).applies_to_buckets
+      if (!buckets?.length) continue
+      const partners = Object.keys((chart as { partners?: Record<string, unknown> }).partners ?? {})
+      for (const partner of partners) for (const bucket of buckets) claims.add(`${partner}|${bucket}`)
+    }
+
+    const misses: string[] = []
+    for (const claim of claims) {
+      const [partner, bucket] = claim.split('|')
+      const pricesAny = HEALTH_CABINS.some(
+        (c) => diagnoseBucketTypicalCost(program, partner, bucket as RouteBucket, c).kind === 'computed',
+      )
+      if (!pricesAny) misses.push(`${partner}/${bucket}`)
+    }
+    if (misses.length > 0) {
+      out.push({
+        check: 'award_chart_miss',
+        severity: 'med',
+        programSlug: p.slug,
+        href: `/admin/programs/${p.slug}`,
+        label: p.slug,
+        detail: `${misses.length} (partner×bucket) combo(s) the chart claims to cover but prices in NO cabin: ${misses.slice(0, 6).join(', ')}${misses.length > 6 ? ` (+${misses.length - 6} more)` : ''}. Either the chart is incomplete or applies_to_buckets is too broad.`,
+      })
+    }
+  }
+  return out
+}
+
 export async function runIntegrityChecks(supabase: SupabaseClient): Promise<IntegrityFinding[]> {
   const { data, error } = await supabase
     .from('programs')
@@ -378,6 +435,9 @@ export async function runIntegrityChecks(supabase: SupabaseClient): Promise<Inte
 
   // CHECK: cron / scraper health (silent failures).
   findings.push(...(await checkCronHealth(supabase)))
+
+  // CHECK: award-chart coverage claims that price nothing.
+  findings.push(...(await checkAwardChartHealth(supabase)))
 
   // Sort: high -> med -> low, then by check, then slug.
   const rank: Record<IntegritySeverity, number> = { high: 0, med: 1, low: 2 }
