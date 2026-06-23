@@ -1,14 +1,13 @@
-#!/usr/bin/env node
 /**
- * Tests for lib/awardChart.compute.ts — all 5 chart types + multi-chart walker.
+ * Award-chart engine REGRESSION test - 24 hand-verified cases against the REAL
+ * TS engine (lib/awardChart.compute), replacing the JS mirror that reimplemented
+ * the engine (a drift hazard: it could pass while the real engine broke).
  *
- * Self-contained: duplicates the compute logic in pure JS (same algorithm as
- * the TS file) and runs ~25 hand-verified test routes covering every branch.
- *
- * Run: node scripts/award-chart-compute-tests.mjs
+ * Run: npx tsx scripts/award-chart-engine-test.ts
  */
-
-// ─── Inline airport set ───────────────────────────────────────────────────
+/* eslint-disable */
+// @ts-nocheck
+import { computeAwardCost } from '../lib/awardChart.compute'
 
 const AIRPORTS = {
   LHR: { iata: 'LHR', lat: 51.4700, lng: -0.4543,  region: 'europe',     country_code: 'GB' },
@@ -25,161 +24,7 @@ const AIRPORTS = {
   GRU: { iata: 'GRU', lat:-23.4356, lng: -46.4731, region: 'south-america',country_code: 'BR' },
 }
 
-function distanceMiles(a, b) {
-  const toRad = (d) => (d * Math.PI) / 180
-  const R = 3958.8
-  const dLat = toRad(b.lat - a.lat)
-  const dLng = toRad(b.lng - a.lng)
-  const lat1 = toRad(a.lat)
-  const lat2 = toRad(b.lat)
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2
-  return Math.round(2 * R * Math.asin(Math.sqrt(h)))
-}
 
-function isUS(a) { return a.country_code === 'US' }
-
-function mapRouteToBucket(a, b) {
-  if (isUS(a) && isUS(b)) {
-    const d = distanceMiles(a, b)
-    if (d < 700)  return 'us-short'
-    if (d < 2500) return 'us-medium'
-    return 'us-long'
-  }
-  if (isUS(a) || isUS(b)) {
-    const intl  = isUS(a) ? b : a
-    const usSide = isUS(a) ? a : b
-    if (intl.region === 'europe')       return usSide.lng < -100 ? 'us-eu-west' : 'us-eu-east'
-    if (intl.region === 'middle-east')  return 'us-me-india'
-    if (intl.region === 'south-america')return 'us-samerica'
-    if (intl.region === 'japan-korea')  return 'us-japan'
-    if (intl.region === 'se-asia')      return 'us-se-asia'
-  }
-  return null
-}
-
-// ─── Pure-JS compute (mirrors lib/awardChart.compute.ts) ─────────────────
-
-function inPeakWindow(cal, d) {
-  if (!d || !cal?.length) return false
-  return cal.some((w) => d >= w.start && d <= w.end)
-}
-function matchOverride(overrides, origin, dest, cabin, season) {
-  if (!overrides?.length) return null
-  for (const o of overrides) {
-    const fwd  = o.from === origin.iata && o.to === dest.iata
-    const back = o.bidirectional && o.from === dest.iata && o.to === origin.iata
-    if (!(fwd || back)) continue
-    if (o.cabin !== cabin) continue
-    if (o.season && season && o.season !== season) continue
-    return { miles: o.miles, typical: o.miles, exact: true, source: 'override', season: o.season ?? season, notes: o.note }
-  }
-  return null
-}
-function fmtKilo(n) { return n >= 1000 ? `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}k` : String(n) }
-function bandLabel(prevMax, max, cost) { return `${(prevMax + 1).toLocaleString()}–${max.toLocaleString()} mi @ ${fmtKilo(cost)}` }
-
-function computeDistance(chart, partnerSlug, origin, dest, cabin) {
-  const p = chart.partners[partnerSlug]; if (!p) return null
-  const d = distanceMiles(origin, dest); let prev = 0
-  for (const b of p.bands) {
-    if (d <= b.max_miles) {
-      const c = b.cabin[cabin]; if (c == null) return null
-      const final = chart.rt_only ? Math.round(c * (chart.one_way_multiplier ?? 0.5)) : c
-      return { miles: final, typical: final, exact: true, source: 'chart', band: bandLabel(prev, b.max_miles, final),
-        notes: chart.rt_only ? 'Round-trip-only chart; shown as one-way equivalent.' : undefined }
-    }
-    prev = b.max_miles
-  }
-  return null
-}
-function computeZone(chart, partnerSlug, origin, dest, cabin) {
-  const p = chart.partners[partnerSlug]; if (!p) return null
-  const bucket = mapRouteToBucket(origin, dest); if (!bucket) return null
-  const c = p.matrix[bucket]?.[cabin]; if (c == null) return null
-  return { miles: c, typical: c, exact: true, source: 'chart', band: bucket }
-}
-function computeDpm(chart, partnerSlug, origin, dest, cabin, opts) {
-  const p = chart.partners[partnerSlug]; if (!p) return null
-  const cal = p.peak_calendar ?? chart.peak_calendar
-  const season = inPeakWindow(cal, opts?.travelDate) ? 'peak' : 'off_peak'
-  const d = distanceMiles(origin, dest); let prev = 0
-  for (const b of p.bands) {
-    if (d <= b.max_miles) {
-      const c = b[season]?.[cabin]; if (c == null) return null
-      const mult = p.multiplier ?? 1.0
-      const final = Math.round(c * mult)
-      return { miles: final, typical: final, exact: true, source: 'chart', season, band: bandLabel(prev, b.max_miles, final) }
-    }
-    prev = b.max_miles
-  }
-  return null
-}
-function computeDynamic(chart, partnerSlug, origin, dest, cabin) {
-  const p = chart.partners[partnerSlug]; if (!p) return null
-  if (p.ranges_by_distance?.length) {
-    const d = distanceMiles(origin, dest)
-    for (const b of p.ranges_by_distance) {
-      if (d <= b.max_miles) {
-        const pct = b[cabin]; if (!pct) return null
-        return { miles: { low: pct.p10, high: pct.p90 }, typical: pct.p50, exact: false, source: 'dynamic_estimate', band: `≤${b.max_miles.toLocaleString()} mi` }
-      }
-    }
-  }
-  if (p.ranges_by_bucket) {
-    const bucket = mapRouteToBucket(origin, dest); if (!bucket) return null
-    const pct = p.ranges_by_bucket[bucket]?.[cabin]; if (!pct) return null
-    return { miles: { low: pct.p10, high: pct.p90 }, typical: pct.p50, exact: false, source: 'dynamic_estimate', band: bucket, notes: 'Dynamic pricing — expect the typical figure on most days.' }
-  }
-  return null
-}
-function computeFixedRoute(chart, origin, dest, cabin) {
-  for (const r of chart.routes) {
-    const fwd  = r.from === origin.iata && r.to === dest.iata
-    const back = r.bidirectional && r.from === dest.iata && r.to === origin.iata
-    if (!(fwd || back)) continue
-    const c = r.cabin[cabin]; if (c == null) return null
-    return { miles: c, typical: c, exact: true, source: 'chart' }
-  }
-  return null
-}
-function chartCoversPartner(chart, partnerSlug) {
-  if (chart.type === 'fixed_route') return chart.routes.length > 0
-  return partnerSlug in chart.partners
-}
-function chartAppliesToBucket(chart, bucket) {
-  const allowed = chart.applies_to_buckets
-  if (!allowed?.length) return true
-  if (!bucket) return false
-  return allowed.includes(bucket)
-}
-function computeOne(chart, partnerSlug, origin, dest, cabin, opts) {
-  const cal = 'peak_calendar' in chart ? chart.peak_calendar : undefined
-  const season = cal ? (inPeakWindow(cal, opts?.travelDate) ? 'peak' : 'off_peak') : undefined
-  const ov = matchOverride(chart.overrides, origin, dest, cabin, season)
-  if (ov) return ov
-  switch (chart.type) {
-    case 'distance':                return computeDistance(chart, partnerSlug, origin, dest, cabin)
-    case 'zone':                    return computeZone(chart, partnerSlug, origin, dest, cabin)
-    case 'distance_plus_modifiers': return computeDpm(chart, partnerSlug, origin, dest, cabin, opts)
-    case 'dynamic':                 return computeDynamic(chart, partnerSlug, origin, dest, cabin)
-    case 'fixed_route':             return computeFixedRoute(chart, origin, dest, cabin)
-  }
-}
-function computeAwardCost(program, partnerSlug, origin, dest, cabin, opts = {}) {
-  if (!program?.charts?.length) return null
-  const bucket = mapRouteToBucket(origin, dest)
-  for (const chart of program.charts) {
-    if (!chartCoversPartner(chart, partnerSlug)) continue
-    if (!chartAppliesToBucket(chart, bucket)) continue
-    const r = computeOne(chart, partnerSlug, origin, dest, cabin, opts)
-    if (r) return r
-  }
-  return null
-}
-
-// ─── Test fixtures ────────────────────────────────────────────────────────
-
-// 1. Pure distance (Etihad-like) — proves us-long Hawaii routes get correctly priced
 const ETIHAD_LIKE = {
   charts: [
     {
@@ -353,6 +198,7 @@ const UNITED_FINE = {
 
 // ─── Tests ────────────────────────────────────────────────────────────────
 
+
 const TESTS = [
   // 1-3: Distance (Etihad on AA) — THE BUG FIX
   { id: 1,  desc: 'Etihad/AA short Y',           program: ETIHAD_LIKE,    partner: 'american_airlines', from: 'JFK', to: 'BOS', cabin: 'economy',  expect: 4500 },
@@ -391,6 +237,7 @@ const TESTS = [
 ]
 
 // ─── Runner ───────────────────────────────────────────────────────────────
+
 
 function run() {
   console.log('\n=== Award Chart Compute — Phase 1 tests ===\n')
