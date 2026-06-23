@@ -182,7 +182,7 @@ export default async function AdminDashboard() {
       value: stats.tokenCandidates,
       tone: stats.tokenCandidates > 0 ? 'warning' : 'success',
       href: '/admin/tokens',
-      hint: stats.tokenCandidates > 0 ? 'hardcoded counts in copy' : 'all tokenized',
+      hint: stats.tokenCandidates > 0 ? 'untokenized partner counts' : 'all tokenized',
     },
     {
       label: 'Refresh queue',

@@ -17,8 +17,19 @@
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
 
+// Flag ONLY exact, hardcoded TRANSFER-PARTNER counts - the drift-prone kind the
+// token system (expandIntroTokens) can actually replace. Deliberately precise:
+// the old broad pattern produced a flood of false positives (58 hits, ~0 real) -
+// year fragments ("2025 partner"), ratios ("1:1 partner"), proper nouns
+// ("S7 Airlines"), "#1 hotel" rankings, and portfolio sizes ("8,500 properties"),
+// none of which are tokenizable. The (?<![\w:#]) guard kills digit/colon/#-prefixed
+// noise; requiring a "partner" noun excludes portfolio counts.
 const HARDCODED_COUNT_RE =
-  /(\d{1,3})\s+(airline|hotel|transfer\s+partner|partner|sweet[\s-]?spot|propert(?:y|ies)|card|tier|alliance|loyalty\s+program|member)s?\b/gi
+  /(?<![\w:#])(\d{1,3})\s+(?:(?:airline|hotel|loyalty\s+program|transfer)\s+)?partners?\b/gi
+
+// Hedged approximations ("over 90 partners", "around 18") are intentional, not
+// drift bugs - skip them so the tile only fires on exact hard claims.
+const APPROX_PREFIX_RE = /\b(?:over|around|about|roughly|nearly|more\s+than|up\s+to|at\s+least|approximately|~)\s*$/i
 
 export type HardcodedHit = {
   slug: string
@@ -68,6 +79,8 @@ function scanField(
   HARDCODED_COUNT_RE.lastIndex = 0
   let m: RegExpExecArray | null
   while ((m = HARDCODED_COUNT_RE.exec(text)) !== null) {
+    // Skip hedged approximations ("over 90 partners") - not a drift bug.
+    if (APPROX_PREFIX_RE.test(text.slice(Math.max(0, m.index - 15), m.index))) continue
     hits.push({
       slug,
       name,
