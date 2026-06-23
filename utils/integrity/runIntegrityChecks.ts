@@ -295,13 +295,17 @@ async function checkAwardChartHealth(supabase: SupabaseClient): Promise<Integrit
       if (!pricesAny) misses.push(`${partner}/${bucket}`)
     }
     if (misses.length > 0) {
+      // LOW severity: a claimed-but-unpriceable (partner,bucket) falls back to the
+      // stored cost cleanly - it's chart hygiene (incomplete bands OR an over-broad
+      // shared applies_to_buckets that claims buckets some partners don't serve),
+      // not a user-facing pricing error.
       out.push({
         check: 'award_chart_miss',
-        severity: 'med',
+        severity: 'low',
         programSlug: p.slug,
         href: `/admin/programs/${p.slug}`,
         label: p.slug,
-        detail: `${misses.length} (partner×bucket) combo(s) the chart claims to cover but prices in NO cabin: ${misses.slice(0, 6).join(', ')}${misses.length > 6 ? ` (+${misses.length - 6} more)` : ''}. Either the chart is incomplete or applies_to_buckets is too broad.`,
+        detail: `${misses.length} (partner×bucket) combo(s) the chart claims to cover but prices in NO cabin: ${misses.slice(0, 6).join(', ')}${misses.length > 6 ? ` (+${misses.length - 6} more)` : ''}. Likely an over-broad shared applies_to_buckets (carriers claimed on buckets they don't serve); falls back to stored cost.`,
       })
     }
   }
