@@ -43,7 +43,6 @@ const TILES: Tile[] = [
 
 async function loadStats() {
   const supabase = createAdminClient()
-  const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
   const nowIso = new Date().toISOString()
 
   const [
@@ -70,7 +69,18 @@ async function loadStats() {
       .select('id', { count: 'exact', head: true })
       .eq('status', 'needs_review')
       .or(`snoozed_until.is.null,snoozed_until.lte.${nowIso}`),
-    supabase.from('intel_items').select('id', { count: 'exact', head: true }).eq('processed', false).is('rejected_at', null).gte('created_at', dayAgo),
+    // Actionable intel backlog: open items still needing a human — exclude
+    // AI-rejected (the intel-triage-sweep auto-clears those after a 3-day grace),
+    // expired deals, and currently-snoozed items. NOT a 24h window (that hid the
+    // real backlog behind a 1-2 count).
+    supabase
+      .from('intel_items')
+      .select('id', { count: 'exact', head: true })
+      .eq('processed', false)
+      .is('rejected_at', null)
+      .or('triage_decision.is.null,triage_decision.in.(approved,newsletter_idea)')
+      .or(`expires_at.is.null,expires_at.gte.${nowIso}`)
+      .or(`snoozed_until.is.null,snoozed_until.lte.${nowIso}`),
     supabase.from('content_ideas').select('id', { count: 'exact', head: true }).in('status', ['new', 'queued', 'drafted']),
     supabase.from('subscribers').select('id', { count: 'exact', head: true }).eq('active', true),
     countUnresolvedSystemErrors(supabase),
@@ -143,11 +153,11 @@ export default async function AdminDashboard() {
       hint: stats.changeSignals > 0 ? 'newsroom scan: verify vs our data' : 'all reviewed',
     },
     {
-      label: 'Unprocessed intel (24h)',
+      label: 'Intel to triage',
       value: stats.unprocessedIntel,
-      tone: 'neutral',
+      tone: stats.unprocessedIntel > 0 ? 'warning' : 'neutral',
       href: '/admin/triage',
-      hint: 'auto-staged when high confidence',
+      hint: stats.unprocessedIntel > 0 ? 'open items needing a decision' : 'queue clear',
     },
     {
       label: 'Open content ideas',
