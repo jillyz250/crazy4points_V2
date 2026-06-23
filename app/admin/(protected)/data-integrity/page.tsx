@@ -70,7 +70,11 @@ export default async function DataIntegrityPage() {
                     </td>
                     <td style={{ padding: '0.625rem 0.875rem', fontFamily: 'var(--font-ui, monospace)' }}>{f.check}</td>
                     <td style={{ padding: '0.625rem 0.875rem' }}>
-                      {f.programSlug ? (
+                      {f.href ? (
+                        <a href={f.href} style={{ color: 'var(--color-primary, #6B2D8F)' }}>
+                          {f.label ?? f.programSlug ?? 'open'}
+                        </a>
+                      ) : f.programSlug ? (
                         <a href={`/programs/${f.programSlug}`} style={{ color: 'var(--color-primary, #6B2D8F)' }}>
                           {f.programSlug}
                         </a>

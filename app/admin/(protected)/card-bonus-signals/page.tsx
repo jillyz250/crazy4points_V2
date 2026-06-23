@@ -3,7 +3,7 @@ import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Card, CardBody } from '@/components/admin/ui/Card'
 import { Badge } from '@/components/admin/ui/Badge'
 import { EmptyState } from '@/components/admin/ui/EmptyState'
-import { applySignal, dismissSignal } from './actions'
+import { applySignal, dismissSignal, clearReview } from './actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,15 +34,25 @@ function fmt(n: number | null, cur: string | null): string {
   return `${n.toLocaleString()}${cur ? ` ${cur}` : ''}`
 }
 
+type ReviewCard = { id: string; slug: string; name: string | null; good_to_know_review_reason: string | null }
+
 export default async function CardBonusSignalsPage() {
   const supabase = createAdminClient()
-  const { data } = await supabase
-    .from('card_bonus_signals')
-    .select('*')
-    .eq('status', 'new')
-    .order('confidence', { ascending: true })
-    .order('last_seen_at', { ascending: false })
+  const [{ data }, { data: reviewData }] = await Promise.all([
+    supabase
+      .from('card_bonus_signals')
+      .select('*')
+      .eq('status', 'new')
+      .order('confidence', { ascending: true })
+      .order('last_seen_at', { ascending: false }),
+    supabase
+      .from('credit_cards')
+      .select('id, slug, name, good_to_know_review_reason')
+      .not('good_to_know_review_at', 'is', null)
+      .order('good_to_know_review_at', { ascending: true }),
+  ])
   const signals = (data ?? []) as Signal[]
+  const reviewCards = (reviewData ?? []) as ReviewCard[]
 
   return (
     <div>
@@ -50,6 +60,36 @@ export default async function CardBonusSignalsPage() {
         title="Welcome-bonus signals"
         description="Daily scan of each active card's welcome-bonus source page. Flags cards whose live sign-up bonus differs from our stored value. Detection only — Apply to write the detected value (and mark verified today), or Dismiss."
       />
+
+      {reviewCards.length > 0 && (
+        <div style={{ marginBottom: '1rem' }}>
+        <Card>
+          <CardBody>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <Badge tone="warning">prose review</Badge>
+              <strong>{reviewCards.length} card{reviewCards.length > 1 ? 's' : ''} need a good_to_know re-check</strong>
+            </div>
+            <p style={{ fontSize: '0.8125rem', color: 'var(--admin-text-muted)', margin: '0 0 0.75rem' }}>
+              The welcome-bonus data changed but the prose may still quote the old figure. Edit the prose (Save clears this), or Mark reviewed if it's already accurate.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {reviewCards.map((c) => (
+                <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-start', borderTop: '1px solid var(--admin-border, #f1f1f4)', paddingTop: '0.5rem' }}>
+                  <div style={{ flex: 1, minWidth: '16rem' }}>
+                    <a href={`/admin/cards/${c.slug}/extract`} style={{ fontWeight: 600, color: 'var(--color-primary, #6B2D8F)' }}>{c.name ?? c.slug}</a>
+                    <div style={{ fontSize: '0.8125rem', color: 'var(--admin-text-muted)', marginTop: '0.15rem' }}>{c.good_to_know_review_reason}</div>
+                  </div>
+                  <form action={clearReview}>
+                    <input type="hidden" name="card_id" value={c.id} />
+                    <button type="submit" className="admin-btn">Mark reviewed</button>
+                  </form>
+                </div>
+              ))}
+            </div>
+          </CardBody>
+        </Card>
+        </div>
+      )}
 
       {signals.length === 0 ? (
         <EmptyState title="🎉 All current" description="No card welcome-bonus discrepancies flagged. Every monitored card matches its source page." />

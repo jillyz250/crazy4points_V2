@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { assertAdmin } from '@/lib/auth/admin'
 import { createAdminClient } from '@/utils/supabase/server'
+import { flagGoodToKnowReviewIfStale, clearGoodToKnowReview } from '@/utils/cards/goodToKnowReviewFlag'
 
 /**
  * The welcome-bonus monitor is detection-only: it flags cards whose live sign-up
@@ -30,7 +31,7 @@ export async function applySignal(formData: FormData): Promise<void> {
   // re-extraction, which rebuilds the full tiered offer + archives history.
   const { data: cur } = await supabase
     .from('credit_card_welcome_bonuses')
-    .select('tiered_bonuses')
+    .select('tiered_bonuses, bonus_amount, spend_required_usd')
     .eq('card_id', sig.card_id)
     .eq('is_current', true)
     .maybeSingle()
@@ -57,8 +58,19 @@ export async function applySignal(formData: FormData): Promise<void> {
   // Keep the card's own freshness in sync so it reads as just-verified.
   await supabase.from('credit_cards').update({ last_verified: today }).eq('id', sig.card_id)
 
+  // The bonus DATA just changed; the good_to_know PROSE may still quote the old
+  // figure. Flag the card for a prose re-check (cleared on next good_to_know
+  // save) so we catch it now instead of waiting for the weekly Sonnet audit.
+  await flagGoodToKnowReviewIfStale(supabase, sig.card_id, {
+    oldAmount: cur?.bonus_amount ?? null,
+    newAmount: sig.detected_amount ?? cur?.bonus_amount ?? null,
+    oldSpend: cur?.spend_required_usd ?? null,
+    newSpend: sig.detected_spend ?? cur?.spend_required_usd ?? null,
+  })
+
   await supabase.from('card_bonus_signals').update({ status: 'applied' }).eq('id', id)
   revalidatePath('/admin/card-bonus-signals')
+  revalidatePath('/admin/data-integrity')
 }
 
 export async function dismissSignal(formData: FormData): Promise<void> {
@@ -68,4 +80,19 @@ export async function dismissSignal(formData: FormData): Promise<void> {
   const supabase = createAdminClient()
   await supabase.from('card_bonus_signals').update({ status: 'dismissed' }).eq('id', id)
   revalidatePath('/admin/card-bonus-signals')
+}
+
+/**
+ * Clear a card's good_to_know prose-review flag without editing the prose - for
+ * the case where the editor reviewed it and judged the prose still accurate (a
+ * false positive, e.g. the old figure was an incidental number, not the bonus).
+ */
+export async function clearReview(formData: FormData): Promise<void> {
+  await assertAdmin()
+  const cardId = String(formData.get('card_id') ?? '').trim()
+  if (!cardId) return
+  const supabase = createAdminClient()
+  await clearGoodToKnowReview(supabase, cardId)
+  revalidatePath('/admin/card-bonus-signals')
+  revalidatePath('/admin/data-integrity')
 }
