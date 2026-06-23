@@ -50,6 +50,22 @@ export type ScrapeBatchResult = {
   results: ScrapeReport[]
 }
 
+/**
+ * Legible error text. Supabase/Postgrest throw plain objects, so `String(err)`
+ * yields "[object Object]" — which is exactly what corrupted scrape_runs.error_log
+ * and hid the real promo-scraper failure for weeks. Pull a message off Errors,
+ * stringify objects, fall back to String().
+ */
+function errText(err: unknown): string {
+  if (err instanceof Error) return err.message
+  if (err && typeof err === 'object') {
+    const o = err as { message?: string; details?: string; hint?: string; code?: string }
+    if (o.message) return [o.message, o.details, o.hint, o.code].filter(Boolean).join(' | ')
+    try { return JSON.stringify(err) } catch { return '[unserializable error]' }
+  }
+  return String(err)
+}
+
 export function listScraperSlugs(): string[] {
   return readdirSync(SCRAPERS_DIR)
     .filter((f) => f.endsWith('.json'))
@@ -74,7 +90,7 @@ export async function runAllScrapers(
       const r = await runOneScraper(config, invocationId)
       results.push(r)
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
+      const message = errText(err)
       console.error(`[${invocationId}] ${slug} top-level fail:`, message)
       results.push({ slug, status: 'failed', error: message })
     }
@@ -128,7 +144,7 @@ export async function runOneScraper(
     firecrawlJson = fc.data?.json
     credits = fc.data?.metadata?.creditsUsed ?? null
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
+    const message = errText(err)
     console.error(`[${invocationId}] ${config.slug} firecrawl failed:`, message)
     return { slug: config.slug, status: 'failed', error: message, credits }
   }
@@ -190,7 +206,7 @@ export async function runOneScraper(
     )
     return { slug: config.slug, status: 'success', ...result, duration_ms, credits }
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
+    const message = errText(err)
     await closeScrapeRun(supabase, runId, {
       status: 'failed',
       duration_ms: Date.now() - started,

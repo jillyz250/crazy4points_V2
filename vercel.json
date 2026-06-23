@@ -69,6 +69,10 @@
       "schedule": "30 8 * * *"
     },
     {
+      "path": "/api/cron/transfer-bonus-monitor",
+      "schedule": "0 12 */3 * *"
+    },
+    {
       "path": "/api/cron/reverify",
       "schedule": "0 9 * * 0"
     }
