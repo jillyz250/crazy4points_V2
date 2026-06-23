@@ -57,6 +57,9 @@ export function computeAwardCost(
   opts: ComputeOptions = {},
 ): AwardCostResult | null {
   if (!program?.charts?.length) return null
+  // Guard null/undefined airports - mapRouteToBucket dereferences airport
+  // fields and would otherwise throw a TypeError (silent crash on bad input).
+  if (!origin || !destination) return null
 
   const bucket = mapRouteToBucket(origin, destination)
   for (const chart of program.charts) {
