@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "import:destinations": "node scripts/import-destinations.mjs"
+    "import:destinations": "node scripts/import-destinations.mjs",
+    "test:award": "tsx scripts/award-chart-engine-test.ts && tsx scripts/award-diagnosis-test.ts && tsx scripts/award-chart-fuzz.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.89.0",
@@ -32,6 +33,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.1",
     "tailwindcss": "^4",
+    "tsx": "^4.22.4",
     "typescript": "^5"
   }
 }

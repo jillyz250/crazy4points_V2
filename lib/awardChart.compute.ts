@@ -43,6 +43,29 @@ export interface ComputeOptions {
 }
 
 /**
+ * Why a route did or didn't price. `computeAwardCost` collapses this to
+ * `AwardCostResult | null` for the hot path; the diagnostic distinguishes a
+ * LEGIT fallback (no chart / partner not in the chart) from a real BUG
+ * (`chart-miss`: a chart claims to cover the partner+bucket but fails to price
+ * it). Used only by the integrity check + the fuzz harness — never on render.
+ */
+export type AwardDiagnosisKind =
+  | 'computed'            // a chart produced a number
+  | 'no-structured-chart' // program has no structured chart -> legit stored-cost fallback
+  | 'not-covered'         // charts exist but none cover (partner, bucket) -> legit fallback
+  | 'chart-miss'          // a chart COVERS (partner, bucket) but returned null -> BUG
+  | 'invalid-input'       // null/partial airport
+
+export interface AwardDiagnosis {
+  kind: AwardDiagnosisKind
+  result: AwardCostResult | null // set iff kind === 'computed'
+  reason?: string
+  partnerSlug?: string
+  bucket?: string | null
+  cabin?: Cabin
+}
+
+/**
  * Top-level entry point: walks every chart on the program, picks the first
  * whose partners include the requested carrier, and runs that chart's
  * computer. Order in `program.charts[]` matters — more specific / preferred
@@ -56,19 +79,10 @@ export function computeAwardCost(
   cabin: Cabin,
   opts: ComputeOptions = {},
 ): AwardCostResult | null {
-  if (!program?.charts?.length) return null
-  // Guard null/undefined airports - mapRouteToBucket dereferences airport
-  // fields and would otherwise throw a TypeError (silent crash on bad input).
-  if (!origin || !destination) return null
-
-  const bucket = mapRouteToBucket(origin, destination)
-  for (const chart of program.charts) {
-    if (!chartCoversPartner(chart, partnerSlug)) continue
-    if (!chartAppliesToBucket(chart, bucket)) continue
-    const result = computeOne(chart, partnerSlug, origin, destination, cabin, opts)
-    if (result) return result
-  }
-  return null
+  // Delegates to the diagnostic so there is ONE walk of the charts (guaranteed
+  // parity). The hot path just wants the value-or-null.
+  const d = diagnoseAwardCost(program, partnerSlug, origin, destination, cabin, opts)
+  return d.kind === 'computed' ? d.result : null
 }
 
 /**
@@ -122,15 +136,78 @@ export function computeBucketTypicalCost(
   bucket: RouteBucket,
   cabin: Cabin,
 ): AwardCostResult | null {
-  if (!program?.charts?.length) return null
+  const d = diagnoseBucketTypicalCost(program, partnerSlug, bucket, cabin)
+  return d.kind === 'computed' ? d.result : null
+}
 
-  for (const chart of program.charts) {
-    if (!chartCoversPartner(chart, partnerSlug)) continue
-    if (!chartAppliesToBucket(chart, bucket)) continue
-    const result = computeOneForBucket(chart, partnerSlug, bucket, cabin)
-    if (result) return result
+/**
+ * Route-level diagnosis (the classifier `computeAwardCost` delegates to).
+ * Same chart walk + helpers, but reports WHY — so a `chart-miss` (chart claims
+ * to cover the route but can't price it) is distinguishable from a legit
+ * fallback. Pure + deterministic.
+ */
+export function diagnoseAwardCost(
+  program: AwardChartProgram | null | undefined,
+  partnerSlug: string,
+  origin: Airport,
+  destination: Airport,
+  cabin: Cabin,
+  opts: ComputeOptions = {},
+): AwardDiagnosis {
+  if (!origin || !destination)
+    return { kind: 'invalid-input', result: null, reason: 'null/undefined airport', partnerSlug, cabin }
+  if (!program?.charts?.length)
+    return { kind: 'no-structured-chart', result: null, partnerSlug, cabin }
+
+  const bucket = mapRouteToBucket(origin, destination)
+  const covering = program.charts.filter(
+    (c) => chartCoversPartner(c, partnerSlug) && chartAppliesToBucket(c, bucket),
+  )
+  if (covering.length === 0)
+    return { kind: 'not-covered', result: null, partnerSlug, bucket, cabin }
+
+  for (const chart of covering) {
+    const result = computeOne(chart, partnerSlug, origin, destination, cabin, opts)
+    if (result) return { kind: 'computed', result, partnerSlug, bucket, cabin }
   }
-  return null
+  return {
+    kind: 'chart-miss',
+    result: null,
+    reason: `${covering.length} chart(s) cover ${partnerSlug}/${bucket} but none priced ${cabin}`,
+    partnerSlug,
+    bucket,
+    cabin,
+  }
+}
+
+/** Bucket-level twin of diagnoseAwardCost (no airports -> never invalid-input). */
+export function diagnoseBucketTypicalCost(
+  program: AwardChartProgram | null | undefined,
+  partnerSlug: string,
+  bucket: RouteBucket,
+  cabin: Cabin,
+): AwardDiagnosis {
+  if (!program?.charts?.length)
+    return { kind: 'no-structured-chart', result: null, partnerSlug, bucket, cabin }
+
+  const covering = program.charts.filter(
+    (c) => chartCoversPartner(c, partnerSlug) && chartAppliesToBucket(c, bucket),
+  )
+  if (covering.length === 0)
+    return { kind: 'not-covered', result: null, partnerSlug, bucket, cabin }
+
+  for (const chart of covering) {
+    const result = computeOneForBucket(chart, partnerSlug, bucket, cabin)
+    if (result) return { kind: 'computed', result, partnerSlug, bucket, cabin }
+  }
+  return {
+    kind: 'chart-miss',
+    result: null,
+    reason: `${covering.length} chart(s) cover ${partnerSlug}/${bucket} but none priced ${cabin} (bucket)`,
+    partnerSlug,
+    bucket,
+    cabin,
+  }
 }
 
 function computeOneForBucket(
