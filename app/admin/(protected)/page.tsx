@@ -58,6 +58,7 @@ async function loadStats() {
     refreshQueueTopFive,
     tokenCandidates,
     bonusSignals,
+    changeSignals,
   ] = await Promise.all([
     // Match the /admin/drafts "Needs review" chip exactly: needs_review variants
     // that are NOT currently snoozed (snoozed-but-not-woken live under their own
@@ -78,6 +79,7 @@ async function loadStats() {
     getRefreshQueue(supabase, { limit: 5 }),
     countHardcodedHits(supabase).catch(() => 0),
     supabase.from('card_bonus_signals').select('id', { count: 'exact', head: true }).eq('status', 'new'),
+    supabase.from('change_signals').select('id', { count: 'exact', head: true }).eq('status', 'new'),
   ])
 
   return {
@@ -92,6 +94,7 @@ async function loadStats() {
     refreshQueueTopFive,
     tokenCandidates,
     bonusSignals: bonusSignals.count ?? 0,
+    changeSignals: changeSignals.count ?? 0,
   }
 }
 
@@ -121,6 +124,13 @@ export default async function AdminDashboard() {
       tone: stats.bonusSignals > 0 ? 'warning' : 'neutral',
       href: '/admin/card-bonus-signals',
       hint: stats.bonusSignals > 0 ? "cards whose live SUB changed" : 'all current',
+    },
+    {
+      label: 'Transfer-data changes',
+      value: stats.changeSignals,
+      tone: stats.changeSignals > 0 ? 'warning' : 'neutral',
+      href: '/admin/change-signals',
+      hint: stats.changeSignals > 0 ? 'newsroom scan: verify vs our data' : 'all reviewed',
     },
     {
       label: 'Unprocessed intel (24h)',
