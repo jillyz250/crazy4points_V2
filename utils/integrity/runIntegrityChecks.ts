@@ -193,6 +193,64 @@ async function checkTransferBonusExpiry(supabase: SupabaseClient): Promise<Integ
   return out
 }
 
+/**
+ * Cron / pipeline health. Two silent-failure classes the tile audit surfaced:
+ *  - a scraper failing every run (promo scraper failed for 6 weeks, its error
+ *    corrupted to "[object Object]", nothing flagged it);
+ *  - a daily cron that just stops (no output, no error).
+ * Both now surface in the daily data-integrity email instead of rotting.
+ */
+async function checkCronHealth(supabase: SupabaseClient): Promise<IntegrityFinding[]> {
+  const out: IntegrityFinding[] = []
+  const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString()
+
+  // Scrapers failing in the last 7 days (a failure is unambiguous).
+  const { data: runs } = await supabase
+    .from('scrape_runs')
+    .select('scraper_slug, status, error_log, ran_at')
+    .gte('ran_at', weekAgo)
+    .eq('status', 'failed')
+    .order('ran_at', { ascending: false })
+  const failedBySlug = new Map<string, { count: number; err: string }>()
+  for (const r of (runs ?? []) as Array<{ scraper_slug: string; error_log: string | null }>) {
+    const cur = failedBySlug.get(r.scraper_slug) ?? { count: 0, err: r.error_log ?? '' }
+    cur.count++
+    failedBySlug.set(r.scraper_slug, cur)
+  }
+  for (const [slug, info] of failedBySlug) {
+    out.push({
+      check: 'scraper_failing',
+      severity: 'med',
+      programSlug: null,
+      href: '/admin/scrapes',
+      label: slug,
+      detail: `Scraper "${slug}" failed ${info.count}x in the last 7 days. Latest error: ${(info.err || 'unknown').slice(0, 160)}`,
+    })
+  }
+
+  // Daily brief is deterministic (built every day) — if none in 2 days, the
+  // build-brief cron has stopped.
+  const { data: brief } = await supabase
+    .from('daily_briefs')
+    .select('brief_date')
+    .order('brief_date', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const twoDaysAgo = new Date(Date.now() - 2 * 86_400_000).toISOString().slice(0, 10)
+  if (!brief || (brief.brief_date as string) < twoDaysAgo) {
+    out.push({
+      check: 'cron_stalled',
+      severity: 'high',
+      programSlug: null,
+      href: '/admin/briefs',
+      label: 'build-brief',
+      detail: `No daily brief since ${brief?.brief_date ?? 'never'} — the build-brief cron may have stopped (expected daily).`,
+    })
+  }
+
+  return out
+}
+
 export async function runIntegrityChecks(supabase: SupabaseClient): Promise<IntegrityFinding[]> {
   const { data, error } = await supabase
     .from('programs')
@@ -317,6 +375,9 @@ export async function runIntegrityChecks(supabase: SupabaseClient): Promise<Inte
 
   // CHECK: transfer-bonus flags expiring soon / past their end date.
   findings.push(...(await checkTransferBonusExpiry(supabase)))
+
+  // CHECK: cron / scraper health (silent failures).
+  findings.push(...(await checkCronHealth(supabase)))
 
   // Sort: high -> med -> low, then by check, then slug.
   const rank: Record<IntegritySeverity, number> = { high: 0, med: 1, low: 2 }
