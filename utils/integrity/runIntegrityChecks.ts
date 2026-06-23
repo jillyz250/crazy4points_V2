@@ -20,6 +20,11 @@ export interface IntegrityFinding {
   severity: IntegritySeverity
   programSlug: string | null
   detail: string
+  /** Optional explicit link target (e.g. a card extract page). When set, the
+   *  dashboard links here instead of building a /programs/<slug> URL. */
+  href?: string
+  /** Optional label for the link cell when `href` is set (programSlug column). */
+  label?: string
 }
 
 const KEBAB = /^[a-z0-9-]+$/
@@ -126,6 +131,27 @@ async function checkWelcomeBonusTiers(supabase: SupabaseClient): Promise<Integri
     }
   }
   return out
+}
+
+/**
+ * Cards whose good_to_know prose was flagged for re-check after a welcome-bonus
+ * change. Self-clears when the editor next saves the prose (or via the
+ * "Mark reviewed" button on /admin/card-bonus-signals).
+ */
+async function checkGoodToKnowReview(supabase: SupabaseClient): Promise<IntegrityFinding[]> {
+  const { data } = await supabase
+    .from('credit_cards')
+    .select('slug, name, good_to_know_review_reason')
+    .not('good_to_know_review_at', 'is', null)
+    .order('good_to_know_review_at', { ascending: true })
+  return ((data ?? []) as Array<{ slug: string; name: string | null; good_to_know_review_reason: string | null }>).map((c) => ({
+    check: 'good_to_know_stale',
+    severity: 'med' as IntegritySeverity,
+    programSlug: null,
+    href: `/admin/cards/${c.slug}/extract`,
+    label: c.slug,
+    detail: `${c.name ?? c.slug}: ${c.good_to_know_review_reason ?? 'Welcome bonus changed; re-check the good_to_know prose.'}`,
+  }))
 }
 
 export async function runIntegrityChecks(supabase: SupabaseClient): Promise<IntegrityFinding[]> {
@@ -244,6 +270,11 @@ export async function runIntegrityChecks(supabase: SupabaseClient): Promise<Inte
 
   // CHECK: welcome-bonus tier shape (double-count + malformed keys).
   findings.push(...(await checkWelcomeBonusTiers(supabase)))
+
+  // CHECK: cards flagged for a good_to_know prose re-check (a welcome-bonus
+  // change may have left the prose quoting an old figure). Set by the Apply
+  // flow / re-extract; cleared when the editor next saves the prose.
+  findings.push(...(await checkGoodToKnowReview(supabase)))
 
   // Sort: high -> med -> low, then by check, then slug.
   const rank: Record<IntegritySeverity, number> = { high: 0, med: 1, low: 2 }

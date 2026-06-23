@@ -9,6 +9,7 @@ import { discoverCardSourceUrl } from '@/utils/cards/discoverCardSourceUrl'
 import { draftGoodToKnow } from '@/utils/cards/draftGoodToKnow'
 import { auditGoodToKnow, type GtkAuditIssue } from '@/utils/cards/auditGoodToKnow'
 import { setManualOverride } from '@/utils/admin/manualOverride'
+import { clearGoodToKnowReview, flagGoodToKnowReviewViaAudit } from '@/utils/cards/goodToKnowReviewFlag'
 import { checkUrl, type UrlCheckResult } from '@/utils/admin/checkUrl'
 import type { CardExtraction } from '@/utils/cards/cardExtractionSchema'
 
@@ -122,6 +123,14 @@ export async function runExtractionAndSave(formData: FormData): Promise<void> {
       .eq('id', extractionResult.extractionId)
   } else {
     console.log(`[card-extract] saved card=${slug} benefits=${saveResult.benefitsSaved} earn=${saveResult.earnRatesSaved} wb=${saveResult.welcomeBonusSaved} historical_high=${saveResult.newHistoricalHigh}`)
+    // A re-extract that rewrote the welcome bonus may have staled the
+    // good_to_know prose (the tiered-card path Apply routes here). Audit the
+    // prose against the fresh data and flag it for re-check if it now conflicts.
+    if (saveResult.welcomeBonusSaved) {
+      await flagGoodToKnowReviewViaAudit(supabase, card.id)
+      revalidatePath('/admin/data-integrity')
+      revalidatePath('/admin/card-bonus-signals')
+    }
   }
 
   // 3. Revalidate the card's public page + the finder listing so new data renders
@@ -179,6 +188,8 @@ export async function resaveExtraction(formData: FormData): Promise<void> {
         error_message: null,
       })
       .eq('id', extractionId)
+    // Re-save may have rewritten the welcome bonus; flag stale prose for review.
+    if (result.welcomeBonusSaved) await flagGoodToKnowReviewViaAudit(supabase, data.card_id)
   }
 
   const slug = (data as unknown as { credit_cards: { slug: string } }).credit_cards?.slug
@@ -186,6 +197,8 @@ export async function resaveExtraction(formData: FormData): Promise<void> {
     revalidatePath(`/cards/${slug}`)
     revalidatePath('/cards')
     revalidatePath(`/admin/cards/${slug}/extract`)
+    revalidatePath('/admin/data-integrity')
+    revalidatePath('/admin/card-bonus-signals')
   }
 }
 
@@ -615,9 +628,14 @@ export async function saveGoodToKnowAction(
     .select('id')
     .single()
 
+  // Saving the prose counts as a re-check: clear any pending review flag a
+  // welcome-bonus change had raised on this card.
+  if (card) await clearGoodToKnowReview(supabase, card.id as string)
+
   revalidatePath(`/admin/cards/${slug}/extract`)
   revalidatePath(`/cards/${slug}`)
   revalidatePath('/cards')
+  revalidatePath('/admin/data-integrity')
 
   // Guardrail: audit the freshly-saved text against the complete card record.
   const issues = card && value.trim()
