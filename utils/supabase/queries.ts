@@ -208,6 +208,10 @@ export interface TransferPartnerRow {
   ratio: string
   notes: string | null
   bonus_active: boolean
+  /** Optional ISO date (YYYY-MM-DD) the bonus ends. When set and in the past,
+   *  the bonus renders as inactive (see isBonusActive in utils/programs/transferBonus)
+   *  — flags self-expire with no cron or per-bonus reminder. */
+  bonus_end_date?: string | null
   /** Tier-aware ratios. Set for programs where the ratio depends on which
    *  card the holder has (Citi ThankYou is the canonical case). When present,
    *  the renderer picks the row matching the viewer's card slug; on the

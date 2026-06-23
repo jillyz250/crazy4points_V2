@@ -5,6 +5,7 @@
  * page, not just an alert blurb).
  */
 import type { Program } from '@/utils/supabase/queries'
+import { isBonusActive } from '@/utils/programs/transferBonus'
 
 type ProgramSubset = Pick<
   Program,
@@ -47,7 +48,7 @@ export function programToSourceText(program: ProgramSubset): string {
   if (program.lounge_access) out.push(`\nLounge access:\n${program.lounge_access}`)
   if (program.transfer_partners && program.transfer_partners.length > 0) {
     const lines = program.transfer_partners.map((p) => {
-      const bonus = p.bonus_active ? ' (BONUS ACTIVE)' : ''
+      const bonus = isBonusActive(p) ? ' (BONUS ACTIVE)' : ''
       const notes = p.notes ? ` — ${p.notes}` : ''
       return `• ${p.from_slug} → ${program.slug} ratio ${p.ratio}${bonus}${notes}`
     })

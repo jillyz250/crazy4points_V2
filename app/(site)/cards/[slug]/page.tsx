@@ -4,6 +4,7 @@ import type { Metadata } from 'next'
 import { createAdminClient } from '@/utils/supabase/server'
 import { getCardDetailBySlug, spendWindowLabel, spendWindowShort } from '@/utils/supabase/queries'
 import { expandIntroTokens } from '@/utils/programs/expandIntroTokens'
+import { isBonusActive } from '@/utils/programs/transferBonus'
 import type { CreditCardBenefit, TransferPartnerRow } from '@/utils/supabase/queries'
 import { getExperienceProgramsForCard } from '@/utils/cards/getExperiencePrograms'
 import TransferPartnersTable from '@/components/programs/TransferPartnersTable'
@@ -891,7 +892,7 @@ export default async function CardPage({
           title="Transfer partners"
           description={`Where you can move your ${currency_program.name} to airline + hotel programs.`}
           cta="Meet the partners"
-          preview={`${transferPartnersOutbound.length} partner${transferPartnersOutbound.length === 1 ? '' : 's'}${transferPartnersOutbound.some((p) => p.bonus_active) ? ' · 🎁 bonus active' : ''}`}
+          preview={`${transferPartnersOutbound.length} partner${transferPartnersOutbound.length === 1 ? '' : 's'}${transferPartnersOutbound.some((p) => isBonusActive(p)) ? ' · 🎁 bonus active' : ''}`}
         >
           {/* No "pool from siblings" alert here — this card already transfers
               directly, so leading with a pooling note implied it was needed.
@@ -902,7 +903,7 @@ export default async function CardPage({
             <Link href={`/programs/${currency_program.slug}`} style={{ color: 'var(--color-primary)' }}>
               {currency_program.name}
             </Link>
-            {transferPartnersOutbound.some((p) => p.bonus_active) ? ' — bonuses live now flagged below.' : '.'}
+            {transferPartnersOutbound.some((p) => isBonusActive(p)) ? ' — bonuses live now flagged below.' : '.'}
           </p>
           <TransferPartnersTable
             rows={transferPartnersOutbound}

@@ -20,6 +20,7 @@ import {
 } from './buildNewsletter'
 import { buildNewsletterSlots } from './buildNewsletterSlots'
 import { verifyNewsletterDraft } from './verifyNewsletterDraft'
+import { isBonusActive } from '@/utils/programs/transferBonus'
 
 export function mondayOfWeek(date: Date = new Date()): string {
   const d = new Date(date)
@@ -271,7 +272,7 @@ export async function runBuildNewsletter(opts: {
       how_to_spend: string | null
       quirks: string | null
       lounge_access: string | null
-      transfer_partners: { from_slug: string; ratio: string; notes: string | null; bonus_active: boolean }[] | null
+      transfer_partners: { from_slug: string; ratio: string; notes: string | null; bonus_active: boolean; bonus_end_date?: string | null }[] | null
       alliance: string | null
       hubs: string[] | null
     }
@@ -291,7 +292,7 @@ export async function runBuildNewsletter(opts: {
       if (p.lounge_access) parts.push(`\nLounge access:\n${p.lounge_access}`)
       if (p.transfer_partners && p.transfer_partners.length > 0) {
         const lines = p.transfer_partners.map((tp) => {
-          const bonus = tp.bonus_active ? ' (BONUS ACTIVE)' : ''
+          const bonus = isBonusActive(tp) ? ' (BONUS ACTIVE)' : ''
           const notes = tp.notes ? ` — ${tp.notes}` : ''
           return `• ${tp.from_slug} → ${p.slug} ratio ${tp.ratio}${bonus}${notes}`
         })
