@@ -21,6 +21,7 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import { createAdminClient } from '@/utils/supabase/server'
 import { SITE_URL } from '@/lib/constants'
+import { safeJsonLd } from '@/lib/jsonLd'
 
 export const revalidate = 3600
 
@@ -210,7 +211,7 @@ export default async function IssuerPage({
     <article className="rg-major-section">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
       />
 
       <div className="rg-container">

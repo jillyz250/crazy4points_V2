@@ -1,13 +1,13 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { marked } from 'marked';
 import { createClient } from '@/utils/supabase/server';
 import { getBlogCategoryLabel } from '@/lib/blog/categories';
-import { sanitizeArticleHtml } from '@/lib/blog/sanitize';
+import { renderProseMarkdown } from '@/lib/blog/sanitize';
 import HeroImageOrFallback from '@/components/blog/HeroImageOrFallback';
 import ArticleRelated from '@/components/blog/ArticleRelated';
 import NewsletterSignup from '@/components/home/NewsletterSignup';
+import { safeJsonLd } from '@/lib/jsonLd'
 
 // Editorial post; stable after publish.
 export const revalidate = 3600;
@@ -158,10 +158,7 @@ export default async function BlogPostPage({ params }: Props) {
 
   // Markdown → HTML → sanitize. We trust marked's output structurally but
   // run it through sanitize-html to strip <script>, foreign-host <img>, etc.
-  const rawHtml = post.article_body
-    ? await marked.parse(post.article_body, { async: true })
-    : '';
-  const safeHtml = rawHtml ? sanitizeArticleHtml(rawHtml) : '';
+  const safeHtml = await renderProseMarkdown(post.article_body);
 
   const ogImageUrl =
     post.hero_image_url || `https://www.crazy4points.com/og/blog/${post.slug}`;
@@ -300,7 +297,7 @@ export default async function BlogPostPage({ params }: Props) {
 
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
       />
     </article>
   );

@@ -1,4 +1,4 @@
-import { marked } from 'marked'
+import { renderProseMarkdown } from '@/lib/blog/sanitize'
 import type { Program, TransferPartnerRow } from '@/utils/supabase/queries'
 import SimpleTile from './SimpleTile'
 import TransferPartnersTable, { isPublishableTransferRow } from './TransferPartnersTable'
@@ -70,11 +70,11 @@ export default async function SimpleTileGrid({
   }
 
   // Pre-parse markdown server-side
-  const awardChartHtml = hasAwardChart ? await marked.parse(program.award_chart!, { async: true }) : null
-  const sweetSpotsHtml = hasSweetSpots ? await marked.parse(program.sweet_spots!, { async: true }) : null
-  const quirksHtml = hasQuirks ? await marked.parse(program.quirks!, { async: true }) : null
-  const howToSpendHtml = hasHowToSpend ? await marked.parse(program.how_to_spend!, { async: true }) : null
-  const loungeAccessHtml = hasLounge ? await marked.parse(program.lounge_access!, { async: true }) : null
+  const awardChartHtml = hasAwardChart ? await renderProseMarkdown(program.award_chart) : null
+  const sweetSpotsHtml = hasSweetSpots ? await renderProseMarkdown(program.sweet_spots) : null
+  const quirksHtml = hasQuirks ? await renderProseMarkdown(program.quirks) : null
+  const howToSpendHtml = hasHowToSpend ? await renderProseMarkdown(program.how_to_spend) : null
+  const loungeAccessHtml = hasLounge ? await renderProseMarkdown(program.lounge_access) : null
 
   const partnerCount = inboundCount
   const tierCount = program.tier_benefits?.length ?? 0

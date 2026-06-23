@@ -1,12 +1,12 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import { marked } from 'marked'
 import { createClient } from '@/utils/supabase/server'
 import { getAlertBySlug } from '@/utils/supabase/queries'
 import { daysUntilEndOfDay } from '@/lib/alertExpiry'
 import { normalizeAlertDescription } from '@/utils/alerts/normalizeDescription'
-import { sanitizeArticleHtml } from '@/lib/blog/sanitize'
+import { renderProseMarkdown } from '@/lib/blog/sanitize'
+import { safeJsonLd } from '@/lib/jsonLd'
 
 // Published alert content; stable after publish.
 export const revalidate = 3600
@@ -129,9 +129,7 @@ export default async function AlertDetailPage({ params }: Props) {
   // bullets so the page doesn't render as flat prose when the writer
   // drifted from the bullet format (see utils/alerts/normalizeDescription.ts).
   const descriptionHtml = alert.description
-    ? sanitizeArticleHtml(
-        await marked.parse(normalizeAlertDescription(alert.description), { async: true })
-      )
+    ? await renderProseMarkdown(normalizeAlertDescription(alert.description))
     : null
 
   // JSON-LD Article schema. Tells Google + AI assistants that crazy4points
@@ -165,7 +163,7 @@ export default async function AlertDetailPage({ params }: Props) {
     <article className="rg-major-section">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
       />
       <div className="rg-container max-w-3xl">
 

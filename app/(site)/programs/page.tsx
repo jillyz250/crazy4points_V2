@@ -6,6 +6,7 @@ import { listProgramsForIndex, getResourceNavCounts } from '@/utils/supabase/que
 import type { ResourceCategory, ResourceCard, Alliance } from '@/utils/supabase/queries'
 import { ALLIANCE_LABEL, ALLIANCE_BADGE_COLOR } from '@/lib/alliance'
 import ProgramsListWithSearch from '@/components/programs/ProgramsListWithSearch'
+import { safeJsonLd } from '@/lib/jsonLd'
 
 // Index of all programs; only changes when a new program ships.
 export const revalidate = 3600
@@ -114,7 +115,7 @@ export default async function ProgramsIndexPage({
     <div className="rg-container px-6 py-12 md:px-8 md:py-16">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(itemListJsonLd) }}
       />
 
       <header className="mb-6 max-w-3xl">

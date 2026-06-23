@@ -10,6 +10,7 @@ import { getExperienceProgramsForCard } from '@/utils/cards/getExperienceProgram
 import TransferPartnersTable from '@/components/programs/TransferPartnersTable'
 import RotatingCategoriesBanner from '@/components/cards/RotatingCategoriesBanner'
 import SimpleTile from '@/components/programs/SimpleTile'
+import { safeJsonLd } from '@/lib/jsonLd'
 
 // Card editorial; stable after publish.
 export const revalidate = 3600
@@ -373,7 +374,7 @@ export default async function CardPage({
     <main className="rg-container rg-major-section">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
       />
 
       {/* Current quarter banner — at the top, attention-grabbing for rotating-category cards. */}
