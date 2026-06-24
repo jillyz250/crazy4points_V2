@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import type { FinderCard } from '@/utils/supabase/queries'
+import { type SortKey, SORT_OPTIONS, FEE_BANDS, cardInFeeBands, sortCards } from '@/utils/cards/finder'
 
 // Specific, recognizable benefits — the things that actually sell a card.
 // Each maps to one or more benefit_type values (or a description-derived feature).
@@ -94,6 +95,7 @@ interface Filters {
   target: string
   cardType: 'all' | 'personal' | 'business'
   maxFee: number
+  feeBands: string[]
   networks: string[]
   benefits: string[]
   earns: string[]
@@ -126,6 +128,7 @@ export default function CardFinder({
     target: initial?.target ?? '',
     cardType: initial?.cardType ?? 'all',
     maxFee: initial?.maxFee ?? feeMax,
+    feeBands: [],
     networks: [],
     benefits: initial?.benefits ?? [],
     earns: initial?.earns ?? [],
@@ -135,15 +138,24 @@ export default function CardFinder({
   }), [feeMax, initial])
 
   const [showFilters, setShowFilters] = useState(false)
-  // `draft` = what the panel controls edit; `applied` = what the results use.
-  // Nothing filters until the user hits Search.
+  // `draft` = what the Advanced-filters panel edits; `applied` = what the grid
+  // shows. The panel commits draft→applied on Search. The Explore bar's quick
+  // filters and sort apply LIVE — they write straight to `applied` (and mirror
+  // into `draft` so the panel stays in sync). Spec §2.1.
   const [draft, setDraft] = useState<Filters>(defaults)
   const [applied, setApplied] = useState<Filters>(defaults)
+  const [sort, setSort] = useState<SortKey>('relevance')
   const resultsRef = useRef<HTMLParagraphElement>(null)
 
   const allIssuers = useMemo(() => Array.from(new Set(cards.map((c) => c.issuerName).filter(Boolean))).sort(), [cards])
   const benefitByKey = useMemo(() => new Map(ALL_BENEFITS.map((b) => [b.key, b])), [])
   const setD = (patch: Partial<Filters>) => setDraft((d) => ({ ...d, ...patch }))
+  // Quick filters apply immediately: write to `applied` (drives the grid) and
+  // mirror into `draft` so the Advanced panel reflects them when opened.
+  const applyLive = (patch: Partial<Filters>) => {
+    setApplied((a) => ({ ...a, ...patch }))
+    setDraft((d) => ({ ...d, ...patch }))
+  }
   const toggle = (arr: string[], v: string) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v])
 
   const passes = (c: FinderCard, f: Filters) => {
@@ -153,6 +165,7 @@ export default function CardFinder({
     // Fee cap: a known fee must be within it. When a cap is set, exclude
     // unknown-fee (unauthored) cards rather than treating them as $0.
     if (f.maxFee < feeMax && (c.annualFee == null || c.annualFee > f.maxFee)) return false
+    if (!cardInFeeBands(c.annualFee, f.feeBands)) return false
     if (f.networks.length && (!c.network || !f.networks.includes(c.network))) return false
     if (f.noFx && !c.noFxFee) return false
     if (f.issuers.length && !f.issuers.includes(c.issuerName)) return false
@@ -162,15 +175,10 @@ export default function CardFinder({
     return true
   }
 
-  // Fully-authored cards rank above the "coming soon" ones; then by fee.
-  const byRelevance = (a: FinderCard, b: FinderCard) => {
-    if (a.authored !== b.authored) return a.authored ? -1 : 1
-    return (a.annualFee ?? Infinity) - (b.annualFee ?? Infinity)
-  }
-  const base = useMemo(() => cards.filter((c) => passes(c, applied)).sort(byRelevance), [cards, applied]) // eslint-disable-line react-hooks/exhaustive-deps
+  const base = useMemo(() => sortCards(cards.filter((c) => passes(c, applied)), sort), [cards, applied, sort]) // eslint-disable-line react-hooks/exhaustive-deps
   const draftCount = useMemo(() => cards.filter((c) => passes(c, draft)).length, [cards, draft]) // eslint-disable-line react-hooks/exhaustive-deps
   const search = () => { setApplied(draft); setShowFilters(false); requestAnimationFrame(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })) }
-  const reset = () => { setDraft(defaults); setApplied(defaults) }
+  const reset = () => { setDraft(defaults); setApplied(defaults); setSort('relevance') }
 
   const grouped = useMemo(() => {
     if (!applied.target) return null
@@ -180,12 +188,13 @@ export default function CardFinder({
       if (c.coBrand?.slug === applied.target || c.currency?.slug === applied.target) direct.push(c)
       else if (c.currency && sources.has(c.currency.slug) && c.transferEligibility !== 'none') transfer.push(c)
     }
-    return { direct: direct.sort(byRelevance), transfer: transfer.sort(byRelevance) }
+    // `base` is already sorted; preserve that order within each group.
+    return { direct, transfer }
   }, [base, applied.target, transferSources]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const targetName = programOptions.find((p) => p.slug === applied.target)?.name ?? ''
   const resultCount = grouped ? grouped.direct.length + grouped.transfer.length : base.length
-  const activeFilters = (applied.target ? 1 : 0) + (applied.cardType !== 'all' ? 1 : 0) + (applied.maxFee < feeMax ? 1 : 0) + applied.networks.length + applied.benefits.length + applied.earns.length + applied.issuers.length + (applied.noFx ? 1 : 0)
+  const activeFilters = (applied.target ? 1 : 0) + (applied.cardType !== 'all' ? 1 : 0) + (applied.maxFee < feeMax ? 1 : 0) + applied.feeBands.length + applied.networks.length + applied.benefits.length + applied.earns.length + applied.issuers.length + (applied.noFx ? 1 : 0)
 
   return (
     <div style={{ display: 'grid', gap: '1.5rem', gridTemplateColumns: 'minmax(0, 1fr)' }}>
@@ -222,12 +231,11 @@ export default function CardFinder({
             </div>
           </Field>
 
-          <Field label={draft.maxFee >= feeMax ? 'Max annual fee: Any' : `Max annual fee: $${draft.maxFee}`}>
-            <input type="range" min={0} max={feeMax} step={5} value={draft.maxFee}
-              onChange={(e) => setD({ maxFee: Number(e.target.value) })}
-              style={{ width: '100%', accentColor: 'var(--color-primary)' }} />
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-ui)', fontSize: '0.6875rem', color: 'var(--color-text-secondary)' }}>
-              <span>$0</span><span>${feeMax}</span>
+          <Field label="Annual fee">
+            <div style={chipRow}>
+              {FEE_BANDS.map((b) => (
+                <Chip key={b.key} on={draft.feeBands.includes(b.key)} onClick={() => setD({ feeBands: toggle(draft.feeBands, b.key) })}>{b.label}</Chip>
+              ))}
             </div>
           </Field>
 
@@ -284,8 +292,33 @@ export default function CardFinder({
         </div>
       )}
 
-      <p ref={resultsRef} style={{ fontFamily: 'var(--font-ui)', fontSize: '0.875rem', color: 'var(--color-text-secondary)', margin: 0, scrollMarginTop: '1rem' }}>
-        {resultCount} {resultCount === 1 ? 'card' : 'cards'}{applied.target ? ` for ${targetName}` : ''}
+      {/* Explore bar — sort + quick filters apply live, no Search needed. */}
+      <div style={exploreBar}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <label htmlFor="card-sort" style={{ ...labelStyle, margin: 0 }}>Sort by</label>
+          <select id="card-sort" value={sort} onChange={(e) => setSort(e.target.value as SortKey)} style={{ ...inputStyle, width: 'auto', minWidth: '13rem' }}>
+            {SORT_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+          </select>
+        </div>
+        <div style={{ display: 'grid', gap: '0.5rem' }}>
+          <div style={chipRow}>
+            {(['all', 'personal', 'business'] as const).map((t) => (
+              <Chip key={t} on={applied.cardType === t} onClick={() => applyLive({ cardType: t })}>{t === 'all' ? 'All cards' : t[0].toUpperCase() + t.slice(1)}</Chip>
+            ))}
+          </div>
+          <div style={chipRow}>
+            {FEE_BANDS.map((b) => (
+              <Chip key={b.key} on={applied.feeBands.includes(b.key)} onClick={() => applyLive({ feeBands: toggle(applied.feeBands, b.key) })}>{b.label}</Chip>
+            ))}
+            <Chip on={applied.noFx} onClick={() => applyLive({ noFx: !applied.noFx })}>No foreign fee</Chip>
+            <Chip on={applied.benefits.includes('lounge')} onClick={() => applyLive({ benefits: toggle(applied.benefits, 'lounge') })}>Lounge access</Chip>
+          </div>
+        </div>
+      </div>
+
+      <p ref={resultsRef} style={{ fontFamily: 'var(--font-ui)', fontSize: '0.875rem', color: 'var(--color-text-secondary)', margin: 0, scrollMarginTop: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+        <span>{resultCount} {resultCount === 1 ? 'card' : 'cards'}{applied.target ? ` for ${targetName}` : ''}</span>
+        {activeFilters > 0 && <button onClick={reset} style={clearBtn}>Clear all</button>}
       </p>
 
       {grouped ? (
@@ -388,6 +421,7 @@ function Empty() {
 }
 
 const panel: React.CSSProperties = { border: '1px solid var(--color-border-soft)', borderRadius: 'var(--radius-card)', background: 'var(--color-background-soft)', padding: '1.125rem' }
+const exploreBar: React.CSSProperties = { display: 'grid', gap: '0.875rem', border: '1px solid var(--color-border-soft)', borderRadius: 'var(--radius-card)', background: 'var(--color-background)', padding: '1rem 1.125rem', boxShadow: 'var(--shadow-soft)' }
 const ctaPanel: React.CSSProperties = { border: '1px solid var(--color-border-soft)', borderRadius: 'var(--radius-card)', background: 'linear-gradient(135deg, var(--color-background-soft) 0%, var(--color-background) 70%)', padding: '1.5rem', boxShadow: 'var(--shadow-soft)' }
 const comingSoonBadge: React.CSSProperties = { position: 'absolute', top: '0.625rem', right: '0.625rem', fontFamily: 'var(--font-ui)', fontSize: '0.625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-secondary)', background: 'var(--color-background-soft)', border: '1px solid var(--color-border-soft)', borderRadius: '999px', padding: '0.1875rem 0.5rem' }
 const labelStyle: React.CSSProperties = { fontFamily: 'var(--font-ui)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: '0.5rem', display: 'block' }
