@@ -49,6 +49,10 @@ const BENEFIT_GROUPS: Array<{ group: string; items: BenefitFilter[] }> = [
   ]},
 ]
 const ALL_BENEFITS: BenefitFilter[] = BENEFIT_GROUPS.flatMap((g) => g.items)
+// The high-intent benefits surfaced as live quick chips in the Explore bar.
+// Everything else stays one tap away behind "More filters". Keys map to
+// ALL_BENEFITS so labels and matching stay in sync with the full panel.
+const QUICK_BENEFIT_KEYS = ['lounge', 'free_night', 'hotel_status', 'free_bag', 'travel_credit', 'global_entry', 'trip_insurance', 'rental_car', 'cellphone', 'transfer_partners']
 function cardHas(c: FinderCard, b: BenefitFilter): boolean {
   if (b.feature) return c.features.includes(b.feature)
   return !!b.types && b.types.some((t) => c.benefitTypes.includes(t))
@@ -146,6 +150,8 @@ export default function CardFinder({
   const [applied, setApplied] = useState<Filters>(defaults)
   const [sort, setSort] = useState<SortKey>('relevance')
   const resultsRef = useRef<HTMLParagraphElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const openPanel = () => { setShowFilters(true); requestAnimationFrame(() => panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })) }
 
   const allIssuers = useMemo(() => Array.from(new Set(cards.map((c) => c.issuerName).filter(Boolean))).sort(), [cards])
   const benefitByKey = useMemo(() => new Map(ALL_BENEFITS.map((b) => [b.key, b])), [])
@@ -220,7 +226,7 @@ export default function CardFinder({
       </div>
 
       {showFilters && (
-        <div style={{ ...panel, display: 'grid', gap: '1.25rem' }}>
+        <div ref={panelRef} style={{ ...panel, display: 'grid', gap: '1.25rem', scrollMarginTop: '1rem' }}>
           <Field label="Points program (optional)">
             <select value={draft.target} onChange={(e) => setD({ target: e.target.value })} style={inputStyle}>
               <option value="">Any program</option>
@@ -320,7 +326,14 @@ export default function CardFinder({
               <Chip key={b.key} on={applied.feeBands.includes(b.key)} onClick={() => applyLive({ feeBands: toggle(applied.feeBands, b.key) })}>{b.label}</Chip>
             ))}
             <Chip on={applied.noFx} onClick={() => applyLive({ noFx: !applied.noFx })}>No foreign fee</Chip>
-            <Chip on={applied.benefits.includes('lounge')} onClick={() => applyLive({ benefits: toggle(applied.benefits, 'lounge') })}>Lounge access</Chip>
+          </div>
+          <div style={chipRow}>
+            {QUICK_BENEFIT_KEYS.map((k) => {
+              const b = benefitByKey.get(k)
+              if (!b) return null
+              return <Chip key={k} on={applied.benefits.includes(k)} onClick={() => applyLive({ benefits: toggle(applied.benefits, k) })}>{b.label}</Chip>
+            })}
+            <button onClick={openPanel} style={moreFiltersLink} className="rg-tap-target">More filters →</button>
           </div>
         </div>
       </div>
@@ -441,3 +454,4 @@ const famBadge: React.CSSProperties = { fontFamily: 'var(--font-ui)', fontSize: 
 const clearBtn: React.CSSProperties = { fontFamily: 'var(--font-ui)', fontSize: '0.8125rem', color: 'var(--color-text-secondary)', background: 'none', border: 'none', cursor: 'pointer', justifySelf: 'start', padding: 0, textDecoration: 'underline' }
 const searchBtn: React.CSSProperties = { fontFamily: 'var(--font-ui)', fontSize: '0.9375rem', fontWeight: 700, padding: '0.75rem 1.5rem', borderRadius: 'var(--radius-ui)', border: 'none', background: 'var(--color-primary)', color: '#fff', cursor: 'pointer', minHeight: 44 }
 const clearAllBtn: React.CSSProperties = { fontFamily: 'var(--font-ui)', fontSize: '0.9375rem', fontWeight: 700, padding: '0.75rem 1.5rem', borderRadius: 'var(--radius-ui)', border: '1px solid var(--color-chip-red)', background: 'var(--color-chip-red-bg)', color: 'var(--color-chip-red-fg)', cursor: 'pointer', minHeight: 44 }
+const moreFiltersLink: React.CSSProperties = { fontFamily: 'var(--font-ui)', fontSize: '0.8125rem', fontWeight: 700, padding: '0.4375rem 0.75rem', borderRadius: '999px', minHeight: 36, border: '1px dashed var(--color-primary)', background: 'transparent', color: 'var(--color-primary)', cursor: 'pointer' }
