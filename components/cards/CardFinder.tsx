@@ -195,6 +195,8 @@ export default function CardFinder({
   const targetName = programOptions.find((p) => p.slug === applied.target)?.name ?? ''
   const resultCount = grouped ? grouped.direct.length + grouped.transfer.length : base.length
   const activeFilters = (applied.target ? 1 : 0) + (applied.cardType !== 'all' ? 1 : 0) + (applied.maxFee < feeMax ? 1 : 0) + applied.feeBands.length + applied.networks.length + applied.benefits.length + applied.earns.length + applied.issuers.length + (applied.noFx ? 1 : 0)
+  // Anything that "Clear all" would undo — active filters or a non-default sort.
+  const hasActive = activeFilters > 0 || sort !== 'relevance'
 
   return (
     <div style={{ display: 'grid', gap: '1.5rem', gridTemplateColumns: 'minmax(0, 1fr)' }}>
@@ -205,9 +207,16 @@ export default function CardFinder({
         <p style={{ fontFamily: 'var(--font-ui)', fontSize: '0.9375rem', color: 'var(--color-text-secondary)', margin: '0 0 1rem' }}>
           Lounge access, free nights, no foreign fees, a specific points program &mdash; tell us what matters and we&rsquo;ll match the cards.
         </p>
-        <button onClick={() => setShowFilters((s) => !s)} style={searchBtn} className="rg-tap-target">
-          {showFilters ? 'Hide filters' : 'Choose your filters'}{activeFilters ? ` (${activeFilters})` : ''}
-        </button>
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <button onClick={() => setShowFilters((s) => !s)} style={searchBtn} className="rg-tap-target">
+            {showFilters ? 'Hide filters' : 'Choose your filters'}{activeFilters ? ` (${activeFilters})` : ''}
+          </button>
+          {hasActive && (
+            <button onClick={reset} style={clearAllBtn} className="rg-tap-target">
+              Clear all filters
+            </button>
+          )}
+        </div>
       </div>
 
       {showFilters && (
@@ -316,9 +325,8 @@ export default function CardFinder({
         </div>
       </div>
 
-      <p ref={resultsRef} style={{ fontFamily: 'var(--font-ui)', fontSize: '0.875rem', color: 'var(--color-text-secondary)', margin: 0, scrollMarginTop: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-        <span>{resultCount} {resultCount === 1 ? 'card' : 'cards'}{applied.target ? ` for ${targetName}` : ''}</span>
-        {activeFilters > 0 && <button onClick={reset} style={clearBtn}>Clear all</button>}
+      <p ref={resultsRef} style={{ fontFamily: 'var(--font-ui)', fontSize: '0.875rem', color: 'var(--color-text-secondary)', margin: 0, scrollMarginTop: '1rem' }}>
+        {resultCount} {resultCount === 1 ? 'card' : 'cards'}{applied.target ? ` for ${targetName}` : ''}
       </p>
 
       {grouped ? (
@@ -432,3 +440,4 @@ const tile: React.CSSProperties = { display: 'block', padding: '1rem 1.125rem', 
 const famBadge: React.CSSProperties = { fontFamily: 'var(--font-ui)', fontSize: '0.6875rem', padding: '0.1875rem 0.5rem', borderRadius: '999px', background: 'var(--color-background-soft)', border: '1px solid var(--color-border-soft)', color: 'var(--color-text-secondary)' }
 const clearBtn: React.CSSProperties = { fontFamily: 'var(--font-ui)', fontSize: '0.8125rem', color: 'var(--color-text-secondary)', background: 'none', border: 'none', cursor: 'pointer', justifySelf: 'start', padding: 0, textDecoration: 'underline' }
 const searchBtn: React.CSSProperties = { fontFamily: 'var(--font-ui)', fontSize: '0.9375rem', fontWeight: 700, padding: '0.75rem 1.5rem', borderRadius: 'var(--radius-ui)', border: 'none', background: 'var(--color-primary)', color: '#fff', cursor: 'pointer', minHeight: 44 }
+const clearAllBtn: React.CSSProperties = { fontFamily: 'var(--font-ui)', fontSize: '0.9375rem', fontWeight: 700, padding: '0.75rem 1.5rem', borderRadius: 'var(--radius-ui)', border: '1px solid var(--color-chip-red)', background: 'var(--color-chip-red-bg)', color: 'var(--color-chip-red-fg)', cursor: 'pointer', minHeight: 44 }
