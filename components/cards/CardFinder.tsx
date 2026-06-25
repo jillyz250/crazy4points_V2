@@ -163,6 +163,9 @@ export default function CardFinder({
   // Which preset (if any) the current filters came from — for chip highlighting.
   // Cleared the moment the user touches any individual filter.
   const [activePreset, setActivePreset] = useState<string | null>(null)
+  // Compare tray: up to 3 selected card ids + whether the comparison view is open.
+  const [compareIds, setCompareIds] = useState<string[]>([])
+  const [compareOpen, setCompareOpen] = useState(false)
   const resultsRef = useRef<HTMLParagraphElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const openPanel = () => { setShowFilters(true); requestAnimationFrame(() => panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })) }
@@ -226,6 +229,12 @@ export default function CardFinder({
   const activeFilters = (applied.target ? 1 : 0) + (applied.cardType !== 'all' ? 1 : 0) + (applied.maxFee < feeMax ? 1 : 0) + applied.feeBands.length + applied.networks.length + applied.benefits.length + applied.earns.length + applied.issuers.length + (applied.noFx ? 1 : 0)
   // Anything that "Clear all" would undo — active filters or a non-default sort.
   const hasActive = activeFilters > 0 || sort !== 'relevance'
+
+  const compareFull = compareIds.length >= 3
+  const toggleCompare = (id: string) =>
+    setCompareIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : ids.length >= 3 ? ids : [...ids, id]))
+  const compareApi = { has: (id: string) => compareIds.includes(id), full: compareFull, toggle: toggleCompare }
+  const compareCards = compareIds.map((id) => cards.find((c) => c.id === id)).filter(Boolean) as FinderCard[]
 
   return (
     <div style={{ display: 'grid', gap: '1.5rem', gridTemplateColumns: 'minmax(0, 1fr)' }}>
@@ -370,29 +379,52 @@ export default function CardFinder({
 
       {grouped ? (
         <>
-          <Group title={`Earns ${targetName} directly`} subtitle="Co-branded cards (and cards that earn this currency outright)." cards={grouped.direct} />
-          <Group title={`Transfers to ${targetName}`} subtitle="Flexible-points cards whose currency transfers in. Some require pairing with a premium sibling card." cards={grouped.transfer} showTransferNote />
+          <Group title={`Earns ${targetName} directly`} subtitle="Co-branded cards (and cards that earn this currency outright)." cards={grouped.direct} compare={compareApi} />
+          <Group title={`Transfers to ${targetName}`} subtitle="Flexible-points cards whose currency transfers in. Some require pairing with a premium sibling card." cards={grouped.transfer} showTransferNote compare={compareApi} />
           {resultCount === 0 && <Empty />}
         </>
       ) : (
-        <div style={grid}>{base.map((c) => <CardTile key={c.id} c={c} />)}{base.length === 0 && <Empty />}</div>
+        <div style={grid}>{base.map((c) => <CardTile key={c.id} c={c} compare={compareApi} />)}{base.length === 0 && <Empty />}</div>
       )}
+
+      {/* Sticky compare tray — appears once at least one card is selected. */}
+      {compareCards.length > 0 && (
+        <div style={compareTray}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexWrap: 'wrap', flex: '1 1 auto', minWidth: 0 }}>
+            <span style={{ fontFamily: 'var(--font-ui)', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--color-text-secondary)' }}>Compare ({compareCards.length}/3)</span>
+            {compareCards.map((c) => (
+              <span key={c.id} style={compareTrayChip}>
+                {c.name}
+                <button onClick={() => toggleCompare(c.id)} aria-label={`Remove ${c.name}`} style={compareTrayRemove}>×</button>
+              </span>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <button onClick={() => setCompareOpen(true)} disabled={compareCards.length < 2} style={{ ...searchBtn, opacity: compareCards.length < 2 ? 0.5 : 1, cursor: compareCards.length < 2 ? 'default' : 'pointer' }} className="rg-tap-target">Compare</button>
+            <button onClick={() => setCompareIds([])} style={clearBtn}>Clear</button>
+          </div>
+        </div>
+      )}
+
+      {compareOpen && <CompareOverlay cards={compareCards} benefitByKey={benefitByKey} onRemove={toggleCompare} onClose={() => setCompareOpen(false)} />}
     </div>
   )
 }
 
-function Group({ title, subtitle, cards, showTransferNote }: { title: string; subtitle: string; cards: FinderCard[]; showTransferNote?: boolean }) {
+type CompareApi = { has: (id: string) => boolean; full: boolean; toggle: (id: string) => void }
+
+function Group({ title, subtitle, cards, showTransferNote, compare }: { title: string; subtitle: string; cards: FinderCard[]; showTransferNote?: boolean; compare?: CompareApi }) {
   if (cards.length === 0) return null
   return (
     <section>
       <h2 style={{ fontSize: '1.25rem', margin: '0 0 0.25rem' }}>{title} <span style={{ color: 'var(--color-text-secondary)', fontWeight: 400, fontSize: '1rem' }}>({cards.length})</span></h2>
       <p style={{ fontFamily: 'var(--font-ui)', fontSize: '0.8125rem', color: 'var(--color-text-secondary)', margin: '0 0 1rem' }}>{subtitle}</p>
-      <div style={grid}>{cards.map((c) => <CardTile key={c.id} c={c} showTransferNote={showTransferNote} />)}</div>
+      <div style={grid}>{cards.map((c) => <CardTile key={c.id} c={c} showTransferNote={showTransferNote} compare={compare} />)}</div>
     </section>
   )
 }
 
-function CardTile({ c, showTransferNote }: { c: FinderCard; showTransferNote?: boolean }) {
+function CardTile({ c, showTransferNote, compare }: { c: FinderCard; showTransferNote?: boolean; compare?: CompareApi }) {
   // Not fully authored yet -> greyed, non-clickable "coming soon" tile.
   if (!c.authored) {
     return (
@@ -408,10 +440,25 @@ function CardTile({ c, showTransferNote }: { c: FinderCard; showTransferNote?: b
   const pool = showTransferNote && c.transferEligibility === 'pool_to_unlock'
   // Show the specific benefits THIS card has, from our recognizable taxonomy.
   const has = ALL_BENEFITS.filter((b) => cardHas(c, b)).slice(0, 5)
+  const comparing = compare?.has(c.id) ?? false
+  const compareDisabled = !comparing && (compare?.full ?? false)
   return (
     <Link href={`/cards/${c.slug}`} style={tile}>
-      <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: '0.375rem' }}>
-        {c.issuerName}{c.network ? ` · ${c.network[0].toUpperCase() + c.network.slice(1)}` : ''}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.375rem' }}>
+        <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+          {c.issuerName}{c.network ? ` · ${c.network[0].toUpperCase() + c.network.slice(1)}` : ''}
+        </div>
+        {compare && (
+          <button
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (!compareDisabled) compare.toggle(c.id) }}
+            disabled={compareDisabled}
+            aria-pressed={comparing}
+            title={compareDisabled ? 'Comparing 3 cards already' : comparing ? 'Remove from compare' : 'Add to compare'}
+            style={comparing ? compareTileBtnOn : { ...compareTileBtn, opacity: compareDisabled ? 0.4 : 1, cursor: compareDisabled ? 'default' : 'pointer' }}
+          >
+            {comparing ? '✓ Comparing' : '+ Compare'}
+          </button>
+        )}
       </div>
       <div style={{ fontWeight: 600, fontSize: '1.0625rem', marginBottom: '0.5rem', lineHeight: 1.3 }}>{c.name}</div>
       <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'baseline', flexWrap: 'wrap', marginBottom: (has.length || c.topEarn.length) ? '0.625rem' : 0 }}>
@@ -467,6 +514,71 @@ function Empty() {
   return <p style={{ fontFamily: 'var(--font-ui)', color: 'var(--color-text-secondary)' }}>No cards match these filters. Try clearing a few.</p>
 }
 
+// Attribute-first comparison (Explorer spec §3.4): rows are attributes, the
+// 2–3 cards are columns on desktop and stack on mobile (card name shown per
+// cell only when stacked, via the rg-compare-* CSS in globals.css).
+function CompareOverlay({ cards, benefitByKey, onRemove, onClose }: {
+  cards: FinderCard[]; benefitByKey: Map<string, BenefitFilter>; onRemove: (id: string) => void; onClose: () => void
+}) {
+  const [highlight, setHighlight] = useState(true)
+  const lounge = benefitByKey.get('lounge')
+  const fmtMult = (m: number) => (m % 1 === 0 ? `${m}` : m.toFixed(1))
+  const colStyle = { '--cmp-cols': String(cards.length) } as React.CSSProperties
+  const attrs: Array<{ label: string; get: (c: FinderCard) => string }> = [
+    { label: 'Annual fee', get: (c) => (c.annualFee === 0 ? '$0' : c.annualFee != null ? `$${c.annualFee}` : '—') },
+    { label: 'Welcome bonus', get: (c) => (c.sub ? formatBonus(c.sub.bonus_amount, c.sub.bonus_currency) : '—') },
+    { label: 'Top earn rate', get: (c) => (c.topEarn.length ? c.topEarn.map((e) => `${fmtMult(e.multiplier)}x ${earnLabel(e.category)}`).join(', ') : '—') },
+    { label: 'Lounge access', get: (c) => (lounge && cardHas(c, lounge) ? 'Yes' : 'No') },
+    { label: 'No foreign fee', get: (c) => (c.noFxFee ? 'Yes' : 'No') },
+    { label: 'Transfers to partners', get: (c) => (c.benefitTypes.includes('transfer_partner_access') || (c.transferEligibility && c.transferEligibility !== 'none') ? 'Yes' : 'No') },
+  ]
+  return (
+    <div style={compareOverlay} role="dialog" aria-modal="true" aria-label="Compare cards" onClick={onClose}>
+      <div style={compareModal} onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+          <h2 style={{ fontSize: '1.25rem', margin: 0 }}>Compare cards</h2>
+          <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontFamily: 'var(--font-ui)', fontSize: '0.8125rem', cursor: 'pointer' }} className="rg-tap-target">
+              <input type="checkbox" checked={highlight} onChange={(e) => setHighlight(e.target.checked)} style={{ width: 16, height: 16 }} />
+              Highlight differences
+            </label>
+            <button onClick={onClose} style={searchBtn} className="rg-tap-target">Back to cards</button>
+          </div>
+        </div>
+
+        {/* Card header row */}
+        <div className="rg-compare-vals" style={{ ...colStyle, marginBottom: '0.25rem' }}>
+          {cards.map((c) => (
+            <div key={c.id} style={{ paddingBottom: '0.5rem' }}>
+              <Link href={`/cards/${c.slug}`} style={{ display: 'block', fontWeight: 700, color: 'var(--color-primary)', textDecoration: 'none', fontSize: '0.9375rem', lineHeight: 1.3 }}>{c.name}</Link>
+              <div style={{ fontFamily: 'var(--font-ui)', fontSize: '0.625rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-secondary)', margin: '0.125rem 0 0.375rem' }}>{c.issuerName}</div>
+              <button onClick={() => onRemove(c.id)} style={clearBtn}>Remove</button>
+            </div>
+          ))}
+        </div>
+
+        {attrs.map((a) => {
+          const vals = cards.map(a.get)
+          const differs = new Set(vals).size > 1
+          return (
+            <div key={a.label} style={{ borderTop: '1px solid var(--color-border-soft)', padding: '0.75rem 0.5rem', borderRadius: 'var(--radius-ui)', background: highlight && differs ? 'var(--color-background-soft)' : 'transparent' }}>
+              <div style={{ ...labelStyle, marginBottom: '0.5rem' }}>{a.label}</div>
+              <div className="rg-compare-vals" style={colStyle}>
+                {cards.map((c, i) => (
+                  <div key={c.id} style={{ fontFamily: 'var(--font-ui)', fontSize: '0.875rem', color: 'var(--color-text-primary)' }}>
+                    <span className="rg-compare-cardname" style={{ fontSize: '0.625rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-secondary)', marginBottom: '0.125rem' }}>{c.name}</span>
+                    {vals[i]}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 const panel: React.CSSProperties = { border: '1px solid var(--color-border-soft)', borderRadius: 'var(--radius-card)', background: 'var(--color-background-soft)', padding: '1.125rem' }
 const exploreBar: React.CSSProperties = { display: 'grid', gap: '0.875rem', border: '1px solid var(--color-border-soft)', borderRadius: 'var(--radius-card)', background: 'var(--color-background)', padding: '1rem 1.125rem', boxShadow: 'var(--shadow-soft)' }
 const comingSoonBadge: React.CSSProperties = { position: 'absolute', top: '0.625rem', right: '0.625rem', fontFamily: 'var(--font-ui)', fontSize: '0.625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-secondary)', background: 'var(--color-background-soft)', border: '1px solid var(--color-border-soft)', borderRadius: '999px', padding: '0.1875rem 0.5rem' }
@@ -479,7 +591,15 @@ const famBadge: React.CSSProperties = { fontFamily: 'var(--font-ui)', fontSize: 
 const clearBtn: React.CSSProperties = { fontFamily: 'var(--font-ui)', fontSize: '0.8125rem', color: 'var(--color-text-secondary)', background: 'none', border: 'none', cursor: 'pointer', justifySelf: 'start', padding: 0, textDecoration: 'underline' }
 const searchBtn: React.CSSProperties = { fontFamily: 'var(--font-ui)', fontSize: '0.9375rem', fontWeight: 700, padding: '0.75rem 1.5rem', borderRadius: 'var(--radius-ui)', border: 'none', background: 'var(--color-primary)', color: '#fff', cursor: 'pointer', minHeight: 44 }
 const clearAllBtn: React.CSSProperties = { fontFamily: 'var(--font-ui)', fontSize: '0.9375rem', fontWeight: 700, padding: '0.75rem 1.5rem', borderRadius: 'var(--radius-ui)', border: '1px solid var(--color-chip-red)', background: 'var(--color-chip-red-bg)', color: 'var(--color-chip-red-fg)', cursor: 'pointer', minHeight: 44 }
+// Compare — tile button, sticky tray, comparison overlay.
+const compareTileBtn: React.CSSProperties = { fontFamily: 'var(--font-ui)', fontSize: '0.6875rem', fontWeight: 700, padding: '0.25rem 0.5rem', borderRadius: '999px', border: '1px solid var(--color-border-soft)', background: 'var(--color-background)', color: 'var(--color-text-secondary)', whiteSpace: 'nowrap', flexShrink: 0 }
+const compareTileBtnOn: React.CSSProperties = { ...compareTileBtn, border: '1px solid var(--color-primary)', background: 'var(--color-primary)', color: '#fff', cursor: 'pointer' }
+const compareTray: React.CSSProperties = { position: 'sticky', bottom: '0.75rem', zIndex: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', padding: '0.75rem 1rem', borderRadius: 'var(--radius-card)', border: '1px solid var(--color-border-soft)', background: 'var(--color-background)', boxShadow: '0 4px 16px rgba(26,26,26,0.12)' }
+const compareTrayChip: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontFamily: 'var(--font-ui)', fontSize: '0.75rem', padding: '0.25rem 0.25rem 0.25rem 0.625rem', borderRadius: '999px', background: 'var(--color-background-soft)', border: '1px solid var(--color-border-soft)', maxWidth: '14rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
+const compareTrayRemove: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 20, height: 20, borderRadius: '999px', border: 'none', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '1rem', lineHeight: 1, cursor: 'pointer', flexShrink: 0 }
+const compareOverlay: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(26,26,26,0.45)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '1rem', overflowY: 'auto' }
+const compareModal: React.CSSProperties = { width: '100%', maxWidth: '52rem', margin: 'auto', background: 'var(--color-background)', borderRadius: 'var(--radius-card)', padding: '1.5rem', boxShadow: '0 8px 32px rgba(26,26,26,0.2)' }
 const moreFiltersLink: React.CSSProperties = { fontFamily: 'var(--font-ui)', fontSize: '0.8125rem', fontWeight: 700, padding: '0.4375rem 0.75rem', borderRadius: '999px', minHeight: 36, border: '1px dashed var(--color-primary)', background: 'transparent', color: 'var(--color-primary)', cursor: 'pointer' }
 // Presets read as curated shortcuts, not filters: gold-accented pills.
 const presetChip: React.CSSProperties = { fontFamily: 'var(--font-ui)', fontSize: '0.8125rem', fontWeight: 700, padding: '0.5rem 0.875rem', borderRadius: '999px', minHeight: 38, cursor: 'pointer', border: '1px solid var(--color-accent)', background: 'var(--color-background)', color: 'var(--color-text-primary)' }
-const presetChipOn: React.CSSProperties = { ...presetChip, background: 'var(--color-accent)', color: '#1A1A1A', borderColor: 'var(--color-accent)' }
+const presetChipOn: React.CSSProperties = { ...presetChip, background: 'var(--color-accent)', color: '#1A1A1A' }
