@@ -491,6 +491,26 @@ button {
   -webkit-overflow-scrolling: touch;
 }
 
+/* Card Explorer compare (Phase 4): attribute-first comparison grid.
+   Cards are columns on desktop; stack to one column on mobile, where each
+   value cell shows its card name (.rg-compare-cardname) so it stays readable. */
+.rg-compare-vals {
+  display: grid;
+  grid-template-columns: repeat(var(--cmp-cols, 2), minmax(0, 1fr));
+  gap: 0.75rem 1rem;
+}
+.rg-compare-cardname {
+  display: none;
+}
+@media (max-width: 640px) {
+  .rg-compare-vals {
+    grid-template-columns: 1fr;
+  }
+  .rg-compare-cardname {
+    display: block;
+  }
+}
+
 .rg-btn-primary {
   display: inline-flex;
   align-items: center;
