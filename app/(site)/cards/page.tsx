@@ -6,9 +6,9 @@ import CardFinder, { type ProgramOption, type FinderInitial } from '@/components
 export const revalidate = 3600
 
 export const metadata: Metadata = {
-  title: 'Credit Card Finder',
+  title: 'Credit Card Explorer',
   description:
-    'Find the right points-and-miles credit card. Filter by the program you want, benefits, annual fee, network, and issuer — and see which cards earn a program directly versus by transfer.',
+    'Browse and compare points-and-miles credit cards. Sort by fee, welcome bonus, or rewards rate, filter by the benefits and points program you want, and see which cards earn a program directly versus by transfer.',
   alternates: { canonical: 'https://www.crazy4points.com/cards' },
 }
 
@@ -56,10 +56,10 @@ export default async function CardFinderPage({
   return (
     <div className="rg-container px-6 py-12 md:px-8 md:py-16">
       <header style={{ maxWidth: '46rem', marginBottom: '2rem' }}>
-        <h1 style={{ marginBottom: '0.75rem' }}>Credit Card Finder</h1>
+        <h1 style={{ marginBottom: '0.75rem' }}>Credit Card Explorer</h1>
         <p style={{ fontSize: '1.0625rem', color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>
-          Filter by the benefits, points program, and budget you actually care about — and see which
-          cards earn a program directly versus by transfer.
+          Browse every card, sort by what matters, and quick-filter as you go. Need to get specific?
+          Open <strong>All filters</strong> for the full benefit, program, and issuer breakdown.
         </p>
       </header>
       <CardFinder cards={cards} programOptions={programOptions} transferSources={transferSources} initial={initial} />

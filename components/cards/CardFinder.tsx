@@ -206,27 +206,48 @@ export default function CardFinder({
 
   return (
     <div style={{ display: 'grid', gap: '1.5rem', gridTemplateColumns: 'minmax(0, 1fr)' }}>
-      {/* Prominent "start here" filter entry — filtering is the main action. */}
-      <div style={ctaPanel}>
-        <p style={{ fontFamily: 'var(--font-ui)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-primary)', margin: 0 }}>Start here</p>
-        <h2 style={{ fontSize: '1.375rem', margin: '0.25rem 0 0.25rem' }}>Filter by the benefits you&rsquo;re looking for</h2>
-        <p style={{ fontFamily: 'var(--font-ui)', fontSize: '0.9375rem', color: 'var(--color-text-secondary)', margin: '0 0 1rem' }}>
-          Lounge access, free nights, no foreign fees, a specific points program &mdash; tell us what matters and we&rsquo;ll match the cards.
-        </p>
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <button onClick={() => setShowFilters((s) => !s)} style={searchBtn} className="rg-tap-target">
-            {showFilters ? 'Hide filters' : 'Choose your filters'}{activeFilters ? ` (${activeFilters})` : ''}
-          </button>
+      {/* Explore bar — the primary surface. Sort + quick filters apply live. */}
+      <div style={exploreBar}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <label htmlFor="card-sort" style={{ ...labelStyle, margin: 0 }}>Sort by</label>
+            <select id="card-sort" value={sort} onChange={(e) => setSort(e.target.value as SortKey)} style={{ ...inputStyle, width: 'auto', minWidth: '13rem' }}>
+              {SORT_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+            </select>
+          </div>
           {hasActive && (
-            <button onClick={reset} style={clearAllBtn} className="rg-tap-target">
-              Clear all filters
-            </button>
+            <button onClick={reset} style={clearAllBtn} className="rg-tap-target">Clear all filters</button>
           )}
+        </div>
+        <div style={{ display: 'grid', gap: '0.5rem' }}>
+          <div style={chipRow}>
+            {(['all', 'personal', 'business'] as const).map((t) => (
+              <Chip key={t} on={applied.cardType === t} onClick={() => applyLive({ cardType: t })}>{t === 'all' ? 'All cards' : t[0].toUpperCase() + t.slice(1)}</Chip>
+            ))}
+          </div>
+          <div style={chipRow}>
+            {FEE_BANDS.map((b) => (
+              <Chip key={b.key} on={applied.feeBands.includes(b.key)} onClick={() => applyLive({ feeBands: toggle(applied.feeBands, b.key) })}>{b.label}</Chip>
+            ))}
+            <Chip on={applied.noFx} onClick={() => applyLive({ noFx: !applied.noFx })}>No foreign fee</Chip>
+          </div>
+          <div style={chipRow}>
+            {QUICK_BENEFIT_KEYS.map((k) => {
+              const b = benefitByKey.get(k)
+              if (!b) return null
+              return <Chip key={k} on={applied.benefits.includes(k)} onClick={() => applyLive({ benefits: toggle(applied.benefits, k) })}>{b.label}</Chip>
+            })}
+            <button onClick={openPanel} style={moreFiltersLink} className="rg-tap-target">All filters →</button>
+          </div>
         </div>
       </div>
 
       {showFilters && (
         <div ref={panelRef} style={{ ...panel, display: 'grid', gap: '1.25rem', scrollMarginTop: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem' }}>
+            <h2 style={{ fontSize: '1.125rem', margin: 0 }}>Advanced filters</h2>
+            <button onClick={() => setShowFilters(false)} style={clearBtn} aria-label="Close advanced filters">Done</button>
+          </div>
           <Field label="Points program (optional)">
             <select value={draft.target} onChange={(e) => setD({ target: e.target.value })} style={inputStyle}>
               <option value="">Any program</option>
@@ -306,37 +327,6 @@ export default function CardFinder({
           </div>
         </div>
       )}
-
-      {/* Explore bar — sort + quick filters apply live, no Search needed. */}
-      <div style={exploreBar}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <label htmlFor="card-sort" style={{ ...labelStyle, margin: 0 }}>Sort by</label>
-          <select id="card-sort" value={sort} onChange={(e) => setSort(e.target.value as SortKey)} style={{ ...inputStyle, width: 'auto', minWidth: '13rem' }}>
-            {SORT_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
-          </select>
-        </div>
-        <div style={{ display: 'grid', gap: '0.5rem' }}>
-          <div style={chipRow}>
-            {(['all', 'personal', 'business'] as const).map((t) => (
-              <Chip key={t} on={applied.cardType === t} onClick={() => applyLive({ cardType: t })}>{t === 'all' ? 'All cards' : t[0].toUpperCase() + t.slice(1)}</Chip>
-            ))}
-          </div>
-          <div style={chipRow}>
-            {FEE_BANDS.map((b) => (
-              <Chip key={b.key} on={applied.feeBands.includes(b.key)} onClick={() => applyLive({ feeBands: toggle(applied.feeBands, b.key) })}>{b.label}</Chip>
-            ))}
-            <Chip on={applied.noFx} onClick={() => applyLive({ noFx: !applied.noFx })}>No foreign fee</Chip>
-          </div>
-          <div style={chipRow}>
-            {QUICK_BENEFIT_KEYS.map((k) => {
-              const b = benefitByKey.get(k)
-              if (!b) return null
-              return <Chip key={k} on={applied.benefits.includes(k)} onClick={() => applyLive({ benefits: toggle(applied.benefits, k) })}>{b.label}</Chip>
-            })}
-            <button onClick={openPanel} style={moreFiltersLink} className="rg-tap-target">More filters →</button>
-          </div>
-        </div>
-      </div>
 
       <p ref={resultsRef} style={{ fontFamily: 'var(--font-ui)', fontSize: '0.875rem', color: 'var(--color-text-secondary)', margin: 0, scrollMarginTop: '1rem' }}>
         {resultCount} {resultCount === 1 ? 'card' : 'cards'}{applied.target ? ` for ${targetName}` : ''}
@@ -443,7 +433,6 @@ function Empty() {
 
 const panel: React.CSSProperties = { border: '1px solid var(--color-border-soft)', borderRadius: 'var(--radius-card)', background: 'var(--color-background-soft)', padding: '1.125rem' }
 const exploreBar: React.CSSProperties = { display: 'grid', gap: '0.875rem', border: '1px solid var(--color-border-soft)', borderRadius: 'var(--radius-card)', background: 'var(--color-background)', padding: '1rem 1.125rem', boxShadow: 'var(--shadow-soft)' }
-const ctaPanel: React.CSSProperties = { border: '1px solid var(--color-border-soft)', borderRadius: 'var(--radius-card)', background: 'linear-gradient(135deg, var(--color-background-soft) 0%, var(--color-background) 70%)', padding: '1.5rem', boxShadow: 'var(--shadow-soft)' }
 const comingSoonBadge: React.CSSProperties = { position: 'absolute', top: '0.625rem', right: '0.625rem', fontFamily: 'var(--font-ui)', fontSize: '0.625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-secondary)', background: 'var(--color-background-soft)', border: '1px solid var(--color-border-soft)', borderRadius: '999px', padding: '0.1875rem 0.5rem' }
 const labelStyle: React.CSSProperties = { fontFamily: 'var(--font-ui)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: '0.5rem', display: 'block' }
 const inputStyle: React.CSSProperties = { width: '100%', fontSize: '1rem', fontFamily: 'var(--font-ui)', padding: '0.625rem 0.75rem', borderRadius: 'var(--radius-ui)', border: '1px solid var(--color-border-soft)', background: 'var(--color-background)', color: 'var(--color-text-primary)' }
