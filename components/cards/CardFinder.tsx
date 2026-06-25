@@ -108,6 +108,17 @@ interface Filters {
   q: string
 }
 
+// Presets (locked, Explorer spec §3.5) — curated one-tap starting points.
+// Thin wrappers over the real taxonomy: each just pre-applies filter values.
+const PRESETS: Array<{ key: string; label: string; filters: Partial<Filters> }> = [
+  { key: 'no_fee', label: 'No annual fee', filters: { feeBands: ['f0'] } },
+  { key: 'first_travel', label: 'First travel card', filters: { feeBands: ['f0', 'f95'], noFx: true, benefits: ['transfer_partners'] } },
+  { key: 'premium', label: 'Premium travel', filters: { benefits: ['lounge', 'travel_credit'] } },
+  { key: 'lounges', label: 'Best for lounges', filters: { benefits: ['lounge'] } },
+  { key: 'hotels', label: 'Best for hotels', filters: { benefits: ['free_night'] } },
+  { key: 'transfers', label: 'Transfers to airline partners', filters: { benefits: ['transfer_partners'] } },
+]
+
 export interface ProgramOption { slug: string; name: string }
 
 export interface FinderInitial {
@@ -149,6 +160,9 @@ export default function CardFinder({
   const [draft, setDraft] = useState<Filters>(defaults)
   const [applied, setApplied] = useState<Filters>(defaults)
   const [sort, setSort] = useState<SortKey>('relevance')
+  // Which preset (if any) the current filters came from — for chip highlighting.
+  // Cleared the moment the user touches any individual filter.
+  const [activePreset, setActivePreset] = useState<string | null>(null)
   const resultsRef = useRef<HTMLParagraphElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const openPanel = () => { setShowFilters(true); requestAnimationFrame(() => panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })) }
@@ -161,6 +175,15 @@ export default function CardFinder({
   const applyLive = (patch: Partial<Filters>) => {
     setApplied((a) => ({ ...a, ...patch }))
     setDraft((d) => ({ ...d, ...patch }))
+    setActivePreset(null)
+  }
+  // Presets replace the whole filter state (a fresh starting point). Clicking
+  // the active preset again clears it. Quick filters/Search/Clear drop the tag.
+  const applyPreset = (p: (typeof PRESETS)[number]) => {
+    if (activePreset === p.key) { reset(); return }
+    const next: Filters = { ...defaults, ...p.filters }
+    setApplied(next); setDraft(next); setActivePreset(p.key)
+    requestAnimationFrame(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
   }
   const toggle = (arr: string[], v: string) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v])
 
@@ -183,8 +206,8 @@ export default function CardFinder({
 
   const base = useMemo(() => sortCards(cards.filter((c) => passes(c, applied)), sort), [cards, applied, sort]) // eslint-disable-line react-hooks/exhaustive-deps
   const draftCount = useMemo(() => cards.filter((c) => passes(c, draft)).length, [cards, draft]) // eslint-disable-line react-hooks/exhaustive-deps
-  const search = () => { setApplied(draft); setShowFilters(false); requestAnimationFrame(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })) }
-  const reset = () => { setDraft(defaults); setApplied(defaults); setSort('relevance') }
+  const search = () => { setApplied(draft); setShowFilters(false); setActivePreset(null); requestAnimationFrame(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })) }
+  const reset = () => { setDraft(defaults); setApplied(defaults); setSort('relevance'); setActivePreset(null) }
 
   const grouped = useMemo(() => {
     if (!applied.target) return null
@@ -206,6 +229,19 @@ export default function CardFinder({
 
   return (
     <div style={{ display: 'grid', gap: '1.5rem', gridTemplateColumns: 'minmax(0, 1fr)' }}>
+      {/* Presets — curated one-tap starting points for "I don't know exactly what I want." */}
+      <div>
+        <div style={{ ...labelStyle, marginBottom: '0.625rem' }}>Popular starting points</div>
+        <div style={chipRow}>
+          {PRESETS.map((p) => (
+            <button key={p.key} onClick={() => applyPreset(p)} className="rg-tap-target"
+              style={activePreset === p.key ? presetChipOn : presetChip}>
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Explore bar — the primary surface. Sort + quick filters apply live. */}
       <div style={exploreBar}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
@@ -444,3 +480,6 @@ const clearBtn: React.CSSProperties = { fontFamily: 'var(--font-ui)', fontSize: 
 const searchBtn: React.CSSProperties = { fontFamily: 'var(--font-ui)', fontSize: '0.9375rem', fontWeight: 700, padding: '0.75rem 1.5rem', borderRadius: 'var(--radius-ui)', border: 'none', background: 'var(--color-primary)', color: '#fff', cursor: 'pointer', minHeight: 44 }
 const clearAllBtn: React.CSSProperties = { fontFamily: 'var(--font-ui)', fontSize: '0.9375rem', fontWeight: 700, padding: '0.75rem 1.5rem', borderRadius: 'var(--radius-ui)', border: '1px solid var(--color-chip-red)', background: 'var(--color-chip-red-bg)', color: 'var(--color-chip-red-fg)', cursor: 'pointer', minHeight: 44 }
 const moreFiltersLink: React.CSSProperties = { fontFamily: 'var(--font-ui)', fontSize: '0.8125rem', fontWeight: 700, padding: '0.4375rem 0.75rem', borderRadius: '999px', minHeight: 36, border: '1px dashed var(--color-primary)', background: 'transparent', color: 'var(--color-primary)', cursor: 'pointer' }
+// Presets read as curated shortcuts, not filters: gold-accented pills.
+const presetChip: React.CSSProperties = { fontFamily: 'var(--font-ui)', fontSize: '0.8125rem', fontWeight: 700, padding: '0.5rem 0.875rem', borderRadius: '999px', minHeight: 38, cursor: 'pointer', border: '1px solid var(--color-accent)', background: 'var(--color-background)', color: 'var(--color-text-primary)' }
+const presetChipOn: React.CSSProperties = { ...presetChip, background: 'var(--color-accent)', color: '#1A1A1A', borderColor: 'var(--color-accent)' }
