@@ -5,7 +5,7 @@ const footerNav = [
   {
     heading: "Explore",
     links: [
-      { label: "Credit Card Comparison", href: "/cards" },
+      { label: "Credit Card Explorer", href: "/cards" },
       { label: "Alliance Explorer", href: "/tools/alliances" },
       { label: "Decision Engine", href: "/decision-engine" },
       { label: "Alerts", href: "/alerts" },

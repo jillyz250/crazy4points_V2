@@ -20,10 +20,10 @@ type Tool = {
 
 const TOOLS: Tool[] = [
   {
-    label: "Credit Card Comparison",
+    label: "Credit Card Explorer",
     href: "/cards",
-    blurb: "Filter cards by the program, perks, and spending you care about — and see which earn a program directly vs. by transfer.",
-    cta: "Find your card",
+    blurb: "Browse every card, sort by fee or welcome bonus, quick-filter by the perks you want, and compare up to 3 side by side.",
+    cta: "Explore cards",
     accent: "#059669",
     tint: "#DEF4EC",
     icon: (

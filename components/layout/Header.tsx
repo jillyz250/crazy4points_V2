@@ -10,7 +10,7 @@ import type { ResourceNavCounts } from "@/utils/supabase/queries";
 // directories live under Resources.
 const toolsMenu: { label: string; href: string; comingSoon?: boolean }[] = [
   { label: "Decision Engine", href: "/decision-engine" },
-  { label: "Credit Card Comparison", href: "/cards" },
+  { label: "Credit Card Explorer", href: "/cards" },
   { label: "Alliance Explorer", href: "/tools/alliances" },
   { label: "My Wallet", href: "/wallet", comingSoon: true },
 ];
