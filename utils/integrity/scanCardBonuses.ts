@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
 import { fetchFirecrawl } from '@/utils/ai/firecrawl'
-import { welcomeBonusDisplayTotal } from './cardBonusSignals'
+import { welcomeBonusDisplayTotal, welcomeBonusAmountChanged, isCashCurrency } from './cardBonusSignals'
 
 /**
  * Welcome-bonus monitor. For each active card that has a current welcome bonus
@@ -58,7 +58,15 @@ async function extractBonusWithHaiku(
   client: Anthropic,
   cardName: string,
   markdown: string,
+  bonusCurrency?: string | null,
 ): Promise<ExtractedBonus | null> {
+  // Cash-back cards store their bonus in DOLLARS (Freedom Flex = $200), but the
+  // issuer page often headlines the same offer in points (20,000 = $200 at
+  // 1pt=1¢). Tell the extractor to report in the card's OWN unit so detected is
+  // directly comparable to stored — otherwise every such card false-flags.
+  const unitRule = isCashCurrency(bonusCurrency)
+    ? `- bonus_amount = the sign-up bonus as a US DOLLAR figure (e.g. a "$200 bonus" → 200). This is a CASH-BACK card; if the page states the bonus only in points/miles, convert at 1 point = 1 cent (20,000 points → 200). Prefer an explicit dollar figure when the page shows one.`
+    : `- bonus_amount = the headline sign-up bonus in points or miles (e.g. 60000). If the offer is "up to X" or elevated/limited-time, use the highest current headline number.`
   const prompt = `You read a credit-card marketing page and report its CURRENT primary welcome / sign-up bonus.
 
 CARD: ${cardName}
@@ -68,10 +76,10 @@ ${markdown.slice(0, 9000)}
 """
 
 Return ONLY a JSON object:
-{"found": true|false, "bonus_amount": <integer points/miles, no commas>, "spend_required_usd": <integer minimum spend in USD>, "confidence": "high|med|low"}
+{"found": true|false, "bonus_amount": <integer, no commas>, "spend_required_usd": <integer minimum spend in USD>, "confidence": "high|med|low"}
 
 Rules:
-- bonus_amount = the headline sign-up bonus in points or miles (e.g. 60000). If the offer is "up to X" or elevated/limited-time, use the highest current headline number.
+${unitRule}
 - spend_required_usd = the minimum spend to earn it (e.g. 3500). If no minimum spend, use 0.
 - found=false if the page does not clearly state a current welcome bonus (paywalled, JS-only, expired, or absent). When found=false, set the numbers to null.
 - Do NOT guess. If you cannot read a clear number, found=false. Precision over recall.`
@@ -100,7 +108,11 @@ Rules:
  * rare change, not daily across the whole set. Returns null if unconfigured,
  * the scrape failed, or no clear bonus was found.
  */
-export async function extractCardBonusFromUrl(url: string, cardName: string): Promise<ExtractedBonus | null> {
+export async function extractCardBonusFromUrl(
+  url: string,
+  cardName: string,
+  bonusCurrency?: string | null,
+): Promise<ExtractedBonus | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) return null
   const client = new Anthropic({ apiKey })
@@ -109,7 +121,7 @@ export async function extractCardBonusFromUrl(url: string, cardName: string): Pr
     console.warn(`[extractCardBonusFromUrl] ${url} fetch failed: ${res.reason}`)
     return null
   }
-  return extractBonusWithHaiku(client, cardName, res.markdown)
+  return extractBonusWithHaiku(client, cardName, res.markdown, bonusCurrency)
 }
 
 export async function scanCardBonuses(supabase: SupabaseClient): Promise<CardBonusSignal[]> {
@@ -191,18 +203,21 @@ export async function scanCardBonuses(supabase: SupabaseClient): Promise<CardBon
       console.warn(`[scanCardBonuses] ${card.card_slug} fetch failed: ${res.reason}`)
       continue
     }
-    const extracted = await extractBonusWithHaiku(client, card.card_name, res.markdown)
+    const extracted = await extractBonusWithHaiku(client, card.card_name, res.markdown, card.bonus_currency)
     if (!extracted || !extracted.found || !extracted.bonus_amount) continue
 
     // Tiered cards store stored_amount = first tier; the page headline (and the
     // extractor) read the "Up to X" total. Real change only if detected matches
-    // NEITHER the first tier NOR the headline total.
+    // NEITHER the first tier NOR the headline total — and isn't a cash card's
+    // bonus re-expressed in points (the points-as-cents false positive).
     const storedTotal =
       card.stored_amount != null ? welcomeBonusDisplayTotal(card.stored_amount, card.stored_tiers, card.stored_spend) : null
-    const amountChanged =
-      card.stored_amount != null &&
-      extracted.bonus_amount !== card.stored_amount &&
-      extracted.bonus_amount !== storedTotal
+    const amountChanged = welcomeBonusAmountChanged(
+      card.stored_amount,
+      storedTotal,
+      extracted.bonus_amount,
+      card.bonus_currency,
+    )
     // Spend threshold is ambiguous on tiered cards (the extractor may read the
     // first-tier minimum or the combined spend), so only trust it on flat cards.
     const hasTiers = Array.isArray(card.stored_tiers) && card.stored_tiers.length > 0

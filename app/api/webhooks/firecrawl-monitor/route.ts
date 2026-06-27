@@ -18,7 +18,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/utils/supabase/server'
 import type { CardBonusSignal } from '@/utils/integrity/scanCardBonuses'
 import { extractCardBonusFromUrl } from '@/utils/integrity/scanCardBonuses'
-import { signalContentHash, persistCardBonusSignals, emailFreshSignals, welcomeBonusDisplayTotal } from '@/utils/integrity/cardBonusSignals'
+import { signalContentHash, persistCardBonusSignals, emailFreshSignals, welcomeBonusDisplayTotal, welcomeBonusAmountChanged } from '@/utils/integrity/cardBonusSignals'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -73,7 +73,8 @@ export async function POST(request: Request) {
     if (!c || !c.is_active || c.status !== 'active') continue
 
     // Re-extract the current offer from this one changed page.
-    const extracted = await extractCardBonusFromUrl(page.url, c.name)
+    const bonusCurrency = (row.bonus_currency as string | null) ?? null
+    const extracted = await extractCardBonusFromUrl(page.url, c.name, bonusCurrency)
     reextracted++
     if (!extracted || !extracted.found || extracted.bonus_amount == null) continue
 
@@ -83,11 +84,12 @@ export async function POST(request: Request) {
     const storedSpend = row.spend_required_usd as number | null
     // Tiered cards store bonus_amount = first tier, but the page headline (and
     // the extractor) read the "Up to X" total. Treat a detected value as a real
-    // change only if it matches NEITHER the first tier NOR the headline total.
+    // change only if it matches NEITHER the first tier NOR the headline total —
+    // and isn't a cash card's bonus re-expressed in points (points-as-cents FP).
     const tiers = row.tiered_bonuses as Array<{ bonus_amount?: unknown; spend_usd?: unknown }> | null
     const hasTiers = Array.isArray(tiers) && tiers.length > 0
     const storedTotal = storedAmount != null ? welcomeBonusDisplayTotal(storedAmount, tiers, storedSpend) : null
-    const amountChanged = storedAmount != null && detectedAmount !== storedAmount && detectedAmount !== storedTotal
+    const amountChanged = welcomeBonusAmountChanged(storedAmount, storedTotal, detectedAmount, bonusCurrency)
     // Spend threshold is ambiguous on tiered cards (the extractor may read the
     // first-tier minimum or the combined spend), so only trust it on flat cards.
     const spendChanged = !hasTiers && detectedSpend != null && storedSpend != null && detectedSpend !== storedSpend

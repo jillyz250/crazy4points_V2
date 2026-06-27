@@ -53,6 +53,41 @@ export function welcomeBonusDisplayTotal(
 }
 
 /**
+ * Cash/dollar-denominated bonuses (Freedom Flex stores $200, Ink Unlimited stores
+ * $1,000 cash back) keep their amount in USD, not points. Detect those currencies
+ * so the comparison can guard against the points-vs-dollars unit mismatch below.
+ */
+export function isCashCurrency(currency: string | null | undefined): boolean {
+  return !!currency && /usd|cash/i.test(currency)
+}
+
+/**
+ * Is a detected welcome-bonus amount a REAL change from what we store? Filters two
+ * non-changes that otherwise generate false signals:
+ *
+ *  1. Tiered echo — detected matches the "Up to X" headline total instead of the
+ *     stored first tier (handled via `storedTotal`).
+ *  2. Points-as-cents — for CASH-denominated cards (we store $200) the issuer page
+ *     headlines the SAME bonus in points (20,000 = $200 at 1 point = 1¢). The
+ *     extractor reads 20,000; a naive compare flags a change that isn't one. This
+ *     was the recurring Freedom Flex false positive. detected === stored×100 (or
+ *     the reverse) is the same offer in a different unit, not a devaluation.
+ */
+export function welcomeBonusAmountChanged(
+  storedAmount: number | null,
+  storedTotal: number | null,
+  detectedAmount: number | null,
+  currency: string | null | undefined,
+): boolean {
+  if (storedAmount == null || detectedAmount == null) return false
+  if (detectedAmount === storedAmount || detectedAmount === storedTotal) return false
+  if (isCashCurrency(currency) && (detectedAmount === storedAmount * 100 || storedAmount === detectedAmount * 100)) {
+    return false
+  }
+  return true
+}
+
+/**
  * Upsert signals (new rows inserted, seen rows bump last_seen_at) and return the
  * ones that are genuinely NEW (so callers email only those).
  */
