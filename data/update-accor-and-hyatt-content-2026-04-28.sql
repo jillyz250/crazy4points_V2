@@ -54,12 +54,36 @@ where slug = 'hyatt'
   and quirks is not null
   and quirks not like '%Advance-booking window for Explorists%';
 
+-- ─── Hyatt partner benefits ─────────────────────────────────────────────────
+-- The "Alliances" section on world.hyatt.com lists partner brands that earn,
+-- redeem, or discount with Hyatt outside the core stay product. We had Mr &
+-- Mrs Smith covered but were missing five other partner relationships.
+-- Surfaced 2026-04-28 from world.hyatt.com/content/gp/en/landing/all-partners.
+
+-- 4a. Hyatt sweet_spots — adjacent earning/redemption surfaces
+update programs
+set sweet_spots = sweet_spots || E'\n\n- **Under Canvas** (glamping near US national parks): bookable through Mr & Mrs Smith → World of Hyatt, so eligible stays earn base points and qualify for elite-night credit. Properties include ULUM Moab, The Fields of Michigan, and Bar N Ranch. Niche but excellent for park-adjacent trips where Hyatt''s normal portfolio has nothing nearby.\n- **The Venetian Resort Las Vegas:** book through Hyatt to earn and redeem points on eligible nights at a property that isn''t a Hyatt brand. One of the few ways to apply Hyatt points to a Strip stay without a transfer to MGM/Caesars.',
+    content_updated_at = now()
+where slug = 'hyatt'
+  and sweet_spots is not null
+  and sweet_spots not like '%Under Canvas%';
+
+-- 4b. Hyatt quirks — non-stay partner perks worth knowing about
+update programs
+set quirks = quirks || E'\n\n- **Peloton: 100 Bonus Points per eligible workout** at participating Hyatt hotels (in-room access to select classes where available). Trivial individually, but stacks fast on extended stays at participating properties.\n- **Headspace: free** mindfulness + sleep exercises for World of Hyatt members — in the Headspace app and in-room at participating hotels. Not a points play, just an unannounced member benefit most people miss.\n- **MasterClass: up to 30% off** an annual subscription as a World of Hyatt member. Real discount, not a coupon — applies to the year-long plan.\n- **American Airlines: dual-earn via account linking.** Link your AAdvantage® and World of Hyatt accounts and earn both miles AND points on eligible activity, plus access to AA-specific Milestone Reward choices (Preferred Seat / Main Cabin Extra coupons at the 20- and 40-night milestones; Gold status at 70 nights; Platinum at 100). The link is one-time, name on both accounts must match.',
+    content_updated_at = now()
+where slug = 'hyatt'
+  and quirks is not null
+  and quirks not like '%Peloton: 100 Bonus Points%';
+
 -- Verify after running:
 --   select slug, content_updated_at,
 --          sweet_spots like '%Family & Co.%' as accor_sweet_ok,
 --          quirks like '%Family & Co. cannot be stacked%' as accor_quirks_ok
 --   from programs where slug in ('accor', 'hyatt');
 --   select slug,
---          sweet_spots like '%Brand Explorer%' as hyatt_sweet_ok,
---          quirks like '%Advance-booking window for Explorists%' as hyatt_quirks_ok
+--          sweet_spots like '%Brand Explorer%' as hyatt_brand_explorer_ok,
+--          sweet_spots like '%Under Canvas%' as hyatt_under_canvas_ok,
+--          quirks like '%Advance-booking window for Explorists%' as hyatt_booking_window_ok,
+--          quirks like '%Peloton: 100 Bonus Points%' as hyatt_peloton_ok
 --   from programs where slug = 'hyatt';
