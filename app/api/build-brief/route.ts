@@ -401,12 +401,16 @@ export async function GET(req: NextRequest) {
     if (htmlErr) console.error('[build-brief] brief_html update failed:', htmlErr)
   }
 
-  // Email send removed in Phase 1 — brief is read in /admin/briefs instead.
-  // Keeps build-brief well under the Vercel timeout budget and removes the
-  // Resend domain-verification dependency. ?email=1 forces a send if needed
-  // for a one-off test (kept as escape hatch).
+  // The editorial Daily Brief is one of the two intentional daily emails
+  // (alongside the Daily Data Digest) — see plans/monitoring-consolidation.md.
+  // It auto-sends on the Vercel cron run (x-vercel-cron header) and on an
+  // explicit ?email=1 (manual test escape hatch). Local/manual calls without
+  // either stay silent so dev runs don't email.
+  const shouldEmail =
+    req.headers.get('x-vercel-cron') != null ||
+    req.nextUrl.searchParams.get('email') === '1'
   let emailSent = false
-  if (req.nextUrl.searchParams.get('email') === '1') {
+  if (shouldEmail) {
     const { error: emailError } = await resend.emails.send({
       from: process.env.RESEND_FROM ?? 'crazy4points <intel@crazy4points.com>',
       to: process.env.BRIEF_RECIPIENT ?? 'jillzeller6@gmail.com',

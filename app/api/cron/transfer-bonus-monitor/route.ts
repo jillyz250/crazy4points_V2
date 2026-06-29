@@ -12,9 +12,9 @@
  * Auth: Vercel sets Authorization: Bearer ${CRON_SECRET}.
  */
 import { NextResponse } from 'next/server'
-import { Resend } from 'resend'
 import { createAdminClient } from '@/utils/supabase/server'
 import { scanTransferBonuses } from '@/utils/integrity/scanTransferBonuses'
+import { startCronRun, finishCronRun } from '@/lib/cron/recordRun'
 import { assertCron } from '@/lib/auth/cron'
 
 export const dynamic = 'force-dynamic'
@@ -32,10 +32,12 @@ async function handle(request: Request) {
   if (denied) return denied
 
   const supabase = createAdminClient()
+  const runId = await startCronRun(supabase, 'transfer-bonus-monitor')
   let signals
   try {
     signals = await scanTransferBonuses(supabase)
   } catch (err) {
+    await finishCronRun(supabase, runId, { status: 'failed', error: String(err) })
     return NextResponse.json({ ok: false, error: String(err) }, { status: 500 })
   }
 
@@ -65,22 +67,13 @@ async function handle(request: Request) {
     )
   }
 
-  if (fresh.length && process.env.RESEND_API_KEY) {
-    const resend = new Resend(process.env.RESEND_API_KEY)
-    const rows = fresh
-      .map((s) => `<li style="margin:6px 0"><b>[${s.confidence}]</b> ${s.summary}${s.excerpt ? `<br><i>${s.excerpt}</i>` : ''}</li>`)
-      .join('')
-    try {
-      await resend.emails.send({
-        from: process.env.RESEND_FROM ?? 'crazy4points <intel@crazy4points.com>',
-        to: 'jillzeller6@gmail.com',
-        subject: `Transfer-bonus monitor: ${fresh.length} bonus${fresh.length === 1 ? '' : 'es'} we're missing`,
-        html: `<p>The transfer-bonus monitor found <b>${fresh.length}</b> live transfer bonus(es) not flagged in our data. Confirm + set bonus_active with an end date at <a href="https://www.crazy4points.com/admin/change-signals">/admin/change-signals</a>.</p><ul>${rows}</ul>`,
-      })
-    } catch {
-      /* email failure shouldn't fail the cron */
-    }
-  }
+  // Notification is handled centrally by the Daily Data Digest
+  // (app/api/cron/daily-digest) — this monitor only detects + persists.
 
+  await finishCronRun(supabase, runId, {
+    status: 'success',
+    recordsChecked: signals.length,
+    recordsChanged: fresh.length,
+  })
   return NextResponse.json({ ok: true, scanned: signals.length, new: fresh.length })
 }

@@ -9,9 +9,9 @@
  * Auth: Vercel sets Authorization: Bearer ${CRON_SECRET} + x-vercel-cron header.
  */
 import { NextResponse } from 'next/server'
-import { Resend } from 'resend'
 import { createAdminClient } from '@/utils/supabase/server'
 import { scanAnnouncements } from '@/utils/integrity/scanAnnouncements'
+import { startCronRun, finishCronRun } from '@/lib/cron/recordRun'
 import { assertCron } from '@/lib/auth/cron'
 
 export const dynamic = 'force-dynamic'
@@ -29,10 +29,12 @@ async function handle(request: Request) {
   if (denied) return denied
 
   const supabase = createAdminClient()
+  const runId = await startCronRun(supabase, 'announcement-monitor')
   let signals
   try {
     signals = await scanAnnouncements(supabase)
   } catch (err) {
+    await finishCronRun(supabase, runId, { status: 'failed', error: String(err) })
     return NextResponse.json({ ok: false, error: String(err) }, { status: 500 })
   }
 
@@ -64,26 +66,13 @@ async function handle(request: Request) {
     )
   }
 
-  // Email only NEW signals (and only if any) so the inbox stays signal-rich.
-  if (fresh.length && process.env.RESEND_API_KEY) {
-    const resend = new Resend(process.env.RESEND_API_KEY)
-    const rows = fresh
-      .map(
-        (s) =>
-          `<li style="margin:6px 0"><b>[${s.confidence}] ${s.signalType}</b>${s.programSlug ? ` &mdash; <b>${s.programSlug}</b>` : ''}: ${s.summary}<br><a href="${s.sourceUrl}">${s.sourceName}</a></li>`,
-      )
-      .join('')
-    try {
-      await resend.emails.send({
-        from: process.env.RESEND_FROM ?? 'crazy4points <intel@crazy4points.com>',
-        to: 'jillzeller6@gmail.com',
-        subject: `Change monitor: ${fresh.length} new transfer signal${fresh.length === 1 ? '' : 's'} to review`,
-        html: `<p>The announcement monitor found <b>${fresh.length}</b> new potential change(s) to transfer partners/ratios. Review against our data at <a href="https://www.crazy4points.com/admin/change-signals">/admin/change-signals</a>.</p><ul>${rows}</ul>`,
-      })
-    } catch {
-      /* email failure shouldn't fail the cron */
-    }
-  }
+  // Notification is handled centrally by the Daily Data Digest
+  // (app/api/cron/daily-digest) — this monitor only detects + persists.
 
+  await finishCronRun(supabase, runId, {
+    status: 'success',
+    recordsChecked: signals.length,
+    recordsChanged: fresh.length,
+  })
   return NextResponse.json({ ok: true, scanned: signals.length, new: fresh.length })
 }
