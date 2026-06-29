@@ -13,6 +13,7 @@ import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createAdminClient } from '@/utils/supabase/server'
 import { auditGoodToKnow, type GtkAuditIssue } from '@/utils/cards/auditGoodToKnow'
+import { startCronRun, finishCronRun } from '@/lib/cron/recordRun'
 import { assertCron } from '@/lib/auth/cron'
 
 export const dynamic = 'force-dynamic'
@@ -30,6 +31,7 @@ async function handle(request: Request) {
   if (denied) return denied
 
   const supabase = createAdminClient()
+  const runId = await startCronRun(supabase, 'audit-good-to-know')
   const { data: cards } = await supabase
     .from('credit_cards')
     .select('id, slug, good_to_know')
@@ -77,6 +79,11 @@ async function handle(request: Request) {
     }).catch(() => {})
   }
 
+  await finishCronRun(supabase, runId, {
+    status: 'success',
+    recordsChecked: targets.length,
+    recordsChanged: escalate.length,
+  })
   return NextResponse.json({
     ok: true,
     audited: targets.length,
