@@ -1,12 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { Resend } from 'resend'
 import type { CardBonusSignal } from './scanCardBonuses'
 
 /**
- * Shared persistence for welcome-bonus signals — used by BOTH the daily
- * scanCardBonuses cron and the Firecrawl Monitor webhook. The content_hash
- * formula is byte-identical to scanCardBonuses.hash(), so a change detected by
- * either path upserts to the SAME row (no duplicates during the parallel run).
+ * Shared persistence for welcome-bonus signals, written by the daily
+ * scanCardBonuses cron. Welcome-bonus changes surface in the Daily Data Digest
+ * (app/api/cron/daily-digest). The content_hash formula is byte-identical to
+ * scanCardBonuses.hash() so re-detections upsert to the same row.
  */
 
 // djb2 — must stay identical to the private hash() in scanCardBonuses.ts.
@@ -123,23 +122,4 @@ export async function persistCardBonusSignals(
     { onConflict: 'content_hash', ignoreDuplicates: false },
   )
   return fresh
-}
-
-/** Email only the NEW signals so the inbox stays signal-rich. */
-export async function emailFreshSignals(fresh: CardBonusSignal[], via: string): Promise<void> {
-  if (!fresh.length || !process.env.RESEND_API_KEY) return
-  const resend = new Resend(process.env.RESEND_API_KEY)
-  const rows = fresh
-    .map((s) => `<li style="margin:6px 0"><b>[${s.confidence}]</b> ${s.summary}<br><a href="${s.sourceUrl}">source</a></li>`)
-    .join('')
-  try {
-    await resend.emails.send({
-      from: process.env.RESEND_FROM ?? 'crazy4points <intel@crazy4points.com>',
-      to: 'jillzeller6@gmail.com',
-      subject: `Welcome-bonus monitor (${via}): ${fresh.length} card${fresh.length === 1 ? '' : 's'} changed`,
-      html: `<p>The welcome-bonus monitor (${via}) found <b>${fresh.length}</b> card(s) whose live sign-up bonus differs from our data. Review + apply at <a href="https://www.crazy4points.com/admin/card-bonus-signals">/admin/card-bonus-signals</a>.</p><ul>${rows}</ul>`,
-    })
-  } catch {
-    /* email failure shouldn't fail the caller */
-  }
 }
