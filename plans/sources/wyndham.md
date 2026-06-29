@@ -9,6 +9,15 @@ Whenever this page is updated, append new sources to the relevant section. Don't
 ## Last reviewed
 **June 2026** by Claude (with Jill)
 
+## Pending change — award chart restructure (effective Sept 15, 2026)
+Detected via change-signals monitor 2026-06-27. **Action taken:** forward-looking heads-up added to `quirks`. **TODO on/after Sept 15:** rewrite `award_chart` from the flat three-tier 7,500 / 15,000 / 30,000 to the new **four-tier 5,000 / 15,000 / 30,000 / 45,000**, and update the 7,500 floor references in `intro` + `award_chart` to 5,000.
+- New 5,000-point floor + new 45,000 top tier; a small number of premium/all-inclusive/lifestyle properties move 30K → 45K (50% jump per Wyndham).
+- Pre-Sept-15 bookings honored at old rates; auto-refund of point difference if a property gets cheaper.
+- **Official:** https://www.wyndhamhotels.com/wyndham-rewards/redeem/reward-tier-updates
+- View from the Wing: https://viewfromthewing.com/wyndham-rewards-devalues-september-15-top-hotels-jump-from-30000-to-45000-points/
+- One Mile at a Time: https://onemileatatime.com/news/wyndham-rewards-award-chart-changes/
+- The Points Guy: https://thepointsguy.com/news/wyndham-rewards-award-chart-changes/
+
 ## Official program sources
 
 - **Wyndham Rewards landing:** https://www.wyndhamhotels.com/wyndham-rewards
