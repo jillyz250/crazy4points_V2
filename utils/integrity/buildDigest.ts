@@ -47,6 +47,7 @@ export interface Digest {
     needsReview: number
     verify: number
     healthIssues: number
+    deduped: number
   }
 }
 
@@ -68,6 +69,92 @@ const MONITORS: Array<{ job: string; label: string; cadence: MonitorHealth['cade
 
 function hoursSince(iso: string, now: number): number {
   return (now - new Date(iso).getTime()) / 3_600_000
+}
+
+const CONF_RANK: Record<string, number> = { high: 3, med: 2, low: 1 }
+const STOP = new Set([
+  'the', 'and', 'for', 'with', 'now', 'its', 'our', 'are', 'will', 'has', 'have', 'not',
+  'live', 'but', 'data', 'flagged', 'announced', 'announces', 'new', 'change', 'changes',
+  'transfer', 'points', 'miles', 'rewards', 'program', 'partner', 'partners',
+])
+
+function summaryTokens(s: string | null): Set<string> {
+  return new Set(
+    String(s ?? '')
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((t) => t.length > 2 && !STOP.has(t)),
+  )
+}
+
+function jaccard(a: Set<string>, b: Set<string>): number {
+  if (!a.size || !b.size) return 0
+  let inter = 0
+  for (const t of a) if (b.has(t)) inter++
+  return inter / (a.size + b.size - inter)
+}
+
+/**
+ * Collapse look-alike change_signals: same (program_slug, signal_type) AND
+ * summaries that overlap heavily are the same news reworded (the Etihad ×2 /
+ * Wyndham ×2 case). Keeps the highest-confidence, longest (most descriptive)
+ * representative. Distinct topics under the same program+type (e.g. two
+ * different hilton devaluations) stay separate because their wording differs.
+ */
+function dedupeChangeSignals<T extends Record<string, string | null>>(
+  rows: T[],
+): { rows: T[]; collapsed: number } {
+  const kept: Array<{ row: T; tokens: Set<string> }> = []
+  let collapsed = 0
+  for (const r of rows) {
+    const rt = summaryTokens(r.summary)
+    const hit = kept.find(
+      (k) =>
+        k.row.program_slug === r.program_slug &&
+        k.row.signal_type === r.signal_type &&
+        jaccard(k.tokens, rt) >= 0.4,
+    )
+    if (hit) {
+      collapsed++
+      const better =
+        (CONF_RANK[r.confidence ?? 'low'] ?? 1) > (CONF_RANK[hit.row.confidence ?? 'low'] ?? 1) ||
+        String(r.summary ?? '').length > String(hit.row.summary ?? '').length
+      if (better) {
+        hit.row = r
+        hit.tokens = rt
+      }
+    } else {
+      kept.push({ row: r, tokens: rt })
+    }
+  }
+  return { rows: kept.map((k) => k.row), collapsed }
+}
+
+/**
+ * Auto-dismiss transfer-bonus findings whose end-date has passed. The monitor
+ * writes summaries like "...Flying Blue (ends 2026-06-30)..."; once that date is
+ * gone the bonus is moot and shouldn't keep showing in 🔴. Returns how many were
+ * cleared. Safe: only touches signal_type='transfer_bonus', status='new'.
+ */
+export async function autoExpireBonusSignals(
+  supabase: SupabaseClient,
+  todayISO: string,
+): Promise<number> {
+  const { data } = await supabase
+    .from('change_signals')
+    .select('id, summary')
+    .eq('status', 'new')
+    .eq('signal_type', 'transfer_bonus')
+  const today = todayISO.slice(0, 10)
+  const expired: string[] = []
+  for (const r of (data ?? []) as Array<{ id: string; summary: string | null }>) {
+    const m = String(r.summary ?? '').match(/ends?\s+(\d{4}-\d{2}-\d{2})/i)
+    if (m && m[1] < today) expired.push(r.id)
+  }
+  if (expired.length) {
+    await supabase.from('change_signals').update({ status: 'dismissed' }).in('id', expired)
+  }
+  return expired.length
 }
 
 export async function buildDigest(supabase: SupabaseClient): Promise<Digest> {
@@ -97,7 +184,11 @@ export async function buildDigest(supabase: SupabaseClient): Promise<Digest> {
   const needsReview: DigestSignal[] = []
   const verify: DigestSignal[] = []
 
-  for (const r of (changeRes.data ?? []) as Array<Record<string, string | null>>) {
+  const { rows: changeRows, collapsed: changeCollapsed } = dedupeChangeSignals(
+    (changeRes.data ?? []) as Array<Record<string, string | null>>,
+  )
+
+  for (const r of changeRows) {
     const isBonus = r.signal_type === 'transfer_bonus'
     needsReview.push({
       kind: isBonus ? 'transfer_bonus' : 'change',
@@ -203,6 +294,7 @@ export async function buildDigest(supabase: SupabaseClient): Promise<Digest> {
       needsReview: needsReview.length,
       verify: verify.length,
       healthIssues,
+      deduped: changeCollapsed,
     },
   }
 }
