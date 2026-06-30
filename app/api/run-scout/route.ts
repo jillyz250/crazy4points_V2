@@ -9,6 +9,7 @@ import {
   getRecentDecisionFor,
 } from '@/utils/supabase/queries'
 import { runScout } from '@/utils/ai/runScout'
+import { startCronRun, finishCronRun } from '@/lib/cron/recordRun'
 import { enrichPromoFindings } from '@/utils/ai/enrichPromoFindings'
 import { ingestItem } from '@/utils/intel/ingestItem'
 import { writeAlertVariant } from '@/utils/content/writeAlertVariant'
@@ -60,12 +61,14 @@ export async function GET(req: NextRequest) {
   }
 
   const supabase = createAdminClient()
+  const runId = await startCronRun(supabase, 'run-scout')
 
   try {
   const sources = await getSources(supabase)
   const activeSources = sources.filter((s) => s.is_active)
 
   if (activeSources.length === 0) {
+    await finishCronRun(supabase, runId, { status: 'success', recordsChecked: 0 })
     return NextResponse.json({ message: 'No active sources' })
   }
 
@@ -342,6 +345,14 @@ export async function GET(req: NextRequest) {
     staged.push(stagedAlertId)
   }
 
+  await finishCronRun(supabase, runId, {
+    status: 'success',
+    recordsChecked: activeSources.length,
+    recordsChanged: findings.length,
+    firecrawlCalls: promoEnrichStats.candidates,
+    firecrawlFailures: promoEnrichStats.failed,
+    extra: { staged: staged.length },
+  })
   return NextResponse.json({
     sources_scanned: activeSources.length,
     findings_raw: findings.length + dedupedCount,
@@ -355,6 +366,7 @@ export async function GET(req: NextRequest) {
     staged: staged.length,
   })
   } catch (err) {
+    await finishCronRun(supabase, runId, { status: 'failed', error: String(err) })
     await logSystemError(supabase, 'scout', err)
     throw err
   }

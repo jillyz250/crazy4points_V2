@@ -20,7 +20,7 @@
 import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createAdminClient } from '@/utils/supabase/server'
-import { buildDigest, type Digest, type DigestSignal, type MonitorHealth } from '@/utils/integrity/buildDigest'
+import { buildDigest, autoExpireBonusSignals, type Digest, type DigestSignal, type MonitorHealth } from '@/utils/integrity/buildDigest'
 import { startCronRun, finishCronRun } from '@/lib/cron/recordRun'
 import { assertCron } from '@/lib/auth/cron'
 
@@ -77,7 +77,7 @@ function renderDigest(d: Digest): { subject: string; html: string } {
 
   const header = `<div style="background:#f8f5fb;border:1px solid #e6deee;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px">
     <b>Daily Data Digest — ${date}</b><br>
-    New: ${d.counts.newTotal} · Critical: ${d.counts.critical} · Needs review: ${d.counts.needsReview} · Verify: ${d.counts.verify} · System: ${esc(health)}
+    New: ${d.counts.newTotal} · Critical: ${d.counts.critical} · Needs review: ${d.counts.needsReview} · Verify: ${d.counts.verify} · System: ${esc(health)}${d.counts.deduped ? ` · ${d.counts.deduped} look-alike${d.counts.deduped === 1 ? '' : 's'} collapsed` : ''}
   </div>`
 
   const html = `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#1a1a1a;max-width:640px">
@@ -105,6 +105,9 @@ async function handle(request: Request) {
 
   let digest: Digest
   try {
+    // Self-clean: drop transfer-bonus findings whose end-date has passed before
+    // building, so the digest reflects only still-live items. Skipped in preview.
+    if (!preview) await autoExpireBonusSignals(supabase, new Date().toISOString())
     digest = await buildDigest(supabase)
   } catch (err) {
     await finishCronRun(supabase, runId, { status: 'failed', error: String(err) })
