@@ -20,7 +20,7 @@
 import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createAdminClient } from '@/utils/supabase/server'
-import { buildDigest, autoExpireBonusSignals, type Digest, type DigestSignal, type MonitorHealth } from '@/utils/integrity/buildDigest'
+import { buildDigest, autoExpireBonusSignals, revalidateDriftConflicts, type Digest, type DigestSignal, type MonitorHealth } from '@/utils/integrity/buildDigest'
 import { startCronRun, finishCronRun } from '@/lib/cron/recordRun'
 import { assertCron } from '@/lib/auth/cron'
 
@@ -107,9 +107,13 @@ async function handle(request: Request) {
 
   let digest: Digest
   try {
-    // Self-clean: drop transfer-bonus findings whose end-date has passed before
-    // building, so the digest reflects only still-live items. Skipped in preview.
-    if (!preview) await autoExpireBonusSignals(supabase, new Date().toISOString())
+    // Self-clean before building (skipped in preview):
+    //  - drop transfer-bonus findings whose end-date has passed
+    //  - auto-clear program-fact drift already reflected in current page data
+    if (!preview) {
+      await autoExpireBonusSignals(supabase, new Date().toISOString())
+      await revalidateDriftConflicts(supabase)
+    }
     digest = await buildDigest(supabase)
   } catch (err) {
     await finishCronRun(supabase, runId, { status: 'failed', error: String(err) })
