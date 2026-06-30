@@ -84,6 +84,7 @@ export default async function SimpleTileGrid({
     <section aria-label="Program sections" className="rg-simple-tile-grid">
       {awardChartHtml && (
         <SimpleTile
+          id="award-chart"
           title="Award chart"
           description="The actual numbers. Get your nerd on, memorize the cheap ones."
           cta="See the rates"
@@ -95,6 +96,7 @@ export default async function SimpleTileGrid({
 
       {hasCategoryChart && (
         <SimpleTile
+          id="category-chart"
           title="Award category chart"
           description="Points per night by category, with off-peak, standard, and peak pricing."
           cta="See the bands"
@@ -106,6 +108,7 @@ export default async function SimpleTileGrid({
 
       {sweetSpotsHtml && (
         <SimpleTile
+          id="sweet-spots"
           title="Sweet spots"
           description="Where your points punch above their weight."
           cta="Show me the picks"
@@ -117,6 +120,7 @@ export default async function SimpleTileGrid({
 
       {hasOutboundPartners && (
         <SimpleTile
+          id="transfer-partners"
           title="Transfer out"
           description={`${outboundCount} place${outboundCount === 1 ? '' : 's'} to send these points. Where the currency goes.`}
           cta="Meet the partners"
@@ -142,6 +146,7 @@ export default async function SimpleTileGrid({
 
       {hasPartners && (
         <SimpleTile
+          id="ways-to-earn"
           title="Transfer in"
           description="Programs that transfer points in."
           cta="See inbound paths"
@@ -167,6 +172,7 @@ export default async function SimpleTileGrid({
 
       {hasMembers && (
         <SimpleTile
+          id="member-airlines"
           title="Member airlines"
           description={`${memberCount} carriers in the alliance. Status follows you across all of them.`}
           cta="Browse the roster"
@@ -178,6 +184,7 @@ export default async function SimpleTileGrid({
 
       {hasTiers && (
         <SimpleTile
+          id="tiers"
           title="Tier benefits"
           description={`The status ladder. ${tierCount} rung${tierCount === 1 ? '' : 's'}, each unlocking better lounges, bags, and bragging rights.`}
           cta="Climb the ladder"
@@ -189,6 +196,7 @@ export default async function SimpleTileGrid({
 
       {hasFreeNightCerts && (
         <SimpleTile
+          id="free-night-certs"
           title="Free Night Certificates"
           description="Annual free-night awards from co-brand cards, with category ceilings and conditions."
           cta="See the certs"
@@ -200,6 +208,7 @@ export default async function SimpleTileGrid({
 
       {loungeAccessHtml && (
         <SimpleTile
+          id="lounge-access"
           title="Lounge access"
           description={
             isHotel
@@ -215,6 +224,7 @@ export default async function SimpleTileGrid({
 
       {howToSpendHtml && (
         <SimpleTile
+          id="how-to-spend"
           title="How to spend"
           description="The high-leverage moves. Read this before you transfer a single mile."
           cta="Get the playbook"
@@ -226,6 +236,7 @@ export default async function SimpleTileGrid({
 
       {quirksHtml && (
         <SimpleTile
+          id="quirks"
           title="Tips & quirks"
           description={
             isHotel
