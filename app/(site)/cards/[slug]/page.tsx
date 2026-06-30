@@ -329,7 +329,7 @@ export default async function CardPage({
     ...(transferPartnersInbound.length > 0 &&
       !card.points_transferable_to_partners &&
       transferPartnersOutbound.length === 0
-      ? [{ id: 'earn-inbound', label: 'Other ways to earn these points' }]
+      ? [{ id: 'earn-inbound', label: 'Transfer in' }]
       : []),
     ...orderedCategories.map((cat) => ({
       id: `benefit-${cat}`,
@@ -929,7 +929,7 @@ export default async function CardPage({
         transferPartnersOutbound.length === 0 &&
         currency_program ? (
         <SimpleTile
-          title="Other ways to earn these points"
+          title="Transfer in"
           description={`Programs that transfer into ${currency_program.name} — additional paths to top up your balance.`}
           cta="See the inbound paths"
           preview={`${transferPartnersInbound.length} program${transferPartnersInbound.length === 1 ? '' : 's'} transfer in`}

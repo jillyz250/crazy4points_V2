@@ -117,7 +117,7 @@ export default async function SimpleTileGrid({
 
       {hasOutboundPartners && (
         <SimpleTile
-          title="Transfer partners"
+          title="Transfer out"
           description={`${outboundCount} place${outboundCount === 1 ? '' : 's'} to send these points. Where the currency goes.`}
           cta="Meet the partners"
           preview={`${outboundCount} program${outboundCount === 1 ? '' : 's'} this transfers out to.`}
@@ -142,8 +142,8 @@ export default async function SimpleTileGrid({
 
       {hasPartners && (
         <SimpleTile
-          title="Ways to earn more"
-          description="How to get more points."
+          title="Transfer in"
+          description="Programs that transfer points in."
           cta="See inbound paths"
           preview={`${partnerCount} program${partnerCount === 1 ? '' : 's'} that transfer${partnerCount === 1 ? 's' : ''} in.`}
         >
