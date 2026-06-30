@@ -137,6 +137,94 @@ function dedupeChangeSignals<T extends Record<string, string | null>>(
   return { rows: kept.map((k) => k.row), collapsed }
 }
 
+// Known transferable currencies, for re-validating transfer_partner drift
+// against the source of truth (currency outbound) instead of the stale legacy
+// destination field that the detector originally compared against.
+const CURRENCY_HINTS: Array<{ re: RegExp; slug: string }> = [
+  { re: /wells\s*fargo/i, slug: 'wells-fargo' },
+  { re: /american express|amex|membership rewards/i, slug: 'amex' },
+  { re: /chase|ultimate rewards|sapphire|freedom|\bink\b/i, slug: 'chase' },
+  { re: /citi|thankyou/i, slug: 'citi' },
+  { re: /capital one|venture|\bc1\b/i, slug: 'capital-one' },
+  { re: /\bbilt\b/i, slug: 'bilt' },
+  { re: /marriott/i, slug: 'marriott-bonvoy' },
+]
+
+/** Distinctive NUMERIC tokens the intel introduces that our snapshot didn't have
+ *  — $amounts, percentages, comma-numbers (e.g. "$20", "33%", "45,000"). Numbers
+ *  are specific; proper nouns are deliberately NOT used here because program-
+ *  inherent words ("Avios", "Globalist", "Asiana") would false-match the field. */
+function newClaimTokens(claim: string | null, oldText: string | null): string[] {
+  const old = String(oldText ?? '').toLowerCase()
+  const out = new Set<string>()
+  const s = String(claim ?? '')
+  for (const m of s.matchAll(/\$\d[\d,]*|\d[\d,]*\s?%|\b\d{1,3}(?:,\d{3})+\b/g)) {
+    const tok = m[0].toLowerCase().replace(/\s+/g, '')
+    if (tok.length >= 3 && !old.replace(/\s+/g, '').includes(tok)) out.add(tok)
+  }
+  return [...out]
+}
+
+/**
+ * Re-validate unresolved program-fact drift against CURRENT program data and
+ * auto-clear the ones already handled. The detector compares intel against a
+ * point-in-time snapshot (conflict_program_text) and never re-checks, so every
+ * page we've fixed since keeps showing as drift. This closes that loop.
+ *
+ * Conservative — only auto-resolves on a STRONG "already reflected" signal:
+ *   - transfer_partners: the claimed currency's outbound now includes this
+ *     destination (the page derives inbound from outbound — source of truth).
+ *   - other fields: a distinctive token the intel claimed (e.g. "Magno",
+ *     "$20", "SFO") now appears in the current field value.
+ * Anything uncertain stays live. Returns count auto-resolved.
+ */
+export async function revalidateDriftConflicts(supabase: SupabaseClient): Promise<number> {
+  const { data: conflicts } = await supabase
+    .from('intel_items')
+    .select('id, conflict_field, conflict_intel_claim, conflict_program_text, conflicts_program_id')
+    .not('conflicts_program_id', 'is', null)
+    .is('conflict_resolution', null)
+    .is('archived_at', null)
+  if (!conflicts?.length) return 0
+
+  const ids = [...new Set(conflicts.map((c) => c.conflicts_program_id as string))]
+  const [{ data: progs }, { data: curs }] = await Promise.all([
+    supabase
+      .from('programs')
+      .select('id, slug, tier_benefits, transfer_partners, award_chart, intro, quirks, how_to_spend, lounge_access')
+      .in('id', ids),
+    supabase.from('programs').select('slug, transfer_partners_outbound').not('transfer_partners_outbound', 'is', null),
+  ])
+  const progById = new Map((progs ?? []).map((p: Record<string, unknown>) => [p.id as string, p]))
+  const outboundHas = (dest: string, fromSlug: string) =>
+    (curs ?? []).some(
+      (c: Record<string, unknown>) =>
+        c.slug === fromSlug &&
+        ((c.transfer_partners_outbound ?? []) as Array<{ from_slug: string }>).some((p) => p.from_slug === dest),
+    )
+
+  const stale: string[] = []
+  for (const c of conflicts as Array<Record<string, string | null>>) {
+    const prog = progById.get(c.conflicts_program_id as string)
+    if (!prog) continue
+    let handled = false
+    if (c.conflict_field === 'transfer_partners') {
+      const hint = CURRENCY_HINTS.find((h) => h.re.test(c.conflict_intel_claim ?? ''))
+      // claimed a known currency that now lists this destination in its outbound
+      if (hint && outboundHas(prog.slug as string, hint.slug)) handled = true
+    } else if (c.conflict_field && prog[c.conflict_field as string] != null) {
+      const cur = JSON.stringify(prog[c.conflict_field as string]).toLowerCase()
+      const toks = newClaimTokens(c.conflict_intel_claim, c.conflict_program_text)
+      if (toks.length && toks.some((t) => cur.includes(t))) handled = true
+    }
+    if (handled) stale.push(c.id as string)
+  }
+  if (stale.length) {
+    await supabase.from('intel_items').update({ conflict_resolution: 'program_updated' }).in('id', stale)
+  }
+  return stale.length
+}
+
 /**
  * Auto-dismiss transfer-bonus findings whose end-date has passed. The monitor
  * writes summaries like "...Flying Blue (ends 2026-06-30)..."; once that date is
