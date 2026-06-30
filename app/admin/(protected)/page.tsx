@@ -33,6 +33,7 @@ const TILES: Tile[] = [
   { title: 'Scrapes', description: 'Auto-refresh history from Firecrawl scrapes of program pages.', href: '/admin/scrapes', cta: 'View' },
   { title: 'Data Integrity', description: 'Daily structural audit of the program/transfer graph — orphan/junk slugs, ratios, dupes.', href: '/admin/data-integrity', cta: 'View' },
   { title: 'Change Signals', description: 'Daily newsroom/blog scan for transfer-partner & ratio changes affecting our data.', href: '/admin/change-signals', cta: 'Review' },
+  { title: 'Program-Fact Drift', description: 'Where fresh intel contradicts a program page (award charts, tiers, partners, fees). Surfaced in the Daily Digest.', href: '/admin/program-drift', cta: 'Review' },
   { title: 'Welcome-Bonus Signals', description: "Daily scan of each card's welcome-bonus source page; flags live sign-up bonuses that differ from our data.", href: '/admin/card-bonus-signals', cta: 'Review' },
   { title: 'Re-verification', description: 'Weekly sweep comparing our transfer ratios to current rosters; flags discrepancies.', href: '/admin/verification-findings', cta: 'Review' },
   { title: 'AI Usage', description: 'Anthropic API spend by day, caller, and model.', href: '/admin/ai-usage', cta: 'View' },

@@ -274,7 +274,7 @@ export async function buildDigest(supabase: SupabaseClient): Promise<Digest> {
       kind: 'drift',
       label: `${slug ?? 'program'}${r.conflict_field ? ` · ${r.conflict_field}` : ''}`,
       detail: r.conflict_summary ?? r.headline ?? '',
-      href: `${ADMIN}/triage`,
+      href: `${ADMIN}/program-drift`,
     })
   }
 
