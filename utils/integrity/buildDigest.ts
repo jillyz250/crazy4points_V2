@@ -17,11 +17,13 @@ import { runIntegrityChecks, type IntegrityFinding } from '@/utils/integrity/run
  */
 
 export interface DigestSignal {
-  kind: 'change' | 'transfer_bonus' | 'card_bonus' | 'verification' | 'integrity'
+  kind: 'change' | 'transfer_bonus' | 'card_bonus' | 'verification' | 'integrity' | 'stale_alert'
   confidence?: string | null
   label: string
   detail: string
   href?: string
+  /** Non-blocking annotation, e.g. "already alerted: <title>" from the cross-check. */
+  note?: string
 }
 
 export interface MonitorHealth {
@@ -40,6 +42,7 @@ export interface Digest {
   generatedAt: string
   needsReview: DigestSignal[]
   verify: DigestSignal[]
+  staleAlerts: DigestSignal[]
   health: MonitorHealth[]
   counts: {
     newTotal: number
@@ -48,6 +51,8 @@ export interface Digest {
     verify: number
     healthIssues: number
     deduped: number
+    alreadyCovered: number
+    staleAlerts: number
   }
 }
 
@@ -157,12 +162,40 @@ export async function autoExpireBonusSignals(
   return expired.length
 }
 
+const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december']
+
+/**
+ * Best-effort "this references a date that has passed" detector for evergreen
+ * (no-end_date) published alerts. Catches explicit dates ("Ends April 30",
+ * "through 2026-05-15") and bare past months of the current year ("in May",
+ * "before February"). Soft signal — feeds a review list, not an auto-action,
+ * so a few false positives are acceptable; conservative enough to avoid most.
+ */
+function referencesPastDate(text: string, now: Date): boolean {
+  const s = text.toLowerCase()
+  const curY = now.getUTCFullYear()
+  const curM = now.getUTCMonth() // 0-based
+  // Explicit ISO date
+  for (const m of s.matchAll(/\b(\d{4})-(\d{2})-(\d{2})\b/g)) {
+    const d = new Date(`${m[1]}-${m[2]}-${m[3]}T00:00:00Z`)
+    if (d.getTime() < now.getTime()) return true
+  }
+  // Month (+ optional year) tied to a timing word
+  const re = new RegExp(`\\b(?:ends?|through|by|before|in|until|expires?)\\s+(${MONTHS.join('|')})(?:\\s+(\\d{4}))?`, 'g')
+  for (const m of s.matchAll(re)) {
+    const mi = MONTHS.indexOf(m[1])
+    const yr = m[2] ? Number(m[2]) : curY
+    if (yr < curY || (yr === curY && mi < curM)) return true
+  }
+  return false
+}
+
 export async function buildDigest(supabase: SupabaseClient): Promise<Digest> {
   const nowMs = Date.now()
   const generatedAt = new Date(nowMs).toISOString()
 
-  // --- persisted signals (status='new') ---
-  const [changeRes, cardRes, verifyRes] = await Promise.all([
+  // --- persisted signals (status='new') + published alerts for cross-check ---
+  const [changeRes, cardRes, verifyRes, alertRes, progRes] = await Promise.all([
     supabase
       .from('change_signals')
       .select('program_slug, signal_type, summary, confidence, source_name, source_url')
@@ -179,10 +212,46 @@ export async function buildDigest(supabase: SupabaseClient): Promise<Digest> {
       .select('program_slug, partner_name, finding_type, ours, theirs, summary, confidence')
       .eq('status', 'new')
       .order('last_seen_at', { ascending: false }),
+    supabase
+      .from('alerts')
+      .select('title, summary, primary_program_id, end_date, published_at')
+      .eq('status', 'published'),
+    supabase.from('programs').select('id, slug'),
   ])
+
+  // id -> slug so we can match alerts (primary_program_id) to signals (program_slug)
+  const idToSlug = new Map<string, string>()
+  for (const p of (progRes.data ?? []) as Array<{ id: string; slug: string }>) idToSlug.set(p.id, p.slug)
+
+  // Per-program token sets of published-alert text, for the "already alerted" cross-check.
+  type PubAlert = { title: string; summary: string | null; primary_program_id: string | null; end_date: string | null; published_at: string | null }
+  const pubAlerts = (alertRes.data ?? []) as PubAlert[]
+  const alertsByProgram = new Map<string, Array<{ title: string; tokens: Set<string> }>>()
+  for (const a of pubAlerts) {
+    const slug = a.primary_program_id ? idToSlug.get(a.primary_program_id) : undefined
+    if (!slug) continue
+    const arr = alertsByProgram.get(slug) ?? []
+    arr.push({ title: a.title, tokens: summaryTokens(`${a.title} ${a.summary ?? ''}`) })
+    alertsByProgram.set(slug, arr)
+  }
+
+  function coveringAlert(programSlug: string | null, summary: string | null): string | null {
+    if (!programSlug) return null
+    const candidates = alertsByProgram.get(programSlug)
+    if (!candidates) return null
+    const st = summaryTokens(summary)
+    let best: { title: string; score: number } | null = null
+    for (const c of candidates) {
+      const score = jaccard(st, c.tokens)
+      if (score >= 0.22 && (!best || score > best.score)) best = { title: c.title, score }
+    }
+    return best?.title ?? null
+  }
 
   const needsReview: DigestSignal[] = []
   const verify: DigestSignal[] = []
+  const staleAlerts: DigestSignal[] = []
+  let alreadyCovered = 0
 
   const { rows: changeRows, collapsed: changeCollapsed } = dedupeChangeSignals(
     (changeRes.data ?? []) as Array<Record<string, string | null>>,
@@ -190,12 +259,15 @@ export async function buildDigest(supabase: SupabaseClient): Promise<Digest> {
 
   for (const r of changeRows) {
     const isBonus = r.signal_type === 'transfer_bonus'
+    const covered = coveringAlert(r.program_slug, r.summary)
+    if (covered) alreadyCovered++
     needsReview.push({
       kind: isBonus ? 'transfer_bonus' : 'change',
       confidence: r.confidence,
       label: `${isBonus ? 'Transfer bonus' : r.signal_type ?? 'change'}${r.program_slug ? ` — ${r.program_slug}` : ''}`,
       detail: r.summary ?? '',
       href: r.source_url ?? `${ADMIN}/change-signals`,
+      note: covered ? `already alerted: "${covered.slice(0, 60)}"` : undefined,
     })
   }
 
@@ -237,6 +309,25 @@ export async function buildDigest(supabase: SupabaseClient): Promise<Digest> {
     if (f.severity === 'high') needsReview.push(sig)
     else if (f.severity === 'med') verify.push(sig)
     // low = dashboard-only, omitted from the digest
+  }
+
+  // --- stale published alerts (evergreen, no end_date, that read as past-dated
+  // or are simply old). Date-bounded deals auto-expire already; these are the
+  // ones nothing re-checks. Soft review list. ---
+  const now = new Date(nowMs)
+  const STALE_AGE_DAYS = 150
+  for (const a of pubAlerts) {
+    if (a.end_date) continue // date-bounded deals are handled by auto-expire
+    const text = `${a.title} ${a.summary ?? ''}`
+    const ageDays = a.published_at ? (nowMs - new Date(a.published_at).getTime()) / 86_400_000 : 0
+    const pastDated = referencesPastDate(text, now)
+    if (!pastDated && ageDays < STALE_AGE_DAYS) continue
+    staleAlerts.push({
+      kind: 'stale_alert',
+      label: a.title.slice(0, 80),
+      detail: pastDated ? 'references a date that has passed' : `published ${Math.round(ageDays)}d ago, never re-checked`,
+      href: `${ADMIN}/alerts`,
+    })
   }
 
   // --- system health (latest cron_runs row per job) ---
@@ -287,6 +378,7 @@ export async function buildDigest(supabase: SupabaseClient): Promise<Digest> {
     generatedAt,
     needsReview,
     verify,
+    staleAlerts,
     health,
     counts: {
       newTotal: needsReview.length + verify.length,
@@ -295,6 +387,8 @@ export async function buildDigest(supabase: SupabaseClient): Promise<Digest> {
       verify: verify.length,
       healthIssues,
       deduped: changeCollapsed,
+      alreadyCovered,
+      staleAlerts: staleAlerts.length,
     },
   }
 }
