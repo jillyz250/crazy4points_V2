@@ -171,7 +171,9 @@ function ChecklistRow({ step, marker }: { step: ChecklistStep; marker: ReactNode
 function TodayChecklist({ stats }: { stats: Awaited<ReturnType<typeof loadStats>> }) {
   const today = new Date().toISOString().slice(0, 10)
   const briefReady = stats.lastBrief?.brief_date === today
-  const isWed = new Date().getDay() === 3
+  const dow = new Date().getDay() // 0 Sun … 4 Thu, 5 Fri
+  const isThu = dow === 4
+  const isFri = dow === 5
   const nlNeedsSend = !!stats.currentNewsletter && stats.currentNewsletter.status !== 'sent'
   const dataFlags = stats.bonusSignals + stats.changeSignals + stats.proseReview
 
@@ -211,17 +213,17 @@ function TodayChecklist({ stats }: { stats: Awaited<ReturnType<typeof loadStats>
       ],
     },
     {
-      label: 'Weekly upkeep — pick one day', numbered: false,
+      label: 'Weekly — by day', numbered: false,
       steps: [
         {
-          title: 'Refresh queue', count: stats.refreshQueueCount,
-          hint: 'Cards / programs / properties aging out. Re-verify the oldest few — no need to clear it all.',
-          href: '/admin/refresh-queue', cta: 'Open queue', muted: true,
+          title: 'Newsletter', time: 'Thursdays',
+          hint: isThu || nlNeedsSend ? 'Build and send this week’s — it’s today.' : 'Build + send each Thursday.',
+          href: '/admin/newsletter', cta: 'Newsletter', muted: !(isThu || nlNeedsSend),
         },
         {
-          title: 'Newsletter', time: 'Wednesdays',
-          hint: isWed || nlNeedsSend ? 'Build and send this week’s — it’s due.' : 'Build + send each Wednesday.',
-          href: '/admin/newsletter', cta: 'Newsletter', muted: !(isWed || nlNeedsSend),
+          title: 'Refresh queue', time: 'Fridays', count: stats.refreshQueueCount,
+          hint: isFri ? 'Re-verify the oldest few today — no need to clear it all.' : 'Cards / programs / properties aging out. Re-verify the oldest few each Friday.',
+          href: '/admin/refresh-queue', cta: 'Open queue', muted: !isFri,
         },
       ],
     },
