@@ -19,12 +19,17 @@ import type { ReactNode } from 'react'
  * content stays in DOM (AI/LLM citable) even when collapsed.
  */
 export default function SimpleTile({
+  id,
   title,
   description,
   cta,
   preview,
   children,
 }: {
+  /** Anchor id so the program-page section nav (#award-chart, #how-to-spend…)
+   *  can jump to this tile. scroll-margin keeps the heading clear of any
+   *  sticky header when jumped to. */
+  id?: string
   title: string
   description: string
   /** Contextual CTA verb. e.g. "See the rates", "Spill the picks". */
@@ -34,7 +39,7 @@ export default function SimpleTile({
   children: ReactNode
 }) {
   return (
-    <details className="rg-simple-tile">
+    <details id={id} className="rg-simple-tile" style={{ scrollMarginTop: '6rem' }}>
       <summary>
         <div className="rg-simple-tile-body">
           <h3 className="rg-simple-tile-title">{title}</h3>
