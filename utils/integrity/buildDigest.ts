@@ -17,7 +17,7 @@ import { runIntegrityChecks, type IntegrityFinding } from '@/utils/integrity/run
  */
 
 export interface DigestSignal {
-  kind: 'change' | 'transfer_bonus' | 'card_bonus' | 'verification' | 'integrity' | 'stale_alert'
+  kind: 'change' | 'transfer_bonus' | 'card_bonus' | 'verification' | 'integrity' | 'stale_alert' | 'drift'
   confidence?: string | null
   label: string
   detail: string
@@ -42,6 +42,7 @@ export interface Digest {
   generatedAt: string
   needsReview: DigestSignal[]
   verify: DigestSignal[]
+  drift: DigestSignal[]
   staleAlerts: DigestSignal[]
   health: MonitorHealth[]
   counts: {
@@ -53,6 +54,7 @@ export interface Digest {
     deduped: number
     alreadyCovered: number
     staleAlerts: number
+    drift: number
   }
 }
 
@@ -195,7 +197,7 @@ export async function buildDigest(supabase: SupabaseClient): Promise<Digest> {
   const generatedAt = new Date(nowMs).toISOString()
 
   // --- persisted signals (status='new') + published alerts for cross-check ---
-  const [changeRes, cardRes, verifyRes, alertRes, progRes] = await Promise.all([
+  const [changeRes, cardRes, verifyRes, alertRes, progRes, driftRes] = await Promise.all([
     supabase
       .from('change_signals')
       .select('program_slug, signal_type, summary, confidence, source_name, source_url')
@@ -217,6 +219,16 @@ export async function buildDigest(supabase: SupabaseClient): Promise<Digest> {
       .select('title, summary, primary_program_id, end_date, published_at')
       .eq('status', 'published'),
     supabase.from('programs').select('id, slug'),
+    // Program-fact drift: Scout's ingest already compares fresh intel against our
+    // stored program facts and records UNRESOLVED conflicts. Surface them.
+    supabase
+      .from('intel_items')
+      .select('headline, conflict_field, conflict_summary, conflicts_program_id, conflict_detected_at')
+      .not('conflicts_program_id', 'is', null)
+      .is('conflict_resolution', null)
+      .is('archived_at', null)
+      .order('conflict_detected_at', { ascending: false })
+      .limit(20),
   ])
 
   // id -> slug so we can match alerts (primary_program_id) to signals (program_slug)
@@ -251,7 +263,20 @@ export async function buildDigest(supabase: SupabaseClient): Promise<Digest> {
   const needsReview: DigestSignal[] = []
   const verify: DigestSignal[] = []
   const staleAlerts: DigestSignal[] = []
+  const drift: DigestSignal[] = []
   let alreadyCovered = 0
+
+  // Program-fact drift — unresolved conflicts Scout detected between fresh intel
+  // and our stored program pages (award_chart, tier_benefits, transfer_partners…).
+  for (const r of (driftRes.data ?? []) as Array<Record<string, string | null>>) {
+    const slug = r.conflicts_program_id ? idToSlug.get(r.conflicts_program_id) : undefined
+    drift.push({
+      kind: 'drift',
+      label: `${slug ?? 'program'}${r.conflict_field ? ` · ${r.conflict_field}` : ''}`,
+      detail: r.conflict_summary ?? r.headline ?? '',
+      href: `${ADMIN}/triage`,
+    })
+  }
 
   const { rows: changeRows, collapsed: changeCollapsed } = dedupeChangeSignals(
     (changeRes.data ?? []) as Array<Record<string, string | null>>,
@@ -378,10 +403,11 @@ export async function buildDigest(supabase: SupabaseClient): Promise<Digest> {
     generatedAt,
     needsReview,
     verify,
+    drift,
     staleAlerts,
     health,
     counts: {
-      newTotal: needsReview.length + verify.length,
+      newTotal: needsReview.length + verify.length + drift.length,
       critical,
       needsReview: needsReview.length,
       verify: verify.length,
@@ -389,6 +415,7 @@ export async function buildDigest(supabase: SupabaseClient): Promise<Digest> {
       deduped: changeCollapsed,
       alreadyCovered,
       staleAlerts: staleAlerts.length,
+      drift: drift.length,
     },
   }
 }

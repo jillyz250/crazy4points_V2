@@ -77,7 +77,7 @@ function renderDigest(d: Digest): { subject: string; html: string } {
 
   const header = `<div style="background:#f8f5fb;border:1px solid #e6deee;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px">
     <b>Daily Data Digest — ${date}</b><br>
-    New: ${d.counts.newTotal} · Critical: ${d.counts.critical} · Needs review: ${d.counts.needsReview} · Verify: ${d.counts.verify} · System: ${esc(health)}${d.counts.deduped ? ` · ${d.counts.deduped} look-alike${d.counts.deduped === 1 ? '' : 's'} collapsed` : ''}${d.counts.alreadyCovered ? ` · ${d.counts.alreadyCovered} already alerted` : ''}
+    New: ${d.counts.newTotal} · Critical: ${d.counts.critical} · Needs review: ${d.counts.needsReview} · Verify: ${d.counts.verify}${d.counts.drift ? ` · Drift: ${d.counts.drift}` : ''} · System: ${esc(health)}${d.counts.deduped ? ` · ${d.counts.deduped} look-alike${d.counts.deduped === 1 ? '' : 's'} collapsed` : ''}${d.counts.alreadyCovered ? ` · ${d.counts.alreadyCovered} already alerted` : ''}
   </div>`
 
   const html = `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#1a1a1a;max-width:640px">
@@ -86,6 +86,7 @@ function renderDigest(d: Digest): { subject: string; html: string } {
     ${signalRows(d.needsReview)}
     <h3 style="margin:18px 0 4px">🟡 Verify (${d.verify.length})</h3>
     ${signalRows(d.verify)}
+    ${d.drift.length ? `<h3 style="margin:18px 0 4px">🔬 Program-fact drift (${d.drift.length})</h3>${signalRows(d.drift)}` : ''}
     ${d.staleAlerts.length ? `<h3 style="margin:18px 0 4px">🕸️ Stale published alerts (${d.staleAlerts.length})</h3>${signalRows(d.staleAlerts)}` : ''}
     <h3 style="margin:18px 0 4px">🟢 System health</h3>
     ${healthTable(d.health)}
