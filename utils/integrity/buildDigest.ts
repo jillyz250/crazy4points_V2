@@ -456,6 +456,27 @@ export async function buildDigest(supabase: SupabaseClient): Promise<Digest> {
     if (!latestByJob.has(job)) latestByJob.set(job, row)
   }
 
+  // Good-to-know: the weekly audit stashes its flagged cards in cron_runs.details
+  // (no separate email anymore). Surface them in 🟡 Verify while the run is fresh.
+  const gtkRun = latestByJob.get('audit-good-to-know')
+  if (gtkRun && hoursSince(gtkRun.started_at as string, nowMs) < 8 * 24) {
+    const flagged = ((gtkRun.details as Record<string, unknown> | null)?.flagged ?? []) as Array<{
+      slug: string
+      issues: Array<{ severity: string; claim: string; problem: string }>
+    }>
+    for (const f of flagged) {
+      for (const i of f.issues) {
+        verify.push({
+          kind: 'verification',
+          confidence: i.severity,
+          label: `Good-to-know — ${f.slug}`,
+          detail: `"${i.claim}" — ${i.problem}`,
+          href: `${ADMIN}/cards/${f.slug}/extract`,
+        })
+      }
+    }
+  }
+
   const health: MonitorHealth[] = MONITORS.map((m) => {
     const row = latestByJob.get(m.job)
     if (!row) {

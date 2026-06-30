@@ -10,7 +10,6 @@
  * doesn't need to be on. Auth: Vercel sets Authorization: Bearer ${CRON_SECRET}.
  */
 import { NextResponse } from 'next/server'
-import { Resend } from 'resend'
 import { createAdminClient } from '@/utils/supabase/server'
 import { auditGoodToKnow, type GtkAuditIssue } from '@/utils/cards/auditGoodToKnow'
 import { startCronRun, finishCronRun } from '@/lib/cron/recordRun'
@@ -59,30 +58,19 @@ async function handle(request: Request) {
     .map((f) => ({ slug: f.slug, issues: f.issues.filter((i) => i.severity === 'high' || i.severity === 'med') }))
     .filter((f) => f.issues.length > 0)
 
-  // Always email a summary - clean or flagged - so the audit is never silent.
-  // A missing weekly email then signals the cron itself didn't run.
-  if (process.env.RESEND_API_KEY) {
-    const resend = new Resend(process.env.RESEND_API_KEY)
-    const subject = escalate.length
-      ? `good_to_know audit: ${escalate.length} card${escalate.length === 1 ? '' : 's'} flagged`
-      : `good_to_know audit: all ${targets.length} clean`
-    const rows = escalate.map((f) =>
-      `<h3 style="margin:14px 0 4px">${f.slug}</h3><ul style="margin:0">${f.issues.map((i) => `<li><b>[${i.severity}]</b> &ldquo;${i.claim}&rdquo; &mdash; ${i.problem}</li>`).join('')}</ul>`).join('')
-    const body = escalate.length
-      ? `<p>The weekly good_to_know accuracy audit checked <b>${targets.length}</b> cards and flagged <b>${escalate.length}</b> against current card data. Review and fix in /admin/cards/[slug]/extract.</p>${rows}`
-      : `<p>The weekly good_to_know accuracy audit checked <b>${targets.length}</b> cards. No conflicts with the card data - all clean.</p>`
-    await resend.emails.send({
-      from: process.env.RESEND_FROM ?? 'crazy4points <intel@crazy4points.com>',
-      to: 'jillzeller6@gmail.com',
-      subject,
-      html: body,
-    }).catch(() => {})
-  }
-
+  // Notification handled centrally by the Daily Data Digest: the flagged cards
+  // are stashed in this run's cron_runs.details so the digest can surface them
+  // in 🟡 Verify. No separate email (the digest is the sole notifier).
   await finishCronRun(supabase, runId, {
     status: 'success',
     recordsChecked: targets.length,
     recordsChanged: escalate.length,
+    extra: {
+      flagged: escalate.map((f) => ({
+        slug: f.slug,
+        issues: f.issues.map((i) => ({ severity: i.severity, claim: i.claim, problem: i.problem })),
+      })),
+    },
   })
   return NextResponse.json({
     ok: true,
