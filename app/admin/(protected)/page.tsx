@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import Link from 'next/link'
 import { createAdminClient } from '@/utils/supabase/server'
 import { countUnresolvedSystemErrors, getRefreshQueueCount, getRefreshQueue } from '@/utils/supabase/queries'
@@ -141,75 +142,112 @@ function relativeDay(iso: string | null | undefined): string {
   return `${Math.round(hours / 24)}d ago`
 }
 
+type ChecklistStep = { title: string; time?: string; hint: string; href?: string; cta?: string; count?: number; muted?: boolean }
+type ChecklistGroup = { label: string; note?: string; numbered: boolean; steps: ChecklistStep[] }
+
+function ChecklistRow({ step, marker }: { step: ChecklistStep; marker: ReactNode }) {
+  return (
+    <li style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', opacity: step.muted ? 0.72 : 1 }}>
+      <span style={{ flexShrink: 0, width: '1.5rem', height: '1.5rem', borderRadius: '50%', background: 'var(--admin-bg-subtle, #F1EFE8)', color: 'var(--admin-text)', fontSize: '0.8125rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '0.0625rem' }}>
+        {marker}
+      </span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <span style={{ fontWeight: 600, fontSize: '0.9375rem' }}>{step.title}</span>
+          {typeof step.count === 'number' && <Badge tone={step.count > 0 ? 'warning' : 'neutral'}>{step.count} new</Badge>}
+          {step.time && <span style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)' }}>{step.time}</span>}
+          {step.href && (
+            <Link href={step.href} style={{ fontSize: '0.8125rem', marginLeft: 'auto', fontWeight: 500 }}>
+              {step.cta ?? 'Open'} →
+            </Link>
+          )}
+        </div>
+        <p style={{ margin: '0.125rem 0 0', fontSize: '0.8125rem', color: 'var(--admin-text-muted)', lineHeight: 1.45 }}>{step.hint}</p>
+      </div>
+    </li>
+  )
+}
+
 function TodayChecklist({ stats }: { stats: Awaited<ReturnType<typeof loadStats>> }) {
   const today = new Date().toISOString().slice(0, 10)
   const briefReady = stats.lastBrief?.brief_date === today
-  const isWed = new Date().getDay() === 3
+  const dow = new Date().getDay() // 0 Sun … 4 Thu, 5 Fri
+  const isThu = dow === 4
+  const isFri = dow === 5
   const nlNeedsSend = !!stats.currentNewsletter && stats.currentNewsletter.status !== 'sent'
+  const dataFlags = stats.bonusSignals + stats.changeSignals + stats.proseReview
 
-  type Step = { n: number; title: string; time: string; hint: string; href?: string; cta?: string; count?: number; muted?: boolean }
-  const steps: Step[] = [
+  const groups: ChecklistGroup[] = [
     {
-      n: 1, title: 'Read today’s brief', time: '~10 min',
-      hint: briefReady ? 'The day’s story + what’s worth writing.' : 'Not built yet — it lands around 7am. Check back then.',
-      href: '/admin/briefs', cta: briefReady ? 'Open today’s brief' : 'See briefs', muted: !briefReady,
+      label: 'Daily — make content', note: '~80 min', numbered: true,
+      steps: [
+        {
+          title: 'Read today’s brief', time: '~10 min',
+          hint: briefReady ? 'The day’s story + what’s worth writing.' : 'Not built yet — it lands around 7am.',
+          href: '/admin/briefs', cta: briefReady ? 'Open today’s brief' : 'See briefs', muted: !briefReady,
+        },
+        {
+          title: 'Triage new intel', time: '~15 min', count: stats.newIntel,
+          hint: 'Just today’s new items — approve the good, skip the noise. Already deduped + checked against your alerts.',
+          href: '/admin/triage', cta: 'Triage',
+        },
+        {
+          title: 'Publish the drafts that matter', time: '~40 min', count: stats.newDrafts,
+          hint: 'Publish the 2–4 worth posting and reject the rest. Quality over clearing the pile.',
+          href: '/admin/drafts?view=needs_review', cta: 'Review drafts',
+        },
+        {
+          title: 'Post one to social', time: '~15 min',
+          hint: 'One happy-news item — a deal, bonus, or award win — per your brand rules.',
+        },
+      ],
     },
     {
-      n: 2, title: 'Triage new intel', time: '~15 min', count: stats.newIntel,
-      hint: 'Just today’s new items — approve the good, skip the noise. The older backlog can wait.',
-      href: '/admin/triage', cta: 'Triage',
+      label: 'Daily — data check', note: '~10 min', numbered: true,
+      steps: [
+        {
+          title: 'Skim the 7am digest', time: '~10 min', count: dataFlags || undefined,
+          hint: 'It flags welcome-bonus changes, transfer-partner changes, and program-page drift. Fix the urgent ones; it never blocks content.',
+          href: '/admin/change-signals', cta: 'Open signals', muted: true,
+        },
+      ],
     },
     {
-      n: 3, title: 'Publish the drafts that matter', time: '~40 min', count: stats.newDrafts,
-      hint: 'Publish the 2–4 worth posting and reject the rest. Quality over clearing the whole pile.',
-      href: '/admin/drafts?view=needs_review', cta: 'Review drafts',
+      label: 'Weekly — by day', numbered: false,
+      steps: [
+        {
+          title: 'Newsletter', time: 'Thursdays',
+          hint: isThu || nlNeedsSend ? 'Build and send this week’s — it’s today.' : 'Build + send each Thursday.',
+          href: '/admin/newsletter', cta: 'Newsletter', muted: !(isThu || nlNeedsSend),
+        },
+        {
+          title: 'Refresh queue', time: 'Fridays', count: stats.refreshQueueCount,
+          hint: isFri ? 'Re-verify the oldest few today — no need to clear it all.' : 'Cards / programs / properties aging out. Re-verify the oldest few each Friday.',
+          href: '/admin/refresh-queue', cta: 'Open queue', muted: !isFri,
+        },
+      ],
     },
-    {
-      n: 4, title: 'Post one to social', time: '~15 min',
-      hint: 'One happy-news item — a deal, bonus, or award win — per your brand rules.',
-    },
-    {
-      n: 5, title: 'Skim the digest', time: '~10 min',
-      hint: 'Data accuracy lives in your 7am email now. Fix only what’s urgent; it never blocks content.',
-      href: '/admin/program-drift', cta: 'Drift queue', muted: true,
-    },
-    ...(isWed || nlNeedsSend
-      ? [{ n: 6, title: 'Newsletter (weekly)', time: '~30 min', hint: 'Build and send this week’s newsletter.', href: '/admin/newsletter', cta: 'Newsletter' }]
-      : []),
   ]
 
+  let n = 0
   return (
     <Card style={{ padding: '1rem 1.25rem', marginBottom: '1.5rem', borderLeft: '3px solid var(--admin-accent)' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.625rem', flexWrap: 'wrap', marginBottom: '0.875rem' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.625rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
         <h2 style={{ margin: 0, fontSize: '1rem' }}>Your day</h2>
-        <span style={{ fontSize: '0.8125rem', color: 'var(--admin-text-muted)' }}>do these in order · aim for under 2 hours</span>
+        <span style={{ fontSize: '0.8125rem', color: 'var(--admin-text-muted)' }}>top to bottom · daily content aims for under 2 hours</span>
       </div>
-      <ol style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-        {steps.map((s) => (
-          <li key={s.n} style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', opacity: s.muted ? 0.7 : 1 }}>
-            <span style={{ flexShrink: 0, width: '1.5rem', height: '1.5rem', borderRadius: '50%', background: 'var(--admin-bg-subtle, #F1EFE8)', color: 'var(--admin-text)', fontSize: '0.8125rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '0.0625rem' }}>
-              {s.n}
-            </span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <span style={{ fontWeight: 600, fontSize: '0.9375rem' }}>{s.title}</span>
-                {typeof s.count === 'number' && (
-                  <Badge tone={s.count > 0 ? 'warning' : 'neutral'}>{s.count} new</Badge>
-                )}
-                <span style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)' }}>{s.time}</span>
-                {s.href && (
-                  <Link href={s.href} style={{ fontSize: '0.8125rem', marginLeft: 'auto', fontWeight: 500 }}>
-                    {s.cta ?? 'Open'} →
-                  </Link>
-                )}
-              </div>
-              <p style={{ margin: '0.125rem 0 0', fontSize: '0.8125rem', color: 'var(--admin-text-muted)', lineHeight: 1.45 }}>
-                {s.hint}
-              </p>
-            </div>
-          </li>
-        ))}
-      </ol>
+      {groups.map((g) => (
+        <div key={g.label} style={{ marginTop: '1rem' }}>
+          <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, color: 'var(--admin-text-muted)', marginBottom: '0.5rem' }}>
+            {g.label}{g.note ? ` · ${g.note}` : ''}
+          </div>
+          <ol style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {g.steps.map((s) => (
+              <ChecklistRow key={s.title} step={s} marker={g.numbered ? (++n) : '·'} />
+            ))}
+          </ol>
+        </div>
+      ))}
     </Card>
   )
 }

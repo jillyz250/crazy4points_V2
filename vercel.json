@@ -26,7 +26,7 @@
     },
     {
       "path": "/api/build-newsletter",
-      "schedule": "0 22 * * 3"
+      "schedule": "0 10 * * 4"
     },
     {
       "path": "/api/cron/quarterly-rotating-refresh",
