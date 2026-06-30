@@ -482,6 +482,31 @@ button {
   background: #FFFFFF;
 }
 
+/* Quirks sub-groups: small UI-font labels so they read as sub-headings
+   (not competing with the tile title), with breathing room between groups. */
+.rg-quirk-group + .rg-quirk-group {
+  margin-top: 1.5rem;
+}
+.rg-quirk-group-label {
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  margin: 0 0 0.5rem;
+}
+/* "Program history" and similar: how-we-got-here background, de-emphasized.
+   Greyer + a touch smaller so active gotchas stand out and old news fades back. */
+.rg-quirk-group--muted .rg-prose {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  opacity: 0.85;
+}
+.rg-quirk-group--muted .rg-quirk-group-label {
+  opacity: 0.7;
+}
+
 /* Reusable: wraps a wide non-prose block (custom tables, ladder grids,
    horizontal scrollers) so it never breaks the viewport. Pair with
    `white-space: nowrap` on inner cells if needed. */

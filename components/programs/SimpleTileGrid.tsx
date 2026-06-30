@@ -19,6 +19,35 @@ import FreeNightCertsTable from './FreeNightCertsTable'
  * Sweet spots lead because they're the reader's primary "what can I
  * book and how much does it cost" questions.
  */
+
+/**
+ * Split quirks markdown into labeled groups by "### Heading" lines so the Tips
+ * tile can render scannable sub-sections instead of one long list. Content
+ * before the first heading (or quirks with no headings at all — the common
+ * case) becomes a single label-less group, so this is backward-compatible.
+ * Groups whose heading reads as history ("Program history") are muted: this is
+ * how-we-got-here background, not an active gotcha, so it's de-emphasized while
+ * current rules (even dated ones like a 2025 devaluation) stay full weight.
+ */
+function splitQuirkGroups(md: string): Array<{ label: string | null; body: string; muted: boolean }> {
+  const out: Array<{ label: string | null; lines: string[] }> = []
+  let cur: { label: string | null; lines: string[] } = { label: null, lines: [] }
+  for (const line of md.split('\n')) {
+    const m = line.match(/^###\s+(.+?)\s*$/)
+    if (m) {
+      if (cur.label !== null || cur.lines.join('').trim()) out.push(cur)
+      cur = { label: m[1], lines: [] }
+    } else {
+      cur.lines.push(line)
+    }
+  }
+  if (cur.label !== null || cur.lines.join('').trim()) out.push(cur)
+  return out.map((g) => ({
+    label: g.label,
+    body: g.lines.join('\n').trim(),
+    muted: /\bhistory\b/i.test(g.label ?? ''),
+  }))
+}
 export default async function SimpleTileGrid({
   program,
   programNameBySlug,
@@ -72,7 +101,15 @@ export default async function SimpleTileGrid({
   // Pre-parse markdown server-side
   const awardChartHtml = hasAwardChart ? await renderProseMarkdown(program.award_chart) : null
   const sweetSpotsHtml = hasSweetSpots ? await renderProseMarkdown(program.sweet_spots) : null
-  const quirksHtml = hasQuirks ? await renderProseMarkdown(program.quirks) : null
+  const quirkGroups = hasQuirks
+    ? await Promise.all(
+        splitQuirkGroups(program.quirks!).map(async (g) => ({
+          label: g.label,
+          muted: g.muted,
+          html: await renderProseMarkdown(g.body),
+        })),
+      )
+    : []
   const howToSpendHtml = hasHowToSpend ? await renderProseMarkdown(program.how_to_spend) : null
   const loungeAccessHtml = hasLounge ? await renderProseMarkdown(program.lounge_access) : null
 
@@ -234,7 +271,7 @@ export default async function SimpleTileGrid({
         </SimpleTile>
       )}
 
-      {quirksHtml && (
+      {quirkGroups.length > 0 && (
         <SimpleTile
           id="quirks"
           title="Tips & quirks"
@@ -248,7 +285,12 @@ export default async function SimpleTileGrid({
           cta="Spill the gotchas"
           preview="The fine print, decoded."
         >
-          <div className="rg-prose" dangerouslySetInnerHTML={{ __html: quirksHtml }} />
+          {quirkGroups.map((g, i) => (
+            <div key={i} className={g.muted ? 'rg-quirk-group rg-quirk-group--muted' : 'rg-quirk-group'}>
+              {g.label && <h4 className="rg-quirk-group-label">{g.label}</h4>}
+              <div className="rg-prose" dangerouslySetInnerHTML={{ __html: g.html }} />
+            </div>
+          ))}
         </SimpleTile>
       )}
     </section>
