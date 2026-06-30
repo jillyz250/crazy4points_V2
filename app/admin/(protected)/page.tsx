@@ -43,6 +43,9 @@ const TILES: Tile[] = [
 async function loadStats() {
   const supabase = createAdminClient()
   const nowIso = new Date().toISOString()
+  // "Today's slice" window — drafts/intel that arrived since ~yesterday, so the
+  // daily checklist shows what's NEW to act on, not the whole cumulative pile.
+  const since = new Date(Date.now() - 36 * 60 * 60 * 1000).toISOString()
 
   const [
     pendingReview,
@@ -58,6 +61,8 @@ async function loadStats() {
     bonusSignals,
     changeSignals,
     proseReview,
+    newDrafts,
+    newIntel,
   ] = await Promise.all([
     // Match the /admin/drafts "Needs review" chip exactly: needs_review variants
     // that are NOT currently snoozed (snoozed-but-not-woken live under their own
@@ -91,6 +96,21 @@ async function loadStats() {
     supabase.from('card_bonus_signals').select('id', { count: 'exact', head: true }).eq('status', 'new'),
     supabase.from('change_signals').select('id', { count: 'exact', head: true }).eq('status', 'new'),
     supabase.from('credit_cards').select('id', { count: 'exact', head: true }).not('good_to_know_review_at', 'is', null),
+    // Today's slice: drafts that became needs_review in the last ~36h
+    supabase
+      .from('content_variants')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'needs_review')
+      .gte('created_at', since),
+    // Today's slice: intel that arrived in the last ~36h still needing a decision
+    supabase
+      .from('intel_items')
+      .select('id', { count: 'exact', head: true })
+      .eq('processed', false)
+      .is('rejected_at', null)
+      .is('archived_at', null)
+      .is('triage_decision', null)
+      .gte('created_at', since),
   ])
 
   return {
@@ -107,6 +127,8 @@ async function loadStats() {
     bonusSignals: bonusSignals.count ?? 0,
     changeSignals: changeSignals.count ?? 0,
     proseReview: proseReview.count ?? 0,
+    newDrafts: newDrafts.count ?? 0,
+    newIntel: newIntel.count ?? 0,
   }
 }
 
@@ -117,6 +139,79 @@ function relativeDay(iso: string | null | undefined): string {
   if (hours < 1) return 'just now'
   if (hours < 24) return `${Math.round(hours)}h ago`
   return `${Math.round(hours / 24)}d ago`
+}
+
+function TodayChecklist({ stats }: { stats: Awaited<ReturnType<typeof loadStats>> }) {
+  const today = new Date().toISOString().slice(0, 10)
+  const briefReady = stats.lastBrief?.brief_date === today
+  const isWed = new Date().getDay() === 3
+  const nlNeedsSend = !!stats.currentNewsletter && stats.currentNewsletter.status !== 'sent'
+
+  type Step = { n: number; title: string; time: string; hint: string; href?: string; cta?: string; count?: number; muted?: boolean }
+  const steps: Step[] = [
+    {
+      n: 1, title: 'Read today’s brief', time: '~10 min',
+      hint: briefReady ? 'The day’s story + what’s worth writing.' : 'Not built yet — it lands around 7am. Check back then.',
+      href: '/admin/briefs', cta: briefReady ? 'Open today’s brief' : 'See briefs', muted: !briefReady,
+    },
+    {
+      n: 2, title: 'Triage new intel', time: '~15 min', count: stats.newIntel,
+      hint: 'Just today’s new items — approve the good, skip the noise. The older backlog can wait.',
+      href: '/admin/triage', cta: 'Triage',
+    },
+    {
+      n: 3, title: 'Publish the drafts that matter', time: '~40 min', count: stats.newDrafts,
+      hint: 'Publish the 2–4 worth posting and reject the rest. Quality over clearing the whole pile.',
+      href: '/admin/drafts?view=needs_review', cta: 'Review drafts',
+    },
+    {
+      n: 4, title: 'Post one to social', time: '~15 min',
+      hint: 'One happy-news item — a deal, bonus, or award win — per your brand rules.',
+    },
+    {
+      n: 5, title: 'Skim the digest', time: '~10 min',
+      hint: 'Data accuracy lives in your 7am email now. Fix only what’s urgent; it never blocks content.',
+      href: '/admin/program-drift', cta: 'Drift queue', muted: true,
+    },
+    ...(isWed || nlNeedsSend
+      ? [{ n: 6, title: 'Newsletter (weekly)', time: '~30 min', hint: 'Build and send this week’s newsletter.', href: '/admin/newsletter', cta: 'Newsletter' }]
+      : []),
+  ]
+
+  return (
+    <Card style={{ padding: '1rem 1.25rem', marginBottom: '1.5rem', borderLeft: '3px solid var(--admin-accent)' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.625rem', flexWrap: 'wrap', marginBottom: '0.875rem' }}>
+        <h2 style={{ margin: 0, fontSize: '1rem' }}>Your day</h2>
+        <span style={{ fontSize: '0.8125rem', color: 'var(--admin-text-muted)' }}>do these in order · aim for under 2 hours</span>
+      </div>
+      <ol style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        {steps.map((s) => (
+          <li key={s.n} style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', opacity: s.muted ? 0.7 : 1 }}>
+            <span style={{ flexShrink: 0, width: '1.5rem', height: '1.5rem', borderRadius: '50%', background: 'var(--admin-bg-subtle, #F1EFE8)', color: 'var(--admin-text)', fontSize: '0.8125rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '0.0625rem' }}>
+              {s.n}
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <span style={{ fontWeight: 600, fontSize: '0.9375rem' }}>{s.title}</span>
+                {typeof s.count === 'number' && (
+                  <Badge tone={s.count > 0 ? 'warning' : 'neutral'}>{s.count} new</Badge>
+                )}
+                <span style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)' }}>{s.time}</span>
+                {s.href && (
+                  <Link href={s.href} style={{ fontSize: '0.8125rem', marginLeft: 'auto', fontWeight: 500 }}>
+                    {s.cta ?? 'Open'} →
+                  </Link>
+                )}
+              </div>
+              <p style={{ margin: '0.125rem 0 0', fontSize: '0.8125rem', color: 'var(--admin-text-muted)', lineHeight: 1.45 }}>
+                {s.hint}
+              </p>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </Card>
+  )
 }
 
 export default async function AdminDashboard() {
@@ -201,6 +296,11 @@ export default async function AdminDashboard() {
         description="What needs attention right now, and quick access to everything else."
       />
 
+      <TodayChecklist stats={stats} />
+
+      <div style={{ marginBottom: '0.75rem', fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, color: 'var(--admin-text-muted)' }}>
+        Everything else
+      </div>
       <div
         style={{
           display: 'grid',
