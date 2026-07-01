@@ -3230,3 +3230,33 @@ export async function getExperiencesForProgram(
   if (error) throw error
   return (data ?? []) as Pick<Experience, 'slug' | 'name' | 'mode' | 'entry_point_label'>[]
 }
+
+// ---------------------------------------------------------------------------
+// Reminders / to-do (admin dashboard). Personal free-text items with an
+// optional due date. See migration 601_create_reminders.sql.
+// ---------------------------------------------------------------------------
+export interface Reminder {
+  id: string
+  title: string
+  notes: string | null
+  due_date: string | null // YYYY-MM-DD, or null for an undated to-do
+  status: 'open' | 'done'
+  link: string | null
+  created_at: string
+  completed_at: string | null
+}
+
+/**
+ * All reminders, ordered for the dashboard widget: open items first, sorted by
+ * due date ascending with undated to-dos last, then done items most-recent first.
+ */
+export async function listReminders(supabase: SupabaseClient): Promise<Reminder[]> {
+  const { data, error } = await supabase
+    .from('reminders')
+    .select('id, title, notes, due_date, status, link, created_at, completed_at')
+    .order('status', { ascending: true }) // 'done' > 'open' alphabetically, so open first
+    .order('due_date', { ascending: true, nullsFirst: false })
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return (data ?? []) as Reminder[]
+}
