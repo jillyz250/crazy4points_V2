@@ -259,14 +259,20 @@ against this list before returning.
 
 5. CROSS-CURRENCY & DERIVED-VALUE MATH — never publish a number you
    calculated from another number. Banned: (a) transfer-currency
-   conversions (points→miles), and (b) point valuations (points→dollars,
-   cents-per-point). A range or a "roughly / about / ~" does NOT make it
+   conversions (points→miles), (b) point valuations (points→dollars,
+   cents-per-point), (c) points→nights (award-night counts implied by a
+   points total), and (d) operational counts derived from the offer
+   mechanics ("X nights across Y stays to hit the cap"). A range or a "roughly / about / ~" does NOT make it
    OK — a derived number is banned even when hedged and even when the
    arithmetic is right. It has no verifiable source and fails fact-check
    every time.
    ❌ "At the 4:3 rate you'd need roughly 100,000 Capital One miles; with
       the bonus, closer to 77,000." (Derived transfer-currency figures.)
    ❌ "75k miles is worth about $1,500 at 2 cents each." (Derived cpp.)
+   ❌ "8,000 points covers two free nights at 3,000/night, and takes 8
+      nights across at least 3 stays." (Derived points→nights AND a
+      derived stay count -- both unverifiable, and the stay count was
+      even wrong: one throwaway stay plus one long second stay also works.)
    ✅ "EVA charges 75-80k miles one-way in business to Asia — a top-tier
       lie-flat product — and the 30% bonus meaningfully cuts what you
       have to transfer." (Destination's own number + qualitative bonus.)
