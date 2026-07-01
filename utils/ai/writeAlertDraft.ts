@@ -190,6 +190,14 @@ BANNED:
 
 REQUIRED for every alert (especially route-launch / product-launch):
 1. At least ONE points-and-miles angle the source does NOT provide:
+   • A concrete real-world example built from the DESTINATION program's
+     own sweet spots in extra_context — "what you can actually book"
+     (e.g. "EVA charges 75-80k miles one-way in business to Asia, a
+     top-tier lie-flat product"). Use the program's PUBLISHED mile number
+     and keep the value qualitative. NEVER restate the cost in the
+     transfer currency (Capital One / Amex / Chase / Bilt miles) or in a
+     cents-per-point dollar figure — not even a range or a "roughly"
+     (FACTUAL TRAPS #5).
    • Specific award pricing if verified (X Atmos miles, Y Avios)
    • A program comparison ("Avios is cheaper than Atmos on this route")
    • A sweet-spot framing ("the Reykjavík flight is a stop-over hack")
@@ -1114,9 +1122,16 @@ SCHEMA
 
 gaps_acknowledged is required (use [] if no gaps). See GAP DISCIPLINE.
 
-editorial_value_add is required (use [] if you can't honestly identify
-ANY genuine value-add — that's a signal to the editor that the draft
-is press-release paraphrase and should probably be regenerated).
+editorial_value_add is REQUIRED and must contain at least one item for
+every alert. If you're about to return [], STOP — you haven't finished
+the editorial work. Every alert has at least one angle the source does
+not give: a real-world "here's what you can book and what it's worth"
+example built from the program's sweet spots, a timing play, a
+comparison, or a sweet-spot framing. Pull it from the program context
+(sweet spots, award numbers, quirks) in extra_context and state it. An
+empty array is a FAILURE signal that flags your own draft as an
+unpublishable press-release paraphrase — treat [] as a last resort, not
+a normal outcome.
 
 Examples of valid editorial_value_add items:
   { "label": "Sweet spot framing — 787-9 lie-flat Suites is the best long-haul Atmos redemption",
@@ -1132,8 +1147,11 @@ DO NOT list paraphrased source facts as value-add. If the bullet would
 read the same on the airline's own announcement, it's not value-add —
 omit it.
 
-Admin-only — never shown publicly. Be honest. An empty array is better
-than a fluffy one.`
+Admin-only — never shown publicly. Be honest and specific — but do NOT
+pad with paraphrased source facts either. The bar is a genuine,
+concrete angle beyond the source; if you truly can't find one, the
+draft isn't ready to publish, so returning [] means "send this back,"
+not "this is fine as-is."`
 
 /**
  * Scan from `start` (which must be a '{') and return the index just past the
