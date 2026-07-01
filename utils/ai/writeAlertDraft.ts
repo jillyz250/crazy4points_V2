@@ -877,8 +877,8 @@ One of: "book" | "transfer" | "apply" | "status_match" | "buy_miles" | "activate
 - apply: credit card signup bonuses
 - status_match: airline/hotel elite status match or status challenge (submit existing status for a match)
 - buy_miles: buy-points/miles bonus sales (point_purchase alerts) — purchasing a program's currency directly from the program
-- activate: shopping portal click-throughs, dining bonus registrations, retention/targeted offer activations — anything where the reader opts in (one click or one registration) then earns from normal activity
-- monitor: devaluations, rumors, watchlist items
+- activate: any offer the reader must OPT IN, REGISTER, or ENROLL for before earning, then earns from normal activity: shopping portal click-throughs, dining bonus registrations, retention/targeted offer activations, AND limited-time "register and earn" promos (hotel stay promos, points earn promos). If the terms say register/enroll/activate to qualify, it is activate, not monitor.
+- monitor: ONLY items with NO reader opt-in action: devaluations, rumors, watchlist items. "This is a deal" is not a reason to pick monitor. If there is a register/enroll/book step, pick that action instead.
 - learn: sweet spots, analysis, evergreen education
 
 ═══════════════════════════════════════════════════════════
