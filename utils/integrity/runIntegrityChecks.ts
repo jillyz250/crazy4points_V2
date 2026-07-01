@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { TransferPartnerRow } from '@/utils/supabase/queries'
-import { bonusDaysRemaining } from '@/utils/programs/transferBonus'
+import { bonusDaysRemaining, isBonusActive } from '@/utils/programs/transferBonus'
 import { diagnoseBucketTypicalCost } from '@/lib/awardChart.compute'
 import type { AwardChartProgram, Cabin } from '@/lib/awardChart'
 import type { RouteBucket } from '@/lib/airports'
@@ -174,6 +174,19 @@ async function checkTransferBonusExpiry(supabase: SupabaseClient): Promise<Integ
   const out: IntegrityFinding[] = []
   for (const p of (data ?? []) as ProgramRow[]) {
     for (const row of p.transfer_partners_outbound ?? []) {
+      // A live flag with NO end date can never auto-expire — it's the class of
+      // bug that let Citi->Wyndham sit "active" for weeks. Every active bonus
+      // must carry an end date. (bonusDaysRemaining returns null here, so this
+      // must run before the null-skip below.)
+      if (row.bonus_active === true && !row.bonus_end_date) {
+        out.push({
+          check: 'transfer_bonus_no_end_date',
+          severity: 'med',
+          programSlug: p.slug,
+          detail: `Bonus flag for "${row.from_slug}" is active with NO end date, so it can never auto-expire. Add bonus_end_date (YYYY-MM-DD) or clear the flag.`,
+        })
+        continue
+      }
       const days = bonusDaysRemaining(row)
       if (days === null) continue
       if (days < 0) {
@@ -189,6 +202,50 @@ async function checkTransferBonusExpiry(supabase: SupabaseClient): Promise<Integ
           severity: 'low',
           programSlug: p.slug,
           detail: `Bonus for "${row.from_slug}" ends in ${days} day(s) (${row.bonus_end_date}) and will auto-hide after. Extend the end date if the promo was prolonged.`,
+        })
+      }
+    }
+  }
+  return out
+}
+
+/**
+ * Inbound/outbound transfer-bonus drift. The canonical bonus state lives on the
+ * SOURCE currency's transfer_partners_outbound; destination programs keep an
+ * INBOUND mirror in transfer_partners for their own page. The self-expiring
+ * logic only governs the outbound copy, so when a bonus ends and the outbound
+ * flag flips but the inbound mirror doesn't, the destination page shows a dead
+ * bonus — exactly how Citi->Wyndham went stale. Flags any edge where the two
+ * disagree so the mirror gets synced.
+ */
+async function checkBonusInboundOutboundDrift(supabase: SupabaseClient): Promise<IntegrityFinding[]> {
+  const { data } = await supabase
+    .from('programs')
+    .select('slug, is_transferable_currency, transfer_partners, transfer_partners_outbound')
+  type DriftRow = {
+    slug: string
+    is_transferable_currency: boolean | null
+    transfer_partners: TransferPartnerRow[] | null
+    transfer_partners_outbound: TransferPartnerRow[] | null
+  }
+  const rows = (data ?? []) as DriftRow[]
+  const bySlug = new Map(rows.map((r) => [r.slug, r]))
+  const out: IntegrityFinding[] = []
+  for (const currency of rows) {
+    if (!currency.is_transferable_currency) continue
+    for (const o of currency.transfer_partners_outbound ?? []) {
+      const dest = bySlug.get(o.from_slug) // on an outbound row, from_slug is the destination
+      if (!dest) continue
+      const mirror = (dest.transfer_partners ?? []).find((r) => r.from_slug === currency.slug)
+      if (!mirror) continue
+      const canonical = isBonusActive(o)
+      const mirrored = isBonusActive(mirror)
+      if (canonical !== mirrored) {
+        out.push({
+          check: 'transfer_bonus_drift',
+          severity: 'med',
+          programSlug: dest.slug,
+          detail: `Bonus state for ${currency.slug} -> ${dest.slug} disagrees: the canonical outbound flag on ${currency.slug} is ${canonical ? 'ACTIVE' : 'inactive'}, but the ${dest.slug} page's inbound mirror is ${mirrored ? 'ACTIVE' : 'inactive'}. Sync the ${dest.slug} inbound row.`,
         })
       }
     }
@@ -434,8 +491,13 @@ export async function runIntegrityChecks(supabase: SupabaseClient): Promise<Inte
   // flow / re-extract; cleared when the editor next saves the prose.
   findings.push(...(await checkGoodToKnowReview(supabase)))
 
-  // CHECK: transfer-bonus flags expiring soon / past their end date.
+  // CHECK: transfer-bonus flags expiring soon / past their end date / active
+  // with no end date (can't auto-expire).
   findings.push(...(await checkTransferBonusExpiry(supabase)))
+
+  // CHECK: inbound/outbound bonus-flag drift between a currency and a
+  // destination program's page mirror.
+  findings.push(...(await checkBonusInboundOutboundDrift(supabase)))
 
   // CHECK: cron / scraper health (silent failures).
   findings.push(...(await checkCronHealth(supabase)))
