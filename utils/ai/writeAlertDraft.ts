@@ -1109,7 +1109,7 @@ DATES
 start_date / end_date:
 - Extract only if explicitly stated in the raw_text or headline.
 - Format: full ISO 8601 (e.g., "2026-04-30T23:59:59.000Z").
-- If a date is given without a year, assume the current or upcoming year that makes sense given today.
+- If a date is given without a year, use the current year from TODAY'S DATE (in the system context) — or the nearest upcoming year that keeps the timeline sensible. Never emit a past year for a current or upcoming offer.
 - null when unknown. Do not guess.
 
 ═══════════════════════════════════════════════════════════
@@ -1351,6 +1351,14 @@ PAYLOAD
   // the actual reason (validation, JSON parse, API error) was only visible
   // in Vercel runtime logs.
   const client = new Anthropic({ apiKey })
+  // Current date, injected per-request. The model can't know "today" on its
+  // own — without this it defaults to its training-cutoff year and stamped
+  // 2025 on 2026 promos. Computed in US Eastern to match the rest of the app.
+  const nowET = new Date()
+  const todayStr = nowET.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/New_York' })
+  const currentYear = Number(nowET.toLocaleDateString('en-US', { year: 'numeric', timeZone: 'America/New_York' }))
+  const dateContext = `TODAY'S DATE IS ${todayStr} (US Eastern). Use this as "now" for ALL date reasoning. For any date given WITHOUT a year: use ${currentYear} if that date is today or still upcoming this year, otherwise the nearest year that keeps the timeline sensible. "next year" = ${currentYear + 1}; "last year" = ${currentYear - 1}. NEVER stamp a PAST year on a current or upcoming offer — a future-tense promo cannot already have ended.`
+
   const message = await client.messages.create({
     model: 'claude-sonnet-4-6',
     // 4000 (was 1500). Drafts with long descriptions + any chattiness ate
@@ -1362,6 +1370,9 @@ PAYLOAD
     // (vs $3/M input) once; cache read costs $0.30/M (10x cheaper).
     system: [
       { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
+      // Date block goes AFTER the cached prefix so SYSTEM_PROMPT still cache-hits;
+      // this small block varies daily and stays uncached (see year bug above).
+      { type: 'text', text: dateContext },
     ],
     // Sonnet 4.6+ does not support assistant message prefill ("This model
     // does not support assistant message prefill. The conversation must
