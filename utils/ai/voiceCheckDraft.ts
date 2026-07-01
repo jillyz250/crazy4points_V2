@@ -7,7 +7,8 @@
  *   - Lead opens with one of the three rotation modes (A: stakes, B: visual,
  *     C: punchy) — not a program/brand name, not a press-release verb.
  *   - Zero banned phrases (see persona "Banned vocabulary" + AI-tell list).
- *   - No regular hyphens as pause punctuation. Em dashes ok in moderation.
+ *   - (Dashes/hyphens are normalized deterministically downstream, so this
+ *     checker no longer scores or flags them — see normalizeDashes.)
  *   - Sounds like the persona, not like a bot.
  *
  * Returns a structured verdict. Callers decide what to do with a fail
@@ -35,7 +36,7 @@ export interface VoiceCheckResult {
   hyphen_pause_count: number
   sounds_like_ai: boolean
   issues: string[]
-  /** Pass = score >= 4 AND zero banned AND no hyphen-pause AND !sounds_like_ai */
+  /** Pass = score >= 4 AND zero banned AND lead detected AND !sounds_like_ai. Dashes are normalized downstream and no longer gate this check. */
   passed: boolean
 }
 
@@ -43,6 +44,11 @@ const SYSTEM_PROMPT = `You are the voice quality gate for crazy4points. You rece
 (title, summary, description) and score it against the writer persona spec
 below. Be strict. The goal is to catch AI-cadence drafts before a human
 editor wastes time on them.
+
+DASHES: do NOT evaluate, count, or mention em-dashes, en-dashes, or hyphens.
+They are normalized deterministically after you run, so they are never a
+defect here. Set em_dash_count and hyphen_pause_count to 0 and never raise a
+dash/hyphen issue. Score the voice, not the punctuation.
 
 ═══════════════════════════════════════════════════════════
 WRITER PERSONA (the spec you are scoring against)
@@ -162,7 +168,7 @@ function validate(parsed: unknown): VoiceCheckResult | null {
   const sai = typeof o.sounds_like_ai === 'boolean' ? o.sounds_like_ai : false
 
   const passed =
-    score >= 4 && banned.length === 0 && hp === 0 && !sai && lead !== 'none'
+    score >= 4 && banned.length === 0 && !sai && lead !== 'none'
 
   return {
     score: score as 1 | 2 | 3 | 4 | 5,
@@ -236,11 +242,8 @@ export function formatVoiceFeedback(result: VoiceCheckResult): string {
       `Remove these banned phrases verbatim: ${result.banned_phrases_found.map((p) => `"${p}"`).join(', ')}.`
     )
   }
-  if (result.hyphen_pause_count > 0) {
-    parts.push(
-      `Found ${result.hyphen_pause_count} regular hyphen(s) used as pause punctuation. Replace with periods, commas, or em dashes.`
-    )
-  }
+  // (No hyphen/dash revision note: dashes are normalized deterministically by
+  // normalizeDashes downstream, so the checker no longer polices them.)
   if (result.sounds_like_ai) {
     parts.push(
       `Draft reads like AI. Tighten with specific value-add (concrete redemptions, named hotels/routes, traps) and at least one moment of voice (best-friend register from the persona).`
