@@ -1,8 +1,9 @@
 import Link from 'next/link'
 import ChecklistBoard, { type ChecklistGroupData } from './ChecklistBoard'
 import { createAdminClient } from '@/utils/supabase/server'
-import { countUnresolvedSystemErrors, getRefreshQueueCount, getRefreshQueue } from '@/utils/supabase/queries'
+import { countUnresolvedSystemErrors, getRefreshQueueCount, getRefreshQueue, listReminders } from '@/utils/supabase/queries'
 import { countHardcodedHits } from '@/utils/programs/auditHardcodedCounts'
+import RemindersWidget from '@/components/admin/reminders/RemindersWidget'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Card } from '@/components/admin/ui/Card'
 import { LinkButton } from '@/components/admin/ui/Button'
@@ -214,6 +215,7 @@ function TodayChecklist({ stats }: { stats: Awaited<ReturnType<typeof loadStats>
 
 export default async function AdminDashboard() {
   const stats = await loadStats()
+  const reminders = await listReminders(createAdminClient())
 
   const statCards: { label: string; value: number | string; tone: Tone; href: string; hint?: string }[] = [
     {
@@ -293,6 +295,10 @@ export default async function AdminDashboard() {
         title="Dashboard"
         description="What needs attention right now, and quick access to everything else."
       />
+
+      <Card style={{ padding: '1rem 1.25rem', marginBottom: '1.5rem' }}>
+        <RemindersWidget reminders={reminders} />
+      </Card>
 
       <TodayChecklist stats={stats} />
 
