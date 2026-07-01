@@ -14,7 +14,7 @@
  * indicating whether a retry was triggered. Callers should surface the
  * voice result to the admin UI as a gate state.
  */
-import { writeAlertDraft, type AlertDraft } from './writeAlertDraft'
+import { writeAlertDraft, normalizeDashes, type AlertDraft } from './writeAlertDraft'
 import type {
   WriteDraftIntel,
   WriteDraftProgram,
@@ -59,8 +59,11 @@ export async function writeEditCheck(
     description: draft.description,
   })
   if (edited) {
-    draft.summary = edited.summary
-    draft.description = edited.description
+    // Re-normalize: the edit pass can re-introduce em/en dashes the writer
+    // already stripped (its own examples model them). This is the last gate
+    // before the draft is saved, so it must be dash-clean here.
+    draft.summary = normalizeDashes(edited.summary)
+    draft.description = edited.description ? normalizeDashes(edited.description) : edited.description
   }
 
   let voice = await voiceCheckDraft({
@@ -95,8 +98,19 @@ export async function writeEditCheck(
         description: draft.description,
       })
     }
+    finalizeDashes(draft)
     return { draft, edited, voice, retried: true }
   }
 
+  finalizeDashes(draft)
   return { draft, edited, voice, retried: false }
+}
+
+// Belt-and-suspenders: normalize dashes on the final draft regardless of which
+// path built it (initial edit, retry, or edit skipped). This is the last gate
+// before the draft is returned + saved, so no em/en dash can slip through.
+function finalizeDashes(draft: AlertDraft): void {
+  draft.title = normalizeDashes(draft.title)
+  draft.summary = normalizeDashes(draft.summary)
+  if (typeof draft.description === 'string') draft.description = normalizeDashes(draft.description)
 }
