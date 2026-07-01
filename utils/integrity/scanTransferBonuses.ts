@@ -113,17 +113,26 @@ export async function scanTransferBonuses(supabase: SupabaseClient): Promise<Tra
 
   // Current state: which currency->partner edges are ALREADY flagged active.
   const activeEdge = new Set<string>()
+  const activeEdgeInfo = new Map<string, { currency: string; partner: string }>()
   const outboundByCurrency = new Map<string, Array<{ from_slug: string; bonus_active?: boolean; bonus_end_date?: string | null }>>()
   for (const p of all) {
     if (!p.is_transferable_currency) continue
     outboundByCurrency.set(p.slug, p.transfer_partners_outbound ?? [])
     for (const r of p.transfer_partners_outbound ?? []) {
-      if (isBonusActive(r)) activeEdge.add(`${p.slug}|${r.from_slug}`)
+      if (isBonusActive(r)) {
+        const edge = `${p.slug}|${r.from_slug}`
+        activeEdge.add(edge)
+        activeEdgeInfo.set(edge, { currency: p.slug, partner: r.from_slug })
+      }
     }
   }
 
   const signals: TransferBonusSignal[] = []
   const emitted = new Set<string>()
+  // Every edge seen live on any successfully-scraped page this run — used for
+  // reverse detection (a flag we hold that's absent from the web likely ended).
+  const webEdges = new Set<string>()
+  let anySourceOk = false
 
   for (const source of TRANSFER_BONUS_SOURCES) {
     const res = await fetchFirecrawl(source.url, { maxChars: 16000 })
@@ -131,9 +140,11 @@ export async function scanTransferBonuses(supabase: SupabaseClient): Promise<Tra
       console.warn(`[scanTransferBonuses] ${source.name} fetch failed: ${res.reason}`)
       continue
     }
+    anySourceOk = true
     const bonuses = await extractBonuses(res.markdown, currencies, partners)
     for (const b of bonuses) {
       const edge = `${b.currency_slug}|${b.partner_slug}`
+      webEdges.add(edge)
       // Already flagged active in our data → nothing to do.
       if (activeEdge.has(edge)) continue
       if (emitted.has(edge)) continue
@@ -152,6 +163,31 @@ export async function scanTransferBonuses(supabase: SupabaseClient): Promise<Tra
         summary: `${pct}transfer bonus ${curName} -> ${partName}${ends} is live but NOT flagged in our data.`.slice(0, 200),
         excerpt: b.end_date ? `Set bonus_active=true with bonus_end_date=${b.end_date} if confirmed.` : null,
         confidence: b.end_date && b.bonus_pct != null ? 'high' : 'med',
+      })
+    }
+  }
+
+  // Reverse detection: bonuses WE still flag active that are absent from the
+  // (comprehensive) current-bonus pages have almost certainly ended. This is
+  // the half the monitor was missing — a bonus that just DISAPPEARS from the
+  // web produced no signal. Only runs when a scrape actually succeeded, so a
+  // failed fetch can never mass-flag our whole roster as ended.
+  if (anySourceOk) {
+    for (const [edge, info] of activeEdgeInfo) {
+      if (webEdges.has(edge)) continue
+      if (emitted.has(edge)) continue
+      emitted.add(edge)
+      const curName = nameBySlug.get(info.currency) ?? info.currency
+      const partName = nameBySlug.get(info.partner) ?? info.partner
+      signals.push({
+        contentHash: hash(`tbonus-ended|${edge}`),
+        sourceName: 'transfer-bonus monitor (reverse check)',
+        sourceUrl: TRANSFER_BONUS_SOURCES[0].url,
+        programSlug: info.currency,
+        signalType: 'transfer_bonus',
+        summary: `We flag ${curName} -> ${partName} bonus ACTIVE, but it is absent from the current-bonus pages — it likely ended. Verify, then set bonus_end_date or clear the flag.`.slice(0, 200),
+        excerpt: null,
+        confidence: 'med',
       })
     }
   }
