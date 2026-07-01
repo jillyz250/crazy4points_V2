@@ -1285,7 +1285,30 @@ function validate(draft: unknown, programs: WriteDraftProgram[]): AlertDraft {
       }))
   }
 
+  // Deterministic backstop: strip em/en dashes from reader-facing text. The
+  // model keeps emitting them despite the BRAND_VOICE no-dashes rule (its own
+  // examples model them), so we normalize the output instead of fighting the
+  // prompt. Applied again in writeEditCheck after the edit pass.
+  d.title = normalizeDashes(d.title)
+  d.summary = normalizeDashes(d.summary)
+  if (typeof d.description === 'string') d.description = normalizeDashes(d.description)
+
   return d
+}
+
+/**
+ * Strip em-dashes and en-dashes from reader-facing text (per the no-dashes
+ * BRAND_VOICE rule). An en-dash between numbers/dates becomes a range ("to");
+ * other en-dashes become hyphens; em-dashes become commas. Newlines and
+ * compound-word hyphens (lie-flat, one-way) are preserved.
+ */
+export function normalizeDashes(s: string): string {
+  if (typeof s !== 'string' || !s) return s
+  return s
+    .replace(/(\d)[ \t]*–[ \t]*([A-Za-z0-9])/g, '$1 to $2')
+    .replace(/[ \t]*–[ \t]*/g, '-')
+    .replace(/[ \t]*—[ \t]*/g, ', ')
+    .replace(/ {2,}/g, ' ')
 }
 
 export async function writeAlertDraft(args: {

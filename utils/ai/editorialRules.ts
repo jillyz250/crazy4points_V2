@@ -49,7 +49,11 @@ OFF-LIMITS:
 • AI-slop scaffolding — cut the preamble, just say the thing: "It's important to
   note," "It's essential to," "In today's [X] world," "Furthermore," "Moreover,"
   "Embark on a journey," "Dive into."
-• Em-dash overuse: one per piece, max — prefer a comma, period, or colon.
+• NO em-dashes and NO en-dashes, ever (not one, not "sparingly"). Use a
+  period, comma, or colon instead, and the word "to" for ranges ("July 1 to
+  September 7" and "75,000 to 80,000 miles", never "July 1-September 7").
+  Hyphens inside compound words (lie-flat, one-way, 36-month) are fine.
+  This is a hard formatting rule: a single em-dash in the output is a defect.
 • Rule of three: vary list length (use 2 or 4 items) — three-item lists everywhere
   is a tell that copy was AI-generated.
 • Anything that sounds mean, preachy, or smug`
