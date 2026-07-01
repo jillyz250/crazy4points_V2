@@ -334,6 +334,18 @@ RULES:
    question), playful cadence, spoken not written. ≤155 chars so it
    doubles as meta description. The FRAMING carries the voice — no
    invented facts (see NO FABRICATION).
+2b. LEAD WITH THE PAYOFF, NOT THE CATCH. For deals / promos / LTOs,
+   sentence 1 opens on what the reader GETS and who it's for — never the
+   downside. This OVERRIDES the "sass hook" instinct in rule 2: the hook
+   is the payoff, not the surprising catch. Opening on the catch reads as
+   a warning, strands the action, and mirrors how the source frames it
+   (so it also fails ORIGINALITY). Surfacing the catch as editorial value
+   belongs in the DESCRIPTION, not the summary's first line.
+   ❌ "Your first stay earns nothing — but after that, Hyatt's promo
+      stacks up fast." (Sentence 1 opens on the catch = a warning.)
+   ✅ "Got a few Hyatt stays booked this summer? Register by Sept 1 and
+      every two nights earns 2,000 points, up to 8,000." (Opens on the
+      payoff + who it's for; the first-stay catch lands in sentence 2-3.)
 3. Sentence 2 = the confirmed fact or concrete angle. Only include
    specifics (numbers, routes, sweet spots) that are in raw_text or
    web-verified. If you don't have a specific angle, stay general.
