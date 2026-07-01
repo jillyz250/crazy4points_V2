@@ -31,6 +31,22 @@ export default async function EditAlertPage({ params }: Props) {
     findVariantByAlertId(supabase, id),
   ])
 
+  // editorial_value_add is canonical in the content_variant metadata; the
+  // `alerts` mirror never projects it (stays null), so getAlertById returns
+  // null and the QC box renders "no value-add" even when the writer reported
+  // items. Read it from the variant so the box reflects reality.
+  if (refs?.variant_id) {
+    const { data: variantRow } = await supabase
+      .from('content_variants')
+      .select('metadata')
+      .eq('id', refs.variant_id)
+      .maybeSingle()
+    const eva = (variantRow?.metadata as { editorial_value_add?: unknown } | null)?.editorial_value_add
+    if (eva !== undefined) {
+      ;(alertWithPrograms as { editorial_value_add?: unknown }).editorial_value_add = eva
+    }
+  }
+
   // Phase 4.5 — check if social variants already exist for this topic so the
   // button can read "Regenerate" instead of "Generate" when appropriate.
   let hasExistingSocials = false
