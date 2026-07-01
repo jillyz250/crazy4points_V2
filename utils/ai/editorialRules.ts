@@ -255,5 +255,23 @@ against this list before returning.
    ✅ "Earn 2x on whichever 3 of 8 eligible categories you spend most
        on each quarter."
    If a fact is true-in-general but not in T1, don't assert it. Either
-   ground it in source or leave it out.`
+   ground it in source or leave it out.
+
+5. CROSS-CURRENCY & DERIVED-VALUE MATH — never publish a number you
+   calculated from another number. Banned: (a) transfer-currency
+   conversions (points→miles), and (b) point valuations (points→dollars,
+   cents-per-point). A range or a "roughly / about / ~" does NOT make it
+   OK — a derived number is banned even when hedged and even when the
+   arithmetic is right. It has no verifiable source and fails fact-check
+   every time.
+   ❌ "At the 4:3 rate you'd need roughly 100,000 Capital One miles; with
+      the bonus, closer to 77,000." (Derived transfer-currency figures.)
+   ❌ "75k miles is worth about $1,500 at 2 cents each." (Derived cpp.)
+   ✅ "EVA charges 75-80k miles one-way in business to Asia — a top-tier
+      lie-flat product — and the 30% bonus meaningfully cuts what you
+      have to transfer." (Destination's own number + qualitative bonus.)
+   Cite the DESTINATION program's OWN published mile number (grounded in
+   extra_context), keep the bonus qualitative, and let the READER run
+   their own conversion. Overrides "concrete numbers beat adjectives":
+   a grounded destination number beats a derived one.`
 
