@@ -1055,23 +1055,25 @@ the same booking. Do NOT frame them as a stack.
 Instead, append exactly ONE italicized line at the very end of the description,
 on its own line, formatted as:
 
-  *Alternative — prefer to redeem with points? <one tight sentence naming
-  the active redeem-side offer + program + deadline>.*
+  *Alternative: prefer to redeem with points? <one tight sentence naming
+  the active redeem-side offer + program, with a markdown link to its alert>.*
 
 Examples:
 
-  *Alternative — prefer to redeem with points? Chase UR is running a 20%
-  transfer bonus to Flying Blue through May 27, putting one-way US economy
-  awards around 21K UR after the bonus.*
+  *Alternative: prefer to redeem with points? Chase UR is running a transfer
+  bonus to Flying Blue right now. [See the details](/alerts/<slug>).*
 
-  *Alternative — prefer to redeem with points? There's open Hyatt award space
-  at the Park Hyatt Tokyo through July; pair with the 30% Bilt → Hyatt bonus
-  ending June 5.*
+  *Alternative: prefer to redeem with points? A Bilt to Hyatt transfer bonus
+  is live for Park Hyatt Tokyo space. [Check it here](/alerts/<slug>).*
 
 Hard rules:
 • ONE line. No second sentence. No bullet block.
 • Italicized markdown (single asterisks).
 • Must reference an offer that is genuinely in extra_context — never invent.
+• LINK the offer using its /alerts/<slug> reference from extra_context. Do NOT
+  restate its specific deadline or point figures — the linked alert owns those.
+  Copying a date by hand is how wrong dates ship (we shipped "July 26" for a
+  "July 27" offer this way). Name it + link it; let the click carry the terms.
 • Skip entirely if no relevant active redeem-side offer exists for this
   program. An earn-side alert with no alternative simply ends with its close
   paragraph; no synthetic "use points instead" filler.
