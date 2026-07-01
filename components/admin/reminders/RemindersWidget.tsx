@@ -36,9 +36,19 @@ export default function RemindersWidget({ reminders }: { reminders: Reminder[] }
   const [isPending, startTransition] = useTransition()
   const [title, setTitle] = useState('')
   const [due, setDue] = useState('')
+  const [sortMode, setSortMode] = useState<'due' | 'added'>('due')
 
-  const open = reminders.filter((r) => r.status === 'open')
   const done = reminders.filter((r) => r.status === 'done')
+  const open = reminders
+    .filter((r) => r.status === 'open')
+    .sort((a, b) => {
+      if (sortMode === 'added') return a.created_at < b.created_at ? 1 : -1 // newest first
+      // by due date: soonest first, undated items last
+      if (a.due_date && b.due_date) return a.due_date < b.due_date ? -1 : a.due_date > b.due_date ? 1 : 0
+      if (a.due_date) return -1
+      if (b.due_date) return 1
+      return a.created_at < b.created_at ? 1 : -1
+    })
 
   function submit() {
     const t = title.trim()
@@ -80,11 +90,39 @@ export default function RemindersWidget({ reminders }: { reminders: Reminder[] }
         <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, color: 'var(--admin-text-muted)' }}>
           To-do &amp; reminders
         </div>
-        {open.length > 0 && (
-          <span style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)' }}>
-            {open.length} open
-          </span>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+          <div
+            role="group"
+            aria-label="Sort reminders"
+            style={{ display: 'inline-flex', border: '1px solid var(--admin-border)', borderRadius: '0.375rem', overflow: 'hidden' }}
+          >
+            {([['due', 'Date'], ['added', 'Added']] as const).map(([mode, label]) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setSortMode(mode)}
+                aria-pressed={sortMode === mode}
+                title={mode === 'due' ? 'Sort by due date (soonest first)' : 'Sort by most recently added'}
+                style={{
+                  fontSize: '0.6875rem',
+                  fontWeight: 600,
+                  padding: '0.25rem 0.5rem',
+                  border: 'none',
+                  background: sortMode === mode ? 'var(--admin-accent)' : 'transparent',
+                  color: sortMode === mode ? '#fff' : 'var(--admin-text-muted)',
+                  cursor: 'pointer',
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {open.length > 0 && (
+            <span style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)' }}>
+              {open.length} open
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Add form */}
