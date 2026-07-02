@@ -139,8 +139,11 @@ function renderAlsoHappening(items: AlsoHappeningItem[], origin: string): string
   const cards = items
     .map((item) => {
       const cat = esc(item.category || 'Update')
-      const link = item.link_url
-        ? `<p style="margin:0;font-family:${FONT_UI};font-size:13px;font-weight:600;"><a href="${esc(item.link_url)}" style="color:${GOLD};text-decoration:none;">Details →</a></p>`
+      const href = item.link_url
+        ? (item.link_url.startsWith('http') ? item.link_url : `${origin}${item.link_url}`)
+        : null
+      const link = href
+        ? `<p style="margin:0;font-family:${FONT_UI};font-size:13px;font-weight:600;"><a href="${esc(href)}" style="color:${GOLD};text-decoration:none;">Details →</a></p>`
         : ''
       return `
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 12px;border:1px solid ${BORDER};border-radius:12px;background:#fff;">
