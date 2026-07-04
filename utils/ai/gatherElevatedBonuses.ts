@@ -92,11 +92,18 @@ export async function getElevatedBonuses(supabase: SupabaseClient): Promise<Elev
     .eq('is_elevated', true)
     .not('baseline_bonus_amount', 'is', null)
 
+  // Day-granularity, UTC. An elevated offer whose window_end has passed is no
+  // longer live — exclude it so expired SUBs can't surface in the newsletter
+  // (a record can carry is_elevated=true with a past window_end until it's
+  // re-verified; this is the safety net).
+  const today = new Date().toISOString().slice(0, 10)
+
   const items: ElevatedBonusItem[] = []
   for (const r of (data ?? []) as BonusRow[]) {
     const card = Array.isArray(r.credit_cards) ? r.credit_cards[0] : r.credit_cards
     if (!card || !card.is_active || card.status !== 'active') continue
     if (r.bonus_amount == null || r.baseline_bonus_amount == null) continue
+    if (r.window_end && r.window_end < today) continue
 
     const { displayTotal, elevationTotal, tiered } = computeTotal(r.bonus_amount, r.tiered_bonuses)
     // Require a genuine elevation above the normal offer, ignoring $0-spend
