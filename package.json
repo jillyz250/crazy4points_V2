@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
     "import:destinations": "node scripts/import-destinations.mjs",
     "test:award": "tsx scripts/award-chart-engine-test.ts && tsx scripts/award-diagnosis-test.ts && tsx scripts/award-chart-fuzz.ts"
   },
