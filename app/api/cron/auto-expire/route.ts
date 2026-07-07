@@ -13,7 +13,7 @@
  */
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/utils/supabase/server'
-import { autoExpirePublishedVariants } from '@/utils/lifecycle/autoExpire'
+import { autoExpirePublishedVariants, autoRejectExpiredDrafts } from '@/utils/lifecycle/autoExpire'
 import { assertCron } from '@/lib/auth/cron'
 
 export const dynamic = 'force-dynamic'
@@ -31,7 +31,14 @@ async function handle(request: Request) {
   if (denied) return denied
 
   const supabase = createAdminClient()
-  const result = await autoExpirePublishedVariants(supabase)
-  console.log(`[auto-expire] scanned=${result.scanned} touched=${result.touched} errors=${result.errors}`)
-  return NextResponse.json(result, { status: result.ok ? 200 : 500 })
+  const published = await autoExpirePublishedVariants(supabase)
+  const expiredDrafts = await autoRejectExpiredDrafts(supabase)
+  console.log(
+    `[auto-expire] published: scanned=${published.scanned} touched=${published.touched} errors=${published.errors} | ` +
+    `expired-drafts: scanned=${expiredDrafts.scanned} rejected=${expiredDrafts.rejected} errors=${expiredDrafts.errors}`,
+  )
+  return NextResponse.json(
+    { published, expiredDrafts },
+    { status: published.ok && expiredDrafts.ok ? 200 : 500 },
+  )
 }
