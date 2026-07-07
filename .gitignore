@@ -47,3 +47,6 @@ next-env.d.ts
 
 # Claude Code agent worktrees — transient, never commit
 .claude/worktrees/
+
+# Firecrawl scrape output (local research artifacts)
+.firecrawl/

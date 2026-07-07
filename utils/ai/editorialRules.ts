@@ -210,7 +210,7 @@ FOOTER TEMPLATE — minimal, ONE hashtag only:
  * during review.
  */
 export const FACTUAL_TRAPS = `═══════════════════════════════════════════════════════════
-FACTUAL TRAPS — four errors that keep slipping past fact-check
+FACTUAL TRAPS — seven errors that keep slipping past fact-check
 ═══════════════════════════════════════════════════════════
 
 These are the most-violated fact-grounding rules. Re-read your draft
@@ -283,5 +283,25 @@ against this list before returning.
    Cite the DESTINATION program's OWN published mile number (grounded in
    extra_context), keep the bonus qualitative, and let the READER run
    their own conversion. Overrides "concrete numbers beat adjectives":
-   a grounded destination number beats a derived one.`
+   a grounded destination number beats a derived one.
+
+6. TRANSIENT AVAILABILITY & CARRIED-OVER NUMBERS — never assert live award
+   availability ("wide open", "available now", "right now", "still open")
+   or a specific award price unless it's in your CURRENT source at publish
+   time. Availability fluctuates and goes stale the moment you ship; a price
+   carried from an older draft or a cross-linked alert is NOT a source.
+   ❌ "Philadelphia-Doha Qsuite is wide open from 70,000 Avios right now."
+      (Availability unverified + price lifted from another alert.)
+   ✅ "Qatar restarted Philadelphia-Doha with Qsuite business -- worth a
+      search if you're sitting on Avios." (No live-availability promise.)
+   Point readers to search it themselves; don't promise what's open.
+
+7. STALE-TERMS / SOURCE CROSS-CHECK — before trusting a "verified official
+   terms" block, confirm its promo/offer code AND its booking/travel dates
+   match the source article. A mismatch means the terms were scraped from a
+   stale or wrong page (often a regional /en-xx/ URL an airline left up).
+   ❌ Shipping "book by 28 June 2023, code 2306EA021" on a July-2026 alert.
+      (2023 code + dates on a 2026 offer = stale regional page.)
+   ✅ Terms whose code (JULYPC) and dates (book by 15 July 2026) match the
+      source. When in doubt, use the canonical global offer URL, not /en-xx/.`
 
