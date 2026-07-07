@@ -28,7 +28,7 @@ export interface PublishedForDupe {
   primary_program_id?: string | null
 }
 
-export type LintKind = 'DUPE' | 'STALE' | 'UNVERIFIED'
+export type LintKind = 'DUPE' | 'STALE' | 'UNVERIFIED' | 'STYLE'
 export interface LintFlag {
   kind: LintKind
   message: string
@@ -63,6 +63,28 @@ export function latestDate(s: string): Date | null {
 
 const TRANSIENT = /\b(wide[- ]open|right now|available now|wide open|selling out|going fast)\b/i
 const AWARD_PRICE = /\b\d{1,3}(,\d{3})+\s*(avios|miles|points)\b/i
+
+/**
+ * Editorial house-style check (editorialRules.ts): NO em-dashes or en-dashes,
+ * no spaced-hyphen used as a dash, and "to" for numeric ranges (not "1-31").
+ * Markdown list markers ("- item") at line start are ignored.
+ */
+export function lintCopyStyle(text: string): LintFlag[] {
+  const flags: LintFlag[] = []
+  if (!text) return flags
+  if (/—/.test(text)) flags.push({ kind: 'STYLE', message: 'em-dash present (banned; use period, comma, or colon)' })
+  if (/–/.test(text)) flags.push({ kind: 'STYLE', message: 'en-dash present (banned; use "to" for ranges)' })
+  for (const raw of text.split(/\n/)) {
+    const line = raw.replace(/^\s*[-*]\s+/, '') // drop list marker
+    if (/ - /.test(line)) { flags.push({ kind: 'STYLE', message: 'spaced hyphen used as a dash (rewrite with period, comma, or colon)' }); break }
+  }
+  // Strip markdown-link targets and bare URLs so slug hyphens (intel-a73...-178...)
+  // don't read as ranges.
+  const noUrls = text.replace(/\]\([^)]*\)/g, '](url)').replace(/https?:\/\/\S+/g, 'url')
+  const range = noUrls.match(/\d[\d,]*\s*-\s*\d/)
+  if (range) flags.push({ kind: 'STYLE', message: `hyphenated range "${range[0]}" (use "to", e.g. "July 1 to 31")` })
+  return flags
+}
 
 export function lintPendingAlert(a: AlertForLint, published: PublishedForDupe[], now: Date = new Date()): LintFlag[] {
   const flags: LintFlag[] = []
@@ -107,6 +129,13 @@ export function lintPendingAlert(a: AlertForLint, published: PublishedForDupe[],
       flags.push({ kind: 'UNVERIFIED', message: `price "${sent.match(AWARD_PRICE)![0]}" tied to an availability claim — verify or drop` })
       break
     }
+  }
+
+  // 4. STYLE — editorial house-style (dashes / hyphenated ranges) across title + copy
+  const seen = new Set(flags.map((f) => f.kind + f.message))
+  for (const f of [...lintCopyStyle(a.title), ...lintCopyStyle(a.summary || ''), ...lintCopyStyle(a.description || '')]) {
+    const key = f.kind + f.message
+    if (!seen.has(key)) { seen.add(key); flags.push(f) }
   }
   return flags
 }
