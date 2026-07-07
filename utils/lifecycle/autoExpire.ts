@@ -16,6 +16,7 @@
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { rejectAlertVariant } from '@/utils/content/writeAlertVariant'
+import { isAlertActiveET } from '@/lib/alerts/expiry'
 
 export interface AutoExpireResult {
   ok: boolean
@@ -87,6 +88,13 @@ export async function autoExpirePublishedVariants(
 
   // Pull all currently-published alert variants whose topic has ended.
   // Topic is the source of truth for end_date.
+  //
+  // The SQL filter uses a coarse UTC `end_date < now` bound: it over-selects
+  // (an alert ending "July 7" satisfies this from midnight UTC on July 7, which
+  // is 8pm ET on July 6) but never misses a truly-expired row. The per-row
+  // isAlertActiveET() check below then applies the SAME ET-day semantics the
+  // public read path uses (lib/alerts/expiry.ts), so we only expire a variant
+  // once it has actually ended in Eastern time — not up to ~28h early.
   const { data: candidates, error } = await supabase
     .from('content_variants')
     .select('id, updated_at, topics:topics!inner(id, slug, end_date)')
@@ -112,6 +120,10 @@ export async function autoExpirePublishedVariants(
 
   for (const row of rows) {
     const t = Array.isArray(row.topics) ? row.topics[0] : row.topics
+    // Strict ET check — the coarse SQL bound over-selects rows that ended in
+    // UTC but are still live through end-of-day Eastern. Skip those so the
+    // alert doesn't vanish from the site early.
+    if (isAlertActiveET(t.end_date)) continue
     const { error: tErr } = await supabase
       .from('content_variants')
       .update({ updated_at: nowIso })

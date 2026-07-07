@@ -1762,7 +1762,7 @@ export async function updateProgramPageContent(
   supabase: SupabaseClient,
   id: string,
   input: ProgramPageContentInput
-): Promise<void> {
+): Promise<{ slug: string | null }> {
   const anyContent =
     !!input.intro ||
     !!input.award_chart ||
@@ -1775,7 +1775,7 @@ export async function updateProgramPageContent(
     !!input.alliance ||
     (input.hubs?.length ?? 0) > 0 ||
     (input.member_programs?.length ?? 0) > 0
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('programs')
     .update({
       intro: input.intro,
@@ -1795,7 +1795,10 @@ export async function updateProgramPageContent(
       last_verified: new Date().toISOString().slice(0, 10),
     })
     .eq('id', id)
+    .select('slug')
+    .single()
   if (error) throw error
+  return { slug: (data as { slug: string | null } | null)?.slug ?? null }
 }
 
 // ─── Hotel properties ────────────────────────────────────────────────────────

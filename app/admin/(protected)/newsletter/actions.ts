@@ -481,15 +481,24 @@ export async function sendToSubscribersAction(id: string, confirmWord: string) {
     throw new Error('Newsletter is empty — fill at least one section before sending.')
   }
 
-  const { data: subs, error: subErr } = await supabase
-    .from('subscribers')
-    .select('email')
-    .eq('active', true)
-  if (subErr) throw new Error(subErr.message)
+  // Page through subscribers in 1000-row chunks. A plain .select() is capped
+  // at PostgREST's default 1000-row limit, which would silently drop every
+  // subscriber past the first 1000 from the blast.
+  const PAGE = 1000
+  const subEmails: (string | null)[] = []
+  for (let from = 0; ; from += PAGE) {
+    const { data: page, error: subErr } = await supabase
+      .from('subscribers')
+      .select('email')
+      .eq('active', true)
+      .range(from, from + PAGE - 1)
+    if (subErr) throw new Error(subErr.message)
+    const rows = (page ?? []) as { email: string | null }[]
+    subEmails.push(...rows.map((s) => s.email))
+    if (rows.length < PAGE) break
+  }
 
-  const recipients = ((subs ?? []) as { email: string | null }[])
-    .map((s) => s.email)
-    .filter((e): e is string => !!e)
+  const recipients = subEmails.filter((e): e is string => !!e)
   if (recipients.length === 0) {
     throw new Error('No active subscribers to send to.')
   }
