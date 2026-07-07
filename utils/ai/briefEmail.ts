@@ -1,5 +1,6 @@
 import type { EditorialPlan } from './generateEditorialPlan'
 import { signBulkActionToken } from './bulkActionToken'
+import type { LintFlag } from '@/utils/alerts/lintPendingAlerts'
 
 // Minimal interface satisfied by both ScoutFinding (in-memory) and IntelItem (DB row)
 export interface BriefFinding {
@@ -37,6 +38,8 @@ export interface ApproveMeta {
     before_claim: string
     after_claim: string
   }>
+  /** Pre-triage lint flags (dupe / stale / unverified) — see utils/alerts/lintPendingAlerts. */
+  lintFlags?: LintFlag[]
 }
 
 export interface BriefContext {
@@ -164,6 +167,22 @@ function approveCard(
     ? `<div style="margin:0 0 8px;">${chip.html}${chip.html && (badges || factCheckBadge) ? ' ' : ''}${factCheckBadge}${badges}</div>`
     : ''
 
+  // Pre-triage lint strip — dupe / stale / unverified flags surfaced BEFORE
+  // the editor opens the alert. Red = likely dupe or expired (probably skip);
+  // amber = needs a verify before publishing.
+  const lintStrip = meta.lintFlags && meta.lintFlags.length > 0
+    ? (() => {
+        const hard = meta.lintFlags!.some((f) => f.kind === 'DUPE' || f.kind === 'STALE')
+        const pal = hard
+          ? { bg: '#fdecea', border: '#f5c6cb', fg: '#7a1f1f' }
+          : { bg: '#fff8e1', border: '#fde68a', fg: '#7a5a1f' }
+        const rows = meta.lintFlags!
+          .map((f) => `<li style="margin:0 0 3px;font-size:12px;line-height:1.4;color:${pal.fg};">⚑ <strong>${f.kind}</strong> — ${f.message}</li>`)
+          .join('')
+        return `<ul style="margin:0 0 10px;padding:8px 12px 8px 28px;background:${pal.bg};border:1px solid ${pal.border};border-radius:6px;">${rows}</ul>`
+      })()
+    : ''
+
   // Claim preview under the fact-check chip. Shows up to 3 high-severity
   // unsupported claims, truncated, so a stand-in can tell at a glance what
   // needs verifying before hitting publish.
@@ -246,6 +265,7 @@ function approveCard(
       ${sourceLine}
       ${scoreLine}
       ${chipsRow}
+      ${lintStrip}
       ${revisionStrip}
       ${claimPreview}
       <p style="margin:0 0 12px;font-size:13px;line-height:1.5;color:#4A4A4A;">${item.why_publish}</p>
@@ -391,6 +411,7 @@ export function buildBriefEmail(
                 sourceUrl: meta.sourceUrl,
                 factCheck: meta.factCheck,
                 revisions: meta.revisions,
+                lintFlags: meta.lintFlags,
               },
               idx + 1,
               orderReason
