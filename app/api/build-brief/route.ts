@@ -10,6 +10,7 @@ import {
 import type { WriteDraftProgram } from '@/utils/ai/writeAlertDraft'
 import { detectConflict } from '@/utils/ai/detectConflict'
 import type { ApproveMeta } from '@/utils/ai/briefEmail'
+import { lintPendingAlert, type PublishedForDupe } from '@/utils/alerts/lintPendingAlerts'
 import { logSystemError } from '@/utils/supabase/queries'
 import { selectAlertViewFromVariants } from '@/utils/content/alertView'
 // writeEditCheck / verifyAlertDraft / webVerifyClaims / reviseAlertDraft /
@@ -332,6 +333,40 @@ export async function GET(req: NextRequest) {
         }
       }
 
+    }
+
+    // Pre-triage lint: flag dupes / stale windows / unverified availability on
+    // each staged draft BEFORE it reaches the editor. Best-effort — a lint
+    // failure never blocks the brief. (verified_terms is skipped here to keep
+    // the brief cheap; the CLI `lint-pending-alerts` does the deeper terms pass.)
+    try {
+      const intelByAlertId = new Map<string, string>()
+      for (const [intelId, m] of Object.entries(approveMetaByIntelId)) {
+        if (m.alertId) intelByAlertId.set(m.alertId, intelId)
+      }
+      const alertIds = [...intelByAlertId.keys()]
+      if (alertIds.length) {
+        const [{ data: draftRows }, { data: pubRows }] = await Promise.all([
+          supabase
+            .from('alerts')
+            .select('id, title, summary, description, source_url, primary_program_id, start_date, end_date')
+            .in('id', alertIds),
+          supabase
+            .from('alerts')
+            .select('id, title, primary_program_id')
+            .in('status', ['published', 'expired'])
+            .order('created_at', { ascending: false })
+            .limit(500),
+        ])
+        const published = (pubRows ?? []) as PublishedForDupe[]
+        for (const d of draftRows ?? []) {
+          const flags = lintPendingAlert(d as any, published)
+          const intelId = intelByAlertId.get(d.id as string)
+          if (intelId && flags.length) approveMetaByIntelId[intelId].lintFlags = flags
+        }
+      }
+    } catch (lintErr) {
+      console.warn('[build-brief] pre-triage lint failed (non-blocking):', lintErr)
     }
   }
 
