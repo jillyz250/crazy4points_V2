@@ -15,6 +15,7 @@
  * The trigger re-projects everything else.
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { rejectAlertVariant } from '@/utils/content/writeAlertVariant'
 
 export interface AutoExpireResult {
   ok: boolean
@@ -22,6 +23,61 @@ export interface AutoExpireResult {
   touched: number
   errors: number
   examples: { id: string; slug: string; endedAt: string }[]
+}
+
+export interface AutoRejectDraftsResult {
+  ok: boolean
+  scanned: number
+  rejected: number
+  errors: number
+  examples: { id: string; title: string; endDate: string }[]
+}
+
+/**
+ * Auto-reject pending_review drafts whose end_date is already in the PAST
+ * (strictly before today, US Eastern). Keeps stale limited-time-offer drafts
+ * out of the daily triage queue so the editor never sees a deal that already
+ * ended. Drafts ending TODAY are preserved (still publishable that morning).
+ * Rejection goes through rejectAlertVariant so the topic+variant archive and
+ * the alerts mirror re-projects correctly.
+ */
+export async function autoRejectExpiredDrafts(
+  supabase: SupabaseClient,
+): Promise<AutoRejectDraftsResult> {
+  const todayET = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }) // YYYY-MM-DD
+
+  const { data, error } = await supabase
+    .from('alerts')
+    .select('id, title, end_date')
+    .eq('status', 'pending_review')
+    .not('end_date', 'is', null)
+    .lt('end_date', todayET)
+
+  if (error) {
+    console.error('[autoRejectExpiredDrafts] query failed:', error.message)
+    return { ok: false, scanned: 0, rejected: 0, errors: 1, examples: [] }
+  }
+
+  const rows = (data ?? []) as Array<{ id: string; title: string | null; end_date: string }>
+  let rejected = 0
+  let errors = 0
+  const examples: { id: string; title: string; endDate: string }[] = []
+
+  for (const r of rows) {
+    try {
+      await rejectAlertVariant(supabase, r.id, {
+        kind: 'rejected',
+        rejectedReason: `auto-expired: end_date ${r.end_date} passed before publish`,
+      })
+      rejected++
+      if (examples.length < 5) examples.push({ id: r.id, title: (r.title ?? '').slice(0, 60), endDate: r.end_date })
+    } catch (e) {
+      console.error(`[autoRejectExpiredDrafts] reject failed for ${r.id}:`, (e as Error).message)
+      errors++
+    }
+  }
+
+  return { ok: errors === 0, scanned: rows.length, rejected, errors, examples }
 }
 
 export async function autoExpirePublishedVariants(
