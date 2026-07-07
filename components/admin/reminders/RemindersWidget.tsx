@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { Reminder } from '@/utils/supabase/queries'
@@ -38,6 +38,25 @@ export default function RemindersWidget({ reminders }: { reminders: Reminder[] }
   const [due, setDue] = useState('')
   const [sortMode, setSortMode] = useState<'due' | 'added'>('due')
 
+  // Collapsible body — the widget grows with every reminder, so it can be
+  // folded to just the header + open count. Choice persists across visits
+  // (localStorage, read after mount to avoid a hydration mismatch).
+  const [collapsed, setCollapsed] = useState(false)
+  useEffect(() => {
+    try {
+      if (localStorage.getItem('c4p-reminders-collapsed') === '1') setCollapsed(true)
+    } catch {}
+  }, [])
+  function toggleCollapsed() {
+    setCollapsed((prev) => {
+      const next = !prev
+      try {
+        localStorage.setItem('c4p-reminders-collapsed', next ? '1' : '0')
+      } catch {}
+      return next
+    })
+  }
+
   const done = reminders.filter((r) => r.status === 'done')
   const open = reminders
     .filter((r) => r.status === 'open')
@@ -49,6 +68,10 @@ export default function RemindersWidget({ reminders }: { reminders: Reminder[] }
       if (b.due_date) return 1
       return a.created_at < b.created_at ? 1 : -1
     })
+
+  // Overdue or due-today count — surfaced next to the header when collapsed
+  // so folding the widget never hides something urgent.
+  const urgentCount = open.filter((r) => r.due_date && r.due_date <= todayET()).length
 
   function submit() {
     const t = title.trim()
@@ -91,40 +114,66 @@ export default function RemindersWidget({ reminders }: { reminders: Reminder[] }
           To-do &amp; reminders
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-          <div
-            role="group"
-            aria-label="Sort reminders"
-            style={{ display: 'inline-flex', border: '1px solid var(--admin-border)', borderRadius: '0.375rem', overflow: 'hidden' }}
-          >
-            {([['due', 'Date'], ['added', 'Added']] as const).map(([mode, label]) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setSortMode(mode)}
-                aria-pressed={sortMode === mode}
-                title={mode === 'due' ? 'Sort by due date (soonest first)' : 'Sort by most recently added'}
-                style={{
-                  fontSize: '0.6875rem',
-                  fontWeight: 600,
-                  padding: '0.25rem 0.5rem',
-                  border: 'none',
-                  background: sortMode === mode ? 'var(--admin-accent)' : 'transparent',
-                  color: sortMode === mode ? '#fff' : 'var(--admin-text-muted)',
-                  cursor: 'pointer',
-                }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          {!collapsed && (
+            <div
+              role="group"
+              aria-label="Sort reminders"
+              style={{ display: 'inline-flex', border: '1px solid var(--admin-border)', borderRadius: '0.375rem', overflow: 'hidden' }}
+            >
+              {([['due', 'Date'], ['added', 'Added']] as const).map(([mode, label]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setSortMode(mode)}
+                  aria-pressed={sortMode === mode}
+                  title={mode === 'due' ? 'Sort by due date (soonest first)' : 'Sort by most recently added'}
+                  style={{
+                    fontSize: '0.6875rem',
+                    fontWeight: 600,
+                    padding: '0.25rem 0.5rem',
+                    border: 'none',
+                    background: sortMode === mode ? 'var(--admin-accent)' : 'transparent',
+                    color: sortMode === mode ? '#fff' : 'var(--admin-text-muted)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
           {open.length > 0 && (
             <span style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)' }}>
               {open.length} open
             </span>
           )}
+          {collapsed && urgentCount > 0 && (
+            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--admin-danger)' }}>
+              {urgentCount} due
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? 'Show reminders' : 'Hide reminders'}
+            style={{
+              fontSize: '0.6875rem',
+              fontWeight: 600,
+              padding: '0.25rem 0.5rem',
+              border: '1px solid var(--admin-border)',
+              borderRadius: '0.375rem',
+              background: 'transparent',
+              color: 'var(--admin-text-muted)',
+              cursor: 'pointer',
+            }}
+          >
+            {collapsed ? '▸ Show' : '▾ Hide'}
+          </button>
         </div>
       </div>
 
+      {!collapsed && (<>
       {/* Add form */}
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.875rem', flexWrap: 'wrap' }}>
         <input
@@ -300,6 +349,7 @@ export default function RemindersWidget({ reminders }: { reminders: Reminder[] }
           </ul>
         </details>
       )}
+      </>)}
     </div>
   )
 }

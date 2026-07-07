@@ -156,36 +156,24 @@ function TodayChecklist({ stats }: { stats: Awaited<ReturnType<typeof loadStats>
 
   const groups: ChecklistGroupData[] = [
     {
-      label: 'Daily — make content', note: '~80 min', numbered: true,
+      label: 'Daily — make content', note: '~60 min', numbered: true,
       steps: [
         {
-          id: 'read-brief', title: 'Read today’s brief', time: '~10 min',
-          hint: briefReady ? 'The day’s story + what’s worth writing.' : 'Not built yet — it lands around 7am.',
-          href: '/admin/briefs', cta: briefReady ? 'Open today’s brief' : 'See briefs', muted: !briefReady,
+          id: 'morning-review', title: 'Morning review with Claude', time: '~10 min',
+          count: stats.newIntel + stats.newDrafts + dataFlags || undefined,
+          hint: briefReady
+            ? 'Say "morning" — Claude reads the brief, new intel, pending drafts, and the data digest, then hands you one publish / page-note / reject table.'
+            : 'Brief lands ~7am. Say "morning" — Claude reads it plus new intel, pending drafts, and the data digest, then hands you one decision table.',
+          href: '/admin/briefs', cta: briefReady ? 'Today’s brief' : 'See briefs',
         },
         {
-          id: 'triage', title: 'Triage new intel', time: '~15 min', count: stats.newIntel,
-          hint: 'Just today’s new items — approve the good, skip the noise. Already deduped + checked against your alerts.',
-          href: '/admin/triage', cta: 'Triage',
-        },
-        {
-          id: 'drafts', title: 'Publish the drafts that matter', time: '~40 min', count: stats.newDrafts,
-          hint: 'Publish the 2–4 worth posting and reject the rest. Quality over clearing the pile.',
+          id: 'work-table', title: 'Work the table: publish + reject', time: '~35 min', count: stats.newDrafts,
+          hint: 'Make the calls from the table — Claude verifies each keeper against issuer sources; you edit and publish. Quality over clearing the pile.',
           href: '/admin/drafts?view=needs_review', cta: 'Review drafts',
         },
         {
           id: 'social', title: 'Post one to social', time: '~15 min',
           hint: 'One happy-news item — a deal, bonus, or award win — per your brand rules.',
-        },
-      ],
-    },
-    {
-      label: 'Daily — data check', note: '~10 min', numbered: true,
-      steps: [
-        {
-          id: 'digest', title: 'Skim the 7am digest', time: '~10 min', count: dataFlags || undefined,
-          hint: 'It flags welcome-bonus changes, transfer-partner changes, and program-page drift. Fix the urgent ones; it never blocks content.',
-          href: '/admin/change-signals', cta: 'Open signals', muted: true,
         },
       ],
     },
