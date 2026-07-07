@@ -61,11 +61,19 @@ export async function POST(req: NextRequest) {
   //       (the `whsec_...` value from Resend's webhook settings).
   // Fail CLOSED: a svix-signature header is only honored if it actually
   // verifies. A missing signing secret with a signature present is rejected.
+  // Fail CLOSED on misconfiguration: if NEITHER auth secret is configured,
+  // there is no way to authenticate the caller, so reject rather than process
+  // an unauthenticated write into the intel pipeline.
   const secret = process.env.RESEND_INBOUND_WEBHOOK_SECRET
-  if (secret) {
+  const signingSecretConfigured = !!process.env.RESEND_INBOUND_SIGNING_SECRET
+  if (!secret && !signingSecretConfigured) {
+    await logIngestError('email', 'security', 'no inbound auth secret configured — refusing request', {})
+    return NextResponse.json({ ok: false, error: 'server misconfiguration' }, { status: 500 })
+  }
+  {
     const auth = req.headers.get('authorization')
     const svixSig = req.headers.get('svix-signature')
-    if (auth === `Bearer ${secret}`) {
+    if (secret && auth === `Bearer ${secret}`) {
       // OK — trusted test path.
     } else if (svixSig) {
       const signingSecret = process.env.RESEND_INBOUND_SIGNING_SECRET

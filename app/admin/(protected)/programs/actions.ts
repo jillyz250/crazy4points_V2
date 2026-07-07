@@ -58,11 +58,14 @@ export async function updateProgramPageContentAction(
 ): Promise<{ error?: string }> {
   await assertAdmin()
   const supabase = createAdminClient()
+  let slug: string | null = null
   try {
-    await updateProgramPageContent(supabase, id, input)
+    ;({ slug } = await updateProgramPageContent(supabase, id, input))
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Failed to save page content.' }
   }
   revalidatePath('/admin/programs')
+  // Bust the public program page so the edit shows live immediately.
+  if (slug) revalidatePath(`/programs/${slug}`)
   return {}
 }
