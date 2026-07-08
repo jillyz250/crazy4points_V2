@@ -210,7 +210,7 @@ FOOTER TEMPLATE — minimal, ONE hashtag only:
  * during review.
  */
 export const FACTUAL_TRAPS = `═══════════════════════════════════════════════════════════
-FACTUAL TRAPS — seven errors that keep slipping past fact-check
+FACTUAL TRAPS — eight errors that keep slipping past fact-check
 ═══════════════════════════════════════════════════════════
 
 These are the most-violated fact-grounding rules. Re-read your draft
@@ -303,5 +303,18 @@ against this list before returning.
    ❌ Shipping "book by 28 June 2023, code 2306EA021" on a July-2026 alert.
       (2023 code + dates on a 2026 offer = stale regional page.)
    ✅ Terms whose code (JULYPC) and dates (book by 15 July 2026) match the
-      source. When in doubt, use the canonical global offer URL, not /en-xx/.`
+      source. When in doubt, use the canonical global offer URL, not /en-xx/.
+
+8. DEVALUATION DIRECTION — when award prices RISE (a devaluation), never tell
+   readers to "rebook" or "run to rebook" existing awards. An existing
+   reservation is locked at the old, cheaper rate; rebooking re-prices it
+   HIGHER. On a rising-price story the correct move is: book aspirational stays
+   now if the increase is future-dated, otherwise hold existing bookings and
+   use points sooner rather than hoard. "Rebook to save" is the OPPOSITE case,
+   valid only when a dynamic-pricing award DROPS in price.
+   ❌ "Marriott just devalued, so run to rebook your stays."
+      (That swaps a locked cheaper award for the new higher price.)
+   ✅ "Marriott quietly raised award prices. Existing bookings are locked at the
+      old rate, so leave them be; if you have points and a stay in mind, book
+      before further creep."`
 
