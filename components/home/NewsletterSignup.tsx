@@ -71,37 +71,41 @@ export default function NewsletterSignup() {
               />
             </label>
           </div>
-          <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap">
-            <input
-              type="text"
-              placeholder="First name"
-              value={firstName}
-              onChange={e => setFirstName(e.target.value)}
-              required
-              className="w-full rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-4 py-3 font-body text-base text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] sm:w-40 sm:shrink-0"
-            />
-            <input
-              type="text"
-              placeholder="Last name (optional)"
-              value={lastName}
-              onChange={e => setLastName(e.target.value)}
-              className="w-full rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-4 py-3 font-body text-base text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] sm:w-44 sm:shrink-0"
-            />
-            <input
-              type="email"
-              placeholder="Email address"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-              className="min-w-0 flex-1 rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-4 py-3 font-body text-base text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
-            />
-            <button
-              type="submit"
-              disabled={status === 'loading'}
-              className="rg-btn-primary shrink-0 disabled:opacity-60"
-            >
-              {status === 'loading' ? 'Signing up…' : 'Subscribe'}
-            </button>
+          <div className="flex flex-col gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <input
+                type="text"
+                placeholder="First name"
+                value={firstName}
+                onChange={e => setFirstName(e.target.value)}
+                required
+                className="w-full rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-4 py-3 font-body text-base text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+              />
+              <input
+                type="text"
+                placeholder="Last name (optional)"
+                value={lastName}
+                onChange={e => setLastName(e.target.value)}
+                className="w-full rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-4 py-3 font-body text-base text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+              />
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <input
+                type="email"
+                placeholder="Email address"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+                className="min-w-0 flex-1 rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-4 py-3 font-body text-base text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+              />
+              <button
+                type="submit"
+                disabled={status === 'loading'}
+                className="rg-btn-primary shrink-0 disabled:opacity-60"
+              >
+                {status === 'loading' ? 'Signing up…' : 'Subscribe'}
+              </button>
+            </div>
           </div>
           {message && (
             <p className={`mt-3 text-center font-body text-sm ${status === 'error' ? 'text-red-600' : 'text-[var(--color-text-secondary)]'}`}>
