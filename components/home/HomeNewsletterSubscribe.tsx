@@ -1,5 +1,5 @@
 import Link from "next/link";
-import NewsletterSignupInline from "@/components/home/NewsletterSignupInline";
+import NewsletterSignup from "@/components/home/NewsletterSignup";
 import { issueTitle, type PublicNewsletterListItem } from "@/utils/content/publicNewsletters";
 
 function fmt(d: string | null): string {
@@ -13,15 +13,14 @@ export default function HomeNewsletterSubscribe({ latest }: { latest: PublicNews
       <div className="rg-container px-6 md:px-8">
         <div className="grid gap-10 md:grid-cols-2 md:items-center">
           <div>
-            <p className="font-ui text-xs font-semibold uppercase tracking-[0.2em] !text-[var(--color-accent)]">Free weekly newsletter</p>
+            <p className="font-ui text-xs font-semibold uppercase tracking-[0.2em] !text-[var(--color-accent)]">Free newsletter</p>
             <h2 className="mt-3 font-display text-3xl font-semibold !text-white md:text-4xl">Never miss a points move</h2>
             <p className="mt-3 font-body !text-white/85">
-              One email a week with the best transfer bonuses, award sweet spots, and deals worth your miles. Join the list.
+              The best transfer bonuses, award sweet spots, and deals worth your miles, delivered to your inbox. Join the list.
             </p>
-            <div className="mt-6 rounded-[var(--radius-card)] bg-white p-4 shadow-lg">
-              <NewsletterSignupInline />
+            <div className="mt-6">
+              <NewsletterSignup />
             </div>
-            <p className="mt-3 font-body text-xs !text-white/70">No spam. Unsubscribe anytime.</p>
           </div>
 
           <Link href={`/newsletter/${latest.slug}`} className="block rounded-[var(--radius-card)] bg-white p-6 shadow-lg transition-shadow hover:shadow-xl">

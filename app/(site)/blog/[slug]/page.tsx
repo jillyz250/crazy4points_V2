@@ -273,10 +273,10 @@ export default async function BlogPostPage({ params }: Props) {
           <div className="mt-16 rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-6 py-10 md:px-10 md:py-12">
             <div className="text-center mb-6">
               <h3 className="font-display text-2xl md:text-3xl font-semibold text-[var(--color-primary)]">
-                Want one a week like this?
+                Want more like this?
               </h3>
               <p className="mt-2 font-body text-[var(--color-text-secondary)]">
-                The points game is messy. We make it make sense — once a week, in your inbox.
+                The points game is messy. We make it make sense, delivered straight to your inbox.
               </p>
             </div>
             <NewsletterSignup />

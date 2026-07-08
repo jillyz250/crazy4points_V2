@@ -197,7 +197,7 @@ export default function ComingSoonHero({
               margin: '0 0 1rem',
             }}
           >
-            You&apos;ll also get the weekly crazy4points newsletter — best
+            You&apos;ll also get the crazy4points newsletter: best
             redemptions, transfer bonuses, and what we&apos;d skip.
           </p>
 

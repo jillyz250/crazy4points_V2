@@ -443,7 +443,7 @@ export async function sendTestAction(id: string, toOverride?: string) {
   // subscriber. Anything else (drafts, "Send test to me") stays in preview.
   const isCatchUp = row.status === 'sent' && !!toOverride
 
-  const subject = slots.subject || 'Crazy4Points — Weekly'
+  const subject = slots.subject || 'Crazy4Points Newsletter'
   const currentBonuses = await getActiveBonusAlerts()
   const html = renderNewsletterV2Html({
     slots,
@@ -475,7 +475,7 @@ export async function sendToSubscribersAction(id: string, confirmWord: string) {
   }
 
   const slots = rowToSlots(row)
-  const subject = slots.subject || 'Crazy4Points — Weekly'
+  const subject = slots.subject || 'Crazy4Points Newsletter'
 
   if (!slots.big_story_html && slots.also_happening.length === 0 && !slots.jills_take_html && !slots.sweet_spot) {
     throw new Error('Newsletter is empty — fill at least one section before sending.')

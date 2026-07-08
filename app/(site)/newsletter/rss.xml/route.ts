@@ -32,7 +32,7 @@ export async function GET() {
   <channel>
     <title>Crazy4Points Newsletter</title>
     <link>${SITE}/newsletter</link>
-    <description>The week's best points-and-miles deals, transfer bonuses, and award sweet spots.</description>
+    <description>The best points-and-miles deals, transfer bonuses, and award sweet spots.</description>
     <language>en-us</language>
 ${items}
   </channel>
