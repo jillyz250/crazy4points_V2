@@ -560,6 +560,38 @@ export async function sendToSubscribersAction(id: string, confirmWord: string) {
     })
     .eq('id', id)
 
+  // Auto-publish to the public archive on a genuine full-list send (sent > 1).
+  // Keeps an existing editorial slug; else derives one from the story title
+  // (length-capped, since URLs are permanent). Assigns the next issue number.
+  if (finalStatus === 'sent' && sent > 1) {
+    const { data: nl } = await supabase
+      .from('newsletters')
+      .select('slug, issue_number, big_story_title, subject')
+      .eq('id', id)
+      .single()
+
+    let publicSlug = (nl?.slug as string | null) ?? null
+    if (!publicSlug) {
+      const base = String(nl?.big_story_title || nl?.subject || 'issue')
+        .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 60).replace(/-[^-]*$/, '') || 'issue'
+      const { data: clash } = await supabase.from('newsletters').select('id').eq('slug', base).maybeSingle()
+      publicSlug = clash ? `${base}-${String(Date.now()).slice(-5)}` : base
+    }
+
+    let issueNo = (nl?.issue_number as number | null) ?? null
+    if (!issueNo) {
+      const { data: maxRow } = await supabase
+        .from('newsletters').select('issue_number').not('issue_number', 'is', null)
+        .order('issue_number', { ascending: false }).limit(1).maybeSingle()
+      issueNo = ((maxRow?.issue_number as number | null) ?? 0) + 1
+    }
+
+    await supabase.from('newsletters').update({ slug: publicSlug, is_public: true, issue_number: issueNo }).eq('id', id)
+    revalidatePath('/newsletter')
+    revalidatePath('/newsletter/[slug]', 'page')
+    revalidatePath('/newsletter/rss.xml')
+  }
+
   revalidatePath('/admin/newsletter')
   return { ok: sent > 0, sent, failed, total: recipients.length }
 }
