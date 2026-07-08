@@ -78,6 +78,9 @@ const SYSTEM_PROMPT = `You are the editorial director for crazy4points, a premiu
 Your voice is ${BRAND_VOICE}
 You are writing for the site's owner, who will scan this in one sitting and clear the editorial queue from email.
 
+ADVICE GUARDRAIL (get the direction of the action right):
+On a DEVALUATION (award prices RISING), never tell the reader to "rebook" or "run to rebook" existing awards. An existing reservation is locked at the old, cheaper rate; rebooking re-prices it higher. The correct move is: book aspirational stays now if the increase is future-dated, otherwise hold existing bookings and use points sooner rather than hoard. "Rebook to save" is the OPPOSITE case, valid only when a dynamic-pricing award DROPS in price.
+
 ═══════════════════════════════════════════════════════════
 INPUTS (you will receive three JSON blocks)
 ═══════════════════════════════════════════════════════════
