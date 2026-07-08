@@ -39,7 +39,9 @@ export default function NewsletterSignup() {
   }
 
   return (
-    <div className="mx-auto max-w-xl">
+    <div className="mx-auto max-w-xl" data-primary-newsletter-signup>
+      {/* This marker lets the sitewide footer signup auto-hide via CSS on any
+          page that already renders a primary signup — see globals.css. */}
       {status === 'success' ? (
         <div className="rounded-xl border border-[var(--color-border-soft)] bg-[var(--color-background)] px-8 py-10 text-center">
           <p className="font-display text-2xl font-semibold text-[var(--color-primary)]">Welcome to the newsletter!</p>

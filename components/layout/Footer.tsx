@@ -1,5 +1,5 @@
 import Link from "next/link";
-import FooterNewsletterGate from "./FooterNewsletterGate";
+import FooterNewsletterSignup from "./FooterNewsletterSignup";
 
 const footerNav = [
   {
@@ -36,9 +36,13 @@ const footerNav = [
 export default function Footer() {
   return (
     <footer className="border-t border-[var(--color-border-soft)] bg-[var(--color-background-soft)]">
-      {/* Newsletter signup band — sitewide CTA at top of footer, hidden on
-          routes that already have a dedicated signup (home, newsletter, blog). */}
-      <FooterNewsletterGate />
+      {/* Newsletter signup band — sitewide CTA at top of footer. Auto-hidden
+          via CSS on any page that already renders a primary newsletter signup
+          (globals.css: body:has([data-primary-newsletter-signup])). CSS-based
+          so it works in static/SSR HTML with no hydration flash. */}
+      <div className="footer-newsletter-band border-b border-[var(--color-border-soft)] bg-[var(--color-background)]">
+        <FooterNewsletterSignup />
+      </div>
 
       <div className="rg-container px-6 py-20 md:px-8">
         <div className="grid grid-cols-1 gap-10 md:grid-cols-4">
