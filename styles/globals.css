@@ -166,6 +166,14 @@ button {
   padding-block: var(--spacing-subsection);
 }
 
+/* Sitewide footer newsletter band auto-hides on any page that already renders
+   a primary newsletter signup (marked with [data-primary-newsletter-signup]).
+   Pure CSS so it works in static/SSR HTML with no hydration flash — a client
+   hook (usePathname) can't suppress reliably on statically-generated routes. */
+body:has([data-primary-newsletter-signup]) .footer-newsletter-band {
+  display: none;
+}
+
 /* Mobile: tighten vertical rhythm so 5rem doesn't waste a whole viewport */
 @media (max-width: 640px) {
   .rg-major-section {
