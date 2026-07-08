@@ -25,6 +25,10 @@ export async function POST(req: NextRequest) {
     revalidatePath(`/programs/${slug}`)
   }
 
+  // Revalidate the card index + every card detail page (dynamic route)
+  revalidatePath('/cards')
+  revalidatePath('/cards/[slug]', 'page')
+
   return NextResponse.json({
     revalidated: true,
     paths: [
@@ -32,6 +36,8 @@ export async function POST(req: NextRequest) {
       '/alerts/[slug]',
       '/daily-brief',
       '/daily-brief/[date]',
+      '/cards',
+      '/cards/[slug]',
       ...PROGRAM_SLUGS.map((s) => `/programs/${s}`),
     ],
     timestamp: new Date().toISOString(),
