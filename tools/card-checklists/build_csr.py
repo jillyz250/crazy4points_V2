@@ -205,10 +205,19 @@ def header_band():
     c.setFillColor(alpha(PURPLE_D, 1))
     c.rect(0, y - bh, PAGE_W, 5, stroke=0, fill=1)  # bottom edge
     # sparkles
-    for (sx, sy, ss) in [(70,y-24,4),(120,y-70,3),(500,y-30,4),(548,y-64,3),(300,y-16,2.5),(430,y-78,3)]:
+    for (sx, sy, ss) in [(70,y-24,4),(120,y-70,3),(300,y-16,2.5),(360,y-80,3)]:
         sparkle(sx, sy, ss, alpha(GOLD, 0.9))
-    # wordmark chip (top-right)
-    text(PAGE_W - MARGIN, y - 22, "crazy4points.com", font="Head", size=11, col=GOLD, right=True)
+    # logo on a white chip (top-right) — the brand mark is purple/gold on
+    # transparent, so it needs a light background to read on the purple band.
+    chip_w, chip_h = 128, 46
+    chip_x = PAGE_W - MARGIN - chip_w
+    chip_y = y - 12 - chip_h
+    c.setFillColor(white)
+    c.roundRect(chip_x, chip_y, chip_w, chip_h, 10, stroke=0, fill=1)
+    LOGO = os.path.join(HERE, "..", "..", "public", "crazy4points-logo.png")
+    if os.path.exists(LOGO):
+        c.drawImage(LOGO, chip_x + 8, chip_y + 6, width=chip_w - 16, height=chip_h - 12,
+                    preserveAspectRatio=True, anchor='c', mask='auto')
     # title
     text(MARGIN, y - 50, "Chase Sapphire Reserve", font="Head", size=27, col=white)
     text(MARGIN, y - 72, "2026 Benefits Checklist", font="Head", size=14.5, col=GOLD)
@@ -430,7 +439,11 @@ def draw_tickets(y, rows_per_half=3):
         for r in range(rows_per_half):
             checkbox(c_go, cy - 2, 12, fid("tgo"), col)
             textfield(c_evt, cy - 3, c_where - c_evt - 8, 13, fid("tevt"))
-            textfield(c_where, cy - 3, c_date - c_where - 8, 13, fid("twhere"))
+            # WHERE: two checkboxes instead of a free-text field
+            checkbox(c_where, cy - 2, 11, fid("tsh"), col)
+            text(c_where + 15, cy, "SH", font="Body", size=8, col=INK)
+            checkbox(c_where + 44, cy - 2, 11, fid("tvg"), col)
+            text(c_where + 59, cy, "vg", font="Body", size=8, col=INK)
             textfield(c_date, cy - 3, c_amt - c_date - 8, 13, fid("tdate"))
             textfield(c_amt, cy - 3, c_note - c_amt - 8, 13, fid("tamt"))
             textfield(c_note, cy - 3, x + CW - 12 - c_note, 13, fid("tnote"))
@@ -549,6 +562,23 @@ def draw_protect(y):
         text(cxx + 16, yy, label, font="Body", size=8.8, col=INK)
     return bar_y - body_h - 10
 
+# ---- CREDIT SCORECARD ----------------------------------------------------
+def draw_scorecard(y):
+    x = MARGIN; body_h = 58
+    rrect_shadow(x, y - body_h, CW, body_h, 12, alpha(GOLD, 0.35))
+    c.setFillColor(HexColor("#FBF3D2")); c.setStrokeColor(GOLD); c.setLineWidth(1.4)
+    c.roundRect(x, y - body_h, CW, body_h, 12, stroke=1, fill=1)
+    star(x + 24, y - 21, 8, GOLD)
+    text(x + 42, y - 18, "My Credit Scorecard", font="Head", size=13, col=PURPLE)
+    text(x + 42, y - 34, "Up to ~$2,190/yr in statement credits - no extra spend needed.", font="Body", size=8.5, col=MUT)
+    text(x + 42, y - 46, "(Apple TV+/Music & DashPass are extra.)  Beat that $795 fee!", font="Body", size=8.5, col=MUT)
+    lx = x + CW - 214; vx = lx + 100
+    text(lx, y - 24, "Captured ($)", font="Head", size=9, col=PURPLE)
+    textfield(vx, y - 27, x + CW - 16 - vx, 15, fid("scap"), fontsize=10, line=GOLD)
+    text(lx, y - 46, "Left on table ($)", font="Head", size=9, col=PURPLE)
+    textfield(vx, y - 49, x + CW - 16 - vx, 15, fid("sleft"), fontsize=10, line=GOLD)
+    return y - body_h - 10
+
 def footer():
     y = 22
     c.setStrokeColor(alpha(MUT, 0.4)); c.setLineWidth(0.7)
@@ -582,6 +612,7 @@ y = draw_spend(y)
 y = draw_perks(y)
 y = draw_earn(y)
 y = draw_protect(y)
+y = draw_scorecard(y)
 footer()
 c.showPage()
 

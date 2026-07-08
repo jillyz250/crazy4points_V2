@@ -1,0 +1,4 @@
+# generator build artifacts — the published copy lives in public/
+*.pdf
+pg-*.png
+.venv/
