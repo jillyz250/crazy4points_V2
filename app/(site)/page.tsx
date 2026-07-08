@@ -2,8 +2,10 @@ import Link from "next/link";
 import HomeHeroV2 from "@/components/home/HomeHeroV2";
 import RedAlertBar from "@/components/home/RedAlertBar";
 import HomeToolsBand from "@/components/home/HomeToolsBand";
+import HomeNewsletterBand from "@/components/home/HomeNewsletterBand";
 import AlertsGridSB from "@/components/alerts/AlertsGridSB";
 import { createAdminClient } from "@/utils/supabase/server";
+import { getPublicNewsletters } from "@/utils/content/publicNewsletters";
 import { selectAlertViewFromVariants, type AlertView, type AlertViewWithPrograms } from "@/utils/content/alertView";
 import { isAlertActiveET } from "@/lib/alerts/expiry";
 import type { Metadata } from "next";
@@ -105,6 +107,8 @@ export default async function HomePage() {
     })
     .slice(0, 3);
 
+  const latestIssue = (await getPublicNewsletters(supabase))[0] ?? null;
+
   return (
     <>
       <RedAlertBar alerts={hotAlerts} overflowCount={overflowCount} />
@@ -130,6 +134,8 @@ export default async function HomePage() {
           </div>
         </section>
       )}
+
+      {latestIssue && <HomeNewsletterBand latest={latestIssue} />}
     </>
   );
 }
