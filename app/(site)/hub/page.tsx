@@ -78,6 +78,14 @@ const TOOLS = [
     href: '/tools/alliances',
     status: 'live' as const,
   },
+  {
+    title: 'Card Benefits Checklists',
+    description:
+      'Free fillable, printable checklists so you use every credit your premium card gives you. Sapphire Reserve now, more soon.',
+    icon: '✅',
+    href: '/tools/sapphire-reserve-checklist',
+    status: 'live' as const,
+  },
 ]
 
 export default function HubPage() {

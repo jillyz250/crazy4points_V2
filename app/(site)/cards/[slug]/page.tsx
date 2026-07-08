@@ -517,6 +517,40 @@ export default async function CardPage({
         )}
       </section>
 
+      {/* Free benefits-checklist callout — CSR only for now. Links to the
+          dedicated /tools lead-magnet page (which hosts the download + signup). */}
+      {card.slug === 'chase-sapphire-reserve' && (
+        <Link
+          href="/tools/sapphire-reserve-checklist"
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            gap: '0.875rem',
+            background: 'linear-gradient(135deg, #F1E7F8 0%, var(--color-background) 70%)',
+            border: '1px solid var(--color-border-soft)',
+            borderLeft: '4px solid var(--color-accent)',
+            borderRadius: 'var(--radius-card)',
+            padding: '1rem 1.25rem',
+            marginBottom: '2.5rem',
+            textDecoration: 'none',
+          }}
+        >
+          <span aria-hidden style={{ fontSize: '1.5rem', lineHeight: 1 }}>✅</span>
+          <span style={{ flex: '1 1 16rem', minWidth: 0 }}>
+            <span style={{ display: 'block', fontFamily: 'var(--font-display)', fontSize: '1.125rem', fontWeight: 600, color: 'var(--color-primary)' }}>
+              Free 2026 Benefits Checklist
+            </span>
+            <span style={{ display: 'block', fontFamily: 'var(--font-body)', fontSize: '0.9375rem', color: 'var(--color-text-secondary)', lineHeight: 1.45 }}>
+              A fillable, printable PDF to track every credit, enrollment, and perk so nothing expires unused.
+            </span>
+          </span>
+          <span style={{ fontFamily: 'var(--font-ui)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-primary)', whiteSpace: 'nowrap' }}>
+            Get it free →
+          </span>
+        </Link>
+      )}
+
       {/* Section TOC — required on every card page (plans/credit-cards-architecture.md) */}
       {tocSections.length > 0 && (
         <nav
