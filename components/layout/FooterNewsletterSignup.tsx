@@ -56,8 +56,8 @@ export default function FooterNewsletterSignup() {
             From the friend who actually gets points
           </h2>
           <p className="mt-2 font-body text-base text-[var(--color-text-secondary)]">
-            A weekly digest of points-and-miles deals worth your inbox space —
-            plus the occasional alert when something time-sensitive hits.
+            The points-and-miles deals worth your inbox space, plus the
+            occasional alert when something time-sensitive hits.
           </p>
         </div>
 

@@ -80,11 +80,11 @@ export async function GET(req: NextRequest) {
     elevated_bonuses: row.elevated_bonuses ?? null,
     jills_take_html: row.jills_take_html,
     jill_prompt: row.jill_prompt,
-    subject: row.subject ?? row.subject_options?.[0] ?? 'Crazy4Points — Weekly',
+    subject: row.subject ?? row.subject_options?.[0] ?? 'Crazy4Points Newsletter',
     subject_options: row.subject_options ?? [],
   }
 
-  const subject = slots.subject || 'Crazy4Points — Weekly'
+  const subject = slots.subject || 'Crazy4Points Newsletter'
   const to = toParam ?? process.env.BRIEF_RECIPIENT ?? 'jillzeller6@gmail.com'
   const html = renderNewsletterV2Html({
     slots,

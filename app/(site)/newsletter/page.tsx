@@ -9,7 +9,7 @@ export const revalidate = 3600
 export const metadata: Metadata = {
   title: 'Newsletter | crazy4points',
   description:
-    'The Crazy4Points newsletter: the week’s best points-and-miles deals, transfer bonuses, and award sweet spots. Subscribe, or browse every past issue.',
+    'The Crazy4Points newsletter: the best points-and-miles deals, transfer bonuses, and award sweet spots. Subscribe, or browse every past issue.',
   alternates: { canonical: 'https://www.crazy4points.com/newsletter' },
 }
 
@@ -30,7 +30,7 @@ export default async function NewsletterPage() {
         <div className="mx-auto max-w-2xl text-center">
           <h1 className="font-display text-4xl font-semibold text-[var(--color-primary)]">Stay in the Loop</h1>
           <p className="mt-4 font-body text-lg text-[var(--color-text-secondary)]">
-            The week&apos;s best points-and-miles deals, transfer bonuses, and award sweet spots, curated and delivered to your inbox.
+            The best points-and-miles deals, transfer bonuses, and award sweet spots, curated and delivered to your inbox.
           </p>
         </div>
         <div className="mt-10">

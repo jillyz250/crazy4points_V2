@@ -77,7 +77,7 @@ export default async function NewsletterIssuePage({ params }: { params: Promise<
         <section className="mt-16 mx-auto max-w-2xl">
           <div className="rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] p-6 text-center">
             <p className="font-display text-xl font-semibold text-[var(--color-primary)]">Get this in your inbox</p>
-            <p className="mt-2 font-body text-[var(--color-text-secondary)]">One email a week with the best points-and-miles moves. No spam.</p>
+            <p className="mt-2 font-body text-[var(--color-text-secondary)]">The best points-and-miles moves, delivered to your inbox. No spam.</p>
             <div className="mt-5"><NewsletterSignup /></div>
           </div>
           <p className="mt-8 text-center">
