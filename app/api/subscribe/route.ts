@@ -56,9 +56,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Valid email required.' }, { status: 400 })
   }
 
-  if (!firstName || typeof firstName !== 'string' || !firstName.trim()) {
-    return NextResponse.json({ error: 'First name required.' }, { status: 400 })
-  }
+  // First name is optional — the compact homepage band collects email only.
+  // Forms that want it still validate client-side; downstream code is null-safe
+  // (stores null, welcome email falls back to "there").
 
   // Bot defense layer 2 — Gmail dot-trick pattern. Silently 200 so the bot
   // doesn't learn we filter on this signature.

@@ -2,7 +2,7 @@ import Link from "next/link";
 import HomeHeroV2 from "@/components/home/HomeHeroV2";
 import RedAlertBar from "@/components/home/RedAlertBar";
 import HomeToolsBand from "@/components/home/HomeToolsBand";
-import HomeNewsletterBand from "@/components/home/HomeNewsletterBand";
+import HomeNewsletterSubscribe from "@/components/home/HomeNewsletterSubscribe";
 import AlertsGridSB from "@/components/alerts/AlertsGridSB";
 import { createAdminClient } from "@/utils/supabase/server";
 import { getPublicNewsletters } from "@/utils/content/publicNewsletters";
@@ -116,6 +116,8 @@ export default async function HomePage() {
 
       <HomeToolsBand />
 
+      {latestIssue && <HomeNewsletterSubscribe latest={latestIssue} />}
+
       {latestAlerts.length > 0 && (
         <section className="bg-[var(--color-background)] py-12 md:py-16">
           <div className="rg-container px-6 md:px-8">
@@ -134,8 +136,6 @@ export default async function HomePage() {
           </div>
         </section>
       )}
-
-      {latestIssue && <HomeNewsletterBand latest={latestIssue} />}
     </>
   );
 }
