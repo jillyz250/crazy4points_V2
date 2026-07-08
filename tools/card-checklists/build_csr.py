@@ -204,30 +204,24 @@ def header_band():
     c.rect(0, y - bh, PAGE_W, bh, stroke=0, fill=1)
     c.setFillColor(alpha(PURPLE_D, 1))
     c.rect(0, y - bh, PAGE_W, 5, stroke=0, fill=1)  # bottom edge
-    # sparkles
-    for (sx, sy, ss) in [(70,y-24,4),(120,y-70,3),(300,y-16,2.5),(360,y-80,3)]:
-        sparkle(sx, sy, ss, alpha(GOLD, 0.9))
-    # logo on a white chip (top-right) — the brand mark is purple/gold on
+    # logo on a clean white chip (top-right) — the brand mark is purple/gold on
     # transparent, so it needs a light background to read on the purple band.
-    chip_w, chip_h = 128, 46
+    chip_w, chip_h = 150, 54
     chip_x = PAGE_W - MARGIN - chip_w
-    chip_y = y - 12 - chip_h
+    chip_y = y - 14 - chip_h
     c.setFillColor(white)
-    c.roundRect(chip_x, chip_y, chip_w, chip_h, 10, stroke=0, fill=1)
+    c.roundRect(chip_x, chip_y, chip_w, chip_h, 12, stroke=0, fill=1)
     LOGO = os.path.join(HERE, "..", "..", "public", "crazy4points-logo.png")
     if os.path.exists(LOGO):
-        c.drawImage(LOGO, chip_x + 8, chip_y + 6, width=chip_w - 16, height=chip_h - 12,
+        c.drawImage(LOGO, chip_x + 10, chip_y + 8, width=chip_w - 20, height=chip_h - 16,
                     preserveAspectRatio=True, anchor='c', mask='auto')
-    # title
-    text(MARGIN, y - 50, "Chase Sapphire Reserve", font="Head", size=27, col=white)
-    text(MARGIN, y - 72, "2026 Benefits Checklist", font="Head", size=14.5, col=GOLD)
-    text(MARGIN, y - 88, "Keep it. Check it. Cash it in. You paid $795 - use every penny.",
+    # quiet "updated" line under the logo (no chunky pill)
+    text(PAGE_W - MARGIN, chip_y - 12, "Updated for 2026", font="Head", size=9, col=alpha(GOLD, 0.95), right=True)
+    # title block (left)
+    text(MARGIN, y - 46, "Chase Sapphire Reserve", font="Head", size=26, col=white)
+    text(MARGIN, y - 68, "2026 Benefits Checklist", font="Head", size=14, col=GOLD)
+    text(MARGIN, y - 86, "Keep it. Check it. Cash it in. You paid $795 - use every penny.",
          font="Hand", size=12.5, col=alpha(white, 0.92))
-    # "updated 2026" badge
-    bx, by = PAGE_W - MARGIN - 92, y - 84
-    c.setFillColor(GOLD)
-    c.roundRect(bx, by, 92, 26, 13, stroke=0, fill=1)
-    text(bx + 46, by + 9, "UPDATED 2026", font="Head", size=9.5, col=PURPLE_D, center=True)
     return y - bh - 14
 
 def row_line(x, w, y, col):
@@ -241,8 +235,9 @@ SETUP = [
     ("Activate DashPass", "DoorDash: set Sapphire as default payment, then activate"),
     ("Activate dining credit", "OpenTable: join Sapphire Exclusive Tables"),
     ("Claim Apple TV+ & Apple Music", "activate by 6/22/2027"),
-    ("Link IHG account -> Platinum status", "chase.com or app"),
-    ("Enroll Priority Pass Select", "activate to receive your membership"),
+    # shared field names — these auto-sync the "activated" tags in Perks (page 3)
+    ("Link IHG account -> Platinum status", "chase.com or app", "act_ihg"),
+    ("Enroll Priority Pass Select", "activate to receive your membership", "act_pp"),
     ("Add card to your Lyft account", "$10 credits post in-app"),
     ("Apply Global Entry / TSA / NEXUS", "pay the app fee with your card ($120 back)"),
 ]
@@ -250,22 +245,21 @@ SETUP = [
 def draw_setup(y):
     key = "setup"; col, tint, line = SEC[key]
     x = MARGIN
-    rowh = 18.5
-    body_h = len(SETUP) * rowh + 14
-    bar_y = section_bar(x, y, CW, "Set It Up First   -   one-time, or you get $0", key, icon=ic_bolt)
+    rowh = 24
+    body_h = len(SETUP) * rowh + 16
+    bar_y = section_bar(x, y, CW, "Set It Up First   -   one-time. Skip these and you get $0.", key, icon=ic_bolt)
     card(x, bar_y, CW, body_h, tint, line, shadow=True)
-    cy = bar_y - 16
-    for i, (label, sub) in enumerate(SETUP):
-        checkbox(x + 14, cy - 3, 13, fid("su"), col)
-        text(x + 34, cy, label, font="Body", size=10, col=INK)
-        text(x + 34, cy - 9.5, sub, font="Hand", size=9.5, col=MUT)
-        # date-done field on the right
-        text(x + CW - 150, cy, "done:", font="Body", size=8.5, col=MUT)
-        textfield(x + CW - 122, cy - 3, 104, 13, fid("sud"), fontsize=9, line=line)
-        if i < len(SETUP) - 1:
-            row_line(x + 14, CW - 28, cy - 12, line)
+    # tiny "done" hint over the checkbox column
+    text(x + 16, bar_y - 12, "DONE?", font="Head", size=6.8, col=col)
+    cy = bar_y - 26
+    for item in SETUP:
+        label, sub = item[0], item[1]
+        name = item[2] if len(item) > 2 else fid("su")
+        checkbox(x + 17, cy - 4, 15, name, col)
+        text(x + 42, cy, label, font="Body", size=10.5, col=INK)
+        text(x + 42, cy - 11, sub, font="Hand", size=10, col=MUT)
         cy -= rowh
-    return bar_y - body_h - 8
+    return bar_y - body_h - 10
 
 # ---- CREDITS: SEMI-ANNUAL -----------------------------------------------
 SEMI = [
@@ -309,7 +303,7 @@ MONTHLY = [
 ]
 def draw_monthly(y):
     key = "monthly"; col, tint, line = SEC[key]
-    x = MARGIN; rowh = 23
+    x = MARGIN; rowh = 27
     grid_x = x + CW - 12 * 20 - 12
     body_h = 22 + len(MONTHLY) * rowh + 6
     bar_y = section_bar(x, y, CW, "Credits to Cash In - Every Month   ($540)", key, icon=ic_cal)
@@ -323,8 +317,6 @@ def draw_monthly(y):
         text(x + 16, cy - 10, sub, font="Hand", size=9.5, col=MUT)
         for m in range(12):
             checkbox(grid_x + m * 20 + 4, cy - 3, 12, fid("mo"), col)
-        if i < len(MONTHLY) - 1:
-            row_line(x + 16, CW - 32, cy - 14, line)
         cy -= rowh
     return bar_y - body_h - 8
 
@@ -336,8 +328,8 @@ ANNUAL = [
 ]
 def draw_annual(y):
     key = "annual"; col, tint, line = SEC[key]
-    x = MARGIN; rowh = 21
-    body_h = 14 + len(ANNUAL) * rowh
+    x = MARGIN; rowh = 25
+    body_h = 16 + len(ANNUAL) * rowh
     bar_y = section_bar(x, y, CW, "Credits to Cash In - Once a Year", key, icon=ic_target)
     card(x, bar_y, CW, body_h, tint, line)
     cy = bar_y - 18
@@ -346,9 +338,7 @@ def draw_annual(y):
         text(x + 36, cy, label, font="Body", size=10.5, col=INK)
         text(x + 36, cy - 10, sub, font="Hand", size=9.5, col=MUT)
         text(x + CW - 150, cy, "used:", font="Body", size=8.5, col=MUT)
-        textfield(x + CW - 122, cy - 3, 104, 13, fid("and"), line=line)
-        if i < len(ANNUAL) - 1:
-            row_line(x + 14, CW - 28, cy - 14, line)
+        textfield(x + CW - 122, cy - 4, 104, 14, fid("and"), line=line)
         cy -= rowh
     return bar_y - body_h - 12
 
@@ -415,9 +405,46 @@ def draw_dining(y, rows_per_half=4):
     cy0 = top - 6; cols(); rows()
     return bar_y - body_h - 10
 
+# ---- THE EDIT STAY TRACKER ----------------------------------------------
+def draw_edit(y, rows_per_half=2):
+    key = "annual"; col, tint, line = SEC[key]  # peach for The Edit
+    x = MARGIN
+    hh = 17; lbl = 14; rowh = 24; gap = 8; pad = 10
+    half_h = hh + lbl + rows_per_half * rowh
+    body_h = pad + half_h + gap + half_h + 6
+    bar_y = section_bar(x, y, CW, "The Edit - hotel credit  ($500/yr, $250 each half)", key, icon=ic_card)
+    card(x, bar_y, CW, body_h, tint, line)
+    c_book = x + 16; c_hotel = x + 52; c_dates = x + 200
+    e1 = x + 270; e2 = x + 332; e3 = x + 398; c_note = x + 462
+    def cols():
+        ly = cy0
+        text(c_book, ly, "USED?", font="Head", size=6.8, col=col)
+        text(c_hotel, ly, "HOTEL YOU STAYED AT", font="Head", size=6.8, col=col)
+        text(c_dates, ly, "DATES", font="Head", size=6.8, col=col)
+        text(e1, ly, "GOT THE EXTRAS?", font="Head", size=6.8, col=col)
+        text(c_note, ly, "NOTES", font="Head", size=6.8, col=col)
+    def rows():
+        cy = cy0 - 16
+        for r in range(rows_per_half):
+            checkbox(c_book, cy - 3, 13, fid("eu"), col)
+            textfield(c_hotel, cy - 3, c_dates - c_hotel - 8, 14, fid("ehotel"))
+            textfield(c_dates, cy - 3, e1 - c_dates - 10, 14, fid("edate"))
+            checkbox(e1, cy - 3, 11, fid("ecr"), col); text(e1 + 14, cy, "$100", font="Body", size=7.5, col=INK)
+            checkbox(e2, cy - 3, 11, fid("ebk"), col); text(e2 + 14, cy, "brkfst", font="Body", size=7.5, col=INK)
+            checkbox(e3, cy - 3, 11, fid("eup"), col); text(e3 + 14, cy, "upgrd", font="Body", size=7.5, col=INK)
+            textfield(c_note, cy - 3, x + CW - 12 - c_note, 14, fid("enote"))
+            cy -= rowh
+    top = bar_y - pad
+    top = half_label_bar(x + 8, CW - 16, top, key, "JANUARY - JUNE", 250, rows_per_half)
+    cy0 = top - 6; cols(); rows()
+    top = top - lbl - rows_per_half * rowh - gap
+    top = half_label_bar(x + 8, CW - 16, top, key, "JULY - DECEMBER", 250, rows_per_half)
+    cy0 = top - 6; cols(); rows()
+    return bar_y - body_h - 10
+
 # ---- TICKETS TRACKER (StubHub & viagogo) --------------------------------
 def draw_tickets(y, rows_per_half=3):
-    key = "semi"; col, tint, line = SEC[key]  # reuse pink for the ticket theme
+    key = "protect"; col, tint, line = SEC[key]  # periwinkle so the trio reads distinct
     x = MARGIN
     hh = 17; lbl = 13; rowh = 22; gap = 8; pad = 10
     half_h = hh + lbl + rows_per_half * rowh
@@ -490,29 +517,36 @@ def draw_spend(y):
     return bar_y - body_h - 12
 
 # ---- PERKS & STATUS ------------------------------------------------------
+# (label, activate_field) — activate_field ties the leading checkbox to the
+# matching "Set It Up First" task so it auto-checks; None = truly automatic.
 PERKS = [
-    "IHG One Rewards Platinum (thru 12/31/27)",
-    "Chase Sapphire Lounges (+2 guests)",
-    "Priority Pass Select (1,300+ lounges)",
-    "Air Canada Maple Leaf Lounges & Cafes",
-    "Points Boost - up to 2x on flights & hotels",
-    "1:1 transfer to airline & hotel partners",
-    "Reserve Travel Designers ($300/trip)",
+    ("IHG One Rewards Platinum", "act_ihg"),
+    ("Chase Sapphire Lounges (+2 guests)", None),
+    ("Priority Pass Select", "act_pp"),
+    ("Air Canada Maple Leaf Lounges & Cafes", None),
+    ("Points Boost - up to 2x on flights & hotels", None),
+    ("1:1 transfer to airline & hotel partners", None),
+    ("Reserve Travel Designers ($300/trip)", None),
 ]
 def draw_perks(y):
     key = "perks"; col, tint, line = SEC[key]
     x = MARGIN; rowh = 18
     n = len(PERKS); percol = (n + 1) // 2
-    body_h = 14 + percol * rowh
+    body_h = 20 + percol * rowh
     bar_y = section_bar(x, y, CW, "Perks You Get Automatically", key, icon=ic_crown)
     card(x, bar_y, CW, body_h, tint, line)
+    text(x + 16, bar_y - 13, "IHG & Priority Pass need activating - tick them in Set It Up First (page 1) and the box here auto-checks",
+         font="Hand", size=9, col=MUT)
     colw = CW / 2
-    cy = bar_y - 18
-    for i, label in enumerate(PERKS):
+    cy = bar_y - 30
+    for i, (label, act) in enumerate(PERKS):
         cxx = x + 14 + (colw if i >= percol else 0)
         yy = cy - (i - percol if i >= percol else i) * rowh
-        checkbox(cxx, yy - 2, 11, fid("pk"), col)
+        checkbox(cxx, yy - 2, 11, (act or fid("pk")), col)
         text(cxx + 18, yy, label, font="Body", size=9.3, col=INK)
+        if act:
+            lw = c.stringWidth(label, "Body", 9.3)
+            text(cxx + 18 + lw + 8, yy, "ACTIVATED", font="Head", size=7, col=col)
     return bar_y - body_h - 12
 
 # ---- EARNING CHEAT SHEET -------------------------------------------------
@@ -579,6 +613,16 @@ def draw_scorecard(y):
     textfield(vx, y - 49, x + CW - 16 - vx, 15, fid("sleft"), fontsize=10, line=GOLD)
     return y - body_h - 10
 
+def draw_notes(y):
+    key = "perks"; col, tint, line = SEC[key]  # mint
+    x = MARGIN; body_h = 84
+    bar_y = section_bar(x, y, CW, "Notes & Reminders", key, icon=ic_star)
+    card(x, bar_y, CW, body_h, tint, line)
+    c.acroForm.textfield(name=fid("notes"), x=x + 14, y=bar_y - body_h + 10, width=CW - 28,
+        height=body_h - 20, fontName="Helvetica", fontSize=10, borderColor=line, fillColor=white,
+        borderWidth=0.8, borderStyle="solid", forceBorder=True, fieldFlags="multiline")
+    return bar_y - body_h - 10
+
 def footer():
     y = 22
     c.setStrokeColor(alpha(MUT, 0.4)); c.setLineWidth(0.7)
@@ -591,28 +635,33 @@ def footer():
 # =========================================================================
 # COMPOSE
 # =========================================================================
+# PAGE 1 - setup + the non-semi credits + earning cheat-sheet
 y = header_band()
 y = draw_setup(y)
-y = draw_semi(y)
 y = draw_monthly(y)
 y = draw_annual(y)
+y = draw_earn(y)
 footer()
 c.showPage()
 
-# PAGE 2 - trackers
+# PAGE 2 - twice-a-year credits, each tracked in place
 y = mini_header(2)
-y = draw_dining(y, rows_per_half=5)
-y = draw_tickets(y, rows_per_half=4)
+text(MARGIN, y - 6, "Twice-a-Year Credits", font="Head", size=15, col=PURPLE)
+text(MARGIN, y - 22, "Each resets Jan-Jun and Jul-Dec. Log them here as you use them.", font="Hand", size=11, col=MUT)
+y = y - 34
+y = draw_edit(y, rows_per_half=2)
+y = draw_dining(y, rows_per_half=3)
+y = draw_tickets(y, rows_per_half=2)
 footer()
 c.showPage()
 
-# PAGE 3 - unlocks, perks, protection
+# PAGE 3 - unlocks, perks, protection, scorecard, notes
 y = mini_header(3)
 y = draw_spend(y)
 y = draw_perks(y)
-y = draw_earn(y)
 y = draw_protect(y)
 y = draw_scorecard(y)
+y = draw_notes(y)
 footer()
 c.showPage()
 
