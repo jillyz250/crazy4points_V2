@@ -2,6 +2,7 @@ import type { MetadataRoute } from 'next'
 import { createClient } from '@/utils/supabase/server'
 import { SITE_URL as BASE_URL } from '@/lib/constants'
 import { selectAlertViewFromVariants } from '@/utils/content/alertView'
+import { getPublicNewsletters } from '@/utils/content/publicNewsletters'
 
 export const revalidate = 3600
 
@@ -11,6 +12,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let blogEntries: MetadataRoute.Sitemap = []
   let cardEntries: MetadataRoute.Sitemap = []
   let issuerEntries: MetadataRoute.Sitemap = []
+  let newsletterEntries: MetadataRoute.Sitemap = []
 
   try {
     const supabase = await createClient()
@@ -85,6 +87,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'weekly' as const,
       priority: 0.7,
     }))
+
+    // Public newsletter archive — each sent issue is an indexable page.
+    const newsletters = await getPublicNewsletters(supabase)
+    newsletterEntries = newsletters.map((n) => ({
+      url: `${BASE_URL}/newsletter/${n.slug}`,
+      lastModified: n.sent_at ?? undefined,
+      changeFrequency: 'monthly' as const,
+      priority: 0.6,
+    }))
   } catch {
     // Supabase unavailable — return static pages only
   }
@@ -94,7 +105,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/alerts`, changeFrequency: 'hourly', priority: 0.9 },
     { url: `${BASE_URL}/blog`, changeFrequency: 'daily', priority: 0.8 },
     { url: `${BASE_URL}/daily-brief`, changeFrequency: 'hourly', priority: 0.9 },
+    { url: `${BASE_URL}/newsletter`, changeFrequency: 'weekly', priority: 0.7 },
   ]
 
-  return [...staticPages, ...programEntries, ...issuerEntries, ...cardEntries, ...blogEntries, ...alertEntries]
+  return [...staticPages, ...programEntries, ...issuerEntries, ...cardEntries, ...blogEntries, ...newsletterEntries, ...alertEntries]
 }
