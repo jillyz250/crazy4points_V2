@@ -25,6 +25,7 @@ const ALLOWED_SOURCES = new Set([
   'hub_hero',
   'inline_alert',
   'newsletter_link',
+  'tools_checklist',
   'manual',
   'api_direct',
 ])
