@@ -21,6 +21,10 @@
       "schedule": "50 10 * * *"
     },
     {
+      "path": "/api/cron/question-radar",
+      "schedule": "20 10 * * *"
+    },
+    {
       "path": "/api/cron/stale-drafts-sweep",
       "schedule": "55 10 * * *"
     },
