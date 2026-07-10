@@ -164,15 +164,6 @@ export default function BestRateGuaranteeGuide() {
           <strong>No portal price guarantee:</strong> Citi Travel, Bilt Travel, Costco Travel, Kayak, Trivago, Orbitz, Travelocity, Google Hotels.
         </p>
 
-        <h2 className="mt-10 font-display text-2xl font-semibold text-[var(--color-primary)]">A quick worked example</h2>
-        <p className="mt-3 font-body text-[var(--color-text-primary)]">
-          Say you hold a refundable <strong>Hyatt</strong> booking at <strong>$153/night</strong> and spot the same refundable
-          room, same dates, on <strong>Expedia for $143</strong> (both in USD). The competing rate just has to be at least
-          <strong> $1 lower</strong> — $10 clears that easily — and because both are refundable, the cancellation policies match.
-          That&rsquo;s a clean, qualifying claim: Hyatt matches the $143 and you pick your reward (5,000 points or 20% off).
-          Miss any one condition — a non-refundable competing rate, a member-only price, a resort-fee difference — and it&rsquo;s denied.
-        </p>
-
         <p className="mt-10 font-body text-sm text-[var(--color-text-secondary)]">
           This guide is for general information; every guarantee is governed by the official terms linked above, which the
           chains can change at any time. Not affiliated with any hotel or travel company. Questions? See our{' '}
