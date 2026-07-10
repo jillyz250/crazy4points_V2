@@ -22,8 +22,9 @@ const toolsMenu: { label: string; href: string; comingSoon?: boolean }[] = [
 const RESOURCE_ITEMS: {
   label: string;
   key?: keyof ResourceNavCounts;
-  href: string;
+  href?: string;
   comingSoon?: boolean;
+  heading?: boolean; // bold non-link section label (e.g. "Guides")
 }[] = [
   // Program directories (live via their counts) + the Points Hub (coming soon).
   // The hub finders (Best Way to Book, Where Can I Go, FNC Fit) now live INSIDE
@@ -34,6 +35,9 @@ const RESOURCE_ITEMS: {
   { label: "Experiences", href: "/experiences" },
   { label: "Newsletter", href: "/newsletter" },
   { label: "Points Hub", href: "/hub", comingSoon: true },
+  // Guides — editorial reference pages.
+  { label: "Guides", heading: true },
+  { label: "Best Rate Guarantee", href: "/guides/hotel-best-rate-guarantees" },
 ];
 
 // BLOG dropdown items — mirrors the editorial taxonomy in
@@ -149,6 +153,16 @@ export default function Header({
               <div className="invisible absolute left-0 top-full z-50 w-72 pt-2 group-hover:visible">
                 <div className="rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] py-1 shadow-[var(--shadow-soft)]">
                   {RESOURCE_ITEMS.map((item) => {
+                    if (item.heading) {
+                      return (
+                        <div
+                          key={item.label}
+                          className="mt-1 border-t border-[var(--color-border-soft)] px-4 pb-1 pt-2 font-ui text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--color-text-secondary)]"
+                        >
+                          {item.label}
+                        </div>
+                      );
+                    }
                     const count = item.key ? (resourceCounts[item.key] ?? 0) : 1;
                     const unavailable = item.comingSoon || count === 0;
                     return unavailable ? (
@@ -164,7 +178,7 @@ export default function Header({
                     ) : (
                       <Link
                         key={item.label}
-                        href={item.href}
+                        href={item.href!}
                         className="flex items-center px-4 py-2.5 font-ui text-xs font-medium text-[var(--color-text-primary)] hover:text-[var(--color-primary)]"
                       >
                         {item.label}
@@ -298,6 +312,16 @@ export default function Header({
           </button>
           {resourcesOpen &&
             RESOURCE_ITEMS.map((item) => {
+              if (item.heading) {
+                return (
+                  <div
+                    key={item.label}
+                    className="flex min-h-[36px] items-center border-b border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-6 pt-1 font-ui text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--color-text-secondary)]"
+                  >
+                    {item.label}
+                  </div>
+                );
+              }
               const count = item.key ? (resourceCounts[item.key] ?? 0) : 1;
               const unavailable = item.comingSoon || count === 0;
               return unavailable ? (
@@ -313,7 +337,7 @@ export default function Header({
               ) : (
                 <Link
                   key={item.label}
-                  href={item.href}
+                  href={item.href!}
                   onClick={() => setMenuOpen(false)}
                   className="flex min-h-[44px] items-center border-b border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-8 font-ui text-sm font-medium text-[var(--color-text-primary)] hover:text-[var(--color-primary)]"
                 >
