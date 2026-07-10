@@ -3,7 +3,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
-import { BLOG_CATEGORIES } from "@/lib/blog/categories";
 import type { ResourceNavCounts } from "@/utils/supabase/queries";
 
 // "Tools" menu — the live tools, plus My Wallet (Coming Soon). Program
@@ -34,22 +33,11 @@ const RESOURCE_ITEMS: {
   { label: "Alliances", key: "alliance", href: "/programs?type=alliance" },
   { label: "Experiences", href: "/experiences" },
   { label: "Newsletter", href: "/newsletter" },
+  { label: "Blog", href: "/blog" },
   { label: "Points Hub", href: "/hub", comingSoon: true },
   // Guides — editorial reference pages.
   { label: "Guides", heading: true },
   { label: "Best Rate Guarantee", href: "/guides/hotel-best-rate-guarantees" },
-];
-
-// BLOG dropdown items — mirrors the editorial taxonomy in
-// lib/blog/categories.ts. "All Posts" first, then the 6 categories in
-// the order defined there. Each links to /blog?category=<slug>; the
-// blog index page already handles that filter param.
-const blogItems: { label: string; href: string }[] = [
-  { label: "All Posts", href: "/blog" },
-  ...BLOG_CATEGORIES.map((c) => ({
-    label: c.label,
-    href: `/blog?category=${c.slug}`,
-  })),
 ];
 
 
@@ -63,7 +51,6 @@ export default function Header({
   // Mobile-only expand state — desktop dropdowns use CSS hover via group-hover.
   const [toolsOpen, setToolsOpen] = useState(false);
   const [resourcesOpen, setResourcesOpen] = useState(false);
-  const [blogOpen, setBlogOpen] = useState(false);
 
   return (
     <header className="sticky top-0 z-50 border-b border-[var(--color-border-soft)] bg-[var(--color-background)]">
@@ -189,33 +176,6 @@ export default function Header({
               </div>
             </div>
 
-            {/* Blog dropdown — now its own top-level item (was folded into
-                Resources). All Posts + the editorial categories. */}
-            <div className="group relative">
-              <button
-                type="button"
-                className="flex items-center gap-1 font-ui !text-xs font-medium uppercase tracking-[0.14em] text-[var(--color-text-secondary)] hover:text-[var(--color-primary)]"
-              >
-                Blog
-                <svg className="h-3 w-3 shrink-0 transition-transform duration-200 group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-              {/* right-0 so the rightmost dropdown doesn't overflow the viewport. */}
-              <div className="invisible absolute right-0 top-full z-50 w-56 pt-2 group-hover:visible">
-                <div className="rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] py-1 shadow-[var(--shadow-soft)]">
-                  {blogItems.map((item) => (
-                    <Link
-                      key={item.label}
-                      href={item.href}
-                      className="flex items-center px-4 py-2.5 font-ui text-xs font-medium text-[var(--color-text-primary)] hover:text-[var(--color-primary)]"
-                    >
-                      {item.label}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            </div>
           </nav>
 
           <div className="flex items-center gap-4">
@@ -346,28 +306,6 @@ export default function Header({
               );
             })}
 
-          {/* Mobile Blog — now its own top-level item */}
-          <button
-            type="button"
-            className="flex min-h-[44px] w-full items-center justify-between border-b border-[var(--color-border-soft)] px-6 font-ui text-sm font-medium uppercase tracking-[0.14em] text-[var(--color-text-secondary)]"
-            onClick={() => setBlogOpen((o) => !o)}
-          >
-            Blog
-            <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d={blogOpen ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"} />
-            </svg>
-          </button>
-          {blogOpen &&
-            blogItems.map((item) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                onClick={() => setMenuOpen(false)}
-                className="flex min-h-[44px] items-center border-b border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-8 font-ui text-sm font-medium text-[var(--color-text-primary)] hover:text-[var(--color-primary)]"
-              >
-                {item.label}
-              </Link>
-            ))}
         </nav>
       )}
     </header>
