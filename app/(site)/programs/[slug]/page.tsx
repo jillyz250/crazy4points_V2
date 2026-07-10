@@ -77,6 +77,29 @@ function matchesSearch(alert: AlertWithPrograms, query: string): boolean {
   )
 }
 
+// Hotels with a verified consumer Best Rate Guarantee → short reward summary.
+// Only these get the callout; hotels absent here (e.g. GHA, Sonesta, Stash) show
+// nothing, so we never imply a guarantee that doesn't exist. Full terms live in
+// /guides/hotel-best-rate-guarantees (each verified against official terms 2026-07).
+const BRG_BY_SLUG: Record<string, string> = {
+  'marriott-bonvoy': 'Match + 25% off or 5,000 points',
+  hilton: 'Match + 25% off',
+  hyatt: 'Match + 20% off or 5,000 points',
+  ihg: 'Match + 5× points (up to 40,000)',
+  choice: 'Match + a $50 card (or free night abroad)',
+  wyndham: 'Match + 3,000 points',
+  'best-western': 'Match + a $100 gift card',
+  accor: 'Match + 25% off (10% at Fairmont/Raffles)',
+  radisson: 'Match + 25% off',
+  langham: 'Match + 10% off',
+  iprefer: 'Match + upgrade / wifi / checkout perks',
+  'shangri-la': 'Match the lower rate',
+  slh: 'Match the lower rate',
+  'club-med': 'Match + 10% off',
+  barcelo: 'Match + 10% off',
+  'bahia-principe': 'Match + 20% off or 5,000 points (via Hyatt)',
+}
+
 export default async function ProgramPage({
   params,
   searchParams,
@@ -362,6 +385,39 @@ export default async function ProgramPage({
 
         {/* Intro paragraph stays visible — it's the on-ramp. */}
         <IntroBlock intro={program.intro} />
+
+        {/* Best Rate Guarantee callout — hotels with a verified BRG only. */}
+        {program.type === 'hotel' && BRG_BY_SLUG[program.slug] && (
+          <a
+            href="/guides/hotel-best-rate-guarantees"
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              gap: '0.75rem',
+              background: 'linear-gradient(135deg, #F1E7F8 0%, var(--color-background) 70%)',
+              border: '1px solid var(--color-border-soft)',
+              borderLeft: '4px solid var(--color-accent)',
+              borderRadius: 'var(--radius-card)',
+              padding: '1rem 1.25rem',
+              marginBottom: '2.5rem',
+              textDecoration: 'none',
+            }}
+          >
+            <span aria-hidden style={{ fontSize: '1.375rem', lineHeight: 1 }}>✅</span>
+            <span style={{ flex: '1 1 16rem', minWidth: 0 }}>
+              <span style={{ display: 'block', fontFamily: 'var(--font-display)', fontSize: '1.0625rem', fontWeight: 600, color: 'var(--color-primary)' }}>
+                {program.name} has a Best Rate Guarantee
+              </span>
+              <span style={{ display: 'block', fontFamily: 'var(--font-body)', fontSize: '0.9375rem', color: 'var(--color-text-secondary)', lineHeight: 1.45 }}>
+                {BRG_BY_SLUG[program.slug]} if you find a lower public rate within 24 hours of booking direct.
+              </span>
+            </span>
+            <span style={{ fontFamily: 'var(--font-ui)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-primary)', whiteSpace: 'nowrap' }}>
+              How to win →
+            </span>
+          </a>
+        )}
 
         {/* Experiences cross-link — surfaces the program's experiences platform
             (Moments / FIND / Entertainment, etc.) when one exists. */}
