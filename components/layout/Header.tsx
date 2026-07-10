@@ -183,7 +183,7 @@ export default function Header({
                 into Resources, so the button now fits at md). The "Spin the"
                 prefix only shows at lg+ to save space at md. */}
             <div className="hidden md:inline-flex items-center gap-2">
-              <span className="hidden font-display text-[13px] italic tracking-wide text-[var(--color-primary)] lg:inline">
+              <span className="hidden font-display text-[13px] italic tracking-wide text-[var(--color-primary)] md:inline">
                 Spin the
               </span>
               <Link
