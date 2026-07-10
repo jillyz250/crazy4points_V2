@@ -11,7 +11,7 @@ Source rule: terms taken from each chain's **official** site only. Confidence fl
 |---|---|---|---|---|
 | **Hilton Honors** | match **+ 25% off** | 24h after booking | 1% | High (verified 7/10) |
 | **Marriott Bonvoy** | match **+ choice: 25% off OR 5,000 pts** (20% off Design Hotels) | 24h + ≥24h before check-in | 1% (2% if FX; from official help article) | High (verified 7/10) |
-| **Radisson Rewards** (global) | match **+ 25% off** | 24h + ≥48h before arrival | $1 | High |
+| **Radisson Rewards** (global) | match **+ 25% off** | 24h + ≥48h before arrival | $1 | High (verified 7/10; 48h/$1 from full T&C) |
 | **Accor (ALL)** | match **+ 25% off** (10% Fairmont/Raffles/Swissôtel) | 24h + ≥48h before arrival | 5% or €5 | High |
 | **World of Hyatt** | match **+ choice: 20% off OR 5,000 pts** | 24h (not within 24h of check-in) | **$1 USD** (3% only for cross-currency/FX) | High (verified 7/10) |
 | **Bahia Principe** (rides Hyatt BRG) | match **+ 20% off OR 5,000 pts** | 24h (not within 24h of check-in) | >3% | High |

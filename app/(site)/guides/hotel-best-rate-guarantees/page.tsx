@@ -21,21 +21,21 @@ export const revalidate = 86400
 type Row = { name: string; reward: string; window: string; verdict: string; href: string }
 
 const HOTELS: Row[] = [
-  { name: 'Marriott Bonvoy', reward: 'match + 25% off OR 5,000 pts', window: 'within 24h, ≥24h before check-in', verdict: '⭐ Excellent', href: 'https://www.marriott.com/online-hotel-booking.mi#bestrate' },
-  { name: 'Hilton Honors', reward: 'match + 25% off', window: 'within 24h', verdict: '⭐ Excellent', href: 'https://www.hilton.com/en/p/price-match-guarantee/' },
-  { name: 'World of Hyatt', reward: 'match + 20% off OR 5,000 pts', window: 'within 24h', verdict: '⭐ Excellent', href: 'https://www.hyatt.com/en-US/info/best-rate-guarantee' },
-  { name: 'IHG One Rewards', reward: 'match + 5× points (max 40,000)', window: 'within 24h, ≥24h before check-in', verdict: 'Good', href: 'https://www.ihg.com/content/us/en/customer-care/lowest-internet-rate-terms-conditions' },
-  { name: 'Choice Privileges', reward: 'match + $50 card (US) / free night (intl)', window: 'within 24h, ≥48h before arrival', verdict: 'Good', href: 'https://www.choicehotels.com/legal/best-rate-rules' },
-  { name: 'Wyndham Rewards', reward: 'match + 3,000 pts', window: 'within 24h, ≥48h before check-in', verdict: 'Good', href: 'https://www.wyndhamhotels.com/hotel-deals/best-rate-guarantee-terms' },
-  { name: 'Best Western', reward: 'match + $100 gift card', window: 'within 24h, ≥48h before check-in', verdict: '⭐ Excellent', href: 'https://www.bestwestern.com/en_US/hotels/discover-best-western/low-rate-guarantee.html' },
-  { name: 'Accor (ALL)', reward: 'match + 25% off (10% Fairmont/Raffles)', window: 'within 24h, ≥48h before arrival', verdict: '⭐ Excellent', href: 'https://all.accor.com/a/en/information/best-price-guarantee-conditions.html' },
-  { name: 'Radisson Rewards', reward: 'match + 25% off', window: 'within 24h, ≥48h before arrival', verdict: '⭐ Excellent', href: 'https://www.radissonhotels.com/en-us/best-rate-guarantee' },
-  { name: 'The Langham', reward: 'match + 10% off', window: 'within 24h, ≥24h before check-in', verdict: 'Good', href: 'https://www.langhamhotels.com/en/best-rate-guarantee/best-rate-guarantee-terms-conditions/' },
-  { name: 'Preferred / iPrefer', reward: 'match + upgrade/wifi/checkout perks', window: 'within 24h', verdict: 'Good', href: 'https://preferredhotels.com/page/best-rate-guarantee-terms-and-conditions' },
-  { name: 'Shangri-La Circle', reward: 'match (no bonus)', window: 'within 24h', verdict: 'Fair', href: 'https://www.shangri-la.com/corporate/best-rate-guarantee/terms-conditions/' },
-  { name: 'SLH (Best Rate Promise)', reward: 'match (no bonus)', window: 'within 24h, ≥3 working days before', verdict: 'Fair', href: 'https://slh.com/about-slh/best-rate-promise/best-rate-promise-tcs' },
-  { name: 'Club Med', reward: 'match + 10% off', window: 'same day (by 11:59pm EST)', verdict: 'Good', href: 'https://www.clubmed.us/l/best-rate-guarantee' },
-  { name: 'Barceló', reward: 'match + 10% off', window: 'within 24h, ≥72h before arrival', verdict: 'Good', href: 'https://www.barcelo.com/en-us/general-information/best-online-price-guaranteed/' },
+  { name: 'Marriott Bonvoy', reward: 'Match + 25% off OR 5,000 pts', window: 'within 24h, ≥24h before check-in', verdict: '⭐ Excellent', href: 'https://www.marriott.com/online-hotel-booking.mi#bestrate' },
+  { name: 'Hilton Honors', reward: 'Match + 25% off', window: 'within 24h', verdict: '⭐ Excellent', href: 'https://www.hilton.com/en/p/price-match-guarantee/' },
+  { name: 'World of Hyatt', reward: 'Match + 20% off OR 5,000 pts', window: 'within 24h', verdict: '⭐ Excellent', href: 'https://www.hyatt.com/en-US/info/best-rate-guarantee' },
+  { name: 'IHG One Rewards', reward: 'Match + 5× points (max 40,000)', window: 'within 24h, ≥24h before check-in', verdict: 'Good', href: 'https://www.ihg.com/content/us/en/customer-care/lowest-internet-rate-terms-conditions' },
+  { name: 'Choice Privileges', reward: 'Match + $50 card (US) / free night (intl)', window: 'within 24h, ≥48h before arrival', verdict: 'Good', href: 'https://www.choicehotels.com/legal/best-rate-rules' },
+  { name: 'Wyndham Rewards', reward: 'Match + 3,000 pts', window: 'within 24h, ≥48h before check-in', verdict: 'Good', href: 'https://www.wyndhamhotels.com/hotel-deals/best-rate-guarantee-terms' },
+  { name: 'Best Western', reward: 'Match + $100 gift card', window: 'within 24h, ≥48h before check-in', verdict: '⭐ Excellent', href: 'https://www.bestwestern.com/en_US/hotels/discover-best-western/low-rate-guarantee.html' },
+  { name: 'Accor (ALL)', reward: 'Match + 25% off (10% Fairmont/Raffles)', window: 'within 24h, ≥48h before arrival', verdict: '⭐ Excellent', href: 'https://all.accor.com/a/en/information/best-price-guarantee-conditions.html' },
+  { name: 'Radisson Rewards', reward: 'Match + 25% off', window: 'within 24h, ≥48h before arrival', verdict: '⭐ Excellent', href: 'https://www.radissonhotels.com/en-us/best-rate-guarantee' },
+  { name: 'The Langham', reward: 'Match + 10% off', window: 'within 24h, ≥24h before check-in', verdict: 'Good', href: 'https://www.langhamhotels.com/en/best-rate-guarantee/best-rate-guarantee-terms-conditions/' },
+  { name: 'Preferred / iPrefer', reward: 'Match + upgrade/wifi/checkout perks', window: 'within 24h', verdict: 'Good', href: 'https://preferredhotels.com/page/best-rate-guarantee-terms-and-conditions' },
+  { name: 'Shangri-La Circle', reward: 'Match (no bonus)', window: 'within 24h', verdict: 'Fair', href: 'https://www.shangri-la.com/corporate/best-rate-guarantee/terms-conditions/' },
+  { name: 'SLH (Best Rate Promise)', reward: 'Match (no bonus)', window: 'within 24h, ≥3 working days before', verdict: 'Fair', href: 'https://slh.com/about-slh/best-rate-promise/best-rate-promise-tcs' },
+  { name: 'Club Med', reward: 'Match + 10% off', window: 'same day (by 11:59pm EST)', verdict: 'Good', href: 'https://www.clubmed.us/l/best-rate-guarantee' },
+  { name: 'Barceló', reward: 'Match + 10% off', window: 'within 24h, ≥72h before arrival', verdict: 'Good', href: 'https://www.barcelo.com/en-us/general-information/best-online-price-guaranteed/' },
 ]
 
 const PORTALS: Row[] = [
@@ -43,8 +43,8 @@ const PORTALS: Row[] = [
   { name: 'Amex Travel', reward: 'refund the difference (hotels only)', window: 'before stay (30 days after, pay-later)', verdict: 'Good (FHR excluded)', href: 'https://www.americanexpress.com/en-us/travel/faq/hotel-booking/' },
   { name: 'Booking.com', reward: 'refund the difference', window: 'offer must still be live', verdict: 'Good', href: 'https://www.booking.com/general.html?tmpl=doc%2Frate_guarantee' },
   { name: 'Priceline (VIP)', reward: '100% of diff (200% Express Deals)', window: 'within 24h', verdict: 'Good', href: 'https://help.priceline.com/what-is-best-price-guarantee-Sys6cJ86u' },
-  { name: 'Agoda', reward: 'match or AgodaCash', window: 'by 11:59pm day before check-in', verdict: 'Good', href: 'https://www.agoda.com/info/agoda-policies.html' },
-  { name: 'Google Flights', reward: 'auto-pays fare-drop difference (flights only)', window: 'automatic, until departure', verdict: 'Handy for flights', href: 'https://travel.google.com/flights/guarantee' },
+  { name: 'Agoda', reward: 'Match or AgodaCash', window: 'by 11:59pm day before check-in', verdict: 'Good', href: 'https://www.agoda.com/info/agoda-policies.html' },
+  { name: 'Google Flights', reward: 'auto-pays fare-drop difference (flights only)', window: 'automatic, until departure', verdict: 'Handy for flights', href: 'https://travel.google.com/intl/ALL_us/flights/guarantee/terms/' },
 ]
 
 function RateTable({ rows, firstCol }: { rows: Row[]; firstCol: string }) {
@@ -96,7 +96,7 @@ export default function BestRateGuaranteeGuide() {
           Hotel &amp; Travel-Portal Best Rate Guarantees
         </h1>
         <p className="mt-4 font-body text-lg text-[var(--color-text-secondary)]">
-          A plain-English map of every hotel and travel-portal &ldquo;best rate / price match&rdquo; guarantee —
+          A plain-English map of the top hotel and travel-portal &ldquo;best rate / price match&rdquo; guarantees —
           who has one, what you actually get, and how to win a claim. We checked <strong>27 hotel programs</strong> and
           <strong> 14 travel portals</strong>, and pulled the terms from each company&rsquo;s <strong>own official pages</strong>.
           Programs change often — check the official link before you rely on any rate.
@@ -115,15 +115,16 @@ export default function BestRateGuaranteeGuide() {
         </section>
 
         <Callout>
-          <strong>One thing up front:</strong> a &ldquo;best rate guarantee&rdquo; is <em>not</em> a guarantee you&rsquo;ll get a
-          lower price. Approval depends on meeting <strong>every</strong> requirement in that chain&rsquo;s official terms —
-          matching room type, dates, occupancy, cancellation policy, taxes/fees, and live availability. Miss one and it&rsquo;s denied.
+          <strong>One thing up front:</strong> a &ldquo;best rate guarantee&rdquo; is <em>not</em>{' '}
+          a guarantee you&rsquo;ll get a lower price. Approval depends on meeting <strong>every</strong>{' '}
+          requirement in that chain&rsquo;s official terms — matching room type, dates, occupancy,
+          cancellation policy, taxes/fees, and live availability. Miss one and it&rsquo;s denied.
         </Callout>
 
         <h2 className="mt-8 font-display text-2xl font-semibold text-[var(--color-primary)]">How to actually win a best rate guarantee</h2>
         <ol className="mt-3 flex flex-col gap-2 font-body text-[var(--color-text-primary)]" style={{ listStyle: 'decimal', paddingLeft: '1.25rem' }}>
           <li><strong>Book direct first</strong> (as a loyalty member where required).</li>
-          <li><strong>Claim within 24 hours</strong> of booking (some chains also require it a set number of days before check-in).</li>
+          <li><strong>Claim within 24 hours</strong> of booking (some chains also require a set number of days before check-in).</li>
           <li><strong>Match everything</strong> — same hotel, room, dates, occupancy, and especially the <strong>same cancellation policy</strong>. Refundable-vs-prepaid mismatch is the #1 reason claims are denied.</li>
           <li><strong>Use a public, bookable rate</strong> — no member-only, login, coupon, opaque, package, or group rates.</li>
           <li><strong>Compare room rate only</strong>, net of taxes and resort fees, and mind the <strong>minimum gap</strong> (usually $1 or 1%; Accor needs 5%).</li>
@@ -133,7 +134,6 @@ export default function BestRateGuaranteeGuide() {
         </p>
 
         <h2 className="mt-10 font-display text-2xl font-semibold text-[var(--color-primary)]">Hotel best rate guarantees</h2>
-        <p className="mt-2 font-body text-sm text-[var(--color-text-secondary)]">Ordered roughly by how many travelers they affect. &ldquo;Reward&rdquo; = what you get on top of matching the lower price.</p>
         <div className="mt-4"><RateTable rows={HOTELS} firstCol="Hotel program" /></div>
         <p className="mt-3 font-body text-sm text-[var(--color-text-secondary)]">
           <em>Bahia Principe rides on Hyatt&rsquo;s guarantee (match + 20% or 5,000 pts) now that it&rsquo;s part of World of Hyatt.</em>
