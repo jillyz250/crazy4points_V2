@@ -24,6 +24,15 @@ export interface DigestSignal {
   href?: string
   /** Non-blocking annotation, e.g. "already alerted: <title>" from the cross-check. */
   note?: string
+  /** Internal (stripped from render): first detected since the last digest. */
+  _new?: boolean
+  /** Internal: always surface even if not new (critical). */
+  _always?: boolean
+}
+
+export interface StillOpen {
+  count: number
+  high: number
 }
 
 export interface MonitorHealth {
@@ -55,6 +64,14 @@ export interface Digest {
     alreadyCovered: number
     staleAlerts: number
     drift: number
+    /** Items still open from before (already shown in a prior digest), collapsed to a count. */
+    backlog: number
+  }
+  /** Per-section "still open from before" counts (collapsed out of the lists). */
+  stillOpen: {
+    needsReview: StillOpen
+    verify: StillOpen
+    drift: StillOpen
   }
 }
 
@@ -288,18 +305,18 @@ export async function buildDigest(supabase: SupabaseClient): Promise<Digest> {
   const [changeRes, cardRes, verifyRes, alertRes, progRes, driftRes] = await Promise.all([
     supabase
       .from('change_signals')
-      .select('program_slug, signal_type, summary, confidence, source_name, source_url')
+      .select('program_slug, signal_type, summary, confidence, source_name, source_url, first_seen_at')
       .eq('status', 'new')
       .order('confidence', { ascending: true })
       .order('last_seen_at', { ascending: false }),
     supabase
       .from('card_bonus_signals')
-      .select('card_name, card_slug, summary, confidence, detected_amount, stored_amount')
+      .select('card_name, card_slug, summary, confidence, detected_amount, stored_amount, first_seen_at')
       .eq('status', 'new')
       .order('last_seen_at', { ascending: false }),
     supabase
       .from('verification_findings')
-      .select('program_slug, partner_name, finding_type, ours, theirs, summary, confidence')
+      .select('program_slug, partner_name, finding_type, ours, theirs, summary, confidence, first_seen_at')
       .eq('status', 'new')
       .order('last_seen_at', { ascending: false }),
     supabase
@@ -322,6 +339,23 @@ export async function buildDigest(supabase: SupabaseClient): Promise<Digest> {
   // id -> slug so we can match alerts (primary_program_id) to signals (program_slug)
   const idToSlug = new Map<string, string>()
   for (const p of (progRes.data ?? []) as Array<{ id: string; slug: string }>) idToSlug.set(p.id, p.slug)
+
+  // "New since the last digest" boundary — the previous successful daily-digest
+  // run. Anything first detected before this was already shown, so it collapses
+  // into a backlog count instead of repeating in full. Critical items (below)
+  // still show regardless.
+  const { data: lastDigestRun } = await supabase
+    .from('cron_runs')
+    .select('started_at')
+    .eq('job_name', 'daily-digest')
+    .eq('status', 'success')
+    .order('started_at', { ascending: false })
+    .limit(1)
+  const sinceMs = lastDigestRun?.[0]?.started_at
+    ? new Date(lastDigestRun[0].started_at as string).getTime()
+    : nowMs - 24 * 3_600_000
+  const newSince = (ts: string | null | undefined): boolean =>
+    ts != null && new Date(ts).getTime() >= sinceMs
 
   // Per-program token sets of published-alert text, for the "already alerted" cross-check.
   type PubAlert = { title: string; summary: string | null; primary_program_id: string | null; end_date: string | null; published_at: string | null }
@@ -363,6 +397,8 @@ export async function buildDigest(supabase: SupabaseClient): Promise<Digest> {
       label: `${slug ?? 'program'}${r.conflict_field ? ` · ${r.conflict_field}` : ''}`,
       detail: r.conflict_summary ?? r.headline ?? '',
       href: `${ADMIN}/program-drift`,
+      _new: newSince(r.conflict_detected_at),
+      _always: false,
     })
   }
 
@@ -381,6 +417,8 @@ export async function buildDigest(supabase: SupabaseClient): Promise<Digest> {
       detail: r.summary ?? '',
       href: r.source_url ?? `${ADMIN}/change-signals`,
       note: covered ? `already alerted: "${covered.slice(0, 60)}"` : undefined,
+      _new: newSince(r.first_seen_at),
+      _always: r.confidence === 'high',
     })
   }
 
@@ -391,6 +429,8 @@ export async function buildDigest(supabase: SupabaseClient): Promise<Digest> {
       label: `Welcome bonus — ${r.card_name ?? r.card_slug ?? 'card'}`,
       detail: r.summary ?? `stored ${r.stored_amount ?? '?'} → detected ${r.detected_amount ?? '?'}`,
       href: `${ADMIN}/card-bonuses`,
+      _new: newSince(r.first_seen_at),
+      _always: r.confidence === 'high',
     })
   }
 
@@ -401,6 +441,8 @@ export async function buildDigest(supabase: SupabaseClient): Promise<Digest> {
       label: `Re-verify — ${r.program_slug ?? ''}${r.partner_name ? ` → ${r.partner_name}` : ''} (${r.finding_type ?? ''})`,
       detail: r.summary ?? `ours: ${r.ours ?? '?'} · theirs: ${r.theirs ?? '?'}`,
       href: `${ADMIN}/change-signals`,
+      _new: newSince(r.first_seen_at),
+      _always: false,
     })
   }
 
@@ -418,6 +460,8 @@ export async function buildDigest(supabase: SupabaseClient): Promise<Digest> {
       label: `Data integrity [${f.severity}] — ${f.check}${f.programSlug ? ` · ${f.programSlug}` : ''}`,
       detail: f.detail,
       href: `${ADMIN}/data-integrity`,
+      _new: true, // live current-state, recomputed each run
+      _always: true,
     }
     if (f.severity === 'high') needsReview.push(sig)
     else if (f.severity === 'med') verify.push(sig)
@@ -460,6 +504,9 @@ export async function buildDigest(supabase: SupabaseClient): Promise<Digest> {
   // (no separate email anymore). Surface them in 🟡 Verify while the run is fresh.
   const gtkRun = latestByJob.get('audit-good-to-know')
   if (gtkRun && hoursSince(gtkRun.started_at as string, nowMs) < 8 * 24) {
+    // The whole flagged set is "new" only in the digest immediately after the
+    // weekly audit runs; on subsequent days it's the same list => backlog.
+    const gtkNew = newSince(gtkRun.started_at as string)
     const flagged = ((gtkRun.details as Record<string, unknown> | null)?.flagged ?? []) as Array<{
       slug: string
       issues: Array<{ severity: string; claim: string; problem: string }>
@@ -472,6 +519,8 @@ export async function buildDigest(supabase: SupabaseClient): Promise<Digest> {
           label: `Good-to-know — ${f.slug}`,
           detail: `"${i.claim}" — ${i.problem}`,
           href: `${ADMIN}/cards/${f.slug}/extract`,
+          _new: gtkNew,
+          _always: false,
         })
       }
     }
@@ -504,27 +553,53 @@ export async function buildDigest(supabase: SupabaseClient): Promise<Digest> {
     }
   })
 
-  const critical =
-    needsReview.filter((s) => s.confidence === 'high' || s.kind === 'integrity').length
+  // Partition each section: SHOW items that are new since the last digest, or
+  // flagged _always (critical). Collapse the rest into a per-section backlog
+  // count so unresolved items stop repeating in full every day.
+  const partition = (arr: DigestSignal[]): { shown: DigestSignal[]; still: StillOpen } => {
+    const shown: DigestSignal[] = []
+    let count = 0
+    let high = 0
+    for (const s of arr) {
+      if (s._new || s._always) shown.push(s)
+      else {
+        count++
+        if (s.confidence === 'high') high++
+      }
+    }
+    return { shown, still: { count, high } }
+  }
+  const nr = partition(needsReview)
+  const vf = partition(verify)
+  const dr = partition(drift)
+
+  const critical = nr.shown.filter((s) => s.confidence === 'high' || s.kind === 'integrity').length
   const healthIssues = health.filter((h) => h.status === 'failed' || h.status === 'stale' || h.status === 'never').length
+  const backlog = nr.still.count + vf.still.count + dr.still.count
 
   return {
     generatedAt,
-    needsReview,
-    verify,
-    drift,
+    needsReview: nr.shown,
+    verify: vf.shown,
+    drift: dr.shown,
     staleAlerts,
     health,
     counts: {
-      newTotal: needsReview.length + verify.length + drift.length,
+      newTotal: nr.shown.length + vf.shown.length + dr.shown.length,
       critical,
-      needsReview: needsReview.length,
-      verify: verify.length,
+      needsReview: nr.shown.length,
+      verify: vf.shown.length,
       healthIssues,
       deduped: changeCollapsed,
       alreadyCovered,
       staleAlerts: staleAlerts.length,
-      drift: drift.length,
+      drift: dr.shown.length,
+      backlog,
+    },
+    stillOpen: {
+      needsReview: nr.still,
+      verify: vf.still,
+      drift: dr.still,
     },
   }
 }
