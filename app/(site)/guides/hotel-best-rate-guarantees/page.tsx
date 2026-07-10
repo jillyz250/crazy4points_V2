@@ -128,6 +128,9 @@ export default function BestRateGuaranteeGuide() {
           <li><strong>Use a public, bookable rate</strong> — no member-only, login, coupon, opaque, package, or group rates.</li>
           <li><strong>Compare room rate only</strong>, net of taxes and resort fees, and mind the <strong>minimum gap</strong> (usually $1 or 1%; Accor needs 5%).</li>
         </ol>
+        <p className="mt-4 font-body text-[var(--color-text-primary)]">
+          Want the full playbook? See <Link href="/guides/how-to-win-a-best-rate-guarantee" style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>How to Actually Win a Best Rate Guarantee</Link> — 31 tips pulled straight from the fine print.
+        </p>
 
         <h2 className="mt-10 font-display text-2xl font-semibold text-[var(--color-primary)]">Hotel best rate guarantees</h2>
         <p className="mt-2 font-body text-sm text-[var(--color-text-secondary)]">Ordered roughly by how many travelers they affect. &ldquo;Reward&rdquo; = what you get on top of matching the lower price.</p>
