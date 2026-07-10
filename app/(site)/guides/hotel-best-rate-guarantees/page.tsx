@@ -44,7 +44,6 @@ const PORTALS: Row[] = [
   { name: 'Booking.com', reward: 'refund the difference', window: 'offer must still be live', verdict: 'Good', href: 'https://www.booking.com/general.html?tmpl=doc%2Frate_guarantee' },
   { name: 'Priceline (VIP)', reward: '100% of diff (200% Express Deals)', window: 'within 24h', verdict: 'Good', href: 'https://help.priceline.com/what-is-best-price-guarantee-Sys6cJ86u' },
   { name: 'Agoda', reward: 'Match or AgodaCash', window: 'by 11:59pm day before check-in', verdict: 'Good', href: 'https://www.agoda.com/info/agoda-policies.html' },
-  { name: 'Google Flights', reward: 'auto-pays fare-drop difference (flights only)', window: 'automatic, until departure', verdict: 'Handy for flights', href: 'https://travel.google.com/intl/ALL_us/flights/guarantee/terms/' },
 ]
 
 function RateTable({ rows, firstCol }: { rows: Row[]; firstCol: string }) {
