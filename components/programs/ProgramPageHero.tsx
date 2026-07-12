@@ -14,6 +14,7 @@ export default function ProgramPageHero({
   activeAlertCount,
   totalAlertCount,
   guideHref,
+  guideLabel,
   partners = [],
   homeCarrierSlugs = [],
   sections,
@@ -21,9 +22,11 @@ export default function ProgramPageHero({
   program: Program
   activeAlertCount: number
   totalAlertCount: number
-  /** When this program has a dedicated deep-dive guide, its URL. Renders a
-   *  gold "Guide" pill in the badge row linking straight to it. */
+  /** When this program has dedicated deep-dive guide(s), the pill target: the
+   *  guide itself if there's one, or the on-page callouts anchor if several. */
   guideHref?: string
+  /** Pill label, count-aware ("Guide ->" for one, "Guides ->" for several). */
+  guideLabel?: string
   /** Distinct operating-carrier programs derived from partner_redemptions.
    *  Renders as clickable partner pills next to the alliance/hubs row.
    *  Empty array hides the partners row entirely. */
@@ -175,7 +178,7 @@ export default function ProgramPageHero({
               textDecoration: 'none',
             }}
           >
-            Guide →
+            {guideLabel ?? 'Guide →'}
           </Link>
         )}
 

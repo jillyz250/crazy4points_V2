@@ -78,19 +78,20 @@ export interface ProgramGuideLink {
   calloutBlurb: string
 }
 
-export const GUIDE_BY_PROGRAM_SLUG: Record<string, ProgramGuideLink> = {
-  aa: {
-    guideSlug: 'how-to-upgrade-american-first-class',
-    calloutTitle: 'How to upgrade to First on American',
-    calloutBlurb:
-      'Complimentary upgrades, Instant Upgrades with cash or miles, and the timing that actually gets you into First.',
-  },
+export const GUIDE_BY_PROGRAM_SLUG: Record<string, ProgramGuideLink[]> = {
+  aa: [
+    {
+      guideSlug: 'how-to-upgrade-american-first-class',
+      calloutTitle: 'How to upgrade to First on American',
+      calloutBlurb:
+        'Complimentary upgrades, Instant Upgrades with cash or miles, and the timing that actually gets you into First.',
+    },
+  ],
 }
 
-/** The guide (if any) associated with a program slug, with a ready href. */
-export function getProgramGuide(programSlug: string): (ProgramGuideLink & { href: string }) | null {
-  const link = GUIDE_BY_PROGRAM_SLUG[programSlug]
-  return link ? { ...link, href: `/guides/${link.guideSlug}` } : null
+/** All guides associated with a program slug, each with a ready href. */
+export function getProgramGuides(programSlug: string): Array<ProgramGuideLink & { href: string }> {
+  return (GUIDE_BY_PROGRAM_SLUG[programSlug] ?? []).map((g) => ({ ...g, href: `/guides/${g.guideSlug}` }))
 }
 
 /** Guides in a category, featured first, then alphabetical by title. */
