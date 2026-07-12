@@ -56,22 +56,25 @@ function DoorCard({ d }: { d: Door }) {
 export default function StartHerePage() {
   return (
     <div className="rg-container px-6 py-12 md:px-8 md:py-16">
-      {/* Opening feature: the cornerstone Find Your Why guide. Carries the page. */}
-      <section
-        className="relative mx-auto max-w-2xl overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border-soft)] p-8 text-center shadow-[var(--shadow-soft)] md:p-10"
-        style={{ background: 'linear-gradient(140deg, #EFE0FA 0%, #FBF3DE 100%)' }}
-      >
-        <span aria-hidden className="text-5xl leading-none">&#127919;</span>
-        <p className="mt-3 font-ui text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--color-primary)]">Start here &middot; Step one</p>
-        <h1 className="mt-1 font-display text-3xl font-semibold text-[var(--color-primary)] md:text-4xl">Figure out your why</h1>
+      {/* Opening feature: the cornerstone Find Your Why guide. Restrained,
+          editorial, gold-accented. No big card, no emoji. */}
+      <section className="mx-auto max-w-xl py-2 text-center md:py-4">
+        <div className="flex items-center justify-center gap-3">
+          <span aria-hidden className="h-px w-10" style={{ background: 'var(--color-accent)' }} />
+          <span className="font-ui text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--color-accent)]">Step One</span>
+          <span aria-hidden className="h-px w-10" style={{ background: 'var(--color-accent)' }} />
+        </div>
+        <h1 className="mt-5 font-display text-[1.75rem] font-semibold leading-tight text-[var(--color-primary)] md:text-[2.125rem]">
+          Figure out your why
+        </h1>
         <p className="mx-auto mt-3 max-w-md font-body text-[var(--color-text-secondary)]">
-          What kind of points traveler are you? Take two minutes to find your type, and every card, program, and trip decision suddenly gets a whole lot easier.
+          What kind of points traveler are you? Name it, and every card, program, and trip decision gets easier.
         </p>
         <Link
           href="/guides/find-your-why"
-          className="mt-6 inline-flex items-center rounded-md bg-[var(--color-accent)] px-7 py-3.5 font-ui text-sm font-semibold uppercase tracking-[0.1em] text-[var(--color-primary)] shadow-sm transition hover:bg-[var(--color-accent-hover)] hover:shadow-md"
+          className="mt-7 inline-flex items-center gap-2 rounded-full border border-[var(--color-accent)] px-6 py-2.5 font-ui text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-primary)] transition hover:bg-[var(--color-accent)] hover:text-white"
         >
-          Find your type &rarr;
+          Find your type <span aria-hidden>&rarr;</span>
         </Link>
       </section>
 
