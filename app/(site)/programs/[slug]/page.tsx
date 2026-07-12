@@ -8,7 +8,7 @@ import AlertsGridSB from '@/components/alerts/AlertsGridSB'
 import ExpiredAlertsList from '@/components/alerts/ExpiredAlertsList'
 import { isAlertActive, isAlertFresh } from '@/lib/alertExpiry'
 import ProgramPageHero from '@/components/programs/ProgramPageHero'
-import { getProgramGuide } from '@/lib/guides'
+import { getProgramGuides } from '@/lib/guides'
 import PropertiesTable from '@/components/programs/PropertiesTable'
 import CardsThatEarnIntoProgram from '@/components/cards/CardsThatEarnIntoProgram'
 import ActivePromosSection from '@/components/programs/ActivePromosSection'
@@ -320,8 +320,17 @@ export default async function ProgramPage({
     },
   }
 
-  // Dedicated deep-dive guide for this program (gold hero pill + intro callout).
-  const programGuide = getProgramGuide(program.slug)
+  // Dedicated deep-dive guides for this program (gold hero pill + intro callouts).
+  // Registry-driven; add associations in lib/guides.ts (GUIDE_BY_PROGRAM_SLUG).
+  const programGuides = getProgramGuides(program.slug)
+  // Pill label stays grammatical as more guides are added; a single guide links
+  // straight to it, multiple jump to the stacked callouts under the intro.
+  const guidePill =
+    programGuides.length === 1
+      ? { href: programGuides[0].href, label: 'Guide →' }
+      : programGuides.length > 1
+        ? { href: '#program-guides', label: 'Guides →' }
+        : null
 
   return (
     <section className="rg-major-section !pt-8">
@@ -359,7 +368,8 @@ export default async function ProgramPage({
           program={program}
           activeAlertCount={active.length}
           totalAlertCount={allAlerts.length}
-          guideHref={programGuide?.href}
+          guideHref={guidePill?.href}
+          guideLabel={guidePill?.label}
           partners={Array.from(
             new Map(
               redemptionsAsCurrency
@@ -424,37 +434,42 @@ export default async function ProgramPage({
           </a>
         )}
 
-        {/* Related guide callout — programs with a dedicated /guides deep-dive. */}
-        {programGuide && (
-          <a
-            href={programGuide.href}
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              alignItems: 'center',
-              gap: '0.75rem',
-              background: 'linear-gradient(135deg, #F1E7F8 0%, var(--color-background) 70%)',
-              border: '1px solid var(--color-border-soft)',
-              borderLeft: '4px solid var(--color-accent)',
-              borderRadius: 'var(--radius-card)',
-              padding: '1rem 1.25rem',
-              marginBottom: '2.5rem',
-              textDecoration: 'none',
-            }}
-          >
-            <span aria-hidden style={{ fontSize: '1.375rem', lineHeight: 1 }}>📘</span>
-            <span style={{ flex: '1 1 16rem', minWidth: 0 }}>
-              <span style={{ display: 'block', fontFamily: 'var(--font-display)', fontSize: '1.0625rem', fontWeight: 600, color: 'var(--color-primary)' }}>
-                {programGuide.calloutTitle}
-              </span>
-              <span style={{ display: 'block', fontFamily: 'var(--font-body)', fontSize: '0.9375rem', color: 'var(--color-text-secondary)', lineHeight: 1.45 }}>
-                {programGuide.calloutBlurb}
-              </span>
-            </span>
-            <span style={{ fontFamily: 'var(--font-ui)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-primary)', whiteSpace: 'nowrap' }}>
-              Read the guide →
-            </span>
-          </a>
+        {/* Related guide callouts — programs with dedicated /guides deep-dives.
+            One card per guide, so this scales as a program gains more guides. */}
+        {programGuides.length > 0 && (
+          <div id="program-guides" style={{ scrollMarginTop: '6rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '2.5rem' }}>
+            {programGuides.map((guide) => (
+              <a
+                key={guide.guideSlug}
+                href={guide.href}
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  background: 'linear-gradient(135deg, #F1E7F8 0%, var(--color-background) 70%)',
+                  border: '1px solid var(--color-border-soft)',
+                  borderLeft: '4px solid var(--color-accent)',
+                  borderRadius: 'var(--radius-card)',
+                  padding: '1rem 1.25rem',
+                  textDecoration: 'none',
+                }}
+              >
+                <span aria-hidden style={{ fontSize: '1.375rem', lineHeight: 1 }}>📘</span>
+                <span style={{ flex: '1 1 16rem', minWidth: 0 }}>
+                  <span style={{ display: 'block', fontFamily: 'var(--font-display)', fontSize: '1.0625rem', fontWeight: 600, color: 'var(--color-primary)' }}>
+                    {guide.calloutTitle}
+                  </span>
+                  <span style={{ display: 'block', fontFamily: 'var(--font-body)', fontSize: '0.9375rem', color: 'var(--color-text-secondary)', lineHeight: 1.45 }}>
+                    {guide.calloutBlurb}
+                  </span>
+                </span>
+                <span style={{ fontFamily: 'var(--font-ui)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-primary)', whiteSpace: 'nowrap' }}>
+                  Read the guide →
+                </span>
+              </a>
+            ))}
+          </div>
         )}
 
         {/* Experiences cross-link — surfaces the program's experiences platform

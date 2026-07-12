@@ -49,6 +49,16 @@ const BENEFIT_GROUPS: Array<{ group: string; items: BenefitFilter[] }> = [
   ]},
 ]
 const ALL_BENEFITS: BenefitFilter[] = BENEFIT_GROUPS.flatMap((g) => g.items)
+
+// Composite keys used by PRESETS only — resolvable via benefitByKey but NOT
+// rendered as user chips. "Any travel credit" spans the flexible annual credit
+// AND the category-specific airline/hotel/flight credits, so flagship cards
+// like The Platinum Card from American Express (which has a $200 airline + $600
+// hotel credit but no auto-applying annual travel credit) still qualify as
+// premium travel cards.
+const INTERNAL_BENEFITS: BenefitFilter[] = [
+  { key: 'travel_credit_any', label: 'Any travel credit', types: ['travel_credit_annual', 'airline_credit', 'hotel_credit', 'flight_credit'] },
+]
 // The high-intent benefits surfaced as live quick chips in the Explore bar.
 // Everything else stays one tap away behind "More filters". Keys map to
 // ALL_BENEFITS so labels and matching stay in sync with the full panel.
@@ -113,7 +123,7 @@ interface Filters {
 const PRESETS: Array<{ key: string; label: string; filters: Partial<Filters> }> = [
   { key: 'no_fee', label: 'No annual fee', filters: { feeBands: ['f0'] } },
   { key: 'first_travel', label: 'First travel card', filters: { feeBands: ['f0', 'f95'], noFx: true, benefits: ['transfer_partners'] } },
-  { key: 'premium', label: 'Premium travel', filters: { benefits: ['lounge', 'travel_credit'] } },
+  { key: 'premium', label: 'Premium travel', filters: { benefits: ['lounge', 'travel_credit_any'] } },
   { key: 'lounges', label: 'Best for lounges', filters: { benefits: ['lounge'] } },
   { key: 'hotels', label: 'Best for hotels', filters: { benefits: ['free_night'] } },
   { key: 'transfers', label: 'Transfers to airline partners', filters: { benefits: ['transfer_partners'] } },
@@ -171,7 +181,7 @@ export default function CardFinder({
   const openPanel = () => { setShowFilters(true); requestAnimationFrame(() => panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })) }
 
   const allIssuers = useMemo(() => Array.from(new Set(cards.map((c) => c.issuerName).filter(Boolean))).sort(), [cards])
-  const benefitByKey = useMemo(() => new Map(ALL_BENEFITS.map((b) => [b.key, b])), [])
+  const benefitByKey = useMemo(() => new Map([...ALL_BENEFITS, ...INTERNAL_BENEFITS].map((b) => [b.key, b])), [])
   const setD = (patch: Partial<Filters>) => setDraft((d) => ({ ...d, ...patch }))
   // Quick filters apply immediately: write to `applied` (drives the grid) and
   // mirror into `draft` so the Advanced panel reflects them when opened.
