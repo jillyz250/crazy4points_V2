@@ -35,9 +35,14 @@ const RESOURCE_ITEMS: {
   { label: "Newsletter", href: "/newsletter" },
   { label: "Blog", href: "/blog" },
   { label: "Points Hub", href: "/hub", comingSoon: true },
-  // Guides — editorial reference pages.
+  // Guides — editorial reference pages. The dropdown lists CATEGORIES (bounded),
+  // not individual guides (unbounded); each anchors into the /guides hub, which
+  // is driven by lib/guides.ts. Add a guide there, not here.
   { label: "Guides", heading: true },
-  { label: "Best Rate Guarantee", href: "/guides/hotel-best-rate-guarantees" },
+  { label: "Getting Started", href: "/guides#getting-started" },
+  { label: "Airlines & Flying", href: "/guides#airlines" },
+  { label: "Hotels & Stays", href: "/guides#hotels" },
+  { label: "Cards & Points", href: "/guides#cards" },
 ];
 
 
