@@ -56,36 +56,59 @@ function DoorCard({ d }: { d: Door }) {
 export default function StartHerePage() {
   return (
     <div className="rg-container px-6 py-12 md:px-8 md:py-16">
-      {/* Hero — travel first, minimal */}
-      <header className="mx-auto max-w-2xl text-center">
-        <p className="font-ui text-xs font-medium uppercase tracking-[0.2em] text-[var(--color-primary)]">Start here</p>
-        <h1 className="mt-3">The trips are real. The points are probably already yours.</h1>
-        <p className="mt-4 font-body text-lg text-[var(--color-text-secondary)]">
-          Free and nearly-free travel isn&rsquo;t a trick &mdash; it&rsquo;s knowing where to look. That&rsquo;s the whole site.
-        </p>
-        <a href="#basics" className="mt-4 inline-block font-ui text-sm font-semibold text-[var(--color-primary)] underline-offset-4 hover:underline">
-          New to all this? Start with the basics &rarr;
-        </a>
-      </header>
-
-      {/* First step: the cornerstone Find Your Why guide. */}
-      <Link
-        href="/guides/find-your-why"
-        className="group mx-auto mt-12 flex max-w-2xl flex-wrap items-center gap-4 rounded-[var(--radius-card)] border border-[var(--color-border-soft)] p-5 shadow-[var(--shadow-soft)] transition hover:-translate-y-0.5 hover:border-[var(--color-primary)]/40"
-        style={{ background: 'linear-gradient(135deg, #F1E7F8 0%, var(--color-background) 70%)' }}
+      {/* Opening feature: the cornerstone Find Your Why guide. Carries the page. */}
+      <section
+        className="relative mx-auto max-w-2xl overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border-soft)] p-8 text-center shadow-[var(--shadow-soft)] md:p-10"
+        style={{ background: 'linear-gradient(140deg, #EFE0FA 0%, #FBF3DE 100%)' }}
       >
-        <span aria-hidden className="text-2xl leading-none">&#129517;</span>
-        <span className="min-w-0 flex-1">
-          <span className="block font-ui text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--color-primary)]">Step one</span>
-          <span className="block font-display text-lg font-semibold text-[var(--color-primary)]">Figure out your why</span>
-          <span className="block font-body text-sm text-[var(--color-text-secondary)]">
-            What kind of points traveler are you? Name it first, and every card and trip decision gets easier.
-          </span>
-        </span>
-        <span aria-hidden className="font-ui text-xs font-bold uppercase tracking-[0.1em] text-[var(--color-primary)]">
-          Start &rarr;
-        </span>
-      </Link>
+        <span aria-hidden className="text-5xl leading-none">&#127919;</span>
+        <p className="mt-3 font-ui text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--color-primary)]">Start here &middot; Step one</p>
+        <h1 className="mt-1 font-display text-3xl font-semibold text-[var(--color-primary)] md:text-4xl">Figure out your why</h1>
+        <p className="mx-auto mt-3 max-w-md font-body text-[var(--color-text-secondary)]">
+          What kind of points traveler are you? Take two minutes to find your type, and every card, program, and trip decision suddenly gets a whole lot easier.
+        </p>
+        <Link
+          href="/guides/find-your-why"
+          className="mt-6 inline-flex items-center rounded-md bg-[var(--color-accent)] px-7 py-3.5 font-ui text-sm font-semibold uppercase tracking-[0.1em] text-[var(--color-primary)] shadow-sm transition hover:bg-[var(--color-accent-hover)] hover:shadow-md"
+        >
+          Find your type &rarr;
+        </Link>
+      </section>
+
+      {/* Small newsletter signup — right under the opener. */}
+      <section className="mx-auto mt-10 max-w-xl text-center">
+        <h2 className="font-display text-xl font-semibold text-[var(--color-primary)]">Or just get the good stuff in your inbox</h2>
+        <p className="mx-auto mt-1 max-w-md font-body text-sm text-[var(--color-text-secondary)]">
+          The points-and-miles moves actually worth caring about, minus the noise. Unsubscribe anytime.
+        </p>
+        <div className="mt-5">
+          <NewsletterSignup />
+        </div>
+      </section>
+
+      {/* Guides — the articles, driven by lib/guides.ts. */}
+      <section className="mt-14 md:mt-16">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="font-display text-2xl font-semibold text-[var(--color-primary)] md:text-3xl">Guides worth reading</h2>
+          <Link href="/guides" className="font-ui text-sm font-semibold text-[var(--color-primary)] underline-offset-4 hover:underline">Browse all guides &rarr;</Link>
+        </div>
+        <p className="mt-2 font-body text-[var(--color-text-secondary)]">Plain-English playbooks for getting more out of your points.</p>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          {GUIDES.filter((g) => g.featured).map((g) => (
+            <Link
+              key={g.slug}
+              href={`/guides/${g.slug}`}
+              className="group flex flex-col gap-1.5 rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] p-5 shadow-[var(--shadow-soft)] transition hover:-translate-y-0.5 hover:border-[var(--color-primary)]/40"
+            >
+              <span className="font-display text-base font-semibold text-[var(--color-primary)]">{g.title}</span>
+              <span className="font-body text-sm text-[var(--color-text-secondary)]">{g.description}</span>
+              <span className="mt-1 font-ui text-xs font-semibold uppercase tracking-[0.1em] text-[var(--color-primary)]">
+                Read <span aria-hidden className="inline-block transition-transform duration-200 group-hover:translate-x-1">&rarr;</span>
+              </span>
+            </Link>
+          ))}
+        </div>
+      </section>
 
       {/* USE — lead with the dream */}
       <section className="mt-14 md:mt-16">
@@ -110,30 +133,6 @@ export default function StartHerePage() {
           <span className="font-semibold text-[var(--color-text-primary)]">A quick grown-up note.</span>{' '}
           Travel cards only pay off if you clear your balance every month &mdash; interest costs more than any points are worth. If a balance might linger, a simple cash-back card (or no new card at all) is the smarter call.
         </p>
-      </section>
-
-      {/* Guides — the plain-English playbooks, driven by lib/guides.ts. */}
-      <section className="mt-14 md:mt-16">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="font-display text-2xl font-semibold text-[var(--color-primary)] md:text-3xl">Guides worth reading</h2>
-          <Link href="/guides" className="font-ui text-sm font-semibold text-[var(--color-primary)] underline-offset-4 hover:underline">Browse all guides &rarr;</Link>
-        </div>
-        <p className="mt-2 font-body text-[var(--color-text-secondary)]">Plain-English playbooks for getting more out of your points.</p>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          {GUIDES.filter((g) => g.featured).map((g) => (
-            <Link
-              key={g.slug}
-              href={`/guides/${g.slug}`}
-              className="group flex flex-col gap-1.5 rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] p-5 shadow-[var(--shadow-soft)] transition hover:-translate-y-0.5 hover:border-[var(--color-primary)]/40"
-            >
-              <span className="font-display text-base font-semibold text-[var(--color-primary)]">{g.title}</span>
-              <span className="font-body text-sm text-[var(--color-text-secondary)]">{g.description}</span>
-              <span className="mt-1 font-ui text-xs font-semibold uppercase tracking-[0.1em] text-[var(--color-primary)]">
-                Read <span aria-hidden className="transition-transform duration-200 group-hover:translate-x-1 inline-block">&rarr;</span>
-              </span>
-            </Link>
-          ))}
-        </div>
       </section>
 
       {/* Roadmap — collapsed, clearly separated */}
@@ -161,17 +160,6 @@ export default function StartHerePage() {
           <strong className="text-[var(--color-text-primary)]">The only four words you need today:</strong>{' '}
           Transferable points &middot; Sign-up bonus &middot; Award (a points booking) &middot; Sweet spot (an outsized deal).
         </p>
-      </section>
-
-      {/* Newsletter — the recurring reason to come back. */}
-      <section className="mt-16 text-center">
-        <h2 className="font-display text-2xl font-semibold text-[var(--color-primary)] md:text-3xl">Get the good stuff in your inbox</h2>
-        <p className="mx-auto mt-2 max-w-xl font-body text-[var(--color-text-secondary)]">
-          The points-and-miles moves actually worth caring about, plus the occasional alert when something time-sensitive hits. No spam, unsubscribe anytime.
-        </p>
-        <div className="mt-6">
-          <NewsletterSignup />
-        </div>
       </section>
     </div>
   )
