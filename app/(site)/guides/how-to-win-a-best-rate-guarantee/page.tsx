@@ -42,7 +42,7 @@ const H2 = 'mt-10 font-display text-2xl font-semibold text-[var(--color-primary)
 export default function HowToWinBestRateGuarantee() {
   return (
     <main className="rg-major-section">
-      <div className="rg-container" style={{ maxWidth: '52rem' }}>
+      <div className="rg-container rg-guide" style={{ maxWidth: '52rem' }}>
         <span className="mb-4 inline-flex items-center gap-2 rounded-full bg-[var(--color-accent)] px-2.5 py-1 font-ui text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-[#1A1A1A]">
           Guide · Verified July 10, 2026
         </span>

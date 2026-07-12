@@ -1150,6 +1150,30 @@ a.admin-btn-primary:hover:not(:disabled) {
 .admin-table tbody tr:last-child td { border-bottom: none; }
 .admin-table tbody tr:hover { background: var(--admin-surface-alt); }
 
+/* Guide article rhythm — roomier vertical spacing so distinct topics breathe.
+   Scoped to DIRECT children of the guide container so structured blocks (FAQ
+   items, callouts, cards, section boxes) keep their own tighter internal
+   spacing. Add `rg-guide` to a guide's `.rg-container` and top-level
+   paragraphs/headings/lists inherit this rhythm automatically. Adjacent
+   margins collapse, so a heading's larger top margin wins over the previous
+   paragraph's bottom margin, giving a clear break between topics. */
+.rg-guide > h1 {
+  margin-bottom: 1.25rem;
+}
+.rg-guide > h2 {
+  margin: 3rem 0 0.875rem;
+}
+.rg-guide > h3 {
+  margin: 2rem 0 0.5rem;
+}
+.rg-guide > p {
+  margin: 0 0 1.5rem;
+}
+.rg-guide > ul,
+.rg-guide > ol {
+  margin: 0 0 1.5rem;
+}
+
 /* Blog post body */
 .rg-prose h2 {
   font-size: 1.5rem;
