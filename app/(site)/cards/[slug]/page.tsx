@@ -511,9 +511,10 @@ export default async function CardPage({
             Apply at {issuer.name}
           </a>
         )}
-        {!card.affiliate_url && !card.closed_to_new_applicants && (
+        {card.affiliate_url && !card.closed_to_new_applicants && (
           <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginBottom: '0.5rem' }}>
-            (Direct link to issuer does not currently earn a commission on this card.)
+            Referral or affiliate link. If you apply through it, we may earn a commission at no extra cost to you.{' '}
+            <a href="/disclosures" style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>Details</a>.
           </div>
         )}
       </section>
@@ -1226,13 +1227,8 @@ export default async function CardPage({
           <p>Last verified {formatDate(card.last_verified)}.</p>
         )}
         <p>
-          Card terms change. Confirm details on the issuer&apos;s site before applying. crazy4points does not provide financial advice. We are not responsible for application outcomes or terms accepted — see our <a href="/terms" style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>Terms of Service</a> for full details.
+          Card terms change. Confirm details on the issuer&apos;s site before applying. crazy4points does not provide financial advice. We are not responsible for application outcomes or terms accepted &mdash; see our <a href="/terms" style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>Terms of Service</a> and <a href="/disclosures" style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>Affiliate Disclosures</a> for full details.
         </p>
-        {!card.affiliate_url && (
-          <p style={{ marginTop: '0.5rem' }}>
-            We don't currently earn a commission on this card. The Apply button links to the issuer directly.
-          </p>
-        )}
       </footer>
     </main>
   )
