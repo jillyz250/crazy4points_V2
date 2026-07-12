@@ -47,6 +47,15 @@ export const GUIDES: Guide[] = [
     featured: true,
   },
   {
+    slug: 'best-first-card',
+    title: 'The Best First Card for Every Type of Traveler',
+    description:
+      'You know your travel why. Now the one card to actually apply for, one anchor pick per traveler type, grounded in real card data.',
+    category: 'cards',
+    updated: '2026-07-12',
+    featured: true,
+  },
+  {
     slug: 'how-to-upgrade-american-first-class',
     title: 'How to Upgrade to First Class on American Airlines',
     description:
