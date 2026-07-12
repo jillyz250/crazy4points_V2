@@ -89,6 +89,18 @@ export default function StartHerePage() {
         </div>
       </div>
 
+      {/* USE — lead with the dream */}
+      <section className="mt-14 md:mt-16">
+        <h2 className="font-display text-2xl font-semibold text-[var(--color-primary)] md:text-3xl">How do I use points to travel?</h2>
+        <p className="mt-2 font-body text-[var(--color-text-secondary)]">Turn the points you already have into a better trip.</p>
+        <p className="mt-1 font-ui text-sm text-[var(--color-text-secondary)]">
+          Start with the trip you want &mdash; these help you spot premium seats, cheap deals, and inspiration. (The deep trip-planners are coming soon.)
+        </p>
+        <div className="mt-6 grid gap-4 sm:grid-cols-3">
+          {USE_DOORS.map((d) => <DoorCard key={d.title} d={d} />)}
+        </div>
+      </section>
+
       {/* Guides — the articles, driven by lib/guides.ts. */}
       <section className="mt-14 md:mt-16">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -110,18 +122,6 @@ export default function StartHerePage() {
               </span>
             </Link>
           ))}
-        </div>
-      </section>
-
-      {/* USE — lead with the dream */}
-      <section className="mt-14 md:mt-16">
-        <h2 className="font-display text-2xl font-semibold text-[var(--color-primary)] md:text-3xl">How do I use points to travel?</h2>
-        <p className="mt-2 font-body text-[var(--color-text-secondary)]">Turn the points you already have into a better trip.</p>
-        <p className="mt-1 font-ui text-sm text-[var(--color-text-secondary)]">
-          Start with the trip you want &mdash; these help you spot premium seats, cheap deals, and inspiration. (The deep trip-planners are coming soon.)
-        </p>
-        <div className="mt-6 grid gap-4 sm:grid-cols-3">
-          {USE_DOORS.map((d) => <DoorCard key={d.title} d={d} />)}
         </div>
       </section>
 
