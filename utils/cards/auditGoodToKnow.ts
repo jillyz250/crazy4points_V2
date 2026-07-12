@@ -75,6 +75,8 @@ Flag a bullet ONLY when it genuinely CONFLICTS with the record: a wrong number/f
 
 CAPS: whether an earn-rate cap is per-category or shared/combined across categories is determined ONLY by the benefit/earn-rate DESCRIPTIONS ("combined with", "shared", "across X and Y") - NOT by the bare cap number. Do not flag a "combined cap" claim unless a description explicitly says the categories have separate per-category caps, and vice versa.
 
+WELCOME BONUS: the record's "Welcome bonus" line is the CURRENT offer. If a bullet states a current welcome, sign-up, or new-cardmember bonus point/mile amount that does not match it (nor its tiered components or "up to" total), flag it as HIGH severity - that is stale-offer drift, the most important thing to catch. But do NOT flag a point/mile figure the bullet clearly frames as something else: a past or ended offer, a standard-vs-elevated comparison, an anniversary/loyalty/status bonus, a spend threshold, or a redemption/transfer cap. Only the current headline welcome bonus is required to match.
+
 CARD RECORD:
 ${record}
 
