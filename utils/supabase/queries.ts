@@ -2437,6 +2437,7 @@ export async function getCardsThatEarnIntoProgram(
     .select('*, issuer:issuers!issuer_id(slug, name)')
     .eq('co_brand_program_id', programId)
     .eq('is_active', true)
+    .neq('status', 'defunct')
   if (directError) throw directError
 
   // Cards whose flexible currency IS this program (e.g. Venture/Spark earn
@@ -2447,6 +2448,7 @@ export async function getCardsThatEarnIntoProgram(
     .select('*, issuer:issuers!issuer_id(slug, name)')
     .eq('currency_program_id', programId)
     .eq('is_active', true)
+    .neq('status', 'defunct')
   if (earnError) throw earnError
 
   const { data: transferRows } = await supabase
@@ -2463,6 +2465,7 @@ export async function getCardsThatEarnIntoProgram(
       .select('*, issuer:issuers!issuer_id(slug, name)')
       .in('currency_program_id', transferableCurrencyIds)
       .eq('is_active', true)
+      .neq('status', 'defunct')
     if (tErr) throw tErr
     transferCards = (tCards ?? []) as Array<CreditCard & { issuer: Pick<Issuer, 'slug' | 'name'> }>
   }
