@@ -55,10 +55,10 @@ function DoorCard({ d }: { d: Door }) {
 
 export default function StartHerePage() {
   return (
-    <div className="rg-container px-6 py-12 md:px-8 md:py-16">
-      {/* Opening feature: the cornerstone Find Your Why guide. Restrained,
-          editorial, gold-accented. No big card, no emoji. */}
-      <section className="mx-auto max-w-xl py-2 text-center md:py-4">
+    <div className="rg-container px-6 pb-14 pt-8 md:px-8 md:pb-16 md:pt-10">
+      {/* Intro: Find Your Why (primary action) + newsletter (the "or"), one
+          cohesive centered block with a hairline divider between them. */}
+      <div className="mx-auto max-w-xl text-center">
         <div className="flex items-center justify-center gap-3">
           <span aria-hidden className="h-px w-10" style={{ background: 'var(--color-accent)' }} />
           <span className="font-ui text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--color-accent)]">Step One</span>
@@ -72,22 +72,22 @@ export default function StartHerePage() {
         </p>
         <Link
           href="/guides/find-your-why"
-          className="mt-7 inline-flex items-center gap-2 rounded-full border border-[var(--color-accent)] px-6 py-2.5 font-ui text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-primary)] transition hover:bg-[var(--color-accent)] hover:text-white"
+          className="mt-6 inline-flex items-center gap-2 rounded-full border border-[var(--color-accent)] px-6 py-2.5 font-ui text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-primary)] transition hover:bg-[var(--color-accent)] hover:text-white"
         >
           Take the first step <span aria-hidden>&rarr;</span>
         </Link>
-      </section>
 
-      {/* Small newsletter signup — right under the opener. */}
-      <section className="mx-auto mt-10 max-w-xl text-center">
-        <h2 className="font-display text-xl font-semibold text-[var(--color-primary)]">Or just get the good stuff in your inbox</h2>
-        <p className="mx-auto mt-1 max-w-md font-body text-sm text-[var(--color-text-secondary)]">
-          The points-and-miles moves actually worth caring about, minus the noise. Unsubscribe anytime.
-        </p>
-        <div className="mt-5">
-          <NewsletterSignup />
+        {/* Newsletter — the deliberate "or", set off by a hairline divider. */}
+        <div className="mx-auto mt-9 max-w-md border-t border-[var(--color-border-soft)] pt-8">
+          <h2 className="font-display text-xl font-semibold text-[var(--color-primary)]">Or just get the good stuff in your inbox</h2>
+          <p className="mx-auto mt-1 font-body text-sm text-[var(--color-text-secondary)]">
+            The points-and-miles moves actually worth caring about, minus the noise. Unsubscribe anytime.
+          </p>
+          <div className="mt-5">
+            <NewsletterSignup />
+          </div>
         </div>
-      </section>
+      </div>
 
       {/* Guides — the articles, driven by lib/guides.ts. */}
       <section className="mt-14 md:mt-16">
