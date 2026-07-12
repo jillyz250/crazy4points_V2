@@ -74,7 +74,7 @@ export default function StartHerePage() {
           href="/guides/find-your-why"
           className="mt-7 inline-flex items-center gap-2 rounded-full border border-[var(--color-accent)] px-6 py-2.5 font-ui text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-primary)] transition hover:bg-[var(--color-accent)] hover:text-white"
         >
-          Find your type <span aria-hidden>&rarr;</span>
+          Take the first step <span aria-hidden>&rarr;</span>
         </Link>
       </section>
 
