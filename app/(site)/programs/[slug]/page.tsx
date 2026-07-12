@@ -100,6 +100,16 @@ const BRG_BY_SLUG: Record<string, string> = {
   'bahia-principe': 'Match + 20% off or 5,000 points (via Hyatt)',
 }
 
+// Programs with a dedicated editorial guide (from lib/guides.ts). Surfaces a
+// callout under the intro linking to the deep-dive. Keyed by programs.slug.
+const GUIDE_BY_SLUG: Record<string, { href: string; title: string; blurb: string }> = {
+  aa: {
+    href: '/guides/how-to-upgrade-american-first-class',
+    title: 'How to upgrade to First on American',
+    blurb: 'Complimentary upgrades, Instant Upgrades with cash or miles, and the timing that actually gets you into First.',
+  },
+}
+
 export default async function ProgramPage({
   params,
   searchParams,
@@ -415,6 +425,39 @@ export default async function ProgramPage({
             </span>
             <span style={{ fontFamily: 'var(--font-ui)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-primary)', whiteSpace: 'nowrap' }}>
               How to win →
+            </span>
+          </a>
+        )}
+
+        {/* Related guide callout — programs with a dedicated /guides deep-dive. */}
+        {GUIDE_BY_SLUG[program.slug] && (
+          <a
+            href={GUIDE_BY_SLUG[program.slug].href}
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              gap: '0.75rem',
+              background: 'linear-gradient(135deg, #F1E7F8 0%, var(--color-background) 70%)',
+              border: '1px solid var(--color-border-soft)',
+              borderLeft: '4px solid var(--color-accent)',
+              borderRadius: 'var(--radius-card)',
+              padding: '1rem 1.25rem',
+              marginBottom: '2.5rem',
+              textDecoration: 'none',
+            }}
+          >
+            <span aria-hidden style={{ fontSize: '1.375rem', lineHeight: 1 }}>📘</span>
+            <span style={{ flex: '1 1 16rem', minWidth: 0 }}>
+              <span style={{ display: 'block', fontFamily: 'var(--font-display)', fontSize: '1.0625rem', fontWeight: 600, color: 'var(--color-primary)' }}>
+                {GUIDE_BY_SLUG[program.slug].title}
+              </span>
+              <span style={{ display: 'block', fontFamily: 'var(--font-body)', fontSize: '0.9375rem', color: 'var(--color-text-secondary)', lineHeight: 1.45 }}>
+                {GUIDE_BY_SLUG[program.slug].blurb}
+              </span>
+            </span>
+            <span style={{ fontFamily: 'var(--font-ui)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-primary)', whiteSpace: 'nowrap' }}>
+              Read the guide →
             </span>
           </a>
         )}
