@@ -65,6 +65,34 @@ export const GUIDES: Guide[] = [
   },
 ]
 
+/**
+ * Program → guide association. When a program has a dedicated deep-dive guide,
+ * its page shows a gold "Guide" pill in the hero + a related-guide callout under
+ * the intro. Keyed by programs.slug. `guideSlug` must match a GUIDES entry.
+ */
+export interface ProgramGuideLink {
+  guideSlug: string
+  /** Short title for the under-intro callout. */
+  calloutTitle: string
+  /** One-line blurb for the callout. */
+  calloutBlurb: string
+}
+
+export const GUIDE_BY_PROGRAM_SLUG: Record<string, ProgramGuideLink> = {
+  aa: {
+    guideSlug: 'how-to-upgrade-american-first-class',
+    calloutTitle: 'How to upgrade to First on American',
+    calloutBlurb:
+      'Complimentary upgrades, Instant Upgrades with cash or miles, and the timing that actually gets you into First.',
+  },
+}
+
+/** The guide (if any) associated with a program slug, with a ready href. */
+export function getProgramGuide(programSlug: string): (ProgramGuideLink & { href: string }) | null {
+  const link = GUIDE_BY_PROGRAM_SLUG[programSlug]
+  return link ? { ...link, href: `/guides/${link.guideSlug}` } : null
+}
+
 /** Guides in a category, featured first, then alphabetical by title. */
 export function guidesInCategory(key: GuideCategoryKey): Guide[] {
   return GUIDES.filter((g) => g.category === key).sort(

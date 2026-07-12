@@ -13,6 +13,7 @@ export default function ProgramPageHero({
   program,
   activeAlertCount,
   totalAlertCount,
+  guideHref,
   partners = [],
   homeCarrierSlugs = [],
   sections,
@@ -20,6 +21,9 @@ export default function ProgramPageHero({
   program: Program
   activeAlertCount: number
   totalAlertCount: number
+  /** When this program has a dedicated deep-dive guide, its URL. Renders a
+   *  gold "Guide" pill in the badge row linking straight to it. */
+  guideHref?: string
   /** Distinct operating-carrier programs derived from partner_redemptions.
    *  Renders as clickable partner pills next to the alliance/hubs row.
    *  Empty array hides the partners row entirely. */
@@ -153,6 +157,26 @@ export default function ProgramPageHero({
               {totalAlertCount} archived alert{totalAlertCount === 1 ? '' : 's'}
             </span>
           )
+        )}
+
+        {guideHref && (
+          <Link
+            href={guideHref}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: '0.3rem 0.7rem',
+              fontFamily: 'var(--font-ui)',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              color: '#1A1A1A',
+              background: 'var(--color-accent)',
+              borderRadius: '9999px',
+              textDecoration: 'none',
+            }}
+          >
+            Guide →
+          </Link>
         )}
 
         {updated && (
