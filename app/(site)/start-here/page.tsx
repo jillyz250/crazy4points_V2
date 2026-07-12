@@ -58,7 +58,7 @@ export default function StartHerePage() {
     <div className="rg-container px-6 pb-14 pt-8 md:px-8 md:pb-16 md:pt-10">
       {/* Intro: Find Your Why (primary action) + newsletter (the "or"), one
           cohesive centered block with a hairline divider between them. */}
-      <div className="mx-auto max-w-xl text-center">
+      <div className="mx-auto flex max-w-xl flex-col items-center text-center">
         <div className="flex items-center justify-center gap-3">
           <span aria-hidden className="h-px w-10" style={{ background: 'var(--color-accent)' }} />
           <span className="font-ui text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--color-accent)]">Step One</span>
@@ -72,7 +72,7 @@ export default function StartHerePage() {
         </p>
         <Link
           href="/guides/find-your-why"
-          className="mt-6 inline-flex items-center gap-2 rounded-full border border-[var(--color-accent)] px-6 py-2.5 font-ui text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-primary)] transition hover:bg-[var(--color-accent)] hover:text-white"
+          className="mt-6 inline-flex items-center gap-2 rounded-full border border-[var(--color-accent)] bg-[var(--color-accent)] px-6 py-2.5 font-ui text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-primary)] transition hover:bg-[var(--color-background)]"
         >
           Take the first step <span aria-hidden>&rarr;</span>
         </Link>
