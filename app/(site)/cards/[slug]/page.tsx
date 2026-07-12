@@ -11,6 +11,7 @@ import TransferPartnersTable from '@/components/programs/TransferPartnersTable'
 import RotatingCategoriesBanner from '@/components/cards/RotatingCategoriesBanner'
 import SimpleTile from '@/components/programs/SimpleTile'
 import { safeJsonLd } from '@/lib/jsonLd'
+import { getCardGuides } from '@/lib/guides'
 
 // Card editorial; stable after publish.
 export const revalidate = 3600
@@ -516,6 +517,42 @@ export default async function CardPage({
           </div>
         )}
       </section>
+
+      {/* Related guide callouts — cards wired to a deep-dive guide in
+          lib/guides.ts (GUIDE_BY_CARD_SLUG): portal price-match -> Best Rate
+          Guarantee; guaranteed-availability status -> sold-out-hotel guide. */}
+      {getCardGuides(card.slug).map((guide) => (
+        <a
+          key={guide.guideSlug}
+          href={guide.href}
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            gap: '0.75rem',
+            background: 'linear-gradient(135deg, #F1E7F8 0%, var(--color-background) 70%)',
+            border: '1px solid var(--color-border-soft)',
+            borderLeft: '4px solid var(--color-accent)',
+            borderRadius: 'var(--radius-card)',
+            padding: '1rem 1.25rem',
+            marginBottom: '1rem',
+            textDecoration: 'none',
+          }}
+        >
+          <span aria-hidden style={{ fontSize: '1.375rem', lineHeight: 1 }}>📘</span>
+          <span style={{ flex: '1 1 16rem', minWidth: 0 }}>
+            <span style={{ display: 'block', fontFamily: 'var(--font-display)', fontSize: '1.0625rem', fontWeight: 600, color: 'var(--color-primary)' }}>
+              {guide.calloutTitle}
+            </span>
+            <span style={{ display: 'block', fontFamily: 'var(--font-body)', fontSize: '0.9375rem', color: 'var(--color-text-secondary)', lineHeight: 1.45 }}>
+              {guide.calloutBlurb}
+            </span>
+          </span>
+          <span style={{ fontFamily: 'var(--font-ui)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-primary)', whiteSpace: 'nowrap' }}>
+            Read the guide →
+          </span>
+        </a>
+      ))}
 
       {/* Free benefits-checklist callout — CSR only for now. Links to the
           dedicated /tools lead-magnet page (which hosts the download + signup). */}
