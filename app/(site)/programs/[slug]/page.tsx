@@ -8,6 +8,7 @@ import AlertsGridSB from '@/components/alerts/AlertsGridSB'
 import ExpiredAlertsList from '@/components/alerts/ExpiredAlertsList'
 import { isAlertActive, isAlertFresh } from '@/lib/alertExpiry'
 import ProgramPageHero from '@/components/programs/ProgramPageHero'
+import { getProgramGuide } from '@/lib/guides'
 import PropertiesTable from '@/components/programs/PropertiesTable'
 import CardsThatEarnIntoProgram from '@/components/cards/CardsThatEarnIntoProgram'
 import ActivePromosSection from '@/components/programs/ActivePromosSection'
@@ -98,16 +99,6 @@ const BRG_BY_SLUG: Record<string, string> = {
   'club-med': 'Match + 10% off',
   barcelo: 'Match + 10% off',
   'bahia-principe': 'Match + 20% off or 5,000 points (via Hyatt)',
-}
-
-// Programs with a dedicated editorial guide (from lib/guides.ts). Surfaces a
-// callout under the intro linking to the deep-dive. Keyed by programs.slug.
-const GUIDE_BY_SLUG: Record<string, { href: string; title: string; blurb: string }> = {
-  aa: {
-    href: '/guides/how-to-upgrade-american-first-class',
-    title: 'How to upgrade to First on American',
-    blurb: 'Complimentary upgrades, Instant Upgrades with cash or miles, and the timing that actually gets you into First.',
-  },
 }
 
 export default async function ProgramPage({
@@ -329,6 +320,9 @@ export default async function ProgramPage({
     },
   }
 
+  // Dedicated deep-dive guide for this program (gold hero pill + intro callout).
+  const programGuide = getProgramGuide(program.slug)
+
   return (
     <section className="rg-major-section !pt-8">
       <script
@@ -365,6 +359,7 @@ export default async function ProgramPage({
           program={program}
           activeAlertCount={active.length}
           totalAlertCount={allAlerts.length}
+          guideHref={programGuide?.href}
           partners={Array.from(
             new Map(
               redemptionsAsCurrency
@@ -430,9 +425,9 @@ export default async function ProgramPage({
         )}
 
         {/* Related guide callout — programs with a dedicated /guides deep-dive. */}
-        {GUIDE_BY_SLUG[program.slug] && (
+        {programGuide && (
           <a
-            href={GUIDE_BY_SLUG[program.slug].href}
+            href={programGuide.href}
             style={{
               display: 'flex',
               flexWrap: 'wrap',
@@ -450,10 +445,10 @@ export default async function ProgramPage({
             <span aria-hidden style={{ fontSize: '1.375rem', lineHeight: 1 }}>📘</span>
             <span style={{ flex: '1 1 16rem', minWidth: 0 }}>
               <span style={{ display: 'block', fontFamily: 'var(--font-display)', fontSize: '1.0625rem', fontWeight: 600, color: 'var(--color-primary)' }}>
-                {GUIDE_BY_SLUG[program.slug].title}
+                {programGuide.calloutTitle}
               </span>
               <span style={{ display: 'block', fontFamily: 'var(--font-body)', fontSize: '0.9375rem', color: 'var(--color-text-secondary)', lineHeight: 1.45 }}>
-                {GUIDE_BY_SLUG[program.slug].blurb}
+                {programGuide.calloutBlurb}
               </span>
             </span>
             <span style={{ fontFamily: 'var(--font-ui)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-primary)', whiteSpace: 'nowrap' }}>
