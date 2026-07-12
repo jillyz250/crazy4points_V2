@@ -135,6 +135,47 @@ export function getProgramGuides(programSlug: string): Array<ProgramGuideLink & 
   return (GUIDE_BY_PROGRAM_SLUG[programSlug] ?? []).map((g) => ({ ...g, href: `/guides/${g.guideSlug}` }))
 }
 
+/**
+ * Card → guide association. Surfaces a related-guide callout on a card's
+ * /cards/[slug] page. Keyed by credit_cards.slug. Two angles are wired:
+ *  - Best Rate Guarantee guide on cards whose travel portal price-matches.
+ *  - Sold-out-hotel guide on cards that grant a guaranteed-availability tier.
+ */
+export const GUIDE_BY_CARD_SLUG: Record<string, ProgramGuideLink[]> = {
+  // Travel-portal price match -> Best Rate Guarantee guide
+  'capital-one-venture-x': [
+    { guideSlug: 'hotel-best-rate-guarantees', calloutTitle: 'Capital One Travel price-matches your hotel', calloutBlurb: 'It refunds 100% of the difference if the price drops. Our guide covers every hotel and travel-portal price guarantee.' },
+  ],
+  'capital-one-venture': [
+    { guideSlug: 'hotel-best-rate-guarantees', calloutTitle: 'Capital One Travel price-matches your hotel', calloutBlurb: 'It refunds 100% of the difference if the price drops. Our guide covers every hotel and travel-portal price guarantee.' },
+  ],
+  'amex-platinum': [
+    { guideSlug: 'hotel-best-rate-guarantees', calloutTitle: 'Amex Travel has a hotel price guarantee', calloutBlurb: 'Our best rate guarantee guide covers Amex Travel plus every major hotel and portal price match.' },
+  ],
+  'amex-gold': [
+    { guideSlug: 'hotel-best-rate-guarantees', calloutTitle: 'Amex Travel has a hotel price guarantee', calloutBlurb: 'Our best rate guarantee guide covers Amex Travel plus every major hotel and portal price match.' },
+  ],
+  // Guaranteed-availability status -> sold-out-hotel guide (CSR gets both)
+  'chase-sapphire-reserve': [
+    { guideSlug: 'how-to-book-a-sold-out-hotel', calloutTitle: 'This card can book sold-out hotels', calloutBlurb: 'Your IHG Platinum (and Hyatt Explorist at $75K spend) unlocks guaranteed room availability. Here is how to use it.' },
+    { guideSlug: 'hotel-best-rate-guarantees', calloutTitle: 'Every hotel best rate guarantee, in one place', calloutBlurb: 'Who price-matches, what you get, and how to win a claim, from official terms.' },
+  ],
+  'chase-ihg-one-rewards-premier': [
+    { guideSlug: 'how-to-book-a-sold-out-hotel', calloutTitle: 'Book sold-out IHG hotels with this card', calloutBlurb: 'Its automatic IHG Platinum status guarantees a standard room 72 hours out, even when the hotel shows sold out.' },
+  ],
+  'amex-hilton-honors-aspire': [
+    { guideSlug: 'how-to-book-a-sold-out-hotel', calloutTitle: 'Book sold-out Hiltons with this card', calloutBlurb: 'Aspire’s automatic Hilton Diamond unlocks guaranteed room availability 48 hours out.' },
+  ],
+  'marriott-bonvoy-brilliant': [
+    { guideSlug: 'how-to-book-a-sold-out-hotel', calloutTitle: 'Book sold-out Marriotts with this card', calloutBlurb: 'Brilliant’s automatic Marriott Platinum unlocks guaranteed room availability 48 hours out.' },
+  ],
+}
+
+/** All guides associated with a card slug, each with a ready href. */
+export function getCardGuides(cardSlug: string): Array<ProgramGuideLink & { href: string }> {
+  return (GUIDE_BY_CARD_SLUG[cardSlug] ?? []).map((g) => ({ ...g, href: `/guides/${g.guideSlug}` }))
+}
+
 /** Guides in a category, featured first, then alphabetical by title. */
 export function guidesInCategory(key: GuideCategoryKey): Guide[] {
   return GUIDES.filter((g) => g.category === key).sort(
