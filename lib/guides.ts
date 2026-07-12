@@ -47,6 +47,15 @@ export const GUIDES: Guide[] = [
     featured: true,
   },
   {
+    slug: 'how-to-book-a-sold-out-hotel',
+    title: 'How to Book a Sold-Out Hotel',
+    description:
+      'Guaranteed room availability: the elite perk that books you a standard room when a hotel shows sold out, and the cheapest cards that unlock it.',
+    category: 'hotels',
+    updated: '2026-07-12',
+    featured: true,
+  },
+  {
     slug: 'hotel-best-rate-guarantees',
     title: 'Hotel & Travel-Portal Best Rate Guarantees',
     description:
@@ -85,6 +94,38 @@ export const GUIDE_BY_PROGRAM_SLUG: Record<string, ProgramGuideLink[]> = {
       calloutTitle: 'How to upgrade to First on American',
       calloutBlurb:
         'Complimentary upgrades, Instant Upgrades with cash or miles, and the timing that actually gets you into First.',
+    },
+  ],
+  hyatt: [
+    {
+      guideSlug: 'how-to-book-a-sold-out-hotel',
+      calloutTitle: 'Book a sold-out Hyatt with Explorist status',
+      calloutBlurb:
+        'Hyatt is the only program where mid-tier status unlocks guaranteed room availability. Here is how to use it.',
+    },
+  ],
+  ihg: [
+    {
+      guideSlug: 'how-to-book-a-sold-out-hotel',
+      calloutTitle: 'Book a sold-out IHG hotel with Platinum status',
+      calloutBlurb:
+        'IHG Platinum guarantees a standard room 72 hours out, and the ~$99 IHG Premier card hands you that status.',
+    },
+  ],
+  'marriott-bonvoy': [
+    {
+      guideSlug: 'how-to-book-a-sold-out-hotel',
+      calloutTitle: 'Book a sold-out Marriott with Platinum status',
+      calloutBlurb:
+        'Marriott Platinum and above get a standard room even when sold out, if you book 48 hours ahead.',
+    },
+  ],
+  hilton: [
+    {
+      guideSlug: 'how-to-book-a-sold-out-hotel',
+      calloutTitle: 'Book a sold-out Hilton with Diamond status',
+      calloutBlurb:
+        'Hilton Diamond guarantees a standard room 48 hours out, and the Aspire card hands you Diamond automatically.',
     },
   ],
 }
