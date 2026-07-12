@@ -81,7 +81,7 @@ const p = 'mt-4 font-body text-[var(--color-text-primary)]'
 export default function AaFirstClassUpgradeGuide() {
   return (
     <main className="rg-major-section">
-      <div className="rg-container" style={{ maxWidth: '64rem' }}>
+      <div className="rg-container rg-guide" style={{ maxWidth: '64rem' }}>
         <span className="mb-4 inline-flex items-center gap-2 rounded-full bg-[var(--color-accent)] px-2.5 py-1 font-ui text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-[#1A1A1A]">
           Guide · Last verified July 12, 2026
         </span>
