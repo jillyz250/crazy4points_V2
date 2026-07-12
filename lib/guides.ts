@@ -38,6 +38,15 @@ export interface Guide {
 
 export const GUIDES: Guide[] = [
   {
+    slug: 'find-your-why',
+    title: 'What Kind of Points Traveler Are You?',
+    description:
+      'Before you pick a card, figure out what you actually want from travel. Find your "why," and the "how" gets easy.',
+    category: 'getting-started',
+    updated: '2026-07-12',
+    featured: true,
+  },
+  {
     slug: 'how-to-upgrade-american-first-class',
     title: 'How to Upgrade to First Class on American Airlines',
     description:
