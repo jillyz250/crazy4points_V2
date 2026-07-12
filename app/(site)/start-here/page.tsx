@@ -1,5 +1,7 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import NewsletterSignup from '@/components/home/NewsletterSignup'
+import { GUIDES } from '@/lib/guides'
 
 export const metadata: Metadata = {
   title: 'Start Here',
@@ -66,6 +68,25 @@ export default function StartHerePage() {
         </a>
       </header>
 
+      {/* First step: the cornerstone Find Your Why guide. */}
+      <Link
+        href="/guides/find-your-why"
+        className="group mx-auto mt-12 flex max-w-2xl flex-wrap items-center gap-4 rounded-[var(--radius-card)] border border-[var(--color-border-soft)] p-5 shadow-[var(--shadow-soft)] transition hover:-translate-y-0.5 hover:border-[var(--color-primary)]/40"
+        style={{ background: 'linear-gradient(135deg, #F1E7F8 0%, var(--color-background) 70%)' }}
+      >
+        <span aria-hidden className="text-2xl leading-none">&#129517;</span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-ui text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--color-primary)]">Step one</span>
+          <span className="block font-display text-lg font-semibold text-[var(--color-primary)]">Figure out your why</span>
+          <span className="block font-body text-sm text-[var(--color-text-secondary)]">
+            What kind of points traveler are you? Name it first, and every card and trip decision gets easier.
+          </span>
+        </span>
+        <span aria-hidden className="font-ui text-xs font-bold uppercase tracking-[0.1em] text-[var(--color-primary)]">
+          Start &rarr;
+        </span>
+      </Link>
+
       {/* USE — lead with the dream */}
       <section className="mt-14 md:mt-16">
         <h2 className="font-display text-2xl font-semibold text-[var(--color-primary)] md:text-3xl">How do I use points to travel?</h2>
@@ -89,6 +110,30 @@ export default function StartHerePage() {
           <span className="font-semibold text-[var(--color-text-primary)]">A quick grown-up note.</span>{' '}
           Travel cards only pay off if you clear your balance every month &mdash; interest costs more than any points are worth. If a balance might linger, a simple cash-back card (or no new card at all) is the smarter call.
         </p>
+      </section>
+
+      {/* Guides — the plain-English playbooks, driven by lib/guides.ts. */}
+      <section className="mt-14 md:mt-16">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="font-display text-2xl font-semibold text-[var(--color-primary)] md:text-3xl">Guides worth reading</h2>
+          <Link href="/guides" className="font-ui text-sm font-semibold text-[var(--color-primary)] underline-offset-4 hover:underline">Browse all guides &rarr;</Link>
+        </div>
+        <p className="mt-2 font-body text-[var(--color-text-secondary)]">Plain-English playbooks for getting more out of your points.</p>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          {GUIDES.filter((g) => g.featured).map((g) => (
+            <Link
+              key={g.slug}
+              href={`/guides/${g.slug}`}
+              className="group flex flex-col gap-1.5 rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] p-5 shadow-[var(--shadow-soft)] transition hover:-translate-y-0.5 hover:border-[var(--color-primary)]/40"
+            >
+              <span className="font-display text-base font-semibold text-[var(--color-primary)]">{g.title}</span>
+              <span className="font-body text-sm text-[var(--color-text-secondary)]">{g.description}</span>
+              <span className="mt-1 font-ui text-xs font-semibold uppercase tracking-[0.1em] text-[var(--color-primary)]">
+                Read <span aria-hidden className="transition-transform duration-200 group-hover:translate-x-1 inline-block">&rarr;</span>
+              </span>
+            </Link>
+          ))}
+        </div>
       </section>
 
       {/* Roadmap — collapsed, clearly separated */}
@@ -116,6 +161,17 @@ export default function StartHerePage() {
           <strong className="text-[var(--color-text-primary)]">The only four words you need today:</strong>{' '}
           Transferable points &middot; Sign-up bonus &middot; Award (a points booking) &middot; Sweet spot (an outsized deal).
         </p>
+      </section>
+
+      {/* Newsletter — the recurring reason to come back. */}
+      <section className="mt-16 text-center">
+        <h2 className="font-display text-2xl font-semibold text-[var(--color-primary)] md:text-3xl">Get the good stuff in your inbox</h2>
+        <p className="mx-auto mt-2 max-w-xl font-body text-[var(--color-text-secondary)]">
+          The points-and-miles moves actually worth caring about, plus the occasional alert when something time-sensitive hits. No spam, unsubscribe anytime.
+        </p>
+        <div className="mt-6">
+          <NewsletterSignup />
+        </div>
       </section>
     </div>
   )
