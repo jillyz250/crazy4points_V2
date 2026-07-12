@@ -28,36 +28,41 @@ const WHY = [
   `And ignore anyone who tells you there's one "right" redemption, that economy flights are a waste or luxury hotels are the only real use. A redemption works if it gets you what you wanted, full stop. Skip this step and you'll own a wallet of cards that don't serve you and points you're scared to spend. Nail it and you'll feel like you're in on a secret most travelers don't even know exists.`,
 ]
 
-const TYPES: { n: number; name: string; body: string; instinct: string }[] = [
+const TYPES: { n: number; name: string; body: string; instinct: string; anchor: string }[] = [
   {
     n: 1,
     name: 'The Deal-Seeker',
     body: `You're not chasing luxury, you're chasing a lighter bill. Maybe that's cash back, maybe it's a free flight so the family wedding costs less, maybe it's a Best Buy gift card for the laptop your kid needs for school. You're perfectly happy paying cash for a normal hotel and a normal rental car, as long as points knocked something meaningful off the total.`,
     instinct: `Your instinct: earn simply and aim your points at your single biggest cost, usually the flights.`,
+    anchor: 'deal-seeker',
   },
   {
     n: 2,
     name: 'The Little-Luxury Blender',
     body: `Normal trips, just a notch nicer than you'd otherwise spring for. The airport lounge with real food and a quiet chair instead of a nine-dollar terminal sandwich. The 4 p.m. late checkout so you're not homeless from eleven until your red-eye. The room upgrade, the free breakfast, the rental car that's somehow a convertible now.`,
     instinct: `Your instinct: flexible points plus a card that throws in lounge access and hotel status, so you can aim the perks at whichever trip needs them.`,
+    anchor: 'little-luxury-blender',
   },
   {
     n: 3,
     name: 'The Splurger',
     body: `Points buy the stuff you'd never pay cash for. The lie-flat suite, the overwater villa, the lounge you actually want to sit in before you've even boarded, even the VIP experiences some premium cards unlock (presale tickets, chef's-table dinners). You're not saving a few bucks on normal travel, you're unlocking a version of travel that used to be off-limits.`,
     instinct: `Your instinct: chase the aspirational redemptions, where points massively out-punch their cash value.`,
+    anchor: 'splurger',
   },
   {
     n: 4,
     name: 'The Dream-Tripper',
     body: `You bank everything for one enormous, almost-free, all-out trip. The honeymoon. The bucket-list safari. The two weeks you could never otherwise justify.`,
     instinct: `Your instinct: hoard flexible points patiently, then spend them all on one epic redemption.`,
+    anchor: 'dream-tripper',
   },
   {
     n: 5,
     name: 'The Value Gamer',
     body: `You want the luxury and the deal, and you're not picking one, thanks. Mine: I once booked a lie-flat seat that sells for around $10,000, and I paid 60,000 points for it. I've never slept better at thirty-eight thousand feet, and honestly? Half the reason is I couldn't stop grinning about the deal. That's the whole rush. The arbitrage, the little dopamine hit of pulling off something most people are dead sure is impossible. And no, I'm not a gatekeeper about it, because this game's a lot more fun as a group project. It's not just the trip, it's the win.`,
     instinct: `Your instinct: learn the sweet spots, ride the transfer bonuses, and treat the whole thing as a game worth getting good at. (Hi, this one's me.)`,
+    anchor: 'value-gamer',
   },
 ]
 
@@ -119,6 +124,13 @@ export default function FindYourWhyGuide() {
               </p>
               <p style={{ marginTop: '0.5rem', fontFamily: 'var(--font-body)', color: 'var(--color-text-primary)', lineHeight: 1.55 }}>{t.body}</p>
               <p style={{ marginTop: '0.625rem', fontFamily: 'var(--font-body)', fontStyle: 'italic', color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>{t.instinct}</p>
+              <Link
+                href={`/guides/best-first-card#${t.anchor}`}
+                className="mt-3 inline-flex items-center gap-1 font-ui text-xs font-semibold uppercase tracking-[0.1em] text-[var(--color-primary)] underline-offset-4 hover:underline"
+              >
+                Best cards for {t.name.replace('The ', 'the ')}
+                <span aria-hidden className="inline-block transition-transform duration-200 group-hover:translate-x-1">&rarr;</span>
+              </Link>
             </div>
           ))}
         </div>
