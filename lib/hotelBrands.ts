@@ -78,6 +78,59 @@ export const HOTEL_BRANDS: Record<string, BrandSegment[]> = {
     { segment: 'Economy', brands: ['Econo Lodge', 'Rodeway Inn'] },
     { segment: 'Extended Stay', brands: ['WoodSpring Suites', 'Everhome Suites', 'MainStay Suites', 'Suburban Studios'] },
   ],
+  // Source: all.accor.com/a/en/brands.html (official brand directory). Core
+  // globally-recognized hotel brands; non-hotel lines (Thalassa spa,
+  // Onefinestay villas, loyalty/partner labels) omitted.
+  accor: [
+    { segment: 'Luxury', brands: ['Raffles', 'Orient Express', 'Faena', 'Fairmont', 'Sofitel', 'Sofitel Legend', 'Rixos', 'Emblems', 'MGallery', 'Banyan Tree'] },
+    { segment: 'Lifestyle', brands: ['SO/', 'SLS', 'Delano', 'Mondrian', 'Hyde', 'The Hoxton', '25hours', 'Mama Shelter', 'TRIBE', 'JO&JOE', 'Morgans Originals', '21c', 'Art Series', 'Handwritten Collection'] },
+    { segment: 'Premium', brands: ['Pullman', 'Swissotel', 'Movenpick', 'Grand Mercure', 'Angsana', 'Mantis', 'Peppers', 'The Sebel'] },
+    { segment: 'Select', brands: ['Novotel', 'Mercure', 'Adagio', 'Mantra'] },
+    { segment: 'Economy', brands: ['ibis', 'ibis Styles', 'ibis budget', 'greet', 'hotelF1', 'BreakFree'] },
+  ],
+  // Source: radissonhotels.com/en-us/corporate/about-us/our-brands (Radisson
+  // Hotel Group / EMEA-APAC; the Americas brands are operated by Choice).
+  radisson: [
+    { segment: 'Luxury', brands: ['Radisson Collection'] },
+    { segment: 'Lifestyle', brands: ['Radisson RED', "art'otel", 'Radisson Individuals', 'Park Plaza'] },
+    { segment: 'Premium', brands: ['Radisson Blu'] },
+    { segment: 'Select', brands: ['Radisson', 'Park Inn by Radisson'] },
+    { segment: 'Economy', brands: ['Prize by Radisson'] },
+  ],
+  // Source: shangri-la.com/group (official four-brand portfolio).
+  'shangri-la': [
+    { segment: 'Luxury', brands: ['Shangri-La', 'Kerry Hotels'] },
+    { segment: 'Lifestyle', brands: ['JEN by Shangri-La'] },
+    { segment: 'Select', brands: ['Traders'] },
+  ],
+  // Source: bwhhotels.com / bestwestern.com brands (BWH Hotels: WorldHotels,
+  // Best Western, and SureStay families).
+  'best-western': [
+    { segment: 'Luxury', brands: ['WorldHotels Luxury', 'WorldHotels Elite'] },
+    { segment: 'Lifestyle', brands: ['Aiden', 'Sadie', 'Vib', 'Glo', 'WorldHotels Crafted', 'WorldHotels Distinctive'] },
+    { segment: 'Premium', brands: ['Best Western Premier', 'BW Premier Collection', 'WorldHotels Backdrop'] },
+    { segment: 'Select', brands: ['Best Western', 'Best Western Plus', 'BW Signature Collection'] },
+    { segment: 'Economy', brands: ['SureStay', 'SureStay Plus', 'SureStay Collection'] },
+    { segment: 'Extended Stay', brands: ['Executive Residency by Best Western', 'SureStay Studio'] },
+  ],
+  // Source: sonesta.com/our-brands (official; includes the Red Lion brands
+  // Sonesta acquired). Sonesta Cruises omitted (not a hotel brand).
+  sonesta: [
+    { segment: 'Luxury', brands: ['The Royal Sonesta', 'The James'] },
+    { segment: 'Lifestyle', brands: ['MOD', 'Classico'] },
+    { segment: 'Premium', brands: ['Sonesta Hotels & Resorts'] },
+    { segment: 'Select', brands: ['Sonesta Select', 'Sonesta Essential'] },
+    { segment: 'Economy', brands: ['Red Lion Hotels', 'Red Lion Inn & Suites', 'Signature Inn', 'Americas Best Value Inn', 'Canadas Best Value Inn'] },
+    { segment: 'Extended Stay', brands: ['Sonesta ES Suites', 'Sonesta Simply Suites'] },
+  ],
+  // Source: melia.com/en/brands (official).
+  melia: [
+    { segment: 'Luxury', brands: ['Gran Melia', 'ME by Melia'] },
+    { segment: 'Lifestyle', brands: ['Zel', 'Circle by Melia'] },
+    { segment: 'Premium', brands: ['Melia Hotels & Resorts', 'Innside by Melia'] },
+    { segment: 'Select', brands: ['Sol by Melia'] },
+    { segment: 'All-Inclusive', brands: ['Paradisus'] },
+  ],
 }
 
 /** Brand segments for a program slug (empty array if not yet populated). */
