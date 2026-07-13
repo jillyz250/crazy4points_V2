@@ -1,0 +1,16 @@
+{
+  "variant": "purple",
+  "eyebrow": "Hotel Best Rate Guarantee",
+  "headline": "Booked it, then found it cheaper?",
+  "payoff": "MAKE THEM PAY.",
+  "subtext": [
+    "Most hotels will match a lower price you find.",
+    "And some pay you on top:"
+  ],
+  "pills": [
+    "Hilton & Marriott: match + 25% off",
+    "Hyatt: match + 20% off or 5,000 points",
+    "Best Western: match + $100 gift card"
+  ],
+  "cta": "Full guide in the comments"
+}
