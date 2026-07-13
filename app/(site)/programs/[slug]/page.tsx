@@ -8,6 +8,8 @@ import AlertsGridSB from '@/components/alerts/AlertsGridSB'
 import ExpiredAlertsList from '@/components/alerts/ExpiredAlertsList'
 import { isAlertActive, isAlertFresh } from '@/lib/alertExpiry'
 import ProgramPageHero from '@/components/programs/ProgramPageHero'
+import BrandPills from '@/components/programs/BrandPills'
+import { getHotelBrands } from '@/lib/hotelBrands'
 import { getProgramGuides } from '@/lib/guides'
 import PropertiesTable from '@/components/programs/PropertiesTable'
 import CardsThatEarnIntoProgram from '@/components/cards/CardsThatEarnIntoProgram'
@@ -381,6 +383,7 @@ export default async function ProgramPage({
           sections={[
             ...(activePromos.length > 0 ? [{ id: 'active-promos', label: 'Active promos' }] : []),
             ...(program.intro ? [{ id: 'intro', label: 'Intro' }] : []),
+            ...(program.type === 'hotel' && getHotelBrands(program.slug).length > 0 ? [{ id: 'brands', label: 'Brands' }] : []),
             ...(program.award_chart ? [{ id: 'award-chart', label: 'Award chart' }] : []),
             ...((program.award_category_chart?.length ?? 0) > 0 && program.type !== 'alliance' ? [{ id: 'category-chart', label: 'Category chart' }] : []),
             ...((program.transfer_partners_outbound ?? []).filter(isPublishableTransferRow).length > 0 && program.type !== 'alliance' ? [{ id: 'transfer-partners', label: 'Transfer out' }] : []),
@@ -400,6 +403,13 @@ export default async function ProgramPage({
 
         {/* Intro paragraph stays visible — it's the on-ramp. */}
         <IntroBlock intro={program.intro} />
+
+        {/* Brand portfolio pills — hotels with brand data (see lib/hotelBrands.ts). */}
+        {program.type === 'hotel' && getHotelBrands(program.slug).length > 0 && (
+          <div id="brands" className="scroll-mt-24" style={{ marginBottom: '2.5rem' }}>
+            <BrandPills slug={program.slug} programName={program.name} />
+          </div>
+        )}
 
         {/* Best Rate Guarantee callout — hotels with a verified BRG only. */}
         {program.type === 'hotel' && BRG_BY_SLUG[program.slug] && (
