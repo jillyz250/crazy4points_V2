@@ -48,23 +48,23 @@ const TYPES: TravelerType[] = [
     tagline: `You're trying to spend less, period.`,
     winning: `I spent $500 less on that trip.`,
     anchor: {
-      name: 'Chase Freedom Unlimited',
-      slug: 'chase-freedom-unlimited',
+      name: 'Citi Double Cash',
+      slug: 'citi-double-cash',
       fee: 'No annual fee',
-      blurb: `1.5% back on everything, more on dining and drugstores, and no annual fee. The simplest possible start, and it grows with you: pair it with a Sapphire card down the road and that cash back turns into transferable travel points.`,
+      blurb: `2% back on everything you buy, no annual fee, nothing to think about: 1% when you buy, 1% when you pay it off. The purest "spend less" card there is, and it beats the flat rate on most no-fee cards.`,
     },
     alsoConsider: [
-      {
-        name: 'Chase Freedom Flex',
-        slug: 'chase-freedom-flex',
-        fee: 'No annual fee',
-        blurb: `The same free card, but with 5% rotating bonus categories each quarter and cell phone protection built in.`,
-      },
       {
         name: 'Capital One Venture',
         slug: 'capital-one-venture',
         fee: '$95 a year',
-        blurb: `2x on everything, and the miles erase any travel purchase: book the flight, then wipe it off your bill. Dead simple. Transferring those miles to airline partners later can stretch them further, but you never have to.`,
+        blurb: `2x on everything, and the miles erase any travel purchase: book the flight, then wipe it off your bill. Dead simple, and the miles transfer to airlines on their own if you ever want to stretch them further.`,
+      },
+      {
+        name: 'Chase Sapphire Preferred',
+        slug: 'chase-sapphire-preferred',
+        fee: '$95 a year',
+        blurb: `The step up when you want a bigger win: the welcome bonus alone can knock a whole flight off your next trip, and unlike a cash-back card, its points transfer to airlines and hotels on their own. Worth the $95 if you'll use it.`,
       },
       {
         name: 'IHG One Rewards Premier',
