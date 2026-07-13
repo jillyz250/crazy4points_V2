@@ -47,6 +47,14 @@ export const GUIDES: Guide[] = [
     featured: true,
   },
   {
+    slug: 'rakuten-cash-back-to-amex-points',
+    title: 'How to Turn Rakuten Cash Back Into Amex Points',
+    description:
+      'Take your Rakuten cash back as Amex Membership Rewards points instead of a check, and turn everyday shopping into transferable travel points.',
+    category: 'cards',
+    updated: '2026-07-13',
+  },
+  {
     slug: 'best-first-card',
     title: 'The Best First Card for Every Type of Traveler',
     description:
