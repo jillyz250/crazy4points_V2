@@ -123,6 +123,7 @@ If a URL might vary by region/login (e.g. Flying Blue has `flyingblue.com/en/...
 6. **Points expiry / inactivity policy.**
 7. **Peak/off-peak pricing methodology** — from the program's official explanation page.
 8. **All-inclusive / resort property award rules** (if the program has them).
+9. **Perpetual non-loyalty promo offers** — from the program's `/offers/` or `/promotions/` page. These are recurring discounts that aren't points plays (e.g. Accor Family & Co. = 50% off 2nd room with kids, Hilton suite-night offers, recurring resort-credit promos, member-only cash rates, friends-and-family rates). They belong in Sweet Spots (the offer itself) and Tips & Quirks (the fine print — stackability, exclusions). **Award blogs routinely miss these** because they're cash discounts, not points redemptions; pulling directly from the program's offers page is the only reliable way to surface them. Without this step we'll consistently under-author programs whose best benefits aren't points-based.
 
 **Alliances — request these official paste-ins:**
 1. **Member airlines list with destinations + countries** — the alliance's official members page (e.g. [oneworld.com/members](https://www.oneworld.com/members), [skyteam.com/en/about/members](https://www.skyteam.com/en/about/members), [staralliance.com/en/member-airlines](https://www.staralliance.com/en/member-airlines)). Paste the full member list including any suspended carriers and any oneworld connect / regional affiliates.

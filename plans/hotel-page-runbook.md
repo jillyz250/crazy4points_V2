@@ -54,6 +54,7 @@ LLMs (Claude + any fact-checker) all draw from the same secondary blog pool — 
   - Milesopedia (good for cross-comparison)
 - [ ] Pull from the **official program site** for: tier benefits, award category chart, free-night-certificate rules, suite upgrade rules, peak/off-peak pricing, expiration policy
 - [ ] Confirm the **co-brand credit card free night certificate rules** — which categories does each card unlock? E.g. Chase Hyatt personal = Cat 1-4, Hyatt Biz = Cat 1-4, Bonvoy Boundless = up to 35K-point properties.
+- [ ] **Walk the program's `/offers/` or `/promotions/` section for perpetual non-loyalty promos.** Family discounts (Accor Family & Co. = 50% off second room), suite-night offers, recurring resort credits, member-only cash rates, friends-and-family rates, seasonal promos that run year after year. These are real value-adds that **award blogs routinely miss** because they're not points plays. They belong in **Sweet spots** (the offer itself) and **Tips & quirks** (the fine print — stackability, exclusions). Without this step we'll consistently under-author programs whose best benefits aren't points-based.
 - [ ] Cross-check current peak/off-peak rates against a 2026-dated article — programs adjust pricing on a rolling basis
 - [ ] Save **all source URLs** as you go — they go into the source list at the end
 
