@@ -64,14 +64,14 @@ export default function WhyQuiz() {
             >
               {/* Inner div carries the visuals: the global `button { background: none }`
                   reset would kill any bg on the <button> itself. */}
-              <div className="flex items-center gap-3.5 rounded-[var(--radius-card)] border-2 border-[var(--color-border-soft)] bg-[var(--color-background)] px-4 py-4 transition duration-150 group-hover:-translate-y-0.5 group-hover:border-[var(--color-primary)] group-hover:bg-[var(--color-primary)] group-hover:shadow-[var(--shadow-soft)] group-active:-translate-y-0.5 group-active:border-[var(--color-primary)] group-active:bg-[var(--color-primary)]">
+              <div className="flex items-center gap-3.5 rounded-[var(--radius-card)] border-2 border-[var(--color-border-soft)] bg-[var(--color-background)] px-4 py-4 transition-transform duration-150 group-hover:-translate-y-0.5 group-hover:border-[var(--color-primary)] group-hover:bg-[var(--color-primary)] group-hover:shadow-[var(--shadow-soft)] group-active:-translate-y-0.5 group-active:border-[var(--color-primary)] group-active:bg-[var(--color-primary)]">
                 <span
                   aria-hidden
-                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-[var(--color-border-soft)] transition group-hover:border-white group-active:border-white"
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-[var(--color-border-soft)] group-hover:border-white group-active:border-white"
                 >
-                  <span className="h-2.5 w-2.5 rounded-full bg-[var(--color-primary)] opacity-0 transition group-hover:bg-white group-hover:opacity-100 group-active:bg-white group-active:opacity-100" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-[var(--color-primary)] opacity-0 group-hover:bg-white group-hover:opacity-100 group-active:bg-white group-active:opacity-100" />
                 </span>
-                <span className="font-body text-[var(--color-text-primary)] transition-colors group-hover:text-white group-active:text-white">
+                <span className="font-body text-[var(--color-text-primary)] group-hover:text-white group-active:text-white">
                   {o.label}
                 </span>
               </div>
