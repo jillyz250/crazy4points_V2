@@ -60,17 +60,21 @@ export default function WhyQuiz() {
               key={o.type}
               type="button"
               onClick={() => setAnswers((a) => [...a, o.type])}
-              className="group flex w-full items-center gap-3.5 rounded-[var(--radius-card)] border-2 border-[var(--color-border-soft)] bg-[var(--color-background)] px-4 py-4 text-left transition duration-150 hover:-translate-y-0.5 hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:shadow-[var(--shadow-soft)] active:-translate-y-0.5 active:border-[var(--color-primary)] active:bg-[var(--color-primary)]"
+              className="group block w-full text-left"
             >
-              <span
-                aria-hidden
-                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-[var(--color-border-soft)] transition group-hover:border-white group-active:border-white"
-              >
-                <span className="h-2.5 w-2.5 rounded-full bg-[var(--color-primary)] opacity-0 transition group-hover:bg-white group-hover:opacity-100 group-active:bg-white group-active:opacity-100" />
-              </span>
-              <span className="font-body text-[var(--color-text-primary)] transition-colors group-hover:text-white group-active:text-white">
-                {o.label}
-              </span>
+              {/* Inner div carries the visuals: the global `button { background: none }`
+                  reset would kill any bg on the <button> itself. */}
+              <div className="flex items-center gap-3.5 rounded-[var(--radius-card)] border-2 border-[var(--color-border-soft)] bg-[var(--color-background)] px-4 py-4 transition duration-150 group-hover:-translate-y-0.5 group-hover:border-[var(--color-primary)] group-hover:bg-[var(--color-primary)] group-hover:shadow-[var(--shadow-soft)] group-active:-translate-y-0.5 group-active:border-[var(--color-primary)] group-active:bg-[var(--color-primary)]">
+                <span
+                  aria-hidden
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-[var(--color-border-soft)] transition group-hover:border-white group-active:border-white"
+                >
+                  <span className="h-2.5 w-2.5 rounded-full bg-[var(--color-primary)] opacity-0 transition group-hover:bg-white group-hover:opacity-100 group-active:bg-white group-active:opacity-100" />
+                </span>
+                <span className="font-body text-[var(--color-text-primary)] transition-colors group-hover:text-white group-active:text-white">
+                  {o.label}
+                </span>
+              </div>
             </button>
           ))}
         </div>
