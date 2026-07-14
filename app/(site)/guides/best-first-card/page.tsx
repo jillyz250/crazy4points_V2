@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { TRAVELER_TYPES, type Pick } from '@/lib/travelerTypes'
 
 export const metadata: Metadata = {
   title: 'The Best First Card for Every Type of Traveler',
@@ -18,183 +19,11 @@ export const metadata: Metadata = {
 
 export const revalidate = 86400
 
-interface Pick {
-  name: string
-  slug: string
-  fee: string
-  blurb: string
-}
-
-interface TravelerType {
-  id: string
-  name: string
-  tagline: string
-  winning: string
-  anchor: Pick
-  alsoConsider: Pick[]
-  /** Optional honest caveat or extra note rendered under the picks. */
-  note?: string
-}
-
 const INTRO = [
   `You've found your why. Now for the only question that actually matters when you're starting out: which card do you apply for? Not which twelve. Which one.`,
   `Below is a single anchor pick for each of the five traveler types, plus a couple of alternatives if the anchor isn't quite you. Every fee, welcome bonus, and perk here is pulled straight from the card's real terms, and none of these picks are here because they pay us. They're here because they fit.`,
 ]
 
-const TYPES: TravelerType[] = [
-  {
-    id: 'deal-seeker',
-    name: 'The Deal-Seeker',
-    tagline: `You're trying to spend less, period.`,
-    winning: `I spent $500 less on that trip.`,
-    anchor: {
-      name: 'Citi Double Cash',
-      slug: 'citi-double-cash',
-      fee: 'No annual fee',
-      blurb: `2% back on everything you buy, no annual fee, nothing to think about: 1% when you buy, 1% when you pay it off. The purest "spend less" card there is, and it beats the flat rate on most no-fee cards.`,
-    },
-    alsoConsider: [
-      {
-        name: 'Capital One Venture',
-        slug: 'capital-one-venture',
-        fee: '$95 a year',
-        blurb: `2x on everything, and the miles erase any travel purchase: book the flight, then wipe it off your bill. Dead simple, and the miles transfer to airlines on their own if you ever want to stretch them further.`,
-      },
-      {
-        name: 'Chase Sapphire Preferred',
-        slug: 'chase-sapphire-preferred',
-        fee: '$95 a year',
-        blurb: `The step up when you want a bigger win: the welcome bonus alone can knock a whole flight off your next trip, and unlike a cash-back card, its points transfer to airlines and hotels on their own. Worth the $95 if you'll use it.`,
-      },
-      {
-        name: 'IHG One Rewards Premier',
-        slug: 'chase-ihg-one-rewards-premier',
-        fee: '$99 a year',
-        blurb: `The deal-seeker's quiet secret weapon: a hotel card whose annual free night reliably covers a room worth more than the fee. About as close to free money as this hobby gets.`,
-      },
-    ],
-  },
-  {
-    id: 'little-luxury-blender',
-    name: 'The Little-Luxury Blender',
-    tagline: `A notch nicer than usual.`,
-    winning: `Same vacation. Better experience.`,
-    anchor: {
-      name: 'Capital One Venture X',
-      slug: 'capital-one-venture-x',
-      fee: '$395 a year',
-      blurb: `Lounge access (Capital One's own lounges plus Priority Pass), a $300 travel credit, and 10,000 anniversary miles that together roughly cancel out the fee. It's the one card that delivers "a notch nicer" without jumping to the $795 tier. Best value if you'll actually use that annual travel credit.`,
-    },
-    alsoConsider: [
-      {
-        name: 'Chase Sapphire Preferred',
-        slug: 'chase-sapphire-preferred',
-        fee: '$95 a year',
-        blurb: `The cheapest way into flexible, transferable points. No lounge access, but a low fee and a great starter for aiming perks at whichever trip needs them.`,
-      },
-      {
-        name: 'Chase Sapphire Reserve',
-        slug: 'chase-sapphire-reserve',
-        fee: '$795 a year',
-        blurb: `Budget permitting: more lounges, richer hotel credits, and stronger travel protection than the Preferred.`,
-      },
-    ],
-    note: `Notice there's no co-brand hotel card here on purpose. For the Blender, flexible points are the stronger move, because they can become hotel nights or airline seats later. You stay unlocked until the trip tells you what it needs.`,
-  },
-  {
-    id: 'splurger',
-    name: 'The Splurger',
-    tagline: `Points buy the stuff you'd never pay cash for.`,
-    winning: `I flew a cabin I'd never pay cash for.`,
-    anchor: {
-      name: 'The Platinum Card from American Express',
-      slug: 'amex-platinum',
-      fee: '$895 a year',
-      blurb: `5x points on flights booked directly with airlines or through Amex Travel, Centurion Lounge access, Fine Hotels + Resorts perks, and transferable points that turn into international business and first class, where they out-punch cash by a wide margin. One tip: pair it with the Amex Gold for everyday earning, because the Platinum only earns 1x at the grocery store.`,
-    },
-    alsoConsider: [
-      {
-        name: 'Chase Sapphire Reserve',
-        slug: 'chase-sapphire-reserve',
-        fee: '$795 a year',
-        blurb: `The Chase version of the flagship: transfer to Hyatt and airline partners, Sapphire lounge access, and Points Boost on travel.`,
-      },
-      {
-        name: 'Hilton Honors Aspire',
-        slug: 'amex-hilton-honors-aspire',
-        fee: '$550 a year',
-        blurb: `The hotel-luxury play, and the answer to "can I use points at the fancy Hiltons?" Yes: automatic Hilton Diamond status (upgrades, free breakfast, lounge access) plus an annual free night you can use at nearly any Hilton, including the Waldorf Astoria and Conrad luxury brands.`,
-      },
-    ],
-    note: `One honest caveat on hotels: most co-brand free-night certificates are capped in value, so they're perfect for a nice mid-tier hotel but usually won't cover a night at the very top luxury properties. For those, you want an uncapped certificate like the Aspire's, or raw points, ideally Hyatt, whose award chart makes even Park Hyatts reachable.`,
-  },
-  {
-    id: 'dream-tripper',
-    name: 'The Dream-Tripper',
-    tagline: `Bank it all for one enormous, almost-free trip.`,
-    winning: `I finally took the trip I'd been putting off.`,
-    anchor: {
-      name: 'Chase Sapphire Preferred',
-      slug: 'chase-sapphire-preferred',
-      fee: '$95 a year',
-      blurb: `Cheap to hold, a big welcome bonus, and transferable points that don't expire while the card is open. The patient hoarder's anchor.`,
-    },
-    alsoConsider: [
-      {
-        name: 'American Express Gold Card',
-        slug: 'amex-gold',
-        fee: '$325 a year',
-        blurb: `The accumulation engine: 4x points at restaurants and U.S. supermarkets stacks a pile fast.`,
-      },
-      {
-        name: 'Chase Ink business cards',
-        slug: 'chase-ink-business-preferred',
-        fee: '$0 to $95 a year',
-        blurb: `If you have a business, even a side hustle, Ink cards come with big welcome bonuses that can fuel the stash quickly.`,
-      },
-    ],
-    note: `The single most valuable rule on this whole page: keep your points flexible until you've picked the trip. And if you're saving for years, spread them across a couple of programs (Chase, Amex, Capital One) so one program's devaluation can't sink your plan.`,
-  },
-  {
-    id: 'value-gamer',
-    name: 'The Value Gamer',
-    tagline: `Luxury and the deal, no compromise.`,
-    winning: `I know exactly why this redemption was worth it.`,
-    anchor: {
-      name: 'Chase Sapphire Preferred',
-      slug: 'chase-sapphire-preferred',
-      fee: '$95 a year',
-      blurb: `Your first lever. The famous Hyatt sweet spot lives in Chase points, and the Preferred is the low-cost way in. Move up to the Reserve once the perks earn their keep.`,
-    },
-    alsoConsider: [
-      {
-        name: 'American Express Gold Card',
-        slug: 'amex-gold',
-        fee: '$325 a year',
-        blurb: `Your Amex base. Membership Rewards transfer bonuses to airline partners are the value gamer's playground.`,
-      },
-      {
-        name: 'Capital One Venture X',
-        slug: 'capital-one-venture-x',
-        fee: '$395 a year',
-        blurb: `A third flexible currency plus lounge access, so there's always a good transfer ratio to chase.`,
-      },
-      {
-        name: 'Citi Strata Premier',
-        slug: 'citi-strata-premier',
-        fee: '$95 a year',
-        blurb: `Opens its own set of transfer partners (Turkish, Qatar, and more), for when you want every lever on the board.`,
-      },
-      {
-        name: 'The World of Hyatt Credit Card',
-        slug: 'chase-world-of-hyatt',
-        fee: '$95 a year',
-        blurb: `Hyatt status plus the cheapest luxury award chart in the game. The card gets you status and a free night; the real magic is transferring your Chase points to Hyatt for Park Hyatts that cost a fortune in cash.`,
-      },
-    ],
-    note: `A bonus lever if you rent: the Bilt cards earn points on rent, money most renters leave on the table entirely. Just treat Bilt as a bonus currency, not your core one, since its ecosystem is still young.`,
-  },
-]
 
 const h2 = 'font-display text-2xl font-semibold text-[var(--color-primary)] md:text-[1.75rem]'
 const label = 'mt-5 font-ui text-[0.6875rem] font-bold uppercase tracking-[0.14em] text-[var(--color-text-secondary)]'
@@ -249,7 +78,7 @@ export default function BestFirstCardGuide() {
 
         {/* Jump links */}
         <nav aria-label="Jump to a traveler type" className="mt-6 flex flex-wrap gap-2">
-          {TYPES.map((t) => (
+          {TRAVELER_TYPES.map((t) => (
             <a
               key={t.id}
               href={`#${t.id}`}
@@ -260,7 +89,7 @@ export default function BestFirstCardGuide() {
           ))}
         </nav>
 
-        {TYPES.map((t) => (
+        {TRAVELER_TYPES.map((t) => (
           <section key={t.id} id={t.id} className="mt-12 scroll-mt-24">
             <h2 className={h2}>{t.name}</h2>
             <p className="mt-1 font-body text-lg italic text-[var(--color-text-secondary)]">{t.tagline}</p>

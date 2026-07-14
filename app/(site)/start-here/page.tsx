@@ -56,36 +56,36 @@ function DoorCard({ d }: { d: Door }) {
 export default function StartHerePage() {
   return (
     <div className="rg-container px-6 pb-14 pt-8 md:px-8 md:pb-16 md:pt-10">
-      {/* Intro: Find Your Why (primary action) + newsletter (the "or"), one
-          cohesive centered block with a hairline divider between them. */}
+      {/* Intro: newsletter (primary action) up top, then Find Your Why (the
+          "or"), one cohesive centered block with a hairline divider between. */}
       <div className="mx-auto flex max-w-xl flex-col items-center text-center">
         <div className="flex items-center justify-center gap-3">
           <span aria-hidden className="h-px w-10" style={{ background: 'var(--color-accent)' }} />
-          <span className="font-ui text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--color-accent)]">Step One</span>
+          <span className="font-ui text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--color-accent)]">Start Here</span>
           <span aria-hidden className="h-px w-10" style={{ background: 'var(--color-accent)' }} />
         </div>
         <h1 className="mt-5 font-display text-[1.75rem] font-semibold leading-tight text-[var(--color-primary)] md:text-[2.125rem]">
-          Figure out your why
+          Get the good stuff in your inbox
         </h1>
         <p className="mx-auto mt-3 max-w-md font-body text-[var(--color-text-secondary)]">
-          What kind of points traveler are you? Name it, and every card, program, and trip decision gets easier.
+          The points-and-miles moves actually worth caring about, minus the noise. Unsubscribe anytime.
         </p>
-        <Link
-          href="/guides/find-your-why"
-          className="mt-6 inline-flex items-center gap-2 rounded-full border border-[var(--color-accent)] bg-[var(--color-accent)] px-6 py-2.5 font-ui text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-primary)] transition hover:bg-[var(--color-background)]"
-        >
-          Take the first step <span aria-hidden>&rarr;</span>
-        </Link>
+        <div className="mt-6 w-full max-w-md">
+          <NewsletterSignup />
+        </div>
 
-        {/* Newsletter — the deliberate "or", set off by a hairline divider. */}
+        {/* Find Your Why — the "or", set off by a hairline divider. */}
         <div className="mx-auto mt-9 max-w-md border-t border-[var(--color-border-soft)] pt-8">
-          <h2 className="font-display text-xl font-semibold text-[var(--color-primary)]">Or just get the good stuff in your inbox</h2>
+          <h2 className="font-display text-xl font-semibold text-[var(--color-primary)]">Or figure out your why first</h2>
           <p className="mx-auto mt-1 font-body text-sm text-[var(--color-text-secondary)]">
-            The points-and-miles moves actually worth caring about, minus the noise. Unsubscribe anytime.
+            What kind of points traveler are you? Take the 2-minute quiz and get the cards that actually fit.
           </p>
-          <div className="mt-5">
-            <NewsletterSignup />
-          </div>
+          <Link
+            href="/guides/find-your-why"
+            className="mt-5 inline-flex items-center gap-2 rounded-full border border-[var(--color-accent)] bg-[var(--color-accent)] px-6 py-2.5 font-ui text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-primary)] transition hover:bg-[var(--color-background)]"
+          >
+            Take the quiz <span aria-hidden>&rarr;</span>
+          </Link>
         </div>
       </div>
 
