@@ -53,15 +53,24 @@ export default function WhyQuiz() {
           <div className="h-full rounded-full bg-[var(--color-accent)] transition-all duration-300" style={{ width: `${(idx / QUIZ.length) * 100}%` }} />
         </div>
         <h3 className="mt-5 font-display text-xl font-semibold leading-snug text-[var(--color-primary)] md:text-2xl">{question.q}</h3>
-        <div className="mt-4 flex flex-col gap-2.5">
+        <p className="mt-1 font-body text-sm text-[var(--color-text-secondary)]">Pick the one that feels most like you.</p>
+        <div className="mt-4 flex flex-col gap-3">
           {question.options.map((o) => (
             <button
               key={o.type}
               type="button"
               onClick={() => setAnswers((a) => [...a, o.type])}
-              className="rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background)] px-4 py-3.5 text-left font-body text-[var(--color-text-primary)] transition hover:-translate-y-0.5 hover:border-[var(--color-primary)] hover:bg-[var(--color-background-soft)]"
+              className="group flex w-full items-center gap-3.5 rounded-[var(--radius-card)] border-2 border-[var(--color-border-soft)] bg-[var(--color-background)] px-4 py-4 text-left transition duration-150 hover:-translate-y-0.5 hover:border-[var(--color-primary)] hover:bg-[var(--color-background-soft)] hover:shadow-[var(--shadow-soft)] active:-translate-y-0.5 active:border-[var(--color-primary)] active:bg-[var(--color-background-soft)]"
             >
-              {o.label}
+              <span
+                aria-hidden
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-[var(--color-border-soft)] transition group-hover:border-[var(--color-primary)] group-active:border-[var(--color-primary)]"
+              >
+                <span className="h-2.5 w-2.5 rounded-full bg-[var(--color-primary)] opacity-0 transition group-hover:opacity-100 group-active:opacity-100" />
+              </span>
+              <span className="font-body text-[var(--color-text-primary)] transition-colors group-hover:text-[var(--color-primary)] group-active:text-[var(--color-primary)]">
+                {o.label}
+              </span>
             </button>
           ))}
         </div>
