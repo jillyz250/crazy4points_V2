@@ -23,6 +23,8 @@ Logo       (bottom-center)
 
 ## Global rules (all templates)
 - **Design for 0.7 seconds. ONE message per card.** Don't fit the article onto the image — create curiosity; the article explains.
+- **One idea, every element.** Every line, pill, stat, and label must support that single takeaway. Never mix topics on one card — e.g. a "book this hotel with points" graphic must not also tout a flight perk. If a fact belongs to a different story, it goes in the caption or a separate post. (This is the coherence test: read the pills top to bottom — do they tell ONE story? If not, cut the outlier.)
+- **Never make a raw point count the hero / focal number.** A big "25,000" invites the viewer to do value-math ("is that a good deal?") and can imply a bargain that isn't there (e.g. 25,000 Aeroplan for a Hyatt night is often worse than booking Hyatt directly). Lead with the qualitative win. Only use a hero number when it is unambiguously and favorably the story (a genuinely elevated sign-up bonus, a headline discount like "40% off") — never a conversion cost or transfer amount that reads as a comparison.
 - **Bullets: 0 (with 1 hero) or exactly 3. Never 5, never 7.** Instagram is not PowerPoint.
 - **Max text payload per template is a hard limit (below). If the copy doesn't fit, switch templates — never shrink the font.**
 - **Minimum font ~42px** on the 1080 canvas. Suggested sizes: hero 180-260pt, headline 90-120pt, body 48-60pt, pills 42-50pt, eyebrow 28-36pt, CTA 40-48pt.
