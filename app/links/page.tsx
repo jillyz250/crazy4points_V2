@@ -13,8 +13,8 @@ export const revalidate = 86400
 // Spotlight card at the top. Swap this whenever you want to feature something
 // new (a fresh post, a live deal). Set to null to hide it entirely.
 const FEATURED: { title: string; href: string } | null = {
-  title: 'Turn Rakuten cash back into Amex points',
-  href: '/blog/convert-rakuten-cash-back-to-amex-points-with-the-right-card',
+  title: 'Hyatt and Air Canada are now trading points',
+  href: '/alerts/hyatt-aeroplan-partnership',
 }
 
 // The permanent button stack. The first item renders as the primary (filled)
