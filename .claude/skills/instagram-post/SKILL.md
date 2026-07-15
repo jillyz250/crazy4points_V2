@@ -46,6 +46,8 @@ Pick a template from the **KIT spec: `plans/social-graphics-kit.md`** (the singl
 - **Selection:** content type -> target emotion -> eligible template -> payload check -> anti-repetition (don't repeat the last post's color/layout; never 3 of anything in a row) -> grid balance.
 - **Core templates** (~80%): Big Word (Excitement), Stat Hero (Surprise), Split (Clarity), Destination Editorial (Wanderlust). **Specialty** (~20%): Comparison, Program Update, Countdown, Deal Dashboard, Tip Card.
 - **Respect the template's max text payload — if the copy doesn't fit, switch templates, never shrink the font.** Bullets are 0 or 3, never 5.
+- **One idea, every element:** every pill/line/stat must support the single takeaway. Read the pills top to bottom — if one jumps topics (e.g. "book this hotel" then "no fuel surcharges on flights"), cut it. Off-topic facts go in the caption, not the graphic.
+- **Never make a raw point count the graphic's hero number** — it invites value-math and can imply a deal that isn't there (25,000 Aeroplan for a Hyatt night is often worse than booking direct). Lead with the qualitative win; save specific counts for the caption/article, and only when genuinely favorable.
 - Brand constants on every graphic: Royal Glow purple/gold, Playfair serif, logo bottom-center (60px inset), gold only for headlines/numbers, overlays behind text-on-photo.
 - Build via `tools/social-graphics/build_graphic.py` (pass the `template` field). On-image CTA reads "Full how-to, link in bio" or "in the comments."
 
