@@ -50,9 +50,20 @@ export default function LinksPage() {
           </p>
         </div>
 
+        {/* Newsletter first — the primary action */}
+        <Link
+          href={LINKS[0].href}
+          className="mt-8 block rounded-[var(--radius-card)] border border-[var(--color-primary)] bg-[var(--color-primary)] px-5 py-4 text-center shadow-[var(--shadow-soft)] transition hover:-translate-y-0.5 hover:bg-[var(--color-primary-hover)]"
+        >
+          <span className="block font-ui text-base font-semibold text-white">{LINKS[0].label}</span>
+          {LINKS[0].sub && (
+            <span className="mt-0.5 block font-body text-sm text-white/85">{LINKS[0].sub}</span>
+          )}
+        </Link>
+
         {/* Latest from the feed — the articles behind recent posts */}
         {LATEST.length > 0 && (
-          <div className="mt-8">
+          <div className="mt-6">
             <p className="mb-2 text-center font-ui text-[0.6875rem] font-bold uppercase tracking-[0.14em] text-[var(--color-accent)]">
               Latest from the feed
             </p>
@@ -76,31 +87,24 @@ export default function LinksPage() {
           </div>
         )}
 
-        {/* Button stack */}
+        {/* Button stack (newsletter is rendered above) */}
         <div className="mt-4 flex flex-col gap-3">
-          {LINKS.map((l, i) => {
-            const primary = i === 0
-            return (
-              <Link
-                key={l.href}
-                href={l.href}
-                className={`block rounded-[var(--radius-card)] border px-5 py-4 text-center shadow-[var(--shadow-soft)] transition hover:-translate-y-0.5 ${
-                  primary
-                    ? 'border-[var(--color-primary)] bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)]'
-                    : 'border-[var(--color-border-soft)] bg-[var(--color-background)] hover:border-[var(--color-primary)]'
-                }`}
-              >
-                <span className={`block font-ui text-base font-semibold ${primary ? 'text-white' : 'text-[var(--color-primary)]'}`}>
-                  {l.label}
+          {LINKS.slice(1).map((l) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              className="block rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] px-5 py-4 text-center shadow-[var(--shadow-soft)] transition hover:-translate-y-0.5 hover:border-[var(--color-primary)]"
+            >
+              <span className="block font-ui text-base font-semibold text-[var(--color-primary)]">
+                {l.label}
+              </span>
+              {l.sub && (
+                <span className="mt-0.5 block font-body text-sm text-[var(--color-text-secondary)]">
+                  {l.sub}
                 </span>
-                {l.sub && (
-                  <span className={`mt-0.5 block font-body text-sm ${primary ? 'text-white/85' : 'text-[var(--color-text-secondary)]'}`}>
-                    {l.sub}
-                  </span>
-                )}
-              </Link>
-            )
-          })}
+              )}
+            </Link>
+          ))}
         </div>
 
         {/* Footer */}
