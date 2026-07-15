@@ -12,10 +12,13 @@ export const revalidate = 86400
 
 // Spotlight card at the top. Swap this whenever you want to feature something
 // new (a fresh post, a live deal). Set to null to hide it entirely.
-const FEATURED: { title: string; href: string } | null = {
-  title: 'Hyatt and Air Canada are now trading points',
-  href: '/alerts/hyatt-aeroplan-partnership',
-}
+// Recent social-post articles, newest first. Add each new IG/FB post's article
+// to the TOP and keep the last ~4 so every recent "link in bio" still resolves.
+const LATEST: { title: string; href: string }[] = [
+  { title: 'Hyatt and Air Canada are now trading points', href: '/alerts/hyatt-aeroplan-partnership' },
+  { title: 'Turn Rakuten cash back into Amex points', href: '/blog/convert-rakuten-cash-back-to-amex-points-with-the-right-card' },
+  { title: 'How to win a hotel best rate guarantee', href: '/guides/hotel-best-rate-guarantees' },
+]
 
 // The permanent button stack. The first item renders as the primary (filled)
 // button. Reorder freely.
@@ -47,19 +50,30 @@ export default function LinksPage() {
           </p>
         </div>
 
-        {/* Featured spotlight */}
-        {FEATURED && (
-          <Link
-            href={FEATURED.href}
-            className="mt-8 block rounded-[var(--radius-card)] border-2 border-[var(--color-accent)] bg-[var(--color-background)] px-5 py-4 text-center shadow-[var(--shadow-soft)] transition hover:-translate-y-0.5"
-          >
-            <span className="font-ui text-[0.6875rem] font-bold uppercase tracking-[0.14em] text-[var(--color-accent)]">
-              Featured
-            </span>
-            <span className="mt-1 block font-display text-lg font-semibold leading-snug text-[var(--color-primary)]">
-              {FEATURED.title}
-            </span>
-          </Link>
+        {/* Latest from the feed — the articles behind recent posts */}
+        {LATEST.length > 0 && (
+          <div className="mt-8">
+            <p className="mb-2 text-center font-ui text-[0.6875rem] font-bold uppercase tracking-[0.14em] text-[var(--color-accent)]">
+              Latest from the feed
+            </p>
+            <div className="flex flex-col gap-2.5">
+              {LATEST.map((item, i) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`block rounded-[var(--radius-card)] px-5 py-4 text-center shadow-[var(--shadow-soft)] transition hover:-translate-y-0.5 ${
+                    i === 0
+                      ? 'border-2 border-[var(--color-accent)] bg-[var(--color-background)]'
+                      : 'border border-[var(--color-border-soft)] bg-[var(--color-background)] hover:border-[var(--color-primary)]'
+                  }`}
+                >
+                  <span className="block font-display text-base font-semibold leading-snug text-[var(--color-primary)]">
+                    {item.title}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </div>
         )}
 
         {/* Button stack */}
