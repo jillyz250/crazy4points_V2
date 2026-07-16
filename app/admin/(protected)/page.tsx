@@ -147,23 +147,29 @@ function TodayChecklist({ stats }: { stats: Awaited<ReturnType<typeof loadStats>
   const now = new Date()
   const today = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' }) // YYYY-MM-DD, ET
   const dateLabel = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/New_York' })
-  const dow = Number(now.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'America/New_York' }) === 'Thu' ? 4 : now.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'America/New_York' }) === 'Fri' ? 5 : 0)
+  const weekday = now.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'America/New_York' })
   const briefReady = stats.lastBrief?.brief_date === today
-  const isThu = dow === 4
-  const isFri = dow === 5
+  const isMon = weekday === 'Mon'
+  const isThu = weekday === 'Thu'
+  const isFri = weekday === 'Fri'
   const nlNeedsSend = !!stats.currentNewsletter && stats.currentNewsletter.status !== 'sent'
   const dataFlags = stats.bonusSignals + stats.changeSignals + stats.proseReview
 
   const groups: ChecklistGroupData[] = [
     {
-      label: 'Daily — make content', note: '~90 min', numbered: true,
+      label: 'Daily — make + share', note: '~90 min', numbered: true,
       steps: [
+        {
+          id: 'forward-email', title: 'Forward emails to intel — first', time: '~5 min',
+          hint: 'Before you say "morning": forward any travel-promo and Google Alerts emails to the intel inbox. They auto-classify and land in triage, so they’re included in today’s decision table.',
+          href: '/admin/triage', cta: 'Triage',
+        },
         {
           id: 'morning-review', title: 'Morning review with Claude', time: '~10 min',
           count: stats.newIntel + stats.newDrafts + dataFlags || undefined,
           hint: briefReady
-            ? 'Say "morning" — Claude runs the daily ritual: pulls every queue into one publish / page-note / reject table, reviews the brief + digest, and runs the source gap-check.'
-            : 'Brief lands ~7am. Say "morning" — Claude runs the daily ritual: one decision table from every queue, plus the brief, digest, and source gap-check.',
+            ? 'Say "morning" — Claude pulls every queue into one publish / page-note / reject table: drafts, intel, transfer-data + welcome-bonus changes, and the refresh queue (plus the emails you just forwarded), reviews the brief + digest, and runs the source gap-check.'
+            : 'Brief lands ~7am. Say "morning" — one decision table from every queue (drafts, intel, welcome-bonus changes, refresh queue), plus the brief, digest, and source gap-check.',
           href: '/admin/briefs', cta: briefReady ? 'Today’s brief' : 'See briefs',
         },
         {
@@ -177,13 +183,24 @@ function TodayChecklist({ stats }: { stats: Awaited<ReturnType<typeof loadStats>
           href: '/admin/content-ideas', cta: 'Content ideas',
         },
         {
-          id: 'social', title: 'Post one to social', time: '~15 min',
-          hint: 'One happy-news item — a deal, bonus, or award win — per your brand rules.',
+          id: 'facebook', title: 'Post one to Facebook', time: '~10 min',
+          hint: 'One happy-news item — a deal, bonus, or award win. Say "facebook post" and Claude writes it in your brand voice with the matching graphic.',
+          href: '/admin/social', cta: 'Social',
         },
         {
-          id: 'forward-email', title: 'Forward travel emails to intel',
-          hint: 'See a good Yahoo/Gmail travel promo? Forward it to the intel inbox — it auto-classifies and lands in triage for tomorrow’s table.',
-          href: '/admin/triage', cta: 'Triage', muted: true,
+          id: 'instagram', title: 'Post one to Instagram', time: '~10 min',
+          hint: 'One graphic post. Say "instagram post" and Claude builds the 1080x1080 graphic + caption.',
+          href: '/admin/social', cta: 'Social',
+        },
+      ],
+    },
+    {
+      label: 'Habits — whenever', numbered: false,
+      steps: [
+        {
+          id: 'reply-social', title: 'Reply to comments + DMs',
+          hint: 'Keep Facebook + Instagram engagement warm — quick replies drive follower growth.',
+          muted: true,
         },
       ],
     },
@@ -199,6 +216,16 @@ function TodayChecklist({ stats }: { stats: Awaited<ReturnType<typeof loadStats>
           id: 'refresh', title: 'Refresh queue', time: 'Fridays', count: stats.refreshQueueCount,
           hint: isFri ? 'Re-verify the oldest few today — no need to clear it all.' : 'Cards / programs / properties aging out. Re-verify the oldest few each Friday.',
           href: '/admin/refresh-queue', cta: 'Open queue', muted: !isFri,
+        },
+        {
+          id: 'source-health', title: 'Source health', time: 'Mondays',
+          hint: 'Quick check that Scout sources are still producing — retire dead ones, add gaps. Keeps the feed from silently rotting.',
+          href: '/admin/sources', cta: 'Sources', muted: !isMon,
+        },
+        {
+          id: 'analytics', title: 'Analytics glance', time: 'Fridays',
+          hint: 'Skim top pages + key events — what’s landing tells you what to write next.',
+          href: '/admin/analytics', cta: 'Analytics', muted: !isFri,
         },
       ],
     },

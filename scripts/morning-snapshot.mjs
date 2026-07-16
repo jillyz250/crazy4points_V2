@@ -79,9 +79,10 @@ try {
 } catch {}
 
 // ---- Open change signals + bonus signals detail ---------------------------
-let changeDetail = [], bonusDetail = []
+let changeDetail = [], bonusDetail = [], refreshDetail = []
 try { const { data } = await db.from('change_signals').select('headline, program_slug, created_at').eq('status', 'new').order('created_at', { ascending: false }).limit(15); changeDetail = data || [] } catch {}
 try { const { data } = await db.from('card_bonus_signals').select('card_slug, headline, created_at').eq('status', 'new').order('created_at', { ascending: false }).limit(15); bonusDetail = data || [] } catch {}
+try { const { data } = await db.from('admin_refresh_queue').select('entity_type, entity_name, age_days, last_verified').order('age_days', { ascending: false }).limit(5); refreshDetail = data || [] } catch {}
 
 // ---- Render ----------------------------------------------------------------
 const B = '─'.repeat(64)
@@ -121,6 +122,10 @@ if (changeDetail.length) {
 if (bonusDetail.length) {
   console.log('\n' + B); console.log(`OPEN WELCOME-BONUS SIGNALS (${bonusDetail.length}):`)
   for (const r of bonusDetail) console.log(`  - [${r.card_slug || '?'}] ${(r.headline || '').slice(0, 74)}`)
+}
+if (refreshDetail.length) {
+  console.log('\n' + B); console.log(`REFRESH QUEUE — oldest due (top ${refreshDetail.length} of ${refreshQueue}):`)
+  for (const r of refreshDetail) console.log(`  - [${(r.entity_type || '?').replace(/^program_/, '').replace(/_/g, ' ')}] ${(r.entity_name || '?').slice(0, 56)}  (${r.last_verified ? r.age_days + 'd' : 'never verified'})`)
 }
 console.log('\n' + B)
 console.log('GAP-CHECK HINT: scan FRESH INTEL above — any deal caught only by a blog/')
