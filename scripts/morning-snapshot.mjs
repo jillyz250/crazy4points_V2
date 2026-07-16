@@ -84,6 +84,51 @@ try { const { data } = await db.from('change_signals').select('headline, program
 try { const { data } = await db.from('card_bonus_signals').select('card_slug, headline, created_at').eq('status', 'new').order('created_at', { ascending: false }).limit(15); bonusDetail = data || [] } catch {}
 try { const { data } = await db.from('admin_refresh_queue').select('entity_type, entity_name, age_days, last_verified').order('age_days', { ascending: false }).limit(5); refreshDetail = data || [] } catch {}
 
+// ---- Program-fact drift — same filter as /admin/program-drift + the digest
+// (conflicts_program_id set, unresolved, not archived). Show top few + total.
+let driftDetail = [], driftCount = 0
+try {
+  const { data, count } = await db.from('intel_items')
+    .select('headline, conflict_field, conflict_summary, conflicts_program_id', { count: 'exact' })
+    .not('conflicts_program_id', 'is', null).is('conflict_resolution', null).is('archived_at', null)
+    .order('conflict_detected_at', { ascending: false }).limit(6)
+  driftDetail = data || []; driftCount = count ?? driftDetail.length
+} catch {}
+
+// ---- Source gap-check — programs that showed up in NON-official intel (14d)
+// but have no active source whose name matches. Fuzzy name-match, so it's a
+// "look here" prompt, NOT gospel — some may already be covered under a
+// differently-named source. Verify (Firecrawl->Haiku) before adding.
+let gaps = []
+try {
+  const gapSince = new Date(Date.now() - 14 * 864e5).toISOString()
+  const [{ data: progRows }, { data: srcRows }, { data: gapIntel }] = await Promise.all([
+    db.from('programs').select('slug, name'),
+    db.from('sources').select('name').eq('is_active', true),
+    db.from('intel_items').select('programs, source_type, source_name, headline').neq('source_type', 'official').is('rejected_at', null).gte('created_at', gapSince),
+  ])
+  const nameBySlug = new Map((progRows || []).map((p) => [p.slug, p.name]))
+  // Tokens >=3 chars so acronym-named programs/sources match (IHG, ANA, EVA, TAP).
+  const srcTokens = new Set()
+  for (const s of srcRows || []) for (const w of (s.name || '').toLowerCase().match(/[a-z]{3,}/g) || []) srcTokens.add(w)
+  // Generic tokens that shouldn't count as "covered" on their own.
+  const STOP = new Set(['news', 'google', 'miles', 'rewards', 'points', 'airlines', 'airways', 'hotels', 'hotel', 'group', 'card', 'cards', 'program', 'club', 'plus', 'world', 'air', 'the', 'one', 'usa', 'and', 'for', 'new'])
+  // Joint / multi-carrier programs covered by a differently-named newsroom.
+  const KNOWN_COVERED = new Set(['atmos'])
+  const seen = new Map()
+  for (const r of gapIntel || []) {
+    for (const slug of (Array.isArray(r.programs) ? r.programs : [])) {
+      if (KNOWN_COVERED.has(slug)) continue
+      const nm = nameBySlug.get(slug); if (!nm) continue
+      const toks = (nm.toLowerCase().match(/[a-z]{3,}/g) || []).filter((t) => !STOP.has(t))
+      if (toks.length && toks.some((t) => srcTokens.has(t))) continue // covered
+      const g = seen.get(slug) || { name: nm, count: 0, ex: r.headline, src: r.source_name }
+      g.count++; seen.set(slug, g)
+    }
+  }
+  gaps = [...seen.entries()].map(([slug, g]) => ({ slug, ...g })).sort((a, b) => b.count - a.count).slice(0, 8)
+} catch {}
+
 // ---- Render ----------------------------------------------------------------
 const B = '─'.repeat(64)
 console.log(B)
@@ -127,8 +172,16 @@ if (refreshDetail.length) {
   console.log('\n' + B); console.log(`REFRESH QUEUE — oldest due (top ${refreshDetail.length} of ${refreshQueue}):`)
   for (const r of refreshDetail) console.log(`  - [${(r.entity_type || '?').replace(/^program_/, '').replace(/_/g, ' ')}] ${(r.entity_name || '?').slice(0, 56)}  (${r.last_verified ? r.age_days + 'd' : 'never verified'})`)
 }
+
 console.log('\n' + B)
-console.log('GAP-CHECK HINT: scan FRESH INTEL above — any deal caught only by a blog/')
-console.log('aggregator/email whose program has no working official source (or whose')
-console.log('official newsroom missed it) is a source gap. Propose adding/fixing it.')
+console.log(`PROGRAM-FACT DRIFT — fresh intel contradicts a program page (top ${driftDetail.length} of ${driftCount}):`)
+if (!driftDetail.length) console.log('  (none open — pages current)')
+for (const d of driftDetail) console.log(`  - [${d.conflict_field || '?'}] ${(d.conflict_summary || d.headline || '').slice(0, 74)}`)
+console.log('  -> verify vs issuer page, fix if real, resolve at /admin/program-drift')
+
+console.log('\n' + B)
+console.log(`SOURCE GAPS — programs in blog/email intel (14d) with NO matching active source (${gaps.length}):`)
+if (!gaps.length) console.log('  (none flagged — coverage looks complete)')
+for (const g of gaps) console.log(`  - ${g.name} (${g.slug}) x${g.count}  e.g. "${(g.ex || '').slice(0, 46)}" via ${g.src}`)
+if (gaps.length) console.log('  NOTE: fuzzy name-match — some may already be covered under a differently-named source. Verify (Firecrawl->Haiku) before adding.')
 console.log(B)

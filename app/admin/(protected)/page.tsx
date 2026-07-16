@@ -168,8 +168,8 @@ function TodayChecklist({ stats }: { stats: Awaited<ReturnType<typeof loadStats>
           id: 'morning-review', title: 'Morning review with Claude', time: '~10 min',
           count: stats.newIntel + stats.newDrafts + dataFlags || undefined,
           hint: briefReady
-            ? 'Say "morning" — Claude pulls every queue into one publish / page-note / reject table: drafts, intel, transfer-data + welcome-bonus changes, and the refresh queue (plus the emails you just forwarded), reviews the brief + digest, and runs the source gap-check.'
-            : 'Brief lands ~7am. Say "morning" — one decision table from every queue (drafts, intel, welcome-bonus changes, refresh queue), plus the brief, digest, and source gap-check.',
+            ? 'Say "morning" — Claude pulls every queue into one publish / page-note / reject table: drafts, intel, transfer-data + welcome-bonus changes, refresh queue, program-drift (plus the emails you just forwarded), reviews the brief + digest, and runs the auto source gap-check.'
+            : 'Brief lands ~7am. Say "morning" — one decision table from every queue (drafts, intel, welcome-bonus changes, refresh queue, program-drift), plus the brief, digest, and the auto source gap-check.',
           href: '/admin/briefs', cta: briefReady ? 'Today’s brief' : 'See briefs',
         },
         {
