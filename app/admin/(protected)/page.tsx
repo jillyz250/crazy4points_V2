@@ -156,14 +156,14 @@ function TodayChecklist({ stats }: { stats: Awaited<ReturnType<typeof loadStats>
 
   const groups: ChecklistGroupData[] = [
     {
-      label: 'Daily — make content', note: '~60 min', numbered: true,
+      label: 'Daily — make content', note: '~90 min', numbered: true,
       steps: [
         {
           id: 'morning-review', title: 'Morning review with Claude', time: '~10 min',
           count: stats.newIntel + stats.newDrafts + dataFlags || undefined,
           hint: briefReady
-            ? 'Say "morning" — Claude reads the brief, new intel, pending drafts, and the data digest, then hands you one publish / page-note / reject table.'
-            : 'Brief lands ~7am. Say "morning" — Claude reads it plus new intel, pending drafts, and the data digest, then hands you one decision table.',
+            ? 'Say "morning" — Claude runs the daily ritual: pulls every queue into one publish / page-note / reject table, reviews the brief + digest, and runs the source gap-check.'
+            : 'Brief lands ~7am. Say "morning" — Claude runs the daily ritual: one decision table from every queue, plus the brief, digest, and source gap-check.',
           href: '/admin/briefs', cta: briefReady ? 'Today’s brief' : 'See briefs',
         },
         {
@@ -172,8 +172,18 @@ function TodayChecklist({ stats }: { stats: Awaited<ReturnType<typeof loadStats>
           href: '/admin/drafts?view=needs_review', cta: 'Review drafts',
         },
         {
+          id: 'article', title: 'Write one article', time: '~30 min',
+          hint: 'Claude proposes the single best article from today’s intel + content ideas. You approve, Claude drafts + fact-checks, you review before publish.',
+          href: '/admin/content-ideas', cta: 'Content ideas',
+        },
+        {
           id: 'social', title: 'Post one to social', time: '~15 min',
           hint: 'One happy-news item — a deal, bonus, or award win — per your brand rules.',
+        },
+        {
+          id: 'forward-email', title: 'Forward travel emails to intel',
+          hint: 'See a good Yahoo/Gmail travel promo? Forward it to the intel inbox — it auto-classifies and lands in triage for tomorrow’s table.',
+          href: '/admin/triage', cta: 'Triage', muted: true,
         },
       ],
     },
