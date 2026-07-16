@@ -16,7 +16,10 @@ Go **one step at a time.** Present a step, get Jill's calls, act, then move to t
 - **Her outstanding actions go LAST** in your message ([[feedback_user_action_last]]).
 - Alert writes go through `content_variants`, never the `alerts` mirror ([[feedback_alerts_write_through_variants]]).
 
-### Step 0 — pull the live snapshot
+### Step 0a — emails go in FIRST (Jill does this before "morning")
+The ritual assumes Jill has already **forwarded her outside emails to the intel inbox before triggering "morning"** — travel-promo emails AND Google Alerts emails. Forwarding authenticates via the `intel_email_senders` allowlist (her address is on it), Haiku classifies each, and they land in `/admin/triage` as `source_type=email` so they appear in today's decision table. If she clearly hasn't forwarded yet and wants to, remind her to do it first, then pull the snapshot so they're captured. (The daily **brief** and **digest** are built from our OWN database and are read automatically below — they do NOT get forwarded.)
+
+### Step 0b — pull the live snapshot
 Run:
 ```
 node scripts/morning-snapshot.mjs
@@ -24,7 +27,7 @@ node scripts/morning-snapshot.mjs
 It prints every queue count (matching the dashboard "Your day" board), the brief/digest status, and the **fresh intel list** (last 36h) you'll use for the table and the gap-check. Read-only. If it errors on a table, note it and continue — don't block the ritual.
 
 ### Step 1 — one decision table (most important first)
-From the snapshot, build **ONE table** covering the actionable queues: pending drafts, intel to triage, transfer-data changes, welcome-bonus changes, prose-to-recheck. Columns: **Item · What it is · My recommendation**. Order by leverage (a hot publishable deal beats a stale housekeeping flag). For each row recommend exactly one of: **publish** (verify first), **page-note** (fold into a program/card page as a detail), **reject** (with reason), **snooze**, or **hold**. Jill decides down the list; you execute — verify each keeper against issuer sources, edit to her brand voice, publish. Quality over clearing the pile.
+From the snapshot, build **ONE table** covering the actionable queues: pending drafts, intel to triage, transfer-data changes, **welcome-bonus changes**, prose-to-recheck, and the **refresh queue** (surface the oldest few due — re-verify or page-note candidates). Columns: **Item · What it is · My recommendation**. Order by leverage (a hot publishable deal beats a stale housekeeping flag; the refresh-queue backlog sits near the bottom unless something's badly overdue). For each row recommend exactly one of: **publish** (verify first), **page-note** (fold into a program/card page as a detail), **reject** (with reason), **snooze**, or **hold**. Jill decides down the list; you execute — verify each keeper against issuer sources, edit to her brand voice, publish. Quality over clearing the pile.
 
 ### Step 2 — brief + digest review
 Surface today's daily brief and the data digest. Flag anything in them **not yet an alert or page update**. The editorial note stays at the top of the brief ([[feedback_brief_editorial_top]]). Anything already in Step 1's table doesn't need repeating here.
@@ -32,8 +35,8 @@ Surface today's daily brief and the data digest. Flag anything in them **not yet
 ### Step 3 — source gap-check (the self-improving loop)
 Scan the fresh-intel list. For any finding, ask: **did an outside source (blog / aggregator / Google News / email) beat our official newsroom to it?** If a program's deal was caught *only* by a non-official source and that program has **no working official source** — or its official newsroom exists but **missed** this — that's a gap. Propose adding or fixing the Scout source so we catch it automatically next time (this is exactly the audit we did in [[project_source_audit_2026_07_16]]; live-test any new source Firecrawl→Haiku before adding, per [[reference_scout_and_sources]]). Keep it lightweight — usually 0–2 gaps a day. If none, say so and move on.
 
-### Step 4 — email forwards (verified working)
-Remind Jill she can forward Yahoo/Gmail travel promos to the intel inbox — **this is confirmed working**: a forwarded email is Haiku-classified and lands in `/admin/triage` as `source_type=email` (her Wyndham Summer Sale test landed clean, 2026-07-16). Forwarded items just show up in tomorrow's Step 1 table. Nothing to build; this is a habit nudge.
+### Step 4 — confirm the forwarded emails landed
+The emails Jill forwarded in Step 0a should already be in today's table. Just confirm they showed up (any `source_type=email` items in the fresh-intel list). If she forgot to forward before "morning," that's fine — remind her to forward next time BEFORE saying "morning" so they're captured, or forward now and re-pull the snapshot. **Confirmed working** (Wyndham Summer Sale test landed clean, 2026-07-16).
 
 ### Step 5 — propose ONE article (propose-only)
 Pitch the **single best** article idea from today's intel + `/admin/content-ideas` — the one with the most reader value right now. **Propose only; write nothing until Jill picks one.** Once she approves, draft it (blog or guide) in her voice, fact-check against official sources, and she reviews before publish ([[feedback_authoring_order_matters]]). One fresh piece a day is the goal, not a pile.
