@@ -17,7 +17,13 @@ export interface ExperienceProgram {
   program_slug: string // loyalty program, e.g. 'wyndham'
   directory_slug: string // row slug in the existing `experiences` directory table
   source_platform: string // human label of the hosting platform
-  list_url: string // page listing current experiences
+  // Pages to scrape and aggregate. Small catalogs use one complete page; big
+  // catalogs (Marriott, 298 listings) use curated views — "ending soon" (the
+  // bid-relevant closing auctions) + "popular" — rather than mirroring hundreds.
+  // `complete: false` means we're scraping a curated subset, so we do NOT
+  // auto-close a listing just because it rotated off a page (stale rule instead).
+  list_urls: string[]
+  complete: boolean
 }
 
 export const EXPERIENCE_PROGRAMS: ExperienceProgram[] = [
@@ -25,19 +31,26 @@ export const EXPERIENCE_PROGRAMS: ExperienceProgram[] = [
     program_slug: 'wyndham',
     directory_slug: 'wyndham-rewards-experiences',
     source_platform: 'Wyndham Rewards Experiences',
-    list_url: 'https://wyndhamrewardsexperiences.wyndhamrewards.com/iSynApp/allAuction.action',
+    list_urls: ['https://wyndhamrewardsexperiences.wyndhamrewards.com/iSynApp/allAuction.action'],
+    complete: true,
   },
   {
     program_slug: 'marriott-bonvoy',
     directory_slug: 'marriott-bonvoy-moments',
     source_platform: 'Marriott Bonvoy Moments',
-    list_url: 'https://moments.marriottbonvoy.com',
+    // 298-item catalog; scrape the actionable curated views, not everything.
+    list_urls: [
+      'https://moments.marriottbonvoy.com/en-us/ending-soon',
+      'https://moments.marriottbonvoy.com/en-us/popular',
+    ],
+    complete: false,
   },
   {
     program_slug: 'hilton',
     directory_slug: 'hilton-honors-experiences',
     source_platform: 'Hilton Honors Experiences',
-    list_url: 'https://experiences.hiltonhonors.com',
+    list_urls: ['https://experiences.hiltonhonors.com'],
+    complete: true,
   },
 ]
 
@@ -123,14 +136,27 @@ export async function runExperiencesWatch(
   const runStart = new Date().toISOString()
   const now = runStart
 
-  let markdown = ''
-  try {
-    markdown = await firecrawlMarkdown(program.list_url)
-  } catch {
-    markdown = ''
+  // Scrape each configured page, parse, and aggregate + dedup across them
+  // (e.g. Marriott ending-soon + popular may overlap).
+  let anyMarkdown = false
+  const byKey = new Map<string, ParsedListing>()
+  for (const url of program.list_urls) {
+    let md = ''
+    try {
+      md = await firecrawlMarkdown(url)
+    } catch {
+      md = ''
+    }
+    if (md.length > 0) anyMarkdown = true
+    const listings = md.length > 0 ? await parseListings(md, program) : []
+    for (const l of listings) {
+      if (!l || !l.title) continue
+      const k = listingKey(program.program_slug, l)
+      if (!byKey.has(k)) byKey.set(k, l)
+    }
   }
-  const httpOk = markdown.length > 0
-  const parsed = httpOk ? await parseListings(markdown, program) : []
+  const httpOk = anyMarkdown
+  const parsed = [...byKey.values()]
   const success = httpOk && parsed.length > 0
 
   // Existing active listings for this program.
@@ -202,15 +228,32 @@ export async function runExperiencesWatch(
     }
   }
 
-  // Vanished from the source -> mark closed (only when the scrape actually worked,
-  // so a failed scrape never mass-closes everything).
+  // Close stale listings. For a COMPLETE scrape, "gone this run" means closed.
+  // For a CURATED/partial scrape (e.g. Marriott ending-soon + popular), a listing
+  // rotating off a page does NOT mean it closed, so we only close what hasn't been
+  // seen for 7+ days. Both paths run only on a successful scrape so a failed run
+  // never mass-closes.
   let closed = 0
+  const staleCutoff = new Date(Date.now() - 7 * 86_400_000).toISOString()
   if (success) {
-    for (const [key, r] of existing) {
-      if (!seen.has(key) && r.status === 'active') {
+    // Re-fetch last_seen_at for the stale check (existing rows only had a subset).
+    const { data: activeRows } = await supabase
+      .from('experience_listings')
+      .select('id, source_listing_key, last_seen_at')
+      .eq('program_slug', program.program_slug)
+      .eq('status', 'active')
+    for (const r of activeRows ?? []) {
+      const goneThisRun = !seen.has(r.source_listing_key as string)
+      const stale = (r.last_seen_at as string) < staleCutoff
+      const shouldClose = program.complete ? goneThisRun : goneThisRun && stale
+      if (shouldClose) {
         await supabase
           .from('experience_listings')
-          .update({ status: 'closed', status_reason: 'gone_from_source', updated_at: now })
+          .update({
+            status: 'closed',
+            status_reason: program.complete ? 'gone_from_source' : 'stale_7d',
+            updated_at: now,
+          })
           .eq('id', r.id)
         await supabase.from('experience_listing_changes').insert({
           listing_id: r.id,
