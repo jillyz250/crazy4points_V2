@@ -223,6 +223,11 @@ function TodayChecklist({ stats }: { stats: Awaited<ReturnType<typeof loadStats>
           href: '/admin/sources', cta: 'Sources', muted: !isMon,
         },
         {
+          id: 'wyndham-experiences', title: 'Wyndham experiences watch', time: 'Mondays',
+          hint: 'Check Wyndham Rewards Experiences for new auction listings. Marquee find -> social (Chase-transfer angle, honest it is a bid); timely -> newsletter. It is an auction and often modest value, so frame as fun, never a deal.',
+          href: 'https://wyndhamrewardsexperiences.wyndhamrewards.com/', cta: 'Open', muted: !isMon,
+        },
+        {
           id: 'analytics', title: 'Analytics glance', time: 'Fridays',
           hint: 'Skim top pages + key events — what’s landing tells you what to write next.',
           href: '/admin/analytics', cta: 'Analytics', muted: !isFri,
