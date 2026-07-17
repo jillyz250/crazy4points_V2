@@ -40,7 +40,7 @@ Casual travelers who have heard of points but are not experts. They are silently
 ## Output format
 - **Post:** body ending with the 5 hashtags.
 - **First comment (paste right after posting):** `Full breakdown here: https://www.crazy4points.com/alerts/<short-slug>` (the real short_slug URL, or the relevant /guides or /programs page).
-- Then offer the matching **1080x1080 branded graphic** (`tools/social-graphics/build_graphic.py`; gold or purple palette; link/how-to line lives in the comment, not on the image). Graphic rules live in `plans/social-graphics-kit.md` — two that bite: **(a) one idea, every element** (every pill supports the single takeaway; never mix topics like "book this hotel" and "flight perk" on one card), and **(b) never make a raw point count the hero number** (invites value-math, can imply a deal that isn't there).
+- Then offer the matching **1080x1080 branded graphic** (`tools/social-graphics/build_graphic.py`; gold or purple palette; link/how-to line lives in the comment, not on the image). **When you build one, copy the PNG to `~/Desktop/Crazy4Points Graphics/` named `YYYY-MM-DD-<short-slug>.png`** so Jill can grab it (chronological sort; never leave it only in the repo or on the Desktop root). Graphic rules live in `plans/social-graphics-kit.md` — two that bite: **(a) one idea, every element** (every pill supports the single takeaway; never mix topics like "book this hotel" and "flight perk" on one card), and **(b) never make a raw point count the hero number** (invites value-math, can imply a deal that isn't there).
 
 ## Operational (behavior, not writing)
 - **Never post to Facebook yourself** — output is copy for Jill to post. Auto-posting is an outward action that needs her consent.

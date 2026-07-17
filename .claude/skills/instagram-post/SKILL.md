@@ -54,7 +54,8 @@ Pick a template from the **KIT spec: `plans/social-graphics-kit.md`** (the singl
 ## Output format
 - **Caption:** body + hashtags (or hashtags flagged for the first comment).
 - **Graphic:** the chosen template (+ why it fits, per the emotion), built as a 1080x1080 PNG.
-- **Bio-link action:** confirm the /links FEATURED item was updated (or flag it needs doing).
+- **Deliver the PNG to Jill:** always copy the finished graphic to **`~/Desktop/Crazy4Points Graphics/`**, named **`YYYY-MM-DD-<short-slug>.png`** so they sort chronologically. Do not leave it only in the repo, and do not drop it on the Desktop root. Tell her the filename.
+- **Bio-link action:** confirm the /links `LATEST` item was added (or flag it needs doing).
 
 ## Operational (behavior, not writing)
 - **Never post to Instagram yourself** — output is copy + image for Jill to post.
