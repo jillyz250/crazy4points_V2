@@ -22,6 +22,14 @@ export interface ScoutFinding {
   programs?: string[]
   start_date?: string
   expires_at?: string
+  /**
+   * Every source_id in the batch that reported this same story (incl. the
+   * primary). Seeds confirmation_count/confirming_sources at insert time so
+   * cross-blog corroboration is captured WITHOUT emitting duplicate findings —
+   * headline trigram dedup (Layer 3, >=0.7) can't match the same story across
+   * different blog wording, so we can't rely on it to count confirmations.
+   */
+  confirming_source_ids?: string[]
 }
 
 interface SourceContent {
@@ -192,7 +200,7 @@ Today is ${today}. Analyze the following source content and extract actionable i
 RULES:
 - Only report concrete, specific findings — no vague "program X may change" speculation
 - confidence: "high" = official source or 3+ credible blogs confirming; "medium" = 1–2 credible sources; "low" = Reddit rumor/speculation
-- Deduplicate: if the same story appears in multiple sources, output ONE finding with the highest confidence
+- Deduplicate: if the same story appears in multiple sources, output ONE finding with the highest confidence. In that finding's "confirming_source_ids" array, list the source_id of EVERY source in this batch that reported the story (including the primary one). This is how we track the "3+ credible blogs" bar — a story confirmed by OMAAT + LoyaltyLobby + Prince of Travel returns all three source_ids. A single-source story returns just its own.
 - Skip findings that are clearly old news (>7 days) or evergreen advice articles
 - programs array: pick slugs ONLY from the PROGRAM LIST below. If the right slug isn't listed, omit it rather than invent one.
 - PROGRAM ORDER MATTERS: the FIRST slug in the array becomes the alert's primary program; the rest become secondary. Pick primary using these rules:
@@ -263,6 +271,7 @@ Schema per finding:
   "source_type": "official|blog|reddit|social",
   "source_url": "string|null",
   "raw_text": "string (1–2 sentence excerpt from source)",
+  "confirming_source_ids": ["source_id of every source in THIS batch that reported this story, including the primary — a single-source story lists just its own id"],
   "confidence": "high|medium|low",
   "alert_type": "string|null",
   "programs": ["slug1", "slug2"],
