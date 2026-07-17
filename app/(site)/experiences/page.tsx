@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { createAdminClient } from '@/utils/supabase/server'
 import { getExperiences } from '@/utils/supabase/queries'
 import ExperiencesDirectory from '@/components/experiences/ExperiencesDirectory'
+import ExperienceFinder, { type FinderListing } from '@/components/experiences/ExperienceFinder'
 
 // Directory of experience programs; changes only when we add/edit a program.
 export const revalidate = 3600
@@ -15,6 +16,37 @@ export const metadata: Metadata = {
 export default async function ExperiencesPage() {
   const supabase = createAdminClient()
   const experiences = await getExperiences(supabase)
+
+  // Live listings for the interactive finder. Program label + official URL come
+  // from the directory rows (program != host platform).
+  const progInfo = new Map(
+    experiences
+      .filter((e) => e.parent_program_slug)
+      .map((e) => [e.parent_program_slug as string, { label: e.parent_program_label, url: e.official_url }]),
+  )
+  const { data: rawListings } = await supabase
+    .from('experience_listings')
+    .select('program_slug, source_platform, title, category, location, format, current_bid, points_required, close_date, detail_url, first_seen_at')
+    .eq('status', 'active')
+    .order('first_seen_at', { ascending: false })
+    .limit(600)
+  const listings: FinderListing[] = (rawListings ?? []).map((l) => {
+    const info = progInfo.get(l.program_slug as string)
+    return {
+      program_slug: l.program_slug as string,
+      program_label: info?.label ?? (l.source_platform as string) ?? (l.program_slug as string),
+      program_url: info?.url ?? null,
+      title: l.title as string,
+      category: (l.category as string) ?? null,
+      location: (l.location as string) ?? null,
+      format: (l.format as string) ?? null,
+      current_bid: (l.current_bid as number) ?? null,
+      points_required: (l.points_required as number) ?? null,
+      close_date: (l.close_date as string) ?? null,
+      detail_url: (l.detail_url as string) ?? null,
+      first_seen_at: (l.first_seen_at as string) ?? null,
+    }
+  })
 
   return (
     <main className="rg-container rg-major-section">
@@ -33,6 +65,26 @@ export default async function ExperiencesPage() {
         </p>
       </header>
 
+      {listings.length > 0 && (
+        <section className="mb-12">
+          <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2 border-b border-[var(--color-border-soft)] pb-2">
+            <h2 className="font-display text-2xl text-[var(--color-primary)]">Browse live experiences</h2>
+            <span className="font-ui text-xs text-[var(--color-text-secondary)]">
+              Pick a program, search, and sort. Bidding and details are on the official site.
+            </span>
+          </div>
+          <ExperienceFinder listings={listings} />
+          <p className="mt-4 font-body text-sm text-[var(--color-text-secondary)]">
+            A snapshot of what we&apos;re tracking, refreshed daily. Larger programs list more on their
+            official sites, and inventory changes constantly, so always confirm what&apos;s bookable
+            there before you plan or transfer points.
+          </p>
+        </section>
+      )}
+
+      <div className="mb-4 border-b border-[var(--color-border-soft)] pb-2">
+        <h2 className="font-display text-2xl text-[var(--color-primary)]">All programs &amp; how they work</h2>
+      </div>
       <ExperiencesDirectory experiences={experiences} />
     </main>
   )
