@@ -11,6 +11,7 @@ const toolsMenu: { label: string; href: string; comingSoon?: boolean }[] = [
   { label: "Decision Engine", href: "/decision-engine" },
   { label: "Credit Card Explorer", href: "/cards" },
   { label: "Alliance Explorer", href: "/tools/alliances" },
+  { label: "Experiences Finder", href: "/experiences" },
   { label: "My Wallet", href: "/wallet", comingSoon: true },
 ];
 
@@ -31,7 +32,6 @@ const RESOURCE_ITEMS: {
   { label: "Airlines", key: "airline", href: "/programs?type=airline" },
   { label: "Hotels", key: "hotel", href: "/programs?type=hotel" },
   { label: "Alliances", key: "alliance", href: "/programs?type=alliance" },
-  { label: "Experiences", href: "/experiences" },
   { label: "Newsletter", href: "/newsletter" },
   { label: "Blog", href: "/blog" },
   { label: "Points Hub", href: "/hub", comingSoon: true },
