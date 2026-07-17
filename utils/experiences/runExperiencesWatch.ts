@@ -54,6 +54,17 @@ export const EXPERIENCE_PROGRAMS: ExperienceProgram[] = [
     list_urls: ['https://experiences.hiltonhonors.com'],
     complete: true,
   },
+  {
+    program_slug: 'delta',
+    directory_slug: 'delta-skymiles-experiences',
+    source_platform: 'Delta SkyMiles Experiences',
+    list_urls: ['https://www.skymilesexperiences.com'],
+    complete: true,
+  },
+  // Capital One Entertainment (capitalone.com/entertainment) tested but parses
+  // zero clean listings (marketing page, not a catalog) — left out until a
+  // scrapeable listing URL is found. Emirates/Bilt/Hyatt: candidates pending a
+  // clean per-program listing URL.
 ]
 
 interface ParsedListing {
