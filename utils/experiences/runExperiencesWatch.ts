@@ -77,10 +77,25 @@ export const EXPERIENCE_PROGRAMS: ExperienceProgram[] = [
     list_urls: ['https://www.americanexpress.com/en-us/benefits/entertainment/'],
     complete: true,
   },
-  // Capital One Entertainment (capitalone.com/entertainment) tested but parses
-  // zero clean listings (marketing page, not a catalog) — left out until a
-  // scrapeable listing URL is found. Emirates/Bilt/Hyatt: candidates pending a
-  // clean per-program listing URL.
+  {
+    program_slug: 'united',
+    directory_slug: 'united-mileageplus-exclusives',
+    source_platform: 'United MileagePlus Exclusives',
+    list_urls: ['https://exclusives.mileageplus.com'],
+    complete: true,
+  },
+  {
+    program_slug: 'citi',
+    directory_slug: 'citi-entertainment',
+    source_platform: 'Citi Entertainment',
+    list_urls: ['https://www.citientertainment.com'],
+    complete: true,
+  },
+  // Tested but NOT added (parse zero / marketing pages, flagged by scraper health):
+  // Flying Blue (flyingblue.com spend-miles), Bilt (biltrewards.com homepage),
+  // Capital One (capitalone.com/entertainment). Emirates/Qatar/Virgin-Red/
+  // Miles&More/Choice/Atmos: 1-2 or messy. IHG/Hyatt/Aeroplan/Qantas/BA/Accor:
+  // blocked or landing pages, no catalog. All stay guide-only in the directory.
 ]
 
 interface ParsedListing {
