@@ -93,6 +93,31 @@ const freshIntel = (await q('fresh intel', db.from('intel_items')
   .eq('processed', false).is('rejected_at', null).is('archived_at', null).is('triage_decision', null)
   .gte('created_at', since36).order('created_at', { ascending: false }))).data
 
+// ---- Suppressed dupes (last 36h) — visibility, so dedup isn't a black box --
+const dupes = (await q('suppressed dupes', db.from('intel_items')
+  .select('headline, source_name, dup_of_intel_id, created_at')
+  .not('dup_of_intel_id', 'is', null).gte('created_at', since36)
+  .order('created_at', { ascending: false }).limit(10))).data
+let dupeOriginal = new Map()
+if (dupes.length) {
+  const ids = [...new Set(dupes.map((d) => d.dup_of_intel_id))]
+  const origs = (await q('dupe originals', db.from('intel_items').select('id, headline').in('id', ids))).data
+  dupeOriginal = new Map(origs.map((o) => [o.id, o.headline]))
+}
+
+// ---- Alert UPDATES — Haiku found facts our published alert is missing ------
+// This is the payoff of Layer 2: a "dupe" that actually improves an alert.
+const updates = (await q('alert updates', db.from('intel_items')
+  .select('headline, source_name, haiku_diff_summary, haiku_diff_categories, update_to_alert_id, created_at')
+  .not('update_to_alert_id', 'is', null).is('rejected_at', null).is('archived_at', null)
+  .eq('processed', false).order('created_at', { ascending: false }).limit(8))).data
+let updateAlert = new Map()
+if (updates.length) {
+  const ids = [...new Set(updates.map((u) => u.update_to_alert_id))]
+  const al = (await q('update alert titles', db.from('alerts').select('id, title').in('id', ids))).data
+  updateAlert = new Map(al.map((a) => [a.id, a.title]))
+}
+
 // ---- Signals + refresh detail ---------------------------------------------
 const changeDetail = (await q('change signal detail', db.from('change_signals')
   .select('summary, program_slug, signal_type, source_name, created_at').eq('status', 'new')
@@ -192,6 +217,24 @@ for (const r of freshIntel) {
   const progs = Array.isArray(r.programs) ? r.programs.join(',') : (r.programs || '')
   console.log(`  - [${(r.source_type || '?').padEnd(8)}|${(r.confidence || '?').padEnd(6)}] ${(r.headline || '').slice(0, 74)}`)
   console.log(`      src=${r.source_name || '?'}  type=${r.alert_type || '?'}  programs=[${progs}]  exp=${r.expires_at ? r.expires_at.slice(0, 10) : '-'}`)
+}
+
+console.log('\n' + B)
+console.log(`ALERT UPDATES — new facts for an already-published alert (${updates.length}):`)
+if (!updates.length) console.log('  (none)')
+for (const u of updates) {
+  console.log(`  - ${(u.headline || '').slice(0, 68)}`)
+  console.log(`      updates: "${(updateAlert.get(u.update_to_alert_id) || '?').slice(0, 58)}"`)
+  if (u.haiku_diff_summary) console.log(`      new facts: ${String(u.haiku_diff_summary).slice(0, 84)}`)
+}
+if (updates.length) console.log('  -> these IMPROVE a live alert. Verify, then edit the alert (do not publish a second one).')
+
+console.log('\n' + B)
+console.log(`SUPPRESSED DUPES — auto-hidden in the last 36h (${dupes.length}):`)
+if (!dupes.length) console.log('  (none)')
+for (const d of dupes) {
+  console.log(`  - ${(d.headline || '').slice(0, 66)}  <${d.source_name || '?'}>`)
+  console.log(`      dupe of: "${(dupeOriginal.get(d.dup_of_intel_id) || '(original not found)').slice(0, 58)}"`)
 }
 
 if (changeDetail.length) {
