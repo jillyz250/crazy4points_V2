@@ -369,7 +369,10 @@ const DEDUP_TTL_DAYS = {
 export type DecisionMatch = {
   block: boolean
   reason: 'pending_review' | 'published' | 'rejected' | 'soft_rejected'
-  alert: Pick<Alert, 'id' | 'title' | 'status' | 'decided_at' | 'revisit_after' | 'rejected_reason'>
+  alert: Pick<Alert, 'id' | 'title' | 'status' | 'decided_at' | 'revisit_after' | 'rejected_reason'> & {
+    published_at?: string | null
+    created_at?: string | null
+  }
 }
 
 /**
@@ -396,27 +399,40 @@ export async function getRecentDecisionFor(
 
   const { data } = await supabase
     .from('alerts')
-    .select('id, title, status, decided_at, revisit_after, rejected_reason')
+    .select('id, title, status, decided_at, revisit_after, rejected_reason, published_at, created_at')
     .eq('primary_program_id', programId)
     .eq('type', alertType)
-    .order('decided_at', { ascending: false, nullsFirst: false })
+    .order('created_at', { ascending: false })
     .limit(20)
 
   if (!data || data.length === 0) return null
 
+  /**
+   * Effective decision time. decided_at is only stamped by publishAlertVariant;
+   * anything that flipped a variant to published/rejected directly (scripts,
+   * SQL, older paths) leaves it NULL. Requiring decided_at meant a NULL
+   * silently disabled dedup for that alert — on 2026-07-17 that was 32 of 49
+   * published alerts (65%), so Layer 2 never fired and the Haiku new-facts
+   * diff never ran. Fall back so a missing stamp degrades gracefully instead
+   * of turning the whole safety net off.
+   */
+  const decidedAtOf = (a: DecisionMatch['alert']): string | null =>
+    a.decided_at ?? a.published_at ?? a.created_at ?? null
+
   for (const row of data) {
     const a = row as DecisionMatch['alert']
     const status = (a.status as unknown) as string
+    const decided = decidedAtOf(a)
     if (status === 'pending_review') {
       return { block: true, reason: 'pending_review', alert: a }
     }
-    if (status === 'published' && a.decided_at && a.decided_at >= publishedCutoff) {
+    if (status === 'published' && decided && decided >= publishedCutoff) {
       return { block: true, reason: 'published', alert: a }
     }
     if (status === 'soft_rejected' && a.revisit_after && a.revisit_after > nowIso) {
       return { block: true, reason: 'soft_rejected', alert: a }
     }
-    if (status === 'rejected' && a.decided_at && a.decided_at >= rejectedCutoff) {
+    if (status === 'rejected' && decided && decided >= rejectedCutoff) {
       return { block: true, reason: 'rejected', alert: a }
     }
   }
