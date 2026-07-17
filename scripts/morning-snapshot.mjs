@@ -2,14 +2,21 @@
 /**
  * morning-snapshot — one command that pulls everything the daily ritual needs.
  *
- * Prints a live report of every queue (counts + the actual NEW items to act on),
- * brief/digest status, and the fresh intel list used for the decision table and
- * the source gap-check. Read-only. Used by the `daily-ritual` skill.
+ * Prints every queue (counts + the actual items to act on), brief status, the
+ * fresh-intel list, program-drift, and the auto source-gap check. Read-only.
+ * Used by the `daily-ritual` skill.
  *
  * Usage:  node scripts/morning-snapshot.mjs
  *
- * Filters mirror app/admin/(protected)/page.tsx loadStats() exactly, so the
- * numbers here match the dashboard "Your day" board.
+ * DESIGN NOTE (learned the hard way, 2026-07-17): supabase-js does NOT throw on
+ * a bad column name — it resolves with an `error` property. Swallowing that in a
+ * try/catch silently returns an empty list, which looks identical to "queue is
+ * clear" and produced two wrong morning tables. Every query therefore goes
+ * through q(), which records failures and prints them LOUDLY at the end. Never
+ * ignore the error field.
+ *
+ * Filters mirror app/admin/(protected)/page.tsx loadStats() and
+ * /admin/program-drift so these numbers match the dashboard.
  */
 import { createClient } from '@supabase/supabase-js'
 import fs from 'fs'
@@ -22,133 +29,160 @@ const env = Object.fromEntries(
 )
 const db = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
 
+const problems = []
+/** Run a query, surfacing (never swallowing) errors. Returns {data, count}. */
+async function q(label, builder) {
+  try {
+    const { data, error, count } = await builder
+    if (error) { problems.push(`${label} -> ${error.message}`); return { data: [], count: null } }
+    return { data: data ?? [], count: count ?? (data?.length ?? 0) }
+  } catch (e) {
+    problems.push(`${label} -> threw: ${e?.message || e}`)
+    return { data: [], count: null }
+  }
+}
+const n = (v) => (v === null ? 'ERR' : v)
+
 const nowIso = new Date().toISOString()
 const since36 = new Date(Date.now() - 36 * 3600 * 1000).toISOString()
 const todayET = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
 
-async function count(build) {
-  try { const { count } = await build(); return count ?? 0 } catch { return '?' }
+// ---- Text helpers for the dupe/page checks --------------------------------
+const STOP = new Set(['the', 'and', 'for', 'with', 'through', 'from', 'your', 'you', 'not', 'are', 'now', 'its', 'of', 'to', 'on', 'in', 'up', 'by', 'is', 'has', 'new', 'more', 'get', 'can', 'but', 'as', 'at', 'be', 'this', 'that', 'points', 'miles', 'bonus', 'rewards', 'card', 'offer', 'sale', 'program', 'launches', 'announce', 'announces', 'partnership', 'partner', 'members', 'member'])
+const tok = (t) => new Set(((t || '').toLowerCase().match(/[a-z0-9]{3,}/g) || []).filter((w) => !STOP.has(w)))
+const jac = (a, b) => { const i = [...a].filter((x) => b.has(x)).length; const u = new Set([...a, ...b]).size; return u ? i / u : 0 }
+
+// ---- Counts (mirror the dashboard) ---------------------------------------
+const pendingReview = (await q('count pending drafts', db.from('content_variants').select('id', { count: 'exact', head: true })
+  .eq('status', 'needs_review').or(`snoozed_until.is.null,snoozed_until.lte.${nowIso}`))).count
+
+const intelToTriage = (await q('count intel to triage', db.from('intel_items').select('id', { count: 'exact', head: true })
+  .eq('processed', false).is('rejected_at', null)
+  .or('triage_decision.is.null,triage_decision.in.(approved,newsletter_idea)')
+  .or(`expires_at.is.null,expires_at.gte.${nowIso}`)
+  .or(`snoozed_until.is.null,snoozed_until.lte.${nowIso}`))).count
+
+const changeSignals = (await q('count change signals', db.from('change_signals').select('id', { count: 'exact', head: true }).eq('status', 'new'))).count
+const bonusSignals = (await q('count bonus signals', db.from('card_bonus_signals').select('id', { count: 'exact', head: true }).eq('status', 'new'))).count
+const proseReview = (await q('count prose review', db.from('credit_cards').select('id', { count: 'exact', head: true }).not('good_to_know_review_at', 'is', null))).count
+const refreshQueue = (await q('count refresh queue', db.from('admin_refresh_queue').select('*', { count: 'exact', head: true }))).count
+
+// ---- Brief status ---------------------------------------------------------
+const briefRow = (await q('daily brief', db.from('daily_briefs').select('brief_date, sent_at').order('brief_date', { ascending: false }).limit(1))).data[0]
+const briefLine = briefRow
+  ? `latest ${briefRow.brief_date}${briefRow.brief_date === todayET ? ' (TODAY — ready)' : ' (today not built yet)'}`
+  : 'no briefs found'
+
+// ---- All alert variants (60d) — powers drafts list + the DUPE check --------
+const variants = (await q('alert variants 60d', db.from('content_variants')
+  .select('title, status, created_at, updated_at, metadata, snoozed_until')
+  .eq('format', 'alert').gte('created_at', new Date(Date.now() - 60 * 864e5).toISOString()))).data
+const drafts = variants.filter((v) => v.status === 'needs_review' && (!v.snoozed_until || v.snoozed_until <= nowIso))
+const settled = variants.filter((v) => v.status !== 'needs_review')
+/** For each draft, best match among published/archived — catches re-drafted dupes. */
+function dupeOf(draft) {
+  const dt = tok(draft.title)
+  let best = null, bs = 0
+  for (const s of settled) { const sc = jac(dt, tok(s.title)); if (sc > bs) { bs = sc; best = s } }
+  return bs >= 0.3 ? { score: bs, match: best } : null
 }
 
-// ---- Counts (mirror the dashboard) ----------------------------------------
-const pendingReview = await count(() =>
-  db.from('content_variants').select('id', { count: 'exact', head: true })
-    .eq('status', 'needs_review').or(`snoozed_until.is.null,snoozed_until.lte.${nowIso}`))
+// ---- Fresh intel (last 36h, still open) -----------------------------------
+const freshIntel = (await q('fresh intel', db.from('intel_items')
+  .select('headline, source_name, source_type, programs, confidence, alert_type, expires_at, created_at')
+  .eq('processed', false).is('rejected_at', null).is('archived_at', null).is('triage_decision', null)
+  .gte('created_at', since36).order('created_at', { ascending: false }))).data
 
-const intelToTriage = await count(() =>
-  db.from('intel_items').select('id', { count: 'exact', head: true })
-    .eq('processed', false).is('rejected_at', null)
-    .or('triage_decision.is.null,triage_decision.in.(approved,newsletter_idea)')
-    .or(`expires_at.is.null,expires_at.gte.${nowIso}`)
-    .or(`snoozed_until.is.null,snoozed_until.lte.${nowIso}`))
+// ---- Signals + refresh detail ---------------------------------------------
+const changeDetail = (await q('change signal detail', db.from('change_signals')
+  .select('summary, program_slug, signal_type, source_name, created_at').eq('status', 'new')
+  .order('created_at', { ascending: false }).limit(15))).data
+const bonusDetail = (await q('bonus signal detail', db.from('card_bonus_signals')
+  .select('card_slug, card_name, summary, stored_amount, detected_amount, created_at').eq('status', 'new')
+  .order('created_at', { ascending: false }).limit(15))).data
+const refreshDetail = (await q('refresh queue detail', db.from('admin_refresh_queue')
+  .select('entity_type, entity_name, age_days, last_verified').order('age_days', { ascending: false }).limit(5))).data
 
-const changeSignals = await count(() =>
-  db.from('change_signals').select('id', { count: 'exact', head: true }).eq('status', 'new'))
-const bonusSignals = await count(() =>
-  db.from('card_bonus_signals').select('id', { count: 'exact', head: true }).eq('status', 'new'))
-const proseReview = await count(() =>
-  db.from('credit_cards').select('id', { count: 'exact', head: true }).not('good_to_know_review_at', 'is', null))
-const refreshQueue = await count(() =>
-  db.from('admin_refresh_queue').select('*', { count: 'exact', head: true }))
+// ---- Program-fact drift (same filter as /admin/program-drift + digest) -----
+const driftRes = await q('program drift', db.from('intel_items')
+  .select('headline, conflict_field, conflict_summary, conflicts_program_id', { count: 'exact' })
+  .not('conflicts_program_id', 'is', null).is('conflict_resolution', null).is('archived_at', null)
+  .order('conflict_detected_at', { ascending: false }).limit(6))
+const driftDetail = driftRes.data, driftCount = driftRes.count
 
-// ---- Brief / digest status -------------------------------------------------
-let briefLine = 'no briefs found'
-try {
-  const { data } = await db.from('daily_briefs').select('brief_date, sent_at').order('brief_date', { ascending: false }).limit(1).maybeSingle()
-  if (data) briefLine = `latest ${data.brief_date}${data.brief_date === todayET ? ' (TODAY — ready)' : ' (today not built yet)'}`
-} catch {}
+// ---- Programs + sources (page-check + gap-check) ---------------------------
+const programsAll = (await q('programs', db.from('programs').select('*'))).data
+const progBySlug = new Map(programsAll.map((p) => [p.slug, p]))
+const nameBySlug = new Map(programsAll.map((p) => [p.slug, p.name]))
+const activeSources = (await q('active sources', db.from('sources').select('name').eq('is_active', true))).data
 
-// ---- Pending drafts (needs_review) — the ready-to-publish queue -----------
-let drafts = []
-try {
-  const { data } = await db.from('content_variants')
-    .select('title, format, created_at, metadata')
-    .eq('status', 'needs_review').or(`snoozed_until.is.null,snoozed_until.lte.${nowIso}`)
-    .order('created_at', { ascending: false })
-  drafts = data || []
-} catch {}
+/**
+ * PAGE CHECK: is this signal's fact already on the program page?
+ * Distinctive tokens = signal summary minus the program's own name. If they
+ * already appear in the page row, the signal is likely already handled.
+ * (Caught YOTEL-already-on-Hilton, 2026-07-17.)
+ */
+function alreadyOnPage(summary, programSlug) {
+  const prog = progBySlug.get(programSlug)
+  if (!prog) return null
+  const blob = JSON.stringify(prog).toLowerCase()
+  const own = tok(prog.name || '')
+  const distinctive = [...tok(summary)].filter((t) => !own.has(t) && t.length >= 4)
+  if (!distinctive.length) return null
+  const hits = distinctive.filter((t) => blob.includes(t))
+  return { hits, ratio: hits.length / distinctive.length }
+}
 
-// ---- Fresh intel (last 36h, still open) — for the decision table + gap-check
-let freshIntel = []
-try {
-  const { data } = await db.from('intel_items')
-    .select('headline, source_name, source_type, programs, confidence, alert_type, expires_at, created_at')
-    .eq('processed', false).is('rejected_at', null).is('archived_at', null).is('triage_decision', null)
-    .gte('created_at', since36).order('created_at', { ascending: false })
-  freshIntel = data || []
-} catch {}
-
-// ---- Open change signals + bonus signals detail ---------------------------
-let changeDetail = [], bonusDetail = [], refreshDetail = []
-try { const { data } = await db.from('change_signals').select('headline, program_slug, created_at').eq('status', 'new').order('created_at', { ascending: false }).limit(15); changeDetail = data || [] } catch {}
-try { const { data } = await db.from('card_bonus_signals').select('card_slug, headline, created_at').eq('status', 'new').order('created_at', { ascending: false }).limit(15); bonusDetail = data || [] } catch {}
-try { const { data } = await db.from('admin_refresh_queue').select('entity_type, entity_name, age_days, last_verified').order('age_days', { ascending: false }).limit(5); refreshDetail = data || [] } catch {}
-
-// ---- Program-fact drift — same filter as /admin/program-drift + the digest
-// (conflicts_program_id set, unresolved, not archived). Show top few + total.
-let driftDetail = [], driftCount = 0
-try {
-  const { data, count } = await db.from('intel_items')
-    .select('headline, conflict_field, conflict_summary, conflicts_program_id', { count: 'exact' })
-    .not('conflicts_program_id', 'is', null).is('conflict_resolution', null).is('archived_at', null)
-    .order('conflict_detected_at', { ascending: false }).limit(6)
-  driftDetail = data || []; driftCount = count ?? driftDetail.length
-} catch {}
-
-// ---- Source gap-check — programs that showed up in NON-official intel (14d)
-// but have no active source whose name matches. Fuzzy name-match, so it's a
-// "look here" prompt, NOT gospel — some may already be covered under a
-// differently-named source. Verify (Firecrawl->Haiku) before adding.
+// ---- Source gap-check -----------------------------------------------------
 let gaps = []
-try {
-  const gapSince = new Date(Date.now() - 14 * 864e5).toISOString()
-  const [{ data: progRows }, { data: srcRows }, { data: gapIntel }] = await Promise.all([
-    db.from('programs').select('slug, name'),
-    db.from('sources').select('name').eq('is_active', true),
-    db.from('intel_items').select('programs, source_type, source_name, headline').neq('source_type', 'official').is('rejected_at', null).gte('created_at', gapSince),
-  ])
-  const nameBySlug = new Map((progRows || []).map((p) => [p.slug, p.name]))
-  // Tokens >=3 chars so acronym-named programs/sources match (IHG, ANA, EVA, TAP).
+{
+  const gapIntel = (await q('gap intel 14d', db.from('intel_items')
+    .select('programs, source_type, source_name, headline').neq('source_type', 'official')
+    .is('rejected_at', null).gte('created_at', new Date(Date.now() - 14 * 864e5).toISOString()))).data
   const srcTokens = new Set()
-  for (const s of srcRows || []) for (const w of (s.name || '').toLowerCase().match(/[a-z]{3,}/g) || []) srcTokens.add(w)
-  // Generic tokens that shouldn't count as "covered" on their own.
-  const STOP = new Set(['news', 'google', 'miles', 'rewards', 'points', 'airlines', 'airways', 'hotels', 'hotel', 'group', 'card', 'cards', 'program', 'club', 'plus', 'world', 'air', 'the', 'one', 'usa', 'and', 'for', 'new'])
-  // Joint / multi-carrier programs covered by a differently-named newsroom.
-  const KNOWN_COVERED = new Set(['atmos'])
+  for (const s of activeSources) for (const w of (s.name || '').toLowerCase().match(/[a-z]{3,}/g) || []) srcTokens.add(w)
+  const GAP_STOP = new Set(['news', 'google', 'miles', 'rewards', 'points', 'airlines', 'airways', 'hotels', 'hotel', 'group', 'card', 'cards', 'program', 'club', 'plus', 'world', 'air', 'the', 'one', 'usa', 'and', 'for', 'new'])
+  const KNOWN_COVERED = new Set(['atmos']) // joint programs covered by a differently-named newsroom
   const seen = new Map()
-  for (const r of gapIntel || []) {
+  for (const r of gapIntel) {
     for (const slug of (Array.isArray(r.programs) ? r.programs : [])) {
       if (KNOWN_COVERED.has(slug)) continue
       const nm = nameBySlug.get(slug); if (!nm) continue
-      const toks = (nm.toLowerCase().match(/[a-z]{3,}/g) || []).filter((t) => !STOP.has(t))
-      if (toks.length && toks.some((t) => srcTokens.has(t))) continue // covered
+      const toks = (nm.toLowerCase().match(/[a-z]{3,}/g) || []).filter((t) => !GAP_STOP.has(t))
+      if (toks.length && toks.some((t) => srcTokens.has(t))) continue
       const g = seen.get(slug) || { name: nm, count: 0, ex: r.headline, src: r.source_name }
       g.count++; seen.set(slug, g)
     }
   }
   gaps = [...seen.entries()].map(([slug, g]) => ({ slug, ...g })).sort((a, b) => b.count - a.count).slice(0, 8)
-} catch {}
+}
 
-// ---- Render ----------------------------------------------------------------
-const B = '─'.repeat(64)
+// ══════════════════════════ RENDER ══════════════════════════
+const B = '─'.repeat(66)
 console.log(B)
 console.log(`MORNING SNAPSHOT  ${todayET} (ET)`)
 console.log(`Daily brief: ${briefLine}`)
 console.log(B)
 console.log('QUEUE COUNTS (act highest-first):')
-console.log(`  Pending drafts (needs_review) . ${pendingReview}   -> /admin/drafts?view=needs_review`)
-console.log(`  Intel to triage (open) ........ ${intelToTriage}   -> /admin/triage`)
-console.log(`  Transfer-data changes ......... ${changeSignals}   -> /admin/change-signals`)
-console.log(`  Welcome-bonus changes ......... ${bonusSignals}   -> /admin/card-bonus-signals`)
-console.log(`  Prose to re-check ............. ${proseReview}   -> /admin/card-bonus-signals`)
-console.log(`  Refresh queue ................. ${refreshQueue}   -> /admin/refresh-queue`)
+console.log(`  Pending drafts (needs_review) . ${n(pendingReview)}   -> /admin/drafts?view=needs_review`)
+console.log(`  Intel to triage (open) ........ ${n(intelToTriage)}   -> /admin/triage`)
+console.log(`  Transfer-data changes ......... ${n(changeSignals)}   -> /admin/change-signals`)
+console.log(`  Welcome-bonus changes ......... ${n(bonusSignals)}   -> /admin/card-bonus-signals`)
+console.log(`  Prose to re-check ............. ${n(proseReview)}   -> /admin/card-bonus-signals`)
+console.log(`  Refresh queue ................. ${n(refreshQueue)}   -> /admin/refresh-queue`)
 
 console.log('\n' + B)
-console.log(`PENDING DRAFTS — ready to publish/reject (${drafts.length}):`)
+console.log(`PENDING DRAFTS — dupe-checked vs ${settled.length} published/archived (${drafts.length}):`)
 if (!drafts.length) console.log('  (none)')
 for (const d of drafts) {
+  const dup = dupeOf(d)
+  const tag = !dup ? 'NEW    ' : dup.score >= 0.5 ? `DUPE ${(dup.score * 100).toFixed(0)}%` : `similar ${(dup.score * 100).toFixed(0)}%`
   const hot = d.metadata?.editorial_scores?.is_hot ? ' [HOT]' : ''
-  console.log(`  - ${(d.format || '?').padEnd(6)}${hot}  ${(d.title || '(untitled)').slice(0, 72)}`)
+  console.log(`  [${tag}]${hot} ${(d.title || '(untitled)').slice(0, 66)}`)
+  if (dup) {
+    const why = dup.match.metadata?.archive_reason ? `${dup.match.status}/${dup.match.metadata.archive_reason}` : dup.match.status
+    console.log(`        ^ ${why}: ${(dup.match.title || '').slice(0, 62)}`)
+  }
 }
 
 console.log('\n' + B)
@@ -161,27 +195,43 @@ for (const r of freshIntel) {
 }
 
 if (changeDetail.length) {
-  console.log('\n' + B); console.log(`OPEN TRANSFER-DATA CHANGE SIGNALS (${changeDetail.length}):`)
-  for (const r of changeDetail) console.log(`  - [${r.program_slug || '?'}] ${(r.headline || '').slice(0, 74)}`)
+  console.log('\n' + B); console.log(`OPEN TRANSFER-DATA CHANGE SIGNALS (${changeDetail.length}) — page-checked:`)
+  for (const r of changeDetail) {
+    const chk = alreadyOnPage(r.summary, r.program_slug)
+    const mark = !chk ? '' : chk.ratio >= 0.6 ? `  <<ALREADY ON PAGE? ${(chk.ratio * 100).toFixed(0)}% terms present>>` : chk.ratio >= 0.3 ? `  <partly on page ${(chk.ratio * 100).toFixed(0)}%>` : ''
+    console.log(`  - [${r.program_slug || '?'}|${r.signal_type || '?'}] ${(r.summary || '').slice(0, 62)}${mark}`)
+  }
+  console.log('  NOTE: page-check is fuzzy — confirm on the page before dismissing.')
 }
 if (bonusDetail.length) {
   console.log('\n' + B); console.log(`OPEN WELCOME-BONUS SIGNALS (${bonusDetail.length}):`)
-  for (const r of bonusDetail) console.log(`  - [${r.card_slug || '?'}] ${(r.headline || '').slice(0, 74)}`)
+  for (const r of bonusDetail) console.log(`  - [${r.card_slug || '?'}] ${(r.summary || r.card_name || '').slice(0, 60)}  (ours ${r.stored_amount ?? '?'} vs live ${r.detected_amount ?? '?'})`)
 }
 if (refreshDetail.length) {
-  console.log('\n' + B); console.log(`REFRESH QUEUE — oldest due (top ${refreshDetail.length} of ${refreshQueue}):`)
+  console.log('\n' + B); console.log(`REFRESH QUEUE — oldest due (top ${refreshDetail.length} of ${n(refreshQueue)}):`)
   for (const r of refreshDetail) console.log(`  - [${(r.entity_type || '?').replace(/^program_/, '').replace(/_/g, ' ')}] ${(r.entity_name || '?').slice(0, 56)}  (${r.last_verified ? r.age_days + 'd' : 'never verified'})`)
 }
 
 console.log('\n' + B)
-console.log(`PROGRAM-FACT DRIFT — fresh intel contradicts a program page (top ${driftDetail.length} of ${driftCount}):`)
+console.log(`PROGRAM-FACT DRIFT — fresh intel contradicts a program page (top ${driftDetail.length} of ${n(driftCount)}):`)
 if (!driftDetail.length) console.log('  (none open — pages current)')
 for (const d of driftDetail) console.log(`  - [${d.conflict_field || '?'}] ${(d.conflict_summary || d.headline || '').slice(0, 74)}`)
-console.log('  -> verify vs issuer page, fix if real, resolve at /admin/program-drift')
+if (driftDetail.length) console.log('  -> verify vs issuer page, fix if real, resolve at /admin/program-drift')
 
 console.log('\n' + B)
 console.log(`SOURCE GAPS — programs in blog/email intel (14d) with NO matching active source (${gaps.length}):`)
 if (!gaps.length) console.log('  (none flagged — coverage looks complete)')
 for (const g of gaps) console.log(`  - ${g.name} (${g.slug}) x${g.count}  e.g. "${(g.ex || '').slice(0, 46)}" via ${g.src}`)
-if (gaps.length) console.log('  NOTE: fuzzy name-match — some may already be covered under a differently-named source. Verify (Firecrawl->Haiku) before adding.')
-console.log(B)
+if (gaps.length) console.log('  NOTE: fuzzy name-match — verify (Firecrawl->Haiku) before adding.')
+
+if (problems.length) {
+  console.log('\n' + '!'.repeat(66))
+  console.log(`!! ${problems.length} QUERY PROBLEM(S) — SOME NUMBERS ABOVE ARE WRONG/MISSING:`)
+  for (const p of problems) console.log(`   - ${p}`)
+  console.log('!! Fix these before trusting the snapshot.')
+  console.log('!'.repeat(66))
+} else {
+  console.log('\n' + B)
+  console.log('All queries OK — no silent failures.')
+  console.log(B)
+}
