@@ -24,10 +24,19 @@ Run:
 ```
 node scripts/morning-snapshot.mjs
 ```
-It prints every queue count (matching the dashboard "Your day" board), the brief/digest status, and the **fresh intel list** (last 36h) you'll use for the table and the gap-check. Read-only. If it errors on a table, note it and continue — don't block the ritual.
+It prints every queue count (matching the dashboard "Your day" board), brief status, dupe-checked pending drafts, fresh intel, page-checked change signals, program-drift, and the source gap-check. Read-only.
+
+**If the `!! QUERY PROBLEM(S)` block prints at the bottom, STOP and fix it before building the table** — a failed query renders as an empty queue, which looks exactly like "all clear." (This is not hypothetical: on 2026-07-17 two swallowed column errors produced a table that recommended publishing an already-published alert. The script now surfaces every error; never ignore that block.)
 
 ### Step 1 — one decision table (most important first)
-From the snapshot, build **ONE table** covering the actionable queues: pending drafts, intel to triage, transfer-data changes, **welcome-bonus changes**, prose-to-recheck, and the **refresh queue** (surface the oldest few due — re-verify or page-note candidates). Columns: **Item · What it is · My recommendation**. Order by leverage (a hot publishable deal beats a stale housekeeping flag; the refresh-queue backlog sits near the bottom unless something's badly overdue). For each row recommend exactly one of: **publish** (verify first), **page-note** (fold into a program/card page as a detail), **reject** (with reason), **snooze**, or **hold**. Jill decides down the list; you execute — verify each keeper against issuer sources, edit to her brand voice, publish. Quality over clearing the pile.
+From the snapshot, build **ONE table** covering the actionable queues: pending drafts, intel to triage, transfer-data changes, **welcome-bonus changes**, prose-to-recheck, and the **refresh queue** (surface the oldest few due — re-verify or page-note candidates). Columns: **Item · What it is · My recommendation**. Order by leverage (a hot publishable deal beats a stale housekeeping flag; the refresh-queue backlog sits near the bottom unless something's badly overdue). For each row recommend exactly one of: **publish** (verify first), **page-note** (fold into a program/card page as a detail), **reject** (with reason), **snooze**, or **hold**.
+
+**Never recommend work that's already done. The snapshot pre-checks this — USE its markers:**
+- **`[DUPE nn%]` / `[similar nn%]` on a draft** → the story is already **published** or was **archived/rejected/manual_delete**'d. Never recommend publishing a DUPE — recommend **reject (duplicate)**. For `similar`, read the match: a prior `rejected`/`manual_delete` on the same *kind* of story is precedent to reject; a different program may still be genuinely new (judgment call — say so).
+- **`<<ALREADY ON PAGE?>>` on a change signal** → the fact is already on that program page. Recommend **dismiss**, not page-note. Confirm on the page first (the check is fuzzy).
+- **Before ANY page-note**, confirm the target page/card actually exists and doesn't already say it. Pure cash-back cards are deliberately NOT carried ([[feedback_verify_transferability_per_card]]) — a bonus on one is a **reject**, not a page-note.
+
+Jill decides down the list; you execute — verify each keeper against issuer sources, edit to her brand voice, publish. Quality over clearing the pile.
 
 ### Step 2 — brief + digest review (incl. program-drift)
 Surface today's daily brief and the data digest. Flag anything in them **not yet an alert or page update**. The editorial note stays at the top of the brief ([[feedback_brief_editorial_top]]). The snapshot's **PROGRAM-FACT DRIFT** section lists the top open conflicts where fresh intel contradicts a program page — for each, verify against the issuer's own page, fix the page if real, then resolve at `/admin/program-drift`. Anything already in Step 1's table doesn't need repeating here.
