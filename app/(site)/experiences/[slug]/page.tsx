@@ -114,7 +114,7 @@ export default async function ExperienceDetailPage({
       {exp.recent_highlights.length > 0 && (
         <section className="rg-sub-section border-t border-[var(--color-border-soft)]">
           <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="font-display text-2xl text-[var(--color-primary)]">Recently featured</h2>
+            <h2 className="font-display text-2xl text-[var(--color-primary)]">Current experiences</h2>
             {exp.highlights_updated_at && (
               <span className="font-ui text-xs uppercase tracking-wide text-[var(--color-text-secondary)]">
                 as of {fmtDate(exp.highlights_updated_at)}
@@ -135,7 +135,7 @@ export default async function ExperienceDetailPage({
             ))}
           </ul>
           <p className="mt-2 font-body text-sm text-[var(--color-text-secondary)]">
-            Inventory rotates constantly — these are a snapshot, not a live list. Check {exp.official_url ? 'the site' : 'the program'} for what&apos;s bookable right now.
+            This is what we found as of the date above, checked daily. Inventory changes constantly, so confirm what&apos;s bookable and current on {exp.official_url ? 'the official site' : 'the program'} before you plan.
           </p>
         </section>
       )}

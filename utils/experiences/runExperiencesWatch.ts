@@ -244,18 +244,23 @@ export async function runExperiencesWatch(
   if (success) {
     const { data: active } = await supabase
       .from('experience_listings')
-      .select('title, current_bid, points_required, format')
+      .select('title, current_bid, points_required, format, category')
       .eq('program_slug', program.program_slug)
       .eq('status', 'active')
-      .order('updated_at', { ascending: false })
-      .limit(8)
-    const highlights = (active ?? []).map((a) => ({
-      title: a.title as string,
-      detail:
+      .order('current_bid', { ascending: false, nullsFirst: false })
+      .limit(40) // effectively all current listings, not a top-N teaser
+    const cap = (s: string | null | undefined) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : '')
+    const highlights = (active ?? []).map((a) => {
+      const pts =
         a.format === 'bid'
-          ? `Current bid ${Number(a.current_bid ?? 0).toLocaleString()} points`
-          : `${Number(a.points_required ?? 0).toLocaleString()} points`,
-    }))
+          ? a.current_bid != null
+            ? `Current bid ${Number(a.current_bid).toLocaleString()} points`
+            : 'Auction'
+          : a.points_required != null
+            ? `${Number(a.points_required).toLocaleString()} points`
+            : 'Points redemption'
+      return { title: a.title as string, detail: a.category ? `${cap(a.category)} · ${pts}` : pts }
+    })
     await supabase
       .from('experiences')
       .update({ recent_highlights: highlights, highlights_updated_at: now })
