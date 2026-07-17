@@ -148,14 +148,28 @@ export async function ingestItem(
   }
 
   if (layer2Block?.block) {
-    // Active alert exists. Run Haiku diff to decide surface vs suppress.
+    // Fetch the matched alert's summary so the diff compares real content, not
+    // just the title. Without it the classifier was near-blind and mislabeled
+    // different-but-same-program stories as "updates."
+    let existingSummary: string | null = null
+    try {
+      const { data: alertRow } = await supabase
+        .from('alerts')
+        .select('summary')
+        .eq('id', layer2Block.alert.id)
+        .maybeSingle()
+      existingSummary = (alertRow?.summary as string | null) ?? null
+    } catch {
+      /* non-fatal — diff still has the title */
+    }
+
+    // Active alert exists. Run Haiku diff to classify the relation.
     let diff
     try {
       diff = await haikuDiff({
         existing_alert: {
           title: layer2Block.alert.title,
-          // Pull description/summary from existing alert if available.
-          // DecisionMatch shape doesn't include them; fetch separately.
+          summary: existingSummary,
         },
         new_intel: {
           headline: input.headline,
@@ -167,7 +181,11 @@ export async function ingestItem(
       return await logErrorAndReturn(supabase, input, 'haiku-diff', err)
     }
 
-    if (diff.has_new_facts) {
+    // "different_story": same program + alert_type but a genuinely different
+    // offer. Not a dup and not an update — fall through to the normal insert
+    // path below so it stages as its own alert.
+    if (diff.relation !== 'different_story') {
+    if (diff.relation === 'same_story_new_facts') {
       // Surface as an update to the existing alert.
       try {
         const { data, error } = await supabase
@@ -195,7 +213,7 @@ export async function ingestItem(
       }
     }
 
-    // No new facts → silently suppress as dup.
+    // same_story_dup → silently suppress as dup.
     // Layer 2 doesn't give us a source intel_id, but Layer 3 might.
     const originalIntelId = layer3Match?.id ?? null
     try {
@@ -224,6 +242,7 @@ export async function ingestItem(
     } catch (err) {
       return await logErrorAndReturn(supabase, input, 'insert', err)
     }
+    } // end: relation !== 'different_story' (different_story falls through to normal insert)
   }
 
   if (layer3Match) {
