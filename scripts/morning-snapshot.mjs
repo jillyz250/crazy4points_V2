@@ -285,6 +285,25 @@ if (!gaps.length) console.log('  (none flagged — coverage looks complete)')
 for (const g of gaps) console.log(`  - ${g.name} (${g.slug}) x${g.count}  e.g. "${(g.ex || '').slice(0, 46)}" via ${g.src}`)
 if (gaps.length) console.log('  NOTE: fuzzy name-match — verify (Firecrawl->Haiku) before adding.')
 
+// ---- Experiences watch (new listings + scraper health) --------------------
+const newExp = (await q('new experiences', db.from('experience_listings')
+  .select('title, program_slug, format, current_bid, points_required, category, first_seen_at')
+  .eq('status', 'active').gte('first_seen_at', since36).order('first_seen_at', { ascending: false }).limit(12))).data
+const lastRun = (await q('experience runs', db.from('experience_scrape_runs')
+  .select('program_slug, run_started_at, success, items_found, error_message')
+  .order('run_started_at', { ascending: false }).limit(3))).data
+console.log('\n' + B)
+console.log(`EXPERIENCES — new listings since yesterday (${newExp.length}):`)
+if (!newExp.length) console.log('  (none new)')
+for (const e of newExp) {
+  const pts = e.format === 'bid' ? `bid ${e.current_bid ?? '?'}` : `${e.points_required ?? '?'} pts`
+  console.log(`  - [${e.program_slug}|${e.category || '?'}] ${(e.title || '').slice(0, 60)}  (${pts})`)
+}
+if (newExp.length) console.log('  -> marquee ones = social (Chase-transfer angle, honest it is a bid). Public directory auto-refreshed.')
+for (const r of lastRun) {
+  if (r.success === false) console.log(`  !! ${r.program_slug} scrape UNHEALTHY (${r.error_message || '?'}) at ${(r.run_started_at || '').slice(5, 16)}`)
+}
+
 if (problems.length) {
   console.log('\n' + '!'.repeat(66))
   console.log(`!! ${problems.length} QUERY PROBLEM(S) — SOME NUMBERS ABOVE ARE WRONG/MISSING:`)
