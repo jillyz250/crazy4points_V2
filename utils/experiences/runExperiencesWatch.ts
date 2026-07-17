@@ -27,6 +27,18 @@ export const EXPERIENCE_PROGRAMS: ExperienceProgram[] = [
     source_platform: 'Wyndham Rewards Experiences',
     list_url: 'https://wyndhamrewardsexperiences.wyndhamrewards.com/iSynApp/allAuction.action',
   },
+  {
+    program_slug: 'marriott-bonvoy',
+    directory_slug: 'marriott-bonvoy-moments',
+    source_platform: 'Marriott Bonvoy Moments',
+    list_url: 'https://moments.marriottbonvoy.com',
+  },
+  {
+    program_slug: 'hilton',
+    directory_slug: 'hilton-honors-experiences',
+    source_platform: 'Hilton Honors Experiences',
+    list_url: 'https://experiences.hiltonhonors.com',
+  },
 ]
 
 interface ParsedListing {
