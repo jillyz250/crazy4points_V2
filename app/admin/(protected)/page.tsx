@@ -224,7 +224,7 @@ function TodayChecklist({ stats }: { stats: Awaited<ReturnType<typeof loadStats>
         },
         {
           id: 'wyndham-experiences', title: 'Wyndham experiences watch', time: 'Mondays',
-          hint: 'Check Wyndham Rewards Experiences for new auction listings. Marquee find -> social (Chase-transfer angle, honest it is a bid); timely -> newsletter. It is an auction and often modest value, so frame as fun, never a deal.',
+          hint: 'Check Wyndham Rewards Experiences for new listings. These are bundled VIP packages (stay + dining + show), often good value. Marquee find -> social (Chase-transfer angle); timely -> newsletter. Note BID (auction, can lose) vs REDEEM (fixed), and that packages are non-refundable with travel not included.',
           href: 'https://wyndhamrewardsexperiences.wyndhamrewards.com/', cta: 'Open', muted: !isMon,
         },
         {
