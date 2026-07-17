@@ -114,6 +114,8 @@ export interface WatchResult {
   new: number
   changed: number
   closed: number
+  enriched: number
+  reminders: number
   success: boolean
   error?: string
 }
@@ -187,6 +189,136 @@ function listingKey(programSlug: string, l: ParsedListing): string {
   const t = (l.title || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60)
   const d = (l.event_date || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 20)
   return `${programSlug}:${t}:${d}`
+}
+
+/**
+ * Pull the auction/offer CLOSE date off one listing's own detail page. Robust
+ * across the per-platform date formats (Wyndham "Close Date: Jul 24, 2026 08:00
+ * PM EDT", Marriott "End Date: 16 Jul 2026", United "07/20/2026 09:00 CST").
+ * Returns an ISO string, or null when nothing plausible is found — including
+ * when a page omits the year and Haiku guesses a past date (we reject those so a
+ * bad guess never hides a live listing or fires a phantom reminder).
+ */
+async function extractCloseDate(anthropic: Anthropic, markdown: string, todayIso: string): Promise<string | null> {
+  const msg = await anthropic.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 200,
+    messages: [
+      {
+        role: 'user',
+        content: `Today is ${todayIso}. This is an auction/experience detail page. Find when the AUCTION or offer CLOSES (the bidding deadline / end date), NOT the event date. If the year is missing, assume the soonest FUTURE date. Return ONLY {"close_date":"ISO 8601 datetime, or null if none found"}.\n\n${markdown.slice(0, 12000)}`,
+      },
+    ],
+  })
+  try {
+    await logUsage(msg, 'experiences-watch:close-date', {})
+  } catch {
+    /* non-fatal */
+  }
+  const first = msg.content[0]
+  const text = first && first.type === 'text' ? first.text : '{}'
+  const cleaned = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
+  let cd: string | null = null
+  try {
+    cd = (JSON.parse(cleaned)?.close_date as string) ?? null
+  } catch {
+    return null
+  }
+  if (!cd) return null
+  const t = Date.parse(cd)
+  if (Number.isNaN(t)) return null
+  // Reject implausible past dates (missing-year guesses land in the past).
+  if (t < Date.now() - 2 * 86_400_000) return null
+  return new Date(t).toISOString()
+}
+
+/**
+ * Enrich close dates for this program's auction listings that don't have one yet.
+ * Only BID listings have a bidding deadline, and we only scrape those missing a
+ * close_date, so this is a one-time backfill per listing then near-free ongoing.
+ * Capped + batched so it stays well inside the cron budget.
+ */
+async function enrichCloseDates(supabase: SupabaseClient, program: ExperienceProgram): Promise<number> {
+  const key = process.env.ANTHROPIC_API_KEY
+  if (!key) return 0
+  const anthropic = new Anthropic({ apiKey: key })
+  const todayIso = new Date().toISOString().slice(0, 10)
+  const { data: need } = await supabase
+    .from('experience_listings')
+    .select('id, detail_url')
+    .eq('program_slug', program.program_slug)
+    .eq('status', 'active')
+    .eq('format', 'bid')
+    .is('close_date', null)
+    .not('detail_url', 'is', null)
+    .limit(12) // per-run cap; backfill finishes over a few daily runs
+  if (!need?.length) return 0
+  let updated = 0
+  for (let i = 0; i < need.length; i += 6) {
+    const batch = need.slice(i, i + 6)
+    const results = await Promise.all(
+      batch.map(async (r) => {
+        let md = ''
+        try {
+          md = await firecrawlMarkdown(r.detail_url as string)
+        } catch {
+          return null
+        }
+        if (md.length < 800) return null
+        const cd = await extractCloseDate(anthropic, md, todayIso)
+        return cd ? { id: r.id as string, close_date: cd } : null
+      }),
+    )
+    for (const res of results) {
+      if (!res) continue
+      await supabase
+        .from('experience_listings')
+        .update({ close_date: res.close_date, close_date_confidence: 'haiku', updated_at: new Date().toISOString() })
+        .eq('id', res.id)
+      updated++
+    }
+  }
+  return updated
+}
+
+/**
+ * Create a "bidding closes soon" reminder for each active auction closing within
+ * the next 3 days that doesn't already have one (deduped on the detail URL). This
+ * is the actionable payoff of close dates: Jill gets a nudge to bid before an
+ * auction ends, on the dashboard reminders board.
+ */
+async function createBidReminders(supabase: SupabaseClient, program: ExperienceProgram): Promise<number> {
+  const nowIso = new Date().toISOString()
+  const soonIso = new Date(Date.now() + 3 * 86_400_000).toISOString()
+  const { data: closing } = await supabase
+    .from('experience_listings')
+    .select('id, title, close_date, detail_url')
+    .eq('program_slug', program.program_slug)
+    .eq('status', 'active')
+    .eq('format', 'bid')
+    .not('close_date', 'is', null)
+    .gte('close_date', nowIso)
+    .lte('close_date', soonIso)
+  let created = 0
+  for (const l of closing ?? []) {
+    const link = (l.detail_url as string) ?? null
+    if (!link) continue
+    const { data: exists } = await supabase.from('reminders').select('id').eq('link', link).limit(1)
+    if (exists?.length) continue
+    const closeIso = l.close_date as string
+    const closeDay = closeIso.slice(0, 10)
+    // Remind a day before it closes, but never in the past.
+    const dueMs = Math.max(Date.now(), Date.parse(closeIso) - 86_400_000)
+    await supabase.from('reminders').insert({
+      title: `Bidding closes ${closeDay}: ${(l.title as string).slice(0, 80)} (${program.source_platform})`,
+      due_date: new Date(dueMs).toISOString().slice(0, 10),
+      status: 'open',
+      link,
+      notes: `This ${program.source_platform} auction closes ${closeIso}. Bid on the official site if you want it. Transfers are final, so only move points you're comfortable holding regardless of whether you win.`,
+    })
+    created++
+  }
+  return created
 }
 
 export async function runExperiencesWatch(
@@ -389,12 +521,27 @@ export async function runExperiencesWatch(
       .eq('slug', program.directory_slug)
   }
 
+  // Close-date enrichment + bid-close reminders (auctions only). Backfills the
+  // "ending soonest" sort and drops a reminder when an auction is about to close.
+  let enriched = 0
+  let reminders = 0
+  if (success) {
+    try {
+      enriched = await enrichCloseDates(supabase, program)
+      reminders = await createBidReminders(supabase, program)
+    } catch (err) {
+      console.error('[experiences-watch] close-date step failed:', err instanceof Error ? err.message : err)
+    }
+  }
+
   return {
     program_slug: program.program_slug,
     found: parsed.length,
     new: newCount,
     changed,
     closed,
+    enriched,
+    reminders,
     success,
     error: success ? undefined : httpOk ? 'parsed zero listings' : 'scrape returned empty',
   }
