@@ -133,6 +133,9 @@ export async function GET(req: NextRequest) {
   }> = []
 
   const programSlugToId = new Map(programsForScout.map((p) => [p.slug, p.id]))
+  // Map a finding's confirming_source_ids (UUIDs Haiku echoes back) to
+  // human-readable source names for confirmation_count/confirming_sources.
+  const sourceIdToName = new Map(activeSources.map((s) => [s.id, s.name]))
 
   if (findings.length > 0) {
     const ingestStats = {
@@ -165,6 +168,9 @@ export async function GET(req: NextRequest) {
               : f.source_type === 'reddit' || f.source_type === 'social'
                 ? 'social-rumor'
                 : 'secondary',
+          confirming_sources: (f.confirming_source_ids ?? [])
+            .map((id) => sourceIdToName.get(id))
+            .filter((n): n is string => Boolean(n)),
         },
         programSlugToId,
       )

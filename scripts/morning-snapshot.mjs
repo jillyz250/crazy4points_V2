@@ -89,7 +89,7 @@ function dupeOf(draft) {
 
 // ---- Fresh intel (last 36h, still open) -----------------------------------
 const freshIntel = (await q('fresh intel', db.from('intel_items')
-  .select('headline, source_name, source_type, programs, confidence, alert_type, expires_at, created_at')
+  .select('headline, source_name, source_type, programs, confidence, alert_type, expires_at, created_at, confirmation_count, confirming_sources')
   .eq('processed', false).is('rejected_at', null).is('archived_at', null).is('triage_decision', null)
   .gte('created_at', since36).order('created_at', { ascending: false }))).data
 
@@ -226,7 +226,8 @@ for (const r of freshIntel) {
   const noProgram = !progs
   if (noProgram || r.confidence === 'low') lowSignal++
   const warn = noProgram ? '  <<NO PROGRAM: skipped dedup, may be a dupe>>' : ''
-  console.log(`  - [${(r.source_type || '?').padEnd(8)}|${(r.confidence || '?').padEnd(6)}] ${(r.headline || '').slice(0, 74)}${warn}`)
+  const cc = (r.confirmation_count ?? 0) >= 2 ? `  [CONFIRMED by ${r.confirmation_count}: ${(r.confirming_sources || []).join(', ').slice(0, 50)}]` : ''
+  console.log(`  - [${(r.source_type || '?').padEnd(8)}|${(r.confidence || '?').padEnd(6)}] ${(r.headline || '').slice(0, 74)}${warn}${cc}`)
   console.log(`      src=${r.source_name || '?'}  type=${r.alert_type || '?'}  programs=[${progs}]  exp=${r.expires_at ? r.expires_at.slice(0, 10) : '-'}`)
 }
 if (lowSignal) {

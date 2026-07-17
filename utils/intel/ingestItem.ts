@@ -36,6 +36,14 @@ export interface IngestItemInput {
     | 'inferred'
     | 'ai-discovered-only'
     | null
+  /**
+   * Human-readable names of every source that reported this same story in the
+   * SAME extraction batch (Scout's confirming_source_ids, mapped to names).
+   * When 2+ are present we seed confirmation_count/confirming_sources on the
+   * inserted row, because headline trigram dedup (Layer 3) can't recognize the
+   * same story across different blog wording and so never counts them itself.
+   */
+  confirming_sources?: string[] | null
 }
 
 export type IngestResult =
@@ -114,6 +122,15 @@ export async function ingestItem(
   //   Both miss → insert normally
   // -------------------------------------------------------------------------
 
+  // Seed corroboration only on real multi-source stories (2+). A single-source
+  // finding lists just its own id, which is not corroboration — leave the
+  // defaults (0 / null) so the Triage "confirmed by N" badge stays honest.
+  const distinctConfirming = Array.from(new Set(input.confirming_sources ?? [])).filter(Boolean)
+  const corroboration =
+    distinctConfirming.length >= 2
+      ? { confirmation_count: distinctConfirming.length, confirming_sources: distinctConfirming }
+      : {}
+
   // Helper to write the row with all the right metadata.
   const baseInsert = {
     source_url: input.source_url ?? null,
@@ -127,6 +144,7 @@ export async function ingestItem(
     programs: input.programs ?? null,
     expires_at: input.expires_at ?? null,
     fact_origin: input.fact_origin ?? null,
+    ...corroboration,
   }
 
   if (layer2Block?.block) {
