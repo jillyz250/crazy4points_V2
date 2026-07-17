@@ -61,6 +61,22 @@ export const EXPERIENCE_PROGRAMS: ExperienceProgram[] = [
     list_urls: ['https://www.skymilesexperiences.com'],
     complete: true,
   },
+  // Card-issuer ACCESS programs: cardmember presale/access, not points. Listings
+  // parse as format='access' (no points; bought with the card).
+  {
+    program_slug: 'chase',
+    directory_slug: 'chase-experiences',
+    source_platform: 'Chase Experiences',
+    list_urls: ['https://www.chase.com/personal/events/experiences'],
+    complete: true,
+  },
+  {
+    program_slug: 'amex',
+    directory_slug: 'amex-experiences',
+    source_platform: 'Amex Experiences',
+    list_urls: ['https://www.americanexpress.com/en-us/benefits/entertainment/'],
+    complete: true,
+  },
   // Capital One Entertainment (capitalone.com/entertainment) tested but parses
   // zero clean listings (marketing page, not a catalog) — left out until a
   // scrapeable listing URL is found. Emirates/Bilt/Hyatt: candidates pending a
@@ -70,7 +86,7 @@ export const EXPERIENCE_PROGRAMS: ExperienceProgram[] = [
 interface ParsedListing {
   title: string
   points: number | null
-  format: 'bid' | 'redeem'
+  format: 'bid' | 'redeem' | 'access'
   category: string | null
   location: string | null
   event_date: string | null
@@ -111,7 +127,7 @@ async function parseChunk(anthropic: Anthropic, chunk: string, program: Experien
     messages: [
       {
         role: 'user',
-        content: `Extract every distinct experience listing in this fragment of a ${program.source_platform} page. Return ONLY a JSON array; one object per listing with exactly these keys: {"title":string,"points":int|null (the current bid or redeem points),"format":"bid"|"redeem","category":string|null (music/sports/entertainment/etc),"location":string|null,"event_date":string|null,"detail_url":string|null (the listing's own page URL if present)}. Skip navigation, footer, category headers, and promo banners. If the fragment has no listings, return [].\n\n${chunk}`,
+        content: `Extract every distinct experience listing in this fragment of a ${program.source_platform} page. Return ONLY a JSON array; one object per listing with exactly these keys: {"title":string,"points":int|null (current bid or redeem points; null if it is cardmember access/presale paid with cash),"format":"bid"|"redeem"|"access" ("access" = cardmember presale/access bought with a card, not points),"category":string|null (music/sports/entertainment/etc),"location":string|null,"event_date":string|null,"detail_url":string|null (the listing's own page URL if present)}. Skip navigation, footer, category headers, and promo banners. If the fragment has no listings, return [].\n\n${chunk}`,
       },
     ],
   })
@@ -345,14 +361,11 @@ export async function runExperiencesWatch(
       .limit(40) // effectively all current listings, not a top-N teaser
     const cap = (s: string | null | undefined) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : '')
     const highlights = (active ?? []).map((a) => {
-      const pts =
-        a.format === 'bid'
-          ? a.current_bid != null
-            ? `Current bid ${Number(a.current_bid).toLocaleString()} points`
-            : 'Auction'
-          : a.points_required != null
-            ? `${Number(a.points_required).toLocaleString()} points`
-            : 'Points redemption'
+      let pts: string
+      if (a.format === 'access') pts = 'Cardmember access'
+      else if (a.format === 'bid')
+        pts = a.current_bid != null ? `Current bid ${Number(a.current_bid).toLocaleString()} points` : 'Auction'
+      else pts = a.points_required != null ? `${Number(a.points_required).toLocaleString()} points` : 'Points redemption'
       return { title: a.title as string, detail: a.category ? `${cap(a.category)} · ${pts}` : pts }
     })
     await supabase

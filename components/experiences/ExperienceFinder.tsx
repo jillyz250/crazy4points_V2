@@ -36,11 +36,19 @@ const cap = (s: string | null) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : 
 const pointsOf = (l: FinderListing) => l.current_bid ?? l.points_required ?? null
 
 function pointsLabel(l: FinderListing): string {
+  if (l.format === 'access') return 'Cardmember access'
   const p = pointsOf(l)
   if (p == null) return l.format === 'bid' ? 'Auction' : 'Points redemption'
   return l.format === 'bid'
     ? `Current bid ${p.toLocaleString()} points`
     : `${p.toLocaleString()} points`
+}
+
+function formatLabel(f: string | null): string {
+  if (f === 'bid') return 'Auction'
+  if (f === 'access') return 'Access'
+  if (f === 'redeem') return 'Fixed'
+  return ''
 }
 
 export default function ExperienceFinder({ listings }: { listings: FinderListing[] }) {
@@ -165,7 +173,7 @@ export default function ExperienceFinder({ listings }: { listings: FinderListing
                 </span>
                 {l.format && (
                   <span className="font-ui text-[0.6875rem] uppercase tracking-wide text-[var(--color-text-secondary)]">
-                    {l.format === 'bid' ? 'Auction' : 'Fixed'}
+                    {formatLabel(l.format)}
                   </span>
                 )}
               </div>
