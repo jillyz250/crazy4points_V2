@@ -31,7 +31,7 @@ Casual travelers who have heard of points but are not experts. They are asking: 
 Instagram makes **no link clickable** in captions or comments. So:
 - Caption CTA is **"link in bio"** (never "link in comments").
 - The bio link is the stable link-in-bio page **crazy4points.com/links** (`app/links/page.tsx`). Jill keeps ONE bio link.
-- **Before the post goes up, update the FEATURED item on /links** to this post's article (edit the `FEATURED` const, commit, revalidate) so "link in bio" resolves correctly. Tell Jill it's done.
+- **Before the post goes up, add this post's article to the TOP of the `LATEST` array on /links** (`app/links/page.tsx`), keeping the last ~4 so every recent "link in bio" still resolves. Commit + merge so it's live BEFORE she posts, then tell Jill it's done. (The page renders "Get the newsletter" first, then a "Latest from the feed" list — there is no single `FEATURED` const anymore.)
 
 ## Caption structure (use what serves the one takeaway; skip the rest)
 1. **Bold headline (first line)** — single-line Unicode bold, <=60 chars, benefit-first. *(Impl note: generate the Unicode with a script, don't hand-type; serif bold italic is Jill's current pick.)*
