@@ -135,7 +135,7 @@ export default async function ExperienceDetailPage({
             ))}
           </ul>
           <p className="mt-2 font-body text-sm text-[var(--color-text-secondary)]">
-            This is what we found as of the date above, checked daily. Inventory changes constantly, so confirm what&apos;s bookable and current on {exp.official_url ? 'the official site' : 'the program'} before you plan.
+            A snapshot of what we&apos;re tracking as of the date above, refreshed daily. Larger programs list many more on {exp.official_url ? 'their official site' : 'their site'} (we surface what&apos;s closing soon and popular), and inventory changes constantly, so always confirm what&apos;s bookable there before you plan.
           </p>
         </section>
       )}
