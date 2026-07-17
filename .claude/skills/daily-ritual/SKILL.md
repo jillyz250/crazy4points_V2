@@ -40,6 +40,23 @@ From the snapshot, build **ONE table** covering the actionable queues: pending d
 
 Jill decides down the list; you execute — verify each keeper against issuer sources, edit to her brand voice, publish. Quality over clearing the pile.
 
+### Step 1b — HOW to verify a keeper (before anything publishes)
+Verification happens **at publish time, not at ingest** — most intel gets rejected, so verifying everything is waste. But every keeper gets this, the same way each time. (Codified 2026-07-17 from the Accor verification, which found three real errors in a live alert.)
+
+1. **Never verify from a blog or aggregator.** They contradict themselves: LoyaltyLobby's body said the Accor promo ran to Sept 14 while its own URL slug said Sept 13. The official page said Sept 13. Blogs are a *tip*, never the source ([[feedback_official_source_first]], [[feedback_card_data_issuer_source_only]]).
+2. **A forwarded email's `source_url` is a tracking blob** (`click.emails.*/?qs=...`) that resolves to a homepage or login, not terms. Don't cite it and don't try to verify from it.
+3. **Structural facts** (award chart, tiers, T&C, partners) → use the program's stored `programs.scrape_urls`. Only 53/154 programs have them (Accor, iPrefer, Wyndham are empty) — see [[project_scrape_urls_backfill]].
+4. **Transient promos** → Firecrawl `site:<issuer-domain>` search for the offer, then scrape the **canonical global/en page**. Beware the stale-regional trap: a Qatar `en-th` page once seeded expired 2023 terms onto a 2026 alert ([[project_stale_regional_offer_pages]]). Tell = promo-code/date mismatch vs the source.
+5. **Read the fine print for what the marketing copy hides.** The Accor page hid all of these:
+   - **Booking window vs stay window** — stays ran to Sept 13 BUT you had to *book by July 31*. The booking deadline is the one that matters.
+   - **Tier gating** — "up to 7,500" was ALL Accor+ subscribers only; regular members capped at 5,000. Never repeat a headline number without checking who actually gets it.
+   - **Registration required** before booking, or the bonus doesn't track.
+   - **Residency/eligibility** — confirm our US audience even qualifies (Accor listed US + Canada; it might not have).
+   - **Direct-booking only** — OTAs excluded.
+6. **Set `end_date` to the ACTIONABLE deadline**, not the stay-through date. The Accor alert was set to Sept 13 and would have shown as live for six weeks after booking closed.
+7. **Strip foreign-currency valuations.** Issuer pages are full of them (Accor quotes "7,500 points = EUR 150"); they never enter our copy ([[feedback_no_foreign_currency_valuations]]).
+8. **Targeted/personalized offers can't be verified** (the JetBlue upgrade resolves to a Barclays login). Don't publish those as general alerts.
+
 ### Step 2 — brief + digest review (incl. program-drift)
 Surface today's daily brief and the data digest. Flag anything in them **not yet an alert or page update**. The editorial note stays at the top of the brief ([[feedback_brief_editorial_top]]). The snapshot's **PROGRAM-FACT DRIFT** section lists the top open conflicts where fresh intel contradicts a program page — for each, verify against the issuer's own page, fix the page if real, then resolve at `/admin/program-drift`. Anything already in Step 1's table doesn't need repeating here.
 
