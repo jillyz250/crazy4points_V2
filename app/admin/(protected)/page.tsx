@@ -65,6 +65,7 @@ async function loadStats() {
     proseReview,
     newDrafts,
     newIntel,
+    newExperiences,
   ] = await Promise.all([
     // Match the /admin/drafts "Needs review" chip exactly: needs_review variants
     // that are NOT currently snoozed (snoozed-but-not-woken live under their own
@@ -113,6 +114,12 @@ async function loadStats() {
       .is('archived_at', null)
       .is('triage_decision', null)
       .gte('created_at', since),
+    // Experiences: new listings first seen in the last ~36h (dashboard alert)
+    supabase
+      .from('experience_listings')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'active')
+      .gte('first_seen_at', since),
   ])
 
   return {
@@ -131,6 +138,7 @@ async function loadStats() {
     proseReview: proseReview.count ?? 0,
     newDrafts: newDrafts.count ?? 0,
     newIntel: newIntel.count ?? 0,
+    newExperiences: newExperiences.count ?? 0,
   }
 }
 
@@ -282,6 +290,13 @@ export default async function AdminDashboard() {
       tone: stats.unprocessedIntel > 0 ? 'warning' : 'neutral',
       href: '/admin/triage',
       hint: stats.unprocessedIntel > 0 ? 'open items needing a decision' : 'queue clear',
+    },
+    {
+      label: 'New experiences',
+      value: stats.newExperiences,
+      tone: stats.newExperiences > 0 ? 'warning' : 'neutral',
+      href: '/experiences',
+      hint: stats.newExperiences > 0 ? 'new listings since yesterday - consider a post' : 'no new listings',
     },
     {
       label: 'Open content ideas',
