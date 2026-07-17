@@ -583,6 +583,44 @@ export async function publishAlertVariant(
     })
     .eq('id', refs.variant_id)
   if (error) throw new Error(`publishAlertVariant: variant update failed: ${error.message}`)
+
+  // Auto-create a "post this to social" reminder so no publish slips by without
+  // a nudge. Every published alert gets one; the editor dismisses the ones not
+  // worth posting. Idempotent (one per alert URL) and non-fatal — a reminder
+  // failure must never break a publish.
+  try {
+    const { data: topic } = await supabase
+      .from('topics')
+      .select('slug, end_date')
+      .eq('id', refs.topic_id)
+      .single()
+    const alertSlug = shortSlug ?? (topic?.slug as string | undefined)
+    const link = alertSlug ? `/alerts/${alertSlug}` : null
+    if (link) {
+      const { data: existing } = await supabase
+        .from('reminders')
+        .select('id')
+        .eq('link', link)
+        .limit(1)
+      if (!existing?.length) {
+        const title = (v?.title as string) ?? 'this alert'
+        // Last-chance nudge 2 days before a real deadline; otherwise prompt soon.
+        const end = topic?.end_date ? new Date(topic.end_date as string) : null
+        const twoDaysBefore = end ? new Date(end.getTime() - 2 * 86_400_000) : null
+        const useDeadline = !!twoDaysBefore && twoDaysBefore.getTime() > Date.now()
+        const dueObj = useDeadline ? twoDaysBefore! : new Date(Date.now() + 86_400_000)
+        await supabase.from('reminders').insert({
+          title: (useDeadline ? `Social post before it ends: ${title}` : `Social post: ${title}`).slice(0, 200),
+          notes: 'Auto-added on publish. Post to Facebook/Instagram (facebook-post / instagram-post skill), or dismiss if not worth posting.',
+          due_date: dueObj.toISOString().slice(0, 10),
+          status: 'open',
+          link,
+        })
+      }
+    }
+  } catch (err) {
+    console.error('[publishAlertVariant] social reminder auto-create failed (non-fatal):', err)
+  }
 }
 
 /**
