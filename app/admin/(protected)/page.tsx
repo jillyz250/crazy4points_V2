@@ -160,8 +160,8 @@ function TodayChecklist({ stats }: { stats: Awaited<ReturnType<typeof loadStats>
       label: 'Daily — make + share', note: '~90 min', numbered: true,
       steps: [
         {
-          id: 'forward-email', title: 'Forward emails to intel — first', time: '~5 min',
-          hint: 'Before you say "morning": forward any travel-promo and Google Alerts emails to the intel inbox. They auto-classify and land in triage, so they’re included in today’s decision table.',
+          id: 'forward-email', title: 'Forward promo emails to intel — first', time: '~5 min',
+          hint: 'Before you say "morning": forward issuer/program promo emails (Southwest, Accor, Hilton, Chase, Amex) to the intel inbox. They auto-classify and land in triage, so they’re in today’s table. Skip affiliate blasts (point.me) — they hide the card name and aren’t citable. Google Alerts are covered automatically by Scout, no forwarding needed.',
           href: '/admin/triage', cta: 'Triage',
         },
         {
