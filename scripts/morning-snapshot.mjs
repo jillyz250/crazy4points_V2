@@ -213,10 +213,27 @@ for (const d of drafts) {
 console.log('\n' + B)
 console.log(`FRESH INTEL — last 36h, still needing a decision (${freshIntel.length}):`)
 if (!freshIntel.length) console.log('  (none — queue clear)')
+let lowSignal = 0
 for (const r of freshIntel) {
   const progs = Array.isArray(r.programs) ? r.programs.join(',') : (r.programs || '')
-  console.log(`  - [${(r.source_type || '?').padEnd(8)}|${(r.confidence || '?').padEnd(6)}] ${(r.headline || '').slice(0, 74)}`)
+  /**
+   * Layer 2 dedup only runs when alert_type AND programs are both set
+   * (see ingestItem.ts). Untagged intel therefore skips the dedup+Haiku-diff
+   * safety net entirely and can be a duplicate of a published alert with
+   * nothing flagging it. Say so out loud rather than letting it sit in the
+   * table looking like a normal item.
+   */
+  const noProgram = !progs
+  if (noProgram || r.confidence === 'low') lowSignal++
+  const warn = noProgram ? '  <<NO PROGRAM: skipped dedup, may be a dupe>>' : ''
+  console.log(`  - [${(r.source_type || '?').padEnd(8)}|${(r.confidence || '?').padEnd(6)}] ${(r.headline || '').slice(0, 74)}${warn}`)
   console.log(`      src=${r.source_name || '?'}  type=${r.alert_type || '?'}  programs=[${progs}]  exp=${r.expires_at ? r.expires_at.slice(0, 10) : '-'}`)
+}
+if (lowSignal) {
+  console.log(`  NOTE: ${lowSignal} low-signal item(s) (confidence=low and/or no program).`)
+  console.log('        Third-party affiliate blasts (point.me, newsletters) often hide the card')
+  console.log('        name to force a click, so they cannot be tagged, cannot be deduped, and')
+  console.log('        are not citable anyway (issuer sources only). Default: reject.')
 }
 
 console.log('\n' + B)
