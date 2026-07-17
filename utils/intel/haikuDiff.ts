@@ -16,33 +16,36 @@ import { logUsage } from '@/utils/ai/logUsage'
 
 const SYSTEM_PROMPT = `You are a dedup classifier for a points-and-miles alert system.
 
-You receive (a) an existing PUBLISHED ALERT and (b) NEW INTEL that semantically matches it (same program + alert type).
+You receive (a) an existing PUBLISHED ALERT and (b) NEW INTEL. They were matched ONLY because they share the same loyalty program and the same alert type. That does NOT mean they are the same story: two different signup-bonus promos for two different cards, or two different limited-time offers from the same hotel, share program+type but are DISTINCT stories.
 
-Your job: decide whether the new intel introduces a NEW FACT not present in the existing alert. Examples of new facts:
-- Deadline extended or shortened
-- Bonus rate changed (e.g. 20% became 25%)
-- New destination/partner added or removed
-- Promo walked back / canceled / clarified
-- New cap or restriction announced
+Decide the RELATION of the new intel to the existing alert. Choose exactly one:
 
-NOT new facts (these are duplicates, suppress silently):
-- Same headline reported by a second source
-- Same promo summarized in a slightly different way
-- Already-known info repackaged
-- Promotional reminder ("don't forget" / "last chance" without new details)
+- "same_story_dup": the SAME offer/story, nothing new. e.g. a second source reporting the same promo, the same offer reworded, a "last chance"/reminder with no new detail. (We suppress these.)
+- "same_story_new_facts": the SAME offer/story, but the intel adds a fact the alert lacks. e.g. deadline extended or shortened, bonus rate changed, destination/partner added or removed, promo walked back or clarified, new cap or restriction. (We attach these to the alert as an update.)
+- "different_story": a DIFFERENT offer that only happens to share the program and alert type — different card, different promo, different sale, different partner. (We treat these as their own new alert.)
 
-Return STRICT JSON. No prose, no markdown, no fences. Always include all four fields.
+Return STRICT JSON. No prose, no markdown, no fences. All fields:
 
 {
-  "has_new_facts": true | false,
-  "summary": "one short sentence describing what's new (when has_new_facts=true) OR why this is a dup (when false)",
+  "relation": "same_story_dup" | "same_story_new_facts" | "different_story",
+  "summary": "one short sentence: what's new (new_facts), why it's a dup (dup), or why it's a different story",
   "confidence": "high" | "medium" | "low",
   "categories": ["deadline_change" | "rate_change" | "destination_change" | "walkback" | "cap_change" | "other"] | []
 }
 
-Bias: when in doubt, return has_new_facts=true. Better to surface a maybe-dup for human review than to silently bury a real update.`
+Compare the actual OFFER, not just the program. If the new intel is clearly a different card/promo/sale than the alert describes, choose "different_story" even though program and type match. When genuinely torn between dup and new_facts on the SAME story, prefer "same_story_new_facts" so a human reviews it.`
+
+export type IntelRelation = 'same_story_dup' | 'same_story_new_facts' | 'different_story'
 
 export interface HaikuDiffResult {
+  /**
+   * Relation of the new intel to the matched alert. Layer 2 only matches on
+   * program + alert_type, so "different_story" is a real outcome: a distinct
+   * offer that merely shares those two fields (e.g. Hyatt 75k card vs Sapphire
+   * 100k, both chase + signup_bonus). Callers route on this.
+   */
+  relation: IntelRelation
+  /** Back-compat convenience: true only for same_story_new_facts. */
   has_new_facts: boolean
   summary: string
   confidence: 'high' | 'medium' | 'low'
@@ -112,15 +115,22 @@ Return strict JSON only.`
       return failOpen('non-JSON response: ' + raw.slice(0, 120))
     }
 
-    if (!isHaikuDiffShape(parsed)) {
+    const relation = coerceRelation(parsed)
+    if (!relation || typeof (parsed as Record<string, unknown>).summary !== 'string') {
       return failOpen('malformed shape: ' + raw.slice(0, 120))
     }
+    const p = parsed as Record<string, unknown>
+    const confidence =
+      p.confidence === 'high' || p.confidence === 'medium' || p.confidence === 'low'
+        ? p.confidence
+        : 'medium'
 
     return {
-      has_new_facts: parsed.has_new_facts,
-      summary: parsed.summary,
-      confidence: parsed.confidence,
-      categories: Array.isArray(parsed.categories) ? parsed.categories : [],
+      relation,
+      has_new_facts: relation === 'same_story_new_facts',
+      summary: p.summary as string,
+      confidence,
+      categories: Array.isArray(p.categories) ? (p.categories as string[]) : [],
       fail_open: false,
     }
   } catch (err) {
@@ -129,7 +139,9 @@ Return strict JSON only.`
 }
 
 function failOpen(reason: string): HaikuDiffResult {
+  // Surface for human review on failure (never silently suppress a real update).
   return {
+    relation: 'same_story_new_facts',
     has_new_facts: true,
     summary: `dedup check failed (${reason.slice(0, 80)}) — please review manually`,
     confidence: 'low',
@@ -138,17 +150,18 @@ function failOpen(reason: string): HaikuDiffResult {
   }
 }
 
-function isHaikuDiffShape(x: unknown): x is {
-  has_new_facts: boolean
-  summary: string
-  confidence: 'high' | 'medium' | 'low'
-  categories: string[]
-} {
-  if (typeof x !== 'object' || x === null) return false
+/**
+ * Accept the new `relation` field; fall back to the legacy `has_new_facts`
+ * boolean if Haiku returns the old shape. Returns null if neither is present.
+ */
+function coerceRelation(x: unknown): IntelRelation | null {
+  if (typeof x !== 'object' || x === null) return null
   const r = x as Record<string, unknown>
-  return (
-    typeof r.has_new_facts === 'boolean' &&
-    typeof r.summary === 'string' &&
-    (r.confidence === 'high' || r.confidence === 'medium' || r.confidence === 'low')
-  )
+  if (r.relation === 'same_story_dup' || r.relation === 'same_story_new_facts' || r.relation === 'different_story') {
+    return r.relation
+  }
+  if (typeof r.has_new_facts === 'boolean') {
+    return r.has_new_facts ? 'same_story_new_facts' : 'same_story_dup'
+  }
+  return null
 }
