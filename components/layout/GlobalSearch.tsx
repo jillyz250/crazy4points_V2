@@ -30,11 +30,13 @@ const TYPE_LABEL: Record<SearchDocType, string> = {
 const TYPE_ORDER: SearchDocType[] = ['program', 'card', 'guide', 'alert', 'experience', 'blog']
 
 const MAX_RESULTS = 30
+/** Keyword-only hits are a fallback, so keep the tail short. */
+const MAX_RELATED = 8
 
 /**
- * Score a document against the query. Higher is better; 0 means no match.
- * Prefers whole-title matches, then word-start matches, then substrings, so
- * typing "hyatt" puts "World of Hyatt" above an article merely mentioning it.
+ * Score a document's NAME against the query. Higher is better; 0 means no
+ * name match. Prefers whole-title matches, then word-start, then substrings,
+ * so typing "hyatt" puts "World of Hyatt" above anything merely mentioning it.
  */
 function score(doc: SearchDoc, q: string): number {
   const name = doc.n.toLowerCase()
@@ -46,6 +48,17 @@ function score(doc: SearchDoc, q: string): number {
   if (name.includes(q)) return 400 - name.length
   if (sub.includes(q)) return 200
   return 0
+}
+
+/**
+ * Concept match on the keyword blob (alliance, category, summary text...).
+ * Deliberately separate from score(): these never mix into the named results,
+ * they render de-emphasised at the bottom. Requires a word-start hit so "car"
+ * doesn't match "Oscar".
+ */
+function keywordMatch(doc: SearchDoc, q: string): boolean {
+  if (!doc.k) return false
+  return new RegExp(`\\b${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(doc.k)
 }
 
 export default function GlobalSearch() {
@@ -104,15 +117,21 @@ export default function GlobalSearch() {
     if (open) inputRef.current?.focus()
   }, [open])
 
-  const results = useMemo(() => {
+  const { results, related } = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q || !docs) return []
-    return docs
-      .map((d) => ({ d, sc: score(d, q) }))
-      .filter((r) => r.sc > 0)
-      .sort((a, b) => b.sc - a.sc)
-      .slice(0, MAX_RESULTS)
-      .map((r) => r.d)
+    if (!q || !docs) return { results: [] as SearchDoc[], related: [] as SearchDoc[] }
+    const named: Array<{ d: SearchDoc; sc: number }> = []
+    const concept: SearchDoc[] = []
+    for (const d of docs) {
+      const sc = score(d, q)
+      if (sc > 0) named.push({ d, sc })
+      // Only a fallback — a doc already matched by name never repeats here.
+      else if (keywordMatch(d, q)) concept.push(d)
+    }
+    return {
+      results: named.sort((a, b) => b.sc - a.sc).slice(0, MAX_RESULTS).map((r) => r.d),
+      related: concept.slice(0, MAX_RELATED),
+    }
   }, [docs, query])
 
   // Grouped for display, but `flat` preserves the keyboard order so arrowing
@@ -127,7 +146,8 @@ export default function GlobalSearch() {
     return TYPE_ORDER.filter((t) => byType.has(t)).map((t) => ({ type: t, items: byType.get(t)! }))
   }, [results])
 
-  const flat = useMemo(() => grouped.flatMap((g) => g.items), [grouped])
+  // Keyboard order must match render order: named groups first, then related.
+  const flat = useMemo(() => [...grouped.flatMap((g) => g.items), ...related], [grouped, related])
 
   useEffect(() => {
     setHighlight(0)
@@ -274,6 +294,43 @@ export default function GlobalSearch() {
                   })}
                 </div>
               ))}
+
+              {/* Concept matches — the query hit keywords (alliance, category,
+                  summary) but not the name. Deliberately last and quieter so a
+                  real name match always reads as the answer. */}
+              {related.length > 0 && (
+                <div>
+                  <div className="sticky top-0 border-t border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-4 py-1.5 font-ui text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--color-text-secondary)] opacity-70">
+                    Also related
+                  </div>
+                  {related.map((doc) => {
+                    idx += 1
+                    const i = idx
+                    return (
+                      <button
+                        key={doc.u}
+                        id={`search-opt-${i}`}
+                        data-idx={i}
+                        role="option"
+                        aria-selected={i === highlight}
+                        type="button"
+                        onMouseEnter={() => setHighlight(i)}
+                        onClick={() => go(doc)}
+                        className={`flex w-full items-baseline justify-between gap-3 px-4 py-2 text-left transition-colors ${
+                          i === highlight ? 'bg-[var(--color-background-soft)]' : ''
+                        }`}
+                      >
+                        <span className="font-body text-[13px] text-[var(--color-text-secondary)]">{doc.n}</span>
+                        {doc.s && (
+                          <span className="shrink-0 font-ui text-[10px] text-[var(--color-text-secondary)] opacity-70">
+                            {doc.s}
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>
