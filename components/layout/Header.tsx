@@ -60,7 +60,9 @@ export default function Header({
   return (
     <header className="sticky top-0 z-50 border-b border-[var(--color-border-soft)] bg-[var(--color-background)]">
       <div className="rg-container px-6 md:px-8">
-        <div className="flex h-24 items-center justify-between md:h-28">
+        {/* gap-* guarantees the nav and the CTA group can never collide — they
+            were touching at ~860px before (0px gap). */}
+        <div className="flex h-24 items-center justify-between gap-4 md:h-28 md:gap-6">
           <Link href="/" className="flex items-center">
             {logoError ? (
               <span className="font-display text-2xl font-semibold tracking-tight text-[var(--color-text-primary)]">
@@ -81,7 +83,7 @@ export default function Header({
           </Link>
 
           {/* Desktop nav */}
-          <nav className="hidden items-center gap-8 md:flex" aria-label="Main navigation">
+          <nav className="hidden items-center gap-6 md:flex lg:gap-8" aria-label="Main navigation">
             <Link
               href="/alerts"
               className="group relative font-ui text-xs font-semibold uppercase tracking-[0.14em] transition-colors hover:text-[var(--color-primary)] !text-red-600"
@@ -183,32 +185,28 @@ export default function Header({
 
           </nav>
 
-          <div className="flex items-center gap-2 md:gap-4">
-            {/* Subscribe — visible at EVERY breakpoint, including mobile where
-                the nav is behind the hamburger. Newsletter signup was otherwise
-                three taps deep (hamburger > Resources > Newsletter) and readers
-                couldn't find it. */}
+          <div className="flex shrink-0 items-center gap-2 md:gap-3">
+            {/* Subscribe is now the PRIMARY sitewide CTA (gold), visible at every
+                breakpoint including mobile, where the nav hides behind the
+                hamburger. Growing the list beats a second competing button, and
+                signup was previously three taps deep. */}
             <Link
               href="/newsletter"
-              className="rg-tap-target inline-flex items-center rounded-lg border border-[var(--color-primary)] px-2.5 py-[0.4rem] font-ui text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--color-primary)] transition-colors hover:bg-[var(--color-primary)] hover:text-white md:px-3 md:text-[11px] md:tracking-[0.12em]"
+              className="cta-engine-btn rg-tap-target inline-flex items-center whitespace-nowrap rounded-lg px-3.5 py-[0.45rem] font-ui text-[11px] font-bold uppercase tracking-[0.12em] text-[#1A1A1A] md:px-5 md:text-xs"
             >
               Subscribe
             </Link>
 
-            {/* Two-part CTA — md+ (the nav lightened up once Newsletter moved
-                into Resources, so the button now fits at md). The "Spin the"
-                prefix only shows at lg+ to save space at md. */}
-            <div className="hidden md:inline-flex items-center gap-2">
-              <span className="hidden font-display text-[13px] italic tracking-wide text-[var(--color-primary)] md:inline">
-                Spin the
-              </span>
-              <Link
-                href="/decision-engine"
-                className="cta-engine-btn rounded-lg px-4 py-[0.45rem] font-ui text-[11px] font-bold uppercase tracking-[0.12em] text-[#1A1A1A]"
-              >
-                Decision Engine
-              </Link>
-            </div>
+            {/* Decision Engine — secondary. Compact outline, lg+ only so it can
+                never crowd the nav at md (it collided at ~860px). Still reachable
+                everywhere via the Tools dropdown and the homepage tools band. */}
+            <Link
+              href="/decision-engine"
+              className="hidden items-center whitespace-nowrap rounded-lg border border-[var(--color-primary)] px-3.5 font-ui text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--color-primary)] transition-colors hover:bg-[var(--color-primary)] hover:text-white lg:inline-flex"
+              style={{ minHeight: '40px' }}
+            >
+              Decision Engine
+            </Link>
 
             <button
               type="button"
