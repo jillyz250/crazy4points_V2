@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import type { ResourceNavCounts } from "@/utils/supabase/queries";
+import GlobalSearch from "./GlobalSearch";
 
 /**
  * Accessible desktop dropdown.
@@ -261,6 +262,11 @@ export default function Header({
           </nav>
 
           <div className="flex shrink-0 items-center gap-2 md:gap-3">
+            {/* Sitewide search — icon-only so it costs almost no header width
+                (the bar collided at ~860px once before). Opens a modal; Cmd/Ctrl+K
+                works from anywhere. */}
+            <GlobalSearch />
+
             {/* Subscribe is now the PRIMARY sitewide CTA (gold), visible at every
                 breakpoint including mobile, where the nav hides behind the
                 hamburger. Growing the list beats a second competing button, and
