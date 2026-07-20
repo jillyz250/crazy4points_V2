@@ -34,7 +34,7 @@ export default async function NewsletterPage() {
           </p>
         </div>
         <div className="mt-10">
-          <NewsletterSignup />
+          <NewsletterSignup isPrimary />
         </div>
 
         {/* Latest issue */}

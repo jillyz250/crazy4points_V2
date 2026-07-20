@@ -3,7 +3,15 @@
 import { useState } from 'react'
 import { track } from '@/lib/analytics'
 
-export default function NewsletterSignup() {
+/**
+ * `isPrimary` marks this form as THE signup for the page, which hides the
+ * sitewide footer signup band (see globals.css). Opt-in and off by default:
+ * this used to be always-on, which suppressed the footer form on the homepage
+ * and every blog post — so readers who scrolled to the footer looking for a
+ * signup (where people instinctively look) found nothing. Only the dedicated
+ * /newsletter page, where the page IS the signup, should set this.
+ */
+export default function NewsletterSignup({ isPrimary = false }: { isPrimary?: boolean }) {
   const [email, setEmail] = useState('')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
@@ -39,9 +47,9 @@ export default function NewsletterSignup() {
   }
 
   return (
-    <div className="mx-auto max-w-xl" data-primary-newsletter-signup>
-      {/* This marker lets the sitewide footer signup auto-hide via CSS on any
-          page that already renders a primary signup — see globals.css. */}
+    <div className="mx-auto max-w-xl" {...(isPrimary ? { 'data-primary-newsletter-signup': '' } : {})}>
+      {/* When primary, this marker hides the sitewide footer signup via CSS —
+          see globals.css. Off by default so the footer form always shows. */}
       {status === 'success' ? (
         <div className="rounded-xl border border-[var(--color-border-soft)] bg-[var(--color-background)] px-8 py-10 text-center">
           <p className="font-display text-2xl font-semibold text-[var(--color-primary)]">Welcome to the newsletter!</p>

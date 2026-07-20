@@ -183,7 +183,18 @@ export default function Header({
 
           </nav>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
+            {/* Subscribe — visible at EVERY breakpoint, including mobile where
+                the nav is behind the hamburger. Newsletter signup was otherwise
+                three taps deep (hamburger > Resources > Newsletter) and readers
+                couldn't find it. */}
+            <Link
+              href="/newsletter"
+              className="rg-tap-target inline-flex items-center rounded-lg border border-[var(--color-primary)] px-2.5 py-[0.4rem] font-ui text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--color-primary)] transition-colors hover:bg-[var(--color-primary)] hover:text-white md:px-3 md:text-[11px] md:tracking-[0.12em]"
+            >
+              Subscribe
+            </Link>
+
             {/* Two-part CTA — md+ (the nav lightened up once Newsletter moved
                 into Resources, so the button now fits at md). The "Spin the"
                 prefix only shows at lg+ to save space at md. */}
