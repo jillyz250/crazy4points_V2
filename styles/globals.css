@@ -84,6 +84,14 @@
   --color-chip-blue-fg: #1e40af;
 }
 
+/* Alert red — the "Alerts" nav item and other urgency accents. Declared here
+   rather than in @theme because Tailwind v4 prunes theme tokens that no
+   generated utility references, and we consume this via an arbitrary value
+   (text-[var(--color-alert)]) rather than a `text-alert` utility. */
+:root {
+  --color-alert: #DC2626;
+}
+
 * {
   box-sizing: border-box;
 }
