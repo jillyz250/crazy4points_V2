@@ -21,7 +21,10 @@ export default async function SiteLayout({
   return (
     <>
       <Header resourceCounts={resourceCounts} />
-      <main className="flex-1">{children}</main>
+      {/* id is the target of the header's "Skip to content" link. */}
+      <main id="main-content" className="flex-1">
+        {children}
+      </main>
       <Footer />
       <CookieBanner />
       <AnalyticsListener />
