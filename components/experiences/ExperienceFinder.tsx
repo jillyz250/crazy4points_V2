@@ -90,6 +90,11 @@ const pointsOf = (l: FinderListing) => l.current_bid ?? l.points_required ?? nul
 
 const notYetOpen = (l: FinderListing) => l.bid_opens_at != null && Date.parse(l.bid_opens_at) > Date.now()
 
+// A listing first seen in the last ~48h gets a NEW flag. Time-based, so it
+// clears itself - no "mark as read" to maintain.
+const isNew = (l: FinderListing) =>
+  l.first_seen_at != null && Date.now() - Date.parse(l.first_seen_at) < 48 * 3_600_000
+
 function pointsLabel(l: FinderListing): string {
   if (l.format === 'access') return 'Cardmember access'
   const p = pointsOf(l)
@@ -264,6 +269,11 @@ export default function ExperienceFinder({ listings }: { listings: FinderListing
     const card = (
       <>
         <div className="mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+          {isNew(l) && (
+            <span className="rounded-full bg-[var(--color-accent)] px-2 py-0.5 font-ui text-[0.6875rem] font-bold uppercase tracking-wide text-[var(--color-primary)]">
+              New
+            </span>
+          )}
           {bucket && (
             <span
               className="rounded-full px-2 py-0.5 font-ui text-[0.6875rem] font-semibold uppercase tracking-wide text-white"
