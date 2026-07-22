@@ -20,6 +20,7 @@ export interface FinderListing {
   close_date: string | null
   close_date_confidence: string | null
   event_date: string | null
+  bid_opens_at: string | null
   detail_url: string | null
   first_seen_at: string | null
 }
@@ -29,10 +30,18 @@ export interface FinderListing {
 // "~" so we never assert a scraped estimate as fact.
 function statusLine(l: FinderListing): { text: string; tone: 'live' | 'soon' | 'done' | 'muted' } | null {
   const now = Date.now()
+  const opens = l.bid_opens_at ? Date.parse(l.bid_opens_at) : null
   const close = l.close_date ? Date.parse(l.close_date) : null
   const event = l.event_date ? Date.parse(l.event_date) : null
   const md = (t: number) => new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   const approx = l.close_date_confidence !== 'marriott-detail' // Haiku-guessed
+  // Not-yet-open comes first: it changes what the whole card means. "~" because
+  // the open date is derived from a countdown at scrape time and drifts.
+  if (opens != null && opens > now) {
+    const days = Math.ceil((opens - now) / 86_400_000)
+    const when = days <= 1 ? 'soon' : days <= 14 ? `in ${days} days` : `~${md(opens)}`
+    return { text: `Bidding opens ${when}`, tone: 'soon' }
+  }
   if (close != null && close < now) return { text: 'Bidding closed', tone: 'done' }
   if (close != null) {
     const days = Math.ceil((close - now) / 86_400_000)
@@ -57,10 +66,14 @@ type SortKey = (typeof SORTS)[number]['key']
 const cap = (s: string | null) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : '')
 const pointsOf = (l: FinderListing) => l.current_bid ?? l.points_required ?? null
 
+const notYetOpen = (l: FinderListing) => l.bid_opens_at != null && Date.parse(l.bid_opens_at) > Date.now()
+
 function pointsLabel(l: FinderListing): string {
   if (l.format === 'access') return 'Cardmember access'
   const p = pointsOf(l)
   if (p == null) return l.format === 'bid' ? 'Auction' : 'Points redemption'
+  // A not-yet-open auction shows a STARTING bid, not a current one.
+  if (l.format === 'bid' && notYetOpen(l)) return `Starting bid ${p.toLocaleString()} points`
   return l.format === 'bid'
     ? `Current bid ${p.toLocaleString()} points`
     : `${p.toLocaleString()} points`
@@ -100,6 +113,11 @@ export default function ExperienceFinder({ listings }: { listings: FinderListing
     })
     const byPts = (l: FinderListing) => pointsOf(l) ?? Number.POSITIVE_INFINITY
     out = [...out].sort((a, b) => {
+      // Not-yet-open listings sink below everything you can act on now, whatever
+      // the chosen sort - you cannot bid on them yet.
+      const oa = notYetOpen(a) ? 1 : 0
+      const ob = notYetOpen(b) ? 1 : 0
+      if (oa !== ob) return oa - ob
       switch (sort) {
         case 'points_low':
           return byPts(a) - byPts(b)
