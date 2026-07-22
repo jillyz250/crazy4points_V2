@@ -114,6 +114,7 @@ export interface WatchResult {
   new: number
   changed: number
   closed: number
+  archived: number
   enriched: number
   reminders: number
   success: boolean
@@ -560,6 +561,33 @@ export async function runExperiencesWatch(
       .eq('slug', program.directory_slug)
   }
 
+  // Archive listings whose experience has already happened. The public finder
+  // only shows status=active, so a passed event (World Cup, a spring concert)
+  // must be retired or it lingers forever - nothing else expires them. One-day
+  // grace so a multi-day event still showing on its final day is not archived.
+  let archived = 0
+  if (success) {
+    try {
+      const cutoff = new Date(Date.now() - 86_400_000).toISOString()
+      const { data: expired } = await supabase
+        .from('experience_listings')
+        .select('id')
+        .eq('program_slug', program.program_slug)
+        .eq('status', 'active')
+        .not('event_date', 'is', null)
+        .lt('event_date', cutoff)
+      for (const r of expired ?? []) {
+        await supabase
+          .from('experience_listings')
+          .update({ status: 'archived', status_reason: 'event_passed', updated_at: new Date().toISOString() })
+          .eq('id', r.id)
+        archived++
+      }
+    } catch (err) {
+      console.error('[experiences-watch] archive-expired step failed:', err instanceof Error ? err.message : err)
+    }
+  }
+
   // Close-date enrichment + bid-close reminders (auctions only). Backfills the
   // "ending soonest" sort and drops a reminder when an auction is about to close.
   let enriched = 0
@@ -579,6 +607,7 @@ export async function runExperiencesWatch(
     new: newCount,
     changed,
     closed,
+    archived,
     enriched,
     reminders,
     success,
