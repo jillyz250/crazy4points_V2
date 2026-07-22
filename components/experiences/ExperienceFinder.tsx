@@ -18,8 +18,30 @@ export interface FinderListing {
   current_bid: number | null
   points_required: number | null
   close_date: string | null
+  close_date_confidence: string | null
+  event_date: string | null
   detail_url: string | null
   first_seen_at: string | null
+}
+
+// A short, honest date line for the tile. close_date drives urgency (bidding
+// ends); event_date is when the experience happens. Guessed close dates get a
+// "~" so we never assert a scraped estimate as fact.
+function statusLine(l: FinderListing): { text: string; tone: 'live' | 'soon' | 'done' | 'muted' } | null {
+  const now = Date.now()
+  const close = l.close_date ? Date.parse(l.close_date) : null
+  const event = l.event_date ? Date.parse(l.event_date) : null
+  const md = (t: number) => new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  const approx = l.close_date_confidence !== 'marriott-detail' // Haiku-guessed
+  if (close != null && close < now) return { text: 'Bidding closed', tone: 'done' }
+  if (close != null) {
+    const days = Math.ceil((close - now) / 86_400_000)
+    const when = days <= 1 ? 'today' : days <= 7 ? `in ${days} days` : `${approx ? '~' : ''}${md(close)}`
+    return { text: `Bidding closes ${when}`, tone: days <= 3 ? 'live' : 'soon' }
+  }
+  if (event != null && event >= now) return { text: `Experience ${md(event)}`, tone: 'muted' }
+  if (event != null) return { text: 'Past event', tone: 'done' }
+  return { text: 'Date to be confirmed', tone: 'muted' }
 }
 
 const SORTS = [
@@ -100,6 +122,11 @@ export default function ExperienceFinder({ listings }: { listings: FinderListing
     return out
   }, [listings, q, program, category, sort])
 
+  // Cardmember-access listings are perks (sign in, no bid), not auctions - they
+  // read as broken when mixed in with biddable ones, so they get their own band.
+  const biddable = useMemo(() => filtered.filter((l) => l.format !== 'access'), [filtered])
+  const access = useMemo(() => filtered.filter((l) => l.format === 'access'), [filtered])
+
   const pill = (active: boolean) =>
     `rg-tap-target inline-flex items-center rounded-full border px-3.5 py-1.5 font-ui text-sm transition ${
       active
@@ -161,47 +188,23 @@ export default function ExperienceFinder({ listings }: { listings: FinderListing
         {filtered.length} experience{filtered.length === 1 ? '' : 's'}
       </p>
 
-      {/* Listing cards */}
+      {/* Biddable + redeemable listings */}
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(min(100%,20rem),1fr))]">
-        {filtered.map((l, i) => {
-          const href = l.detail_url ?? l.program_url ?? undefined
-          const card = (
-            <>
-              <div className="mb-1.5 flex items-center gap-2">
-                <span className="rounded-full bg-[var(--color-background-soft)] px-2 py-0.5 font-ui text-[0.6875rem] font-semibold uppercase tracking-wide text-[var(--color-primary)]">
-                  {l.program_label}
-                </span>
-                {l.format && (
-                  <span className="font-ui text-[0.6875rem] uppercase tracking-wide text-[var(--color-text-secondary)]">
-                    {formatLabel(l.format)}
-                  </span>
-                )}
-              </div>
-              <p className="font-body font-medium leading-snug text-[var(--color-text-primary)]">{l.title}</p>
-              <p className="mt-1 font-ui text-sm text-[var(--color-text-secondary)]">
-                {[cap(l.category), l.location].filter(Boolean).join(' · ')}
-              </p>
-              <p className="mt-2 font-ui text-sm font-semibold text-[var(--color-primary)]">{pointsLabel(l)}</p>
-            </>
-          )
-          return href ? (
-            <a
-              key={i}
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] p-4 shadow-[var(--shadow-soft)] transition hover:-translate-y-0.5 hover:border-[var(--color-primary)]"
-            >
-              {card}
-              <span className="mt-2 inline-block font-ui text-sm text-[var(--color-primary)]">View &amp; bid on the official site &rarr;</span>
-            </a>
-          ) : (
-            <div key={i} className="rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] p-4 shadow-[var(--shadow-soft)]">
-              {card}
-            </div>
-          )
-        })}
+        {biddable.map((l, i) => renderCard(l, `b${i}`))}
       </div>
+
+      {/* Cardmember access - its own band, since these are perks not auctions */}
+      {access.length > 0 && (
+        <div className="mt-8">
+          <h3 className="font-display text-lg text-[var(--color-primary)]">Cardmember access</h3>
+          <p className="mb-3 font-ui text-sm text-[var(--color-text-secondary)]">
+            Presale windows and members-only access. No bidding - you sign in on the issuer&apos;s site with an eligible card.
+          </p>
+          <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(min(100%,20rem),1fr))]">
+            {access.map((l, i) => renderCard(l, `a${i}`))}
+          </div>
+        </div>
+      )}
 
       {filtered.length === 0 && (
         <p className="rg-sub-section text-center font-body text-[var(--color-text-secondary)]">
@@ -210,4 +213,62 @@ export default function ExperienceFinder({ listings }: { listings: FinderListing
       )}
     </div>
   )
+
+  function renderCard(l: FinderListing, key: string) {
+    const href = l.detail_url ?? l.program_url ?? undefined
+    const cta =
+      l.format === 'access'
+        ? 'Sign in on the official site'
+        : l.format === 'bid'
+          ? 'View & bid on the official site'
+          : 'View & redeem on the official site'
+    const card = (
+      <>
+        <div className="mb-1.5 flex items-center gap-2">
+          <span className="rounded-full bg-[var(--color-background-soft)] px-2 py-0.5 font-ui text-[0.6875rem] font-semibold uppercase tracking-wide text-[var(--color-primary)]">
+            {l.program_label}
+          </span>
+          {l.format && (
+            <span className="font-ui text-[0.6875rem] uppercase tracking-wide text-[var(--color-text-secondary)]">
+              {formatLabel(l.format)}
+            </span>
+          )}
+        </div>
+        <p className="font-body font-medium leading-snug text-[var(--color-text-primary)]">{l.title}</p>
+        <p className="mt-1 font-ui text-sm text-[var(--color-text-secondary)]">
+          {[cap(l.category), l.location].filter(Boolean).join(' · ')}
+        </p>
+        <p className="mt-2 font-ui text-sm font-semibold text-[var(--color-primary)]">{pointsLabel(l)}</p>
+        {(() => {
+          const s = statusLine(l)
+          if (!s) return null
+          const tone =
+            s.tone === 'live'
+              ? 'text-[var(--color-alert)]'
+              : s.tone === 'soon'
+                ? 'text-[var(--color-primary)]'
+                : s.tone === 'done'
+                  ? 'text-[var(--color-text-secondary)] line-through decoration-1'
+                  : 'text-[var(--color-text-secondary)]'
+          return <p className={`mt-1 font-ui text-xs font-medium ${tone}`}>{s.text}</p>
+        })()}
+      </>
+    )
+    return href ? (
+      <a
+        key={key}
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] p-4 shadow-[var(--shadow-soft)] transition hover:-translate-y-0.5 hover:border-[var(--color-primary)]"
+      >
+        {card}
+        <span className="mt-2 inline-block font-ui text-sm text-[var(--color-primary)]">{cta} &rarr;</span>
+      </a>
+    ) : (
+      <div key={key} className="rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] p-4 shadow-[var(--shadow-soft)]">
+        {card}
+      </div>
+    )
+  }
 }
