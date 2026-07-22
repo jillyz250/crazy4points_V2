@@ -199,37 +199,68 @@ function listingKey(programSlug: string, l: ParsedListing): string {
  * when a page omits the year and Haiku guesses a past date (we reject those so a
  * bad guess never hides a live listing or fires a phantom reminder).
  */
-async function extractCloseDate(anthropic: Anthropic, markdown: string, todayIso: string): Promise<string | null> {
+interface ListingFacts {
+  close_date: string | null
+  event_date: string | null
+  bid_opens_at: string | null
+}
+
+/**
+ * One Haiku call reads a listing's detail page and returns its dates. Uniform
+ * across every platform (Marriott "End Date", Wyndham "Close Date", the iSynApp
+ * auction sites, United) rather than a brittle regex per site - a wrong regex
+ * is what produced false "bidding closed" labels before.
+ *
+ * Haiku returns raw values and a RELATIVE open countdown; the date maths is done
+ * here in code, because a model computing "today + 56 days" is not reliable.
+ */
+async function extractListingFacts(anthropic: Anthropic, markdown: string, todayIso: string): Promise<ListingFacts> {
+  const empty: ListingFacts = { close_date: null, event_date: null, bid_opens_at: null }
   const msg = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 200,
+    max_tokens: 260,
     messages: [
       {
         role: 'user',
-        content: `Today is ${todayIso}. This is an auction/experience detail page. Find when the AUCTION or offer CLOSES (the bidding deadline / end date), NOT the event date. If the year is missing, assume the soonest FUTURE date. Return ONLY {"close_date":"ISO 8601 datetime, or null if none found"}.\n\n${markdown.slice(0, 12000)}`,
+        content: `Today is ${todayIso}. This is an auction/experience detail page. Return ONLY this JSON, no prose:
+{"close_date": ISO 8601 datetime when BIDDING CLOSES (the auction deadline / "End Date" / "Close Date"), or null;
+ "event_date": ISO 8601 date when the EXPERIENCE happens (first date of any range), or null;
+ "not_open_yet": true ONLY if the page shows a "Starting Bid" with NO current bid AND a countdown to when packages/bidding become available, else false;
+ "opens_in_days": integer number of whole days in that "available in" countdown, or null}
+If a year is missing, assume the soonest FUTURE date.
+
+${markdown.slice(0, 12000)}`,
       },
     ],
   })
   try {
-    await logUsage(msg, 'experiences-watch:close-date', {})
+    await logUsage(msg, 'experiences-watch:listing-facts', {})
   } catch {
     /* non-fatal */
   }
   const first = msg.content[0]
   const text = first && first.type === 'text' ? first.text : '{}'
   const cleaned = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
-  let cd: string | null = null
+  let raw: Record<string, unknown>
   try {
-    cd = (JSON.parse(cleaned)?.close_date as string) ?? null
+    raw = JSON.parse(cleaned)
   } catch {
-    return null
+    return empty
   }
-  if (!cd) return null
-  const t = Date.parse(cd)
-  if (Number.isNaN(t)) return null
-  // Reject implausible past dates (missing-year guesses land in the past).
-  if (t < Date.now() - 2 * 86_400_000) return null
-  return new Date(t).toISOString()
+  const now = Date.now()
+  const iso = (v: unknown): string | null => {
+    if (typeof v !== 'string') return null
+    const t = Date.parse(v)
+    if (Number.isNaN(t)) return null
+    // Reject implausible past dates (missing-year guesses land in the past).
+    if (t < now - 2 * 86_400_000) return null
+    return new Date(t).toISOString()
+  }
+  let opensAt: string | null = null
+  if (raw.not_open_yet === true && typeof raw.opens_in_days === 'number' && raw.opens_in_days > 0) {
+    opensAt = new Date(now + raw.opens_in_days * 86_400_000).toISOString()
+  }
+  return { close_date: iso(raw.close_date), event_date: iso(raw.event_date), bid_opens_at: opensAt }
 }
 
 /**
@@ -243,13 +274,16 @@ async function enrichCloseDates(supabase: SupabaseClient, program: ExperiencePro
   if (!key) return 0
   const anthropic = new Anthropic({ apiKey: key })
   const todayIso = new Date().toISOString().slice(0, 10)
+  // Any biddable/redeemable listing missing either date. Access listings are
+  // presales with no dates, so they are skipped. Bounded per run; the backfill
+  // finishes over a few daily runs then only touches new listings.
   const { data: need } = await supabase
     .from('experience_listings')
     .select('id, detail_url')
     .eq('program_slug', program.program_slug)
     .eq('status', 'active')
-    .eq('format', 'bid')
-    .is('close_date', null)
+    .neq('format', 'access')
+    .or('close_date.is.null,event_date.is.null')
     .not('detail_url', 'is', null)
     .limit(12) // per-run cap; backfill finishes over a few daily runs
   if (!need?.length) return 0
@@ -265,16 +299,21 @@ async function enrichCloseDates(supabase: SupabaseClient, program: ExperiencePro
           return null
         }
         if (md.length < 800) return null
-        const cd = await extractCloseDate(anthropic, md, todayIso)
-        return cd ? { id: r.id as string, close_date: cd } : null
+        const facts = await extractListingFacts(anthropic, md, todayIso)
+        if (!facts.close_date && !facts.event_date && !facts.bid_opens_at) return null
+        return { id: r.id as string, facts }
       }),
     )
     for (const res of results) {
       if (!res) continue
-      await supabase
-        .from('experience_listings')
-        .update({ close_date: res.close_date, close_date_confidence: 'haiku', updated_at: new Date().toISOString() })
-        .eq('id', res.id)
+      const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
+      if (res.facts.close_date) {
+        patch.close_date = res.facts.close_date
+        patch.close_date_confidence = 'haiku'
+      }
+      if (res.facts.event_date) patch.event_date = res.facts.event_date
+      if (res.facts.bid_opens_at) patch.bid_opens_at = res.facts.bid_opens_at
+      await supabase.from('experience_listings').update(patch).eq('id', res.id)
       updated++
     }
   }
