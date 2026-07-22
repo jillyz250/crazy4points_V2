@@ -34,7 +34,7 @@ function statusLine(l: FinderListing): { text: string; tone: 'live' | 'soon' | '
   const close = l.close_date ? Date.parse(l.close_date) : null
   const event = l.event_date ? Date.parse(l.event_date) : null
   const md = (t: number) => new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-  const approx = l.close_date_confidence !== 'marriott-detail' // Haiku-guessed
+  const sourced = l.close_date_confidence === 'marriott-detail' // vs Haiku-guessed
   // Not-yet-open comes first: it changes what the whole card means. "~" because
   // the open date is derived from a countdown at scrape time and drifts.
   if (opens != null && opens > now) {
@@ -42,14 +42,19 @@ function statusLine(l: FinderListing): { text: string; tone: 'live' | 'soon' | '
     const when = days <= 1 ? 'soon' : days <= 14 ? `in ${days} days` : `~${md(opens)}`
     return { text: `Bidding opens ${when}`, tone: 'soon' }
   }
-  if (close != null && close < now) return { text: 'Bidding closed', tone: 'done' }
-  if (close != null) {
+  // A future close date is real urgency. Only assert it as a hard date when the
+  // date is sourced; a Haiku guess gets a "~". A PAST close date is NEVER shown
+  // as "closed": every listing here is status=active, so a past close is just a
+  // wrong guess - fall through to the event date instead of a false "closed".
+  if (close != null && close > now) {
     const days = Math.ceil((close - now) / 86_400_000)
-    const when = days <= 1 ? 'today' : days <= 7 ? `in ${days} days` : `${approx ? '~' : ''}${md(close)}`
+    const when = days <= 1 ? 'today' : days <= 7 ? `in ${days} days` : `${sourced ? '' : '~'}${md(close)}`
     return { text: `Bidding closes ${when}`, tone: days <= 3 ? 'live' : 'soon' }
   }
   if (event != null && event >= now) return { text: `Experience ${md(event)}`, tone: 'muted' }
-  if (event != null) return { text: 'Past event', tone: 'done' }
+  // An active auction with a live bid but no usable dates is genuinely live;
+  // anything else we simply don't have a date for.
+  if (l.format === 'bid' && l.current_bid != null) return { text: 'Bidding open now', tone: 'live' }
   return { text: 'Date to be confirmed', tone: 'muted' }
 }
 
