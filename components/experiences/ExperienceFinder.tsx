@@ -28,7 +28,7 @@ export interface FinderListing {
 // A short, honest date line for the tile. close_date drives urgency (bidding
 // ends); event_date is when the experience happens. Guessed close dates get a
 // "~" so we never assert a scraped estimate as fact.
-function statusLine(l: FinderListing): { text: string; tone: 'live' | 'soon' | 'done' | 'muted' } | null {
+function statusLine(l: FinderListing): { text: string; tone: 'live' | 'soon' | 'event' | 'muted' } | null {
   const now = Date.now()
   const opens = l.bid_opens_at ? Date.parse(l.bid_opens_at) : null
   const close = l.close_date ? Date.parse(l.close_date) : null
@@ -51,7 +51,7 @@ function statusLine(l: FinderListing): { text: string; tone: 'live' | 'soon' | '
     const when = days <= 1 ? 'today' : days <= 7 ? `in ${days} days` : `${sourced ? '' : '~'}${md(close)}`
     return { text: `Bidding closes ${when}`, tone: days <= 3 ? 'live' : 'soon' }
   }
-  if (event != null && event >= now) return { text: `Experience ${md(event)}`, tone: 'muted' }
+  if (event != null && event >= now) return { text: `Experience ${md(event)}`, tone: 'event' }
   // An active auction with a live bid but no usable dates is genuinely live;
   // anything else we simply don't have a date for.
   if (l.format === 'bid' && l.current_bid != null) return { text: 'Bidding open now', tone: 'live' }
@@ -64,11 +64,28 @@ const SORTS = [
   { key: 'points_high', label: 'Points: high to low' },
   { key: 'ending', label: 'Ending soonest' },
   { key: 'category', label: 'Category' },
-  { key: 'location', label: 'Location' },
+  // No "Location" sort: a third of listings have no location, so it just piles
+  // them into a blank bucket. Location still shows on the tiles that have one.
 ] as const
 type SortKey = (typeof SORTS)[number]['key']
 
 const cap = (s: string | null) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : '')
+
+// Collapse the messy category values (music / music & film / entertainment /
+// sports / culinary / culture...) into a few buckets, each with its own accent
+// so a concert reads differently from a game at a glance. Colors are muted
+// jewel tones that live with the Royal Glow palette.
+type Bucket = { label: string; color: string }
+function categoryBucket(category: string | null): Bucket | null {
+  const c = (category ?? '').toLowerCase()
+  if (!c) return null
+  if (c.includes('sport')) return { label: 'Sports', color: '#2E7D5B' } // emerald
+  if (c.includes('music') || c.includes('concert')) return { label: 'Music', color: '#B03D77' } // mulberry
+  if (c.includes('culinar') || c.includes('dining') || c.includes('food')) return { label: 'Dining', color: '#B8901F' } // bronze
+  if (c.includes('theat') || c.includes('art') || c.includes('cultur')) return { label: 'Culture', color: '#3F5BA8' } // indigo
+  if (c.includes('entertain') || c.includes('film')) return { label: 'Entertainment', color: '#6B2D8F' } // purple
+  return { label: cap(category), color: '#6E6486' } // muted fallback
+}
 const pointsOf = (l: FinderListing) => l.current_bid ?? l.points_required ?? null
 
 const notYetOpen = (l: FinderListing) => l.bid_opens_at != null && Date.parse(l.bid_opens_at) > Date.now()
@@ -135,8 +152,6 @@ export default function ExperienceFinder({ listings }: { listings: FinderListing
         }
         case 'category':
           return (a.category ?? '').localeCompare(b.category ?? '')
-        case 'location':
-          return (a.location ?? '').localeCompare(b.location ?? '')
         case 'newest':
         default:
           return (b.first_seen_at ?? '').localeCompare(a.first_seen_at ?? '')
@@ -239,6 +254,7 @@ export default function ExperienceFinder({ listings }: { listings: FinderListing
 
   function renderCard(l: FinderListing, key: string) {
     const href = l.detail_url ?? l.program_url ?? undefined
+    const bucket = categoryBucket(l.category)
     const cta =
       l.format === 'access'
         ? 'Sign in on the official site'
@@ -247,8 +263,16 @@ export default function ExperienceFinder({ listings }: { listings: FinderListing
           : 'View & redeem on the official site'
     const card = (
       <>
-        <div className="mb-1.5 flex items-center gap-2">
-          <span className="rounded-full bg-[var(--color-background-soft)] px-2 py-0.5 font-ui text-[0.6875rem] font-semibold uppercase tracking-wide text-[var(--color-primary)]">
+        <div className="mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+          {bucket && (
+            <span
+              className="rounded-full px-2 py-0.5 font-ui text-[0.6875rem] font-semibold uppercase tracking-wide text-white"
+              style={{ backgroundColor: bucket.color }}
+            >
+              {bucket.label}
+            </span>
+          )}
+          <span className="font-ui text-[0.6875rem] font-semibold uppercase tracking-wide text-[var(--color-primary)]">
             {l.program_label}
           </span>
           {l.format && (
@@ -258,21 +282,27 @@ export default function ExperienceFinder({ listings }: { listings: FinderListing
           )}
         </div>
         <p className="font-body font-medium leading-snug text-[var(--color-text-primary)]">{l.title}</p>
-        <p className="mt-1 font-ui text-sm text-[var(--color-text-secondary)]">
-          {[cap(l.category), l.location].filter(Boolean).join(' · ')}
-        </p>
+        {l.location && (
+          <p className="mt-1 font-ui text-sm text-[var(--color-text-secondary)]">{l.location}</p>
+        )}
         <p className="mt-2 font-ui text-sm font-semibold text-[var(--color-primary)]">{pointsLabel(l)}</p>
         {(() => {
           const s = statusLine(l)
           if (!s) return null
+          // Distinct colors so bidding urgency and the experience date never
+          // read the same: red = closing now, purple = bidding activity,
+          // indigo = the experience date, grey = unknown. The "!" is required:
+          // an unlayered link colour otherwise overrides the utility (Tailwind
+          // v4 cascade trap - a fresh element gets the colour, a <p> in the <a>
+          // does not).
           const tone =
             s.tone === 'live'
-              ? 'text-[var(--color-alert)]'
+              ? 'text-[var(--color-alert)]!'
               : s.tone === 'soon'
-                ? 'text-[var(--color-primary)]'
-                : s.tone === 'done'
-                  ? 'text-[var(--color-text-secondary)] line-through decoration-1'
-                  : 'text-[var(--color-text-secondary)]'
+                ? 'text-[var(--color-primary)]!'
+                : s.tone === 'event'
+                  ? 'text-[#3F5BA8]!'
+                  : 'text-[var(--color-text-secondary)]!'
           return <p className={`mt-1 font-ui text-xs font-medium ${tone}`}>{s.text}</p>
         })()}
       </>
