@@ -114,12 +114,15 @@ async function loadStats() {
       .is('archived_at', null)
       .is('triage_decision', null)
       .gte('created_at', since),
-    // Experiences: new listings first seen in the last ~36h (dashboard alert)
+    // Experiences: new listings first seen in the last ~36h (dashboard alert).
+    // Fetch the rows, not just a count, so the card can name and link the
+    // listing instead of making Jill hunt for which one is new.
     supabase
       .from('experience_listings')
-      .select('id', { count: 'exact', head: true })
+      .select('title, detail_url, first_seen_at')
       .eq('status', 'active')
-      .gte('first_seen_at', since),
+      .gte('first_seen_at', since)
+      .order('first_seen_at', { ascending: false }),
   ])
 
   return {
@@ -138,7 +141,8 @@ async function loadStats() {
     proseReview: proseReview.count ?? 0,
     newDrafts: newDrafts.count ?? 0,
     newIntel: newIntel.count ?? 0,
-    newExperiences: newExperiences.count ?? 0,
+    newExperiences: newExperiences.data?.length ?? 0,
+    newExperienceItems: (newExperiences.data ?? []) as Array<{ title: string; detail_url: string | null }>,
   }
 }
 
@@ -295,8 +299,19 @@ export default async function AdminDashboard() {
       label: 'New experiences',
       value: stats.newExperiences,
       tone: stats.newExperiences > 0 ? 'warning' : 'neutral',
-      href: '/experiences',
-      hint: stats.newExperiences > 0 ? 'new listings since yesterday - consider a post' : 'no new listings',
+      // Link straight to the newest listing (or the directory if several), and
+      // name it in the hint so there is nothing to hunt for. Self-clears after
+      // ~36h - no dismiss needed.
+      href:
+        stats.newExperiences === 1 && stats.newExperienceItems[0]?.detail_url
+          ? stats.newExperienceItems[0].detail_url
+          : '/experiences',
+      hint:
+        stats.newExperiences === 0
+          ? 'no new listings'
+          : stats.newExperiences === 1
+            ? stats.newExperienceItems[0]?.title ?? 'new listing since yesterday'
+            : `${stats.newExperiences} new since yesterday - consider a post`,
     },
     {
       label: 'Open content ideas',
