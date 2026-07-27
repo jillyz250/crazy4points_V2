@@ -3266,6 +3266,7 @@ export interface Reminder {
   link: string | null
   created_at: string
   completed_at: string | null
+  kind: 'todo' | 'experience' // 'experience' = auto-generated auction "bidding closes" nudge
 }
 
 /**
@@ -3275,7 +3276,7 @@ export interface Reminder {
 export async function listReminders(supabase: SupabaseClient): Promise<Reminder[]> {
   const { data, error } = await supabase
     .from('reminders')
-    .select('id, title, notes, due_date, status, link, created_at, completed_at')
+    .select('id, title, notes, due_date, status, link, created_at, completed_at, kind')
     .order('status', { ascending: true }) // 'done' > 'open' alphabetically, so open first
     .order('due_date', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: false })

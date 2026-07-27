@@ -322,13 +322,43 @@ async function enrichCloseDates(supabase: SupabaseClient, program: ExperiencePro
 }
 
 /**
- * Create a "bidding closes soon" reminder for each active auction closing within
- * the next 3 days that doesn't already have one (deduped on the detail URL). This
- * is the actionable payoff of close dates: Jill gets a nudge to bid before an
- * auction ends, on the dashboard reminders board.
+ * Maintain the experience-auction "bidding closes soon" reminders (kind =
+ * 'experience'), which render in their own collapsed section on the dashboard,
+ * separate from real to-dos:
+ *   1. Prune — archive any experience reminder whose auction has already closed,
+ *      so the section self-cleans instead of piling up (it used to flood the board).
+ *   2. Create — one reminder per active auction closing within 3 days that
+ *      doesn't already have one.
+ *
+ * Dedup is on the TITLE, not the detail URL: the same auction can resurface with
+ * drifting query params on its URL, which slipped past exact-URL dedup and spawned
+ * duplicate reminders. The title (listing + close day + platform) is stable.
  */
 async function createBidReminders(supabase: SupabaseClient, program: ExperienceProgram): Promise<number> {
   const nowIso = new Date().toISOString()
+  const todayET = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }) // YYYY-MM-DD
+
+  // 1. Prune closed auctions. Close date is embedded in the title
+  // ("Bidding closes YYYY-MM-DD: ..."); archive anything already past.
+  const { data: openBids } = await supabase
+    .from('reminders')
+    .select('id, title')
+    .eq('kind', 'experience')
+    .eq('status', 'open')
+  const staleIds = (openBids ?? [])
+    .filter((r) => {
+      const m = (r.title as string).match(/Bidding closes (\d{4}-\d{2}-\d{2})/)
+      return m ? m[1] < todayET : false
+    })
+    .map((r) => r.id as string)
+  if (staleIds.length > 0) {
+    await supabase
+      .from('reminders')
+      .update({ status: 'done', completed_at: nowIso })
+      .in('id', staleIds)
+  }
+
+  // 2. Create reminders for auctions closing within the next 3 days.
   const soonIso = new Date(Date.now() + 3 * 86_400_000).toISOString()
   const { data: closing } = await supabase
     .from('experience_listings')
@@ -343,14 +373,16 @@ async function createBidReminders(supabase: SupabaseClient, program: ExperienceP
   for (const l of closing ?? []) {
     const link = (l.detail_url as string) ?? null
     if (!link) continue
-    const { data: exists } = await supabase.from('reminders').select('id').eq('link', link).limit(1)
-    if (exists?.length) continue
     const closeIso = l.close_date as string
     const closeDay = closeIso.slice(0, 10)
+    const title = `Bidding closes ${closeDay}: ${(l.title as string).slice(0, 80)} (${program.source_platform})`
+    const { data: exists } = await supabase.from('reminders').select('id').eq('title', title).limit(1)
+    if (exists?.length) continue
     // Remind a day before it closes, but never in the past.
     const dueMs = Math.max(Date.now(), Date.parse(closeIso) - 86_400_000)
     await supabase.from('reminders').insert({
-      title: `Bidding closes ${closeDay}: ${(l.title as string).slice(0, 80)} (${program.source_platform})`,
+      title,
+      kind: 'experience',
       due_date: new Date(dueMs).toISOString().slice(0, 10),
       status: 'open',
       link,

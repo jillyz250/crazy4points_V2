@@ -68,10 +68,16 @@ export default function RemindersWidget({ reminders }: { reminders: Reminder[] }
       if (b.due_date) return 1
       return a.created_at < b.created_at ? 1 : -1
     })
+  // Split real to-dos from the auto-generated experience-auction "bidding closes"
+  // nudges. The bids used to flood the board; they now live in their own
+  // collapsed section so the real to-dos stay front and center.
+  const openTodos = open.filter((r) => r.kind !== 'experience')
+  const openBids = open.filter((r) => r.kind === 'experience')
 
   // Overdue or due-today count — surfaced next to the header when collapsed
-  // so folding the widget never hides something urgent.
-  const urgentCount = open.filter((r) => r.due_date && r.due_date <= todayET()).length
+  // so folding the widget never hides something urgent. Based on real to-dos
+  // (bids are all "due" as they close, which would drown the signal).
+  const urgentCount = openTodos.filter((r) => r.due_date && r.due_date <= todayET()).length
 
   function submit() {
     const t = title.trim()
@@ -96,6 +102,61 @@ export default function RemindersWidget({ reminders }: { reminders: Reminder[] }
       await deleteReminder(id)
       router.refresh()
     })
+  }
+
+  // One open reminder row (shared by the to-do list and the experience-bids list).
+  const renderOpenRow = (r: Reminder) => {
+    const ds = dueState(r.due_date)
+    return (
+      <li key={r.id} style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', fontSize: '0.875rem' }}>
+        <button
+          type="button"
+          onClick={() => toggle(r.id, true)}
+          aria-label="Mark done"
+          title="Mark done"
+          style={{
+            flexShrink: 0,
+            width: '1.15rem',
+            height: '1.15rem',
+            borderRadius: '50%',
+            border: '1.5px solid var(--admin-border)',
+            background: 'transparent',
+            cursor: 'pointer',
+            padding: 0,
+          }}
+        />
+        <span style={{ flex: 1, fontWeight: 500 }}>
+          {r.link ? (
+            <Link href={r.link} style={{ color: 'inherit' }}>{r.title}</Link>
+          ) : (
+            r.title
+          )}
+        </span>
+        {ds && (
+          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: ds.tone, whiteSpace: 'nowrap' }}>
+            {ds.label}
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={() => remove(r.id)}
+          aria-label="Delete"
+          title="Delete"
+          style={{
+            flexShrink: 0,
+            border: 'none',
+            background: 'transparent',
+            color: 'var(--admin-text-muted)',
+            cursor: 'pointer',
+            fontSize: '1rem',
+            lineHeight: 1,
+            padding: '0.25rem',
+          }}
+        >
+          ×
+        </button>
+      </li>
+    )
   }
 
   return (
@@ -142,9 +203,9 @@ export default function RemindersWidget({ reminders }: { reminders: Reminder[] }
               ))}
             </div>
           )}
-          {open.length > 0 && (
+          {openTodos.length > 0 && (
             <span style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)' }}>
-              {open.length} open
+              {openTodos.length} open
             </span>
           )}
           {collapsed && urgentCount > 0 && (
@@ -230,67 +291,32 @@ export default function RemindersWidget({ reminders }: { reminders: Reminder[] }
         </button>
       </div>
 
-      {/* Open items */}
-      {open.length === 0 && done.length === 0 ? (
+      {/* Open to-dos */}
+      {openTodos.length === 0 && openBids.length === 0 && done.length === 0 ? (
         <div style={{ fontSize: '0.875rem', color: 'var(--admin-text-muted)' }}>
           Nothing on the list. Add a to-do above.
         </div>
+      ) : openTodos.length === 0 ? (
+        <div style={{ fontSize: '0.875rem', color: 'var(--admin-text-muted)' }}>
+          No to-dos right now.
+        </div>
       ) : (
         <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-          {open.map((r) => {
-            const ds = dueState(r.due_date)
-            return (
-              <li key={r.id} style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', fontSize: '0.875rem' }}>
-                <button
-                  type="button"
-                  onClick={() => toggle(r.id, true)}
-                  aria-label="Mark done"
-                  title="Mark done"
-                  style={{
-                    flexShrink: 0,
-                    width: '1.15rem',
-                    height: '1.15rem',
-                    borderRadius: '50%',
-                    border: '1.5px solid var(--admin-border)',
-                    background: 'transparent',
-                    cursor: 'pointer',
-                    padding: 0,
-                  }}
-                />
-                <span style={{ flex: 1, fontWeight: 500 }}>
-                  {r.link ? (
-                    <Link href={r.link} style={{ color: 'inherit' }}>{r.title}</Link>
-                  ) : (
-                    r.title
-                  )}
-                </span>
-                {ds && (
-                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: ds.tone, whiteSpace: 'nowrap' }}>
-                    {ds.label}
-                  </span>
-                )}
-                <button
-                  type="button"
-                  onClick={() => remove(r.id)}
-                  aria-label="Delete"
-                  title="Delete"
-                  style={{
-                    flexShrink: 0,
-                    border: 'none',
-                    background: 'transparent',
-                    color: 'var(--admin-text-muted)',
-                    cursor: 'pointer',
-                    fontSize: '1rem',
-                    lineHeight: 1,
-                    padding: '0.25rem',
-                  }}
-                >
-                  ×
-                </button>
-              </li>
-            )
-          })}
+          {openTodos.map(renderOpenRow)}
         </ul>
+      )}
+
+      {/* Experience bids — auto-generated "bidding closes" nudges, kept out of the
+          way in their own collapsed section so they don't bury the real to-dos. */}
+      {openBids.length > 0 && (
+        <details style={{ marginTop: '0.875rem' }}>
+          <summary style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--admin-text-muted)', cursor: 'pointer' }}>
+            Experience bids ({openBids.length}) — auctions closing soon
+          </summary>
+          <ul style={{ listStyle: 'none', padding: '0.5rem 0 0', margin: 0, display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+            {openBids.map(renderOpenRow)}
+          </ul>
+        </details>
       )}
 
       {/* Done items */}
