@@ -3,7 +3,7 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import { createClient } from '@/utils/supabase/server'
 import { getAlertBySlug } from '@/utils/supabase/queries'
-import { daysUntilEndOfDay } from '@/lib/alertExpiry'
+import { daysUntilEndOfDay, futureStartLabel } from '@/lib/alertExpiry'
 import { normalizeAlertDescription } from '@/utils/alerts/normalizeDescription'
 import { renderProseMarkdown } from '@/lib/blog/sanitize'
 import { safeJsonLd } from '@/lib/jsonLd'
@@ -102,7 +102,9 @@ export default async function AlertDetailPage({ params }: Props) {
   }
 
   const badge = TYPE_BADGE[alert.type] ?? { label: alert.type, cls: 'bg-slate-100 text-slate-600' }
-  const expiry = daysRemaining(alert.end_date)
+  // A future-dated / one-day promo (e.g. Bilt Rent Day) shows "Aug 1 only"
+  // rather than a misleading "N days left" countdown to its end_date.
+  const expiry = futureStartLabel(alert.start_date, alert.end_date) ?? daysRemaining(alert.end_date)
   const isExpired = expiry === 'Expired'
 
   // CTA target — link to the alert's primary program reference page rather

@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import type { AlertWithPrograms } from '@/utils/supabase/queries'
-import { formatExpiryLabel } from '@/lib/alertExpiry'
+import { formatExpiryLabel, futureStartLabel } from '@/lib/alertExpiry'
 
 const TYPE_LABELS: Record<string, string> = {
   signup_bonus: 'Sign-Up Bonus',
@@ -39,7 +39,7 @@ function formatEndDate(endDate: string | null): string | null {
 
 export default function AlertHeroCardSB({ alert }: { alert: AlertWithPrograms }) {
   const typeLabel = TYPE_LABELS[alert.type] ?? alert.type
-  const endLabel = formatEndDate(alert.end_date)
+  const endLabel = futureStartLabel(alert.start_date, alert.end_date) ?? formatEndDate(alert.end_date)
   const isExpired = endLabel === 'Expired'
   const primary = (alert.alert_programs ?? []).find((ap) => ap.role === 'primary')
 

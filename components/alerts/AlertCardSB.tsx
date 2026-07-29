@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import type { AlertWithPrograms } from '@/utils/supabase/queries'
-import { formatExpiryLabel } from '@/lib/alertExpiry'
+import { formatExpiryLabel, futureStartLabel } from '@/lib/alertExpiry'
 
 // Full literal class names — Tailwind v4 JIT does not support string interpolation
 const TYPE_BADGE: Record<string, { label: string; cls: string }> = {
@@ -88,7 +88,7 @@ const MAX_VISIBLE_PROGRAMS = 4
 
 export default function AlertCardSB({ alert }: { alert: AlertWithPrograms }) {
   const badge     = TYPE_BADGE[alert.type] ?? { label: alert.type, cls: 'bg-slate-100 text-slate-600' }
-  const endLabel  = formatEndDate(alert.end_date)
+  const endLabel  = futureStartLabel(alert.start_date, alert.end_date) ?? formatEndDate(alert.end_date)
   const isExpired = endLabel === 'Expired'
   const urgency   = getUrgencyTier(alert.end_date, alert.impact_score)
   const urg       = URGENCY[urgency]
