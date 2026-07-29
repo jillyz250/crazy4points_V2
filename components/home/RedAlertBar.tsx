@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Alert } from "@/utils/supabase/queries";
-import { daysUntilEndOfDay } from "@/lib/alertExpiry";
+import { daysUntilEndOfDay, futureStartLabel } from "@/lib/alertExpiry";
 
 // RedAlertBar reads only alert-level fields (id, slug, title, type,
 // published_at, end_date). The legacy AlertWithPrograms shape was overly
@@ -82,7 +82,11 @@ interface ExpiryPill {
 
 // Returns null when there is no end_date — chips for evergreen alerts have
 // no right-side pill, by design (asymmetry helps time-sensitive alerts pop).
-function expiryPill(endDate: string | null): ExpiryPill | null {
+function expiryPill(startDate: string | null, endDate: string | null): ExpiryPill | null {
+  // Not-yet-open dated promo (e.g. Bilt Rent Day): show "Aug 1 only" / "Opens
+  // Aug 1" instead of a countdown to end_date.
+  const future = futureStartLabel(startDate, endDate);
+  if (future) return { label: future, tone: "today" };
   if (!endDate) return null;
   const days = daysUntilEndOfDay(endDate);
   if (days === null) return null;
@@ -129,7 +133,7 @@ export default function RedAlertBar({ alerts, overflowCount }: Props) {
           <div className="relative min-w-0 flex-1">
             <div className="flex items-center gap-2 overflow-x-auto scroll-smooth pr-6 [-ms-overflow-style:none] [scrollbar-width:none] md:gap-3 [&::-webkit-scrollbar]:hidden">
               {alerts.map((alert) => {
-                const expiry = expiryPill(alert.end_date);
+                const expiry = expiryPill(alert.start_date, alert.end_date);
                 const fresh = isPublishedToday(alert.published_at);
                 const cat = categoryPill(alert.type);
                 return (

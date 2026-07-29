@@ -70,6 +70,63 @@ export function formatExpiryLabel(endDate: string | null | undefined): string | 
   return `Expires ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
 }
 
+// Calendar day straight from the ISO string, no timezone math. alerts.start_date
+// is a DATE column, so a value like "2026-08-01" must be read as that calendar
+// day everywhere — running it through Date + a timezone shifts UTC-midnight back
+// to the previous day (the same off-by-one this whole module guards against).
+function isoDay(iso: string): string | null {
+  const m = /^(\d{4}-\d{2}-\d{2})/.exec(iso)
+  return m ? m[1] : null
+}
+
+/** "Aug 1" from an ISO date/timestamp, read as a plain UTC calendar day. */
+function shortDay(iso: string): string {
+  const day = isoDay(iso)
+  if (!day) return ''
+  return new Date(day + 'T00:00:00Z').toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'UTC',
+  })
+}
+
+/**
+ * True when the alert's action window hasn't opened yet (start_date is in the
+ * future). Lets a dated / one-day promo — e.g. Bilt Rent Day on the 1st — show
+ * "Aug 1 only" instead of a misleading "N days left" countdown to its end_date.
+ */
+export function startsInFuture(
+  startDate: string | null | undefined,
+  now: number = Date.now(),
+): boolean {
+  const day = startDate ? isoDay(startDate) : null
+  if (!day) return false
+  return now < new Date(day + 'T00:00:00Z').getTime()
+}
+
+/**
+ * Timing badge for an alert whose action window is still in the future.
+ * - single calendar day (start and end on the same day): "Aug 1 only"
+ * - otherwise: "Opens Aug 1"
+ * - compact mode (tight badges): just "Aug 1"
+ * Returns null once the alert has opened, so callers fall back to their usual
+ * end_date expiry label.
+ */
+export function futureStartLabel(
+  startDate: string | null | undefined,
+  endDate: string | null | undefined,
+  opts: { compact?: boolean } = {},
+  now: number = Date.now(),
+): string | null {
+  if (!startsInFuture(startDate, now)) return null
+  const startDay = isoDay(startDate as string)
+  const label = shortDay(startDate as string)
+  if (opts.compact) return label
+  const endDay = endDate ? isoDay(endDate) : null
+  if (endDay && startDay === endDay) return `${label} only`
+  return `Opens ${label}`
+}
+
 /**
  * Per-type freshness windows for alerts without an explicit end_date.
  * News-shaped alert types (program_change, devaluation, etc.) don't expire

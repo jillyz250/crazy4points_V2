@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { AlertWithPrograms } from '@/utils/supabase/queries'
+import { futureStartLabel } from '@/lib/alertExpiry'
 
 const TYPE_LABELS: Record<string, string> = {
   signup_bonus: 'Sign-Up',
@@ -43,7 +44,7 @@ function endLabel(endDate: string | null): string | null {
 export default function AlertRowSB({ alert }: { alert: AlertWithPrograms }) {
   const type = TYPE_LABELS[alert.type] ?? alert.type
   const primary = (alert.alert_programs ?? []).find((ap) => ap.role === 'primary')
-  const end = endLabel(alert.end_date)
+  const end = futureStartLabel(alert.start_date, alert.end_date, { compact: true }) ?? endLabel(alert.end_date)
 
   return (
     <Link
