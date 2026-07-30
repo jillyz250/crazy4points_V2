@@ -23,11 +23,20 @@ import type { TopExperienceItem } from './newsletterSlots'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const FRESH_DAYS = 10
-const CAP = 6
+// Tight shortlist — the section is meant to be 2-3 picks, not a firehose. The
+// editor trims from here.
+const CAP = 4
 
 // Airline programs earn/redeem "miles"; everything else is "points". Keyed by a
 // substring of source_platform so naming drift doesn't break the unit.
 const MILES_PLATFORMS = ['mileageplus', 'aadvantage', 'skymiles', 'flying blue', 'aeroplan', 'mileage plan']
+
+// Most of our followers are in the New York metro, so NY-area experiences lead
+// the section when any exist. Detected from LOCATION first (avoids false hits
+// like "Cubs vs. a New York team" played in Chicago); title venues are a
+// fallback only when location is blank.
+const NY_LOCATION = /\bnew york\b|\bnyc\b|manhattan|brooklyn|\bbronx\b|\bqueens\b|flushing|long island|east rutherford|metlife|newark,?\s*nj/i
+const NY_VENUE = /madison square garden|\bmsg\b|u\.?s\.? open|yankee stadium|citi field|barclays center|radio city|lincoln center|broadway/i
 
 interface ListingRow {
   title: string | null
@@ -38,7 +47,15 @@ interface ListingRow {
   minimum_bid: number | null
   event_date: string | null
   close_date: string | null
+  location: string | null
   detail_url: string | null
+}
+
+function isNewYork(r: ListingRow): boolean {
+  if (r.location && NY_LOCATION.test(r.location)) return true
+  // Only trust the title for geo when there's no location to contradict it.
+  if (!r.location && r.title && NY_VENUE.test(r.title)) return true
+  return false
 }
 
 function unitFor(platform: string | null): string {
@@ -104,7 +121,7 @@ export async function getTopExperiences(supabase: SupabaseClient): Promise<TopEx
   const { data } = await supabase
     .from('experience_listings')
     .select(
-      'title, source_platform, format, points_required, current_bid, minimum_bid, event_date, close_date, detail_url, first_seen_at, status',
+      'title, source_platform, format, points_required, current_bid, minimum_bid, event_date, close_date, location, detail_url, first_seen_at, status',
     )
     .eq('status', 'active')
     .in('format', ['redeem', 'bid'])
@@ -145,10 +162,13 @@ export async function getTopExperiences(supabase: SupabaseClient): Promise<TopEx
   }
   const deduped = [...bestByEvent.values()]
 
-  // Redeem before bid; within each, soonest close first (nulls last), then
-  // cheapest first as a stable tiebreak.
+  // New York metro first (audience is NY-heavy), then redeem before bid, then
+  // soonest close first (nulls last), then cheapest as a stable tiebreak.
   const rank = (r: ListingRow) => (r.format === 'redeem' ? 0 : 1)
   deduped.sort((a, b) => {
+    const nyA = isNewYork(a) ? 0 : 1
+    const nyB = isNewYork(b) ? 0 : 1
+    if (nyA !== nyB) return nyA - nyB
     if (rank(a) !== rank(b)) return rank(a) - rank(b)
     const ca = a.close_date ?? '9999-12-31'
     const cb = b.close_date ?? '9999-12-31'
