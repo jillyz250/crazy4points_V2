@@ -1,6 +1,6 @@
 ---
 name: facebook-post
-description: Write a scroll-stopping, accurate Facebook post for crazy4points in Jill's brand voice, built around one compelling takeaway and following her full FB protocol (opportunity-first framing, one primary CTA with the link in the first comment, soft newsletter line, exactly 5 hashtags, no emojis, no dashes, facts verified). ALWAYS trigger when the user says "facebook post", "FB post", "write a facebook post", "post this on facebook", "make an FB post about X", or "/facebook-post". Produces the post body plus the separate first-comment link, and offers the matching 1080x1080 graphic.
+description: Write a scroll-stopping, accurate Facebook post for crazy4points in Jill's brand voice, built around one compelling takeaway and following her full FB protocol (opportunity-first framing, one primary CTA with the link in the first comment, soft newsletter line, exactly 5 hashtags, no emojis, no dashes, facts verified). ALWAYS trigger when the user says "facebook post", "FB post", "write a facebook post", "post this on facebook", "make an FB post about X", or "/facebook-post". Produces the post body plus the separate first-comment link; the post attaches the permanent brand card (public/fb-brand-card.png), not a per-post graphic.
 ---
 
 # facebook-post — crazy4points Facebook post writer
@@ -41,7 +41,7 @@ Casual travelers who have heard of points but are not experts. They are silently
 ## Output format
 - **Post:** body ending with the 5 hashtags.
 - **First comment (paste right after posting):** `Full breakdown here: https://www.crazy4points.com/alerts/<short-slug>` (the real short_slug URL, or the relevant /guides or /programs page).
-- Then offer the matching **1080x1080 branded graphic** (`tools/social-graphics/build_graphic.py`; gold or purple palette; link/how-to line lives in the comment, not on the image). **When you build one, copy the PNG to `~/Desktop/Crazy4Points Graphics/` named `YYYY-MM-DD-<short-slug>.png`** so Jill can grab it (chronological sort; never leave it only in the repo or on the Desktop root). Graphic rules live in `plans/social-graphics-kit.md` — two that bite: **(a) one idea, every element** (every pill supports the single takeaway; never mix topics like "book this hotel" and "flight perk" on one card), and **(b) never make a raw point count the hero number** (invites value-math, can imply a deal that isn't there).
+- **Facebook uses ONE permanent brand card, not a per-post graphic (set 2026-07-30).** Every FB post attaches the same cute image: `public/fb-brand-card.png` (also on the Desktop as `crazy4points-fb-card.png`) - the Crazy4Points mascot + wordmark, landscape so it sits smaller in-feed. Attaching it makes the post show this image (not a scraped/dominating link-preview card) and keeps the newsletter URL as plain blue text. **Do NOT build a bespoke graphic for Facebook.** The big 1080x1080 `build_graphic.py` graphics are an INSTAGRAM thing (see the instagram-post skill); Facebook just reuses the brand card. If Jill ever wants the brand card refreshed, regenerate it from `public/crazy4points-logo.png`.
 
 ## Operational (behavior, not writing)
 - **Never post to Facebook yourself** — output is copy for Jill to post. Auto-posting is an outward action that needs her consent.
