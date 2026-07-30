@@ -61,11 +61,11 @@ export default function NewsletterIssueBody({ n }: { n: PublicNewsletter }) {
       {/* Money can't buy: new experiences */}
       {n.top_experiences.length > 0 && (
         <section>
-          <SectionHeading>Beyond flights &amp; hotels: experiences on points</SectionHeading>
+          <SectionHeading>Beyond flights &amp; hotels: unforgettable experiences</SectionHeading>
           <p className="font-body text-[var(--color-text-secondary)] leading-relaxed mb-4">
             {n.top_experiences.some((e) => e.is_auction)
-              ? 'Use points for access you cannot otherwise book. A points price means a fixed cost; a bid is an auction you can lose.'
-              : 'Use points for access you cannot otherwise book, at a fixed points price.'}
+              ? 'Use your points and card perks for access you cannot otherwise book. Some are a fixed price; some are auctions where the winning bid can climb.'
+              : 'Use your points and card perks for access you cannot otherwise book.'}
           </p>
           <ul className="space-y-4">
             {n.top_experiences.map((e, i) => (
@@ -77,9 +77,12 @@ export default function NewsletterIssueBody({ n }: { n: PublicNewsletter }) {
                 <span className="block text-[var(--color-text-secondary)] mt-1">
                   {[e.points_label, e.event_label, e.deadline].filter(Boolean).join(' · ')}
                 </span>
+                {e.blurb ? (
+                  <span className="block text-[var(--color-text-primary)] mt-1">{e.blurb}</span>
+                ) : null}
                 {e.is_auction ? (
                   <span className="block text-[var(--color-text-secondary)] italic text-sm mt-1">
-                    Auction: you bid points and can be outbid. Final sale, travel not included.
+                    Auction: you bid points and can be outbid, so the winning price can climb. Final sale.
                   </span>
                 ) : null}
               </li>

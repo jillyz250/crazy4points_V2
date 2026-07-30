@@ -82,6 +82,10 @@ export interface TopExperienceItem {
   link_url: string
   /** True for auctions — renders the "bid with points, can be outbid, final sale" caveat. */
   is_auction: boolean
+  /** Optional one-sentence editorial hook shown under the meta line. Lets a
+   *  hand-picked experience carry compelling framing the compact card can't.
+   *  Empty/null = no line. */
+  blurb?: string | null
 }
 
 export interface SweetSpotBestUse {
