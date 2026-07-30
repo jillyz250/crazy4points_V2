@@ -98,7 +98,10 @@ async function loadStats() {
     countHardcodedHits(supabase).catch(() => 0),
     supabase.from('card_bonus_signals').select('id', { count: 'exact', head: true }).eq('status', 'new'),
     supabase.from('change_signals').select('id', { count: 'exact', head: true }).eq('status', 'new'),
-    supabase.from('credit_cards').select('id', { count: 'exact', head: true }).not('good_to_know_review_at', 'is', null),
+    // Only count reviews that are actually DUE (review_at <= now). Future-dated
+    // reminders (e.g. "revert this elevated offer on Aug 27") shouldn't inflate
+    // the "to re-check" number until they come due.
+    supabase.from('credit_cards').select('id', { count: 'exact', head: true }).lte('good_to_know_review_at', nowIso),
     // Today's slice: drafts that became needs_review in the last ~36h
     supabase
       .from('content_variants')
