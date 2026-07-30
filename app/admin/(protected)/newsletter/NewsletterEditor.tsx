@@ -830,7 +830,7 @@ export default function NewsletterEditor({
       {/* Money Can't Buy: New Experiences (auto from experience_listings) */}
       <div style={sectionStyle}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.5rem' }}>
-          <label style={labelStyle}>🎟️ Beyond Flights &amp; Hotels: Experiences on Points (auto from fresh listings)</label>
+          <label style={labelStyle}>🎟️ Beyond Flights &amp; Hotels: Unforgettable Experiences (auto from fresh listings; hand-add cardmember picks too)</label>
           {!isSent && (
             <button type="button" onClick={handlePullExperiences} disabled={isPending} style={btnSecondary}>
               {isPending ? 'Working…' : 'Pull experiences'}
