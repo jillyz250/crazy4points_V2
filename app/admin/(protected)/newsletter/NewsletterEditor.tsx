@@ -22,6 +22,7 @@ import {
   generateSweetSpotFromLockAction,
   pullActiveOffersAction,
   pullElevatedBonusesAction,
+  pullTopExperiencesAction,
 } from './actions'
 import type { NewsletterSlots, AlsoHappeningItem, NewsletterSweetSpot, SweetSpotBestUse, OfferItem } from '@/utils/ai/newsletterSlots'
 import type { BigStoryCandidate } from './page'
@@ -218,6 +219,20 @@ export default function NewsletterEditor({
         setMessage(`Pulled ${r.count} elevated welcome bonus${r.count === 1 ? '' : 'es'}.`)
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to pull elevated bonuses')
+      }
+    })
+  }
+
+  function handlePullExperiences() {
+    setError(null)
+    setMessage(null)
+    start(async () => {
+      try {
+        const r = await pullTopExperiencesAction(id)
+        setSlots((prev) => ({ ...prev, top_experiences: r.experiences }))
+        setMessage(`Pulled ${r.count} new experience${r.count === 1 ? '' : 's'}.`)
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Failed to pull experiences')
       }
     })
   }
@@ -810,6 +825,47 @@ export default function NewsletterEditor({
         {!isSent && (
           <button type="button" onClick={addAlso} style={btnSecondary}>+ Add card</button>
         )}
+      </div>
+
+      {/* Money Can't Buy: New Experiences (auto from experience_listings) */}
+      <div style={sectionStyle}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.5rem' }}>
+          <label style={labelStyle}>🎟️ Money Can&apos;t Buy: New Experiences (auto from fresh listings)</label>
+          {!isSent && (
+            <button type="button" onClick={handlePullExperiences} disabled={isPending} style={btnSecondary}>
+              {isPending ? 'Working…' : 'Pull experiences'}
+            </button>
+          )}
+        </div>
+        {(() => {
+          const items = slots.top_experiences ?? []
+          if (items.length === 0) {
+            return <p style={{ fontSize: '0.8125rem', color: 'var(--admin-text-muted)', margin: 0 }}>None pulled yet. Click &ldquo;Pull experiences&rdquo; to fill from this week&rsquo;s points-redeemable Moments (card-network concert presales are auto-excluded).</p>
+          }
+          return items.map((it, i) => (
+            <div key={i} style={{ fontSize: '0.8125rem', marginBottom: '0.4rem', display: 'flex', alignItems: 'flex-start', gap: '0.4rem' }}>
+              <span style={{ flex: 1 }}>
+                <span style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-primary, #6B2D8F)', fontWeight: 700 }}>{it.program_label}</span>
+                {it.is_auction ? <span style={{ marginLeft: '0.35rem', fontSize: '0.6875rem', color: 'var(--color-accent, #D4AF37)', fontWeight: 700 }}>AUCTION</span> : null}
+                <br />
+                <strong>{it.title}</strong>{' '}
+                <span style={{ color: 'var(--admin-text-muted)' }}>
+                  ({[it.points_label, it.event_label, it.deadline].filter(Boolean).join(' · ')})
+                </span>
+              </span>
+              {!isSent && (
+                <button
+                  type="button"
+                  onClick={() => setSlots((prev) => ({ ...prev, top_experiences: (prev.top_experiences ?? []).filter((_, j) => j !== i) }))}
+                  style={{ ...btnSecondary, padding: '0.1rem 0.45rem', fontSize: '0.75rem' }}
+                  aria-label={`Remove ${it.title}`}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          ))
+        })()}
       </div>
 
       {/* Live Offers (auto from active alerts) */}

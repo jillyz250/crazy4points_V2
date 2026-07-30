@@ -241,6 +241,9 @@ function validateSlots(raw: unknown): Omit<NewsletterSlots, 'subject' | 'game' |
     big_story_title: null,
     big_story_html: r.big_story_html ?? null,
     sweet_spot: validateSweetSpot(r.sweet_spot),
+    // Data-pulled sections (like active_offers / elevated_bonuses) — Sonnet
+    // doesn't produce these; the editor pulls them from live data.
+    top_experiences: null,
     also_happening,
     active_offers: null,
     elevated_bonuses: null,

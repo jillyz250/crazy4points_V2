@@ -9,7 +9,7 @@
  * V2 reads from new column shape (migration 222). V1 renderer
  * (newsletterEmail.ts) stays in place for legacy/already-sent newsletters.
  */
-import type { NewsletterSlots, AlsoHappeningItem, NewsletterSweetSpot, ActiveOffers, OfferItem, ElevatedBonusItem } from './newsletterSlots'
+import type { NewsletterSlots, AlsoHappeningItem, NewsletterSweetSpot, ActiveOffers, OfferItem, ElevatedBonusItem, TopExperienceItem } from './newsletterSlots'
 import { unsubscribeUrlFor } from '@/utils/email/unsubscribeToken'
 
 const PURPLE = '#6B2D8F'
@@ -293,6 +293,55 @@ function renderSweetSpot(sp: NewsletterSweetSpot | null): string {
     </td></tr>`
 }
 
+function renderTopExperiences(items: TopExperienceItem[] | null, origin: string): string {
+  if (!items || items.length === 0) return ''
+  const anyAuction = items.some((it) => it.is_auction)
+  const cards = items
+    .map((it) => {
+      const href = it.link_url
+        ? it.link_url.startsWith('http')
+          ? it.link_url
+          : `${origin}${it.link_url}`
+        : ''
+      const title = href
+        ? `<a href="${esc(href)}" style="color:${LINK_BLUE};text-decoration:underline;">${esc(it.title)}</a>`
+        : esc(it.title)
+      const meta = [
+        it.points_label
+          ? `<strong style="color:${GOLD};font-weight:700;">${esc(it.points_label)}</strong>`
+          : '',
+        it.event_label ? esc(it.event_label) : '',
+        it.deadline ? esc(it.deadline) : '',
+      ]
+        .filter(Boolean)
+        .join(' &middot; ')
+      const auction = it.is_auction
+        ? `<p style="margin:6px 0 0;font-family:${FONT_BODY};font-size:12px;line-height:1.4;color:${MUTED};font-style:italic;">Auction: you bid points and can be outbid. Final sale, travel not included.</p>`
+        : ''
+      return `
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 12px;border:1px solid ${BORDER};border-radius:10px;background:${SOFT_BG};">
+          <tr><td style="padding:15px 18px;">
+            <p style="margin:0 0 4px;font-family:${FONT_UI};font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:${PURPLE};font-weight:700;">${esc(it.program_label)}</p>
+            <h3 style="margin:0 0 7px;font-family:${FONT_DISPLAY};font-size:17px;line-height:1.3;color:${BODY};">${title}</h3>
+            <p style="margin:0;font-family:${FONT_BODY};font-size:13px;line-height:1.5;color:${MUTED};">${meta}</p>
+            ${auction}
+          </td></tr>
+        </table>`
+    })
+    .join('')
+  // Intro sets honest expectations: redeem = fixed price, bid = auction you can
+  // lose. Only mention the auction half when a bid is actually in the list.
+  const intro = anyAuction
+    ? 'Use points for access you cannot otherwise book. A points price means a fixed cost; a bid is an auction you can lose.'
+    : 'Use points for access you cannot otherwise book, at a fixed points price.'
+  return `
+    <tr><td style="padding:32px 28px 0;">
+      <p style="margin:0 0 6px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${MUTED};font-weight:700;">Money Can&#39;t Buy: New Experiences</p>
+      <p style="margin:0 0 14px;font-family:${FONT_BODY};font-size:13px;line-height:1.5;color:${MUTED};">${intro}</p>
+      ${cards}
+    </td></tr>`
+}
+
 function fmtBonusDate(iso: string | null): string {
   if (!iso) return 'No end date'
   const d = new Date(iso)
@@ -424,6 +473,7 @@ export function renderNewsletterV2Html({
 
         ${renderBigStory(slots, origin)}
         ${renderSweetSpot(slots.sweet_spot)}
+        ${renderTopExperiences(slots.top_experiences, origin)}
         ${renderAlsoHappening(slots.also_happening, origin)}
         ${renderActiveOffers(slots.active_offers, origin)}
         ${renderElevatedBonuses(slots.elevated_bonuses, origin)}

@@ -25,7 +25,7 @@ import type {
 } from '@/utils/ai/newsletterSlots'
 
 const SLOT_SELECT =
-  'id, week_of, sent_at, display_date, subject, subject_options, status, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_title, big_story_html, sweet_spot, also_happening, active_offers, elevated_bonuses, jills_take_html, game_slug, game_title, game_clue_text'
+  'id, week_of, sent_at, display_date, subject, subject_options, status, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_title, big_story_html, sweet_spot, top_experiences, also_happening, active_offers, elevated_bonuses, jills_take_html, game_slug, game_title, game_clue_text'
 
 type Row = {
   id: string
@@ -42,6 +42,7 @@ type Row = {
   big_story_title: string | null
   big_story_html: string | null
   sweet_spot: NewsletterSweetSpot | null
+  top_experiences: NewsletterSlots['top_experiences'] | null
   also_happening: AlsoHappeningItem[] | null
   active_offers: NewsletterSlots['active_offers']
   elevated_bonuses: NewsletterSlots['elevated_bonuses']
@@ -61,6 +62,7 @@ function rowToSlots(r: Row): NewsletterSlots {
     big_story_title: r.big_story_title ?? null,
     big_story_html: r.big_story_html,
     sweet_spot: r.sweet_spot ?? null,
+    top_experiences: r.top_experiences ?? null,
     also_happening: Array.isArray(r.also_happening) ? r.also_happening : [],
     active_offers: r.active_offers ?? null,
     elevated_bonuses: r.elevated_bonuses ?? null,
