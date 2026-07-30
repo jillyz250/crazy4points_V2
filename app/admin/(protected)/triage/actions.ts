@@ -4,12 +4,8 @@ import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { assertAdmin } from '@/lib/auth/admin'
 import { createAdminClient } from '@/utils/supabase/server'
-import { writeEditCheck } from '@/utils/ai/writeEditCheck'
-import { buildExtraContext } from '@/utils/ai/buildExtraContext'
-import { loadAllianceContextForPrograms } from '@/utils/supabase/queries'
-import type { WriteDraftProgram } from '@/utils/ai/writeAlertDraft'
 import { writeAlertVariant } from '@/utils/content/writeAlertVariant'
-import { selectAlertViewFromVariants } from '@/utils/content/alertView'
+import { draftAlertFromIntel } from '@/utils/intel/draftFromIntel'
 
 /**
  * Per-item write action — same Sonnet pipeline that used to fire
@@ -30,136 +26,10 @@ export async function writeAlertFromCandidate(formData: FormData): Promise<void>
   if (!intelId) return
 
   const supabase = createAdminClient()
-
-  // 1) Load intel
-  const { data: intel, error: intelErr } = await supabase
-    .from('intel_items')
-    .select('*')
-    .eq('id', intelId)
-    .single()
-  if (intelErr || !intel) {
-    console.error(`[triage] intel not found: ${intelId}`, intelErr)
-    return
-  }
-
-  // 2) Recent published alerts → voice samples for consistency.
-  // Wave 2 reads come from content_variants via the AlertView adapter.
-  const recentView = await selectAlertViewFromVariants(supabase, {
-    status: 'published',
-    activeOnly: true,
-    limit: 8,
-  })
-  const recent_samples = recentView.map((r) => ({
-    title: r.title,
-    summary: r.summary ?? '',
-    description: r.description ?? '',
-  }))
-
-  // 3) Resolve programs for context
-  const intelSlugs = (intel.programs as string[] | null) ?? []
-  const { data: programRows } = await supabase
-    .from('programs')
-    .select('id, slug, name, type, alliance, transfer_partners, sweet_spots, quirks')
-    .in('slug', intelSlugs.length > 0 ? intelSlugs : ['__none__'])
-  const allPrograms = (programRows ?? []) as WriteDraftProgram[]
-  const programBySlug = new Map(allPrograms.map((p) => [p.slug, p]))
-  const intelProgramIds = intelSlugs
-    .map((slug) => programBySlug.get(slug)?.id)
-    .filter((x): x is string => typeof x === 'string')
-  const alliance_context = await loadAllianceContextForPrograms(supabase, intelProgramIds)
-  const { extra_context } = await buildExtraContext(supabase, { programSlugs: intelSlugs })
-
-  // 4) writeEditCheck — Sonnet draft + editor + voice gate
-  const wec = await writeEditCheck({
-    intel: {
-      intel_id: intel.id as string,
-      headline: intel.headline as string,
-      raw_text: (intel.raw_text as string | null) ?? null,
-      source_name: (intel.source_name as string | null) ?? '',
-      source_url: (intel.source_url as string | null) ?? null,
-      alert_type: (intel.alert_type as never) ?? null,
-      programs: intelSlugs,
-    },
-    programs: allPrograms,
-    recent_samples,
-    extra_context,
-    alliance_context,
-  })
-
-  if (!wec.draft) {
-    console.error(`[triage] writeEditCheck returned no draft for ${intelId}`)
-    return
-  }
-
-  // 5) Find existing topic by source_intel_id (Wave 3a path) so re-running
-  // updates the existing variant rather than creating a duplicate.
-  const { data: existingTopic } = await supabase
-    .from('topics')
-    .select('id, slug, metadata')
-    .eq('metadata->>source_intel_id', intelId)
-    .maybeSingle()
-  const existingAlertId = (existingTopic?.metadata as { original_alert_id?: string } | null)?.original_alert_id ?? null
-
-  // 6) Build write payload + persist via writeAlertVariant
-  const primaryProgramSlug = wec.draft.primary_program_slug ?? intelSlugs[0]
-  const primaryProgramId = primaryProgramSlug
-    ? programBySlug.get(primaryProgramSlug)?.id ?? null
-    : null
-  const secondaryIds = (wec.draft.secondary_program_slugs ?? [])
-    .map((s) => programBySlug.get(s)?.id)
-    .filter((x): x is string => typeof x === 'string')
-  // program_slugs[] gets the full primary+secondary set
-  const allProgramSlugs = Array.from(new Set([
-    ...(primaryProgramSlug ? [primaryProgramSlug] : []),
-    ...((wec.draft.secondary_program_slugs ?? []).filter((s): s is string => typeof s === 'string')),
-  ]))
-
-  const slug = existingTopic?.slug ?? `intel-${intelId.slice(0, 8)}-${Date.now()}`
-
-  let alertId: string
-  try {
-    const result = await writeAlertVariant(supabase, {
-      id: existingAlertId ?? undefined,
-      slug,
-      title: wec.draft.title,
-      summary: wec.draft.summary,
-      description: wec.draft.description,
-      type: (intel.alert_type as never) ?? 'industry_news',
-      status: 'pending_review',
-      action_type: wec.draft.action_type ?? null,
-      end_date: wec.draft.end_date ?? null,
-      source: (intel.source_name as string | null) ?? null,
-      source_url: (intel.source_url as string | null) ?? null,
-      source_intel_id: intelId,
-      confidence_level: (intel.confidence as string | null) ?? 'medium',
-      impact_score: 5,
-      impact_justification: 'Auto-drafted from Triage write action',
-      value_score: 5,
-      rarity_score: 5,
-      primary_program_id: primaryProgramId,
-      program_slugs: allProgramSlugs,
-      voice_pass: wec.voice?.passed ?? null,
-      voice_score: wec.voice?.score ?? null,
-    })
-    alertId = result.alert_id
-  } catch (err) {
-    console.error(`[triage] writeAlertVariant failed for ${intelId}:`, err)
-    try {
-      await supabase.from('intel_ingest_errors').insert({
-        source: 'manual',
-        stage: 'insert',
-        payload: { intel_id: intelId, secondaryIds, primary_program_id: primaryProgramId },
-        error_message: (err instanceof Error ? err.message : String(err)).slice(0, 1000),
-      })
-    } catch {}
-    return
-  }
-
-  // 7) Mark intel processed + linked
-  await supabase
-    .from('intel_items')
-    .update({ processed: true, alert_id: alertId })
-    .eq('id', intelId)
+  // Shared drafting core — same pipeline the daily auto-draft of approved
+  // intel uses (utils/intel/draftFromIntel).
+  const res = await draftAlertFromIntel(supabase, intelId)
+  if (!res.ok) console.error(`[triage] draft failed for ${intelId}: ${res.error}`)
 
   revalidatePath('/admin/triage')
   revalidatePath('/admin/alerts')
