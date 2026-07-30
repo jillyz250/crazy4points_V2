@@ -321,6 +321,10 @@ function renderTopExperiences(items: TopExperienceItem[] | null, origin: string)
       const auction = it.is_auction
         ? `<p style="margin:6px 0 0;font-family:${FONT_BODY};font-size:12px;line-height:1.4;color:${MUTED};font-style:italic;">Auction: you bid points and can be outbid, so the winning price can climb. Final sale.</p>`
         : ''
+      const ctaLabel = /moments/i.test(it.program_label) ? 'View this Moment' : 'View details'
+      const cta = href
+        ? `<p style="margin:9px 0 0;"><a href="${esc(href)}" style="font-family:${FONT_UI};font-size:13px;font-weight:700;color:${LINK_BLUE};text-decoration:none;">${ctaLabel} &rarr;</a></p>`
+        : ''
       return `
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 12px;border:1px solid ${BORDER};border-radius:10px;background:${SOFT_BG};">
           <tr><td style="padding:15px 18px;">
@@ -329,6 +333,7 @@ function renderTopExperiences(items: TopExperienceItem[] | null, origin: string)
             <p style="margin:0;font-family:${FONT_BODY};font-size:13px;line-height:1.5;color:${MUTED};">${meta}</p>
             ${blurb}
             ${auction}
+            ${cta}
           </td></tr>
         </table>`
     })
