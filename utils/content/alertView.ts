@@ -22,6 +22,13 @@ import type { Alert, AlertProgram, Program } from '@/utils/supabase/queries'
 export type AlertView = Alert & {
   /** Wave 2 provenance marker. Always 'variants' from this adapter. */
   _view_source?: 'variants'
+  /**
+   * When true, the alert publishes normally (alerts feed, program pages) but is
+   * kept OFF the home-page hot-alerts bar. For niche / narrow-audience or
+   * historical-record alerts that shouldn't take a prime banner slot. Sourced
+   * from variant metadata `suppress_home_banner`.
+   */
+  suppress_home_banner?: boolean
 }
 
 /**
@@ -135,6 +142,7 @@ export function mapVariantRowToAlertView(row: VariantRow): AlertView {
     status: alertStatus as AlertView['status'],
     primary_program_id: null,  // junction-derived; Wave 2 consumers don't read this directly
     action_type: (pickString(variantMeta, 'action_type') ?? 'monitor') as AlertView['action_type'],
+    suppress_home_banner: pickBoolean(variantMeta, 'suppress_home_banner') ?? false,
     start_date: pickString(variantMeta, 'start_date'),
     end_date: t?.end_date ?? null,
     published_at: row.published_at,
