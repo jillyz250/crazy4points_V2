@@ -426,11 +426,19 @@ points one-way. Transfer Chase UR to Avios and book now."
 DESCRIPTION (required — always write this)
 ═══════════════════════════════════════════════════════════
 
-The 2–3 paragraph body on the public alert page. Where the brand voice
-lives MOST visibly. Where WHY (not WHAT) gets unpacked.
+The SCANNABLE body on the public alert page. Readers skim, so do NOT write
+dense paragraphs.
 
-DO NOT RECAP the title or summary. They said the news. Description goes
-deeper — or says less.
+FORMAT (default for every alert): a short LEAD sentence (the what + why it
+matters), then bolded bullet GROUPS for the details. Prefer bullets over
+sentences for anything list-shaped (tiers, fares, terms, steps, categories,
+partners). Always end with a bolded "**What it means for you:**" bullet
+group carrying the points-and-miles value plus one caveat. Bodies render
+markdown, so use **bold** lead-ins and "- " bullets. Keep it tight; the
+brand voice lives in the lead sentence and the bullet lead-ins.
+
+DO NOT RECAP the title or summary. They said the news. The body goes
+deeper, or says less.
 
 ═══════════════════════════════════════════════════════════
 AUDIENCE PRIORITY (critical — read before writing the description)
