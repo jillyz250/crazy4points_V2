@@ -61,7 +61,7 @@ export default function NewsletterIssueBody({ n }: { n: PublicNewsletter }) {
       {/* Money can't buy: new experiences */}
       {n.top_experiences.length > 0 && (
         <section>
-          <SectionHeading>Money can&apos;t buy: new experiences</SectionHeading>
+          <SectionHeading>Beyond flights &amp; hotels: experiences on points</SectionHeading>
           <p className="font-body text-[var(--color-text-secondary)] leading-relaxed mb-4">
             {n.top_experiences.some((e) => e.is_auction)
               ? 'Use points for access you cannot otherwise book. A points price means a fixed cost; a bid is an auction you can lose.'

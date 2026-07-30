@@ -336,7 +336,7 @@ function renderTopExperiences(items: TopExperienceItem[] | null, origin: string)
     : 'Use points for access you cannot otherwise book, at a fixed points price.'
   return `
     <tr><td style="padding:32px 28px 0;">
-      <p style="margin:0 0 6px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${MUTED};font-weight:700;">Money Can&#39;t Buy: New Experiences</p>
+      <p style="margin:0 0 6px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${MUTED};font-weight:700;">Beyond Flights &amp; Hotels: Experiences on Points</p>
       <p style="margin:0 0 14px;font-family:${FONT_BODY};font-size:13px;line-height:1.5;color:${MUTED};">${intro}</p>
       ${cards}
     </td></tr>`
