@@ -60,6 +60,30 @@ export interface ElevatedBonusItem {
   deadline: string | null
 }
 
+/**
+ * One card in the "Money Can't Buy: New Experiences" section. Auto-filled from
+ * experience_listings (points-redeemable Moments only — card-network concert
+ * presales are excluded by the gather query). See getTopExperiences().
+ */
+export interface TopExperienceItem {
+  /** Cleaned listing title, e.g. "Ariana Grande from the Marriott Bonvoy Luxury Suite at The O2". */
+  title: string
+  /** Source platform label, e.g. "Marriott Bonvoy Moments". */
+  program_label: string
+  /** 'redeem' = fixed points price; 'bid' = points auction (you can be outbid). */
+  format: 'redeem' | 'bid'
+  /** Human points label, e.g. "57,500 points" or "Current bid 52,500 points". Null = unpriced. */
+  points_label: string | null
+  /** Human deadline, e.g. "Closes Aug 3". Null = none known. */
+  deadline: string | null
+  /** Human event label, e.g. "Aug 20". Null = none/unparseable. */
+  event_label: string | null
+  /** External booking/detail URL. */
+  link_url: string
+  /** True for auctions — renders the "bid with points, can be outbid, final sale" caveat. */
+  is_auction: boolean
+}
+
 export interface SweetSpotBestUse {
   /** Specific property/route/award/redemption — concrete, with numbers when possible. */
   name: string
@@ -113,6 +137,10 @@ export interface NewsletterSlots {
   /** Deep-dive value-add card. Null hides the section. */
   sweet_spot: NewsletterSweetSpot | null
 
+  // ── Money Can't Buy: New Experiences (auto-filled from data) ───
+  /** Null = not pulled yet; [] = pulled, none qualified this week. */
+  top_experiences: TopExperienceItem[] | null
+
   // ── Also Happening ────────────────────────────────────────────
   also_happening: AlsoHappeningItem[]
 
@@ -148,6 +176,7 @@ export const EMPTY_SLOTS: NewsletterSlots = {
   big_story_title: null,
   big_story_html: null,
   sweet_spot: null,
+  top_experiences: null,
   also_happening: [],
   active_offers: null,
   elevated_bonuses: null,

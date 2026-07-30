@@ -58,6 +58,36 @@ export default function NewsletterIssueBody({ n }: { n: PublicNewsletter }) {
         </section>
       )}
 
+      {/* Money can't buy: new experiences */}
+      {n.top_experiences.length > 0 && (
+        <section>
+          <SectionHeading>Money can&apos;t buy: new experiences</SectionHeading>
+          <p className="font-body text-[var(--color-text-secondary)] leading-relaxed mb-4">
+            {n.top_experiences.some((e) => e.is_auction)
+              ? 'Use points for access you cannot otherwise book. A points price means a fixed cost; a bid is an auction you can lose.'
+              : 'Use points for access you cannot otherwise book, at a fixed points price.'}
+          </p>
+          <ul className="space-y-4">
+            {n.top_experiences.map((e, i) => (
+              <li key={i} className="font-body text-[var(--color-text-primary)]">
+                {e.program_label ? (
+                  <span className="font-ui text-xs uppercase tracking-wide text-[var(--color-primary)] mr-2">{e.program_label}</span>
+                ) : null}
+                <IssueLink href={e.link_url}><span className="font-semibold">{e.title}</span></IssueLink>
+                <span className="block text-[var(--color-text-secondary)] mt-1">
+                  {[e.points_label, e.event_label, e.deadline].filter(Boolean).join(' · ')}
+                </span>
+                {e.is_auction ? (
+                  <span className="block text-[var(--color-text-secondary)] italic text-sm mt-1">
+                    Auction: you bid points and can be outbid. Final sale, travel not included.
+                  </span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {/* Live offers */}
       {offerGroups.length > 0 && (
         <section>
