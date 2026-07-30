@@ -49,6 +49,18 @@ export async function markVerifiedAction(formData: FormData): Promise<void> {
         revalidatePath('/admin')
         return
       }
+    case 'alert':
+      // Direct writes to `alerts` are blocked by the G6 trigger; last_verified
+      // lives in the content_variant metadata and the variants->alerts trigger
+      // mirrors it back. Stamp it there so the alert drops out of the queue
+      // (i.e. "reviewed, still accurate") until the next 120-day cycle.
+      {
+        const { updateAlertVariantMetadata } = await import('@/utils/content/writeAlertVariant')
+        await updateAlertVariantMetadata(supabase, entityId, { last_verified: today })
+        revalidatePath('/admin/refresh-queue')
+        revalidatePath('/admin')
+        return
+      }
     case 'hotel_properties_program':
       // entity_id here is actually the program_id; bump every property's
       // last_verified at once so the program drops off the queue. The

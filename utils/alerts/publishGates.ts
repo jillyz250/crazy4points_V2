@@ -25,6 +25,7 @@ export interface GateReport {
   tnc: GateStatus
   factcheck: GateStatus
   voice: GateStatus
+  source: GateStatus
   /** True if every gate is pass / overridden / not-applicable. */
   canPublish: boolean
   /** Human-readable reasons for any failing gate (for UI surface). */
@@ -40,6 +41,45 @@ const TNC_REQUIRED_TYPES: AlertType[] = [
   'point_purchase',
 ]
 
+/**
+ * Alert types that assert an ongoing, changeable program STATE — "X is now a
+ * partner", "Y is now bookable", "the earn rate changed to Z". These go stale
+ * silently when the program later reverses course (exactly how the Philippine
+ * Airlines / Alaska Atmos alert went wrong: sourced from a blog article that
+ * predated the redemption being pulled). We require an OFFICIAL source or
+ * verified T&Cs before publishing one, so a stale-blog claim can't sail
+ * through on a secondary link alone.
+ */
+const STATE_CLAIM_TYPES: AlertType[] = [
+  'award_availability',
+  'program_change',
+  'partner_change',
+  'category_change',
+  'earn_rate_change',
+  'status_change',
+  'policy_change',
+  'sweet_spot',
+]
+
+/**
+ * Known points/miles blogs and aggregators. A source_url on one of these is
+ * NOT an official confirmation of a program's current state — reporting can be
+ * stale or later reversed. Not a blocklist of bad actors (these are good
+ * sources); just "not authoritative for a live-state claim on its own."
+ */
+const BLOG_DOMAINS = [
+  'frequentmiler', 'awardwallet', 'thepointsguy', 'upgradedpoints', 'loyaltylobby',
+  'princeoftravel', 'onemileatatime', 'viewfromthewing', 'doctorofcredit',
+  'milestomemories', 'travelcodex', 'headforpoints', 'godsavethepoints',
+  'reddit', 'flyertalk', 'facebook', 'youtube', 'x.com', 'twitter', 'medium',
+]
+
+function isBlogSource(url: string | null | undefined): boolean {
+  if (!url) return false
+  const lc = url.toLowerCase()
+  return BLOG_DOMAINS.some((d) => lc.includes(d))
+}
+
 export async function checkAlertGates(
   supabase: SupabaseClient,
   alert: Pick<
@@ -52,6 +92,7 @@ export async function checkAlertGates(
     | 'voice_pass'
     | 'fact_check_claims'
     | 'summary'
+    | 'source_url'
   >
 ): Promise<GateReport> {
   // Load any prior overrides for this alert — an override means the
@@ -159,11 +200,37 @@ export async function checkAlertGates(
     failures.push('Voice gate failed. Regenerate or override with a reason.')
   }
 
+  // 4) Source gate — a live-STATE claim needs an official source, not just a
+  //    blog. Passes when verified T&Cs are present (already sourced) or the
+  //    source_url is not a known secondary blog/aggregator. Fails when a
+  //    state-claim alert has no source at all, or only a blog link.
+  let source: GateStatus
+  if (overriddenGates.has('source')) {
+    source = 'overridden'
+  } else if (!STATE_CLAIM_TYPES.includes(alert.type)) {
+    source = 'not-applicable'
+  } else if (alert.verified_terms && alert.verified_terms.trim().length > 0) {
+    source = 'pass'
+  } else if (alert.source_url && alert.source_url.trim().length > 0 && !isBlogSource(alert.source_url)) {
+    source = 'pass'
+  } else {
+    source = 'fail'
+    const why = !alert.source_url
+      ? 'no source is attached'
+      : 'the only source is a secondary blog/aggregator'
+    failures.push(
+      `This alert asserts a program state (partner/redemption/rate) but ${why}. ` +
+        `Add an official issuer/program source or paste verified T&Cs, or override with a reason. ` +
+        `(Stops stale-blog claims like the Alaska/Philippine Airlines redemption.)`
+    )
+  }
+
   const passOrSkip = (g: GateStatus): boolean =>
     g === 'pass' || g === 'overridden' || g === 'not-applicable'
-  // canPublish requires an actual draft + all three gates to pass-or-skip.
+  // canPublish requires an actual draft + all gates to pass-or-skip.
   // The draft gate can't be overridden — publishing nothing is never valid.
-  const canPublish = hasDraft && passOrSkip(tnc) && passOrSkip(factcheck) && passOrSkip(voice)
+  const canPublish =
+    hasDraft && passOrSkip(tnc) && passOrSkip(factcheck) && passOrSkip(voice) && passOrSkip(source)
 
-  return { tnc, factcheck, voice, canPublish, failures }
+  return { tnc, factcheck, voice, source, canPublish, failures }
 }
