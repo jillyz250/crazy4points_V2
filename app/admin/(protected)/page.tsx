@@ -76,16 +76,19 @@ async function loadStats() {
       .select('id', { count: 'exact', head: true })
       .eq('status', 'needs_review')
       .or(`snoozed_until.is.null,snoozed_until.lte.${nowIso}`),
-    // Actionable intel backlog: open items still needing a human — exclude
-    // AI-rejected (the intel-triage-sweep auto-clears those after a 3-day grace),
-    // expired deals, and currently-snoozed items. NOT a 24h window (that hid the
-    // real backlog behind a 1-2 count).
+    // Intel that genuinely still needs a triage DECISION — triage_decision is
+    // null (the AI sweep hasn't ruled yet). The card is labelled "needing a
+    // decision", so already-decided items don't belong: approved and
+    // newsletter_idea have been decided and flow onward (drafting / the weekly
+    // newsletter), AI-rejected clears on its own, and expired/snoozed are out.
+    // (Counting approved+newsletter_idea here overstated the number badly — most
+    // days the AI decides everything, leaving a handful truly undecided.)
     supabase
       .from('intel_items')
       .select('id', { count: 'exact', head: true })
       .eq('processed', false)
       .is('rejected_at', null)
-      .or('triage_decision.is.null,triage_decision.in.(approved,newsletter_idea)')
+      .is('triage_decision', null)
       .or(`expires_at.is.null,expires_at.gte.${nowIso}`)
       .or(`snoozed_until.is.null,snoozed_until.lte.${nowIso}`),
     supabase.from('content_ideas').select('id', { count: 'exact', head: true }).in('status', ['new', 'queued', 'drafted']),
