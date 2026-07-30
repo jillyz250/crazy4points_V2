@@ -23,14 +23,14 @@ export const metadata: Metadata = {
     description:
       "Track transfer bonuses, find award sweet spots, and get a ranked action plan for your points and miles.",
     url: SITE_URL,
-    images: [{ url: "/og-default.png", width: 1200, height: 630, alt: "crazy4points" }],
+    images: [{ url: "/fb-brand-card.png", width: 1200, height: 630, alt: "crazy4points" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "crazy4points — Travel Smarter. Earn More. Go Farther.",
     description:
       "Track transfer bonuses, find award sweet spots, and get a ranked action plan for your points and miles.",
-    images: ["/og-default.png"],
+    images: ["/fb-brand-card.png"],
   },
   icons: {
     icon: [
