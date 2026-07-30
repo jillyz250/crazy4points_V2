@@ -85,6 +85,11 @@ export default function NewsletterIssueBody({ n }: { n: PublicNewsletter }) {
                     Auction: you bid points and can be outbid, so the winning price can climb. Final sale.
                   </span>
                 ) : null}
+                {e.link_url ? (
+                  <span className="block mt-1">
+                    <IssueLink href={e.link_url}>{/moments/i.test(e.program_label) ? 'View this Moment' : 'View details'} →</IssueLink>
+                  </span>
+                ) : null}
               </li>
             ))}
           </ul>
