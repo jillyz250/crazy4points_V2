@@ -26,16 +26,17 @@ Casual travelers who have heard of points but are not experts. They are silently
 - **Show, don't tell:** "enough for two nights at a Park Hyatt" beats "great value." Specific redemption examples consistently outperform generic benefit statements.
 - **Omit weak parts:** do not force every section. No real sweet spot? No genuine urgency? Leave it out rather than padding the template.
 - **Never open with:** Breaking · Huge news · Stop scrolling · Don't miss this · Attention travelers · "X just dropped" · "just launched". Rotate fresh hooks.
-- **Keep it tight:** ~4 short paragraphs. Jill's most common note is "too long."
+- **Keep it tight:** ~50-80 words total, hook line + 1-2 sentences (see Length section). Jill's standing note is "too long" — err shorter.
 
-## Post structure (use what serves the one takeaway; skip what doesn't)
-1. **Bold headline (first line).** A single-line **Unicode bold** headline, under ~60 characters, leading with the primary benefit. *(Impl note: generate the Unicode with a small script for accuracy — do not hand-type the glyphs. Sans-serif bold or serif bold italic; Jill's current pick is serif bold italic.)*
-2. **Hook** — one or two lines of stopping power.
-3. **The value** — what the reader can actually do (the core takeaway).
-4. **One concrete sweet spot / redemption example** whenever the topic has one — shown, not told ("this could book X instead of Y").
-5. **Primary CTA — ONE clear action:** "Full breakdown in the comments." The article URL goes in the FIRST COMMENT, never the body (keeps the body clean and readable).
-6. **Soft newsletter line (secondary).** One short line so it never competes with the primary CTA: "More points tips and our newsletter at crazy4points.com". Jill requires the newsletter mention, so keep it, but subordinate it. (Live URLs: crazy4points.com or crazy4points.com/start-here.)
-7. **Exactly five concise hashtags** — one branded (#Crazy4Points) plus relevant travel/loyalty topics. No long, sentence-like hashtags.
+## Length (READ FIRST — Jill's standing note is "too long")
+**Keep the whole post to ~50-80 words.** Facebook truncates after ~2 lines / ~250 characters ("See more"), and most people never expand — so the hook and the point MUST land in the first two lines. One idea, one CTA. The linked article carries all the detail; the post's only job is to stop the scroll and earn the click. Do NOT write 3-4 paragraphs. Locked in 2026-07-30.
+
+## Post structure (tight — hook line + 1-2 sentences + CTA + newsletter)
+1. **Bold headline (first line).** Single-line **Unicode bold**, under ~60 characters, benefit/news-first — this is the pre-"See more" hook, so it has to carry. *(Impl note: generate the Unicode with a small script; serif UPRIGHT bold (Mathematical Bold, e.g. 𝐆𝐨𝐨𝐝), NO italics, as of 2026-07-30.)*
+2. **Body — 1 to 2 short sentences.** The core takeaway plus, when it fits, one concrete detail or a single practical caveat. That's it. No separate "hook / value / example" paragraphs — fold them into these 1-2 sentences.
+3. **Primary CTA (its own line) — points to the comment link, value-forward.** NOT the flat "Full breakdown in the comments." Rotate value-forward phrasings, e.g. "We break it all down. Link in the comments." / "Here's the full rundown, link in the comments." / "What it means for your points, link in the comments." The article URL goes in the FIRST COMMENT, never the body.
+4. **Newsletter line (its OWN separate line).** Wording like: **"For tips, tricks, and breaking news, subscribe to our newsletter: crazy4points.com/newsletter"** — always the `crazy4points.com/newsletter` URL (Facebook auto-links bare domains, so it renders blue/clickable and lands users right on the signup form). Keep it one line, after the CTA. Jill requires the newsletter mention.
+5. **Exactly five concise hashtags** — one branded (#Crazy4Points) plus relevant, topic-specific tags (e.g. #JetBlue #TrueBlue, not all generic). No long, sentence-like hashtags.
 
 ## Output format
 - **Post:** body ending with the 5 hashtags.
