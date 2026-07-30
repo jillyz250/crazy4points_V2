@@ -13,6 +13,25 @@ export const metadata: Metadata = {
   description:
     "The intelligent travel rewards platform. Track transfer bonuses, find sweet spots, and get a ranked action plan for your points and miles — right now.",
   metadataBase: new URL(SITE_URL),
+  // Default social-share card (Open Graph + Twitter). Pages that don't set
+  // their own openGraph inherit this, so every shared link (newsletter, alerts,
+  // programs) gets a clean branded preview instead of whatever Facebook scrapes.
+  openGraph: {
+    type: "website",
+    siteName: "crazy4points",
+    title: "crazy4points — Travel Smarter. Earn More. Go Farther.",
+    description:
+      "Track transfer bonuses, find award sweet spots, and get a ranked action plan for your points and miles.",
+    url: SITE_URL,
+    images: [{ url: "/og-default.png", width: 1200, height: 630, alt: "crazy4points" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "crazy4points — Travel Smarter. Earn More. Go Farther.",
+    description:
+      "Track transfer bonuses, find award sweet spots, and get a ranked action plan for your points and miles.",
+    images: ["/og-default.png"],
+  },
   icons: {
     icon: [
       { url: "/favicon-96x96.png", sizes: "96x96", type: "image/png" },
