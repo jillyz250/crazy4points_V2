@@ -94,7 +94,11 @@ export default async function HomePage() {
         a.updated_at > latest ? a.updated_at : latest, active[0].updated_at)
     : null;
 
-  const { visible: hotAlerts, overflowCount } = selectHotAlerts(active);
+  // Suppressed alerts still publish (feed + program pages) but are kept off the
+  // home hot-alerts bar — for niche / narrow-audience or historical records.
+  const { visible: hotAlerts, overflowCount } = selectHotAlerts(
+    active.filter((a) => !a.suppress_home_banner),
+  );
 
   // Latest alerts — most recent published first. Kept small (3) and placed
   // below the tools band: the homepage leads with what you can DO, then shows
