@@ -28,15 +28,24 @@ import { Webhook } from 'svix'
 import { createAdminClient } from '@/utils/supabase/server'
 import { ingestItem } from '@/utils/intel/ingestItem'
 import { sanitizeInboundHtml, extractSafeUrls } from '@/utils/intel/email-inbound/sanitizeHtml'
-import { classifyEmail } from '@/utils/intel/email-inbound/classifyEmail'
+import { cleanEmailBody } from '@/utils/intel/email-inbound/cleanEmailBody'
+import { segmentEmail } from '@/utils/intel/email-inbound/segmentEmail'
 import { fetchResendInboundEmail } from '@/utils/intel/email-inbound/fetchResendInboundEmail'
 import { getAllPrograms } from '@/utils/supabase/queries'
 import type { AlertType } from '@/utils/supabase/queries'
 
 export const dynamic = 'force-dynamic'
-export const maxDuration = 60
+// A multi-story digest fans out to many sequential ingestItem calls (each runs
+// dedup), so give the route more headroom than a single-item email needed.
+export const maxDuration = 120
 
 const MAX_PAYLOAD_BYTES = 1_000_000 // 1 MB
+
+// Text budgets, applied AFTER cleanEmailBody strips invisible padding. Raised
+// from the original 4k/6k because forwarded digests put the substance (and
+// footnotes) low in the email, past the old cut.
+const RAW_TEXT_CAP = 8_000 // per-item raw_text stored on intel_items
+const CLASSIFY_CAP = 12_000 // full-body input to the classifier/segmenter
 
 export async function POST(req: NextRequest) {
   // --- 1. Size cap (cheap header check before reading the body) --------------
@@ -136,7 +145,10 @@ export async function POST(req: NextRequest) {
 
   // --- 4 + 5. Sanitize HTML / strip attachments ------------------------------
   const html = payload.html ? sanitizeInboundHtml(payload.html).sanitized : ''
-  const bodyText = (payload.text ?? '').trim() || stripHtmlForText(html)
+  // Strip invisible preheader padding and normalize whitespace BEFORE any
+  // truncation, so real content (footnotes, later stories) survives the cap
+  // instead of being crowded out by zero-width junk.
+  const bodyText = cleanEmailBody((payload.text ?? '').trim() || stripHtmlForText(html))
   const allUrls = html ? extractSafeUrls(html) : []
   // For source_url we want a meaningful destination — drop mailto: links
   // (they show up from "unsubscribe by email" or "contact us"); they're
@@ -190,7 +202,7 @@ export async function POST(req: NextRequest) {
           to: payload.to,
           subject: payload.subject,
           html_sanitized: html,
-          text: bodyText.slice(0, 4000),
+          text: bodyText.slice(0, RAW_TEXT_CAP),
           urls,
           source_tag,
           email_id: emailId, // preserve so Promote can re-fetch body if needed
@@ -202,36 +214,51 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, quarantined: q?.id ?? null })
   }
 
-  // --- 8. Haiku classification ---------------------------------------------
+  // --- 8. Segment into distinct loyalty stories ----------------------------
+  // A digest (AwardWallet roundup, Daily Data Digest, multi-offer promo) holds
+  // many stories; a single-topic email yields one. Fanning them out means every
+  // story gets its own triage card instead of being lost inside a "roundup".
   const programs = await getAllPrograms(supabase)
   const programSlugs = programs.map((p) => p.slug)
 
-  const classification = await classifyEmail({
+  const segmentation = await segmentEmail({
     subject: payload.subject ?? '',
-    body_text: bodyText.slice(0, 6000),
+    body_text: bodyText.slice(0, CLASSIFY_CAP),
     sender_email: senderEmail,
     sender_domain: senderDomain,
     available_program_slugs: programSlugs,
+    urls,
   })
 
-  // --- 9. Loyalty-irrelevant: insert as rejected intel_item so editor has
-  //         a visible record on /admin/triage?tab=rejected. Previously these
-  //         were silently dropped, leaving no trail of what was forwarded.
-  if (!classification.has_loyalty_angle && !classification.fail_open) {
+  // --- 8b. Persist the source email once (Phase 3) so fanned-out items can be
+  //          grouped in triage and the verbatim forward is kept for audit.
+  const sourceEmailId = await recordSourceEmail(supabase, {
+    subject: payload.subject ?? null,
+    sender_email: senderEmail,
+    sender_domain: senderDomain,
+    source_name: sourceName ?? `email:${senderDomain}`,
+    cleaned_body: bodyText.slice(0, 20_000),
+    segment_count: segmentation.has_loyalty_angle ? segmentation.segments.length : 0,
+  })
+
+  // --- 9. Whole email has no loyalty angle: keep a rejected record so the
+  //         editor still sees what was forwarded (not silently dropped).
+  if (!segmentation.has_loyalty_angle && !segmentation.fail_open) {
     const { data: rejectedRow, error: rejErr } = await supabase
       .from('intel_items')
       .insert({
         source_url: urls[0] ?? null,
         source_type: 'email',
         source_name: sourceName ?? `email:${senderDomain}`,
-        raw_text: bodyText.slice(0, 4000),
-        headline: classification.headline,
-        confidence: classification.confidence,
+        raw_text: bodyText.slice(0, RAW_TEXT_CAP),
+        headline: (payload.subject ?? '(no subject)').slice(0, 240),
+        confidence: 'low',
         alert_type: null,
-        programs: classification.programs,
+        programs: [],
         expires_at: null,
-        fact_origin: classification.fact_origin,
+        fact_origin: 'secondary',
         processed: true,
+        source_email_id: sourceEmailId,
         rejected_at: new Date().toISOString(),
         rejected_reason: 'auto-discard: no loyalty angle',
       })
@@ -250,36 +277,47 @@ export async function POST(req: NextRequest) {
     })
   }
 
-  // --- 10. ingestItem -------------------------------------------------------
+  // --- 10. Fan out: one ingestItem per story. Dedup runs per item (and
+  //          collapses stories that repeat across digests). Sequential so two
+  //          near-identical stories in the SAME email dedup against each other.
   const programSlugMap = new Map(programs.map((p) => [p.slug, p.id]))
-  const result = await ingestItem(
-    supabase,
-    {
-      source: 'email',
-      source_type: 'email',
-      source_name: sourceName ?? `email:${senderDomain}`,
-      source_url: urls[0] ?? null,
-      raw_text: bodyText.slice(0, 4000),
-      headline: classification.headline,
-      confidence: classification.confidence,
-      alert_type: (classification.alert_type as AlertType) ?? null,
-      programs: classification.programs,
-      expires_at: classification.expires_at,
-      fact_origin: classification.fact_origin,
-    },
-    programSlugMap,
+  const results: Array<{ headline: string; kind: string }> = []
+  for (const seg of segmentation.segments) {
+    const r = await ingestItem(
+      supabase,
+      {
+        source: 'email',
+        source_type: 'email',
+        source_name: sourceName ?? `email:${senderDomain}`,
+        source_url: seg.source_url ?? urls[0] ?? null,
+        raw_text: seg.raw_summary || bodyText.slice(0, RAW_TEXT_CAP),
+        headline: seg.headline,
+        confidence: seg.confidence,
+        alert_type: (seg.alert_type as AlertType) ?? null,
+        programs: seg.programs,
+        expires_at: seg.expires_at,
+        fact_origin: seg.fact_origin,
+        source_email_id: sourceEmailId,
+      },
+      programSlugMap,
+    )
+    results.push({ headline: seg.headline, kind: r.kind })
+  }
+
+  const inserted = results.filter((r) => r.kind === 'inserted').length
+  const deduped = results.length - inserted
+  console.log(
+    `[email-inbound] fanned out ${segmentation.segments.length} segment(s): ${inserted} inserted, ${deduped} deduped/other (from=${senderEmail} subject=${payload.subject?.slice(0, 60)})`,
   )
 
   return NextResponse.json({
     ok: true,
-    classification: {
-      headline: classification.headline,
-      confidence: classification.confidence,
-      programs: classification.programs,
-      alert_type: classification.alert_type,
-      fail_open: classification.fail_open,
-    },
-    ingest: result,
+    segments: segmentation.segments.length,
+    fail_open: segmentation.fail_open,
+    inserted,
+    deduped,
+    results,
+    source_email_id: sourceEmailId,
     source_id: sourceId,
   })
 }
@@ -383,6 +421,39 @@ function extractSourceTag(recipient: string): { source_tag: string | null; norma
 
 function stripHtmlForText(html: string): string {
   return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
+/**
+ * Persist the source email once so the fanned-out stories can be grouped in
+ * triage and the verbatim forward is kept for audit. Non-fatal: on failure we
+ * log and return null, and the items just ingest without a group id.
+ */
+async function recordSourceEmail(
+  supabase: ReturnType<typeof createAdminClient>,
+  row: {
+    subject: string | null
+    sender_email: string
+    sender_domain: string
+    source_name: string
+    cleaned_body: string
+    segment_count: number
+  },
+): Promise<string | null> {
+  try {
+    const { data, error } = await supabase
+      .from('intel_source_emails')
+      .insert(row)
+      .select('id')
+      .single()
+    if (error) {
+      await logIngestError('email', 'insert', error, { stage: 'source-email' })
+      return null
+    }
+    return (data?.id as string) ?? null
+  } catch (err) {
+    await logIngestError('email', 'insert', err, { stage: 'source-email' })
+    return null
+  }
 }
 
 async function logIngestError(
