@@ -87,6 +87,54 @@ function categoryBucket(category: string | null): Bucket | null {
   if (c.includes('entertain') || c.includes('film')) return { label: 'Entertainment', color: '#6B2D8F' } // purple
   return { label: cap(category), color: '#6E6486' } // muted fallback
 }
+// New York metro detection on the LOCATION field only (title geo is unreliable:
+// "Cubs vs a New York team" is played in Chicago). Mirrors the newsletter's
+// isNewYork so the site and the email agree on what counts as NY-area.
+const NY_LOCATION = /\bnew york\b|\bnyc\b|manhattan|brooklyn|\bbronx\b|\bqueens\b|flushing|long island|east rutherford|metlife|newark/i
+const isNYLocation = (l: FinderListing) => !!l.location && NY_LOCATION.test(l.location)
+
+// US state name -> USPS abbreviation, so "Chicago, Illinois" reads "Chicago, IL".
+const US_STATES: Record<string, string> = {
+  alabama: 'AL', alaska: 'AK', arizona: 'AZ', arkansas: 'AR', california: 'CA', colorado: 'CO',
+  connecticut: 'CT', delaware: 'DE', florida: 'FL', georgia: 'GA', hawaii: 'HI', idaho: 'ID',
+  illinois: 'IL', indiana: 'IN', iowa: 'IA', kansas: 'KS', kentucky: 'KY', louisiana: 'LA',
+  maine: 'ME', maryland: 'MD', massachusetts: 'MA', michigan: 'MI', minnesota: 'MN',
+  mississippi: 'MS', missouri: 'MO', montana: 'MT', nebraska: 'NE', nevada: 'NV',
+  'new hampshire': 'NH', 'new jersey': 'NJ', 'new mexico': 'NM', 'new york': 'NY',
+  'north carolina': 'NC', 'north dakota': 'ND', ohio: 'OH', oklahoma: 'OK', oregon: 'OR',
+  pennsylvania: 'PA', 'rhode island': 'RI', 'south carolina': 'SC', 'south dakota': 'SD',
+  tennessee: 'TN', texas: 'TX', utah: 'UT', vermont: 'VT', virginia: 'VA', washington: 'WA',
+  'west virginia': 'WV', wisconsin: 'WI', wyoming: 'WY', 'district of columbia': 'DC',
+}
+const VAGUE_LOC = /various|multiple location|locations?\s+(globally|worldwide)|^\d+\s+locations?|globally|worldwide|nationwide|tbd|to be (announced|confirmed)/i
+
+// Turn the messy source location into a short, honest badge ("City, ST" /
+// "City, Country"). Returns null for blank or non-specific values ("Various
+// Venues", "16 locations globally") so vague listings simply get no badge.
+function locationBadge(raw: string | null): string | null {
+  if (!raw) return null
+  if (VAGUE_LOC.test(raw)) return null
+  let parts = raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((p) => {
+      const pl = p.toLowerCase()
+      if (pl === 'united states' || pl === 'usa' || pl === 'us' || pl === 'united states of america') return ''
+      if (pl === 'republic of' || pl === 'the') return ''
+      if (US_STATES[pl]) return US_STATES[pl]
+      if (pl === 'united kingdom' || pl === 'great britain') return 'UK'
+      if (pl === 'united arab emirates') return 'UAE'
+      return p
+    })
+    .filter(Boolean)
+  // Drop consecutive duplicates ("Bethesda, MD, Maryland" -> "Bethesda, MD").
+  parts = parts.filter((p, i) => i === 0 || p.toUpperCase() !== parts[i - 1].toUpperCase())
+  // Keep the two most specific parts (city + region), dropping venue prefixes.
+  if (parts.length > 2) parts = parts.slice(-2)
+  return parts.join(', ') || null
+}
+
 const pointsOf = (l: FinderListing) => l.current_bid ?? l.points_required ?? null
 
 const notYetOpen = (l: FinderListing) => l.bid_opens_at != null && Date.parse(l.bid_opens_at) > Date.now()
@@ -120,8 +168,10 @@ export default function ExperienceFinder({ listings }: { listings: FinderListing
   const [category, setCategory] = useState<string>('all')
   const [sort, setSort] = useState<SortKey>('newest')
   const [hideSoldOut, setHideSoldOut] = useState(false)
+  const [nyOnly, setNyOnly] = useState(false)
 
   const soldOutCount = useMemo(() => listings.filter((l) => l.sold_out).length, [listings])
+  const nyCount = useMemo(() => listings.filter(isNYLocation).length, [listings])
 
   const programs = useMemo(() => {
     const m = new Map<string, string>()
@@ -140,6 +190,7 @@ export default function ExperienceFinder({ listings }: { listings: FinderListing
       if (program !== 'all' && l.program_slug !== program) return false
       if (category !== 'all' && l.category !== category) return false
       if (hideSoldOut && l.sold_out) return false
+      if (nyOnly && !isNYLocation(l)) return false
       if (needle && !`${l.title} ${l.location ?? ''} ${l.program_label}`.toLowerCase().includes(needle)) return false
       return true
     })
@@ -154,6 +205,11 @@ export default function ExperienceFinder({ listings }: { listings: FinderListing
       const oa = notYetOpen(a) ? 1 : 0
       const ob = notYetOpen(b) ? 1 : 0
       if (oa !== ob) return oa - ob
+      // Then float New York-area experiences up - most of our audience is in the
+      // NY metro, so a local experience is the most actionable thing they'll see.
+      const na = isNYLocation(a) ? 0 : 1
+      const nb = isNYLocation(b) ? 0 : 1
+      if (na !== nb) return na - nb
       switch (sort) {
         case 'points_low':
           return byPts(a) - byPts(b)
@@ -172,7 +228,7 @@ export default function ExperienceFinder({ listings }: { listings: FinderListing
       }
     })
     return out
-  }, [listings, q, program, category, sort, hideSoldOut])
+  }, [listings, q, program, category, sort, hideSoldOut, nyOnly])
 
   // Cardmember-access listings are perks (sign in, no bid), not auctions - they
   // read as broken when mixed in with biddable ones, so they get their own band.
@@ -234,6 +290,16 @@ export default function ExperienceFinder({ listings }: { listings: FinderListing
             </option>
           ))}
         </select>
+        {nyCount > 0 && (
+          <button
+            type="button"
+            className={pill(nyOnly)}
+            aria-pressed={nyOnly}
+            onClick={() => setNyOnly((v) => !v)}
+          >
+            {nyOnly ? 'New York only' : `New York (${nyCount})`}
+          </button>
+        )}
         {soldOutCount > 0 && (
           <button
             type="button"
@@ -317,9 +383,29 @@ export default function ExperienceFinder({ listings }: { listings: FinderListing
           )}
         </div>
         <p className="font-body font-medium leading-snug text-[var(--color-text-primary)]">{l.title}</p>
-        {l.location && (
-          <p className="mt-1 font-ui text-sm text-[var(--color-text-secondary)]">{l.location}</p>
-        )}
+        {(() => {
+          const loc = locationBadge(l.location)
+          if (!loc) return null
+          const ny = isNYLocation(l)
+          // NY-area gets the gold accent so it pops for our NY-heavy audience;
+          // everywhere else is a quiet neutral pill.
+          return (
+            <div className="mt-1.5">
+              <span
+                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-ui text-[0.6875rem] font-semibold ${
+                  ny
+                    ? 'bg-[var(--color-accent)] text-[var(--color-primary)]'
+                    : 'border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] text-[var(--color-text-secondary)]'
+                }`}
+              >
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z" />
+                </svg>
+                {loc}
+              </span>
+            </div>
+          )
+        })()}
         <p className="mt-2 font-ui text-sm font-semibold text-[var(--color-primary)]">{pointsLabel(l)}</p>
         {(() => {
           const s = statusLine(l)
