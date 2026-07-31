@@ -15,6 +15,8 @@ import { unsubscribeUrlFor } from '@/utils/email/unsubscribeToken'
 const PURPLE = '#6B2D8F'
 const GOLD = '#D4AF37'
 const SOFT_BG = '#F8F5FB'
+/** Soft-purple tint for the experiences band (redesign 2026-07-31). */
+const TINT = '#F3ECFA'
 const BODY = '#1A1A1A'
 const MUTED = '#4A4A4A'
 const BORDER = '#E6DEEE'
@@ -137,20 +139,17 @@ function renderBigStory(slots: NewsletterSlots, origin: string): string {
   // big_story_title field.
   const headlineText = slots.big_story_title || slots.subject
   const headline = headlineText
-    ? `<h1 style="margin:0 0 14px;font-family:${FONT_DISPLAY};font-size:28px;line-height:1.2;color:${BODY};font-weight:700;">${esc(headlineText)}</h1>`
+    ? `<h1 style="margin:0 0 14px;font-family:${FONT_DISPLAY};font-size:30px;line-height:1.15;color:${BODY};font-weight:800;">${esc(headlineText)}</h1>`
     : ''
   // Soft purple wash on the Big Story so it reads as a deliberate featured
   // section (tier 2) — sits visually between plain white content and the
   // bordered cards (Sweet Spot, Game). No border so it doesn't compete
   // with Sweet Spot's gold accent.
   return `
-    <tr><td style="padding:24px 28px 0;">
-      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#ffffff;border:1px solid ${BORDER};border-radius:12px;">
-        <tr><td style="padding:26px 28px 18px;">
-          ${headline}
-          ${bodyHtml(slots.big_story_html)}
-        </td></tr>
-      </table>
+    <tr><td style="padding:26px 30px 0;">
+      <p style="margin:0 0 8px;font-family:${FONT_UI};font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:${GOLD};font-weight:800;">The Big Story</p>
+      ${headline}
+      ${bodyHtml(slots.big_story_html)}
     </td></tr>`
 }
 
@@ -167,9 +166,9 @@ function renderAlsoHappening(items: AlsoHappeningItem[], origin: string): string
         : ''
       return `
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 12px;border:1px solid ${BORDER};border-radius:12px;background:#fff;">
-          <tr><td style="padding:18px 20px;">
-            <p style="margin:0 0 4px;font-family:${FONT_UI};font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:${PURPLE};font-weight:700;">${cat}</p>
-            <h3 style="margin:0 0 8px;font-family:${FONT_DISPLAY};font-size:17px;line-height:1.3;color:${BODY};">${esc(item.headline)}</h3>
+          <tr><td style="padding:17px 19px;">
+            <p style="margin:0 0 5px;font-family:${FONT_UI};font-size:9.5px;letter-spacing:1px;text-transform:uppercase;color:${GOLD};font-weight:800;">${cat}</p>
+            <h3 style="margin:0 0 8px;font-family:${FONT_DISPLAY};font-size:17px;line-height:1.3;color:${BODY};font-weight:700;">${esc(item.headline)}</h3>
             <p style="margin:0 0 ${link ? '10px' : '0'};font-family:${FONT_BODY};font-size:14px;line-height:1.55;color:${BODY};">${esc(item.blurb)}</p>
             ${link}
           </td></tr>
@@ -177,7 +176,7 @@ function renderAlsoHappening(items: AlsoHappeningItem[], origin: string): string
     })
     .join('')
   return `
-    <tr><td style="padding:32px 28px 0;">
+    <tr><td style="padding:30px 30px 0;">
       ${sectionHeading('Also Happening', '14px')}
       ${cards}
     </td></tr>`
@@ -196,6 +195,24 @@ function splitHeadline(h: string): [string, string] {
   const sp = h.indexOf(' ')
   if (sp > 0) return [h.slice(0, sp), h.slice(sp)]
   return [h, '']
+}
+
+const MONTHS_RE = '(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*'
+/** Strip a trailing deadline clause from an offer name (the pill already shows
+ *  it): "... Through August 22", "... (Book by July 31)", "on August 1 Only",
+ *  ", Book by August 3". Leaves a bare month with no day ("for August") alone. */
+function stripTrailingDate(s: string): string {
+  return (s || '')
+    .replace(new RegExp(`\\s*\\((?:book|register|valid|apply)[^)]*\\)\\s*$`, 'i'), '')
+    .replace(
+      new RegExp(
+        `\\s*,?\\s*(?:through|thru|ends?|book by|register by|apply by|valid through|expires?|by|on)\\s+${MONTHS_RE}\\.?\\s+\\d{1,2}(?:\\s+only)?\\.?\\s*$`,
+        'i',
+      ),
+      '',
+    )
+    .replace(/[\s,:-]+$/, '')
+    .trim()
 }
 
 function renderOfferBucket(label: string, items: OfferItem[], origin: string): string {
@@ -219,21 +236,27 @@ function renderOfferBucket(label: string, items: OfferItem[], origin: string): s
       const href = it.link_url
         ? (it.link_url.startsWith('http') ? it.link_url : `${origin}${it.link_url}`)
         : ''
-      const [lead, rest] = splitHeadline(it.headline)
+      // Names already embed the deadline ("... Through August 22"); the pill
+      // repeats it, so strip the trailing date clause from the display name to
+      // avoid redundancy and keep the line short.
+      const name = stripTrailingDate(it.headline)
+      const [lead, rest] = splitHeadline(name)
       const linkInner = `<strong style="font-weight:700;">${esc(lead)}</strong><span style="font-weight:400;">${esc(rest)}</span>`
       const headline = href
-        ? `<a href="${esc(href)}" style="color:${LINK_COLOR};text-decoration:underline;">${linkInner}</a>`
+        ? `<a href="${esc(href)}" style="color:${LINK_COLOR};text-decoration:none;">${linkInner}</a>`
         : linkInner
-      const deadline = it.deadline
-        ? ` <span style="font-family:${FONT_UI};font-size:12px;font-weight:600;color:${GOLD};white-space:nowrap;">${esc(it.deadline)}</span>`
+      // Deadline as a gold pill, flowing INLINE after the name (no two-column
+      // table — long names were overflowing and colliding with a right cell).
+      const pill = it.deadline
+        ? ` <span style="display:inline-block;background:#FBF3D9;color:#7A5B00;font-family:${FONT_UI};font-size:11px;font-weight:800;padding:2px 9px;border-radius:999px;white-space:nowrap;">${esc(it.deadline)}</span>`
         : ''
-      return `
-        <p style="margin:0 0 7px;font-family:${FONT_BODY};font-size:14px;line-height:1.4;color:${BODY};">${headline}${deadline}</p>`
+      return `<p style="margin:0 0 10px;font-family:${FONT_BODY};font-size:14px;line-height:1.55;color:${BODY};">${headline}${pill}</p>`
     })
     .join('')
   return `
-    <p style="margin:0 0 8px;font-family:${FONT_UI};font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:${PURPLE};font-weight:700;">${esc(label)}</p>
-    ${rows}`
+    <p style="margin:0 0 5px;font-family:${FONT_UI};font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:${MUTED};font-weight:700;">${esc(label)}</p>
+    ${rows}
+    <div style="height:14px;line-height:14px;font-size:0;">&nbsp;</div>`
 }
 
 function renderActiveOffers(offers: ActiveOffers | null, origin: string): string {
@@ -244,7 +267,7 @@ function renderActiveOffers(offers: ActiveOffers | null, origin: string): string
     renderOfferBucket('Points purchase bonuses', offers.purchase_bonuses ?? [], origin)
   if (!buckets) return ''
   return `
-    <tr><td style="padding:32px 28px 0;">
+    <tr><td style="padding:28px 30px 0;">
       ${sectionHeading('Live Offers', '14px')}
       ${buckets}
     </td></tr>`
@@ -266,19 +289,20 @@ function renderElevatedBonuses(items: ElevatedBonusItem[] | null, origin: string
         ? ` after $${fmt(it.spend_required_usd)}${it.spend_window_label ? ` in ${it.spend_window_label}` : ''}`
         : ''
       const deadline = it.deadline
-        ? `<span style="color:${MUTED};font-size:13px;margin-left:6px;">&middot; ${esc(it.deadline)}</span>`
+        ? `<span style="color:${MUTED};"> &middot; ${esc(it.deadline)}</span>`
         : ''
       return `
-        <p style="margin:0 0 12px;font-family:${FONT_BODY};font-size:15px;line-height:1.45;color:${BODY};">
-          <a href="${url}" style="color:${LINK_COLOR};text-decoration:underline;font-weight:600;">${esc(it.card_name)}</a>
-          <span> — <strong>${esc(newAmt)}${esc(currencySuffix)}</strong>${esc(spend)}</span>
-          <span style="color:${MUTED};font-size:13px;"> (normally ${esc(fmtAmt(it.baseline_amount))})</span>
-          ${deadline}
-        </p>`
+        <div style="padding:11px 0;border-bottom:1px solid ${BORDER};">
+          <a href="${url}" style="font-family:${FONT_BODY};font-size:15px;font-weight:700;color:${LINK_COLOR};text-decoration:none;">${esc(it.card_name)}</a>
+          <div style="margin-top:3px;font-family:${FONT_BODY};font-size:13.5px;line-height:1.45;color:${BODY};">
+            <strong style="color:${GOLD};">${esc(newAmt)}${esc(currencySuffix)}</strong>${esc(spend)}
+            <span style="color:${MUTED};">(normally ${esc(fmtAmt(it.baseline_amount))})</span>${deadline}
+          </div>
+        </div>`
     })
     .join('')
   return `
-    <tr><td style="padding:32px 28px 0;">
+    <tr><td style="padding:30px 30px 6px;">
       ${sectionHeading('Elevated Welcome Bonuses', '14px')}
       ${rows}
     </td></tr>`
@@ -301,7 +325,7 @@ function renderSweetSpot(sp: NewsletterSweetSpot | null): string {
   // text for legacy entries.
   const explainer = sp.mechanic_explainer ? bodyHtml(sp.mechanic_explainer) : ''
   return `
-    <tr><td style="padding:32px 28px 0;">
+    <tr><td style="padding:28px 30px 0;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:2px solid ${GOLD};border-radius:12px;background:${SOFT_BG};">
         <tr><td style="padding:22px 24px;">
           <p style="margin:0 0 6px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${GOLD};font-weight:700;">Sweet Spot of the Week</p>
@@ -352,11 +376,11 @@ function renderTopExperiences(items: TopExperienceItem[] | null, origin: string)
         ? `<p style="margin:5px 0 0;font-family:${FONT_BODY};font-size:12px;line-height:1.4;color:${MUTED};">${esc(it.secondary_link.label)} <a href="${esc(it.secondary_link.url.startsWith('http') ? it.secondary_link.url : origin + it.secondary_link.url)}" style="color:${LINK_COLOR};text-decoration:underline;font-weight:600;">here &rarr;</a></p>`
         : ''
       return `
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 12px;border:1px solid ${BORDER};border-radius:10px;background:${SOFT_BG};">
-          <tr><td style="padding:15px 18px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 13px;border:1px solid ${BORDER};border-radius:12px;background:#ffffff;">
+          <tr><td style="padding:17px 19px;">
             ${tag}
             <p style="margin:0 0 4px;font-family:${FONT_UI};font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:${PURPLE};font-weight:700;">${esc(it.program_label)}</p>
-            <h3 style="margin:0 0 7px;font-family:${FONT_DISPLAY};font-size:17px;line-height:1.3;color:${BODY};">${title}</h3>
+            <h3 style="margin:0 0 7px;font-family:${FONT_DISPLAY};font-size:18px;line-height:1.3;color:${BODY};font-weight:700;">${title}</h3>
             <p style="margin:0;font-family:${FONT_BODY};font-size:13px;line-height:1.5;color:${MUTED};">${meta}</p>
             ${blurb}
             ${auction}
@@ -369,10 +393,11 @@ function renderTopExperiences(items: TopExperienceItem[] | null, origin: string)
   const intro = anyAuction
     ? 'Use your points and card perks for access you cannot otherwise book. Some are a fixed price; some are auctions where the winning bid can climb.'
     : 'Use your points and card perks for access you cannot otherwise book.'
+  // Full-width soft-purple band so this section pops as the aspirational one.
   return `
-    <tr><td style="padding:32px 28px 0;">
-      ${sectionHeading('Beyond Flights &amp; Hotels: Unforgettable Experiences', '10px')}
-      <p style="margin:0 0 14px;font-family:${FONT_BODY};font-size:13px;line-height:1.5;color:${MUTED};">${intro}</p>
+    <tr><td style="padding:34px 30px 30px;background:${TINT};">
+      ${sectionHeading('Beyond Flights &amp; Hotels', '10px')}
+      <p style="margin:0 0 16px;font-family:${FONT_BODY};font-size:13px;line-height:1.55;color:${MUTED};">${intro}</p>
       ${cards}
     </td></tr>`
 }
@@ -463,7 +488,10 @@ export function renderNewsletterV2Html({
   recipientEmail,
   currentBonuses,
 }: RenderNewsletterV2Args): string {
-  const logoUrl = `${origin}/crazy4points-logo.png`
+  // Images load from the canonical www host directly so they never depend on
+  // the apex->www 301 (some strict email clients skip redirected images).
+  const imgBase = origin.replace('https://crazy4points.com', 'https://www.crazy4points.com')
+  const logoUrl = `${imgBase}/crazy4points-logo.png`
   const subject = slots.subject || 'Crazy4Points — Weekly'
 
   const previewBanner = isPreview
@@ -497,12 +525,15 @@ export function renderNewsletterV2Html({
              the white bg gives the banner a deliberate stage instead of
              trying (and failing) to match its cream wash exactly. -->
         <tr><td style="background:#ffffff;text-align:center;font-size:0;line-height:0;">
-          <img src="${origin}/newsletter-hero-banner.png" alt="Crazy4Points Newsletter" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0;" />
+          <img src="${imgBase}/newsletter-hero-banner.png" alt="Crazy4Points Newsletter" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0;" />
         </td></tr>
-        <tr><td style="padding:14px 28px 12px;background:#ffffff;text-align:left;">
-          <p style="margin:0;font-family:${FONT_DISPLAY};font-style:italic;font-size:18px;font-weight:600;color:${PURPLE};letter-spacing:0.3px;">${esc(weekOf)}</p>
+        <tr><td style="padding:16px 30px 12px;background:#ffffff;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr>
+            <td align="left" style="font-family:${FONT_DISPLAY};font-style:italic;font-size:18px;font-weight:600;color:${PURPLE};letter-spacing:0.3px;">${esc(weekOf)}</td>
+            <td align="right" valign="middle" style="font-family:${FONT_UI};font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:${GOLD};white-space:nowrap;">The Points Brief</td>
+          </tr></table>
         </td></tr>
-        <tr><td style="padding:0 28px;background:#ffffff;">
+        <tr><td style="padding:0 30px;background:#ffffff;">
           <div style="height:1px;background:${BORDER};line-height:1px;font-size:0;">&nbsp;</div>
         </td></tr>
 
@@ -522,12 +553,12 @@ export function renderNewsletterV2Html({
             <tr>
               <td style="padding:0 8px;">
                 <a href="https://www.facebook.com/profile.php?id=61589408162571" style="text-decoration:none;display:inline-block;">
-                  <img src="${origin}/social/facebook.png" alt="Facebook" width="32" height="32" style="display:block;border:0;outline:none;text-decoration:none;width:32px;height:32px;" />
+                  <img src="${imgBase}/social/facebook.png" alt="Facebook" width="32" height="32" style="display:block;border:0;outline:none;text-decoration:none;width:32px;height:32px;" />
                 </a>
               </td>
               <td style="padding:0 8px;">
                 <a href="https://www.instagram.com/crazy4points/" style="text-decoration:none;display:inline-block;">
-                  <img src="${origin}/social/instagram.png" alt="Instagram" width="32" height="32" style="display:block;border:0;outline:none;text-decoration:none;width:32px;height:32px;" />
+                  <img src="${imgBase}/social/instagram.png" alt="Instagram" width="32" height="32" style="display:block;border:0;outline:none;text-decoration:none;width:32px;height:32px;" />
                 </a>
               </td>
             </tr>
