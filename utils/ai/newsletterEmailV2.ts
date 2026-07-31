@@ -320,7 +320,7 @@ function renderSweetSpot(sp: NewsletterSweetSpot | null): string {
     .map(
       (u) => `
         <li style="margin:0 0 10px;font-family:${FONT_BODY};font-size:15px;line-height:1.55;color:${BODY};">
-          <strong style="color:${PURPLE};">${esc(u.name)}</strong>${u.why ? ` — ${esc(u.why)}` : ''}
+          <strong style="color:${PURPLE};">${esc(u.name)}</strong>${u.why ? `. ${esc(u.why)}` : ''}
         </li>`,
     )
     .join('')
@@ -502,12 +502,12 @@ export function renderNewsletterV2Html({
   // the apex->www 301 (some strict email clients skip redirected images).
   const imgBase = origin.replace('https://crazy4points.com', 'https://www.crazy4points.com')
   const logoUrl = `${imgBase}/crazy4points-logo.png`
-  const subject = slots.subject || 'Crazy4Points — Weekly'
+  const subject = slots.subject || 'Crazy4Points Weekly'
 
   const previewBanner = isPreview
     ? `
     <tr><td style="padding:10px 24px;background:${GOLD};">
-      <p style="margin:0;font-family:${FONT_UI};font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:${BODY};text-align:center;">Preview — not sent to subscribers</p>
+      <p style="margin:0;font-family:${FONT_UI};font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:${BODY};text-align:center;">Preview: not sent to subscribers</p>
     </td></tr>`
     : ''
 
@@ -529,7 +529,7 @@ export function renderNewsletterV2Html({
 
         ${previewBanner}
 
-        <!-- Hero (design pass 5 — banner image at top, then a clean white
+        <!-- Hero (design pass 5, banner image at top, then a clean white
              dateline strip with the date in Playfair italic, left-aligned.
              The italic serif echoes the banner's wordmark + script while
              the white bg gives the banner a deliberate stage instead of
@@ -556,7 +556,7 @@ export function renderNewsletterV2Html({
         ${renderGame(slots.game, origin)}
         ${renderJillsTake(slots.jills_take_html)}
 
-        <!-- Footer — social row, then disclaimer, then fine-print links. -->
+        <!-- Footer: social row, then disclaimer, then fine-print links. -->
         <tr><td style="padding:22px 28px 18px;border-top:1px solid ${BORDER};background:${SOFT_BG};text-align:center;">
           <p style="margin:0 0 8px;font-family:${FONT_UI};font-size:11px;color:${MUTED};letter-spacing:0.6px;text-transform:uppercase;font-weight:600;">Follow us on social media</p>
           <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 14px;">
@@ -573,7 +573,7 @@ export function renderNewsletterV2Html({
               </td>
             </tr>
           </table>
-          <p style="margin:0 auto 10px;max-width:480px;font-family:${FONT_UI};font-size:10px;color:${MUTED};line-height:1.55;font-style:italic;">Affiliate links may earn us a commission at no cost to you. Editorial picks are independent. Informational only &mdash; verify all terms with the issuer.</p>
+          <p style="margin:0 auto 10px;max-width:480px;font-family:${FONT_UI};font-size:10px;color:${MUTED};line-height:1.55;font-style:italic;">Affiliate links may earn us a commission at no cost to you. Editorial picks are independent. Informational only. Verify all terms with the issuer.</p>
           <p style="margin:0;font-family:${FONT_UI};font-size:11px;color:${MUTED};letter-spacing:0.3px;">crazy4points.com &middot; <a href="${origin}/privacy" style="color:${MUTED};text-decoration:underline;">Privacy</a> &middot; <a href="${origin}/affiliate-disclosure" style="color:${MUTED};text-decoration:underline;">Affiliate Disclosure</a> &middot; <a href="${recipientEmail ? unsubscribeUrlFor(recipientEmail, origin) : `${origin}/unsubscribe`}" style="color:${MUTED};text-decoration:underline;">Unsubscribe</a></p>
         </td></tr>
 
