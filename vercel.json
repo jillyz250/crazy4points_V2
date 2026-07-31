@@ -85,6 +85,10 @@
       "schedule": "0 12 * * *"
     },
     {
+      "path": "/api/cron/experiences-availability",
+      "schedule": "30 12 * * *"
+    },
+    {
       "path": "/api/cron/experiences-feasibility",
       "schedule": "0 13 1 * *"
     },
