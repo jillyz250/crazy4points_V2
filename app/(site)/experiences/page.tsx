@@ -26,7 +26,7 @@ export default async function ExperiencesPage() {
   )
   const { data: rawListings } = await supabase
     .from('experience_listings')
-    .select('program_slug, source_platform, title, category, location, format, current_bid, points_required, close_date, close_date_confidence, event_date, bid_opens_at, detail_url, first_seen_at')
+    .select('program_slug, source_platform, title, category, location, format, current_bid, points_required, close_date, close_date_confidence, event_date, bid_opens_at, detail_url, first_seen_at, sold_out')
     .eq('status', 'active')
     .order('first_seen_at', { ascending: false })
     .limit(600)
@@ -48,6 +48,7 @@ export default async function ExperiencesPage() {
       bid_opens_at: (l.bid_opens_at as string) ?? null,
       detail_url: (l.detail_url as string) ?? null,
       first_seen_at: (l.first_seen_at as string) ?? null,
+      sold_out: (l.sold_out as boolean) ?? false,
     }
   })
 

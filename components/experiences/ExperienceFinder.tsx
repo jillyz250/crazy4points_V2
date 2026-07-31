@@ -23,6 +23,7 @@ export interface FinderListing {
   bid_opens_at: string | null
   detail_url: string | null
   first_seen_at: string | null
+  sold_out: boolean
 }
 
 // A short, honest date line for the tile. close_date drives urgency (bidding
@@ -118,6 +119,9 @@ export default function ExperienceFinder({ listings }: { listings: FinderListing
   const [program, setProgram] = useState<string>('all')
   const [category, setCategory] = useState<string>('all')
   const [sort, setSort] = useState<SortKey>('newest')
+  const [hideSoldOut, setHideSoldOut] = useState(false)
+
+  const soldOutCount = useMemo(() => listings.filter((l) => l.sold_out).length, [listings])
 
   const programs = useMemo(() => {
     const m = new Map<string, string>()
@@ -135,13 +139,18 @@ export default function ExperienceFinder({ listings }: { listings: FinderListing
     let out = listings.filter((l) => {
       if (program !== 'all' && l.program_slug !== program) return false
       if (category !== 'all' && l.category !== category) return false
+      if (hideSoldOut && l.sold_out) return false
       if (needle && !`${l.title} ${l.location ?? ''} ${l.program_label}`.toLowerCase().includes(needle)) return false
       return true
     })
     const byPts = (l: FinderListing) => pointsOf(l) ?? Number.POSITIVE_INFINITY
     out = [...out].sort((a, b) => {
-      // Not-yet-open listings sink below everything you can act on now, whatever
-      // the chosen sort - you cannot bid on them yet.
+      // Sold-out listings sink to the very bottom, below everything actionable,
+      // whatever the chosen sort - there's nothing left to book.
+      const sa = a.sold_out ? 1 : 0
+      const sb = b.sold_out ? 1 : 0
+      if (sa !== sb) return sa - sb
+      // Not-yet-open listings sink next - you cannot bid on them yet.
       const oa = notYetOpen(a) ? 1 : 0
       const ob = notYetOpen(b) ? 1 : 0
       if (oa !== ob) return oa - ob
@@ -163,7 +172,7 @@ export default function ExperienceFinder({ listings }: { listings: FinderListing
       }
     })
     return out
-  }, [listings, q, program, category, sort])
+  }, [listings, q, program, category, sort, hideSoldOut])
 
   // Cardmember-access listings are perks (sign in, no bid), not auctions - they
   // read as broken when mixed in with biddable ones, so they get their own band.
@@ -225,6 +234,16 @@ export default function ExperienceFinder({ listings }: { listings: FinderListing
             </option>
           ))}
         </select>
+        {soldOutCount > 0 && (
+          <button
+            type="button"
+            className={pill(hideSoldOut)}
+            aria-pressed={hideSoldOut}
+            onClick={() => setHideSoldOut((v) => !v)}
+          >
+            {hideSoldOut ? 'Sold out hidden' : `Hide sold out (${soldOutCount})`}
+          </button>
+        )}
       </div>
 
       <p className="mb-3 font-ui text-sm text-[var(--color-text-secondary)]">
@@ -260,8 +279,9 @@ export default function ExperienceFinder({ listings }: { listings: FinderListing
   function renderCard(l: FinderListing, key: string) {
     const href = l.detail_url ?? l.program_url ?? undefined
     const bucket = categoryBucket(l.category)
-    const cta =
-      l.format === 'access'
+    const cta = l.sold_out
+      ? 'Sold out. Check the official site'
+      : l.format === 'access'
         ? 'Sign in on the official site'
         : l.format === 'bid'
           ? 'View & bid on the official site'
@@ -269,7 +289,12 @@ export default function ExperienceFinder({ listings }: { listings: FinderListing
     const card = (
       <>
         <div className="mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-          {isNew(l) && (
+          {l.sold_out && (
+            <span className="rounded-full bg-[var(--color-alert)] px-2 py-0.5 font-ui text-[0.6875rem] font-bold uppercase tracking-wide text-white">
+              Sold out
+            </span>
+          )}
+          {isNew(l) && !l.sold_out && (
             <span className="rounded-full bg-[var(--color-accent)] px-2 py-0.5 font-ui text-[0.6875rem] font-bold uppercase tracking-wide text-[var(--color-primary)]">
               New
             </span>
@@ -317,19 +342,22 @@ export default function ExperienceFinder({ listings }: { listings: FinderListing
         })()}
       </>
     )
+    // Sold-out cards stay clickable (a waitlist may open) but read as spent:
+    // dimmed, muted CTA, no hover lift.
+    const dim = l.sold_out ? ' opacity-60' : ''
     return href ? (
       <a
         key={key}
         href={href}
         target="_blank"
         rel="noopener noreferrer"
-        className="block rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] p-4 shadow-[var(--shadow-soft)] transition hover:-translate-y-0.5 hover:border-[var(--color-primary)]"
+        className={`block rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] p-4 shadow-[var(--shadow-soft)] transition hover:border-[var(--color-primary)]${l.sold_out ? '' : ' hover:-translate-y-0.5'}${dim}`}
       >
         {card}
-        <span className="mt-2 inline-block font-ui text-sm text-[var(--color-primary)]">{cta} &rarr;</span>
+        <span className={`mt-2 inline-block font-ui text-sm ${l.sold_out ? 'text-[var(--color-text-secondary)]' : 'text-[var(--color-primary)]'}`}>{cta} &rarr;</span>
       </a>
     ) : (
-      <div key={key} className="rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] p-4 shadow-[var(--shadow-soft)]">
+      <div key={key} className={`rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] p-4 shadow-[var(--shadow-soft)]${dim}`}>
         {card}
       </div>
     )
