@@ -19,9 +19,10 @@ const BODY = '#1A1A1A'
 const MUTED = '#4A4A4A'
 const BORDER = '#E6DEEE'
 const PAGE_BG = '#f4eef8'
-/** Editorial blue used for in-body link styling — distinct from the
- *  purple-and-gold brand palette so links read as clearly clickable. */
-const LINK_BLUE = '#1a5fb4'
+/** In-body link color. Brand purple (was editorial blue) so links read as
+ *  intentional and on-brand instead of like default/visited hyperlinks. Big
+ *  title links render as plain headlines instead (see renderTopExperiences). */
+const LINK_COLOR = PURPLE
 
 const FONT_DISPLAY = "'Playfair Display', Georgia, serif"
 const FONT_BODY = "'Lato', 'Helvetica Neue', Arial, sans-serif"
@@ -162,7 +163,7 @@ function renderAlsoHappening(items: AlsoHappeningItem[], origin: string): string
         ? (item.link_url.startsWith('http') ? item.link_url : `${origin}${item.link_url}`)
         : null
       const link = href
-        ? `<p style="margin:0;font-family:${FONT_UI};font-size:13px;font-weight:600;"><a href="${esc(href)}" style="color:${GOLD};text-decoration:none;">Details →</a></p>`
+        ? `<p style="margin:0;font-family:${FONT_UI};font-size:13px;font-weight:600;"><a href="${esc(href)}" style="color:${LINK_COLOR};text-decoration:underline;">Details →</a></p>`
         : ''
       return `
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 12px;border:1px solid ${BORDER};border-radius:12px;background:#fff;">
@@ -221,7 +222,7 @@ function renderOfferBucket(label: string, items: OfferItem[], origin: string): s
       const [lead, rest] = splitHeadline(it.headline)
       const linkInner = `<strong style="font-weight:700;">${esc(lead)}</strong><span style="font-weight:400;">${esc(rest)}</span>`
       const headline = href
-        ? `<a href="${esc(href)}" style="color:${LINK_BLUE};text-decoration:underline;">${linkInner}</a>`
+        ? `<a href="${esc(href)}" style="color:${LINK_COLOR};text-decoration:underline;">${linkInner}</a>`
         : linkInner
       const deadline = it.deadline
         ? ` <span style="font-family:${FONT_UI};font-size:12px;font-weight:600;color:${GOLD};white-space:nowrap;">${esc(it.deadline)}</span>`
@@ -269,7 +270,7 @@ function renderElevatedBonuses(items: ElevatedBonusItem[] | null, origin: string
         : ''
       return `
         <p style="margin:0 0 12px;font-family:${FONT_BODY};font-size:15px;line-height:1.45;color:${BODY};">
-          <a href="${url}" style="color:${LINK_BLUE};text-decoration:underline;font-weight:600;">${esc(it.card_name)}</a>
+          <a href="${url}" style="color:${LINK_COLOR};text-decoration:underline;font-weight:600;">${esc(it.card_name)}</a>
           <span> — <strong>${esc(newAmt)}${esc(currencySuffix)}</strong>${esc(spend)}</span>
           <span style="color:${MUTED};font-size:13px;"> (normally ${esc(fmtAmt(it.baseline_amount))})</span>
           ${deadline}
@@ -323,7 +324,7 @@ function renderTopExperiences(items: TopExperienceItem[] | null, origin: string)
           : `${origin}${it.link_url}`
         : ''
       const title = href
-        ? `<a href="${esc(href)}" style="color:${LINK_BLUE};text-decoration:underline;">${esc(it.title)}</a>`
+        ? `<a href="${esc(href)}" style="color:${BODY};text-decoration:none;">${esc(it.title)}</a>`
         : esc(it.title)
       const meta = [
         it.points_label
@@ -342,13 +343,13 @@ function renderTopExperiences(items: TopExperienceItem[] | null, origin: string)
         : ''
       const ctaLabel = /moments/i.test(it.program_label) ? 'View this Moment' : 'View details'
       const cta = href
-        ? `<p style="margin:9px 0 0;"><a href="${esc(href)}" style="font-family:${FONT_UI};font-size:13px;font-weight:700;color:${LINK_BLUE};text-decoration:none;">${ctaLabel} &rarr;</a></p>`
+        ? `<p style="margin:9px 0 0;"><a href="${esc(href)}" style="font-family:${FONT_UI};font-size:13px;font-weight:700;color:${LINK_COLOR};text-decoration:underline;">${ctaLabel} &rarr;</a></p>`
         : ''
       const tag = it.tag
         ? `<p style="margin:0 0 8px;"><span style="display:inline-block;background:${PURPLE};color:#ffffff;font-family:${FONT_UI};font-size:9px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:3px 10px;border-radius:999px;">${esc(it.tag)}</span></p>`
         : ''
       const secondary = it.secondary_link
-        ? `<p style="margin:5px 0 0;font-family:${FONT_BODY};font-size:12px;line-height:1.4;color:${MUTED};">${esc(it.secondary_link.label)} <a href="${esc(it.secondary_link.url.startsWith('http') ? it.secondary_link.url : origin + it.secondary_link.url)}" style="color:${LINK_BLUE};text-decoration:underline;font-weight:600;">here &rarr;</a></p>`
+        ? `<p style="margin:5px 0 0;font-family:${FONT_BODY};font-size:12px;line-height:1.4;color:${MUTED};">${esc(it.secondary_link.label)} <a href="${esc(it.secondary_link.url.startsWith('http') ? it.secondary_link.url : origin + it.secondary_link.url)}" style="color:${LINK_COLOR};text-decoration:underline;font-weight:600;">here &rarr;</a></p>`
         : ''
       return `
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 12px;border:1px solid ${BORDER};border-radius:10px;background:${SOFT_BG};">
@@ -393,7 +394,7 @@ function renderCurrentBonuses(bonuses: CurrentBonusRow[] | undefined, origin: st
       const endLabel = fmtBonusDate(b.end_date)
       return `
         <p style="margin:0 0 10px;font-family:${FONT_BODY};font-size:15px;line-height:1.45;color:${BODY};">
-          <a href="${url}" style="color:${LINK_BLUE};text-decoration:underline;font-weight:600;">${esc(b.title)}</a>
+          <a href="${url}" style="color:${LINK_COLOR};text-decoration:underline;font-weight:600;">${esc(b.title)}</a>
           <span style="color:${MUTED};font-size:13px;margin-left:6px;">&middot; ${esc(endLabel)}</span>
         </p>`
     })
