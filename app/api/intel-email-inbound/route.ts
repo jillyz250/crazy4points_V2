@@ -35,9 +35,9 @@ import { getAllPrograms } from '@/utils/supabase/queries'
 import type { AlertType } from '@/utils/supabase/queries'
 
 export const dynamic = 'force-dynamic'
-// A multi-story digest fans out to many sequential ingestItem calls (each runs
-// dedup), so give the route more headroom than a single-item email needed.
-export const maxDuration = 120
+// A long digest fans out to many sequential ingestItem calls (each runs dedup,
+// some with a Haiku diff), so give the route generous headroom.
+export const maxDuration = 300
 
 const MAX_PAYLOAD_BYTES = 1_000_000 // 1 MB
 
@@ -45,7 +45,11 @@ const MAX_PAYLOAD_BYTES = 1_000_000 // 1 MB
 // from the original 4k/6k because forwarded digests put the substance (and
 // footnotes) low in the email, past the old cut.
 const RAW_TEXT_CAP = 8_000 // per-item raw_text stored on intel_items
-const CLASSIFY_CAP = 12_000 // full-body input to the classifier/segmenter
+// Full-body input to the segmenter. Large because you forward long digests
+// (20+ stories) and the tail is exactly where stories would otherwise be lost.
+// ~40k chars is ~10k tokens — comfortable for Haiku, negligible cost per email.
+const CLASSIFY_CAP = 40_000
+const SOURCE_BODY_CAP = 40_000 // verbatim body kept for grouping / re-segmentation
 
 export async function POST(req: NextRequest) {
   // --- 1. Size cap (cheap header check before reading the body) --------------
@@ -237,7 +241,7 @@ export async function POST(req: NextRequest) {
     sender_email: senderEmail,
     sender_domain: senderDomain,
     source_name: sourceName ?? `email:${senderDomain}`,
-    cleaned_body: bodyText.slice(0, 20_000),
+    cleaned_body: bodyText.slice(0, SOURCE_BODY_CAP),
     segment_count: segmentation.has_loyalty_angle ? segmentation.segments.length : 0,
   })
 
