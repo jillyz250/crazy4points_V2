@@ -13,6 +13,17 @@
  * 2026-07-20. The bias is deliberately toward SILENCE: a link is only reported
  * when the page itself says it is gone, because a noisy audit gets ignored.
  *
+ * THE BOT-WALL ESCALATION (added 2026-07-31)
+ * A plain node fetch cannot reach Akamai/Cloudflare-walled travel sites at all —
+ * it simply throws ("unreachable"). On 2026-07-31 that path produced 6 false
+ * alarms out of 7 (Emirates, Flying Blue, Choice, Qatar x2, Asiana were all
+ * live in a real browser; only Turkish's award-tickets URL was truly 404). So a
+ * plain-fetch failure — a thrown error OR a bare 4xx with no dead-page text — is
+ * NEVER reported on its own. Instead we escalate that one URL to Firecrawl, which
+ * renders like a browser, and report it dead only when Firecrawl confirms a
+ * 404/410 or a dead-page marker. This keeps the silence bias (bot walls no
+ * longer cry wolf) while still catching genuine deaths a plain fetch can't see.
+ *
  * Deliberately kept out of runIntegrityChecks(), which is documented as cheap,
  * deterministic and network-free — the daily digest runs those live.
  */
@@ -43,6 +54,36 @@ const DEAD_MARKER =
 
 const TIMEOUT_MS = 20_000
 const CONCURRENCY = 8
+
+/**
+ * Browser-grade second opinion for a URL a plain fetch couldn't judge (threw,
+ * or answered a bare 4xx). Firecrawl renders like a real browser and defeats the
+ * bot walls that block node fetch. Returns { dead: true } ONLY when Firecrawl
+ * itself sees a 404/410 or a dead-page marker — anything else (a healthy 200, a
+ * 403 bot wall, or Firecrawl erroring out) is treated as "not proven dead" so we
+ * keep the silence bias. No API key → cannot escalate, so caller falls back.
+ */
+async function firecrawlConfirmsDead(url: string): Promise<{ escalated: boolean; dead: boolean; note: string }> {
+  const key = process.env.FIRECRAWL_API_KEY
+  if (!key) return { escalated: false, dead: false, note: 'no FIRECRAWL_API_KEY' }
+  try {
+    const res = await fetch('https://api.firecrawl.dev/v1/scrape', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, formats: ['markdown'], onlyMainContent: true, timeout: 60_000 }),
+      signal: AbortSignal.timeout(75_000),
+    })
+    if (!res.ok) return { escalated: true, dead: false, note: `firecrawl HTTP ${res.status}` }
+    const data = await res.json()
+    const md: string = data?.data?.markdown ?? ''
+    const code: number | undefined = data?.data?.metadata?.statusCode
+    if (code === 404 || code === 410) return { escalated: true, dead: true, note: `firecrawl status ${code}` }
+    if (DEAD_MARKER.test(md)) return { escalated: true, dead: true, note: 'firecrawl saw dead-page marker' }
+    return { escalated: true, dead: false, note: `firecrawl status ${code ?? '?'} — page renders` }
+  } catch (err) {
+    return { escalated: true, dead: false, note: `firecrawl threw: ${String(err).slice(0, 60)}` }
+  }
+}
 
 async function collectTargets(supabase: SupabaseClient): Promise<Target[]> {
   const targets: Target[] = []
@@ -99,18 +140,25 @@ async function checkOne(t: Target): Promise<LinkFinding | null> {
     }
   }
 
-  if (status === 'ERR') {
-    return { ...t, status, reason: 'unreachable after 2 attempts' }
-  }
-  if (DEAD_MARKER.test(body)) {
+  // A page that LOADED and says it is gone is a reliable signal — report it.
+  if (status !== 'ERR' && DEAD_MARKER.test(body)) {
     return { ...t, status, reason: 'page identifies itself as missing' }
   }
-  // Deliberately NOT flagging bare 4xx responses, even short ones. Bot walls
-  // answer 403 with a near-empty body — Flying Blue and Marriott Moments both
-  // do, and both are healthy. Tested against the six real breakages found on
-  // 2026-07-20 (Accor, BA, Qatar, Iberia, Qantas, JAL): every one is caught by
-  // the dead-page marker or the unreachable path above, so a status-based rule
-  // adds only false alarms. An audit people learn to ignore is worse than none.
+
+  // Unreachable (threw) OR a bare 4xx: the plain fetch cannot tell a dead page
+  // from a bot wall, so never report on that alone. Escalate to Firecrawl and
+  // report only if a real browser confirms the death. See the header note.
+  const is4xx = typeof status === 'number' && status >= 400 && status < 500
+  if (status === 'ERR' || is4xx) {
+    const verdict = await firecrawlConfirmsDead(t.url)
+    if (verdict.dead) {
+      const how = status === 'ERR' ? 'unreachable to bot' : `status ${status}`
+      return { ...t, status, reason: `${how}; ${verdict.note}` }
+    }
+    // Not proven dead (live page, bot wall, or Firecrawl couldn't confirm) — stay silent.
+    return null
+  }
+
   return null
 }
 
