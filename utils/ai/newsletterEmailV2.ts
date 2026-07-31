@@ -325,15 +325,23 @@ function renderTopExperiences(items: TopExperienceItem[] | null, origin: string)
       const cta = href
         ? `<p style="margin:9px 0 0;"><a href="${esc(href)}" style="font-family:${FONT_UI};font-size:13px;font-weight:700;color:${LINK_BLUE};text-decoration:none;">${ctaLabel} &rarr;</a></p>`
         : ''
+      const tag = it.tag
+        ? `<p style="margin:0 0 8px;"><span style="display:inline-block;background:${PURPLE};color:#ffffff;font-family:${FONT_UI};font-size:9px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:3px 10px;border-radius:999px;">${esc(it.tag)}</span></p>`
+        : ''
+      const secondary = it.secondary_link
+        ? `<p style="margin:5px 0 0;font-family:${FONT_BODY};font-size:12px;line-height:1.4;color:${MUTED};">${esc(it.secondary_link.label)} <a href="${esc(it.secondary_link.url.startsWith('http') ? it.secondary_link.url : origin + it.secondary_link.url)}" style="color:${LINK_BLUE};text-decoration:underline;font-weight:600;">here &rarr;</a></p>`
+        : ''
       return `
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 12px;border:1px solid ${BORDER};border-radius:10px;background:${SOFT_BG};">
           <tr><td style="padding:15px 18px;">
+            ${tag}
             <p style="margin:0 0 4px;font-family:${FONT_UI};font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:${PURPLE};font-weight:700;">${esc(it.program_label)}</p>
             <h3 style="margin:0 0 7px;font-family:${FONT_DISPLAY};font-size:17px;line-height:1.3;color:${BODY};">${title}</h3>
             <p style="margin:0;font-family:${FONT_BODY};font-size:13px;line-height:1.5;color:${MUTED};">${meta}</p>
             ${blurb}
             ${auction}
             ${cta}
+            ${secondary}
           </td></tr>
         </table>`
     })

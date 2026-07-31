@@ -70,8 +70,11 @@ export default function NewsletterIssueBody({ n }: { n: PublicNewsletter }) {
           <ul className="space-y-4">
             {n.top_experiences.map((e, i) => (
               <li key={i} className="font-body text-[var(--color-text-primary)]">
+                {e.tag ? (
+                  <span className="inline-block bg-[var(--color-primary)] text-white font-ui text-[0.625rem] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full mb-1">{e.tag}</span>
+                ) : null}
                 {e.program_label ? (
-                  <span className="font-ui text-xs uppercase tracking-wide text-[var(--color-primary)] mr-2">{e.program_label}</span>
+                  <span className="block font-ui text-xs uppercase tracking-wide text-[var(--color-primary)]">{e.program_label}</span>
                 ) : null}
                 <IssueLink href={e.link_url}><span className="font-semibold">{e.title}</span></IssueLink>
                 <span className="block text-[var(--color-text-secondary)] mt-1">
@@ -88,6 +91,11 @@ export default function NewsletterIssueBody({ n }: { n: PublicNewsletter }) {
                 {e.link_url ? (
                   <span className="block mt-1">
                     <IssueLink href={e.link_url}>{/moments/i.test(e.program_label) ? 'View this Moment' : 'View details'} →</IssueLink>
+                  </span>
+                ) : null}
+                {e.secondary_link ? (
+                  <span className="block text-[var(--color-text-secondary)] text-sm mt-1">
+                    {e.secondary_link.label} <IssueLink href={e.secondary_link.url}>here →</IssueLink>
                   </span>
                 ) : null}
               </li>

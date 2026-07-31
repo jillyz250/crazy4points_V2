@@ -86,6 +86,12 @@ export interface TopExperienceItem {
    *  hand-picked experience carry compelling framing the compact card can't.
    *  Empty/null = no line. */
   blurb?: string | null
+  /** Optional ribbon/tag pill on the card, e.g. "Marriott Bonvoy cardmembers"
+   *  — flags an eligibility restriction visually. Empty/null = no tag. */
+  tag?: string | null
+  /** Optional secondary CTA (e.g. "New to Bonvoy? Get the card") linking to
+   *  our own card page, for readers who don't hold the required card. */
+  secondary_link?: { label: string; url: string } | null
 }
 
 export interface SweetSpotBestUse {
