@@ -78,6 +78,13 @@ interface IntelRow {
   haiku_diff_fail_open: boolean | null
   created_at: string
   processed: boolean | null
+  source_email_id: string | null
+}
+
+interface SourceEmailInfo {
+  source_name: string | null
+  subject: string | null
+  segment_count: number
 }
 
 function deriveStatus(r: IntelRow): LifecycleStatus {
@@ -147,6 +154,7 @@ const SELECT_COLUMNS = [
   'haiku_diff_fail_open',
   'created_at',
   'processed',
+  'source_email_id',
 ].join(', ')
 
 export default async function TriagePage({
@@ -217,6 +225,25 @@ export default async function TriagePage({
     })
   }
 
+  // Group provenance: which forwarded email each item was segmented out of, so
+  // the editor can see "this came from the AwardWallet digest (8 stories)" and
+  // confirm nothing was dropped.
+  const sourceEmailIds = [...new Set(rows.map((r) => r.source_email_id).filter(Boolean))] as string[]
+  const sourceEmailMap = new Map<string, SourceEmailInfo>()
+  if (sourceEmailIds.length > 0) {
+    const { data: se } = await supabase
+      .from('intel_source_emails')
+      .select('id, source_name, subject, segment_count')
+      .in('id', sourceEmailIds)
+    for (const e of se ?? []) {
+      sourceEmailMap.set(e.id as string, {
+        source_name: (e.source_name as string) ?? null,
+        subject: (e.subject as string) ?? null,
+        segment_count: (e.segment_count as number) ?? 0,
+      })
+    }
+  }
+
   return (
     <div>
       <PageHeader
@@ -260,7 +287,12 @@ export default async function TriagePage({
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           {rows.map((r) => (
-            <TriageRow key={r.id} row={r} tab={tab} />
+            <TriageRow
+              key={r.id}
+              row={r}
+              tab={tab}
+              sourceEmail={r.source_email_id ? sourceEmailMap.get(r.source_email_id) : undefined}
+            />
           ))}
         </div>
       )}
@@ -389,7 +421,7 @@ function Tabs({ current, counts }: { current: Tab; counts: Record<Tab, number> }
 
 // ── Row ────────────────────────────────────────────────────────────────────
 
-function TriageRow({ row, tab }: { row: IntelRow; tab: Tab }) {
+function TriageRow({ row, tab, sourceEmail }: { row: IntelRow; tab: Tab; sourceEmail?: SourceEmailInfo }) {
   const status = deriveStatus(row)
   const isRejectedTab = tab === 'rejected'
 
@@ -455,6 +487,25 @@ function TriageRow({ row, tab }: { row: IntelRow; tab: Tab }) {
             row.headline
           )}
         </h3>
+        {sourceEmail && sourceEmail.segment_count > 1 && (
+          <span
+            title={sourceEmail.subject ?? undefined}
+            style={{
+              display: 'inline-block',
+              marginTop: '0.375rem',
+              padding: '0.125rem 0.5rem',
+              borderRadius: '9999px',
+              fontFamily: 'var(--font-ui)',
+              fontSize: '0.6875rem',
+              fontWeight: 500,
+              background: 'var(--admin-surface-alt, #f4f1f8)',
+              color: 'var(--admin-muted, #4a4a4a)',
+              border: '1px solid var(--admin-border)',
+            }}
+          >
+            ⛓ {sourceEmail.segment_count}-story forward · {sourceEmail.source_name ?? 'email'}
+          </span>
+        )}
       </header>
 
       {/* Top 4 priority: status → programs (core editorial signal) → confidence → time.

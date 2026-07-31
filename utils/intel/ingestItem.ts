@@ -44,6 +44,8 @@ export interface IngestItemInput {
    * same story across different blog wording and so never counts them itself.
    */
   confirming_sources?: string[] | null
+  /** The forwarded email this story was segmented out of (intel_source_emails.id). */
+  source_email_id?: string | null
 }
 
 export type IngestResult =
@@ -144,6 +146,7 @@ export async function ingestItem(
     programs: input.programs ?? null,
     expires_at: input.expires_at ?? null,
     fact_origin: input.fact_origin ?? null,
+    source_email_id: input.source_email_id ?? null,
     ...corroboration,
   }
 
