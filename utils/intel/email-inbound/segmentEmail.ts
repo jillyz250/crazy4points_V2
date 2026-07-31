@@ -46,7 +46,10 @@ export interface SegmentEmailInput {
   urls: string[]
 }
 
-const MAX_SEGMENTS = 15
+// High cap because long digests (monthly AwardWallet, Google Alerts) can carry
+// many stories; we'd rather over-capture and let the editor reject than silently
+// drop the tail.
+const MAX_SEGMENTS = 30
 
 const SYSTEM_PROMPT = `You are an intake classifier for crazy4points.com — a loyalty points & miles alert site.
 
@@ -133,7 +136,8 @@ Return strict JSON.`
     const client = new Anthropic({ apiKey })
     const response = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 4000,
+      // Up to 30 segments of structured JSON — needs generous output room.
+      max_tokens: 8000,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userMessage }],
     })
