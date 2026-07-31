@@ -87,6 +87,20 @@ function bodyHtml(raw: string | null | undefined): string {
     .join('')
 }
 
+/**
+ * Elevated section header: purple bold uppercase with a short gold underline
+ * accent, replacing the flat gray eyebrows so each section stands out and
+ * reads as branded. `title` may contain pre-escaped HTML entities.
+ */
+function sectionHeading(title: string, mb = '14px'): string {
+  return `
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 ${mb};">
+        <tr><td style="border-bottom:3px solid ${GOLD};padding-bottom:6px;">
+          <span style="font-family:${FONT_UI};font-size:13px;letter-spacing:1.4px;text-transform:uppercase;color:${PURPLE};font-weight:800;">${title}</span>
+        </td></tr>
+      </table>`
+}
+
 function renderGame(game: NewsletterSlots['game'], origin: string): string {
   if (!game.slug) return ''
   const title = esc(game.title ?? 'Game of the Week')
@@ -158,7 +172,7 @@ function renderAlsoHappening(items: AlsoHappeningItem[], origin: string): string
     .join('')
   return `
     <tr><td style="padding:32px 28px 0;">
-      <p style="margin:0 0 12px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${MUTED};font-weight:700;">Also Happening</p>
+      ${sectionHeading('Also Happening', '14px')}
       ${cards}
     </td></tr>`
 }
@@ -225,7 +239,7 @@ function renderActiveOffers(offers: ActiveOffers | null, origin: string): string
   if (!buckets) return ''
   return `
     <tr><td style="padding:32px 28px 0;">
-      <p style="margin:0 0 14px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${MUTED};font-weight:700;">Live Offers</p>
+      ${sectionHeading('Live Offers', '14px')}
       ${buckets}
     </td></tr>`
 }
@@ -259,7 +273,7 @@ function renderElevatedBonuses(items: ElevatedBonusItem[] | null, origin: string
     .join('')
   return `
     <tr><td style="padding:32px 28px 0;">
-      <p style="margin:0 0 14px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${MUTED};font-weight:700;">Elevated Welcome Bonuses</p>
+      ${sectionHeading('Elevated Welcome Bonuses', '14px')}
       ${rows}
     </td></tr>`
 }
@@ -351,7 +365,7 @@ function renderTopExperiences(items: TopExperienceItem[] | null, origin: string)
     : 'Use your points and card perks for access you cannot otherwise book.'
   return `
     <tr><td style="padding:32px 28px 0;">
-      <p style="margin:0 0 6px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${MUTED};font-weight:700;">Beyond Flights &amp; Hotels: Unforgettable Experiences</p>
+      ${sectionHeading('Beyond Flights &amp; Hotels: Unforgettable Experiences', '10px')}
       <p style="margin:0 0 14px;font-family:${FONT_BODY};font-size:13px;line-height:1.5;color:${MUTED};">${intro}</p>
       ${cards}
     </td></tr>`
@@ -381,7 +395,7 @@ function renderCurrentBonuses(bonuses: CurrentBonusRow[] | undefined, origin: st
     .join('')
   return `
     <tr><td style="padding:32px 28px 0;">
-      <p style="margin:0 0 14px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${MUTED};font-weight:700;">Active transfer + point bonuses</p>
+      ${sectionHeading('Active transfer + point bonuses', '14px')}
       ${items}
     </td></tr>`
 }
