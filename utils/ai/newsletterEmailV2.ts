@@ -15,8 +15,9 @@ import { unsubscribeUrlFor } from '@/utils/email/unsubscribeToken'
 const PURPLE = '#6B2D8F'
 const GOLD = '#D4AF37'
 const SOFT_BG = '#F8F5FB'
-/** Soft-purple tint for the experiences band (redesign 2026-07-31). */
-const TINT = '#F3ECFA'
+/** Soft-purple tint for the experiences band (redesign 2026-07-31). Deep enough
+ *  to read as a distinct band in Gmail while white cards still pop on it. */
+const TINT = '#E8DCF3'
 const BODY = '#1A1A1A'
 const MUTED = '#4A4A4A'
 const BORDER = '#E6DEEE'
@@ -146,7 +147,7 @@ function renderBigStory(slots: NewsletterSlots, origin: string): string {
   // bordered cards (Sweet Spot, Game). No border so it doesn't compete
   // with Sweet Spot's gold accent.
   return `
-    <tr><td style="padding:26px 30px 0;">
+    <tr><td style="padding:32px 30px 0;">
       <p style="margin:0 0 8px;font-family:${FONT_UI};font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:${GOLD};font-weight:800;">The Big Story</p>
       ${headline}
       ${bodyHtml(slots.big_story_html)}
@@ -176,7 +177,7 @@ function renderAlsoHappening(items: AlsoHappeningItem[], origin: string): string
     })
     .join('')
   return `
-    <tr><td style="padding:30px 30px 0;">
+    <tr><td style="padding:38px 30px 0;">
       ${sectionHeading('Also Happening', '14px')}
       ${cards}
     </td></tr>`
@@ -215,6 +216,12 @@ function stripTrailingDate(s: string): string {
     .trim()
 }
 
+/** Shared gold "deadline" pill so every act-by date reads the same across the
+ *  newsletter (Live Offers + experiences). */
+function goldPill(text: string): string {
+  return `<span style="display:inline-block;background:#FBF3D9;color:#7A5B00;font-family:${FONT_UI};font-size:11px;font-weight:800;padding:2px 9px;border-radius:999px;white-space:nowrap;">${esc(text)}</span>`
+}
+
 function renderOfferBucket(label: string, items: OfferItem[], origin: string): string {
   if (!items || items.length === 0) return ''
   // Dedupe within a bucket by headline (defensive against the same offer being
@@ -247,9 +254,7 @@ function renderOfferBucket(label: string, items: OfferItem[], origin: string): s
         : linkInner
       // Deadline as a gold pill, flowing INLINE after the name (no two-column
       // table — long names were overflowing and colliding with a right cell).
-      const pill = it.deadline
-        ? ` <span style="display:inline-block;background:#FBF3D9;color:#7A5B00;font-family:${FONT_UI};font-size:11px;font-weight:800;padding:2px 9px;border-radius:999px;white-space:nowrap;">${esc(it.deadline)}</span>`
-        : ''
+      const pill = it.deadline ? ` ${goldPill(it.deadline)}` : ''
       return `<p style="margin:0 0 10px;font-family:${FONT_BODY};font-size:14px;line-height:1.55;color:${BODY};">${headline}${pill}</p>`
     })
     .join('')
@@ -267,7 +272,7 @@ function renderActiveOffers(offers: ActiveOffers | null, origin: string): string
     renderOfferBucket('Points purchase bonuses', offers.purchase_bonuses ?? [], origin)
   if (!buckets) return ''
   return `
-    <tr><td style="padding:28px 30px 0;">
+    <tr><td style="padding:36px 30px 0;">
       ${sectionHeading('Live Offers', '14px')}
       ${buckets}
     </td></tr>`
@@ -302,7 +307,7 @@ function renderElevatedBonuses(items: ElevatedBonusItem[] | null, origin: string
     })
     .join('')
   return `
-    <tr><td style="padding:30px 30px 6px;">
+    <tr><td style="padding:38px 30px 6px;">
       ${sectionHeading('Elevated Welcome Bonuses', '14px')}
       ${rows}
     </td></tr>`
@@ -325,7 +330,7 @@ function renderSweetSpot(sp: NewsletterSweetSpot | null): string {
   // text for legacy entries.
   const explainer = sp.mechanic_explainer ? bodyHtml(sp.mechanic_explainer) : ''
   return `
-    <tr><td style="padding:28px 30px 0;">
+    <tr><td style="padding:36px 30px 0;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:2px solid ${GOLD};border-radius:12px;background:${SOFT_BG};">
         <tr><td style="padding:22px 24px;">
           <p style="margin:0 0 6px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${GOLD};font-weight:700;">Sweet Spot of the Week</p>
@@ -350,15 +355,19 @@ function renderTopExperiences(items: TopExperienceItem[] | null, origin: string)
       const title = href
         ? `<a href="${esc(href)}" style="color:${BODY};text-decoration:none;">${esc(it.title)}</a>`
         : esc(it.title)
+      // Meta = price + place/date only; the deadline moves to its own gold pill
+      // below so it matches the Live Offers "act by" language.
       const meta = [
         it.points_label
           ? `<strong style="color:${GOLD};font-weight:700;">${esc(it.points_label)}</strong>`
           : '',
         it.event_label ? esc(it.event_label) : '',
-        it.deadline ? esc(it.deadline) : '',
       ]
         .filter(Boolean)
         .join(' &middot; ')
+      const deadlinePill = it.deadline
+        ? `<p style="margin:8px 0 0;">${goldPill(it.deadline)}</p>`
+        : ''
       const blurb = it.blurb
         ? `<p style="margin:7px 0 0;font-family:${FONT_BODY};font-size:13px;line-height:1.5;color:${BODY};">${esc(it.blurb)}</p>`
         : ''
@@ -382,6 +391,7 @@ function renderTopExperiences(items: TopExperienceItem[] | null, origin: string)
             <p style="margin:0 0 4px;font-family:${FONT_UI};font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:${PURPLE};font-weight:700;">${esc(it.program_label)}</p>
             <h3 style="margin:0 0 7px;font-family:${FONT_DISPLAY};font-size:18px;line-height:1.3;color:${BODY};font-weight:700;">${title}</h3>
             <p style="margin:0;font-family:${FONT_BODY};font-size:13px;line-height:1.5;color:${MUTED};">${meta}</p>
+            ${deadlinePill}
             ${blurb}
             ${auction}
             ${cta}
@@ -395,7 +405,7 @@ function renderTopExperiences(items: TopExperienceItem[] | null, origin: string)
     : 'Use your points and card perks for access you cannot otherwise book.'
   // Full-width soft-purple band so this section pops as the aspirational one.
   return `
-    <tr><td style="padding:34px 30px 30px;background:${TINT};">
+    <tr><td style="padding:40px 30px 34px;background:${TINT};">
       ${sectionHeading('Beyond Flights &amp; Hotels', '10px')}
       <p style="margin:0 0 16px;font-family:${FONT_BODY};font-size:13px;line-height:1.55;color:${MUTED};">${intro}</p>
       ${cards}
@@ -441,7 +451,7 @@ function renderJillsTake(html: string | null | undefined): string {
   // paragraphs don't run together (email clients zero out default margins).
   const inner = raw.replace(/<p>/gi, '<p style="margin:0 0 14px;">')
   return `
-    <tr><td style="padding:28px 28px 8px;">
+    <tr><td style="padding:36px 30px 8px;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:${SOFT_BG};border:1px solid ${GOLD};border-radius:12px;">
         <tr><td style="padding:24px 28px 22px;text-align:center;">
           <table role="presentation" align="center" cellspacing="0" cellpadding="0" border="0" style="margin:0 auto 18px;">
