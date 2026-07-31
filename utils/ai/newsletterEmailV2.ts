@@ -92,13 +92,18 @@ function bodyHtml(raw: string | null | undefined): string {
  * accent, replacing the flat gray eyebrows so each section stands out and
  * reads as branded. `title` may contain pre-escaped HTML entities.
  */
-function sectionHeading(title: string, mb = '14px'): string {
+function sectionHeading(title: string, mb = '16px'): string {
+  // Option B: a short gold rule above a Playfair serif title in brand purple.
+  // Gold bar is its own small table so it stays 52px wide (not full width);
+  // title sits on its own line below. Georgia is the serif fallback in clients
+  // that don't load Playfair.
   return `
-      <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 ${mb};">
-        <tr><td style="border-bottom:3px solid ${GOLD};padding-bottom:6px;">
-          <span style="font-family:${FONT_UI};font-size:13px;letter-spacing:1.4px;text-transform:uppercase;color:${PURPLE};font-weight:800;">${title}</span>
-        </td></tr>
-      </table>`
+      <div style="margin:0 0 ${mb};">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr>
+          <td width="52" height="3" style="background:${GOLD};width:52px;height:3px;font-size:0;line-height:0;mso-line-height-rule:exactly;">&nbsp;</td>
+        </tr></table>
+        <div style="padding-top:10px;font-family:${FONT_DISPLAY};font-size:23px;line-height:1.25;font-weight:800;color:${PURPLE};">${title}</div>
+      </div>`
 }
 
 function renderGame(game: NewsletterSlots['game'], origin: string): string {
