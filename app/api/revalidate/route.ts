@@ -29,6 +29,10 @@ export async function POST(req: NextRequest) {
   revalidatePath('/cards')
   revalidatePath('/cards/[slug]', 'page')
 
+  // Experiences finder (live listings) + detail pages
+  revalidatePath('/experiences')
+  revalidatePath('/experiences/[slug]', 'page')
+
   return NextResponse.json({
     revalidated: true,
     paths: [
@@ -38,6 +42,8 @@ export async function POST(req: NextRequest) {
       '/daily-brief/[date]',
       '/cards',
       '/cards/[slug]',
+      '/experiences',
+      '/experiences/[slug]',
       ...PROGRAM_SLUGS.map((s) => `/programs/${s}`),
     ],
     timestamp: new Date().toISOString(),

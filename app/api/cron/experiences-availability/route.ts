@@ -14,7 +14,7 @@ import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createAdminClient } from '@/utils/supabase/server'
 import { assertCron } from '@/lib/auth/cron'
-import { runAvailabilitySweep } from '@/utils/experiences/checkListingAvailability'
+import { runAvailabilitySweep, archiveClosedWindowListings } from '@/utils/experiences/checkListingAvailability'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
@@ -33,7 +33,11 @@ async function handle(request: Request) {
     const supabase = createAdminClient()
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
     const result = await runAvailabilitySweep(supabase, anthropic, { limit: 40, concurrency: 6 })
-    return NextResponse.json({ ok: true, ...result })
+    // After refreshing sold_out, retire listings whose booking window has closed
+    // (drop deadline passed + corroborated), so a dead flash-drop stops showing
+    // as available even though its event date is still in the future.
+    const windowClosedArchived = await archiveClosedWindowListings(supabase)
+    return NextResponse.json({ ok: true, ...result, windowClosedArchived })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('[experiences-availability] failed:', message)

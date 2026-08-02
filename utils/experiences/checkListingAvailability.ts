@@ -109,6 +109,30 @@ interface SweepRow {
 }
 
 /**
+ * Archive active listings whose ACQUISITION WINDOW has closed — the booking/drop
+ * deadline passed even though the event itself may be weeks out (e.g. a Marriott
+ * "1-Point Drop" that sold out and closed on July 28 but whose concert is Aug 14).
+ * The watch only archives on event-passed, so these lingered as "available".
+ *
+ * Deliberately conservative so a wrong Haiku-guessed close date never hides a live
+ * listing: only archive when the past close date is corroborated — the listing is
+ * sold_out, OR the close date was scraped from the detail page (marriott-detail),
+ * not guessed. Returns the number archived.
+ */
+export async function archiveClosedWindowListings(supabase: SupabaseClient): Promise<number> {
+  const nowIso = new Date().toISOString()
+  const { data, error } = await supabase
+    .from('experience_listings')
+    .update({ status: 'archived', status_reason: 'window_closed', updated_at: nowIso })
+    .eq('status', 'active')
+    .lt('close_date', nowIso) // null close_date is excluded by .lt automatically
+    .or('sold_out.eq.true,close_date_confidence.eq.marriott-detail')
+    .select('id')
+  if (error) throw new Error(`archiveClosedWindowListings failed: ${error.message}`)
+  return data?.length ?? 0
+}
+
+/**
  * Re-check availability for a batch of active redeem/access listings, oldest-
  * checked first, and update sold_out. Bounded per run (LIMIT) with a small
  * concurrency pool so a full catalog sweeps over a few daily runs without
