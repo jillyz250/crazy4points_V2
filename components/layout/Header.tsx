@@ -275,7 +275,10 @@ export default function Header({
               href="/newsletter"
               className="cta-engine-btn rg-tap-target inline-flex items-center whitespace-nowrap rounded-lg px-3.5 py-[0.45rem] font-ui text-[11px] font-bold uppercase tracking-[0.12em] text-[#1A1A1A] md:px-5 md:text-xs"
             >
-              Subscribe
+              {/* "Free" cue on desktop where there's room; compact on mobile so
+                  the header never crowds at ~375px. */}
+              <span className="md:hidden">Newsletter</span>
+              <span className="hidden md:inline">Free Newsletter</span>
             </Link>
 
             {/* Decision Engine — secondary. Compact outline, lg+ only so it can
