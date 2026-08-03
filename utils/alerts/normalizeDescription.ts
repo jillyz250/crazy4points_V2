@@ -21,7 +21,11 @@
  *   description to `marked()` for HTML rendering.
  */
 
-const LABEL_LINE_RE = /^([A-Z][A-Za-z][A-Za-z0-9 \-/&]{2,40}):\s+(.+?)\s*$/
+// Matches a "Label: value" fact line, whether the label is plain (`Discount:`)
+// or already bold-wrapped (`**Discount:**`). Both slip past real markdown
+// bullets and render as an inline wall of text, so we detect either shape and
+// re-emit as proper `- **Label:** value` bullets.
+const LABEL_LINE_RE = /^\*{0,2}([A-Z][A-Za-z][A-Za-z0-9 \-/&]{2,40}):\*{0,2}\s+(.+?)\s*$/
 
 /**
  * Take raw markdown, return cleaned-up markdown with `Label: value`
