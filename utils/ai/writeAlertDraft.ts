@@ -434,8 +434,17 @@ matters), then bolded bullet GROUPS for the details. Prefer bullets over
 sentences for anything list-shaped (tiers, fares, terms, steps, categories,
 partners). Always end with a bolded "**What it means for you:**" bullet
 group carrying the points-and-miles value plus one caveat. Bodies render
-markdown, so use **bold** lead-ins and "- " bullets. Keep it tight; the
-brand voice lives in the lead sentence and the bullet lead-ins.
+markdown, so use **bold** lead-ins and "- " bullets.
+
+BREVITY CAP (hard, not a suggestion): the whole body is SHORT — roughly
+90 to 150 words total. The lead is ONE sentence. Every bullet is ONE line
+(a phrase or a single sentence), NEVER two — if you find yourself on a
+second sentence in a bullet, cut it or split the fact into its own bullet.
+Use 3 to 6 bullets TOTAL across ALL groups combined, and keep the
+"**What it means for you:**" group to 1 or 2 tight bullets, not a dump.
+Do not put a dollar cash-fare valuation in the body. Short and all-true
+beats thorough — the brand voice lives in the lead sentence and the bullet
+lead-ins, not in length.
 
 DO NOT RECAP the title or summary. They said the news. The body goes
 deeper, or says less.
@@ -544,11 +553,19 @@ RULES:
    "rolling out," that shapes para 2, not just para 3.
 7. Program-naming discipline matches summary: only name programs the
    source confirms. Do not swap in "better for US audience" picks.
-8. No headings. No bullet lists. Prose only — EXCEPT for promo-shaped
-   alerts (limited_time_offer, transfer_bonus, status_promo,
-   award_availability, point_purchase), which use a hybrid format with
-   one bulleted "What qualifies" block sandwiched between voicey
-   paragraphs (see PROMO-TERMS COMPLETENESS section).
+8. TIGHT LEAD-PLUS-BULLETS for EVERY alert. Open with ONE short lead
+   sentence (the what + why it matters), then bolded bullets for the
+   details. Do NOT wrap the bullets in prose paragraphs, and do NOT
+   write a prose-only body. Keep the whole thing short and scannable —
+   a lead line and a handful of bullets, not an essay.
+   NEVER write a filler bullet such as "not specified," "not stated,"
+   "unclear," or "verify before it disappears." If you don't have a
+   fact, OMIT that bullet entirely — a shorter, all-true alert beats a
+   padded one every time.
+   Promo-shaped alerts (limited_time_offer, transfer_bonus, status_promo,
+   award_availability, point_purchase) use the "What qualifies" bullets
+   from the PROMO-TERMS COMPLETENESS section — but still as a tight lead
+   line plus bullets, NOT a bullet block sandwiched between prose.
 9. FORBIDDEN stock phrases — these are BANNED, not "discouraged." If
    your draft contains any of these, rewrite the sentence from scratch:
    "The most interesting angle here is…"
@@ -703,9 +720,9 @@ THREE PARTS in this exact order:
          "Chase is offering…" ❌
          "American Airlines just announced…" ❌
        The program name can appear from sentence 2 onward.
-     • Setup MUST be at least 2 sentences. A single fact-headline
-       compressed to one sentence is a regression — the reader-fit
-       hook is the brand voice signature on every promo alert.
+     • Setup is ONE short lead sentence (two at most) — the reader-fit
+       hook that opens on what the reader GETS and who it's for. Keep it
+       tight; the bullets carry the details, so do not pad the setup.
 
   2. "What qualifies" BULLET BLOCK (markdown, scannable)
      • Bold header line: "**What qualifies:**"
@@ -728,19 +745,15 @@ THREE PARTS in this exact order:
        placeholder values like "Not specified" or "TBD" — only verified
        data ships in the description. See GAP DISCIPLINE above.
 
-  3. CLOSE paragraph (prose, voicey)
-     • Strategic angle, urgency, or gotcha that didn't fit in bullets.
-     • Stack callouts ("pair with X card for Y total"), warning
-       ("this is one bonus per member"), or timing reminders.
-     • REQUIRED: include a verdict sentence — "Worth it if X" or
-       "Skip if Y" or "Make sense when Z". One sentence is enough.
-       Promo alerts without a verdict leave the reader guessing
-       whether to act. The verdict can be tonally direct ("Skip
-       unless you have a specific stay booked") or framing-style
-       ("Best for readers who already have an LHW night in mind").
-       Either way, it must be a real recommendation, not a hedge.
-     • ~40-80 words now that the verdict sentence is required.
-       Voice-heavy throughout.
+  3. VERDICT BULLET (a final bullet, NOT a prose paragraph)
+     • End with one final bolded bullet that carries the recommendation:
+       "- **Worth it if:** ..." / "- **Skip unless:** ..." /
+       "- **Bottom line:** ...". This is REQUIRED — a promo alert
+       without a verdict leaves the reader guessing whether to act.
+     • It must be a REAL recommendation, not a hedge, and it folds in the
+       single most useful stacking tip, gotcha, or timing warning that
+       didn't fit above (e.g. "pair with X card," "one bonus per member").
+     • One tight bullet. Do NOT add a trailing prose paragraph after it.
 
 Required fields to consider for the bullet block — by alert type:
 
