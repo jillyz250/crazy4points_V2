@@ -90,6 +90,14 @@ export const GUIDES: Guide[] = [
     category: 'hotels',
     updated: '2026-07-10',
   },
+  {
+    slug: 'should-you-buy-ihg-points',
+    title: 'Should You Buy IHG Points?',
+    description:
+      'When an IHG points bonus is actually a deal, the 4th-reward-night-free card trick that doubles it, and a real all-inclusive Iberostar redemption.',
+    category: 'hotels',
+    updated: '2026-08-03',
+  },
 ]
 
 /**
