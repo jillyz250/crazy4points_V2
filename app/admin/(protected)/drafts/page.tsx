@@ -81,6 +81,7 @@ interface DraftRow {
   updated_at: string | null
   published_at: string | null
   snoozed_until: string | null
+  page_conflict: { field: string; summary: string } | null
 }
 
 function relativeTime(iso: string | null): string {
@@ -235,7 +236,7 @@ async function loadRows(supabase: Supa, view: SmartViewKey, sort: SortBy = 'upda
   let query = supabase
     .from('content_variants')
     .select(
-      'id, topic_id, format, title, status, original_alert_type, start_date, updated_at, published_at, snoozed_until, ' +
+      'id, topic_id, format, title, status, original_alert_type, start_date, updated_at, published_at, snoozed_until, metadata, ' +
       'topics:topics!inner(id, slug, title, end_date, metadata)',
     )
     .limit(200)
@@ -285,11 +286,13 @@ async function loadRows(supabase: Supa, view: SmartViewKey, sort: SortBy = 'upda
     id: string; topic_id: string; format: string; title: string; status: string;
     original_alert_type: string | null; start_date: string | null;
     updated_at: string | null; published_at: string | null; snoozed_until: string | null;
+    metadata: unknown;
     topics: { id: string; slug: string; title: string; end_date: string | null; metadata: unknown } | Array<{ id: string; slug: string; title: string; end_date: string | null; metadata: unknown }>;
   }
   let rows: DraftRow[] = ((rawRows ?? []) as unknown as RawRow[]).map((r) => {
     const t = Array.isArray(r.topics) ? r.topics[0] : r.topics
     const alertId = (t?.metadata as { original_alert_id?: string } | null)?.original_alert_id ?? null
+    const pc = (r.metadata as { page_conflict?: { field?: string; summary?: string } } | null)?.page_conflict ?? null
     return {
       variant_id: r.id as string,
       alert_id: alertId,
@@ -303,6 +306,7 @@ async function loadRows(supabase: Supa, view: SmartViewKey, sort: SortBy = 'upda
       updated_at: r.updated_at as string | null,
       published_at: r.published_at as string | null,
       snoozed_until: r.snoozed_until as string | null,
+      page_conflict: pc && (pc.field || pc.summary) ? { field: pc.field ?? '', summary: pc.summary ?? '' } : null,
     }
   })
 
@@ -507,6 +511,24 @@ export default async function AdminDraftsPage({
                         <Link href={editHref} style={{ color: 'inherit', textDecoration: 'none' }}>
                           {displayTitle}
                         </Link>
+                        {r.page_conflict && (
+                          <div
+                            title={r.page_conflict.summary}
+                            style={{
+                              marginTop: '0.35rem',
+                              padding: '0.3rem 0.5rem',
+                              borderRadius: '6px',
+                              background: 'var(--color-chip-red-bg, #fbeaea)',
+                              color: 'var(--color-chip-red-fg, #991B1B)',
+                              border: '1px solid var(--color-chip-red, #e4b4b4)',
+                              fontSize: '0.72rem',
+                              fontWeight: 500,
+                              lineHeight: 1.35,
+                            }}
+                          >
+                            ⚠ Conflicts with the {r.page_conflict.field.replace(/_/g, ' ')} on its program page — reconcile before publishing. {r.page_conflict.summary}
+                          </div>
+                        )}
                       </td>
                       {/* Primary action — Publish for drafts, Expire for
                           published. Sits right after Title so it's reachable
