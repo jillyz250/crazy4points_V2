@@ -14,6 +14,7 @@ import { buildExtraContext } from '@/utils/ai/buildExtraContext'
 import { loadAllianceContextForPrograms } from '@/utils/supabase/queries'
 import type { WriteDraftProgram } from '@/utils/ai/writeAlertDraft'
 import { writeAlertVariant } from '@/utils/content/writeAlertVariant'
+import { reconcileAlertWithPages } from '@/utils/content/reconcileAlert'
 import { selectAlertViewFromVariants } from '@/utils/content/alertView'
 
 export interface DraftFromIntelResult {
@@ -107,6 +108,7 @@ export async function draftAlertFromIntel(
   const slug = existingTopic?.slug ?? `intel-${intelId.slice(0, 8)}-${Date.now()}`
 
   let alertId: string
+  let variantId: string
   try {
     const result = await writeAlertVariant(supabase, {
       id: existingAlertId ?? undefined,
@@ -132,6 +134,7 @@ export async function draftAlertFromIntel(
       voice_score: wec.voice?.score ?? null,
     })
     alertId = result.alert_id
+    variantId = result.variant_id
   } catch (err) {
     const msg = (err instanceof Error ? err.message : String(err)).slice(0, 1000)
     try {
@@ -143,6 +146,45 @@ export async function draftAlertFromIntel(
       })
     } catch {}
     return { ok: false, error: msg }
+  }
+
+  // 6.5) Reconcile the drafted alert against its program page(s). If the alert
+  //      contradicts a page's structured facts (transfer ratios, award chart,
+  //      welcome bonus, quirks), flag it on the variant so the editor resolves
+  //      which side is wrong BEFORE publishing. Never auto-overwrites. Non-fatal.
+  try {
+    const conflict = await reconcileAlertWithPages(supabase, {
+      alertId,
+      title: wec.draft.title,
+      body: wec.draft.description ?? wec.draft.summary,
+      programs: allProgramSlugs,
+    })
+    if (conflict) {
+      const { data: vrow } = await supabase
+        .from('content_variants')
+        .select('metadata')
+        .eq('id', variantId)
+        .single()
+      await supabase
+        .from('content_variants')
+        .update({
+          metadata: {
+            ...((vrow?.metadata as Record<string, unknown>) ?? {}),
+            page_conflict: {
+              field: conflict.conflict_field,
+              summary: conflict.conflict_summary,
+              alert_says: conflict.conflict_intel_claim,
+              page_says: conflict.conflict_program_text,
+              program_id: conflict.conflicts_program_id,
+              detected_at: new Date().toISOString(),
+            },
+          },
+        })
+        .eq('id', variantId)
+      console.warn(`[draftFromIntel] page conflict flagged on ${alertId}: ${conflict.conflict_field} — ${conflict.conflict_summary?.slice(0, 120)}`)
+    }
+  } catch (err) {
+    console.error('[draftFromIntel] page reconciliation failed (non-fatal):', err)
   }
 
   // 7) Mark intel processed + linked
