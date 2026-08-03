@@ -91,11 +91,31 @@ export const EXPERIENCE_PROGRAMS: ExperienceProgram[] = [
     list_urls: ['https://www.citientertainment.com'],
     complete: true,
   },
+  // Points-redeemable HOTEL experience catalogs. Both render a full, structured
+  // catalog on their dedicated experience subdomains (verified live) — the
+  // earlier "no catalog" test mistakenly hit their marketing landing pages
+  // (hyatt.com/find, all.accor.com) instead. Curated subsets (complete:false):
+  // large, rotating, region-weighted catalogs, so we use the stale rule rather
+  // than auto-closing listings that rotate off a page. Both skew international.
+  {
+    program_slug: 'hyatt',
+    directory_slug: 'world-of-hyatt-find',
+    source_platform: 'World of Hyatt FIND',
+    list_urls: ['https://experiences.hyatt.com/'],
+    complete: false,
+  },
+  {
+    program_slug: 'accor',
+    directory_slug: 'accor-all-experiences',
+    source_platform: 'ALL Limitless Experiences',
+    list_urls: ['https://limitlessexperiences.accor.com/all-experiences-hub'],
+    complete: false,
+  },
   // Tested but NOT added (parse zero / marketing pages, flagged by scraper health):
   // Flying Blue (flyingblue.com spend-miles), Bilt (biltrewards.com homepage),
   // Capital One (capitalone.com/entertainment). Emirates/Qatar/Virgin-Red/
-  // Miles&More/Choice/Atmos: 1-2 or messy. IHG/Hyatt/Aeroplan/Qantas/BA/Accor:
-  // blocked or landing pages, no catalog. All stay guide-only in the directory.
+  // Miles&More/Choice/Atmos: 1-2 or messy. IHG/Aeroplan/Qantas/BA: blocked or
+  // landing pages, no catalog. All stay guide-only in the directory.
 ]
 
 interface ParsedListing {
