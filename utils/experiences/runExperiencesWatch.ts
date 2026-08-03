@@ -108,7 +108,16 @@ export const EXPERIENCE_PROGRAMS: ExperienceProgram[] = [
     program_slug: 'accor',
     directory_slug: 'accor-all-experiences',
     source_platform: 'ALL Limitless Experiences',
-    list_urls: ['https://limitlessexperiences.accor.com/all-experiences-hub'],
+    // Individual experiences live on the category LISTING pages, not the hub —
+    // the hub only shows category tiles (which parsed as junk). Scrape the four
+    // experience categories; deliberately skip the points-SHOPPING portal
+    // (electronics/fashion/home/etc.), which is retail, not experiences.
+    list_urls: [
+      'https://limitlessexperiences.accor.com/passion-sports',
+      'https://limitlessexperiences.accor.com/entertainment',
+      'https://limitlessexperiences.accor.com/passion-travel',
+      'https://limitlessexperiences.accor.com/accor-taste',
+    ],
     complete: false,
   },
   // Tested but NOT added (parse zero / marketing pages, flagged by scraper health):
