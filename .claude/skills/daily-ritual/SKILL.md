@@ -32,18 +32,26 @@ It prints every queue count (matching the dashboard "Your day" board), brief sta
 
 **If the `!! QUERY PROBLEM(S)` block prints at the bottom, STOP and fix it before building the table** — a failed query renders as an empty queue, which looks exactly like "all clear." (This is not hypothetical: on 2026-07-17 two swallowed column errors produced a table that recommended publishing an already-published alert. The script now surfaces every error; never ignore that block.)
 
-### Step 1 — one decision table (most important first)
-From the snapshot, build **ONE table** covering the actionable queues: pending drafts, intel to triage, transfer-data changes, **welcome-bonus changes**, prose-to-recheck, and the **refresh queue** (surface the oldest few due — re-verify or page-note candidates). Columns: **Item · What it is · My recommendation**. Order by leverage (a hot publishable deal beats a stale housekeeping flag; the refresh-queue backlog sits near the bottom unless something's badly overdue). For each row recommend exactly one of: **publish** (verify first), **page-note** (fold into a program/card page as a detail), **reject** (with reason), **snooze**, or **hold**.
+### Step 1 — verify the shortlist, THEN build one decision table
+From the snapshot, pick the chart-worthy candidates across the actionable queues: pending drafts, intel to triage, transfer-data changes, **welcome-bonus changes**, prose-to-recheck, and the **refresh queue** (surface the oldest few due). **Verify each candidate against its official issuer/program source BEFORE you build the chart** (Step 1b is the how) — never present a chart of unverified claims. Then build **ONE table**, ordered by leverage.
+
+Columns: **Item · What it is · Verified · Page status · My rec · Social?**
+- **Verified** — ✅ confirmed against the official source, or ⚠️ can't verify (targeted/personalized offer, or source unreachable). An unverifiable item cannot publish as a general alert.
+- **Page status** — once verified, does the tied program/card page already reflect it? **✅ accurate**, **✍️ needs updating** (name the field), or **—** (n/a). Fixing the page is part of publishing the alert ([[feedback_cross_check_alerts_vs_program_pages]]).
+- **My rec** — exactly one of **publish**, **page-note** (fold into a program/card page as a detail), **reject** (with reason), **snooze**, or **hold**.
+- **Social?** — flag the ONE item (occasionally two) worth a social post today, with a one-line *why it'll engage* + *our value-add*. We always want a daily social post; the flag names the best candidate and the angle, not just "yes." Blank for the rest. ([[feedback_facebook_happy_news]], facebook-post skill.)
+
+Order by leverage (a hot publishable deal beats a stale housekeeping flag; the refresh-queue backlog sits near the bottom unless something's badly overdue).
 
 **Never recommend work that's already done. The snapshot pre-checks this — USE its markers:**
 - **`[DUPE nn%]` / `[similar nn%]` on a draft** → the story is already **published** or was **archived/rejected/manual_delete**'d. Never recommend publishing a DUPE — recommend **reject (duplicate)**. For `similar`, read the match: a prior `rejected`/`manual_delete` on the same *kind* of story is precedent to reject; a different program may still be genuinely new (judgment call — say so).
 - **`<<ALREADY ON PAGE?>>` on a change signal** → the fact is already on that program page. Recommend **dismiss**, not page-note. Confirm on the page first (the check is fuzzy).
 - **Before ANY page-note**, confirm the target page/card actually exists and doesn't already say it. Pure cash-back cards are deliberately NOT carried ([[feedback_verify_transferability_per_card]]) — a bonus on one is a **reject**, not a page-note.
 
-Jill decides down the list; you execute — verify each keeper against issuer sources, edit to her brand voice, publish. Quality over clearing the pile.
+Jill decides down the list; you execute — edit to her brand voice, fix any **✍️ needs-updating** pages, publish. Quality over clearing the pile.
 
-### Step 1b — HOW to verify a keeper (before anything publishes)
-Verification happens **at publish time, not at ingest** — most intel gets rejected, so verifying everything is waste. But every keeper gets this, the same way each time. (Codified 2026-07-17 from the Accor verification, which found three real errors in a live alert.)
+### Step 1b — HOW to verify (run this on the shortlist, BEFORE the chart)
+Verify the **chart-worthy candidates**, not every raw intel item — most intel gets rejected, so verifying everything is waste, but anything you'd put on the chart gets verified first (that's what fills the **Verified** column). Same method every time. (Codified 2026-07-17 from the Accor verification, which found three real errors in a live alert; verify-before-chart + the Verified/Page-status columns added 2026-08-03 at Jill's request.)
 
 1. **Never verify from a blog or aggregator.** They contradict themselves: LoyaltyLobby's body said the Accor promo ran to Sept 14 while its own URL slug said Sept 13. The official page said Sept 13. Blogs are a *tip*, never the source ([[feedback_official_source_first]], [[feedback_card_data_issuer_source_only]]).
 2. **A forwarded email's `source_url` is a tracking blob** (`click.emails.*/?qs=...`) that resolves to a homepage or login, not terms. Don't cite it and don't try to verify from it.
