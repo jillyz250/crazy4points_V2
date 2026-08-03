@@ -43,9 +43,10 @@ export default function PrivacyPolicyPage() {
           ],
         },
         {
-          heading: '4. Google Consent Mode & Analytics',
+          heading: '4. Analytics, Advertising & Consent',
           content: [
             'We use Google Analytics and Google Consent Mode to respect user consent preferences. Consent Mode adjusts analytics behavior, advertising cookies, and measurement signals. We do not use Google signals for personalized ads.',
+            'We also use the Meta (Facebook) Pixel to measure how our content performs and to support advertising. The Meta Pixel loads only after you accept cookies through our banner; if you decline, it is not loaded and no data is shared with Meta. Because this involves sharing information with Meta for cross-context behavioral advertising, California residents can opt out as described in Section 5.',
           ],
         },
         {

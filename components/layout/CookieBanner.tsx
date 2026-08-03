@@ -23,12 +23,16 @@ export default function CookieBanner() {
     localStorage.setItem("c4p_cookie_consent", "accepted");
     setConsent("accepted");
     setVisible(false);
+    // Tell ConsentScripts to grant Google consent + load the Meta pixel now.
+    window.dispatchEvent(new Event("c4p-consent-accepted"));
   };
 
   const handleDecline = () => {
     localStorage.setItem("c4p_cookie_consent", "declined");
     setConsent("declined");
     setVisible(false);
+    // Keep everything off; ConsentScripts re-affirms Google consent = denied.
+    window.dispatchEvent(new Event("c4p-consent-declined"));
   };
 
   if (!visible || consent !== null) return null;

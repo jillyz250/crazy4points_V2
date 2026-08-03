@@ -31,7 +31,7 @@ export default function CookiePolicyPage() {
             'B. Analytics & Performance Cookies — Used to understand how visitors use the Site, including page views, click events, traffic sources, and device information. We use Google Analytics with Google Consent Mode to respect user preferences.',
             'C. Affiliate Tracking Cookies — When you click affiliate links, a cookie may be placed to attribute referrals, track conversions, and confirm commissions. These do not directly identify you personally to us.',
             'D. Preference Cookies — These remember your choices such as cookie consent settings and display preferences.',
-            'E. Advertising & Measurement Cookies (Optional) — We do not currently use personalized advertising cookies. If this changes, we will update this Policy and request consent.',
+            'E. Advertising & Measurement Cookies (Optional) — We use the Meta (Facebook) Pixel to measure how our content performs and, where applicable, to support advertising. These cookies are only set after you accept cookies through our banner. If you decline, the Meta Pixel is not loaded and no data is sent to Meta.',
           ],
         },
         {
@@ -50,7 +50,7 @@ export default function CookiePolicyPage() {
         {
           heading: '5. Third Party Cookies',
           content: [
-            'Third party services may set cookies when you interact with the Site. These include Google Analytics, affiliate networks, and future embedded content providers. We do not control third party cookies and recommend reviewing their privacy policies.',
+            'Third party services may set cookies when you interact with the Site. These include Google Analytics, the Meta (Facebook) Pixel, affiliate networks, and future embedded content providers. We do not control third party cookies and recommend reviewing their privacy policies.',
           ],
         },
         {
@@ -70,6 +70,7 @@ export default function CookiePolicyPage() {
               rows: [
                 ['_ga', 'Analytics (Google Analytics)', "2 years"],
                 ['_gid', 'Analytics (Google Analytics)', "24 hours"],
+                ['_fbp', 'Advertising & measurement (Meta Pixel), set only after consent', "3 months"],
                 ['affiliate_click_id', 'Affiliate attribution', "Varies by network"],
               ],
             },
