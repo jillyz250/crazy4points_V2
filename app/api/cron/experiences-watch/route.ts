@@ -30,8 +30,15 @@ async function handle(request: Request) {
   if (denied) return denied
   try {
     const supabase = createAdminClient()
+    // Optional `?program=<slug>` filter — run a single program instead of all.
+    // Used to re-scrape one catalog after a config fix without re-running the
+    // whole (expensive) sweep. Omit for the normal daily all-programs run.
+    const only = new URL(request.url).searchParams.get('program')
+    const programs = only
+      ? EXPERIENCE_PROGRAMS.filter((p) => p.program_slug === only)
+      : EXPERIENCE_PROGRAMS
     const results = []
-    for (const program of EXPERIENCE_PROGRAMS) {
+    for (const program of programs) {
       try {
         results.push(await runExperiencesWatch(supabase, program))
       } catch (err) {
