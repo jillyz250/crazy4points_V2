@@ -3,6 +3,7 @@ import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
 import { playfair, lato, montserrat } from "@/lib/fonts";
 import { SITE_URL } from "@/lib/constants";
+import ConsentScripts from "@/components/layout/ConsentScripts";
 import "@/styles/globals.css";
 
 export const metadata: Metadata = {
@@ -70,24 +71,33 @@ export default function RootLayout({
         {`
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments);}
+          window.gtag = gtag;
+          // Consent Mode default (strict / GDPR opt-in): DENIED until the
+          // visitor accepts. Set BEFORE config so GA4 honors it. Returning
+          // visitors who already accepted upgrade to granted immediately, so
+          // they don't flash through cookieless mode.
+          var __c4p_consent = null;
+          try { __c4p_consent = localStorage.getItem('c4p_cookie_consent'); } catch (e) {}
+          var __c4p_granted = __c4p_consent === 'accepted';
+          gtag('consent', 'default', {
+            ad_storage: __c4p_granted ? 'granted' : 'denied',
+            ad_user_data: __c4p_granted ? 'granted' : 'denied',
+            ad_personalization: __c4p_granted ? 'granted' : 'denied',
+            analytics_storage: __c4p_granted ? 'granted' : 'denied',
+          });
           gtag('js', new Date());
           gtag('config', '${process.env.NEXT_PUBLIC_GA4_ID}');
         `}
       </Script>
-      {/* Meta (Facebook) Pixel — loaded the same way as GA4 above. */}
-      <Script id="meta-pixel" strategy="afterInteractive">
-        {`
-          !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
-          fbq('init', '1576322157284881');
-          fbq('track', 'PageView');
-        `}
-      </Script>
+      {/*
+        Meta (Facebook) Pixel is NOT loaded here. It is injected by
+        <ConsentScripts /> only after the visitor explicitly accepts cookies,
+        so Facebook's script is never even fetched for non-consenting visitors.
+        No noscript fallback: it cannot be consent-gated without JS, so firing
+        it unconditionally would defeat the opt-in model.
+      */}
       <body className="min-h-full flex flex-col bg-[var(--color-background)] text-[var(--color-text-primary)]">
-        {/* Meta Pixel noscript fallback */}
-        <noscript>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img height="1" width="1" style={{ display: 'none' }} alt="" src="https://www.facebook.com/tr?id=1576322157284881&ev=PageView&noscript=1" />
-        </noscript>
+        <ConsentScripts />
         {children}
         <Analytics />
       </body>
