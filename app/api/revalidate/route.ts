@@ -15,6 +15,9 @@ export async function POST(req: NextRequest) {
   }
 
   // Revalidate all alert and content paths
+  revalidatePath('/')            // home page (hot alert bar) — so a freshly
+                                 // published is_hot alert appears in the bar
+                                 // immediately instead of on the next 300s ISR
   revalidatePath('/alerts')
   revalidatePath('/alerts/[slug]', 'page')
   revalidatePath('/daily-brief')
