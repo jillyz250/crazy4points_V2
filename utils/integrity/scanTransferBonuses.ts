@@ -143,6 +143,22 @@ export async function scanTransferBonuses(supabase: SupabaseClient): Promise<Tra
     anySourceOk = true
     const bonuses = await extractBonuses(res.markdown, currencies, partners)
     for (const b of bonuses) {
+      // Transfer-pair validity guard. Both slugs already exist in our system
+      // (extractBonuses enforces that), but that does NOT mean the currency
+      // actually transfers to that partner. LLM extraction from dense
+      // multi-program bonus lists (Frequent Miler etc.) can cross-wire rows —
+      // e.g. pairing "Chase" from the real Chase->IHG bonus with "Qantas" from a
+      // separate Rove->Qantas bonus, inventing a Chase->Qantas bonus that can't
+      // exist (Qantas is not a Chase transfer partner). Drop any pair that is
+      // not a real outbound edge for that currency.
+      const outbound = outboundByCurrency.get(b.currency_slug)
+      const isRealEdge = !!outbound?.some((r) => r.from_slug === b.partner_slug)
+      if (!isRealEdge) {
+        console.warn(
+          `[scanTransferBonuses] dropped cross-wired pair ${b.currency_slug} -> ${b.partner_slug} (not a real transfer edge)`,
+        )
+        continue
+      }
       const edge = `${b.currency_slug}|${b.partner_slug}`
       webEdges.add(edge)
       // Already flagged active in our data → nothing to do.
