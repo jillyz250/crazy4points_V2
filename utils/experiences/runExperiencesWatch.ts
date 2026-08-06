@@ -152,6 +152,9 @@ interface ParsedListing {
   location: string | null
   event_date: string | null
   detail_url: string | null
+  // Some platforms (e.g. Atmos) keep finished auctions visible with their
+  // winning bid. `ended` lets us mark those closed instead of showing "active".
+  ended?: boolean
 }
 
 export interface WatchResult {
@@ -191,7 +194,7 @@ async function parseChunk(anthropic: Anthropic, chunk: string, program: Experien
     messages: [
       {
         role: 'user',
-        content: `Extract every distinct experience listing in this fragment of a ${program.source_platform} page. Return ONLY a JSON array; one object per listing with exactly these keys: {"title":string,"points":int|null (current bid or redeem points; null if it is cardmember access/presale paid with cash),"format":"bid"|"redeem"|"access" ("access" = cardmember presale/access bought with a card, not points),"category":string|null (music/sports/entertainment/etc),"location":string|null,"event_date":string|null,"detail_url":string|null (the listing's own page URL if present)}. Skip navigation, footer, category headers, and promo banners. If the fragment has no listings, return [].\n\n${chunk}`,
+        content: `Extract every distinct experience listing in this fragment of a ${program.source_platform} page. Return ONLY a JSON array; one object per listing with exactly these keys: {"title":string,"points":int|null (current bid or redeem points; null if it is cardmember access/presale paid with cash),"format":"bid"|"redeem"|"access" ("access" = cardmember presale/access bought with a card, not points),"category":string|null (music/sports/entertainment/etc),"location":string|null,"event_date":string|null,"detail_url":string|null (the listing's own page URL if present),"ended":boolean (true if this listing shows it has FINISHED - e.g. "Auction ended", "Winning Bid", "View history", "Sold Out", or a clearly past deadline - else false)}. Skip navigation, footer, category headers, and promo banners. If the fragment has no listings, return [].\n\n${chunk}`,
       },
     ],
   })
@@ -511,8 +514,8 @@ export async function runExperiencesWatch(
       points_required: !isBid ? l.points ?? null : null,
       event_date: l.event_date ?? null,
       raw_listing_blob: l,
-      status: 'active',
-      status_reason: null,
+      status: l.ended ? 'closed' : 'active',
+      status_reason: l.ended ? 'auction_ended' : null,
       last_seen_at: now,
       last_checked_at: now,
       updated_at: now,
