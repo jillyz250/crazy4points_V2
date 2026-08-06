@@ -120,10 +120,27 @@ export const EXPERIENCE_PROGRAMS: ExperienceProgram[] = [
     ],
     complete: false,
   },
+  {
+    program_slug: 'atmos',
+    directory_slug: 'atmos-rewards-experiences',
+    source_platform: 'Atmos Rewards Unlocked',
+    // Alaska + Hawaiian combined program. Auctions + fixed-price experiences live
+    // on a dedicated SPA host (unlocked.atmosrewards.com); the public
+    // atmosrewards.com/auctions route is only a shell that never renders listings
+    // (the earlier "messy" Atmos test hit that shell). Scrape all three "kind"
+    // views: auction (bid), buy (Events & Travel), book (Experiences). Rotating
+    // monthly catalog with historical/ended auctions kept visible -> complete:false.
+    list_urls: [
+      'https://unlocked.atmosrewards.com/listings?kind=auction',
+      'https://unlocked.atmosrewards.com/listings?kind=buy',
+      'https://unlocked.atmosrewards.com/listings?kind=book',
+    ],
+    complete: false,
+  },
   // Tested but NOT added (parse zero / marketing pages, flagged by scraper health):
   // Flying Blue (flyingblue.com spend-miles), Bilt (biltrewards.com homepage),
   // Capital One (capitalone.com/entertainment). Emirates/Qatar/Virgin-Red/
-  // Miles&More/Choice/Atmos: 1-2 or messy. IHG/Aeroplan/Qantas/BA: blocked or
+  // Miles&More/Choice: 1-2 or messy. IHG/Aeroplan/Qantas/BA: blocked or
   // landing pages, no catalog. All stay guide-only in the directory.
 ]
 
