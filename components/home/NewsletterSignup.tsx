@@ -14,7 +14,6 @@ import { track } from '@/lib/analytics'
 export default function NewsletterSignup({ isPrimary = false }: { isPrimary?: boolean }) {
   const [email, setEmail] = useState('')
   const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
   const [website, setWebsite] = useState('')
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [message, setMessage] = useState('')
@@ -28,7 +27,7 @@ export default function NewsletterSignup({ isPrimary = false }: { isPrimary?: bo
     const res = await fetch('/api/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, firstName, lastName, website, source: 'homepage_hero', referrerPath }),
+      body: JSON.stringify({ email, firstName, website, source: 'homepage_hero', referrerPath }),
     })
 
     const data = await res.json()
@@ -39,7 +38,6 @@ export default function NewsletterSignup({ isPrimary = false }: { isPrimary?: bo
       track('newsletter_signup', { surface: 'home' })
       setEmail('')
       setFirstName('')
-      setLastName('')
     } else {
       setStatus('error')
       setMessage(data.error || 'Something went wrong. Please try again.')
@@ -82,23 +80,14 @@ export default function NewsletterSignup({ isPrimary = false }: { isPrimary?: bo
             </label>
           </div>
           <div className="flex flex-col gap-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <input
-                type="text"
-                placeholder="First name"
-                value={firstName}
-                onChange={e => setFirstName(e.target.value)}
-                required
-                className="w-full rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-4 py-3 font-body text-base text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
-              />
-              <input
-                type="text"
-                placeholder="Last name (optional)"
-                value={lastName}
-                onChange={e => setLastName(e.target.value)}
-                className="w-full rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-4 py-3 font-body text-base text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
-              />
-            </div>
+            <input
+              type="text"
+              placeholder="First name (optional)"
+              value={firstName}
+              onChange={e => setFirstName(e.target.value)}
+              autoComplete="given-name"
+              className="w-full rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-4 py-3 font-body text-base text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+            />
             <div className="flex flex-col gap-3 sm:flex-row">
               <input
                 type="email"

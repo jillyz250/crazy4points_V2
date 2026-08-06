@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { GuideDateline } from '@/components/guides/GuideDateline'
+import GuideNewsletterCTA from '@/components/guides/GuideNewsletterCTA'
 import { TRAVELER_TYPES, type Pick } from '@/lib/travelerTypes'
 
 export const metadata: Metadata = {
@@ -138,6 +139,7 @@ export default function BestFirstCardGuide() {
             </Link>
           </div>
         </div>
+        <GuideNewsletterCTA />
       </div>
     </main>
   )

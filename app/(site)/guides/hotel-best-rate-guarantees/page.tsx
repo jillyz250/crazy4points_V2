@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { GuideDateline } from '@/components/guides/GuideDateline'
+import GuideNewsletterCTA from '@/components/guides/GuideNewsletterCTA'
 
 export const metadata: Metadata = {
   title: 'Hotel & Travel-Portal Best Rate Guarantees — The 2026 Guide',
@@ -172,6 +173,7 @@ export default function BestRateGuaranteeGuide() {
           chains can change at any time. Not affiliated with any hotel or travel company. Questions? See our{' '}
           <Link href="/programs" style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>hotel program pages</Link>.
         </p>
+        <GuideNewsletterCTA />
       </div>
     </main>
   )

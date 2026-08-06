@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { GuideDateline } from '@/components/guides/GuideDateline'
+import GuideNewsletterCTA from '@/components/guides/GuideNewsletterCTA'
 
 export const metadata: Metadata = {
   title: 'How to Actually Win a Hotel Best Rate Guarantee — Tips From the Fine Print',
@@ -146,6 +147,7 @@ export default function HowToWinBestRateGuarantee() {
           all of them are linked in our{' '}
           <Link href="/guides/hotel-best-rate-guarantees" style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>Best Rate Guarantee guide</Link>. This article is general information, not a guarantee of approval, and we&rsquo;re not affiliated with any hotel or travel company.
         </Callout>
+        <GuideNewsletterCTA />
       </div>
     </main>
   )
