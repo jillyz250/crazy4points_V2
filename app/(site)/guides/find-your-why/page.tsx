@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { GuideDateline } from '@/components/guides/GuideDateline'
 import WhyQuiz from '@/components/guides/WhyQuiz'
 
 export const metadata: Metadata = {
@@ -15,6 +16,7 @@ export const metadata: Metadata = {
     type: 'article',
     siteName: 'crazy4points',
   },
+  twitter: { card: 'summary_large_image' },
 }
 
 export const revalidate = 86400
@@ -44,6 +46,7 @@ export default function FindYourWhyGuide() {
         <h1 className="font-display text-3xl font-semibold text-[var(--color-primary)] md:text-4xl">
           What Kind of Points Traveler Are You?
         </h1>
+        <GuideDateline slug="find-your-why" />
 
         <p className="mt-4 font-body text-lg text-[var(--color-text-secondary)]">{INTRO}</p>
         <p className={p}>

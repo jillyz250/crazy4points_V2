@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { GuideDateline } from '@/components/guides/GuideDateline'
 
 export const metadata: Metadata = {
   title: 'Hotel & Travel-Portal Best Rate Guarantees — The 2026 Guide',
@@ -14,6 +15,7 @@ export const metadata: Metadata = {
     type: 'article',
     siteName: 'crazy4points',
   },
+  twitter: { card: 'summary_large_image' },
 }
 
 export const revalidate = 86400
@@ -94,6 +96,7 @@ export default function BestRateGuaranteeGuide() {
         <h1 className="font-display text-3xl font-semibold text-[var(--color-primary)] md:text-4xl">
           Hotel &amp; Travel-Portal Best Rate Guarantees
         </h1>
+        <GuideDateline slug="hotel-best-rate-guarantees" />
         <p className="mt-4 font-body text-lg text-[var(--color-text-secondary)]">
           A plain-English map of the top hotel and travel-portal &ldquo;best rate / price match&rdquo; guarantees —
           who has one, what you actually get, and how to win a claim. We checked <strong>27 hotel programs</strong> and

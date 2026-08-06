@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { GuideDateline } from '@/components/guides/GuideDateline'
 
 export const metadata: Metadata = {
   title: 'Should You Buy IHG Points? (And the 4th-Night Trick That Makes Them Pay Off)',
@@ -14,6 +15,7 @@ export const metadata: Metadata = {
     type: 'article',
     siteName: 'crazy4points',
   },
+  twitter: { card: 'summary_large_image' },
 }
 
 export const revalidate = 86400
@@ -73,6 +75,7 @@ export default function BuyIhgPointsGuide() {
         <h1 className="font-display text-3xl font-semibold text-[var(--color-primary)] md:text-4xl">
           Should You Buy IHG Points?
         </h1>
+        <GuideDateline slug="should-you-buy-ihg-points" />
         <p className="mt-4 font-body text-lg text-[var(--color-text-secondary)]">
           {'IHG discounts its points often, frequently at 100%, twice the points for the same money. That makes them one of the cheaper hotel currencies to stock up on. But a sale is only a deal if you already know what you are booking.'}
         </p>

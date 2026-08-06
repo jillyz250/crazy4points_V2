@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { GuideDateline } from '@/components/guides/GuideDateline'
 
 export const metadata: Metadata = {
   title: "Having Trouble Adding Your Card to Paze? You're Not Alone",
@@ -14,6 +15,7 @@ export const metadata: Metadata = {
     type: 'article',
     siteName: 'crazy4points',
   },
+  twitter: { card: 'summary_large_image' },
 }
 
 export const revalidate = 86400
@@ -40,6 +42,7 @@ export default function AddCardToPazeGuide() {
         <h1 className="font-display text-3xl font-semibold text-[var(--color-primary)] md:text-4xl">
           Having Trouble Adding Your Card to Paze? You&rsquo;re Not Alone
         </h1>
+        <GuideDateline slug="how-to-add-your-card-to-paze" />
         <p className="mt-4 font-body text-lg text-[var(--color-text-secondary)]">
           {"Here's the part nobody tells you: Paze isn't like Apple Pay. You can't just type in a card number and go. You switch it on one card at a time, inside the Chase app. Once you know that, it takes about 30 seconds."}
         </p>

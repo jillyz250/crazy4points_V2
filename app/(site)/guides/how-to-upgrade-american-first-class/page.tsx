@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { GuideDateline } from '@/components/guides/GuideDateline'
 
 export const metadata: Metadata = {
   title: 'How to Upgrade to First Class on American Airlines (2026)',
@@ -14,6 +15,7 @@ export const metadata: Metadata = {
     type: 'article',
     siteName: 'crazy4points',
   },
+  twitter: { card: 'summary_large_image' },
 }
 
 export const revalidate = 86400
@@ -88,6 +90,7 @@ export default function AaFirstClassUpgradeGuide() {
         <h1 className="font-display text-3xl font-semibold text-[var(--color-primary)] md:text-4xl">
           How to Upgrade to First Class on American Airlines
         </h1>
+        <GuideDateline slug="how-to-upgrade-american-first-class" />
         <p className="mt-4 font-body text-lg text-[var(--color-text-secondary)]">
           {'Let’s set expectations first. Domestic First on American is a wider recliner, a bit more legroom, complimentary alcoholic drinks, and a meal on many longer flights. It is not the lie-flat, pajamas-and-caviar Flagship Business you get across an ocean. An upgrade to domestic First is often worth chasing when it is cheap or free, and rarely worth overpaying for.'}
         </p>
