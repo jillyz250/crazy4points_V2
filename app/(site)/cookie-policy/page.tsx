@@ -37,14 +37,14 @@ export default function CookiePolicyPage() {
         {
           heading: '3. Google Consent Mode',
           content: [
-            'We use Google Consent Mode to ensure analytics and measurement tools adjust their behavior based on your cookie preferences. Consent Mode controls analytics storage, ad storage (disabled by default), and measurement signals. If you decline analytics cookies, Google Analytics operates in a limited, cookieless mode.',
+            'We use Google Consent Mode so analytics and measurement tools adjust to your cookie preferences. Analytics cookies (Google Analytics) are enabled by default so we can understand how the Site is used; if you decline through our banner, Google Analytics switches to a limited, cookieless mode. Advertising and measurement cookies, including ad storage, are disabled by default and are enabled only after you accept. You can change your choice at any time through the banner.',
           ],
         },
         {
           heading: '4. How to Manage Cookies',
           content: [
             { type: 'list', items: ['Accept or reject non-essential cookies through our cookie banner', 'Change your preferences at any time', "Disable cookies through your browser settings"] },
-            'Where required by law, we rely on your consent to place non-essential cookies on your device. You may withdraw your consent at any time without affecting the lawfulness of processing based on consent before its withdrawal. Please note: disabling certain cookies may affect Site functionality.',
+            'We set analytics cookies by default under our legitimate interest in understanding Site usage, and you can opt out at any time through the banner, which switches Google Analytics to a cookieless mode. Advertising cookies (the Meta Pixel and Google ad signals) are set only after you accept. You may withdraw consent or opt out at any time without affecting the lawfulness of processing before your change. Please note: disabling certain cookies may affect Site functionality.',
           ],
         },
         {
