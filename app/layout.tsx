@@ -72,18 +72,22 @@ export default function RootLayout({
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments);}
           window.gtag = gtag;
-          // Consent Mode default (strict / GDPR opt-in): DENIED until the
-          // visitor accepts. Set BEFORE config so GA4 honors it. Returning
-          // visitors who already accepted upgrade to granted immediately, so
-          // they don't flash through cookieless mode.
+          // Consent Mode defaults. Split posture, set BEFORE config so GA4 honors it:
+          //   ANALYTICS = opt-out — granted unless the visitor explicitly declines
+          //     (so GA4 sees everyone who doesn't opt out; declining still goes cookieless).
+          //   ADVERTISING (ad_*) = opt-in — granted only after an explicit accept
+          //     (kept conservative; the more sensitive "sharing" signals).
           var __c4p_consent = null;
           try { __c4p_consent = localStorage.getItem('c4p_cookie_consent'); } catch (e) {}
-          var __c4p_granted = __c4p_consent === 'accepted';
+          var __c4p_declined = __c4p_consent === 'declined';
+          var __c4p_accepted = __c4p_consent === 'accepted';
+          var __c4p_analytics = __c4p_declined ? 'denied' : 'granted';
+          var __c4p_ads = __c4p_accepted ? 'granted' : 'denied';
           gtag('consent', 'default', {
-            ad_storage: __c4p_granted ? 'granted' : 'denied',
-            ad_user_data: __c4p_granted ? 'granted' : 'denied',
-            ad_personalization: __c4p_granted ? 'granted' : 'denied',
-            analytics_storage: __c4p_granted ? 'granted' : 'denied',
+            ad_storage: __c4p_ads,
+            ad_user_data: __c4p_ads,
+            ad_personalization: __c4p_ads,
+            analytics_storage: __c4p_analytics,
           });
           gtag('js', new Date());
           gtag('config', '${process.env.NEXT_PUBLIC_GA4_ID}');
