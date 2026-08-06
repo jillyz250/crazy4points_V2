@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { GuideDateline } from '@/components/guides/GuideDateline'
+import GuideNewsletterCTA from '@/components/guides/GuideNewsletterCTA'
 
 export const metadata: Metadata = {
   title: 'Should You Buy IHG Points? (And the 4th-Night Trick That Makes Them Pay Off)',
@@ -150,6 +151,7 @@ export default function BuyIhgPointsGuide() {
           Not affiliated with IHG or any card issuer. Browse all <Link href="/guides" style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>guides</Link> or our{' '}
           <Link href="/programs?type=hotel" style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>hotel program pages</Link>.
         </p>
+        <GuideNewsletterCTA />
       </div>
     </main>
   )

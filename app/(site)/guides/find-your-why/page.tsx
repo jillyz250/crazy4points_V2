@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { GuideDateline } from '@/components/guides/GuideDateline'
+import GuideNewsletterCTA from '@/components/guides/GuideNewsletterCTA'
 import WhyQuiz from '@/components/guides/WhyQuiz'
 
 export const metadata: Metadata = {
@@ -83,6 +84,7 @@ export default function FindYourWhyGuide() {
           , browse all <Link href="/guides" style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>guides</Link>, or open the{' '}
           <Link href="/cards" style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>Card Explorer</Link>.
         </p>
+        <GuideNewsletterCTA />
       </div>
     </main>
   )

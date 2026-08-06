@@ -26,6 +26,7 @@ const ALLOWED_SOURCES = new Set([
   'inline_alert',
   'newsletter_link',
   'tools_checklist',
+  'guide_inline',
   'manual',
   'api_direct',
 ])
@@ -57,9 +58,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Valid email required.' }, { status: 400 })
   }
 
-  if (!firstName || typeof firstName !== 'string' || !firstName.trim()) {
-    return NextResponse.json({ error: 'First name required.' }, { status: 400 })
-  }
+  // First name is OPTIONAL on every surface. Requiring it cost signups on
+  // low-intent traffic (ad clicks, guide readers), so all forms now collect it
+  // as an optional field and email is the only hard requirement. The welcome
+  // email + storage below already handle a missing name ("Hi there",
+  // first_name = null).
 
   // Bot defense layer 2 — Gmail dot-trick pattern. Silently 200 so the bot
   // doesn't learn we filter on this signature.

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { GuideDateline } from '@/components/guides/GuideDateline'
+import GuideNewsletterCTA from '@/components/guides/GuideNewsletterCTA'
 
 export const metadata: Metadata = {
   title: "Having Trouble Adding Your Card to Paze? You're Not Alone",
@@ -73,6 +74,8 @@ export default function AddCardToPazeGuide() {
           <li><strong>You accept the terms once.</strong> After the first activation, adding more cards is quicker.</li>
           <li><strong>It&rsquo;s for online checkout,</strong> so you&rsquo;ll see Paze as a payment option on participating websites, not in stores.</li>
         </ul>
+
+        <GuideNewsletterCTA />
 
         <p className="mt-10 font-body text-sm text-[var(--color-text-secondary)]">
           Steps reflect the Chase mobile app. Browse all <Link href="/guides" style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>guides</Link> or our{' '}

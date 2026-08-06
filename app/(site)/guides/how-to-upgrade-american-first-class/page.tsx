@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { GuideDateline } from '@/components/guides/GuideDateline'
+import GuideNewsletterCTA from '@/components/guides/GuideNewsletterCTA'
 
 export const metadata: Metadata = {
   title: 'How to Upgrade to First Class on American Airlines (2026)',
@@ -236,6 +237,7 @@ export default function AaFirstClassUpgradeGuide() {
           <Link href="/programs/aa" style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>American AAdvantage program page</Link>{' '}
           or browse all <Link href="/guides" style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>guides</Link>.
         </p>
+        <GuideNewsletterCTA />
       </div>
     </main>
   )

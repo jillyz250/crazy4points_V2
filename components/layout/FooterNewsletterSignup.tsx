@@ -7,15 +7,14 @@ import { track } from '@/lib/analytics'
  * Compact signup that sits as a band at the top of the sitewide Footer.
  * Reuses /api/subscribe (same endpoint as the homepage hero form).
  *
- * First/last name are optional — collected so welcome emails can address
- * the reader by name. Email is the only required field.
+ * First name is optional — collected so welcome emails can address the
+ * reader by name. Email is the only required field.
  *
  * Tracks `newsletter_signup` with `surface: 'footer'` so we can split
  * conversion vs. the homepage hero form in analytics.
  */
 export default function FooterNewsletterSignup() {
   const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [website, setWebsite] = useState('') // honeypot
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
@@ -30,7 +29,7 @@ export default function FooterNewsletterSignup() {
     const res = await fetch('/api/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, firstName, lastName, website, source: 'footer', referrerPath }),
+      body: JSON.stringify({ email, firstName, website, source: 'footer', referrerPath }),
     })
 
     const data = await res.json().catch(() => ({}))
@@ -40,7 +39,6 @@ export default function FooterNewsletterSignup() {
       setMessage("You're in! Check your inbox for a welcome email.")
       track('newsletter_signup', { surface: 'footer' })
       setFirstName('')
-      setLastName('')
       setEmail('')
     } else {
       setStatus('error')
@@ -90,38 +88,20 @@ export default function FooterNewsletterSignup() {
             </div>
 
             <div className="flex flex-col gap-3">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="footer-newsletter-first" className="sr-only">
-                    First name
-                  </label>
-                  <input
-                    id="footer-newsletter-first"
-                    type="text"
-                    placeholder="First name"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    required
-                    autoComplete="given-name"
-                    className="w-full rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background)] px-4 py-3 font-body text-base text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
-                    style={{ fontSize: '1rem' }}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="footer-newsletter-last" className="sr-only">
-                    Last name (optional)
-                  </label>
-                  <input
-                    id="footer-newsletter-last"
-                    type="text"
-                    placeholder="Last name (optional)"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    autoComplete="family-name"
-                    className="w-full rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background)] px-4 py-3 font-body text-base text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
-                    style={{ fontSize: '1rem' }}
-                  />
-                </div>
+              <div>
+                <label htmlFor="footer-newsletter-first" className="sr-only">
+                  First name (optional)
+                </label>
+                <input
+                  id="footer-newsletter-first"
+                  type="text"
+                  placeholder="First name (optional)"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  autoComplete="given-name"
+                  className="w-full rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background)] px-4 py-3 font-body text-base text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                  style={{ fontSize: '1rem' }}
+                />
               </div>
 
               <label htmlFor="footer-newsletter-email" className="sr-only">
