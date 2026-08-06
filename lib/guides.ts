@@ -98,6 +98,14 @@ export const GUIDES: Guide[] = [
     category: 'hotels',
     updated: '2026-08-03',
   },
+  {
+    slug: 'how-to-add-your-card-to-paze',
+    title: 'Having Trouble Adding Your Card to Paze?',
+    description:
+      'Paze is not like Apple Pay: you switch it on one card at a time inside the Chase app. The 30-second fix, step by step.',
+    category: 'cards',
+    updated: '2026-08-04',
+  },
 ]
 
 /**
