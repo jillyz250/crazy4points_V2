@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { GuideDateline } from '@/components/guides/GuideDateline'
 
 export const metadata: Metadata = {
   title: 'How to Book a Sold-Out Hotel (the Elite Perk Nobody Talks About)',
@@ -14,6 +15,7 @@ export const metadata: Metadata = {
     type: 'article',
     siteName: 'crazy4points',
   },
+  twitter: { card: 'summary_large_image' },
 }
 
 export const revalidate = 86400
@@ -96,6 +98,7 @@ export default function SoldOutHotelGuide() {
         <h1 className="font-display text-3xl font-semibold text-[var(--color-primary)] md:text-4xl">
           How to Book a Sold-Out Hotel
         </h1>
+        <GuideDateline slug="how-to-book-a-sold-out-hotel" />
         <p className="mt-4 font-body text-lg text-[var(--color-text-secondary)]">
           {'Picture parents weekend near a big university, or New Year’s Eve near Times Square. Every hotel for miles shows sold out, and the few rooms left on resale sites are triple the normal price. Now picture booking a standard room at that same “sold out” hotel, one that simply would not appear as available to anyone else. That is not a glitch. It is a real elite benefit called guaranteed room availability, and almost nobody talks about it.'}
         </p>

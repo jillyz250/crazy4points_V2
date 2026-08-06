@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { GuideDateline } from '@/components/guides/GuideDateline'
 import { TRAVELER_TYPES, type Pick } from '@/lib/travelerTypes'
 
 export const metadata: Metadata = {
@@ -15,6 +16,7 @@ export const metadata: Metadata = {
     type: 'article',
     siteName: 'crazy4points',
   },
+  twitter: { card: 'summary_large_image' },
 }
 
 export const revalidate = 86400
@@ -59,6 +61,7 @@ export default function BestFirstCardGuide() {
         <h1 className="font-display text-3xl font-semibold text-[var(--color-primary)] md:text-4xl">
           The Best First Card for Every Type of Traveler
         </h1>
+        <GuideDateline slug="best-first-card" />
 
         {INTRO.map((para, i) => (
           <p key={i} className={i === 0 ? 'mt-4 font-body text-lg text-[var(--color-text-secondary)]' : 'mt-4 font-body text-[var(--color-text-primary)]'}>

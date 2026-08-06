@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { GuideDateline } from '@/components/guides/GuideDateline'
 
 export const metadata: Metadata = {
   title: 'How to Actually Win a Hotel Best Rate Guarantee — Tips From the Fine Print',
@@ -14,6 +15,7 @@ export const metadata: Metadata = {
     type: 'article',
     siteName: 'crazy4points',
   },
+  twitter: { card: 'summary_large_image' },
 }
 
 export const revalidate = 86400
@@ -49,6 +51,7 @@ export default function HowToWinBestRateGuarantee() {
         <h1 className="font-display text-3xl font-semibold text-[var(--color-primary)] md:text-4xl">
           How to Actually Win a Hotel Best Rate Guarantee
         </h1>
+        <GuideDateline slug="how-to-win-a-best-rate-guarantee" />
         <p className="mt-4 font-body text-lg text-[var(--color-text-secondary)]">
           Most best rate guarantee claims don&rsquo;t fail because the program is a gimmick — they fail on a
           technicality buried in the terms. Here&rsquo;s how to stack the deck, with every tip drawn from the chains&rsquo;
