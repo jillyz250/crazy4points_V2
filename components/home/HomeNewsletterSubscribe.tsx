@@ -13,7 +13,7 @@ export default function HomeNewsletterSubscribe({ latest }: { latest: PublicNews
       <div className="rg-container px-6 md:px-8">
         <div className="grid gap-10 md:grid-cols-2 md:items-center">
           <div>
-            <p className="font-ui text-xs font-semibold uppercase tracking-[0.2em] !text-[var(--color-accent)]">Free newsletter</p>
+            <p className="font-ui text-xs font-semibold uppercase tracking-[0.2em] !text-[var(--color-accent)]">The insider list</p>
             <h2 className="mt-3 font-display text-3xl font-semibold !text-white md:text-4xl">Never miss a points move</h2>
             <p className="mt-3 font-body !text-white/85">
               The best transfer bonuses, award sweet spots, and deals worth your miles, delivered to your inbox. Join the list.
