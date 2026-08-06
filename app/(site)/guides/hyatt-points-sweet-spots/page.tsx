@@ -102,7 +102,7 @@ export default function HyattSweetSpotsGuide() {
           The quiet magic of Hyatt is the bottom of the chart. A Category 1 night starts at just <strong>3,000 points</strong>, and Hyatt hides genuinely nice hotels down there, all over the world, in cities where cash rates are far higher.
         </p>
         <ul className="mt-3 flex flex-col gap-2" style={{ listStyle: 'disc', paddingLeft: '1.25rem' }}>
-          <li className={li}><strong>International Cat 1 to 4 gems.</strong> A Category 4 like the Grand Hyatt Manila runs 12,000 to 25,000 points depending on the date, for a room that often sells for $300 or more. Similar math shows up at Hyatt Place and Hyatt Regency properties across Asia, Eastern Europe, and beyond.</li>
+          <li className={li}><strong>International low-category gems.</strong> The Grand Hyatt Manila, for example, runs around 12,000 points a night for a room that often sells for $300 or more. Similar math shows up at low-category Hyatt Place and Hyatt Regency properties across Asia, Eastern Europe, and beyond, where cash rates far outrun the points price.</li>
           <li className={li}><strong>Event-weekend arbitrage.</strong> Book a Hyatt in a city hosting a big game, festival, or conference. Cash rates spike into four figures on those nights, but the award price is tied to the property&apos;s category, not the sold-out cash rate, so a low-category Hyatt can be a fraction of the going rate.</li>
           <li className={li}><strong>Off-season Lowest-tier windows.</strong> The new Lowest tier can price below the old off-peak floor. If your dates are flexible, hunt for the cheapest tier, a Category 1 to 3 stay can dip to 3,000 to 8,000 points a night.</li>
         </ul>
@@ -112,7 +112,7 @@ export default function HyattSweetSpotsGuide() {
           The top of the chart is where a fixed award price collides with a sky-high cash rate. These stays got more expensive in the refresh, but they still shine because the rooms are so pricey in cash.
         </p>
         <ul className="mt-3 flex flex-col gap-2" style={{ listStyle: 'disc', paddingLeft: '1.25rem' }}>
-          <li className={li}><strong>Alila resorts (Category 7).</strong> Alila Ventana Big Sur and Alila Napa Valley run roughly 25,000 to 55,000 points depending on the date, for rooms that routinely list at $1,200 to $2,000 a night in cash.</li>
+          <li className={li}><strong>Alila resorts (Category 7 to 8).</strong> Alila Napa Valley (Category 7) runs 25,000 to 55,000 points, and Alila Ventana Big Sur (Category 8) runs 35,000 to 75,000, for rooms that routinely list at $1,200 to $2,000 a night in cash.</li>
           <li className={li}><strong>Top Park Hyatts and Andaz (Category 8).</strong> Andaz Maui, the Park Hyatt flagships, and similar top-tier properties run 35,000 to 75,000 points. Target the Lowest and Low tiers and you are booking a room most people pay well over $1,000 for.</li>
           <li className={li}><strong>The honest caveat.</strong> After the refresh, luxury Hyatt redemptions generally deliver less eye-popping value than a year ago. They are still strong when the cash rate is high and you book the cheaper tiers, but they are no longer automatic. Check the cash price before you decide.</li>
         </ul>
@@ -123,7 +123,7 @@ export default function HyattSweetSpotsGuide() {
         </p>
         <ul className="mt-3 flex flex-col gap-2" style={{ listStyle: 'disc', paddingLeft: '1.25rem' }}>
           <li className={li}><strong>Ziva, Zilara, Secrets, and Dreams.</strong> These Mexico and Caribbean resorts price on Hyatt&apos;s separate A-to-F chart, often in the 20,000 to 30,000-point range per night. A comparable all-inclusive night runs $500 to $800 in cash for two people, meals and drinks included.</li>
-          <li className={li}><strong>Miraval wellness resorts (Category 8).</strong> Miraval works a little differently: your award night also includes a daily resort credit toward spa treatments and wellness activities. Cash nights top $1,000, so the fixed award plus the credit is a genuine splurge on points.</li>
+          <li className={li}><strong>Miraval wellness resorts.</strong> Miraval sits outside the standard 1-to-8 chart on its own occupancy-based award pricing, and your award night also includes a daily resort credit toward spa treatments and wellness activities. Cash nights top $1,000, so redeeming points here, credit included, is a genuine splurge.</li>
         </ul>
 
         <h2 className={h2}>4. Smart mechanics that stretch your points</h2>
