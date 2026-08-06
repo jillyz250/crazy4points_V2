@@ -106,6 +106,15 @@ export const GUIDES: Guide[] = [
     category: 'cards',
     updated: '2026-08-04',
   },
+  {
+    slug: 'hyatt-points-sweet-spots',
+    title: 'The Best Hyatt Sweet Spots (After the 2026 Chart Refresh)',
+    description:
+      'Where World of Hyatt points still win after the 5-tier overhaul: low-category steals, aspirational Park Hyatts and Alilas, all-inclusives, and the smart mechanics, with the current chart.',
+    category: 'hotels',
+    updated: '2026-08-06',
+    featured: true,
+  },
 ]
 
 /**
@@ -131,6 +140,12 @@ export const GUIDE_BY_PROGRAM_SLUG: Record<string, ProgramGuideLink[]> = {
     },
   ],
   hyatt: [
+    {
+      guideSlug: 'hyatt-points-sweet-spots',
+      calloutTitle: 'The best Hyatt sweet spots after the 2026 refresh',
+      calloutBlurb:
+        'Where your Hyatt points still win: low-category steals, aspirational Park Hyatts and Alilas, and all-inclusives, with the current 5-tier chart.',
+    },
     {
       guideSlug: 'how-to-book-a-sold-out-hotel',
       calloutTitle: 'Book a sold-out Hyatt with Explorist status',
