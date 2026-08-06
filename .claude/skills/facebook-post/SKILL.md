@@ -48,5 +48,8 @@ Casual travelers who have heard of points but are not experts. They are silently
 - Facebook **auto-links bare domains**, so "crazy4points.com" is clickable without www or https. The first-comment link uses the full https:// URL.
 - Facebook **strips numbered-list markers** ("1." / "1)"). If you must number, spell it in plain words ("Step 1") — **never Unicode bold digits** (they break UTM tracking and cut ad delivery, same as the bold headline rule above).
 
+## Ads / campaign setup (compliance)
+Crazy4Points promotes credit cards, so its ads fall under Meta's **"Credit" Special Ad Category** (financial products). That category **restricts targeting** (no narrowing by age band, gender, or detailed interests) to prevent discrimination. **Practical upshot, and it's simpler than it sounds: build EVERY campaign as if Credit category applies.** Set Special Ad Category = **Credit**, audience = **broad US, ages 18–65, all genders, ZERO detailed targeting**. Then it never matters whether Meta flags the ad — you're already compliant, and nothing throws a delivery error. (Codified 2026-08-04.)
+
 ## Related
 [[feedback_facebook_happy_news]] (refined here to "lead with the opportunity"), [[feedback_no_icons_in_social]], [[feedback_brand_in_social]], [[feedback_brand_voice_sassy]], [[feedback_no_just_dropped_opener]], [[feedback_avoid_derived_math_specificity]]. Graphic pipeline: [[project_social_content_engine]]. Instagram counterpart: the `instagram-post` skill.
