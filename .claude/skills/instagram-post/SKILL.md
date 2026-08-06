@@ -34,7 +34,7 @@ Instagram makes **no link clickable** in captions or comments. So:
 - **Before the post goes up, add this post's article to the TOP of the `LATEST` array on /links** (`app/links/page.tsx`), keeping the last ~4 so every recent "link in bio" still resolves. Commit + merge so it's live BEFORE she posts, then tell Jill it's done. (The page renders "Get the newsletter" first, then a "Latest from the feed" list — there is no single `FEATURED` const anymore.)
 
 ## Caption structure (use what serves the one takeaway; skip the rest)
-1. **Bold headline (first line)** — single-line Unicode bold, <=60 chars, benefit-first. *(Impl note: generate the Unicode with a script, don't hand-type; serif UPRIGHT bold (Mathematical Bold, e.g. 𝐆𝐨𝐨𝐝) — NO italics, as of 2026-07-30.)*
+1. **Headline (first line)** — plain text, <=60 chars, benefit-first. **NEVER use Unicode / "fancy" bold** (𝐌𝐚𝐭𝐡𝐞𝐦𝐚𝐭𝐢𝐜𝐚𝐥 𝐁𝐨𝐥𝐝 glyphs): they break link/UTM tracking and Meta throttles delivery on posts/ads that contain them. Plain text only. (Rule set 2026-08-04, replacing the earlier Unicode-bold guidance.)
 2. **Hook** — stopping power.
 3. **The value** — the core takeaway.
 4. **One concrete verified sweet spot / redemption example** when the topic has one — shown, not told.

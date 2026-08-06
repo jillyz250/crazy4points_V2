@@ -32,7 +32,7 @@ Casual travelers who have heard of points but are not experts. They are silently
 **Keep the whole post to ~50-80 words.** Facebook truncates after ~2 lines / ~250 characters ("See more"), and most people never expand — so the hook and the point MUST land in the first two lines. One idea, one CTA. The linked article carries all the detail; the post's only job is to stop the scroll and earn the click. Do NOT write 3-4 paragraphs. Locked in 2026-07-30.
 
 ## Post structure (tight — hook line + 1-2 sentences + CTA + newsletter)
-1. **Bold headline (first line).** Single-line **Unicode bold**, under ~60 characters, benefit/news-first — this is the pre-"See more" hook, so it has to carry. *(Impl note: generate the Unicode with a small script; serif UPRIGHT bold (Mathematical Bold, e.g. 𝐆𝐨𝐨𝐝), NO italics, as of 2026-07-30.)*
+1. **Headline (first line).** Plain text, under ~60 characters, benefit/news-first — this is the pre-"See more" hook, so the wording alone has to carry it. **NEVER use Unicode / "fancy" bold** (the 𝐌𝐚𝐭𝐡𝐞𝐦𝐚𝐭𝐢𝐜𝐚𝐥 𝐁𝐨𝐥𝐝 characters): those glyphs **break link/UTM tracking and Meta throttles delivery on ads that contain them**, so posts get served far less. Plain text only, everywhere — headlines, captions, and comments. (Rule set 2026-08-04, replacing the earlier Unicode-bold guidance.)
 2. **Body — 1 to 2 short sentences.** The core takeaway plus, when it fits, one concrete detail or a single practical caveat. That's it. No separate "hook / value / example" paragraphs — fold them into these 1-2 sentences.
 3. **Primary CTA (its own line) — points to the comment link, value-forward.** NOT the flat "Full breakdown in the comments." Rotate value-forward phrasings, e.g. "We break it all down. Link in the comments." / "Here's the full rundown, link in the comments." / "What it means for your points, link in the comments." The article URL goes in the FIRST COMMENT, never the body.
 4. **Newsletter line (its OWN separate line).** Wording like: **"For tips, tricks, and breaking news, subscribe to our newsletter: crazy4points.com/newsletter"** — always the `crazy4points.com/newsletter` URL (Facebook auto-links bare domains, so it renders blue/clickable and lands users right on the signup form). Keep it one line, after the CTA. Jill requires the newsletter mention.
@@ -46,7 +46,7 @@ Casual travelers who have heard of points but are not experts. They are silently
 ## Operational (behavior, not writing)
 - **Never post to Facebook yourself** — output is copy for Jill to post. Auto-posting is an outward action that needs her consent.
 - Facebook **auto-links bare domains**, so "crazy4points.com" is clickable without www or https. The first-comment link uses the full https:// URL.
-- Facebook **strips numbered-list markers** ("1." / "1)"). Use Unicode bold digits (𝟭) 𝟮) 𝟯)) only if you must number.
+- Facebook **strips numbered-list markers** ("1." / "1)"). If you must number, spell it in plain words ("Step 1") — **never Unicode bold digits** (they break UTM tracking and cut ad delivery, same as the bold headline rule above).
 
 ## Related
 [[feedback_facebook_happy_news]] (refined here to "lead with the opportunity"), [[feedback_no_icons_in_social]], [[feedback_brand_in_social]], [[feedback_brand_voice_sassy]], [[feedback_no_just_dropped_opener]], [[feedback_avoid_derived_math_specificity]]. Graphic pipeline: [[project_social_content_engine]]. Instagram counterpart: the `instagram-post` skill.
