@@ -743,19 +743,19 @@ def draw_monthly(y):
     key = "monthly"; col, tint, line = SEC[key]
     x = MARGIN; rowh = 25
     grid_x = x + CW - 12 * 20 - 12
-    body_h = 22 + len(MONTHLY) * rowh + 6
+    body_h = 22 + len(MONTHLY) * rowh + 12
     bar_y = section_bar(x, y, CW, "EVERY MONTH", key, icon=ic_cal, sub="$540 a year if you catch them all")
     card(x, bar_y, CW, body_h, CREAM, alpha(GOLD, 0.8))
     # month letters header
     for m in range(12):
-        text(grid_x + m * 20 + 10, bar_y - 15, MONTHS[m], font="UI", size=7.5, col=col, center=True)
-    cy = bar_y - 38
+        text(grid_x + m * 20 + 10, bar_y - 16, MONTHS[m], font="UI", size=7.5, col=col, center=True)
+    cy = bar_y - 37
     for i, (label, sub, worth) in enumerate(MONTHLY):
         if i % 2 == 1:  # zebra band (v53)
             c.setFillColor(alpha(GOLD, 0.07))
-            c.roundRect(x + 6, cy - 14, CW - 12, 22, 3, stroke=0, fill=1)
+            c.roundRect(x + 6, cy - 16, CW - 12, 24, 3, stroke=0, fill=1)
         text(x + 16, cy, label, font="Body", size=10, col=INK)
-        text(x + 16, cy - 10, sub, font="Body", size=8.4, col=MUT)
+        text(x + 16, cy - 13, sub, font="Body", size=8, col=MUT)
         # Dotted leader across the dead space so the eye tracks from the credit
         # name to its 12 boxes instead of the two halves floating apart.
         lx = x + 16 + c.stringWidth(label, "Body", 10) + 10
@@ -1108,7 +1108,7 @@ def draw_earn(y):
     """v53 dark bar: HOW YOU EARN header, gold hairline, then 7 columns each with
     a big gold multiplier over a white category label, thin dividers between."""
     x = MARGIN
-    body_h = 66
+    body_h = 60
     rrect_shadow(x, y - body_h, CW, body_h, 10, alpha(PURPLE, 0.3))
     c.setFillColor(DEEP); c.roundRect(x, y - body_h, CW, body_h, 10, stroke=0, fill=1)
     text_ls(x + 16, y - 18, "HOW YOU EARN", "UIB", 10.5, white, spacing=1.4)
@@ -1120,11 +1120,11 @@ def draw_earn(y):
     colw = (CW - 20) / n
     for i, (mult, cat) in enumerate(EARN):
         cxc = x + 10 + colw * i + colw / 2
-        text(cxc, y - 47, mult, font="Head", size=17, col=GOLD_L, center=True)
-        text(cxc, y - 58, cat, font="Body", size=7.4, col=white, center=True)
+        text(cxc, y - 44, mult, font="Head", size=17, col=GOLD_L, center=True)
+        text(cxc, y - 54, cat, font="Body", size=7.4, col=white, center=True)
         if i > 0:
             c.setStrokeColor(alpha(white, 0.18)); c.setLineWidth(0.6)
-            c.line(x + 10 + colw * i, y - 34, x + 10 + colw * i, y - 60)
+            c.line(x + 10 + colw * i, y - 32, x + 10 + colw * i, y - 56)
     return y - body_h - 10
 
 # ---- PROTECTIONS ---------------------------------------------------------
