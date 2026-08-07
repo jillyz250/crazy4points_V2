@@ -636,11 +636,11 @@ def draw_setup_grid(y):
         if item.get("track") == "date":
             # a "used ___" date write-in instead of a checkbox: this benefit is
             # on a multi-year cycle, so what matters is WHEN you last claimed it.
-            fw = 48
+            fw = 40
             c.setFillColor(white); c.roundRect(cx0 + tw - pad - fw, cby - 1, fw, 12, 2, stroke=0, fill=1)
             textfield(cx0 + tw - pad - fw, cby - 1, fw, 12, f"card{i}used", fontsize=7,
                       style="inset", line=SEC["spend"][2])
-            text(cx0 + tw - pad - fw - 4, cby + 1.5, "used", font="Body", size=6.8,
+            text(cx0 + tw - pad - fw - 4, cby + 1.5, "last used", font="Body", size=6.3,
                  col=alpha(PURPLE, 0.62), right=True)
         else:
             fld = item.get("field") or f"card{i}"
@@ -993,7 +993,15 @@ def draw_spend(y):
         c.acroForm.checkbox(name=nm, x=bx0 + 3, y=pby - 11, size=12, buttonStyle="check",
                             borderColor=None, fillColor=None, borderWidth=0, checked=False)
         PROGRESS_BLOCKS.append((3, nm, (bx0 + 1.5, pby - 12.5, bx0 + seg - 1.5, pby + 2.5)))
-    text(inx, pby - 26, "each block = $7,500  -  click one to fill it every time you clear another $7,500",
+    # affordance: 'START HERE' + a down arrow into the first block, so it's
+    # obvious the blocks are clickable (not just a static bar).
+    hx = pbx + seg / 2
+    text(hx, pby + 9, "START HERE", font="UIB", size=6, col=GOLD_L, center=True)
+    c.setStrokeColor(GOLD_L); c.setLineWidth(1.1); c.setLineCap(1)
+    c.line(hx, pby + 6, hx, pby + 1)
+    c.line(hx - 2.5, pby + 3.2, hx, pby + 0.6)
+    c.line(hx + 2.5, pby + 3.2, hx, pby + 0.6)
+    text(inx, pby - 26, "click a block to fill it every time you clear another $7,500  (each block = $7,500)",
          font="Body", size=7.5, col=alpha(white, 0.55))
     text(x + CW - 18, pby - 26, "reach $75K and you keep every unlock through the end of next year",
          font="BodyB", size=7.5, col=alpha(GOLD_L, 0.9), right=True)
@@ -1572,10 +1580,11 @@ def add_cumulative_star_js(path):
         return "\n".join(ops).encode("latin-1")
 
     def _block_stream(w, h, filled):
-        """A $75K progress-bar block: solid gold fill when ticked, blank when off."""
-        if not filled:
-            return b"q Q"
-        return f"q 0.961 0.808 0.353 rg 0 0 {w:.2f} {h:.2f} re f Q".encode("latin-1")
+        """A $75K progress-bar block. Filled = solid gold. Empty = a faint
+        lighter-purple 'slot' so the blocks read as clickable buttons at rest."""
+        if filled:
+            return f"q 0.961 0.808 0.353 rg 0 0 {w:.2f} {h:.2f} re f Q".encode("latin-1")
+        return f"q 0.31 0.19 0.44 rg 0 0 {w:.2f} {h:.2f} re f Q".encode("latin-1")
 
     helv = writer._root_object["/AcroForm"]["/DR"]["/Font"]["/Helv"]
     for page_no, fname, rect, off_label, on_label in PILL_WIDGETS:
