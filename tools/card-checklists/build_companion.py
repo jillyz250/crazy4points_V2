@@ -622,16 +622,16 @@ def draw_setup_grid(y):
         nsz = 11
         while c.stringWidth(item["name"], "HeadSm", nsz) > tw - pad * 2 and nsz > 7.5:
             nsz -= 0.2
-        text(lx, cy0 - 75, item["name"], font="HeadSm", size=nsz, col=INK)
-        # note under the name
+        text(lx, cy0 - 72, item["name"], font="HeadSm", size=nsz, col=INK)
+        # note under the name — keep it clear of the mark-done checkbox column
         ntsz = 7
         while c.stringWidth(item["note"], "Body", ntsz) > tw - pad * 2 and ntsz > 5.4:
             ntsz -= 0.15
-        text(lx, cy0 - 85, item["note"], font="Body", size=ntsz, col=MUT)
-        # 'mark done' + checkbox, bottom-right
+        text(lx, cy0 - 81, item["note"], font="Body", size=ntsz, col=MUT)
+        # 'mark done' + checkbox, bottom-right (own line below the note)
         cb = 10
         cbx = cx0 + tw - pad - cb
-        cby = cy0 - th + 6
+        cby = cy0 - th + 4
         fld = item.get("field") or f"card{i}"
         checkbox(cbx, cby, cb, fld, PURPLE)
         text(cbx - 4, cby + 1.5, "mark done", font="Body", size=6.8,
