@@ -631,9 +631,12 @@ def draw_setup_grid(y):
         cb = 10
         cbx = cx0 + tw - pad - cb
         cby = cy0 - th + 6
-        checkbox(cbx, cby, cb, item.get("field") or fid("done"), PURPLE)
+        fld = item.get("field") or f"card{i}"
+        checkbox(cbx, cby, cb, fld, PURPLE)
         text(cbx - 4, cby + 1.5, "mark done", font="Body", size=6.8,
              col=alpha(PURPLE, 0.62), right=True)
+        # paired "DONE" stamp (top-left): blank until ticked, then green DONE
+        PILL_WIDGETS.append((1, fld, (cx0 + 8, cy0 - 16, cx0 + 42, cy0 - 4), "", "DONE"))
     return bar_y - body_h - 10
 
 def go_pill_lux(gx, cy, url):
@@ -987,14 +990,18 @@ def draw_spend(y):
     text(ox + c.stringWidth("of ", "Body", 9.5), yy, "$75,000", font="UIB", size=11, col=GOLD_L)
     text(x + CW - 18, yy, "10 blocks  -  $7,500 each", font="UI", size=8,
          col=alpha(GOLD_L, 0.75), right=True)
-    # ---- 10-block progress bar ----
+    # ---- 10-block progress bar — each block is a clickable checkbox ----
     pby = yy - 22
     pbx = inx; pbw = CW - 36
     c.setStrokeColor(alpha(GOLD, 0.55)); c.setLineWidth(1)
     c.roundRect(pbx, pby - 14, pbw, 18, 5, stroke=1, fill=0)
+    seg = pbw / 10
     for t in range(1, 10):
-        tx = pbx + pbw * t / 10
-        c.line(tx, pby - 14, tx, pby + 4)
+        c.line(pbx + seg * t, pby - 14, pbx + seg * t, pby + 4)
+    for m in range(10):
+        c.acroForm.checkbox(name=fid("sq"), x=pbx + seg * m + seg / 2 - 6.5, y=pby - 11,
+                            size=13, buttonStyle="check", borderColor=None,
+                            fillColor=None, textColor=GOLD_L, borderWidth=0, checked=False)
     text(inx, pby - 26, "each block = $7,500  -  tick one every time you clear another $7,500",
          font="Body", size=7.5, col=alpha(white, 0.55))
     # ---- five milestone cards ----
@@ -1023,7 +1030,10 @@ def draw_spend(y):
         while c.stringWidth(note, "Body", nsz) > cw - 6 and nsz > 4.4:
             nsz -= 0.15
         text(midx, cy - 66, note, font="Body", size=nsz, col=alpha(white, 0.5), center=True)
-        checkbox(midx - 5.5, cy - ch + 8, 11, fid("sp"), GOLD)
+        mfld = f"ms{i}"
+        checkbox(midx - 5.5, cy - ch + 8, 11, mfld, GOLD)
+        # paired "DONE" stamp (top-right of the milestone card)
+        PILL_WIDGETS.append((3, mfld, (mx + cw - 40, cy - 13, mx + cw - 8, cy - 3), "", "DONE"))
     # ---- two write-in rows ----
     by = cy - ch - 16
     for lbl, act in (("$250 Shops at Chase", "what I bought"),
@@ -1555,6 +1565,10 @@ def add_cumulative_star_js(path):
 
     def _pill_stream(w, h, label, filled):
         """Content stream for one pill state. Rounded ends drawn with beziers."""
+        # Blank off-state for stamps that should show nothing until ticked
+        # (the white cards + milestones: clean when unchecked, green DONE on tick).
+        if not filled and not (label or "").strip():
+            return b"q Q"
         r = h / 2.0
         k = 0.5523 * r
         gold = "0.961 0.808 0.353"
