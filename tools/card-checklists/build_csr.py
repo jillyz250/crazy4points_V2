@@ -1352,11 +1352,12 @@ CAP_LINES = [
     ("cap_hotels",  "Chase Travel hotels", 250),
 ]
 def draw_total(y):
-    """v53 scorecard: one clean cream row — six category fields (each with its
-    Chase target) plus a MY TOTAL box, of $2,190, fee $795. Manual write-in, no
-    auto-sum (the old auto-calc JS goes inert once these fields are gone)."""
+    """Scorecard: six credit fields (each with its Chase target) + MY TOTAL of
+    $2,190, then a second row where the reader assigns their OWN value to the
+    non-credit perks (lounges, Apple, status) and nets it against the $795 fee.
+    We never print a dollar value on a lounge — the reader decides."""
     x = MARGIN
-    body_h = 76
+    body_h = 104
     top = y
     rrect_shadow(x, top - body_h, CW, body_h, 8, alpha(INK, 0.06))
     c.setFillColor(HexColor("#FBF6E4"))
@@ -1379,7 +1380,7 @@ def draw_total(y):
         text(cx + 38, fy + 4, f"/{amt}", font="UI", size=8, col=MUT)
     dvx = inx + 6 * cell + 4
     c.setStrokeColor(alpha(GOLD, 0.5)); c.setLineWidth(0.8)
-    c.line(dvx, top - 30, dvx, top - 64)
+    c.line(dvx, top - 30, dvx, top - 96)
     tx = dvx + 14
     text_ls(tx, top - 38, "MY TOTAL", "UIB", 6.4, GOLD_D, spacing=0.8)
     tfw = x + CW - 16 - tx - 74
@@ -1387,6 +1388,18 @@ def draw_total(y):
     textfield(tx, fy, tfw, 16, fid("tot"), fontsize=10, style="inset", line=SEC["spend"][2])
     text(tx + tfw + 8, fy + 6, "of $2,190", font="UIB", size=11, col=GOLD_D)
     text(tx + tfw + 8, fy - 5, "fee $795", font="Body", size=8, col=MUT)
+    # ---- row 2: reader-assigned extras + net vs the fee ----
+    c.setStrokeColor(alpha(GOLD, 0.4)); c.setLineWidth(0.7)
+    c.line(inx, top - 66, x + CW - 16, top - 66)
+    fy2 = top - 94
+    text_ls(inx, top - 76, "LOUNGES + EXTRAS WORTH TO ME", "UIB", 6.4, GOLD_D, spacing=0.8)
+    c.setFillColor(white); c.roundRect(inx, fy2, 56, 16, 2, stroke=0, fill=1)
+    textfield(inx, fy2, 56, 16, fid("lx"), fontsize=9, style="inset", line=SEC["spend"][2])
+    text(inx + 62, fy2 + 4, "(what the lounges + perks are worth to you)", font="Body", size=7, col=MUT)
+    text_ls(tx, top - 76, "AHEAD BY", "UIB", 6.4, GOLD_D, spacing=0.8)
+    c.setFillColor(white); c.roundRect(tx, fy2, tfw, 16, 2, stroke=0, fill=1)
+    textfield(tx, fy2, tfw, 16, fid("net"), fontsize=10, style="inset", line=SEC["spend"][2])
+    text(tx + tfw + 8, fy2 + 4, "after the $795 fee", font="Body", size=8, col=MUT)
     return top - body_h - 12
 
 # ---- $300 TRAVEL CREDIT TRACKER -----------------------------------------
@@ -1524,10 +1537,10 @@ def footer():
 # =========================================================================
 # v53 "Companion" layout: 3 pages.
 # PAGE 1 - claimed tracker + activate/link cards + earn cheat-sheet + every-month grid
-y = header_band()
-y = draw_total(y)
-y = draw_setup_grid(y)
-y = draw_earn(y)
+y = header_band() + 6
+y = draw_total(y) + 8
+y = draw_setup_grid(y) + 8
+y = draw_earn(y) + 6
 y = draw_monthly(y)
 footer()
 c.showPage()
