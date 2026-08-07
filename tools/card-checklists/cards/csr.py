@@ -37,7 +37,7 @@ GRID = [
     dict(amt="Platinum", sub="Elite status",         name="IHG One Rewards",   note="link accounts, 3 weeks",     icon="crown",    url="https://www.ihg.com/rewardsclub/us/en/enrollment/join", field="act_ihg"),
     dict(amt="Elite",    sub="National, Avis, Hertz", name="Car Rental",       note="enroll for upgrades",        icon="key"),
     dict(amt="$10",      sub="per month",           name="Lyft",              note="add the card in the app",    icon="phone"),
-    dict(amt="$120",     sub="application fee",       name="Global Entry",      note="pay the fee with the card",  icon="passport", url="https://ttp.dhs.gov"),
+    dict(amt="$120",     sub="application fee",       name="Global Entry",      note="every 4 yrs - pay with the card", icon="passport", url="https://ttp.dhs.gov", track="date"),
     dict(amt="Free",     sub="through 6/22/2027",     name="Apple TV",          note="activate to start it",       icon="tv"),
     dict(amt="Free",     sub="through 6/22/2027",     name="Apple Music",       note="separate activation",        icon="music"),
 ]
