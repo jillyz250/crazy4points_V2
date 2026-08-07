@@ -43,6 +43,7 @@ export interface WatchResult {
   running: number
   newlyFound: string[]
   ended: number
+  expired: number
   errors: { program: string; error: string }[]
 }
 
@@ -166,6 +167,7 @@ export async function runSweepstakesWatch(supabase: SupabaseClient): Promise<Wat
     running: 0,
     newlyFound: [],
     ended: 0,
+    expired: 0,
     errors: [],
   }
 
@@ -251,6 +253,20 @@ export async function runSweepstakesWatch(supabase: SupabaseClient): Promise<Wat
       }
     }
   }
+
+  // Auto-expire: any running sweep whose enter-by date is in the past. Runs after
+  // all upserts, so a sweep still listed on its source but past its deadline still
+  // gets ended; and it runs even when a source failed to scrape this cycle. Dates
+  // are stored as YYYY-MM-DD text, so a lexicographic `< today` compares correctly.
+  const today = nowIso.slice(0, 10)
+  const { data: expiredRows } = await supabase
+    .from('sweepstakes')
+    .update({ status: 'ended', updated_at: nowIso })
+    .eq('status', 'running')
+    .not('ends_at', 'is', null)
+    .lt('ends_at', today)
+    .select('id')
+  result.expired = expiredRows?.length ?? 0
 
   const { count } = await supabase
     .from('sweepstakes')
