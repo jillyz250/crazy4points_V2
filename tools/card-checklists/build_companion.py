@@ -992,16 +992,18 @@ def draw_spend(y):
         # whole block lights up when clicked (a real filling progress bar).
         c.acroForm.checkbox(name=nm, x=bx0 + 3, y=pby - 11, size=12, buttonStyle="check",
                             borderColor=None, fillColor=None, borderWidth=0, checked=False)
-        PROGRESS_BLOCKS.append((3, nm, (bx0 + 1.5, pby - 12.5, bx0 + seg - 1.5, pby + 2.5)))
-    # affordance: 'START HERE' + a down arrow into the first block, so it's
+        # filled block reveals the running total unlocked so far ($7.5K, $15K...)
+        PROGRESS_BLOCKS.append((3, nm, (bx0 + 1.5, pby - 12.5, bx0 + seg - 1.5, pby + 2.5),
+                               f"${(m + 1) * 7.5:g}K"))
+    # affordance: 'CLICK TO START' + a down arrow into the first block, so it's
     # obvious the blocks are clickable (not just a static bar).
     hx = pbx + seg / 2
-    text(hx, pby + 9, "START HERE", font="UIB", size=6, col=GOLD_L, center=True)
+    text(hx, pby + 9, "CLICK TO START", font="UIB", size=6, col=GOLD_L, center=True)
     c.setStrokeColor(GOLD_L); c.setLineWidth(1.1); c.setLineCap(1)
     c.line(hx, pby + 6, hx, pby + 1)
     c.line(hx - 2.5, pby + 3.2, hx, pby + 0.6)
     c.line(hx + 2.5, pby + 3.2, hx, pby + 0.6)
-    text(inx, pby - 26, "click a block to fill it every time you clear another $7,500  (each block = $7,500)",
+    text(inx, pby - 26, "click a block each time you clear another $7,500 - it reveals your running total",
          font="Body", size=7.5, col=alpha(white, 0.55))
     text(x + CW - 18, pby - 26, "reach $75K and you keep every unlock through the end of next year",
          font="BodyB", size=7.5, col=alpha(GOLD_L, 0.9), right=True)
@@ -1579,12 +1581,17 @@ def add_cumulative_star_js(path):
                 f"({label}) Tj", "ET", "Q"]
         return "\n".join(ops).encode("latin-1")
 
-    def _block_stream(w, h, filled):
-        """A $75K progress-bar block. Filled = solid gold. Empty = a faint
-        lighter-purple 'slot' so the blocks read as clickable buttons at rest."""
-        if filled:
-            return f"q 0.961 0.808 0.353 rg 0 0 {w:.2f} {h:.2f} re f Q".encode("latin-1")
-        return f"q 0.31 0.19 0.44 rg 0 0 {w:.2f} {h:.2f} re f Q".encode("latin-1")
+    def _block_stream(w, h, filled, label=""):
+        """A $75K progress-bar block. Empty = a faint lighter-purple 'slot' (looks
+        clickable, number hidden). Filled = solid gold with the running total
+        revealed in deep-purple text."""
+        if not filled:
+            return f"q 0.31 0.19 0.44 rg 0 0 {w:.2f} {h:.2f} re f Q".encode("latin-1")
+        tx = (w - len(label) * 3.1) / 2.0
+        ops = ["q", f"0.961 0.808 0.353 rg 0 0 {w:.2f} {h:.2f} re f",
+               "0.18 0.08 0.25 rg", "BT /Helv 6 Tf",
+               f"1 0 0 1 {max(2.0, tx):.2f} {h / 2 - 2.0:.2f} Tm", f"({label}) Tj", "ET", "Q"]
+        return "\n".join(ops).encode("latin-1")
 
     helv = writer._root_object["/AcroForm"]["/DR"]["/Font"]["/Helv"]
     for page_no, fname, rect, off_label, on_label in PILL_WIDGETS:
@@ -1664,19 +1671,23 @@ def add_cumulative_star_js(path):
 
     # progress-bar blocks: override each reportlab checkbox so its full segment
     # fills solid gold when ticked (the bar visibly fills as you clear $7,500s).
-    for page_no, fname, rect in PROGRESS_BLOCKS:
+    for page_no, fname, rect, blabel in PROGRESS_BLOCKS:
         page = writer.pages[page_no - 1]
         x0, y0, x1, y1 = rect
         w, h = x1 - x0, y1 - y0
         aps = {}
         for state, filled in (("/Off", False), ("/Yes", True)):
             st = DecodedStreamObject()
-            st.set_data(_block_stream(w, h, filled))
+            st.set_data(_block_stream(w, h, filled, blabel))
             st[NameObject("/Type")] = NameObject("/XObject")
             st[NameObject("/Subtype")] = NameObject("/Form")
             st[NameObject("/FormType")] = NumberObject(1)
             st[NameObject("/BBox")] = ArrayObject([FloatObject(0), FloatObject(0),
                                                    FloatObject(w), FloatObject(h)])
+            res = DictionaryObject()
+            fonts = DictionaryObject(); fonts[NameObject("/Helv")] = helv
+            res[NameObject("/Font")] = fonts
+            st[NameObject("/Resources")] = res
             aps[state] = writer._add_object(st)
         n = DictionaryObject(); n[NameObject("/Off")] = aps["/Off"]; n[NameObject("/Yes")] = aps["/Yes"]
         ap = DictionaryObject(); ap[NameObject("/N")] = n
