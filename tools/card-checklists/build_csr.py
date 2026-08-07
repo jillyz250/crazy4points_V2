@@ -485,8 +485,12 @@ def header_band():
     btn_w = (x0 + w) - split - 34; btn_h = 22
     btn_x = rc - btn_w / 2; btn_y = bot + 16
     c.setFillColor(GOLD); c.roundRect(btn_x, btn_y, btn_w, btn_h, 11, stroke=0, fill=1)
-    text(btn_x + btn_w / 2 - 8, btn_y + btn_h / 2 - 3, "GET THE FREE NEWSLETTER",
-         font="UIB", size=7.0, col=DEEP, center=True)
+    _blab = "SIGN UP FOR THE INSIDER LIST"
+    _bfs = 7.0
+    while c.stringWidth(_blab, "UIB", _bfs) > btn_w - 26 and _bfs > 5.4:
+        _bfs -= 0.2
+    text(btn_x + btn_w / 2 - 7, btn_y + btn_h / 2 - 3, _blab,
+         font="UIB", size=_bfs, col=DEEP, center=True)
     c.setStrokeColor(DEEP); c.setLineWidth(1.2); c.setLineCap(1)
     ax = btn_x + btn_w - 14
     c.line(ax - 6, btn_y + btn_h / 2, ax, btn_y + btn_h / 2)
@@ -1248,7 +1252,7 @@ def draw_cta(y):
     c.roundRect(x + 5, y - body_h + 5, CW - 10, body_h - 10, 9, stroke=1, fill=0)
     star(x + 32, y - 34, 9, GOLD_L)
     text(x + 52, y - 30, "Don't leave money on the table", font="Head", size=17, col=white)
-    text(x + 52, y - 52, "There's $2,190 in credits here. Most people never claim it all.",
+    text(x + 52, y - 52, "There's over $2,000 in credits here. Most people never claim it all.",
          font="Body", size=9.5, col=alpha(white, 0.92))
     text(x + 52, y - 66, "The Insider List helps you catch every one.",
          font="Body", size=9.5, col=alpha(white, 0.85))
@@ -1751,6 +1755,9 @@ def add_cumulative_star_js(path):
                 TC_USED: tc_used_js, TC_LEFT: tc_left_js}
     calc_refs = []
     for page in writer.pages:
+        # Row-order tab navigation: pressing Tab walks the fields top-to-bottom,
+        # left-to-right by position instead of the annotation creation order.
+        page[NameObject("/Tabs")] = NameObject("/R")
         for a in (page.get("/Annots") or []):
             o = a.get_object()
             nm = str(o.get("/T", ""))
