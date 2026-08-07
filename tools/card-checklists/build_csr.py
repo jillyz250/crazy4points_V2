@@ -1136,7 +1136,7 @@ def draw_protect(y):
     # just as well and frees ~32pt for the Key Dates strip below.
     x = MARGIN; rowh = 16
     n = len(PROTECT); percol = (n + 2) // 3
-    body_h = 14 + percol * rowh + 16
+    body_h = 14 + percol * rowh + 28
     bar_y = section_bar(x, y, CW, "KNOW YOU'RE COVERED", key, icon=ic_shield, sub="travel and purchase protection, included")
     card(x, bar_y, CW, body_h, CREAM, alpha(GOLD, 0.8))
     colw = CW / 3
@@ -1146,11 +1146,13 @@ def draw_protect(y):
         yy = cy - (i % percol) * rowh
         checkbox(cxx, yy - 2, 10, fid("pr"), col)
         text(cxx + 16, yy, label, font="Body", size=8.3, col=INK)
-    # footer disclaimer — this is where the New York carve-out lives (v53)
-    text(x + 14, bar_y - body_h + 9,
-         "These are Chase's published limits. Deductibles, time limits and eligibility rules apply, and some terms "
-         "differ in New York. Check your Guide to Benefits before you rely on any of them.",
+    # general disclaimer + a specific New York carve-out (NY-heavy audience)
+    text(x + 14, bar_y - body_h + 17,
+         "These are Chase's published limits. Deductibles, time limits and eligibility rules apply - check your Guide to Benefits before you rely on them.",
          font="Body", size=7.2, col=MUT)
+    text(x + 14, bar_y - body_h + 6,
+         "New York residents: lost luggage capped at $2,000/bag  -  purchase-protection claims within 90 days  -  rental-car coverage is secondary if you carry auto insurance.",
+         font="BodyB", size=7.2, col=GOLD_D)
     return bar_y - body_h - 10
 
 # ---- CREDIT SCORECARD ----------------------------------------------------
@@ -1516,10 +1518,11 @@ footer()
 c.showPage()
 
 # PAGE 3 - $75k spend club, perks, protection, key dates
+# tighten inter-section gaps to reclaim the room the NY callout added
 y = mini_header(3)
-y = draw_spend(y)
-y = draw_perks(y)
-y = draw_protect(y)
+y = draw_spend(y) + 5
+y = draw_perks(y) + 5
+y = draw_protect(y) + 4
 y = draw_dates(y)
 footer()
 c.showPage()
