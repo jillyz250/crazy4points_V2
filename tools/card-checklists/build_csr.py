@@ -1229,7 +1229,7 @@ def draw_dates(y):
 NEWSLETTER_URL = "https://www.crazy4points.com/newsletter"
 CARDFINDER_URL = "https://www.crazy4points.com/cards"
 INSTAGRAM_URL = "https://www.instagram.com/crazy4points/"
-FACEBOOK_URL = "https://www.facebook.com/profile.php?id=61589408162571"
+FACEBOOK_URL = "https://www.facebook.com/Crazy4Points"
 
 def qr_png(url, path):
     """Render a QR to PNG. Matters because this sheet gets PRINTED."""
@@ -1260,20 +1260,21 @@ def draw_cta(y):
     c.line(ax - 3.5, byb + btnh / 2 + 3.5, ax, byb + btnh / 2)
     c.line(ax - 3.5, byb + btnh / 2 - 3.5, ax, byb + btnh / 2)
     c.linkURL(NEWSLETTER_URL, (bx, byb, bx + btnw, byb + btnh), relative=0, thickness=0)
-    # social follow line, under the button
+    # social follow line, under the button — same @handle on both platforms
     sy = byb - 16
-    text(x + 50, sy, "Follow along:", font="Body", size=8.5, col=alpha(white, 0.8))
-    lx = x + 50 + c.stringWidth("Follow along:  ", "Body", 8.5)
-    ig = "@crazy4points on Instagram"
-    text(lx, sy, ig, font="BodyB", size=8.5, col=GOLD_L)
-    igw = c.stringWidth(ig, "BodyB", 8.5)
-    c.linkURL(INSTAGRAM_URL, (lx, sy - 2, lx + igw, sy + 9), relative=0, thickness=0)
-    dot_x = lx + igw + 7
-    text(dot_x, sy, "·", font="Body", size=9, col=alpha(white, 0.6))
-    fbx = dot_x + 8
-    fb = "Crazy4Points on Facebook"
-    text(fbx, sy, fb, font="BodyB", size=8.5, col=GOLD_L)
-    c.linkURL(FACEBOOK_URL, (fbx, sy - 2, fbx + c.stringWidth(fb, "BodyB", 8.5), sy + 9), relative=0, thickness=0)
+    def _seg(px, s, link=None, bold=False):
+        text(px, sy, s, font=("BodyB" if bold else "Body"), size=8.5,
+             col=(GOLD_L if bold else alpha(white, 0.8)))
+        w = c.stringWidth(s, ("BodyB" if bold else "Body"), 8.5)
+        if link:
+            c.linkURL(link, (px, sy - 2, px + w, sy + 9), relative=0, thickness=0)
+        return px + w
+    px = _seg(x + 50, "Follow ")
+    px = _seg(px, "@crazy4points", bold=True)
+    px = _seg(px, " on ")
+    px = _seg(px, "Instagram", link=INSTAGRAM_URL, bold=True)
+    px = _seg(px, " & ")
+    px = _seg(px, "Facebook", link=FACEBOOK_URL, bold=True)
     # QR codes, right side
     qy = y - 108
     for i, (url, cap) in enumerate([(NEWSLETTER_URL, "Subscribe free"),
