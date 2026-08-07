@@ -1238,55 +1238,62 @@ def qr_png(url, path):
     return path
 
 def draw_cta(y):
-    """v53 closing ask: never lose a credit again. One gold button to the
-    newsletter, plus two QR codes (Subscribe / Free Card Finder) so the printed
-    sheet still works."""
-    x = MARGIN; body_h = 140
+    """Closing ask: subscribe. Two QR codes get their own bordered cards with a
+    real gap between them - a phone camera can't reliably tell two adjacent
+    codes apart, so they need separation."""
+    x = MARGIN; body_h = 150
     rrect_shadow(x, y - body_h, CW, body_h, 12, alpha(PURPLE, 0.3))
     c.setFillColor(DEEP); c.roundRect(x, y - body_h, CW, body_h, 12, stroke=0, fill=1)
-    star(x + 30, y - 32, 9, GOLD_L)
-    text(x + 50, y - 28, "Never miss another credit", font="Head", size=17, col=white)
-    text(x + 50, y - 50, "The Sapphire Reserve gives back more than most people ever claim.",
+    c.setStrokeColor(alpha(GOLD, 0.5)); c.setLineWidth(1)
+    c.roundRect(x + 5, y - body_h + 5, CW - 10, body_h - 10, 9, stroke=1, fill=0)
+    star(x + 32, y - 34, 9, GOLD_L)
+    text(x + 52, y - 30, "Never miss another credit", font="Head", size=17, col=white)
+    text(x + 52, y - 52, "Your Reserve gives back more than most people ever claim.",
          font="Body", size=9.5, col=alpha(white, 0.92))
-    text(x + 50, y - 64, "We send a short email when something worth knowing changes.",
+    text(x + 52, y - 66, "We'll email you the moment one's about to slip away.",
          font="Body", size=9.5, col=alpha(white, 0.85))
     # gold button
-    btnw = 258; btnh = 26; bx = x + 50; byb = y - 104
+    btnw = 250; btnh = 26; bx = x + 52; byb = y - 104
     c.setFillColor(GOLD); c.roundRect(bx, byb, btnw, btnh, 13, stroke=0, fill=1)
-    text(bx + 20, byb + btnh / 2 - 4, "crazy4points.com/newsletter", font="UIB", size=11.5, col=PURPLE_D)
+    text(bx + 18, byb + btnh / 2 - 4, "crazy4points.com/newsletter", font="UIB", size=11, col=PURPLE_D)
     c.setStrokeColor(PURPLE_D); c.setLineWidth(1.4); c.setLineCap(1)
-    ax = bx + btnw - 20
+    ax = bx + btnw - 18
     c.line(ax - 7, byb + btnh / 2, ax, byb + btnh / 2)
     c.line(ax - 3.5, byb + btnh / 2 + 3.5, ax, byb + btnh / 2)
     c.line(ax - 3.5, byb + btnh / 2 - 3.5, ax, byb + btnh / 2)
     c.linkURL(NEWSLETTER_URL, (bx, byb, bx + btnw, byb + btnh), relative=0, thickness=0)
-    # social follow line, under the button — same @handle on both platforms
+    # social follow line, under the button
     sy = byb - 16
-    def _seg(px, s, link=None, bold=False):
-        text(px, sy, s, font=("BodyB" if bold else "Body"), size=8.5,
+    def _seg(px, ss, link=None, bold=False):
+        text(px, sy, ss, font=("BodyB" if bold else "Body"), size=8.5,
              col=(GOLD_L if bold else alpha(white, 0.8)))
-        w = c.stringWidth(s, ("BodyB" if bold else "Body"), 8.5)
+        w = c.stringWidth(ss, ("BodyB" if bold else "Body"), 8.5)
         if link:
             c.linkURL(link, (px, sy - 2, px + w, sy + 9), relative=0, thickness=0)
         return px + w
-    px = _seg(x + 50, "Follow ")
+    px = _seg(x + 52, "Follow ")
     px = _seg(px, "@crazy4points", bold=True)
     px = _seg(px, " on ")
     px = _seg(px, "Instagram", link=INSTAGRAM_URL, bold=True)
     px = _seg(px, " & ")
     px = _seg(px, "Facebook", link=FACEBOOK_URL, bold=True)
-    # QR codes, right side
-    qy = y - 108
-    for i, (url, cap) in enumerate([(NEWSLETTER_URL, "Subscribe free"),
-                                    (CARDFINDER_URL, "Free Card Finder")]):
-        qx = x + CW - 200 + i * 96
+    # ---- two well-separated QR cards on the right ----
+    qs = 54; pad = 7; cw2 = qs + pad * 2
+    gap = 34
+    c2l = x + CW - 18 - cw2
+    c1l = c2l - gap - cw2
+    ctop = y - 24
+    for i, (cl, url, cap) in enumerate([(c1l, NEWSLETTER_URL, "Subscribe free"),
+                                        (c2l, CARDFINDER_URL, "Free Card Finder")]):
+        c.setFillColor(white); c.roundRect(cl, ctop - cw2, cw2, cw2, 8, stroke=0, fill=1)
+        c.setStrokeColor(alpha(GOLD, 0.85)); c.setLineWidth(1)
+        c.roundRect(cl, ctop - cw2, cw2, cw2, 8, stroke=1, fill=0)
         png = qr_png(url, os.path.join(HERE, "_qr%d.png" % i))
-        c.setFillColor(white); c.roundRect(qx - 5, qy - 5, 78, 78, 6, stroke=0, fill=1)
-        c.drawImage(png, qx, qy, width=68, height=68, mask='auto')
-        text(qx + 34, qy - 15, cap, font="UIB", size=8, col=GOLD_L, center=True)
-        c.linkURL(url, (qx - 5, qy - 5, qx + 73, qy + 73), relative=0, thickness=0)
-    text(x + CW - 100, qy - 27, "scan if you printed this", font="Body", size=7,
-         col=alpha(white, 0.6), center=True)
+        c.drawImage(png, cl + pad, ctop - cw2 + pad, width=qs, height=qs, mask='auto')
+        text(cl + cw2 / 2, ctop - cw2 - 12, cap, font="UIB", size=8, col=GOLD_L, center=True)
+        c.linkURL(url, (cl, ctop - cw2, cl + cw2, ctop), relative=0, thickness=0)
+    text((c1l + c2l + cw2) / 2, ctop - cw2 - 24, "scan if you printed this",
+         font="Body", size=7, col=alpha(white, 0.55), center=True)
     return y - body_h - 10
 
 # ---- LOUNGE VISITS -------------------------------------------------------
