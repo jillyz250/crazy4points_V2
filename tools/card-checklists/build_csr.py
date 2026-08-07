@@ -737,7 +737,7 @@ MONTHLY = [
     ("DoorDash restaurant", "$5/mo  -  promo", 5),
     ("DoorDash grocery/retail #1", "$10/mo  -  promo", 10),
     ("DoorDash grocery/retail #2", "$10/mo  -  promo", 10),
-    ("Peloton membership", "$10/mo  -  statement credit  -  through 12/31/2027", 10),
+    ("Peloton membership", "$10/mo  -  bill direct at onepeloton.com, NOT the App Store", 10),
 ]
 def draw_monthly(y):
     key = "monthly"; col, tint, line = SEC[key]
