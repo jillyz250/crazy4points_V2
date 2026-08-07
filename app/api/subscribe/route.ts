@@ -21,6 +21,7 @@ function looksLikeDotTrickBot(email: string): boolean {
 // so we can distinguish form submits from raw API hits.
 const ALLOWED_SOURCES = new Set([
   'homepage_hero',
+  'newsletter_page',
   'footer',
   'hub_hero',
   'inline_alert',
