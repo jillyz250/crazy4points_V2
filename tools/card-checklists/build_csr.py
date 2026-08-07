@@ -1247,10 +1247,10 @@ def draw_cta(y):
     c.setStrokeColor(alpha(GOLD, 0.5)); c.setLineWidth(1)
     c.roundRect(x + 5, y - body_h + 5, CW - 10, body_h - 10, 9, stroke=1, fill=0)
     star(x + 32, y - 34, 9, GOLD_L)
-    text(x + 52, y - 30, "Never miss another credit", font="Head", size=17, col=white)
-    text(x + 52, y - 52, "Your Reserve gives back more than most people ever claim.",
+    text(x + 52, y - 30, "Don't leave money on the table", font="Head", size=17, col=white)
+    text(x + 52, y - 52, "There's $2,190 in credits here. Most people never claim it all.",
          font="Body", size=9.5, col=alpha(white, 0.92))
-    text(x + 52, y - 66, "We'll email you the moment one's about to slip away.",
+    text(x + 52, y - 66, "The Insider List helps you catch every one.",
          font="Body", size=9.5, col=alpha(white, 0.85))
     # gold button
     btnw = 250; btnh = 26; bx = x + 52; byb = y - 104
@@ -1283,7 +1283,7 @@ def draw_cta(y):
     c2l = x + CW - 18 - cw2
     c1l = c2l - gap - cw2
     ctop = y - 24
-    for i, (cl, url, cap) in enumerate([(c1l, NEWSLETTER_URL, "Subscribe free"),
+    for i, (cl, url, cap) in enumerate([(c1l, NEWSLETTER_URL, "The Insider List"),
                                         (c2l, CARDFINDER_URL, "Free Card Finder")]):
         c.setFillColor(white); c.roundRect(cl, ctop - cw2, cw2, cw2, 8, stroke=0, fill=1)
         c.setStrokeColor(alpha(GOLD, 0.85)); c.setLineWidth(1)
