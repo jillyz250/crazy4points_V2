@@ -1018,6 +1018,8 @@ def draw_spend(y):
                             fillColor=None, textColor=GOLD_L, borderWidth=0, checked=False)
     text(inx, pby - 26, "each block = $7,500  -  tick one every time you clear another $7,500",
          font="Body", size=7.5, col=alpha(white, 0.55))
+    text(x + CW - 18, pby - 26, "reach $75K and you keep every unlock through the end of next year",
+         font="BodyB", size=7.5, col=alpha(GOLD_L, 0.9), right=True)
     # ---- five milestone cards ----
     cy = pby - 40
     cols = 5; g = 8
