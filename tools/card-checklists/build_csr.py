@@ -41,6 +41,8 @@ GOLD_D   = HexColor("#B8901F")
 # too close in value to purple to read at small sizes.
 GOLD_L   = HexColor("#F5CE5A")
 PAPER    = HexColor("#FFFFFF")
+CREAM    = HexColor("#FCF8EC")   # warm ivory — every section panel (v53)
+DEEP     = HexColor("#2E1440")   # deep aubergine — big purple surfaces (v53)
 
 # section (header color, soft card tint, line color)
 SEC = {
@@ -445,40 +447,54 @@ def ic_fork(cx, cy, col):
 # PAGE 1
 # =========================================================================
 def header_band():
+    """v53 header: a contained rounded card, two-tone — a deep aubergine left
+    panel (title + tagline) and a cream right panel (logo + newsletter button),
+    split by a thin gold divider."""
     y = PAGE_H
-    bh = 108
-    # gradient-ish band: purple base + soft gold band
-    c.setFillColor(PURPLE)
-    c.rect(0, y - bh, PAGE_W, bh, stroke=0, fill=1)
-    c.setFillColor(alpha(PURPLE_D, 1))
-    c.rect(0, y - bh, PAGE_W, 5, stroke=0, fill=1)  # bottom edge
-    # logo on a clean white chip (top-right) — the brand mark is purple/gold on
-    # transparent, so it needs a light background to read on the purple band.
-    chip_w, chip_h = 150, 54
-    chip_x = PAGE_W - MARGIN - chip_w
-    chip_y = y - 14 - chip_h
-    c.setFillColor(white)
-    c.roundRect(chip_x, chip_y, chip_w, chip_h, 12, stroke=0, fill=1)
+    tm = 18; bh = 104
+    x0 = MARGIN; w = CW; top = y - tm; bot = top - bh
+    split = x0 + w * 0.655
+    rrect_shadow(x0, bot, w, bh, 12, alpha(INK, 0.18))
+    # cream base card, then the deep-purple left clipped to the rounded shape
+    c.setFillColor(CREAM); c.roundRect(x0, bot, w, bh, 12, stroke=0, fill=1)
+    c.saveState()
+    clip = c.beginPath(); clip.roundRect(x0, bot, w, bh, 12); c.clipPath(clip, stroke=0, fill=0)
+    c.setFillColor(DEEP); c.rect(x0, bot, split - x0, bh, stroke=0, fill=1)
+    c.restoreState()
+    c.setStrokeColor(GOLD); c.setLineWidth(1.1); c.line(split, bot + 10, split, top - 10)
+    c.setStrokeColor(alpha(GOLD, 0.8)); c.setLineWidth(1)
+    c.roundRect(x0, bot, w, bh, 12, stroke=1, fill=0)
+    # left: eyebrow, serif title, tagline
+    text(x0 + 20, top - 24, "2026 EDITION", font="UI", size=8, col=alpha(GOLD, 0.95))
+    tt = "The Sapphire Reserve Companion"
+    tsz = 22
+    while c.stringWidth(tt, "Head", tsz) > split - x0 - 36 and tsz > 14:
+        tsz -= 0.5
+    text(x0 + 20, top - 50, tt, font="Head", size=tsz, col=white)
+    text(x0 + 20, top - 72, "Don't let Chase keep your money. There's $2,190 in credits in here, and most",
+         font="Body", size=9.5, col=alpha(white, 0.95))
+    text(x0 + 20, top - 86, "cardholders leave hundreds of it on the table every single year.",
+         font="Body", size=9.5, col=alpha(white, 0.95))
+    # right (cream panel): logo + newsletter button
+    rc = (split + (x0 + w)) / 2
     LOGO = os.path.join(HERE, "..", "..", "public", "crazy4points-logo.png")
     if os.path.exists(LOGO):
-        c.drawImage(LOGO, chip_x + 10, chip_y + 8, width=chip_w - 20, height=chip_h - 16,
+        lw = (x0 + w) - split - 40
+        c.drawImage(LOGO, rc - lw / 2, top - 46, width=lw, height=34,
                     preserveAspectRatio=True, anchor='c', mask='auto')
-    # GET THE FREE NEWSLETTER button under the logo chip (gold, links to signup)
-    btn_h = 22; btn_y = chip_y - 8 - btn_h
-    c.setFillColor(GOLD); c.roundRect(chip_x, btn_y, chip_w, btn_h, 6, stroke=0, fill=1)
-    text(chip_x + chip_w / 2, btn_y + btn_h / 2 - 3, "GET THE FREE NEWSLETTER",
-         font="UIB", size=7.3, col=PURPLE_D, center=True)
+    btn_w = (x0 + w) - split - 34; btn_h = 22
+    btn_x = rc - btn_w / 2; btn_y = bot + 16
+    c.setFillColor(GOLD); c.roundRect(btn_x, btn_y, btn_w, btn_h, 11, stroke=0, fill=1)
+    text(btn_x + btn_w / 2 - 8, btn_y + btn_h / 2 - 3, "GET THE FREE NEWSLETTER",
+         font="UIB", size=7.0, col=DEEP, center=True)
+    c.setStrokeColor(DEEP); c.setLineWidth(1.2); c.setLineCap(1)
+    ax = btn_x + btn_w - 14
+    c.line(ax - 6, btn_y + btn_h / 2, ax, btn_y + btn_h / 2)
+    c.line(ax - 3, btn_y + btn_h / 2 + 3, ax, btn_y + btn_h / 2)
+    c.line(ax - 3, btn_y + btn_h / 2 - 3, ax, btn_y + btn_h / 2)
     c.linkURL("https://www.crazy4points.com/newsletter",
-              (chip_x, btn_y, chip_x + chip_w, btn_y + btn_h), relative=0)
-    # title block (left): eyebrow, serif title, then the "what you lose" tagline
-    text(MARGIN, y - 26, "2026 EDITION", font="UI", size=8, col=alpha(GOLD, 0.95))
-    text(MARGIN, y - 52, "The Sapphire Reserve Companion", font="Head", size=24, col=white)
-    # Lead with what they LOSE — the fee is already sunk, the credits are not.
-    text(MARGIN, y - 74, "Don't let Chase keep your money. There's $2,190 in credits in here, and most",
-         font="Body", size=10, col=alpha(white, 0.95))
-    text(MARGIN, y - 88, "cardholders leave hundreds of it on the table every single year.",
-         font="Body", size=10, col=alpha(white, 0.95))
-    return y - bh - 14
+              (btn_x, btn_y, btn_x + btn_w, btn_y + btn_h), relative=0)
+    return bot - 16
 
 def row_line(x, w, y, col):
     c.setStrokeColor(alpha(col, 0.7)); c.setLineWidth(0.7)
@@ -690,7 +706,7 @@ def draw_semi(y):
     x = MARGIN; rowh = 26
     body_h = 22 + len(SEMI) * rowh + 6
     bar_y = section_bar(x, y, CW, "Credits to Cash In - Twice a Year   ($1,100)", key, icon=ic_card)
-    card(x, bar_y, CW, body_h, tint, line)
+    card(x, bar_y, CW, body_h, CREAM, alpha(GOLD, 0.8))
     # column headers
     colH1 = x + CW - 200; colH2 = x + CW - 96
     text(colH1 + 44, bar_y - 15, "JAN-JUN", font="UI", size=8.5, col=col, right=True)
@@ -725,7 +741,7 @@ def draw_monthly(y):
     grid_x = x + CW - 12 * 20 - 12
     body_h = 22 + len(MONTHLY) * rowh + 6
     bar_y = section_bar(x, y, CW, "EVERY MONTH", key, icon=ic_cal, sub="$540 a year if you catch them all")
-    card(x, bar_y, CW, body_h, tint, line)
+    card(x, bar_y, CW, body_h, CREAM, alpha(GOLD, 0.8))
     # month letters header
     for m in range(12):
         text(grid_x + m * 20 + 10, bar_y - 15, MONTHS[m], font="UI", size=7.5, col=col, center=True)
@@ -759,7 +775,7 @@ def draw_annual(y):
     x = MARGIN; rowh = 25
     body_h = 16 + len(ANNUAL) * rowh
     bar_y = section_bar(x, y, CW, "Credits to Cash In - Once a Year", key, icon=ic_target)
-    card(x, bar_y, CW, body_h, tint, line)
+    card(x, bar_y, CW, body_h, CREAM, alpha(GOLD, 0.8))
     cy = bar_y - 18
     for i, item in enumerate(ANNUAL):
         label, sub = item[0], item[1]
@@ -785,9 +801,7 @@ def draw_annual(y):
 # =========================================================================
 def mini_header(pageno):
     y = PAGE_H
-    c.setFillColor(PURPLE); c.rect(0, y - 34, PAGE_W, 34, stroke=0, fill=1)
-    for (sx, ss) in [(468,2.8),(508,2.2)]:
-        sparkle(sx, y-17, ss, alpha(GOLD, 0.85))
+    c.setFillColor(DEEP); c.rect(0, y - 34, PAGE_W, 34, stroke=0, fill=1)
     text(MARGIN, y - 23, "Sapphire Reserve Companion", font="Head", size=13, col=white)
     text(PAGE_W - MARGIN, y - 22, f"page {pageno}", font="Head", size=10, col=GOLD, right=True)
     return y - 34 - 14
@@ -827,7 +841,7 @@ def draw_dining(y, rows_per_half=4):
               (pbx, bar_y + 5, pbx + pw, bar_y + 18), relative=0)
     text(pbx - 10, bar_y + 8, "$300 a year, $150 in each half", font="UI", size=8.5,
          col=alpha(white, 0.92), right=True)
-    card(x, bar_y, CW, body_h, tint, line)
+    card(x, bar_y, CW, body_h, CREAM, alpha(GOLD, 0.8))
     # column x's
     c_num = x + 14; c_go = x + 26; c_rest = x + 48; c_date = x + 246; c_amt = x + 318
     c_rate = x + 374; c_note = x + 440
@@ -922,7 +936,7 @@ def draw_tickets(y, rows_per_half=3):
     half_h = hh + lbl + rows_per_half * rowh
     body_h = pad + half_h + gap + half_h + 6
     bar_y = section_bar(x, y, CW, "TICKETS  -  STUBHUB & VIAGOGO", key, icon=ic_ticket, sub="$300 a year, $150 in each half")
-    card(x, bar_y, CW, body_h, tint, line)
+    card(x, bar_y, CW, body_h, CREAM, alpha(GOLD, 0.8))
     c_go = x + 16; c_evt = x + 40; c_where = x + 220; c_date = x + 320
     c_amt = x + 390; c_note = x + 448
     def cols():
@@ -975,7 +989,7 @@ def draw_spend(y):
     top = bar_y
     # dark panel + gold hairline
     rrect_shadow(x, top - body_h, CW, body_h, 8, alpha(INK, 0.22))
-    c.setFillColor(PURPLE_D); c.roundRect(x, top - body_h, CW, body_h, 8, stroke=0, fill=1)
+    c.setFillColor(DEEP); c.roundRect(x, top - body_h, CW, body_h, 8, stroke=0, fill=1)
     c.setStrokeColor(alpha(GOLD, 0.7)); c.setLineWidth(1)
     c.roundRect(x + 1, top - body_h + 1, CW - 2, body_h - 2, 8, stroke=1, fill=0)
     inx = x + 18
@@ -1067,7 +1081,7 @@ def draw_perks(y):
     n = len(PERKS); percol = (n + 1) // 2
     body_h = 20 + percol * rowh
     bar_y = section_bar(x, y, CW, "PERKS YOU GET AUTOMATICALLY", key, icon=ic_crown, sub="nothing to tick, nothing to switch on")
-    card(x, bar_y, CW, body_h, tint, line)
+    card(x, bar_y, CW, body_h, CREAM, alpha(GOLD, 0.8))
     colw = CW / 2
     cy = bar_y - 22
     for i, (label, act) in enumerate(PERKS):
@@ -1090,7 +1104,7 @@ def draw_earn(y):
     x = MARGIN
     body_h = 66
     rrect_shadow(x, y - body_h, CW, body_h, 10, alpha(PURPLE, 0.3))
-    c.setFillColor(PURPLE); c.roundRect(x, y - body_h, CW, body_h, 10, stroke=0, fill=1)
+    c.setFillColor(DEEP); c.roundRect(x, y - body_h, CW, body_h, 10, stroke=0, fill=1)
     text_ls(x + 16, y - 18, "HOW YOU EARN", "UIB", 10.5, white, spacing=1.4)
     text(x + CW - 16, y - 17, "10x Peloton is on purchases over $150 (up to $5,000)",
          font="Body", size=8, col=alpha(white, 0.85), right=True)
@@ -1124,7 +1138,7 @@ def draw_protect(y):
     n = len(PROTECT); percol = (n + 2) // 3
     body_h = 14 + percol * rowh + 16
     bar_y = section_bar(x, y, CW, "KNOW YOU'RE COVERED", key, icon=ic_shield, sub="travel and purchase protection, included")
-    card(x, bar_y, CW, body_h, tint, line)
+    card(x, bar_y, CW, body_h, CREAM, alpha(GOLD, 0.8))
     colw = CW / 3
     cy = bar_y - 17
     for i, label in enumerate(PROTECT):
@@ -1160,7 +1174,7 @@ def draw_notes(y, body_h=84):
     key = "perks"; col, tint, line = SEC[key]  # mint
     x = MARGIN
     bar_y = section_bar(x, y, CW, "Notes & Reminders", key, icon=ic_star)
-    card(x, bar_y, CW, body_h, tint, line)
+    card(x, bar_y, CW, body_h, CREAM, alpha(GOLD, 0.8))
     c.acroForm.textfield(name=fid("notes"), x=x + 14, y=bar_y - body_h + 10, width=CW - 28,
         height=body_h - 20, fontName="Helvetica", fontSize=10, borderColor=line, fillColor=white,
         borderWidth=0.8, borderStyle="solid", forceBorder=True, fieldFlags="multiline")
@@ -1190,7 +1204,7 @@ def draw_dates(y):
     rows = max(len(RESETS), len(ENDS))
     body_h = 28 + rows * 15 + 14
     bar_y = section_bar(x, y, CW, "KEY DATES", key, icon=ic_cal, sub="what resets, and what runs out")
-    card(x, bar_y, CW, body_h, tint, line)
+    card(x, bar_y, CW, body_h, CREAM, alpha(GOLD, 0.8))
     leftw = CW * 0.56
     text(x + 14, bar_y - 14, "RESETS - USE IT OR LOSE IT", font="UI", size=7.2, col=col)
     text(x + 14 + leftw, bar_y - 14, "RUNS OUT ON", font="UI", size=7.2, col=col)
@@ -1224,7 +1238,7 @@ def draw_cta(y):
     sheet still works."""
     x = MARGIN; body_h = 140
     rrect_shadow(x, y - body_h, CW, body_h, 12, alpha(PURPLE, 0.3))
-    c.setFillColor(PURPLE); c.roundRect(x, y - body_h, CW, body_h, 12, stroke=0, fill=1)
+    c.setFillColor(DEEP); c.roundRect(x, y - body_h, CW, body_h, 12, stroke=0, fill=1)
     star(x + 30, y - 32, 9, GOLD_L)
     text(x + 50, y - 28, "Never miss another credit", font="Head", size=17, col=white)
     text(x + 50, y - 50, "The Sapphire Reserve gives back more than most people ever claim.",
@@ -1271,7 +1285,7 @@ def draw_lounges(y):
     x = MARGIN; rowh = 28
     body_h = 32 + len(LOUNGES) * rowh
     bar_y = section_bar(x, y, CW, "Lounge Visits - tick a box each time you go", key, icon=ic_crown)
-    card(x, bar_y, CW, body_h, tint, line)
+    card(x, bar_y, CW, body_h, CREAM, alpha(GOLD, 0.8))
     text(x + 16, bar_y - 15,
          "Sapphire Lounges include two guests. Priority Pass: extra guests $27 each per visit. Air Canada: one guest free, then $59.",
          font="Body", size=8.2, col=MUT)
@@ -1385,6 +1399,9 @@ def draw_travel_credit(y):
         cy = top - 15
         c_ck = x + 16
         for r in range(nrows):
+            if r % 2 == 1:  # zebra band (v53)
+                c.setFillColor(alpha(GOLD, 0.06))
+                c.roundRect(x + 10, cy - 6, CW - 20, 15, 2, stroke=0, fill=1)
             checkbox(c_ck, cy - 3, 11, fid(prefix + "k"), pink)
             for j, hx in enumerate(xs):
                 w = (xs[j + 1] - hx - 10) if j + 1 < len(xs) else (x + CW - 14 - hx)
@@ -1425,7 +1442,7 @@ def draw_breakeven(y):
     total = sum(v for _, v, _ in BREAKEVEN)
     bar_y = section_bar(x, y, CW, "Break-Even at a Glance", "setup", icon=ic_target)
     col, tint, line = SEC["setup"]
-    card(x, bar_y, CW, body_h, tint, line)
+    card(x, bar_y, CW, body_h, CREAM, alpha(GOLD, 0.8))
     bx, bw, bh = x + 16, CW - 32, 22
     by = bar_y - 40
     scale = bw / total
@@ -1486,9 +1503,12 @@ c.showPage()
 
 # PAGE 2 - twice-a-year credits, each tracked in place
 y = mini_header(2)
-text(MARGIN, y - 6, "Dining and Tickets reset each half-year - use them or lose them.  The Edit does not.",
+# cream banner with a gold left accent (v53)
+c.setFillColor(CREAM); c.roundRect(MARGIN, y - 20, CW, 20, 5, stroke=0, fill=1)
+c.setFillColor(GOLD); c.roundRect(MARGIN, y - 20, 4, 20, 2, stroke=0, fill=1)
+text(MARGIN + 14, y - 13, "Dining and Tickets reset each half-year - use them or lose them.  The Edit does not.",
      font="Body", size=9.5, col=INK)
-y = y - 24
+y = y - 30
 y = draw_edit(y, rows_per_half=2)
 y = draw_dining(y, rows_per_half=2)
 y = draw_tickets(y, rows_per_half=2)
