@@ -66,6 +66,8 @@ async function loadStats() {
     newDrafts,
     newIntel,
     newExperiences,
+    sweepsRunning,
+    sweepsNeedPost,
   ] = await Promise.all([
     // Match the /admin/drafts "Needs review" chip exactly: needs_review variants
     // that are NOT currently snoozed (snoozed-but-not-woken live under their own
@@ -129,6 +131,14 @@ async function loadStats() {
       .eq('status', 'active')
       .gte('first_seen_at', since)
       .order('first_seen_at', { ascending: false }),
+    // Sweepstakes currently running (the daily sweepstakes-watch feeds this).
+    supabase.from('sweepstakes').select('id', { count: 'exact', head: true }).eq('status', 'running'),
+    // Running sweepstakes we haven't posted to social yet — the "do a post" nudge.
+    supabase
+      .from('sweepstakes')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'running')
+      .eq('posted_social', false),
   ])
 
   return {
@@ -149,6 +159,8 @@ async function loadStats() {
     newIntel: newIntel.count ?? 0,
     newExperiences: newExperiences.data?.length ?? 0,
     newExperienceItems: (newExperiences.data ?? []) as Array<{ title: string; detail_url: string | null }>,
+    sweepsRunning: sweepsRunning.count ?? 0,
+    sweepsNeedPost: sweepsNeedPost.count ?? 0,
   }
 }
 
@@ -318,6 +330,19 @@ export default async function AdminDashboard() {
           : stats.newExperiences === 1
             ? stats.newExperienceItems[0]?.title ?? 'new listing since yesterday'
             : `${stats.newExperiences} new since yesterday - consider a post`,
+    },
+    {
+      label: 'Sweepstakes running',
+      value: stats.sweepsRunning,
+      // Accent when there are ones to post about, neutral when all posted/none.
+      tone: stats.sweepsNeedPost > 0 ? 'accent' : stats.sweepsRunning > 0 ? 'success' : 'neutral',
+      href: '/admin/sweepstakes',
+      hint:
+        stats.sweepsRunning === 0
+          ? 'none live right now'
+          : stats.sweepsNeedPost > 0
+            ? `${stats.sweepsNeedPost} need a social post`
+            : 'all posted',
     },
     {
       label: 'Open content ideas',
