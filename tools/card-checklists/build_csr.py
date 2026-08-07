@@ -1192,11 +1192,10 @@ RESETS = [
     ("Jan 1", "$75K spend counter resets"),
 ]
 ENDS = [
-    ("Sep 30, 2026", "Marriott Gold closes (if invited)"),
+    ("Sep 30, 2026", "Register Marriott Gold (if invited)"),
     ("Dec 31, 2026", "$250 Chase Travel hotel credit"),
     ("Jun 22, 2027", "Apple TV+ & Apple Music"),
-    ("Mar 31, 2027", "Lyft 5x points offer ends"),
-    ("Sep 30, 2027", "Lyft $10/mo credits end"),
+    ("Sep 30, 2027", "Lyft 5x points + $10/mo credit"),
     ("Dec 31, 2027", "StubHub, Peloton, DashPass, IHG"),
     ("Every 4 yrs", "Global Entry / TSA / NEXUS"),
 ]
