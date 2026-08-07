@@ -48,13 +48,13 @@ DEEP     = HexColor("#2E1440")   # deep aubergine — big purple surfaces (v53)
 SEC = {
     "setup":   (HexColor("#8A4FD6"), HexColor("#F1E9FB"), HexColor("#DFCFF3")),
     "semi":    (HexColor("#E0699B"), HexColor("#FCE6F1"), HexColor("#F6CFE1")),
-    "monthly": (HexColor("#2FA8C7"), HexColor("#E1F4FA"), HexColor("#C6E9F2")),
-    "annual":  (HexColor("#F0954C"), HexColor("#FFEEDD"), HexColor("#FAD9BE")),
-    "dining":  (HexColor("#E0568A"), HexColor("#FCE1EC"), HexColor("#F6C9DC")),
+    "monthly": (HexColor("#3C90A6"), HexColor("#E1F4FA"), HexColor("#C6E9F2")),
+    "annual":  (HexColor("#D98C4F"), HexColor("#FFEEDD"), HexColor("#FAD9BE")),
+    "dining":  (HexColor("#CB5783"), HexColor("#FCE1EC"), HexColor("#F6C9DC")),
     "spend":   (HexColor("#C79A20"), HexColor("#FBF3D2"), HexColor("#EFE0A8")),
-    "perks":   (HexColor("#4FAE82"), HexColor("#E4F5EC"), HexColor("#C9EAD8")),
-    "protect": (HexColor("#7C86D6"), HexColor("#EAECFB"), HexColor("#D3D8F4")),
-    "edit":    (HexColor("#4E5AA8"), HexColor("#EDEFFB"), HexColor("#CDD3F0")),
+    "perks":   (HexColor("#539577"), HexColor("#E4F5EC"), HexColor("#C9EAD8")),
+    "protect": (HexColor("#7981C5"), HexColor("#EAECFB"), HexColor("#D3D8F4")),
+    "edit":    (HexColor("#515A90"), HexColor("#EDEFFB"), HexColor("#CDD3F0")),
 }
 
 PAGE_W, PAGE_H = letter
