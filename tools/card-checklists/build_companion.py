@@ -78,6 +78,7 @@ c.setAuthor("crazy4points.com")
 # from Chase's published credit amounts, so the running total is factual, never
 # an invented valuation. Text fields are whatever the reader typed.
 PILL_WIDGETS = []     # (page_no, field_name, rect, off_label, on_label)
+PROGRESS_BLOCKS = []  # (page_no, field_name, rect) — fill solid gold when ticked
 SUM_CHECKBOXES = []   # (field_name, dollars_per_check)
 SUM_TEXTFIELDS = []   # field_name
 
@@ -628,16 +629,26 @@ def draw_setup_grid(y):
         while c.stringWidth(item["note"], "Body", ntsz) > tw - pad * 2 and ntsz > 5.4:
             ntsz -= 0.15
         text(lx, cy0 - 81, item["note"], font="Body", size=ntsz, col=MUT)
-        # 'mark done' + checkbox, bottom-right (own line below the note)
+        # bottom-right, own line below the note
         cb = 10
         cbx = cx0 + tw - pad - cb
         cby = cy0 - th + 4
-        fld = item.get("field") or f"card{i}"
-        checkbox(cbx, cby, cb, fld, PURPLE)
-        text(cbx - 4, cby + 1.5, "mark done", font="Body", size=6.8,
-             col=alpha(PURPLE, 0.62), right=True)
-        # paired "DONE" stamp (top-left): blank until ticked, then green DONE
-        PILL_WIDGETS.append((1, fld, (cx0 + 8, cy0 - 16, cx0 + 42, cy0 - 4), "", "DONE"))
+        if item.get("track") == "date":
+            # a "used ___" date write-in instead of a checkbox: this benefit is
+            # on a multi-year cycle, so what matters is WHEN you last claimed it.
+            fw = 48
+            c.setFillColor(white); c.roundRect(cx0 + tw - pad - fw, cby - 1, fw, 12, 2, stroke=0, fill=1)
+            textfield(cx0 + tw - pad - fw, cby - 1, fw, 12, f"card{i}used", fontsize=7,
+                      style="inset", line=SEC["spend"][2])
+            text(cx0 + tw - pad - fw - 4, cby + 1.5, "used", font="Body", size=6.8,
+                 col=alpha(PURPLE, 0.62), right=True)
+        else:
+            fld = item.get("field") or f"card{i}"
+            checkbox(cbx, cby, cb, fld, PURPLE)
+            text(cbx - 4, cby + 1.5, "mark done", font="Body", size=6.8,
+                 col=alpha(PURPLE, 0.62), right=True)
+            # paired "DONE" stamp (top-left): blank until ticked, then green DONE
+            PILL_WIDGETS.append((1, fld, (cx0 + 8, cy0 - 16, cx0 + 42, cy0 - 4), "", "DONE"))
     return bar_y - body_h - 10
 
 def go_pill_lux(gx, cy, url):
@@ -974,10 +985,15 @@ def draw_spend(y):
     for t in range(1, 10):
         c.line(pbx + seg * t, pby - 14, pbx + seg * t, pby + 4)
     for m in range(10):
-        c.acroForm.checkbox(name=fid("sq"), x=pbx + seg * m + seg / 2 - 6.5, y=pby - 11,
-                            size=13, buttonStyle="check", borderColor=None,
-                            fillColor=None, textColor=GOLD_L, borderWidth=0, checked=False)
-    text(inx, pby - 26, "each block = $7,500  -  tick one every time you clear another $7,500",
+        bx0 = pbx + seg * m
+        nm = f"blk{m}"
+        # reportlab creates the checkbox field; post-processing overrides its Rect
+        # to the full segment and swaps its appearance to a solid-gold fill so the
+        # whole block lights up when clicked (a real filling progress bar).
+        c.acroForm.checkbox(name=nm, x=bx0 + 3, y=pby - 11, size=12, buttonStyle="check",
+                            borderColor=None, fillColor=None, borderWidth=0, checked=False)
+        PROGRESS_BLOCKS.append((3, nm, (bx0 + 1.5, pby - 12.5, bx0 + seg - 1.5, pby + 2.5)))
+    text(inx, pby - 26, "each block = $7,500  -  click one to fill it every time you clear another $7,500",
          font="Body", size=7.5, col=alpha(white, 0.55))
     text(x + CW - 18, pby - 26, "reach $75K and you keep every unlock through the end of next year",
          font="BodyB", size=7.5, col=alpha(GOLD_L, 0.9), right=True)
@@ -1555,6 +1571,12 @@ def add_cumulative_star_js(path):
                 f"({label}) Tj", "ET", "Q"]
         return "\n".join(ops).encode("latin-1")
 
+    def _block_stream(w, h, filled):
+        """A $75K progress-bar block: solid gold fill when ticked, blank when off."""
+        if not filled:
+            return b"q Q"
+        return f"q 0.961 0.808 0.353 rg 0 0 {w:.2f} {h:.2f} re f Q".encode("latin-1")
+
     helv = writer._root_object["/AcroForm"]["/DR"]["/Font"]["/Helv"]
     for page_no, fname, rect, off_label, on_label in PILL_WIDGETS:
         page = writer.pages[page_no - 1]
@@ -1630,6 +1652,33 @@ def add_cumulative_star_js(path):
             page[NameObject("/Annots")] = ArrayObject([pill_ref])
         else:
             annots.append(pill_ref)
+
+    # progress-bar blocks: override each reportlab checkbox so its full segment
+    # fills solid gold when ticked (the bar visibly fills as you clear $7,500s).
+    for page_no, fname, rect in PROGRESS_BLOCKS:
+        page = writer.pages[page_no - 1]
+        x0, y0, x1, y1 = rect
+        w, h = x1 - x0, y1 - y0
+        aps = {}
+        for state, filled in (("/Off", False), ("/Yes", True)):
+            st = DecodedStreamObject()
+            st.set_data(_block_stream(w, h, filled))
+            st[NameObject("/Type")] = NameObject("/XObject")
+            st[NameObject("/Subtype")] = NameObject("/Form")
+            st[NameObject("/FormType")] = NumberObject(1)
+            st[NameObject("/BBox")] = ArrayObject([FloatObject(0), FloatObject(0),
+                                                   FloatObject(w), FloatObject(h)])
+            aps[state] = writer._add_object(st)
+        n = DictionaryObject(); n[NameObject("/Off")] = aps["/Off"]; n[NameObject("/Yes")] = aps["/Yes"]
+        ap = DictionaryObject(); ap[NameObject("/N")] = n
+        for a in (page.get("/Annots") or []):
+            o = a.get_object()
+            if str(o.get("/T", "")) == fname:
+                o[NameObject("/Rect")] = ArrayObject([FloatObject(v) for v in rect])
+                o[NameObject("/AP")] = ap
+                o[NameObject("/AS")] = NameObject("/Off")
+                o[NameObject("/MK")] = DictionaryObject()
+                break
 
     # ---- auto-summing total ------------------------------------------------
     # "Statement credits claimed" adds up every ticked credit using Chase's own
