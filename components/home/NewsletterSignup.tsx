@@ -11,7 +11,15 @@ import { track } from '@/lib/analytics'
  * signup (where people instinctively look) found nothing. Only the dedicated
  * /newsletter page, where the page IS the signup, should set this.
  */
-export default function NewsletterSignup({ isPrimary = false }: { isPrimary?: boolean }) {
+export default function NewsletterSignup({
+  isPrimary = false,
+  source = 'homepage_hero',
+}: {
+  isPrimary?: boolean
+  /** Analytics signup_source. Defaults to the homepage hero; the /newsletter
+   *  page passes 'newsletter_page' so the two surfaces are distinguishable. */
+  source?: string
+}) {
   const [email, setEmail] = useState('')
   const [firstName, setFirstName] = useState('')
   const [website, setWebsite] = useState('')
@@ -27,7 +35,7 @@ export default function NewsletterSignup({ isPrimary = false }: { isPrimary?: bo
     const res = await fetch('/api/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, firstName, website, source: 'homepage_hero', referrerPath }),
+      body: JSON.stringify({ email, firstName, website, source, referrerPath }),
     })
 
     const data = await res.json()
