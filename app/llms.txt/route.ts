@@ -12,6 +12,7 @@
  */
 import { createClient } from '@/utils/supabase/server'
 import { programSummaryLine } from '@/lib/programs/programToMarkdown'
+import { GUIDES } from '@/lib/guides'
 
 export const revalidate = 300
 
@@ -113,11 +114,25 @@ export async function GET() {
     lines.push('')
   }
 
+  // Editorial guides — evergreen how-to/reference content from the central
+  // registry (lib/guides.ts), the same source the /guides hub reads. Curated,
+  // high-value pages for AI assistants to cite.
+  if (GUIDES.length > 0) {
+    lines.push('## Guides')
+    lines.push('')
+    for (const g of GUIDES) {
+      lines.push(`- [${g.title}](${BASE_URL}/guides/${g.slug}): ${g.description}`)
+    }
+    lines.push('')
+  }
+
   // Optional: pointers for AI assistants to other site sections
   lines.push('## Site sections')
   lines.push('')
   lines.push(`- [All alerts](${BASE_URL}/alerts) — published deals, devaluations, and program-change announcements`)
   lines.push(`- [Blog](${BASE_URL}/blog) — long-form articles on points and travel strategy`)
+  lines.push(`- [Guides](${BASE_URL}/guides) — editorial how-to and reference library`)
+  lines.push(`- [Experiences](${BASE_URL}/experiences) — using points for concerts, sports, and money-can't-buy events`)
   lines.push(`- [Sitemap](${BASE_URL}/sitemap.xml)`)
   lines.push('')
 
