@@ -172,11 +172,10 @@ export default async function BlogPostPage({ params }: Props) {
     datePublished: post.published_at,
     dateModified: post.updated_at,
     author: { '@type': 'Person', name: author },
-    publisher: {
-      '@type': 'Organization',
-      name: 'crazy4points',
-      logo: { '@type': 'ImageObject', url: 'https://www.crazy4points.com/logo.png' },
-    },
+    // References the site-wide Organization (name + valid logo) from
+    // app/layout.tsx. Previously inlined a /logo.png that 404s, which
+    // invalidated the Article's publisher logo for rich results.
+    publisher: { '@id': 'https://www.crazy4points.com/#organization' },
     image: ogImageUrl,
     mainEntityOfPage: `https://www.crazy4points.com/blog/${post.slug}`,
   };

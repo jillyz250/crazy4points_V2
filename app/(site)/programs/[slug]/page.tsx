@@ -306,20 +306,15 @@ export default async function ProgramPage({
     name: `${program.name}`,
     url,
     inLanguage: 'en-US',
-    isPartOf: { '@type': 'WebSite', name: 'crazy4points', url: 'https://www.crazy4points.com' },
+    // Reference the site-wide WebSite + Organization declared in
+    // app/layout.tsx so the whole site resolves to one canonical entity graph.
+    isPartOf: { '@id': 'https://www.crazy4points.com/#website' },
     about: {
       '@type': aboutType,
       name: program.name,
       ...(programDescription ? { description: programDescription } : {}),
     },
-    publisher: {
-      '@type': 'Organization',
-      name: 'crazy4points',
-      logo: {
-        '@type': 'ImageObject',
-        url: 'https://www.crazy4points.com/crazy4points-logo.png',
-      },
-    },
+    publisher: { '@id': 'https://www.crazy4points.com/#organization' },
   }
 
   // Dedicated deep-dive guides for this program (gold hero pill + intro callouts).
