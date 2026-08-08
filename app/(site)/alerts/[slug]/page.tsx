@@ -149,14 +149,9 @@ export default async function AlertDetailPage({ params }: Props) {
     datePublished: alert.published_at,
     dateModified: alert.updated_at,
     author: { '@type': 'Organization', name: 'crazy4points' },
-    publisher: {
-      '@type': 'Organization',
-      name: 'crazy4points',
-      logo: {
-        '@type': 'ImageObject',
-        url: 'https://www.crazy4points.com/crazy4points-logo.png',
-      },
-    },
+    // References the site-wide Organization (name + logo) declared in
+    // app/layout.tsx, so every page resolves to one canonical brand entity.
+    publisher: { '@id': 'https://www.crazy4points.com/#organization' },
     mainEntityOfPage: `https://www.crazy4points.com/alerts/${alert.slug}`,
     articleSection: alert.type.replace(/_/g, ' '),
   }

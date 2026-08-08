@@ -46,7 +46,8 @@ export default async function NewsletterIssuePage({ params }: { params: Promise<
     datePublished: n.sent_at ?? undefined,
     dateModified: n.sent_at ?? undefined,
     author: { '@type': 'Organization', name: 'Crazy4Points' },
-    publisher: { '@type': 'Organization', name: 'Crazy4Points' },
+    // References the site-wide Organization (name + logo) from app/layout.tsx.
+    publisher: { '@id': `${SITE}/#organization` },
     mainEntityOfPage: `${SITE}/newsletter/${n.slug}`,
     description: n.hero_kicker ?? undefined,
   }
