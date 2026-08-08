@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { GuideDateline } from '@/components/guides/GuideDateline'
+import { GuideJsonLd } from '@/components/guides/GuideJsonLd'
 import GuideNewsletterCTA from '@/components/guides/GuideNewsletterCTA'
 
 export const metadata: Metadata = {
@@ -100,6 +101,7 @@ export default function SoldOutHotelGuide() {
           How to Book a Sold-Out Hotel
         </h1>
         <GuideDateline slug="how-to-book-a-sold-out-hotel" />
+        <GuideJsonLd slug="how-to-book-a-sold-out-hotel" />
         <p className="mt-4 font-body text-lg text-[var(--color-text-secondary)]">
           {'Picture parents weekend near a big university, or New Year’s Eve near Times Square. Every hotel for miles shows sold out, and the few rooms left on resale sites are triple the normal price. Now picture booking a standard room at that same “sold out” hotel, one that simply would not appear as available to anyone else. That is not a glitch. It is a real elite benefit called guaranteed room availability, and almost nobody talks about it.'}
         </p>

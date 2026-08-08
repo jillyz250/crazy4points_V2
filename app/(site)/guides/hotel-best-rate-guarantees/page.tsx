@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { GuideDateline } from '@/components/guides/GuideDateline'
+import { GuideJsonLd } from '@/components/guides/GuideJsonLd'
 import GuideNewsletterCTA from '@/components/guides/GuideNewsletterCTA'
 
 export const metadata: Metadata = {
@@ -98,6 +99,7 @@ export default function BestRateGuaranteeGuide() {
           Hotel &amp; Travel-Portal Best Rate Guarantees
         </h1>
         <GuideDateline slug="hotel-best-rate-guarantees" />
+        <GuideJsonLd slug="hotel-best-rate-guarantees" />
         <p className="mt-4 font-body text-lg text-[var(--color-text-secondary)]">
           A plain-English map of the top hotel and travel-portal &ldquo;best rate / price match&rdquo; guarantees —
           who has one, what you actually get, and how to win a claim. We checked <strong>27 hotel programs</strong> and

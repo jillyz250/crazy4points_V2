@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { GuideDateline } from '@/components/guides/GuideDateline'
+import { GuideJsonLd } from '@/components/guides/GuideJsonLd'
 import GuideNewsletterCTA from '@/components/guides/GuideNewsletterCTA'
 
 export const metadata: Metadata = {
@@ -56,6 +57,7 @@ export default function HyattSweetSpotsGuide() {
           The Best Hyatt Sweet Spots (After the 2026 Chart Refresh)
         </h1>
         <GuideDateline slug="hyatt-points-sweet-spots" />
+        <GuideJsonLd slug="hyatt-points-sweet-spots" />
         <p className="mt-4 font-body text-lg text-[var(--color-text-secondary)]">
           World of Hyatt is still the most valuable hotel currency in points and miles. But in May 2026 Hyatt overhauled its award chart, so <em>where</em> your points win has shifted. This is the honest, current map: what still delivers, what got pricier, and how to book smart.
         </p>

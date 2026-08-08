@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { GuideDateline } from '@/components/guides/GuideDateline'
+import { GuideJsonLd } from '@/components/guides/GuideJsonLd'
 import GuideNewsletterCTA from '@/components/guides/GuideNewsletterCTA'
 
 export const metadata: Metadata = {
@@ -44,6 +45,7 @@ export default function AddCardToPazeGuide() {
           Having Trouble Adding Your Card to Paze? You&rsquo;re Not Alone
         </h1>
         <GuideDateline slug="how-to-add-your-card-to-paze" />
+        <GuideJsonLd slug="how-to-add-your-card-to-paze" />
         <p className="mt-4 font-body text-lg text-[var(--color-text-secondary)]">
           {"Here's the part nobody tells you: Paze isn't like Apple Pay. You can't just type in a card number and go. You switch it on one card at a time, inside the Chase app. Once you know that, it takes about 30 seconds."}
         </p>

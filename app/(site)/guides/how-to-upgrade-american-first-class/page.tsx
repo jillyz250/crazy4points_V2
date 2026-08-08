@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { GuideDateline } from '@/components/guides/GuideDateline'
+import { GuideJsonLd } from '@/components/guides/GuideJsonLd'
 import GuideNewsletterCTA from '@/components/guides/GuideNewsletterCTA'
 
 export const metadata: Metadata = {
@@ -92,6 +93,7 @@ export default function AaFirstClassUpgradeGuide() {
           How to Upgrade to First Class on American Airlines
         </h1>
         <GuideDateline slug="how-to-upgrade-american-first-class" />
+        <GuideJsonLd slug="how-to-upgrade-american-first-class" />
         <p className="mt-4 font-body text-lg text-[var(--color-text-secondary)]">
           {'Let’s set expectations first. Domestic First on American is a wider recliner, a bit more legroom, complimentary alcoholic drinks, and a meal on many longer flights. It is not the lie-flat, pajamas-and-caviar Flagship Business you get across an ocean. An upgrade to domestic First is often worth chasing when it is cheap or free, and rarely worth overpaying for.'}
         </p>
