@@ -3,8 +3,45 @@ import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
 import { playfair, lato, montserrat } from "@/lib/fonts";
 import { SITE_URL } from "@/lib/constants";
+import { safeJsonLd } from "@/lib/jsonLd";
 import ConsentScripts from "@/components/layout/ConsentScripts";
 import "@/styles/globals.css";
+
+// Site-wide structured data. One Organization + one WebSite, cross-linked by
+// @id, emitted on every page. This is the entity that tells Google, Bing, and
+// AI crawlers who "crazy4points" is — page-level schemas (Article, CreditCard,
+// etc.) can point their publisher back at #organization. No WebSite
+// SearchAction: site search is a client-side Cmd+K index with no /search?q=
+// URL, so advertising one would send crawlers to a route that doesn't exist.
+const siteJsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": `${SITE_URL}/#organization`,
+      name: "crazy4points",
+      url: SITE_URL,
+      logo: {
+        "@type": "ImageObject",
+        url: `${SITE_URL}/crazy4points-logo.png`,
+      },
+      description:
+        "The intelligent travel rewards platform. Track transfer bonuses, find sweet spots, and get a ranked action plan for your points and miles.",
+      sameAs: [
+        "https://www.facebook.com/Crazy4Points",
+        "https://www.instagram.com/crazy4points/",
+      ],
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${SITE_URL}/#website`,
+      name: "crazy4points",
+      url: SITE_URL,
+      publisher: { "@id": `${SITE_URL}/#organization` },
+      inLanguage: "en-US",
+    },
+  ],
+};
 
 export const metadata: Metadata = {
   title: {
@@ -101,6 +138,10 @@ export default function RootLayout({
         it unconditionally would defeat the opt-in model.
       */}
       <body className="min-h-full flex flex-col bg-[var(--color-background)] text-[var(--color-text-primary)]">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(siteJsonLd) }}
+        />
         <ConsentScripts />
         {children}
         <Analytics />

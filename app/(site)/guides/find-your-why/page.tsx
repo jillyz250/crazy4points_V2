@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { GuideDateline } from '@/components/guides/GuideDateline'
+import { GuideJsonLd } from '@/components/guides/GuideJsonLd'
 import GuideNewsletterCTA from '@/components/guides/GuideNewsletterCTA'
 import WhyQuiz from '@/components/guides/WhyQuiz'
 
@@ -48,6 +49,7 @@ export default function FindYourWhyGuide() {
           What Kind of Points Traveler Are You?
         </h1>
         <GuideDateline slug="find-your-why" />
+        <GuideJsonLd slug="find-your-why" />
 
         <p className="mt-4 font-body text-lg text-[var(--color-text-secondary)]">{INTRO}</p>
         <p className={p}>

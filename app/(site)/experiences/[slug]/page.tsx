@@ -4,6 +4,8 @@ import { notFound } from 'next/navigation'
 import { renderProseMarkdown } from '@/lib/blog/sanitize'
 import { createAdminClient } from '@/utils/supabase/server'
 import { getExperienceBySlug } from '@/utils/supabase/queries'
+import { SITE_URL } from '@/lib/constants'
+import { safeJsonLd } from '@/lib/jsonLd'
 
 export const revalidate = 3600
 
@@ -71,8 +73,26 @@ export default async function ExperienceDetailPage({
     md(exp.value_take),
   ])
 
+  // WebPage schema (not Article) — an experience is a reference page, like a
+  // program page, with no author/publish-date semantics. isPartOf + publisher
+  // reference the site-wide WebSite/Organization declared in app/layout.tsx.
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: exp.name,
+    description: exp.intro ?? `${exp.name}: how to use ${exp.currency} for experiences.`,
+    url: `${SITE_URL}/experiences/${exp.slug}`,
+    isPartOf: { '@type': 'WebSite', '@id': `${SITE_URL}/#website` },
+    publisher: { '@id': `${SITE_URL}/#organization` },
+    ...(exp.last_verified ? { dateModified: exp.last_verified } : {}),
+  }
+
   return (
     <main className="rg-container rg-major-section max-w-3xl">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
+      />
       <nav className="mb-6 font-ui text-xs uppercase tracking-wide text-[var(--color-text-secondary)]">
         <Link href="/experiences" className="hover:text-[var(--color-primary)]">Experiences</Link>
         <span className="mx-2">/</span>

@@ -5,6 +5,7 @@ import { createClient } from '@/utils/supabase/server'
 import { getPublicNewsletterBySlug, issueTitle } from '@/utils/content/publicNewsletters'
 import NewsletterIssueBody from '@/components/newsletter/NewsletterIssueBody'
 import NewsletterSignup from '@/components/home/NewsletterSignup'
+import { safeJsonLd } from '@/lib/jsonLd'
 
 export const revalidate = 3600
 
@@ -52,7 +53,7 @@ export default async function NewsletterIssuePage({ params }: { params: Promise<
 
   return (
     <main className="rg-major-section">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
       <div className="rg-container px-6 md:px-8">
         <article>
           <header className="mx-auto max-w-2xl">

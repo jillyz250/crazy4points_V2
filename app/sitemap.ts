@@ -35,16 +35,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
     }))
 
+    // content_updated_at is bumped on every content write (the staleness
+    // signal); updated_at is the row-level fallback. Preferring the former
+    // gives crawlers a real "when did this page change" date instead of none.
     const { data: programs } = await supabase
       .from('programs')
-      .select('slug')
+      .select('slug, content_updated_at, updated_at')
       .eq('is_active', true)
 
-    programEntries = (programs ?? []).map((p: { slug: string }) => ({
-      url: `${BASE_URL}/programs/${p.slug}`,
-      changeFrequency: 'daily' as const,
-      priority: 0.8,
-    }))
+    programEntries = (programs ?? []).map(
+      (p: { slug: string; content_updated_at: string | null; updated_at: string | null }) => ({
+        url: `${BASE_URL}/programs/${p.slug}`,
+        lastModified: p.content_updated_at ?? p.updated_at ?? undefined,
+        changeFrequency: 'daily' as const,
+        priority: 0.8,
+      })
+    )
 
     // Blog posts — published articles from content_ideas (type='blog'). Public
     // anon read is allowed via the RLS policy added in migration 039.

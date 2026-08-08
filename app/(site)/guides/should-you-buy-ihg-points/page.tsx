@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { GuideDateline } from '@/components/guides/GuideDateline'
+import { GuideJsonLd } from '@/components/guides/GuideJsonLd'
 import GuideNewsletterCTA from '@/components/guides/GuideNewsletterCTA'
 
 export const metadata: Metadata = {
@@ -77,6 +78,7 @@ export default function BuyIhgPointsGuide() {
           Should You Buy IHG Points?
         </h1>
         <GuideDateline slug="should-you-buy-ihg-points" />
+        <GuideJsonLd slug="should-you-buy-ihg-points" />
         <p className="mt-4 font-body text-lg text-[var(--color-text-secondary)]">
           {'IHG discounts its points often, frequently at 100%, twice the points for the same money. That makes them one of the cheaper hotel currencies to stock up on. But a sale is only a deal if you already know what you are booking.'}
         </p>
