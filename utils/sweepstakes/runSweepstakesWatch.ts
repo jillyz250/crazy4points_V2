@@ -225,6 +225,14 @@ export async function runSweepstakesWatch(supabase: SupabaseClient): Promise<Wat
       // the model couldn't attribute to a program.
       const program = src.kind === 'aggregator' ? s.program : src.program
       if (!program) continue
+      // Thin-card guard: skip a sweep with NO prize AND no specific entry link.
+      // It can only fall back to the generic source page (a newsroom, for aggregator
+      // sources) - a useless "Enter" target and usually a stale press-release echo
+      // (how the empty JetBlue "Royal Sweepstakes" slipped in). Keep anything with a
+      // prize OR a real entry URL.
+      const entryLink = (s.entry_url ?? "").trim()
+      const hasEntryLink = /^https?:\/\//i.test(entryLink) && !entryLink.endsWith("#")
+      if (!s.prize && !hasEntryLink) continue
       const key = `${program} ${s.title}`
       seenKeys.add(key)
       // is this new? (no running row with this program+title yet)
