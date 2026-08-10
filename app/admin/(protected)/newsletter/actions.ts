@@ -14,6 +14,7 @@ import { getActiveBonusAlerts } from '@/utils/ai/getActiveBonusAlerts'
 import { getActiveOffers } from '@/utils/ai/gatherActiveOffers'
 import { getElevatedBonuses } from '@/utils/ai/gatherElevatedBonuses'
 import { getTopExperiences } from '@/utils/ai/gatherTopExperiences'
+import { getTopSweepstakes } from '@/utils/ai/gatherTopSweepstakes'
 import { verifyBigStoryDraft } from '@/utils/ai/verifyBigStoryDraft'
 import type { MissingFact } from '@/utils/ai/verifyBigStoryDraft'
 import type { VerifyClaim } from '@/utils/ai/verifyAlertDraft'
@@ -23,7 +24,7 @@ const FROM = process.env.RESEND_FROM ?? 'Crazy4Points <hello@crazy4points.com>'
 const ADMIN_EMAIL = process.env.BRIEF_RECIPIENT ?? 'jillzeller6@gmail.com'
 
 const SLOT_SELECT =
-  'id, week_of, sent_at, display_date, subject, subject_options, status, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_title, big_story_html, big_story_claims, big_story_missing_facts, sweet_spot_ref_type, sweet_spot_ref_id, sweet_spot, top_experiences, also_happening, jills_take_html, game_slug, game_title, game_clue_text, active_offers, elevated_bonuses'
+  'id, week_of, sent_at, display_date, subject, subject_options, status, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_title, big_story_html, big_story_claims, big_story_missing_facts, sweet_spot_ref_type, sweet_spot_ref_id, sweet_spot, top_experiences, top_sweepstakes, also_happening, jills_take_html, game_slug, game_title, game_clue_text, active_offers, elevated_bonuses'
 
 interface SlotRow {
   id: string
@@ -45,6 +46,7 @@ interface SlotRow {
   sweet_spot_ref_id: string | null
   sweet_spot: NewsletterSlots['sweet_spot'] | null
   top_experiences: NewsletterSlots['top_experiences'] | null
+  top_sweepstakes: NewsletterSlots['top_sweepstakes'] | null
   also_happening: NewsletterSlots['also_happening'] | null
   jills_take_html: string | null
   game_slug: string | null
@@ -69,6 +71,7 @@ function rowToSlots(row: SlotRow): NewsletterSlots {
     big_story_html: row.big_story_html,
     sweet_spot: row.sweet_spot ?? null,
     top_experiences: row.top_experiences ?? null,
+    top_sweepstakes: row.top_sweepstakes ?? null,
     also_happening: Array.isArray(row.also_happening) ? row.also_happening : [],
     active_offers: row.active_offers ?? null,
     elevated_bonuses: row.elevated_bonuses ?? null,
@@ -110,6 +113,7 @@ export async function saveSlotsAction(id: string, slots: NewsletterSlots) {
       big_story_html: slots.big_story_html,
       sweet_spot: slots.sweet_spot,
       top_experiences: slots.top_experiences,
+      top_sweepstakes: slots.top_sweepstakes,
       also_happening: slots.also_happening,
       active_offers: slots.active_offers,
       elevated_bonuses: slots.elevated_bonuses,
@@ -159,6 +163,20 @@ export async function pullElevatedBonusesAction(id: string) {
   if (error) throw new Error(error.message)
   revalidatePath('/admin/newsletter')
   return { ok: true, elevated, count: elevated.length }
+}
+
+export async function pullTopSweepstakesAction(id: string) {
+  await assertAdmin()
+  const supabase = createAdminClient()
+  const sweepstakes = await getTopSweepstakes(supabase)
+  const { error } = await supabase
+    .from('newsletters')
+    .update({ top_sweepstakes: sweepstakes })
+    .eq('id', id)
+    .neq('status', 'sent')
+  if (error) throw new Error(error.message)
+  revalidatePath('/admin/newsletter')
+  return { ok: true, sweepstakes, count: sweepstakes.length }
 }
 
 export async function pullTopExperiencesAction(id: string) {

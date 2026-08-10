@@ -9,7 +9,7 @@
  * V2 reads from new column shape (migration 222). V1 renderer
  * (newsletterEmail.ts) stays in place for legacy/already-sent newsletters.
  */
-import type { NewsletterSlots, AlsoHappeningItem, NewsletterSweetSpot, ActiveOffers, OfferItem, ElevatedBonusItem, TopExperienceItem } from './newsletterSlots'
+import type { NewsletterSlots, AlsoHappeningItem, NewsletterSweetSpot, ActiveOffers, OfferItem, ElevatedBonusItem, TopExperienceItem, TopSweepstakesItem } from './newsletterSlots'
 import { unsubscribeUrlFor } from '@/utils/email/unsubscribeToken'
 
 const PURPLE = '#6B2D8F'
@@ -342,6 +342,43 @@ function renderSweetSpot(sp: NewsletterSweetSpot | null): string {
     </td></tr>`
 }
 
+function renderTopSweepstakes(items: TopSweepstakesItem[] | null, origin: string): string {
+  if (!items || items.length === 0) return ''
+  const cards = items
+    .map((it) => {
+      const href = it.link_url
+        ? it.link_url.startsWith('http')
+          ? it.link_url
+          : `${origin}${it.link_url}`
+        : `${origin}/sweepstakes`
+      const title = `<a href="${esc(href)}" style="color:${BODY};text-decoration:none;">${esc(it.title)}</a>`
+      const prize = it.prize
+        ? `<p style="margin:0;font-family:${FONT_BODY};font-size:13px;line-height:1.5;color:${MUTED};">Win <strong style="color:${GOLD};font-weight:700;">${esc(it.prize)}</strong></p>`
+        : ''
+      const deadlinePill = it.deadline ? `<p style="margin:8px 0 0;">${goldPill(it.deadline)}</p>` : ''
+      const cta = `<p style="margin:9px 0 0;"><a href="${esc(href)}" style="font-family:${FONT_UI};font-size:13px;font-weight:700;color:${LINK_COLOR};text-decoration:underline;">Enter now &rarr;</a></p>`
+      return `
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 13px;border:1px solid ${BORDER};border-radius:12px;background:#ffffff;">
+          <tr><td style="padding:17px 19px;">
+            <p style="margin:0 0 4px;font-family:${FONT_UI};font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:${PURPLE};font-weight:700;">${esc(it.program)}</p>
+            <h3 style="margin:0 0 7px;font-family:${FONT_DISPLAY};font-size:18px;line-height:1.3;color:${BODY};font-weight:700;">${title}</h3>
+            ${prize}
+            ${deadlinePill}
+            ${cta}
+          </td></tr>
+        </table>`
+    })
+    .join('')
+  const seeAll = `${origin}/sweepstakes`
+  return `
+    <tr><td style="padding:40px 30px 34px;background:${TINT};">
+      ${sectionHeading('Top Sweepstakes to Enter', '10px')}
+      <p style="margin:0 0 16px;font-family:${FONT_BODY};font-size:13px;line-height:1.55;color:${MUTED};">Free to enter, big on upside. These are live right now, so get your entries in before they close.</p>
+      ${cards}
+      <p style="margin:4px 0 0;"><a href="${esc(seeAll)}" style="font-family:${FONT_UI};font-size:13px;font-weight:700;color:${LINK_COLOR};text-decoration:underline;">See all live sweepstakes &rarr;</a></p>
+    </td></tr>`
+}
+
 function renderTopExperiences(items: TopExperienceItem[] | null, origin: string): string {
   if (!items || items.length === 0) return ''
   const anyAuction = items.some((it) => it.is_auction)
@@ -550,6 +587,7 @@ export function renderNewsletterV2Html({
         ${renderBigStory(slots, origin)}
         ${renderSweetSpot(slots.sweet_spot)}
         ${renderTopExperiences(slots.top_experiences, origin)}
+        ${renderTopSweepstakes(slots.top_sweepstakes, origin)}
         ${renderAlsoHappening(slots.also_happening, origin)}
         ${renderActiveOffers(slots.active_offers, origin)}
         ${renderElevatedBonuses(slots.elevated_bonuses, origin)}

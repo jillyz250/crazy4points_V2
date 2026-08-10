@@ -104,6 +104,37 @@ export default function NewsletterIssueBody({ n }: { n: PublicNewsletter }) {
         </section>
       )}
 
+      {/* Top sweepstakes to enter */}
+      {n.top_sweepstakes.length > 0 && (
+        <section>
+          <SectionHeading>Top sweepstakes to enter</SectionHeading>
+          <p className="font-body text-[var(--color-text-secondary)] leading-relaxed mb-4">
+            Free to enter, big on upside. These are live right now, so get your entries in before they close.
+          </p>
+          <ul className="space-y-4">
+            {n.top_sweepstakes.map((s, i) => (
+              <li key={i} className="font-body text-[var(--color-text-primary)]">
+                {s.program ? (
+                  <span className="block font-ui text-xs uppercase tracking-wide text-[var(--color-primary)]">{s.program}</span>
+                ) : null}
+                <IssueLink href={s.link_url}><span className="font-semibold">{s.title}</span></IssueLink>
+                <span className="block text-[var(--color-text-secondary)] mt-1">
+                  {[s.prize ? `Win ${s.prize}` : null, s.deadline].filter(Boolean).join(' · ')}
+                </span>
+                {s.link_url ? (
+                  <span className="block mt-1">
+                    <IssueLink href={s.link_url}>Enter now →</IssueLink>
+                  </span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2">
+            <IssueLink href="/sweepstakes">See all live sweepstakes →</IssueLink>
+          </p>
+        </section>
+      )}
+
       {/* Live offers */}
       {offerGroups.length > 0 && (
         <section>

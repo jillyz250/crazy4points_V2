@@ -94,6 +94,24 @@ export interface TopExperienceItem {
   secondary_link?: { label: string; url: string } | null
 }
 
+/**
+ * One card in the "Top Sweepstakes to Enter" section. Auto-filled from the
+ * `sweepstakes` table: only sweeps Jill has posted to social (posted_social)
+ * and that are still running. See getTopSweepstakes().
+ */
+export interface TopSweepstakesItem {
+  /** Program running it, e.g. "Wyndham Rewards" or "Cowboys Perks (AAdvantage)". */
+  program: string
+  /** Sweepstakes name. */
+  title: string
+  /** What you can win, e.g. "100,000 AAdvantage miles". Null = omit. */
+  prize: string | null
+  /** Human deadline, e.g. "Ends Aug 9". Null = none known. */
+  deadline: string | null
+  /** Where the card links — the sweep's entry page (falls back to our page). */
+  link_url: string
+}
+
 export interface SweetSpotBestUse {
   /** Specific property/route/award/redemption — concrete, with numbers when possible. */
   name: string
@@ -151,6 +169,10 @@ export interface NewsletterSlots {
   /** Null = not pulled yet; [] = pulled, none qualified this week. */
   top_experiences: TopExperienceItem[] | null
 
+  // ── Top Sweepstakes to Enter (auto-filled: posted + still running) ─
+  /** Null = not pulled yet; [] = pulled, none qualified. */
+  top_sweepstakes: TopSweepstakesItem[] | null
+
   // ── Also Happening ────────────────────────────────────────────
   also_happening: AlsoHappeningItem[]
 
@@ -187,6 +209,7 @@ export const EMPTY_SLOTS: NewsletterSlots = {
   big_story_html: null,
   sweet_spot: null,
   top_experiences: null,
+  top_sweepstakes: null,
   also_happening: [],
   active_offers: null,
   elevated_bonuses: null,
