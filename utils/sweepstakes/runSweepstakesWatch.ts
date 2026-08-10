@@ -44,8 +44,26 @@ export interface WatchResult {
   newlyFound: string[]
   ended: number
   expired: number
+  deadLinks: number
   errors: { program: string; error: string }[]
 }
+
+// A link is "dead" only on hard failures — 404/410, a 5xx, or a network error.
+// 401/403 are treated as alive: sites like aa.com bot-block with 403 but are
+// genuinely live, and we must never end a real sweep over a bot wall.
+async function linkStatus(url: string): Promise<number> {
+  try {
+    const r = await fetch(url, {
+      redirect: 'follow',
+      signal: AbortSignal.timeout(12_000),
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+    })
+    return r.status
+  } catch {
+    return 0
+  }
+}
+const isDeadStatus = (s: number) => s === 0 || s === 404 || s === 410 || s >= 500
 
 async function firecrawlMarkdown(url: string): Promise<string> {
   const key = process.env.FIRECRAWL_API_KEY
@@ -168,6 +186,7 @@ export async function runSweepstakesWatch(supabase: SupabaseClient): Promise<Wat
     newlyFound: [],
     ended: 0,
     expired: 0,
+    deadLinks: 0,
     errors: [],
   }
 
@@ -267,6 +286,35 @@ export async function runSweepstakesWatch(supabase: SupabaseClient): Promise<Wat
     .lt('ends_at', today)
     .select('id')
   result.expired = expiredRows?.length ?? 0
+
+  // Link check: never leave a dead "Enter" link live. For each running sweep,
+  // validate the deep entry link; if it's dead but the source page still works,
+  // drop the entry link so the card falls back to the source; if nothing works,
+  // end the sweep. (This is why one broken heatperkstickets.com link slipped
+  // through before the check existed.)
+  const { data: liveRows } = await supabase
+    .from('sweepstakes')
+    .select('id, entry_url, source_url')
+    .eq('status', 'running')
+  for (const s of liveRows ?? []) {
+    const entry = (s.entry_url as string | null ?? '').trim()
+    const source = (s.source_url as string | null ?? '').trim()
+    const entryValid = /^https?:\/\//i.test(entry) && !entry.endsWith('#')
+    const sourceValid = /^https?:\/\//i.test(source)
+    if (entryValid && isDeadStatus(await linkStatus(entry))) {
+      if (sourceValid && !isDeadStatus(await linkStatus(source))) {
+        await supabase.from('sweepstakes').update({ entry_url: null, updated_at: nowIso }).eq('id', s.id)
+      } else {
+        await supabase.from('sweepstakes').update({ status: 'ended', updated_at: nowIso }).eq('id', s.id)
+        result.deadLinks++
+      }
+    } else if (!entryValid) {
+      if (!sourceValid || isDeadStatus(await linkStatus(source))) {
+        await supabase.from('sweepstakes').update({ status: 'ended', updated_at: nowIso }).eq('id', s.id)
+        result.deadLinks++
+      }
+    }
+  }
 
   const { count } = await supabase
     .from('sweepstakes')
