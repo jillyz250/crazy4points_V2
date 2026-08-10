@@ -51,10 +51,15 @@ function mechanicLabel(m: string | null): string | null {
 
 export default async function SweepstakesPage() {
   const supabase = createAdminClient()
+  const today = new Date().toISOString().slice(0, 10)
   const { data } = await supabase
     .from('sweepstakes')
     .select('id, program, title, prize, entry_url, source_url, mechanic, ends_at')
     .eq('status', 'running')
+    // Hide anything already past its enter-by date the instant it expires — the
+    // watcher only flips status to 'ended' on its daily run, so without this a
+    // just-expired sweep would linger here for hours. Undated ones stay.
+    .or(`ends_at.is.null,ends_at.gte.${today}`)
     .order('ends_at', { ascending: true, nullsFirst: false })
     .order('first_seen', { ascending: false })
   const sweeps = (data ?? []) as SweepRow[]
