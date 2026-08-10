@@ -23,6 +23,7 @@ import {
   pullActiveOffersAction,
   pullElevatedBonusesAction,
   pullTopExperiencesAction,
+  pullTopSweepstakesAction,
 } from './actions'
 import type { NewsletterSlots, AlsoHappeningItem, NewsletterSweetSpot, SweetSpotBestUse, OfferItem } from '@/utils/ai/newsletterSlots'
 import type { BigStoryCandidate } from './page'
@@ -233,6 +234,20 @@ export default function NewsletterEditor({
         setMessage(`Pulled ${r.count} new experience${r.count === 1 ? '' : 's'}.`)
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to pull experiences')
+      }
+    })
+  }
+
+  function handlePullSweepstakes() {
+    setError(null)
+    setMessage(null)
+    start(async () => {
+      try {
+        const r = await pullTopSweepstakesAction(id)
+        setSlots((prev) => ({ ...prev, top_sweepstakes: r.sweepstakes }))
+        setMessage(`Pulled ${r.count} sweepstake${r.count === 1 ? '' : 's'} (posted + still running).`)
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Failed to pull sweepstakes')
       }
     })
   }
@@ -857,6 +872,46 @@ export default function NewsletterEditor({
                 <button
                   type="button"
                   onClick={() => setSlots((prev) => ({ ...prev, top_experiences: (prev.top_experiences ?? []).filter((_, j) => j !== i) }))}
+                  style={{ ...btnSecondary, padding: '0.1rem 0.45rem', fontSize: '0.75rem' }}
+                  aria-label={`Remove ${it.title}`}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          ))
+        })()}
+      </div>
+
+      {/* Top Sweepstakes to Enter (auto from sweepstakes: posted + still running) */}
+      <div style={sectionStyle}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.5rem' }}>
+          <label style={labelStyle}>🎰 Top Sweepstakes to Enter (auto: ones you posted to social that are still running)</label>
+          {!isSent && (
+            <button type="button" onClick={handlePullSweepstakes} disabled={isPending} style={btnSecondary}>
+              {isPending ? 'Working…' : 'Pull sweepstakes'}
+            </button>
+          )}
+        </div>
+        {(() => {
+          const items = slots.top_sweepstakes ?? []
+          if (items.length === 0) {
+            return <p style={{ fontSize: '0.8125rem', color: 'var(--admin-text-muted)', margin: 0 }}>None pulled yet. Click &ldquo;Pull sweepstakes&rdquo; to fill from the sweeps you&rsquo;ve marked posted in /admin/sweepstakes that are still running (soonest deadline first, top 3).</p>
+          }
+          return items.map((it, i) => (
+            <div key={i} style={{ fontSize: '0.8125rem', marginBottom: '0.4rem', display: 'flex', alignItems: 'flex-start', gap: '0.4rem' }}>
+              <span style={{ flex: 1 }}>
+                <span style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-primary, #6B2D8F)', fontWeight: 700 }}>{it.program}</span>
+                <br />
+                <strong>{it.title}</strong>{' '}
+                <span style={{ color: 'var(--admin-text-muted)' }}>
+                  ({[it.prize, it.deadline].filter(Boolean).join(' · ') || 'no prize/deadline'})
+                </span>
+              </span>
+              {!isSent && (
+                <button
+                  type="button"
+                  onClick={() => setSlots((prev) => ({ ...prev, top_sweepstakes: (prev.top_sweepstakes ?? []).filter((_, j) => j !== i) }))}
                   style={{ ...btnSecondary, padding: '0.1rem 0.45rem', fontSize: '0.75rem' }}
                   aria-label={`Remove ${it.title}`}
                 >

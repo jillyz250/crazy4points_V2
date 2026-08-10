@@ -13,6 +13,7 @@ import type {
   ElevatedBonusItem,
   NewsletterSweetSpot,
   TopExperienceItem,
+  TopSweepstakesItem,
 } from '@/utils/ai/newsletterSlots'
 
 export interface PublicNewsletterListItem {
@@ -29,6 +30,7 @@ export interface PublicNewsletter extends PublicNewsletterListItem {
   big_story_html: string | null
   sweet_spot: NewsletterSweetSpot | null
   top_experiences: TopExperienceItem[]
+  top_sweepstakes: TopSweepstakesItem[]
   also_happening: AlsoHappeningItem[]
   active_offers: ActiveOffers | null
   elevated_bonuses: ElevatedBonusItem[]
@@ -52,7 +54,7 @@ export async function getPublicNewsletterBySlug(
   const { data } = await PUBLIC_GATE(
     supabase
       .from('newsletters')
-      .select(`${LIST_COLS}, big_story_html, sweet_spot, top_experiences, also_happening, active_offers, elevated_bonuses, jills_take_html`),
+      .select(`${LIST_COLS}, big_story_html, sweet_spot, top_experiences, top_sweepstakes, also_happening, active_offers, elevated_bonuses, jills_take_html`),
   )
     .eq('slug', slug)
     .maybeSingle()
@@ -69,6 +71,7 @@ export async function getPublicNewsletterBySlug(
     big_story_html: r.big_story_html,
     sweet_spot: (r.sweet_spot as NewsletterSweetSpot) ?? null,
     top_experiences: (r.top_experiences as TopExperienceItem[]) ?? [],
+    top_sweepstakes: (r.top_sweepstakes as TopSweepstakesItem[]) ?? [],
     also_happening: (r.also_happening as AlsoHappeningItem[]) ?? [],
     active_offers: (r.active_offers as ActiveOffers) ?? null,
     elevated_bonuses: (r.elevated_bonuses as ElevatedBonusItem[]) ?? [],

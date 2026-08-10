@@ -9,7 +9,7 @@ export const maxDuration = 60
 const resend = new Resend(process.env.RESEND_API_KEY)
 
 const SLOT_SELECT =
-  'id, week_of, sent_at, display_date, subject, subject_options, status, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_title, big_story_html, sweet_spot, top_experiences, also_happening, active_offers, elevated_bonuses, jills_take_html, game_slug, game_title, game_clue_text'
+  'id, week_of, sent_at, display_date, subject, subject_options, status, hero_kicker, jill_prompt, big_story_ref_type, big_story_ref_id, big_story_title, big_story_html, sweet_spot, top_experiences, top_sweepstakes, also_happening, active_offers, elevated_bonuses, jills_take_html, game_slug, game_title, game_clue_text'
 
 interface SlotRow {
   id: string
@@ -27,6 +27,7 @@ interface SlotRow {
   big_story_html: string | null
   sweet_spot: NewsletterSlots['sweet_spot'] | null
   top_experiences: NewsletterSlots['top_experiences'] | null
+  top_sweepstakes: NewsletterSlots['top_sweepstakes'] | null
   also_happening: AlsoHappeningItem[] | null
   active_offers: NewsletterSlots['active_offers']
   elevated_bonuses: NewsletterSlots['elevated_bonuses']
@@ -77,6 +78,7 @@ export async function GET(req: NextRequest) {
     big_story_html: row.big_story_html,
     sweet_spot: row.sweet_spot ?? null,
     top_experiences: row.top_experiences ?? null,
+    top_sweepstakes: row.top_sweepstakes ?? null,
     also_happening: Array.isArray(row.also_happening) ? row.also_happening : [],
     active_offers: row.active_offers ?? null,
     elevated_bonuses: row.elevated_bonuses ?? null,
