@@ -3,7 +3,7 @@ import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Card, CardBody } from '@/components/admin/ui/Card'
 import { Badge } from '@/components/admin/ui/Badge'
 import { EmptyState } from '@/components/admin/ui/EmptyState'
-import { togglePosted, endSweep } from './actions'
+import { togglePosted, endSweep, draftSweepstakesPostAction, clearSweepstakesDraftAction } from './actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,6 +18,7 @@ type Sweep = {
   ends_at: string | null
   status: string
   posted_social: boolean
+  social_draft: string | null
   first_seen: string
   last_seen: string
 }
@@ -104,6 +105,12 @@ export default async function SweepstakesPage() {
                       seen {new Date(s.last_seen).toLocaleDateString()}
                     </span>
                     <div style={{ display: 'flex', gap: '0.5rem', marginLeft: 'auto' }}>
+                      <form action={draftSweepstakesPostAction}>
+                        <input type="hidden" name="id" value={s.id} />
+                        <button type="submit" className="admin-btn admin-btn-primary" style={{ fontSize: '0.8125rem' }}>
+                          {s.social_draft ? 'Regenerate FB draft' : 'Draft FB post'}
+                        </button>
+                      </form>
                       <form action={togglePosted}>
                         <input type="hidden" name="id" value={s.id} />
                         <input type="hidden" name="posted" value={(!s.posted_social).toString()} />
@@ -119,6 +126,24 @@ export default async function SweepstakesPage() {
                       </form>
                     </div>
                   </div>
+                  {s.social_draft && (
+                    <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--color-border-soft, #E6DEEE)', paddingTop: '0.75rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.4rem' }}>
+                        <span style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, color: 'var(--color-primary, #6B2D8F)' }}>
+                          Facebook draft
+                        </span>
+                        <form action={clearSweepstakesDraftAction}>
+                          <input type="hidden" name="id" value={s.id} />
+                          <button type="submit" className="admin-btn admin-btn-ghost" style={{ fontSize: '0.75rem' }}>
+                            Clear
+                          </button>
+                        </form>
+                      </div>
+                      <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontFamily: 'inherit', fontSize: '0.8125rem', lineHeight: 1.5, margin: 0, background: 'var(--color-background-soft, #F8F5FB)', border: '1px solid var(--color-border-soft, #E6DEEE)', borderRadius: '0.5rem', padding: '0.75rem' }}>
+                        {s.social_draft}
+                      </pre>
+                    </div>
+                  )}
                 </CardBody>
               </Card>
             )
