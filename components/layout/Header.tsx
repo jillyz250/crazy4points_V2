@@ -80,6 +80,7 @@ const toolsMenu: { label: string; href: string; comingSoon?: boolean }[] = [
   { label: "Credit Card Explorer", href: "/cards" },
   { label: "Alliance Explorer", href: "/tools/alliances" },
   { label: "Experiences Finder", href: "/experiences" },
+  { label: "Sweepstakes", href: "/sweepstakes" },
   { label: "My Wallet", href: "/wallet", comingSoon: true },
 ];
 
