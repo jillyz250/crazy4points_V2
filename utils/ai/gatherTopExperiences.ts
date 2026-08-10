@@ -115,7 +115,9 @@ function toItem(row: ListingRow): TopExperienceItem {
 
 export async function getTopExperiences(supabase: SupabaseClient): Promise<TopExperienceItem[]> {
   const now = new Date()
-  const today = now.toISOString().slice(0, 10)
+  // close_date is a cutoff INSTANT, so compare to now (not today's date) — a
+  // listing closing "Aug 10 00:00" is already done on Aug 10.
+  const nowIso = now.toISOString()
   const freshSince = new Date(now.getTime() - FRESH_DAYS * 24 * 60 * 60 * 1000).toISOString()
 
   const { data } = await supabase
@@ -126,7 +128,7 @@ export async function getTopExperiences(supabase: SupabaseClient): Promise<TopEx
     .eq('status', 'active')
     .in('format', ['redeem', 'bid'])
     .gte('first_seen_at', freshSince)
-    .or(`close_date.is.null,close_date.gte.${today}`)
+    .or(`close_date.is.null,close_date.gte.${nowIso}`)
 
   const rows = (data ?? []) as (ListingRow & { first_seen_at: string })[]
 

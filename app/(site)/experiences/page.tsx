@@ -24,10 +24,17 @@ export default async function ExperiencesPage() {
       .filter((e) => e.parent_program_slug)
       .map((e) => [e.parent_program_slug as string, { label: e.parent_program_label, url: e.official_url }]),
   )
+  // Hide listings whose booking window has already closed. A listing only flips
+  // to 'closed' when the availability cron next runs, so without this guard a
+  // just-expired listing lingers on the page. close_date is a cutoff INSTANT
+  // (a listing closing "Aug 10 00:00" is already done on Aug 10), so compare to
+  // now, not today's date. Undated ("ongoing") listings are kept.
+  const nowIso = new Date().toISOString()
   const { data: rawListings } = await supabase
     .from('experience_listings')
     .select('program_slug, source_platform, title, category, location, format, current_bid, points_required, close_date, close_date_confidence, event_date, bid_opens_at, detail_url, first_seen_at, sold_out')
     .eq('status', 'active')
+    .or(`close_date.is.null,close_date.gte.${nowIso}`)
     .order('first_seen_at', { ascending: false })
     .limit(600)
   const listings: FinderListing[] = (rawListings ?? []).map((l) => {
