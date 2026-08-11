@@ -97,6 +97,12 @@ export default async function ExperiencesPage() {
         <h2 className="font-display text-2xl text-[var(--color-primary)]">All programs &amp; how they work</h2>
       </div>
       <ExperiencesDirectory experiences={experiences} />
+
+      <p className="mt-10 max-w-3xl font-body text-sm text-[var(--color-text-secondary)]">
+        Crazy4Points is not affiliated with these experience providers and does not sell, book, or guarantee any
+        experience. Availability, point costs, and pricing are set by the provider and change often. Confirm all
+        details with the provider before booking or transferring points.
+      </p>
     </main>
   )
 }

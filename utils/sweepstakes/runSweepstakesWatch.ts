@@ -65,6 +65,15 @@ async function linkStatus(url: string): Promise<number> {
 }
 const isDeadStatus = (s: number) => s === 0 || s === 404 || s === 410 || s >= 500
 
+// Bid-to-win experiences (e.g. Delta SkyMiles Experiences auctions) are NOT
+// sweepstakes: you SPEND miles to bid, you don't enter free. They must never
+// appear on the "Free to enter" sweepstakes page. Detect by the auction/bid
+// vocabulary and by the SkyMiles Experiences auction platform.
+function isBidToWin(program: string, s: ParsedSweep): boolean {
+  const hay = `${program} ${s.title} ${s.prize ?? ''} ${s.entry_url ?? ''}`.toLowerCase()
+  return /auction|bidding|\bbid\b|skymiles experiences/.test(hay)
+}
+
 async function firecrawlMarkdown(url: string): Promise<string> {
   const key = process.env.FIRECRAWL_API_KEY
   if (!key) return ''
@@ -115,7 +124,8 @@ async function extractSweepstakes(
       ` "ends_at": ISO YYYY-MM-DD enter-by date if stated (else null)}\n` +
       `Only use info the page states - never invent. If none qualify, return [].\n\nPAGE:\n${md.slice(0, 12000)}`
     : `Today is ${today}. Below is a page from ${source.program}. Extract every CURRENTLY-RUNNING ` +
-      `sweepstakes, giveaway, or prize drawing (NOT generic offers, bonuses, or sales) as a STRICT ` +
+      `free-to-enter sweepstakes, giveaway, or prize drawing (NOT generic offers, bonuses, sales, or ` +
+      `bid-to-win auctions where you spend miles/points to bid, e.g. SkyMiles Experiences) as a STRICT ` +
       `JSON array, no prose. Each item:\n` +
       `{"title": short name of the sweepstakes,\n` +
       ` "prize": what you can win (null if unclear),\n` +
@@ -233,6 +243,8 @@ export async function runSweepstakesWatch(supabase: SupabaseClient): Promise<Wat
       const entryLink = (s.entry_url ?? "").trim()
       const hasEntryLink = /^https?:\/\//i.test(entryLink) && !entryLink.endsWith("#")
       if (!s.prize && !hasEntryLink) continue
+      // Never list bid-to-win auctions (SkyMiles Experiences etc.) as sweepstakes.
+      if (isBidToWin(program, s)) continue
       const key = `${program} ${s.title}`
       seenKeys.add(key)
       // is this new? (no running row with this program+title yet)

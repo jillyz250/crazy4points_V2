@@ -55,8 +55,13 @@ const ACTION_LABELS: Record<string, string> = {
 
 function formatDate(iso: string | null): string {
   if (!iso) return '—'
+  // Read the stored value as a plain UTC calendar day. start_date / end_date
+  // are calendar dates persisted as midnight-UTC (see lib/alertExpiry.ts); the
+  // shared expiry helpers already format with timeZone:'UTC'. Omitting it here
+  // shifted midnight-UTC back to the previous day in every US timezone, so a
+  // "Dec 30" deadline rendered as "Dec 29".
   return new Date(iso).toLocaleDateString('en-US', {
-    month: 'long', day: 'numeric', year: 'numeric',
+    month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC',
   })
 }
 
@@ -130,13 +135,11 @@ export default async function AlertDetailPage({ params }: Props) {
   // alerts (whose source_url is a citation, not an action) never sprout a
   // big outbound button.
   let registerHref: string | null = null
-  let registerDomain: string | null = null
   if (alert.registration_required && alert.source_url) {
     try {
       const u = new URL(alert.source_url)
       if (u.protocol === 'https:' || u.protocol === 'http:') {
         registerHref = alert.source_url
-        registerDomain = u.hostname.replace(/^www\./, '')
       }
     } catch {
       registerHref = null
@@ -220,6 +223,21 @@ export default async function AlertDetailPage({ params }: Props) {
           {alert.summary}
         </p>
 
+        {/* Primary external action — the "register / enter" the reader is here
+            to do. Gold pill, compact, sits high (right under the summary) so
+            it's visible without scrolling. Shown for registration_required
+            alerts (sweepstakes, signup promos) that have a source URL. */}
+        {registerHref && (
+          <a
+            href={registerHref}
+            target="_blank"
+            rel="nofollow noopener noreferrer"
+            className="mt-5 inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-[var(--radius-ui)] bg-[var(--color-accent)] px-6 py-3 font-ui text-sm font-bold uppercase tracking-[0.06em] text-[#1A1A1A] shadow-[var(--shadow-soft)] transition-colors hover:bg-[var(--color-accent-hover)] hover:text-[#1A1A1A]"
+          >
+            Register free →
+          </a>
+        )}
+
         {/* Hard whitespace spacer — INLINE STYLE (not Tailwind class)
             so it survives any cached CSS bundle. Renders as a 96px
             tall empty block between the summary and the Why-this-
@@ -282,18 +300,15 @@ export default async function AlertDetailPage({ params }: Props) {
           </div>
         )}
 
-        {/* Primary external action — "enter / register" for sweepstakes and
-            signup promos. This is the thing the reader is here to do, so it
-            gets a prominent gold button above the metadata. */}
-        {registerHref && (
-          <a
-            href={registerHref}
-            target="_blank"
-            rel="nofollow noopener noreferrer"
-            className="mb-8 flex min-h-[52px] w-full items-center justify-center rounded-[var(--radius-ui)] bg-[var(--color-primary)] px-6 py-3.5 text-center font-ui text-base font-semibold text-white transition-colors hover:bg-[var(--color-primary-hover)]"
-          >
-            Enter free at {registerDomain} →
-          </a>
+        {/* Sweepstakes / registration disclaimer. Shown for any alert the
+            reader has to sign up for (registration_required) so we never imply
+            Crazy4Points runs the promotion or guarantees the prize. */}
+        {alert.registration_required && (
+          <p className="mb-8 font-body text-xs leading-relaxed text-[var(--color-text-secondary)] opacity-80">
+            Crazy4Points is not the sponsor of this promotion and does not run it or award prizes. No purchase is
+            necessary to enter. Eligibility, deadlines, and terms are set by the sponsor and can change; some
+            promotions are void where prohibited. Always read the sponsor&apos;s official rules before entering.
+          </p>
         )}
 
         {/* Meta grid */}

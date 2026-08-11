@@ -5,7 +5,7 @@ function formatEnded(endDate: string | null): string {
   if (!endDate) return 'ended'
   const d = new Date(endDate)
   if (isNaN(d.getTime())) return 'ended'
-  return `ended ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+  return `ended ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}`
 }
 
 export default function ExpiredAlertsList({
