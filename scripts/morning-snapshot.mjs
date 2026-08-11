@@ -198,6 +198,21 @@ const newExpCount = (await q('new experiences count', db.from('experience_listin
   .eq('status', 'active').gte('first_seen_at', since36)
   .or(`close_date.is.null,close_date.gte.${nowIso}`))).count
 
+// ---- Sweepstakes: post candidates, ranked by CONTENT + soonest end date ----
+// Content score favours pure points/miles giveaways (Jill's best-performing
+// social) and big prizes; ties break on soonest deadline (most urgent to post).
+const sweeps = (await q('sweepstakes post candidates', db.from('sweepstakes')
+  .select('program, title, prize, ends_at').eq('status', 'running').eq('posted_social', false))).data
+const scoreSweep = (s) => {
+  const p = (s.prize || s.title || '').toLowerCase(); let sc = 0
+  if (/\bmile|\bpoint/.test(p)) sc += 3                                   // pure points/miles = top social
+  if (/100,?000|250,?000|500,?000|1,?000,?000|million/.test(p)) sc += 2  // big number
+  if (/flight|flyaway|first class|trip|vacation|getaway/.test(p)) sc += 1
+  return sc
+}
+const sweepRanked = sweeps.map((s) => ({ ...s, sc: scoreSweep(s) }))
+  .sort((a, b) => b.sc - a.sc || (a.ends_at || '9999').localeCompare(b.ends_at || '9999'))
+
 // ══════════════════════════ RENDER ══════════════════════════
 const B = '─'.repeat(66)
 console.log(B)
@@ -212,6 +227,7 @@ console.log(`  Welcome-bonus changes ......... ${n(bonusSignals)}   -> /admin/ca
 console.log(`  Prose to re-check ............. ${n(proseReview)}   -> /admin/card-bonus-signals`)
 console.log(`  Refresh queue ................. ${n(refreshQueue)}   -> /admin/refresh-queue`)
 console.log(`  New experiences (36h) ......... ${n(newExpCount)}   -> /experiences`)
+console.log(`  Sweepstakes to post ........... ${n(sweeps.length)}   -> /admin/sweepstakes`)
 
 console.log('\n' + B)
 console.log(`PENDING DRAFTS — dupe-checked vs ${settled.length} published/archived (${drafts.length}):`)
@@ -326,10 +342,19 @@ for (const e of newExp) {
   const pts = e.format === 'bid' ? `bid ${e.current_bid ?? '?'}` : `${e.points_required ?? '?'} pts`
   console.log(`  - [${e.program_slug}|${e.category || '?'}] ${(e.title || '').slice(0, 60)}  (${pts})`)
 }
-if (newExp.length) console.log('  -> marquee ones = social (Chase-transfer angle, honest it is a bid). Public directory auto-refreshed.')
+if (newExp.length) console.log('  -> marquee/points-redeemable ones = social candidate (Chase-transfer angle; be honest bid vs redeem). Public directory auto-refreshed.')
 for (const r of lastRun) {
   if (r.success === false) console.log(`  !! ${r.program_slug} scrape UNHEALTHY (${r.error_message || '?'}) at ${(r.run_started_at || '').slice(5, 16)}`)
 }
+
+// ---- Sweepstakes post candidates (the daily social opportunity) ------------
+console.log('\n' + B)
+console.log(`SWEEPSTAKES — post candidates, ranked by content + soonest deadline (${sweeps.length} unposted):`)
+if (!sweeps.length) console.log('  (none to post right now)')
+for (const [i, s] of sweepRanked.slice(0, 6).entries()) {
+  console.log(`  ${i === 0 ? '⭐' : ' -'} [${s.program}] ${(s.title || '').slice(0, 40)} | ${(s.prize || '?').slice(0, 30)} | ends ${s.ends_at || '-'}`)
+}
+if (sweeps.length) console.log('  -> ⭐ = best social pick (points/miles giveaways lead — Jill\'s best-performing format). Say "facebook post" to draft it.')
 
 if (problems.length) {
   console.log('\n' + '!'.repeat(66))
