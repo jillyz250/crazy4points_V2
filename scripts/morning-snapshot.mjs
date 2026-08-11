@@ -86,6 +86,14 @@ function dupeOf(draft) {
   for (const s of settled) { const sc = jac(dt, tok(s.title)); if (sc > bs) { bs = sc; best = s } }
   return bs >= 0.3 ? { score: bs, match: best } : null
 }
+/** Fresh-intel headline vs published/archived alerts — catches the morning
+ *  re-forward flood (the same emails duplicating alerts we already shipped). */
+function dupeHeadline(h) {
+  const ht = tok(h || '')
+  let best = null, bs = 0
+  for (const s of settled) { const sc = jac(ht, tok(s.title)); if (sc > bs) { bs = sc; best = s } }
+  return bs >= 0.4 ? { score: bs, match: best } : null
+}
 
 // ---- Fresh intel (last 36h, still open) -----------------------------------
 const freshIntel = (await q('fresh intel', db.from('intel_items')
@@ -182,6 +190,14 @@ let gaps = []
   gaps = [...seen.entries()].map(([slug, g]) => ({ slug, ...g })).sort((a, b) => b.count - a.count).slice(0, 8)
 }
 
+// ---- Experiences: new listings still open (surfaced in morning triage) ----
+// close_date is a cutoff instant, so compare to now (not today) — mirrors the
+// /experiences page + newsletter guard so an expired listing isn't counted.
+const newExpCount = (await q('new experiences count', db.from('experience_listings')
+  .select('id', { count: 'exact', head: true })
+  .eq('status', 'active').gte('first_seen_at', since36)
+  .or(`close_date.is.null,close_date.gte.${nowIso}`))).count
+
 // ══════════════════════════ RENDER ══════════════════════════
 const B = '─'.repeat(66)
 console.log(B)
@@ -195,6 +211,7 @@ console.log(`  Transfer-data changes ......... ${n(changeSignals)}   -> /admin/c
 console.log(`  Welcome-bonus changes ......... ${n(bonusSignals)}   -> /admin/card-bonus-signals`)
 console.log(`  Prose to re-check ............. ${n(proseReview)}   -> /admin/card-bonus-signals`)
 console.log(`  Refresh queue ................. ${n(refreshQueue)}   -> /admin/refresh-queue`)
+console.log(`  New experiences (36h) ......... ${n(newExpCount)}   -> /experiences`)
 
 console.log('\n' + B)
 console.log(`PENDING DRAFTS — dupe-checked vs ${settled.length} published/archived (${drafts.length}):`)
@@ -214,6 +231,7 @@ console.log('\n' + B)
 console.log(`FRESH INTEL — last 36h, still needing a decision (${freshIntel.length}):`)
 if (!freshIntel.length) console.log('  (none — queue clear)')
 let lowSignal = 0
+let idupCount = 0
 for (const r of freshIntel) {
   const progs = Array.isArray(r.programs) ? r.programs.join(',') : (r.programs || '')
   /**
@@ -227,8 +245,17 @@ for (const r of freshIntel) {
   if (noProgram || r.confidence === 'low') lowSignal++
   const warn = noProgram ? '  <<NO PROGRAM: skipped dedup, may be a dupe>>' : ''
   const cc = (r.confirmation_count ?? 0) >= 2 ? `  [CONFIRMED by ${r.confirmation_count}: ${(r.confirming_sources || []).join(', ').slice(0, 50)}]` : ''
-  console.log(`  - [${(r.source_type || '?').padEnd(8)}|${(r.confidence || '?').padEnd(6)}] ${(r.headline || '').slice(0, 74)}${warn}${cc}`)
+  // OFFICIAL = came straight from an issuer/program newsroom (source_type=official)
+  // = high-trust, verify-lite. EXPIRED = past its own exp date, likely dead.
+  const official = r.source_type === 'official' ? ' [OFFICIAL]' : ''
+  const expd = r.expires_at && r.expires_at < nowIso ? ' [EXPIRED]' : ''
+  console.log(`  - [${(r.source_type || '?').padEnd(8)}|${(r.confidence || '?').padEnd(6)}]${official}${expd} ${(r.headline || '').slice(0, 72)}${warn}${cc}`)
+  const idup = dupeHeadline(r.headline)
+  if (idup) { idupCount++; console.log(`      <<LIKELY DUPE ${(idup.score * 100).toFixed(0)}% of published: "${(idup.match.title || '').slice(0, 50)}">> — reject unless genuinely new`) }
   console.log(`      src=${r.source_name || '?'}  type=${r.alert_type || '?'}  programs=[${progs}]  exp=${r.expires_at ? r.expires_at.slice(0, 10) : '-'}`)
+}
+if (idupCount) {
+  console.log(`  >> ${idupCount} of ${freshIntel.length} look like DUPES of already-published alerts — bulk-reject those first, then triage the rest.`)
 }
 if (lowSignal) {
   console.log(`  NOTE: ${lowSignal} low-signal item(s) (confidence=low and/or no program).`)
