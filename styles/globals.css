@@ -1245,6 +1245,30 @@ a.admin-btn-primary:hover:not(:disabled) {
   color: var(--color-primary);
   text-decoration: underline;
 }
+/* Alert bodies use a lighter list treatment than the global rg-prose card
+   style: clean rows with a hairline divider and a gold dot, instead of the
+   heavier tinted purple boxes. Scoped to .rg-alert-body so program pages,
+   guides, and everything else that relies on .rg-prose li stay unchanged. */
+.rg-alert-body li {
+  background: transparent;
+  border-left: none;
+  border-radius: 0;
+  border-bottom: 1px solid var(--color-border-soft);
+  margin: 0;
+  padding: 0.7rem 0.25rem 0.7rem 1.35rem;
+  line-height: 1.6;
+}
+.rg-alert-body li:last-child {
+  border-bottom: none;
+  padding-bottom: 0.15rem;
+}
+.rg-alert-body li::before {
+  top: 1.15rem;
+  left: 0.15rem;
+  width: 0.34rem;
+  height: 0.34rem;
+  background: var(--color-accent);
+}
 
 /* Markdown tables (lounge access, etc.) — give them readable borders,
    row striping, sensible column widths, and horizontal scroll on narrow
