@@ -23,12 +23,22 @@ The ritual assumes Jill has already **forwarded her issuer/program promo emails 
 
 **Email quality — what's worth forwarding.** *Issuer/program* emails are gold: Southwest, Accor, Hilton, Chase, Amex name the actual offer and terms, and they're a citable primary source. *Third-party affiliate blasts* (point.me, blog newsletters) are usually noise — they deliberately withhold the card name to force a click ("one of the most popular travel cards..."), so Haiku can't tag a program, and they're not citable anyway ([[feedback_card_data_issuer_source_only]]). **Never infer the card** from hints like "$95 AF + 100K" — that's an unsourced claim. Default to reject and tell Jill why.
 
-### Step 0b — pull the live snapshot
-Run:
+### Step 0b — kill the re-forward flood, then pull the live snapshot
+**First, semantic dedup** (added 2026-08-11 — the fix for "the same stuff shows up every morning"). Jill re-forwards issuer emails daily, so much of the fresh intel duplicates alerts we ALREADY published, just reworded (the lexical dedup misses reworded ones). Run:
+```
+node scripts/morning-dedup.mjs
+```
+It uses Sonnet + a program-overlap guard to FLAG fresh intel that duplicates a published alert (last 4 weeks). It is **flag-only by default and rejects nothing** — an earlier Haiku version had bad false positives (matched "Southwest 50%" to "Wyndham 90%"), so a human confirms first. Glance at the candidates (they're near-always valid published-dupes), then apply:
+```
+node scripts/morning-dedup.mjs --apply
+```
+That auto-suppresses only the confirmed re-forwards of things we already published — genuinely-new items and dupes-of-rejected-noise are left for the table. Report the count to Jill ("suppressed N re-forwards").
+
+**Then pull the snapshot:**
 ```
 node scripts/morning-snapshot.mjs
 ```
-It prints every queue count (matching the dashboard "Your day" board), brief status, dupe-checked pending drafts, fresh intel, page-checked change signals, program-drift, and the source gap-check. Read-only.
+It prints every queue count (matching the dashboard "Your day" board) **including New experiences**, brief status, dupe-checked pending drafts, fresh intel (now flagged `[OFFICIAL]` / `[EXPIRED]` / `<<LIKELY DUPE of published>>`), page-checked change signals, program-drift, the source gap-check, and the Experiences section. Read-only.
 
 **If the `!! QUERY PROBLEM(S)` block prints at the bottom, STOP and fix it before building the table** — a failed query renders as an empty queue, which looks exactly like "all clear." (This is not hypothetical: on 2026-07-17 two swallowed column errors produced a table that recommended publishing an already-published alert. The script now surfaces every error; never ignore that block.)
 
