@@ -98,6 +98,7 @@ function expiryPill(startDate: string | null, endDate: string | null): ExpiryPil
   const fmt = new Date(endDate).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
+    timeZone: "UTC",
   });
   return { label: `Ends ${fmt}`, tone: "default" };
 }
