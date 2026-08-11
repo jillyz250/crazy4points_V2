@@ -25,7 +25,7 @@ const TYPE_BADGE: Record<string, { label: string; cls: string }> = {
   award_sale:            { label: 'Award Sale',           cls: 'bg-blue-50 text-blue-800' },
   sweet_spot:            { label: 'Sweet Spot',           cls: 'bg-green-50 text-green-700' },
   companion_pass:        { label: 'Companion Pass',       cls: 'bg-green-50 text-green-800' },
-  limited_time_offer:    { label: 'Limited Offer',        cls: 'bg-red-50 text-red-700' },
+  limited_time_offer:    { label: 'Limited Offer',        cls: 'bg-[#FBF1D6] text-[#7A5C12]' },
   retention_offer:       { label: 'Retention Offer',      cls: 'bg-rose-50 text-rose-700' },
   card_credit:           { label: 'Card Credit',          cls: 'bg-emerald-50 text-emerald-700' },
   card_refresh:          { label: 'Card Refresh',         cls: 'bg-violet-50 text-violet-700' },
@@ -121,6 +121,25 @@ export default async function AlertDetailPage({ params }: Props) {
     if (program?.slug) {
       ctaHref = `/programs/${program.slug}`
       ctaLabel = `Explore ${program.name}`
+    }
+  }
+
+  // External "enter / register" action. Shown when the alert requires the
+  // reader to sign up somewhere (sweepstakes, signup promos) AND we have a
+  // source URL to send them to. Gated on registration_required so ordinary
+  // alerts (whose source_url is a citation, not an action) never sprout a
+  // big outbound button.
+  let registerHref: string | null = null
+  let registerDomain: string | null = null
+  if (alert.registration_required && alert.source_url) {
+    try {
+      const u = new URL(alert.source_url)
+      if (u.protocol === 'https:' || u.protocol === 'http:') {
+        registerHref = alert.source_url
+        registerDomain = u.hostname.replace(/^www\./, '')
+      }
+    } catch {
+      registerHref = null
     }
   }
 
@@ -256,11 +275,25 @@ export default async function AlertDetailPage({ params }: Props) {
             <div className="h-1 bg-[var(--color-primary)]" />
             <div className="p-7 sm:p-8">
               <div
-                className="rg-prose font-body text-base leading-relaxed text-[var(--color-text-primary)]"
+                className="rg-prose rg-alert-body font-body text-base leading-relaxed text-[var(--color-text-primary)]"
                 dangerouslySetInnerHTML={{ __html: descriptionHtml }}
               />
             </div>
           </div>
+        )}
+
+        {/* Primary external action — "enter / register" for sweepstakes and
+            signup promos. This is the thing the reader is here to do, so it
+            gets a prominent gold button above the metadata. */}
+        {registerHref && (
+          <a
+            href={registerHref}
+            target="_blank"
+            rel="nofollow noopener noreferrer"
+            className="mb-8 flex min-h-[52px] w-full items-center justify-center rounded-[var(--radius-ui)] bg-[var(--color-primary)] px-6 py-3.5 text-center font-ui text-base font-semibold text-white transition-colors hover:bg-[var(--color-primary-hover)]"
+          >
+            Enter free at {registerDomain} →
+          </a>
         )}
 
         {/* Meta grid */}
