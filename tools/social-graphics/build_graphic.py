@@ -46,6 +46,10 @@ PALETTES = {
                  sub=INK, pill=PURPLE, pill_text=WHITE, dot=GOLD, cta=PURPLE_D),
     "purple": dict(bg=PURPLE, accent=GOLD, eyebrow=WHITE, head=WHITE, payoff=GOLD,
                    sub=SOFT, pill=PURPLE_D, pill_text=WHITE, dot=GOLD, cta=GOLD),
+    # Luxe deep-midnight + gold — a dramatic, premium alternative to the bright
+    # purple field. Same anchors, very different mood.
+    "midnight": dict(bg=(20, 18, 32), accent=GOLD, eyebrow=GOLD, head=WHITE, payoff=GOLD,
+                     sub=(216, 210, 226), pill=(46, 40, 70), pill_text=WHITE, dot=GOLD, cta=GOLD),
 }
 
 
@@ -253,11 +257,77 @@ def destination(cfg, img, d, pal):
         ctext(d, first_y + i * 84, ln, PF600(74), WHITE)
 
 
+def editorial(cfg, img, d, pal):
+    """Left-aligned, magazine-cover feel: a left accent bar, a giant left number,
+    a unit line, subline, a solid badge pill, and the URL — the asymmetric
+    counterpart to the centered stat_hero."""
+    x = MARGIN
+    tx = x + 42
+    # left accent bar beside the kicker
+    d.rectangle([x, 150, x + 12, 300], fill=pal["accent"])
+    d.text((tx, 210), cfg.get("eyebrow", "").upper(), font=LATO7(30), fill=pal["eyebrow"], anchor="lm")
+    if cfg.get("kicker"):
+        d.text((tx, 262), cfg["kicker"].upper(), font=LATO7(30), fill=pal["sub"], anchor="lm")
+    # giant number, left-aligned, auto-fit to width
+    numf = fit(d, cfg["stat"], PF800, W - tx - MARGIN, cfg.get("stat_size", 260), floor=120)
+    d.text((tx, 440), cfg["stat"], font=numf, fill=pal["payoff"], anchor="lm")
+    d.text((tx, 575), cfg.get("unit", "MILES").upper(), font=LATO7(50), fill=pal["head"], anchor="lm")
+    y = 660
+    for ln in wrap(d, cfg.get("subline", ""), LATO3, 40, W - tx - MARGIN)[:2]:
+        d.text((tx, y), ln, font=LATO3(40), fill=pal["sub"], anchor="lm"); y += 52
+    y += 26
+    badge = cfg.get("badge", "FREE TO ENTER  ·  ENTER DAILY")
+    bf = LATO7(34)
+    bw = d.textlength(badge, font=bf)
+    d.rounded_rectangle([tx, y, tx + bw + 56, y + 64], radius=32, fill=pal["accent"])
+    d.text((tx + 28, y + 32), badge, font=bf, fill=pal["bg"], anchor="lm")
+    y += 100
+    d.text((tx, y + 18), cfg.get("cta", ""), font=LATO7(37), fill=pal["cta"], anchor="lm")
+    logo_card(img, d, cfg)
+
+
+def sweeps(cfg, img, d, pal):
+    """Centered sweepstakes layout: a notched RIBBON banner eyebrow, a giant
+    number lifted high with breathing room + a small flourish rule, then the
+    Wyndham-style wording (FREE TO ENTER / NO PURCHASE NEEDED / Enter free at ...)."""
+    cx = W // 2
+    # ribbon banner eyebrow (forked tails = sweepstakes/award feel)
+    eb = cfg.get("eyebrow", "").upper()
+    ef = LATO7(30)
+    ew = d.textlength(eb, font=ef)
+    by, bh = 150, 66
+    half = ew / 2 + 46
+    bx0, bx1 = cx - half, cx + half
+    d.rectangle([bx0, by, bx1, by + bh], fill=pal["accent"])
+    notch = 28
+    d.polygon([(bx0, by), (bx0 - notch, by), (bx0 - notch + 16, by + bh / 2), (bx0 - notch, by + bh), (bx0, by + bh)], fill=pal["accent"])
+    d.polygon([(bx1, by), (bx1 + notch, by), (bx1 + notch - 16, by + bh / 2), (bx1 + notch, by + bh), (bx1, by + bh)], fill=pal["accent"])
+    d.text((cx, by + bh / 2), eb, font=ef, fill=pal["bg"], anchor="mm")
+    # giant number, lifted high with space around it
+    numf = fit(d, cfg["stat"], PF800, W - 2 * MARGIN, cfg.get("stat_size", 340), floor=150)
+    ctext(d, 410, cfg["stat"], numf, pal["payoff"])
+    # small flourish rule under the number for a touch of interest
+    d.rounded_rectangle([cx - 74, 566, cx + 74, 574], radius=4, fill=pal["accent"])
+    # value subline
+    yy = 632
+    for ln in wrap(d, cfg.get("subline", ""), LATO3, 42, W - 2 * MARGIN)[:2]:
+        ctext(d, yy, ln, LATO3(42), pal["sub"]); yy += 52
+    # Wyndham-style bullets
+    yy += 20
+    for b in cfg.get("bullets", [])[:2]:
+        ctext(d, yy, b, LATO7(42), pal["head"]); yy += 52
+    # logo chip first, then pin the CTA a clean gap above it (no overlap)
+    cardy = logo_card(img, d, cfg)
+    ctext(d, cardy - 42, cfg.get("cta", ""), LATO7(37), pal["cta"])
+
+
 TEMPLATES = {
     "big_word": big_word,
     "stat_hero": stat_hero,
     "split": split,
     "destination": destination,
+    "editorial": editorial,
+    "sweeps": sweeps,
 }
 
 
