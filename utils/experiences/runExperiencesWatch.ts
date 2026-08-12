@@ -466,6 +466,45 @@ async function createBidReminders(supabase: SupabaseClient, program: ExperienceP
   return created
 }
 
+// iSynApp catalogs (Wyndham / Delta / Choice) paginate 10-per-page via an
+// &rs=<row-offset> param — a plain scrape only ever sees page 1 (why Delta showed
+// 10 of ~50). Follow pages (pgmode1=viewAll includes open AND not-yet-open
+// "coming soon" auctions) until a page yields no NEW listing keys, capped for
+// safety. Non-iSynApp URLs fetch once, exactly as before.
+async function fetchProgramUrl(
+  url: string,
+  program: ExperienceProgram,
+): Promise<{ ok: boolean; listings: ParsedListing[] }> {
+  const isISynApp = /\/iSynApp\/allAuction\.action/i.test(url)
+  if (!isISynApp) {
+    let md = ''
+    try { md = await firecrawlMarkdown(url) } catch { md = '' }
+    return { ok: md.length > 0, listings: md.length > 0 ? await parseListings(md, program) : [] }
+  }
+  const PAGE = 10
+  const MAX_PAGES = 15 // hard cap (150 listings) so a broken pager can't loop forever
+  const base = url + (url.includes('?') ? '&' : '?') + 'pgmode1=viewAll'
+  const all: ParsedListing[] = []
+  const seen = new Set<string>()
+  let anyOk = false
+  for (let p = 0; p < MAX_PAGES; p++) {
+    let md = ''
+    try { md = await firecrawlMarkdown(`${base}&rs=${p * PAGE}`) } catch { md = '' }
+    if (md.length === 0) break
+    anyOk = true
+    const listings = await parseListings(md, program)
+    if (listings.length === 0) break
+    let fresh = 0
+    for (const l of listings) {
+      if (!l || !l.title) continue
+      const k = listingKey(program.program_slug, l)
+      if (!seen.has(k)) { seen.add(k); all.push(l); fresh++ }
+    }
+    if (fresh === 0) break // page repeated (past the last page) — stop
+  }
+  return { ok: anyOk, listings: all }
+}
+
 export async function runExperiencesWatch(
   supabase: SupabaseClient,
   program: ExperienceProgram,
@@ -476,16 +515,7 @@ export async function runExperiencesWatch(
   // Scrape each configured page in parallel, parse, and aggregate + dedup across
   // them (e.g. Marriott US-region + ending-soon may overlap).
   const perUrl = await Promise.all(
-    program.list_urls.map(async (url) => {
-      let md = ''
-      try {
-        md = await firecrawlMarkdown(url)
-      } catch {
-        md = ''
-      }
-      const listings = md.length > 0 ? await parseListings(md, program) : []
-      return { ok: md.length > 0, listings }
-    }),
+    program.list_urls.map((url) => fetchProgramUrl(url, program)),
   )
   const byKey = new Map<string, ParsedListing>()
   for (const r of perUrl) {

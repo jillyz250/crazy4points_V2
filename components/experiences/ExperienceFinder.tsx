@@ -169,9 +169,11 @@ export default function ExperienceFinder({ listings }: { listings: FinderListing
   const [sort, setSort] = useState<SortKey>('newest')
   const [hideSoldOut, setHideSoldOut] = useState(false)
   const [nyOnly, setNyOnly] = useState(false)
+  const [soonOnly, setSoonOnly] = useState(false)
 
   const soldOutCount = useMemo(() => listings.filter((l) => l.sold_out).length, [listings])
   const nyCount = useMemo(() => listings.filter(isNYLocation).length, [listings])
+  const soonCount = useMemo(() => listings.filter(notYetOpen).length, [listings])
 
   const programs = useMemo(() => {
     const m = new Map<string, string>()
@@ -191,6 +193,7 @@ export default function ExperienceFinder({ listings }: { listings: FinderListing
       if (category !== 'all' && l.category !== category) return false
       if (hideSoldOut && l.sold_out) return false
       if (nyOnly && !isNYLocation(l)) return false
+      if (soonOnly && !notYetOpen(l)) return false
       if (needle && !`${l.title} ${l.location ?? ''} ${l.program_label}`.toLowerCase().includes(needle)) return false
       return true
     })
@@ -228,7 +231,7 @@ export default function ExperienceFinder({ listings }: { listings: FinderListing
       }
     })
     return out
-  }, [listings, q, program, category, sort, hideSoldOut, nyOnly])
+  }, [listings, q, program, category, sort, hideSoldOut, nyOnly, soonOnly])
 
   // Cardmember-access listings are perks (sign in, no bid), not auctions - they
   // read as broken when mixed in with biddable ones, so they get their own band.
@@ -308,6 +311,16 @@ export default function ExperienceFinder({ listings }: { listings: FinderListing
             onClick={() => setHideSoldOut((v) => !v)}
           >
             {hideSoldOut ? 'Sold out hidden' : `Hide sold out (${soldOutCount})`}
+          </button>
+        )}
+        {soonCount > 0 && (
+          <button
+            type="button"
+            className={pill(soonOnly)}
+            aria-pressed={soonOnly}
+            onClick={() => setSoonOnly((v) => !v)}
+          >
+            {soonOnly ? 'Coming soon only' : `Coming soon (${soonCount})`}
           </button>
         )}
       </div>
