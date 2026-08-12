@@ -17,6 +17,23 @@ export default async function ExperiencesPage() {
   const supabase = createAdminClient()
   const experiences = await getExperiences(supabase)
 
+  // Card -> reachable experience-program slugs, powering the "what my points can
+  // get me" transfer filter (our differentiator). Built live from each card
+  // currency's outbound transfer partners; a card also reaches its OWN listings
+  // (cardmember access), handled in the finder.
+  const { data: cardRows } = await supabase
+    .from('programs')
+    .select('slug, transfer_partners_outbound')
+    .in('slug', ['amex', 'chase', 'citi', 'capital-one', 'bilt'])
+  const cardReach: Record<string, string[]> = {}
+  for (const c of cardRows ?? []) {
+    const dests = new Set<string>()
+    for (const p of ((c.transfer_partners_outbound as { from_slug?: string }[] | null) ?? [])) {
+      if (p?.from_slug) dests.add(p.from_slug)
+    }
+    cardReach[c.slug as string] = [...dests]
+  }
+
   // Live listings for the interactive finder. Program label + official URL come
   // from the directory rows (program != host platform).
   const progInfo = new Map(
@@ -32,7 +49,7 @@ export default async function ExperiencesPage() {
   const nowIso = new Date().toISOString()
   const { data: rawListings } = await supabase
     .from('experience_listings')
-    .select('program_slug, source_platform, title, category, location, format, current_bid, points_required, close_date, close_date_confidence, event_date, bid_opens_at, detail_url, first_seen_at, sold_out')
+    .select('program_slug, source_platform, title, category, location, format, current_bid, points_required, close_date, close_date_confidence, event_date, bid_opens_at, detail_url, first_seen_at, last_seen_at, sold_out')
     .eq('status', 'active')
     .or(`close_date.is.null,close_date.gte.${nowIso}`)
     .order('first_seen_at', { ascending: false })
@@ -55,6 +72,7 @@ export default async function ExperiencesPage() {
       bid_opens_at: (l.bid_opens_at as string) ?? null,
       detail_url: (l.detail_url as string) ?? null,
       first_seen_at: (l.first_seen_at as string) ?? null,
+      last_seen_at: (l.last_seen_at as string) ?? null,
       sold_out: (l.sold_out as boolean) ?? false,
     }
   })
@@ -84,7 +102,7 @@ export default async function ExperiencesPage() {
               Pick a program, search, and sort. Bidding and details are on the official site.
             </span>
           </div>
-          <ExperienceFinder listings={listings} />
+          <ExperienceFinder listings={listings} cardReach={cardReach} />
           <p className="mt-4 font-body text-sm text-[var(--color-text-secondary)]">
             A snapshot of what we&apos;re tracking, refreshed daily. Larger programs list more on their
             official sites, and inventory changes constantly, so always confirm what&apos;s bookable
