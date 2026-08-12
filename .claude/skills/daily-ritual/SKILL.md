@@ -23,6 +23,9 @@ overnight (`run-scout` → `build-brief` → `intel-triage-sweep` → `daily-dig
 6. **Verdict vocabulary** (use these exact words): `PUBLISH · PAGE-NOTE ·
    NEWSLETTER · REJECT · HOLD · DISMISS`. Status marks: `Reverified ✅/⚠️` ·
    Page status in plain words: **correct** / **needs fixing** / **n/a**.
+7. **ALWAYS show Jill the full draft before publishing — every time, no
+   exceptions.** She approves or edits first; nothing goes live unseen. This
+   applies to alerts, social posts, and page fixes alike.
 
 Obey the always-on rules for Jill: lead with a recommendation on every decision;
 only verified facts (official issuer/program source, never a blog); clickable
@@ -92,36 +95,39 @@ one (a deal's last day). Same verdicts as Step 1.
 `completed_at=now` on the `reminders` row (mirrors the admin `toggleReminderDone`).
 Never hard-delete unless it's junk. Do it in one bulk update when Jill says so.
 
-### Step 3 · 🔥 Decisions (the core)
-Feeds: fresh intel + pending drafts + transfer-data + welcome-bonus signals.
-**Pre-filter to the real ones.** The snapshot marks each item:
-- **🇺🇸 US-signal** and **🆕 new-program** → ALWAYS a real decision (never collapse).
-- **⤵ auto-handled candidate** (non-US / recurring-sale) → collapse into one
-  `auto-handled (N)` line. **FLAG-ONLY: act on NOTHING automatically.** Show the
-  count + the one-line reason, offer `show` to expand. If Jill says `handle them`,
-  apply the defaults (non-US → REJECT, recurring → NEWSLETTER) and report it. If
-  she says nothing, **leave them in the queue** — they are NOT rejected (that's the
-  whole point of flag-only; we're measuring precision before trusting it). They'll
-  reappear tomorrow, which is fine and safe. A category only graduates to true
-  auto-reject after ~2 weeks of zero flagged misses.
-- Everything else → the decision card.
+### Step 3 · 🔥 Decisions (the core) — batch the noise, then ONE publish-candidate at a time
+Feeds: fresh intel + pending drafts + transfer-data + welcome-bonus signals. The
+snapshot marks each item (🇺🇸 US-signal + 🆕 new-program = ALWAYS a real decision,
+never collapse; ⤵ = auto-handled candidate). Split the work in two:
 
-Verify the chart-worthy candidates BEFORE presenting them (see Verification
-below), so the **Reverified** column is real. Card format:
+**Step 3a — clear the non-publish pile in ONE batch (nothing here needs a draft).**
+Present these as short groups for a single confirm — do NOT walk them one at a time:
+- **auto-handled (N), flag-only:** non-US / recurring. **Act on NOTHING
+  automatically.** Show the count + reason; `show` to expand. If Jill says
+  `handle them`, apply defaults (non-US → REJECT, recurring → NEWSLETTER). If she
+  says nothing, leave them in the queue — NOT rejected (that's the point of
+  flag-only; a category graduates to true auto-reject only after ~2 weeks of zero
+  flagged misses).
+- **clear rejects (N):** dupes, industry-only-not-actionable, auctions — one line
+  each with the reason; reject on her nod.
+- **newsletter-only (N):** recurring sales / minor notes → `triage_decision='newsletter_idea'`.
+One bulk confirm, execute, receipt.
+
+**Step 3b — then walk the PUBLISH candidates ONE AT A TIME.** These are the only
+ones that need her judgment + a draft. Verify each against its official source
+FIRST (see Verification), then present a **mini-block** (never a table):
 ```
-STEP 3 of 7 · 🔥 DECISIONS (4 real · 12 auto-handled)
-
-#  Item                              Reverified    Page                My rec
-1  Choice Privileges Japan deval     ✅ TPG/LL     needs fixing: Choice PUBLISH
-2  AA Admirals fee → $1,400          ✅ aa.com     needs fixing: AA     PAGE-NOTE
-3  IHG 10k Ruby / 8k every 4 nts     ⚠️ verifying  n/a                 HOLD
-4  Air Canada sells 25% of Aeroplan  ✅ OMAAT      n/a                 REJECT (industry, not actionable)
-
-auto-handled (12): 8 non-US → reject · 4 recurring sales → newsletter   (say "show")
-Your calls?  (e.g. "1 yes, 2 yes, 3 hold, 4 reject")
+1 of 3 · Choice Privileges Japan devaluation
+What/why: <ONE plain-English sentence — what it is, why it matters, the catch>
+Reverified: ✅ <source>   ·   Page: needs fixing: Choice (still shows old rates)
+My rec: PUBLISH  ("book Japan before it's gone")
+Publish, newsletter, or skip?
 ```
-Execute to her brand voice: publish via content_variants pipeline, set a clean
-`short_slug`, fix any **needs fixing** page as part of publishing.
+She decides. **If PUBLISH → draft it FIRST and SHOW HER THE FULL DRAFT before
+anything goes live. ALWAYS. Never publish an alert she hasn't seen.** She approves
+or edits; only then publish via the content_variants pipeline (clean `short_slug`)
+and fix the **needs fixing** page as part of publishing. Receipt, then the NEXT
+candidate. One at a time — never batch the publish candidates.
 
 ### Step 4 · 📄 Page accuracy (the guarantee — never skipped when facts exist)
 **Every page-affecting fact updates its page, whether or not we published it.**
