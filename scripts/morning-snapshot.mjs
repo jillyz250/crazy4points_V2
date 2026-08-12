@@ -94,8 +94,13 @@ const weeklyTask = dow === 'Thursday' ? 'Newsletter day' : dow === 'Friday' ? 'R
 const remindersOpen = (await q('reminders', db.from('reminders')
   .select('title, due_date, status, link, kind').eq('status', 'open')
   .order('due_date', { ascending: true }))).data
-const remExpired = remindersOpen.filter((r) => r.due_date && r.due_date < todayET)
-const remToday = remindersOpen.filter((r) => r.due_date === todayET)
+// Bid-to-win "Bidding closes" reminders are auto-generated auction noise (10+/day)
+// and we don't push auctions socially — keep them out of the actionable list.
+const isAuctionRem = (r) => r.kind === 'experience' || /bidding closes/i.test(r.title || '') || /auction/i.test(r.link || '')
+const remActionable = remindersOpen.filter((r) => !isAuctionRem(r))
+const remExpired = remActionable.filter((r) => r.due_date && r.due_date < todayET)
+const remToday = remActionable.filter((r) => r.due_date === todayET)
+const remAuctionDue = remindersOpen.filter((r) => isAuctionRem(r) && r.due_date && r.due_date <= todayET)
 
 // ---- Deals expiring within 48h — last-chance social candidates -------------
 const in48Iso = new Date(Date.now() + 48 * 3600 * 1000).toISOString()
@@ -272,7 +277,8 @@ console.log(`REMINDERS — due today (${remToday.length}) + overdue (${remExpire
 if (!remToday.length && !remExpired.length) console.log('  (none — nothing dated needs you)')
 for (const r of remToday) console.log(`  [TODAY  ] ${(r.title || '').slice(0, 74)}${r.link ? '  -> ' + r.link : ''}`)
 for (const r of remExpired) console.log(`  [${r.due_date} ] ${(r.title || '').slice(0, 66)}${r.link ? '  -> ' + r.link : ''}`)
-if (remExpired.length) console.log('  -> overdue: act if still live, else DISMISS. (auctions/ended deals = dismiss)')
+if (remExpired.length) console.log('  -> overdue: act if still live, else DISMISS (set status=done). Ended deals = dismiss.')
+if (remAuctionDue.length) console.log(`  (+ ${remAuctionDue.length} bid-to-win auction reminders closing — low priority, not social; dismiss in bulk)`)
 
 console.log('\n' + B)
 console.log(`DEALS EXPIRING WITHIN 48h — last-chance social candidates (${expiringDeals.length}):`)
