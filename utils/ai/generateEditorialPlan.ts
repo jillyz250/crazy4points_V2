@@ -437,9 +437,15 @@ export async function generateEditorialPlan(
     return null
   }
 
+  // Cap the intel fed to the plan. The prompt requires one note per item, so an
+  // unbounded list drives unbounded output — that's what truncated the plan and
+  // silently killed the brief. Highest-confidence / most-recent items come first
+  // (the route orders by confidence then created_at), so the top 35 are the ones
+  // worth an editorial note; the full raw list still lives in /admin/triage.
+  const MAX_INTEL_FOR_PLAN = 35
   const userContent = JSON.stringify(
     {
-      today_intel: input.today_intel,
+      today_intel: input.today_intel.slice(0, MAX_INTEL_FOR_PLAN),
       voice_samples: (input.voice_samples ?? []).slice(0, 3),
       existing_open_blog_ideas: (input.existing_open_blog_ideas ?? []).slice(0, 100),
     },
@@ -451,11 +457,20 @@ export async function generateEditorialPlan(
     const client = new Anthropic({ apiKey })
     const message = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 8192,
+      // 8192 truncated the plan once intel volume grew (~23+ items) — the JSON got
+      // cut off mid-string and the whole brief silently failed. 16384 fits the
+      // capped input with headroom; the today_intel cap below bounds it further.
+      max_tokens: 16384,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userContent }],
     })
     await logUsage(message, 'generateEditorialPlan')
+    // A truncated plan is unparseable JSON -> null -> no brief. This was a silent
+    // daily-brief outage (Aug 2026): once intel volume pushed the plan past 8192
+    // output tokens it got cut off mid-string. Surface it loudly if it recurs.
+    if (message.stop_reason === 'max_tokens') {
+      console.error('[generateEditorialPlan] output hit max_tokens and was truncated — raise max_tokens or lower the today_intel cap')
+    }
 
     const block = message.content[0]
     if (block.type !== 'text') {
