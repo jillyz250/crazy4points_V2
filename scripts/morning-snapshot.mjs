@@ -52,6 +52,16 @@ const STOP = new Set(['the', 'and', 'for', 'with', 'through', 'from', 'your', 'y
 const tok = (t) => new Set(((t || '').toLowerCase().match(/[a-z0-9]{3,}/g) || []).filter((w) => !STOP.has(w)))
 const jac = (a, b) => { const i = [...a].filter((x) => b.has(x)).length; const u = new Set([...a, ...b]).size; return u ? i / u : 0 }
 
+// ---- Deterministic classifiers for the ritual (flag-only; reject nothing) --
+// Page-affecting = a fact that can make a program/card page WRONG, so it needs a
+// page check even if we don't publish an alert (the page-accuracy guarantee).
+const PAGE_AFFECTING = new Set(['devaluation', 'fee_change', 'program_change', 'partner_change', 'category_change', 'earn_rate_change', 'status_change', 'policy_change', 'signup_bonus'])
+// US-signal = a hard, DETERMINISTIC guard: anything mentioning a US issuer / USD
+// can never be collapsed as "non-US", no matter what an LLM guesses.
+const usSignal = (t) => /\b(chase|amex|american express|citi|citibank|bank of america|bofa|barclays|capital one|wells fargo|u\.s\.|us-only|usd)\b|\$\s?\d/i.test(t || '')
+const NONUS_ISSUER = /\b(dbs|ocbc|uob|hsbc|standard chartered|maybank|posb|scb|krisflyer|royal orchid|thai airways)\b/i
+const RECURRING = /\b(monthly|buy points|buy miles|global getaways|mileage bargains|points sale|miles sale)\b/i
+
 // ---- Counts (mirror the dashboard) ---------------------------------------
 const pendingReview = (await q('count pending drafts', db.from('content_variants').select('id', { count: 'exact', head: true })
   .eq('status', 'needs_review').or(`snoozed_until.is.null,snoozed_until.lte.${nowIso}`))).count
@@ -72,6 +82,27 @@ const briefRow = (await q('daily brief', db.from('daily_briefs').select('brief_d
 const briefLine = briefRow
   ? `latest ${briefRow.brief_date}${briefRow.brief_date === todayET ? ' (TODAY — ready)' : ' (today not built yet)'}`
   : 'no briefs found'
+
+// ---- Overnight HEALTH — a failed cron must not look like "all clear" -------
+const newestIntel = (await q('newest intel', db.from('intel_items').select('created_at').order('created_at', { ascending: false }).limit(1))).data[0]
+const briefStaleDays = briefRow ? Math.round((new Date(todayET) - new Date(briefRow.brief_date)) / 864e5) : null
+const scoutAgeHrs = newestIntel ? Math.round((Date.now() - new Date(newestIntel.created_at)) / 3600e3) : null
+const dow = new Date().toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'long' })
+const weeklyTask = dow === 'Thursday' ? 'Newsletter day' : dow === 'Friday' ? 'Refresh-queue re-verify' : null
+
+// ---- Reminders (due today + overdue) — was invisible; dated tasks slipped ---
+const remindersOpen = (await q('reminders', db.from('reminders')
+  .select('title, due_date, status, link, kind').eq('status', 'open')
+  .order('due_date', { ascending: true }))).data
+const remExpired = remindersOpen.filter((r) => r.due_date && r.due_date < todayET)
+const remToday = remindersOpen.filter((r) => r.due_date === todayET)
+
+// ---- Deals expiring within 48h — last-chance social candidates -------------
+const in48Iso = new Date(Date.now() + 48 * 3600 * 1000).toISOString()
+const expiringDeals = (await q('deals expiring 48h', db.from('alerts')
+  .select('title, short_slug, end_date').eq('status', 'published')
+  .not('end_date', 'is', null).gte('end_date', nowIso).lte('end_date', in48Iso)
+  .order('end_date', { ascending: true }))).data
 
 // ---- All alert variants (60d) — powers drafts list + the DUPE check --------
 const variants = (await q('alert variants 60d', db.from('content_variants')
@@ -216,8 +247,14 @@ const sweepRanked = sweeps.map((s) => ({ ...s, sc: scoreSweep(s) }))
 // ══════════════════════════ RENDER ══════════════════════════
 const B = '─'.repeat(66)
 console.log(B)
-console.log(`MORNING SNAPSHOT  ${todayET} (ET)`)
-console.log(`Daily brief: ${briefLine}`)
+console.log(`MORNING SNAPSHOT  ${todayET} (ET) · ${dow}${weeklyTask ? `  ==> WEEKLY: ${weeklyTask}` : ''}`)
+console.log(B)
+// STEP 0 — overnight health. A stale cron must shout, not hide as "all clear".
+const briefFlag = briefStaleDays === 0 ? 'OK (today)' : `!! ${briefStaleDays}d STALE — cron may have failed`
+const scoutFlag = scoutAgeHrs === null ? '!! no intel ever' : scoutAgeHrs <= 30 ? `OK (${scoutAgeHrs}h ago)` : `!! ${scoutAgeHrs}h ago — Scout may be down`
+console.log('HEALTH (step 0):')
+console.log(`  Daily brief . ${briefFlag}`)
+console.log(`  Scout intel . ${scoutFlag}`)
 console.log(B)
 console.log('QUEUE COUNTS (act highest-first):')
 console.log(`  Pending drafts (needs_review) . ${n(pendingReview)}   -> /admin/drafts?view=needs_review`)
@@ -228,6 +265,19 @@ console.log(`  Prose to re-check ............. ${n(proseReview)}   -> /admin/car
 console.log(`  Refresh queue ................. ${n(refreshQueue)}   -> /admin/refresh-queue`)
 console.log(`  New experiences (36h) ......... ${n(newExpCount)}   -> /experiences`)
 console.log(`  Sweepstakes to post ........... ${n(sweeps.length)}   -> /admin/sweepstakes`)
+
+// STEP 1/2 — loose ends + reminders. Dated tasks that were slipping past.
+console.log('\n' + B)
+console.log(`REMINDERS — due today (${remToday.length}) + overdue (${remExpired.length}):`)
+if (!remToday.length && !remExpired.length) console.log('  (none — nothing dated needs you)')
+for (const r of remToday) console.log(`  [TODAY  ] ${(r.title || '').slice(0, 74)}${r.link ? '  -> ' + r.link : ''}`)
+for (const r of remExpired) console.log(`  [${r.due_date} ] ${(r.title || '').slice(0, 66)}${r.link ? '  -> ' + r.link : ''}`)
+if (remExpired.length) console.log('  -> overdue: act if still live, else DISMISS. (auctions/ended deals = dismiss)')
+
+console.log('\n' + B)
+console.log(`DEALS EXPIRING WITHIN 48h — last-chance social candidates (${expiringDeals.length}):`)
+if (!expiringDeals.length) console.log('  (none)')
+for (const d of expiringDeals) console.log(`  - ends ${d.end_date ? d.end_date.slice(0, 10) : '?'} · ${(d.title || '').slice(0, 60)}  -> /alerts/${d.short_slug || ''}`)
 
 console.log('\n' + B)
 console.log(`PENDING DRAFTS — dupe-checked vs ${settled.length} published/archived (${drafts.length}):`)
@@ -248,6 +298,8 @@ console.log(`FRESH INTEL — last 36h, still needing a decision (${freshIntel.le
 if (!freshIntel.length) console.log('  (none — queue clear)')
 let lowSignal = 0
 let idupCount = 0
+const autoHandled = []   // flag-only collapse candidates (non-US / recurring-sale)
+const pageAffFacts = []  // facts that must trigger a page check regardless of verdict
 for (const r of freshIntel) {
   const progs = Array.isArray(r.programs) ? r.programs.join(',') : (r.programs || '')
   /**
@@ -265,7 +317,20 @@ for (const r of freshIntel) {
   // = high-trust, verify-lite. EXPIRED = past its own exp date, likely dead.
   const official = r.source_type === 'official' ? ' [OFFICIAL]' : ''
   const expd = r.expires_at && r.expires_at < nowIso ? ' [EXPIRED]' : ''
-  console.log(`  - [${(r.source_type || '?').padEnd(8)}|${(r.confidence || '?').padEnd(6)}]${official}${expd} ${(r.headline || '').slice(0, 72)}${warn}${cc}`)
+  // Deterministic markers. US-signal + new-program are HARD guards: they can
+  // never be collapsed, no matter what the non-US / recurring hints say.
+  const blob = `${r.headline} ${progs}`
+  const us = usSignal(blob)
+  const progList = Array.isArray(r.programs) ? r.programs : []
+  const newProg = progList.some((p) => p && !progBySlug.has(p))
+  const pageAff = PAGE_AFFECTING.has(r.alert_type)
+  const nonUsCand = !us && NONUS_ISSUER.test(blob)
+  const recurCand = !us && (r.alert_type === 'award_sale' || RECURRING.test(r.headline || ''))
+  const collapsible = (nonUsCand || recurCand) && !us && !newProg && !pageAff
+  const mk = `${pageAff ? ' 📄' : ''}${us ? ' 🇺🇸' : ''}${newProg ? ' 🆕' : ''}${collapsible ? (nonUsCand ? ' ⤵non-US?' : ' ⤵recurring?') : ''}`
+  if (collapsible) autoHandled.push(`${nonUsCand ? 'non-US' : 'recurring'}: ${(r.headline || '').slice(0, 58)}`)
+  if (pageAff) pageAffFacts.push(`[${r.alert_type}|${progs || '?'}] ${(r.headline || '').slice(0, 60)}`)
+  console.log(`  - [${(r.source_type || '?').padEnd(8)}|${(r.confidence || '?').padEnd(6)}]${official}${expd} ${(r.headline || '').slice(0, 72)}${mk}${warn}${cc}`)
   const idup = dupeHeadline(r.headline)
   if (idup) { idupCount++; console.log(`      <<LIKELY DUPE ${(idup.score * 100).toFixed(0)}% of published: "${(idup.match.title || '').slice(0, 50)}">> — reject unless genuinely new`) }
   console.log(`      src=${r.source_name || '?'}  type=${r.alert_type || '?'}  programs=[${progs}]  exp=${r.expires_at ? r.expires_at.slice(0, 10) : '-'}`)
@@ -278,6 +343,15 @@ if (lowSignal) {
   console.log('        Third-party affiliate blasts (point.me, newsletters) often hide the card')
   console.log('        name to force a click, so they cannot be tagged, cannot be deduped, and')
   console.log('        are not citable anyway (issuer sources only). Default: reject.')
+}
+if (autoHandled.length) {
+  console.log(`  AUTO-HANDLED CANDIDATES (${autoHandled.length}) — FLAG-ONLY, reject nothing yet:`)
+  for (const a of autoHandled) console.log(`     ⤵ ${a}`)
+  console.log('     (US-signal 🇺🇸 + new-program 🆕 items are NEVER here — they stay above.)')
+}
+if (pageAffFacts.length) {
+  console.log(`  📄 PAGE-AFFECTING FACTS (${pageAffFacts.length}) — check the tied page even if rejected/newsletter:`)
+  for (const p of pageAffFacts) console.log(`     📄 ${p}`)
 }
 
 console.log('\n' + B)

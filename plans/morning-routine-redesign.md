@@ -224,3 +224,37 @@ Nothing here changes the overnight crons; this is all the human-loop layer.
 2. Add reminders + loose-ends + deals-expiring.
 3. Rewrite the skill to the new card flow + page-accuracy guarantee.
 4. Burn down the 27-item drift backlog over the following mornings.
+
+---
+
+## 10. Decisions (finalized after Copilot review — BUILT)
+
+Copilot's second-pass review found real failure modes; we adopted the cheap,
+high-value guards and dropped the machinery that's over-built for our volume.
+
+**Adopted (built into `scripts/morning-snapshot.mjs` + the skill):**
+- Overnight **health check** (brief staleness + Scout freshness) at Step 0.
+- **Reminders** (due today + overdue) + **deals-expiring-48h** surfaced.
+- **Weekday + weekly-task** awareness (Thu newsletter / Fri refresh).
+- **US-signal hard guard** (deterministic regex — US issuer/USD → never collapse)
+  and **new-program guard** (a program we don't carry → never collapse).
+- **Page-affecting tagging** (📄) → feeds the page-accuracy guarantee.
+- **Auto-filters are FLAG-ONLY** (collapse, reject nothing) until a category earns
+  auto-reject.
+- **Page-fix tiering** (Fix-NOW for top-10 programs / live-alert contradictions /
+  earn-burn / transfer partners / promoted SUB; else queue to drift) + drift SLA
+  (nothing > 7 days; burn up to 5/morning, 10 if backlog > 30).
+- **Experiences + sweepstakes = one step, two sub-cards** (Copilot's call).
+- Reminders auto-generate only from **explicit ISO** end-dates.
+
+**Dropped as over-engineered for our volume (a few items/category/week):**
+- The 98%-precision / 50-item / 90-day graduation gate + a recall meta-classifier.
+  Replaced with: human eyeballs the collapsed bucket ~2 weeks, zero flagged misses
+  → graduate; monthly spot-check. The deterministic US-signal guard does the real
+  work.
+- The 14-day "hard-stop that blocks the morning." Softened to a loud persistent
+  escalation.
+- Auto-switch code→DB and auto-off-at-<95%. Deferred until true auto-reject is on.
+
+**Standing-rules home:** code constant now (in the snapshot script); move to a DB
+table only when a category graduates to auto-reject.
