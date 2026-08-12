@@ -203,6 +203,18 @@ export async function GET(req: NextRequest) {
     existing_open_blog_ideas: existingOpenBlogIdeas,
   })
 
+  // A null plan means NO brief gets built or emailed. That was a SILENT outage
+  // (Aug 2026: plan output truncated past max_tokens) because the route still
+  // returns 200. Log it loudly so the morning health check + system_errors catch
+  // it instead of it looking like a quiet day.
+  if (!plan) {
+    await logSystemError(
+      supabase,
+      'build-brief',
+      new Error(`generateEditorialPlan returned null — brief NOT built (findings=${findings.length}). Likely max_tokens truncation.`),
+    ).catch(() => {})
+  }
+
   // Persist the brief — even on plan failure, so actions log still works (empty plan)
   let briefId: string | undefined
   if (plan) {

@@ -39,10 +39,15 @@ third-party affiliate blasts that hide the card name are noise → reject.
 
 ## Step 0b — pull the data (two commands, read-only)
 ```
-node scripts/morning-dedup.mjs          # flag reworded re-forwards of published alerts
-node scripts/morning-dedup.mjs --apply  # after a glance, suppress the confirmed ones
+node scripts/morning-dedup.mjs           # flag reworded re-forwards of published alerts
+node scripts/morning-dedup.mjs --apply   # after a glance, suppress the confirmed ones
+node scripts/morning-reminders-sweep.mjs         # preview dead reminders (ended deals + closed auctions)
+node scripts/morning-reminders-sweep.mjs --apply # auto-complete them (keeps still-live deals + evergreen)
 node scripts/morning-snapshot.mjs        # the full structured feed for the cards below
 ```
+The reminders sweep is SAFE: it only completes "…before it ends" reminders whose
+tied alert has already ended (a still-live deal is kept) and auction "Bidding
+closes" reminders past their date. Evergreen "Social post:" reminders are kept.
 The snapshot is YOUR data source — you compose the board + cards from it; Jill
 never reads the raw dump. **If `!! QUERY PROBLEM(S)` prints, STOP and fix it** —
 a failed query looks exactly like an empty queue.

@@ -45,7 +45,12 @@ const n = (v) => (v === null ? 'ERR' : v)
 
 const nowIso = new Date().toISOString()
 const since36 = new Date(Date.now() - 36 * 3600 * 1000).toISOString()
-const todayET = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+// Real ET calendar day drives freshness/health (always honest). MORNING_DATE
+// overrides only the DISPLAY/decision date (weekday, month-start, reminder
+// "today") so the ritual can be dry-run for any date, e.g.
+//   MORNING_DATE=2026-09-01 node scripts/morning-snapshot.mjs
+const realTodayET = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+const todayET = (process.env.MORNING_DATE || realTodayET).trim()
 
 // ---- Text helpers for the dupe/page checks --------------------------------
 const STOP = new Set(['the', 'and', 'for', 'with', 'through', 'from', 'your', 'you', 'not', 'are', 'now', 'its', 'of', 'to', 'on', 'in', 'up', 'by', 'is', 'has', 'new', 'more', 'get', 'can', 'but', 'as', 'at', 'be', 'this', 'that', 'points', 'miles', 'bonus', 'rewards', 'card', 'offer', 'sale', 'program', 'launches', 'announce', 'announces', 'partnership', 'partner', 'members', 'member'])
@@ -85,10 +90,14 @@ const briefLine = briefRow
 
 // ---- Overnight HEALTH — a failed cron must not look like "all clear" -------
 const newestIntel = (await q('newest intel', db.from('intel_items').select('created_at').order('created_at', { ascending: false }).limit(1))).data[0]
-const briefStaleDays = briefRow ? Math.round((new Date(todayET) - new Date(briefRow.brief_date)) / 864e5) : null
+const briefStaleDays = briefRow ? Math.round((new Date(realTodayET) - new Date(briefRow.brief_date)) / 864e5) : null
 const scoutAgeHrs = newestIntel ? Math.round((Date.now() - new Date(newestIntel.created_at)) / 3600e3) : null
-const dow = new Date().toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'long' })
-const weeklyTask = dow === 'Thursday' ? 'Newsletter day' : dow === 'Friday' ? 'Refresh-queue re-verify' : null
+const dow = new Date(todayET + 'T12:00:00Z').toLocaleDateString('en-US', { timeZone: 'UTC', weekday: 'long' })
+const monthStart = todayET.slice(8, 10) === '01'
+// Month-start fires the monthly award-sales roundup (bundle the recurring Qatar /
+// Copa / Alaska Global Getaways / Miles & More sales into ONE newsletter roundup).
+const weeklyTask = monthStart ? '1st of month ==> run the monthly "This Month\'s Award Sales" roundup'
+  : dow === 'Thursday' ? 'Newsletter day' : dow === 'Friday' ? 'Refresh-queue re-verify' : null
 
 // ---- Reminders (due today + overdue) — was invisible; dated tasks slipped ---
 const remindersOpen = (await q('reminders', db.from('reminders')
