@@ -23,8 +23,19 @@ export interface FinderListing {
   bid_opens_at: string | null
   detail_url: string | null
   first_seen_at: string | null
+  last_seen_at: string | null
   sold_out: boolean
 }
+
+// The card currencies whose points can REACH experiences (own listings + transfer
+// partners). Order = rough popularity. Powers the "what my points can get me" filter.
+const TRANSFER_CARDS: { slug: string; label: string }[] = [
+  { slug: 'chase', label: 'Chase' },
+  { slug: 'amex', label: 'Amex' },
+  { slug: 'capital-one', label: 'Capital One' },
+  { slug: 'citi', label: 'Citi' },
+  { slug: 'bilt', label: 'Bilt' },
+]
 
 // A short, honest date line for the tile. close_date drives urgency (bidding
 // ends); event_date is when the experience happens. Guessed close dates get a
@@ -137,6 +148,17 @@ function locationBadge(raw: string | null): string | null {
 
 const pointsOf = (l: FinderListing) => l.current_bid ?? l.points_required ?? null
 
+// "Updated 3h ago" freshness line — reassures the reader the price/date is
+// current (we re-scrape daily). Uses last_seen_at (last time the watcher saw it).
+function updatedAgo(iso: string | null): string | null {
+  if (!iso) return null
+  const h = Math.floor((Date.now() - Date.parse(iso)) / 3_600_000)
+  if (Number.isNaN(h) || h < 0) return null
+  if (h < 1) return 'Updated just now'
+  if (h < 24) return `Updated ${h}h ago`
+  return `Updated ${Math.floor(h / 24)}d ago`
+}
+
 const notYetOpen = (l: FinderListing) => l.bid_opens_at != null && Date.parse(l.bid_opens_at) > Date.now()
 
 // A listing first seen in the last ~48h gets a NEW flag. Time-based, so it
@@ -162,18 +184,25 @@ function formatLabel(f: string | null): string {
   return ''
 }
 
-export default function ExperienceFinder({ listings }: { listings: FinderListing[] }) {
+export default function ExperienceFinder({
+  listings,
+  cardReach,
+}: {
+  listings: FinderListing[]
+  cardReach: Record<string, string[]>
+}) {
   const [q, setQ] = useState('')
   const [program, setProgram] = useState<string>('all')
   const [category, setCategory] = useState<string>('all')
   const [sort, setSort] = useState<SortKey>('newest')
   const [hideSoldOut, setHideSoldOut] = useState(false)
   const [nyOnly, setNyOnly] = useState(false)
-  const [soonOnly, setSoonOnly] = useState(false)
+  const [transferCard, setTransferCard] = useState<string>('all') // 'all' | card slug
+  const [maxPoints, setMaxPoints] = useState<string>('')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'live' | 'buynow' | 'soon'>('all')
 
   const soldOutCount = useMemo(() => listings.filter((l) => l.sold_out).length, [listings])
   const nyCount = useMemo(() => listings.filter(isNYLocation).length, [listings])
-  const soonCount = useMemo(() => listings.filter(notYetOpen).length, [listings])
 
   const programs = useMemo(() => {
     const m = new Map<string, string>()
@@ -193,7 +222,23 @@ export default function ExperienceFinder({ listings }: { listings: FinderListing
       if (category !== 'all' && l.category !== category) return false
       if (hideSoldOut && l.sold_out) return false
       if (nyOnly && !isNYLocation(l)) return false
-      if (soonOnly && !notYetOpen(l)) return false
+      // Transfer filter: a card reaches its OWN listings + its transfer partners.
+      if (transferCard !== 'all') {
+        const reach = cardReach[transferCard] ?? []
+        if (l.program_slug !== transferCard && !reach.includes(l.program_slug)) return false
+      }
+      // Max points (compare the bid/points figure; unpriced listings are excluded).
+      if (maxPoints.trim()) {
+        const cap = parseInt(maxPoints.replace(/[,\s]/g, ''), 10)
+        if (!Number.isNaN(cap)) {
+          const p = pointsOf(l)
+          if (p == null || p > cap) return false
+        }
+      }
+      // Status: live auction / buy-now / coming soon.
+      if (statusFilter === 'soon' && !notYetOpen(l)) return false
+      if (statusFilter === 'live' && (l.format !== 'bid' || notYetOpen(l))) return false
+      if (statusFilter === 'buynow' && l.format !== 'redeem') return false
       if (needle && !`${l.title} ${l.location ?? ''} ${l.program_label}`.toLowerCase().includes(needle)) return false
       return true
     })
@@ -231,7 +276,7 @@ export default function ExperienceFinder({ listings }: { listings: FinderListing
       }
     })
     return out
-  }, [listings, q, program, category, sort, hideSoldOut, nyOnly, soonOnly])
+  }, [listings, q, program, category, sort, hideSoldOut, nyOnly, transferCard, maxPoints, statusFilter, cardReach])
 
   // Cardmember-access listings are perks (sign in, no bid), not auctions - they
   // read as broken when mixed in with biddable ones, so they get their own band.
@@ -313,17 +358,85 @@ export default function ExperienceFinder({ listings }: { listings: FinderListing
             {hideSoldOut ? 'Sold out hidden' : `Hide sold out (${soldOutCount})`}
           </button>
         )}
-        {soonCount > 0 && (
-          <button
-            type="button"
-            className={pill(soonOnly)}
-            aria-pressed={soonOnly}
-            onClick={() => setSoonOnly((v) => !v)}
-          >
-            {soonOnly ? 'Coming soon only' : `Coming soon (${soonCount})`}
-          </button>
-        )}
       </div>
+
+      {/* Row 2: the power filters — what your points reach, status, budget */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <select
+          value={transferCard}
+          onChange={(e) => setTransferCard(e.target.value)}
+          className="rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background)] px-3 py-2 font-ui text-base"
+          aria-label="Filter by what your points can reach"
+        >
+          <option value="all">Any points I hold</option>
+          {TRANSFER_CARDS.map((c) => (
+            <option key={c.slug} value={c.slug}>
+              I have {c.label} points
+            </option>
+          ))}
+        </select>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+          className="rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background)] px-3 py-2 font-ui text-base"
+          aria-label="Filter by status"
+        >
+          <option value="all">Any status</option>
+          <option value="live">Live auctions</option>
+          <option value="buynow">Buy now</option>
+          <option value="soon">Coming soon</option>
+        </select>
+        <input
+          type="text"
+          inputMode="numeric"
+          value={maxPoints}
+          onChange={(e) => setMaxPoints(e.target.value)}
+          placeholder="Max points"
+          className="w-32 rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background)] px-3 py-2 font-body text-base"
+          aria-label="Maximum points"
+        />
+      </div>
+
+      {(() => {
+        const statusLabels: Record<'live' | 'buynow' | 'soon', string> = {
+          live: 'Live auctions', buynow: 'Buy now', soon: 'Coming soon',
+        }
+        const chips: { label: string; clear: () => void }[] = []
+        if (transferCard !== 'all')
+          chips.push({ label: `Reachable with ${TRANSFER_CARDS.find((c) => c.slug === transferCard)?.label ?? transferCard}`, clear: () => setTransferCard('all') })
+        if (statusFilter !== 'all') chips.push({ label: statusLabels[statusFilter], clear: () => setStatusFilter('all') })
+        if (maxPoints.trim()) chips.push({ label: `≤ ${maxPoints} points`, clear: () => setMaxPoints('') })
+        if (program !== 'all') chips.push({ label: programs.find(([s]) => s === program)?.[1] ?? program, clear: () => setProgram('all') })
+        if (category !== 'all') chips.push({ label: cap(category), clear: () => setCategory('all') })
+        if (nyOnly) chips.push({ label: 'New York only', clear: () => setNyOnly(false) })
+        if (hideSoldOut) chips.push({ label: 'Sold out hidden', clear: () => setHideSoldOut(false) })
+        if (q.trim()) chips.push({ label: `“${q}”`, clear: () => setQ('') })
+        if (!chips.length) return null
+        return (
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            {chips.map((c, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={c.clear}
+                className="inline-flex items-center gap-1 rounded-full bg-[var(--color-background-soft)] px-2.5 py-1 font-ui text-xs text-[var(--color-primary)] hover:bg-[var(--color-border-soft)]"
+              >
+                {c.label} <span aria-hidden>&times;</span>
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => {
+                setTransferCard('all'); setStatusFilter('all'); setMaxPoints(''); setProgram('all')
+                setCategory('all'); setNyOnly(false); setHideSoldOut(false); setQ('')
+              }}
+              className="font-ui text-xs text-[var(--color-text-secondary)] underline hover:text-[var(--color-primary)]"
+            >
+              Clear all
+            </button>
+          </div>
+        )
+      })()}
 
       <p className="mb-3 font-ui text-sm text-[var(--color-text-secondary)]">
         {filtered.length} experience{filtered.length === 1 ? '' : 's'}
@@ -439,6 +552,11 @@ export default function ExperienceFinder({ listings }: { listings: FinderListing
                   : 'text-[var(--color-text-secondary)]!'
           return <p className={`mt-1 font-ui text-xs font-medium ${tone}`}>{s.text}</p>
         })()}
+        {updatedAgo(l.last_seen_at) && (
+          <p className="mt-1.5 font-ui text-[0.625rem] uppercase tracking-wide text-[var(--color-text-secondary)] opacity-70">
+            {updatedAgo(l.last_seen_at)}
+          </p>
+        )}
       </>
     )
     // Sold-out cards stay clickable (a waitlist may open) but read as spent:
