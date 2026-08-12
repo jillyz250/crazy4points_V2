@@ -137,11 +137,22 @@ export const EXPERIENCE_PROGRAMS: ExperienceProgram[] = [
     ],
     complete: false,
   },
+  {
+    program_slug: 'choice',
+    directory_slug: 'choice-privileges-experiences',
+    source_platform: 'Experiences by Choice',
+    // The real catalog lives on experiencesbychoice.com — the SAME iSynApp auction
+    // platform as Wyndham/Delta — NOT choicehotels.com, which is Akamai bot-walled
+    // and was the reason Choice was mislabeled "messy" (wrong door). Points-priced
+    // racing + college-sports listings; mostly bid auctions + some Redeem Now.
+    list_urls: ['https://www.experiencesbychoice.com/iSynApp/allAuction.action?rc=12'],
+    complete: false,
+  },
   // Tested but NOT added (parse zero / marketing pages, flagged by scraper health):
   // Flying Blue (flyingblue.com spend-miles), Bilt (biltrewards.com homepage),
   // Capital One (capitalone.com/entertainment). Emirates/Qatar/Virgin-Red/
-  // Miles&More/Choice: 1-2 or messy. IHG/Aeroplan/Qantas/BA: blocked or
-  // landing pages, no catalog. All stay guide-only in the directory.
+  // Miles&More: 1-2 or messy (re-check for a separate catalog domain like Choice's
+  // experiencesbychoice.com). IHG/Aeroplan/Qantas/BA: blocked or landing pages.
 ]
 
 interface ParsedListing {
