@@ -22,7 +22,7 @@ overnight (`run-scout` → `build-brief` → `intel-triage-sweep` → `daily-dig
 5. **Jill drives:** `next` / `skip` / `back` / `done`.
 6. **Verdict vocabulary** (use these exact words): `PUBLISH · PAGE-NOTE ·
    NEWSLETTER · REJECT · HOLD · DISMISS`. Status marks: `Reverified ✅/⚠️` ·
-   `Pages ✅/✍️/—`.
+   Page status in plain words: **correct** / **needs fixing** / **n/a**.
 
 Obey the always-on rules for Jill: lead with a recommendation on every decision;
 only verified facts (official issuer/program source, never a blog); clickable
@@ -111,17 +111,17 @@ below), so the **Reverified** column is real. Card format:
 ```
 STEP 3 of 7 · 🔥 DECISIONS (4 real · 12 auto-handled)
 
-#  Item                              Reverified    Pages         My rec
-1  Choice Privileges Japan deval     ✅ TPG/LL     ✍️ Choice pg   PUBLISH
-2  AA Admirals fee → $1,400          ✅ aa.com     ✍️ AA page     PAGE-NOTE
-3  IHG 10k Ruby / 8k every 4 nts     ⚠️ verifying  —             HOLD
-4  Air Canada sells 25% of Aeroplan  ✅ OMAAT      —             REJECT (industry, not actionable)
+#  Item                              Reverified    Page                My rec
+1  Choice Privileges Japan deval     ✅ TPG/LL     needs fixing: Choice PUBLISH
+2  AA Admirals fee → $1,400          ✅ aa.com     needs fixing: AA     PAGE-NOTE
+3  IHG 10k Ruby / 8k every 4 nts     ⚠️ verifying  n/a                 HOLD
+4  Air Canada sells 25% of Aeroplan  ✅ OMAAT      n/a                 REJECT (industry, not actionable)
 
 auto-handled (12): 8 non-US → reject · 4 recurring sales → newsletter   (say "show")
 Your calls?  (e.g. "1 yes, 2 yes, 3 hold, 4 reject")
 ```
 Execute to her brand voice: publish via content_variants pipeline, set a clean
-`short_slug`, fix any `✍️` page as part of publishing.
+`short_slug`, fix any **needs fixing** page as part of publishing.
 
 ### Step 4 · 📄 Page accuracy (the guarantee — never skipped when facts exist)
 **Every page-affecting fact updates its page, whether or not we published it.**
