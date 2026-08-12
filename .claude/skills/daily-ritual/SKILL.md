@@ -69,28 +69,36 @@ clear). Then wait for `next`.
 
 ## THE STEPS (one card each, in order)
 
-### Step 1 · 🧹 Loose ends from yesterday
-Yesterday's decisions that didn't complete. Source: overdue reminders of kind
-`todo` (esp. "Social post:" / "Social post before it ends:") + any alert you
-published yesterday with no social posted. Present as a short list with a rec
-each (post today / dismiss because the deal ended / still relevant). Bulk-dismiss
-the truly-passed ones on her word.
-Receipt example: `✅ Step 1 done — dismissed 3 ended-deal reminders; kept Chase
-Sapphire Lounges for today's social.`
+### Step 1 · 🧹 Loose ends (OVERDUE)
+The snapshot's overdue reminders (`[YYYY-MM-DD]` rows) — yesterday's actions that
+didn't complete (esp. "Social post:" / "Social post before it ends:"). For each,
+recommend: **post today** (still live), **DISMISS** (deal ended / stale), or
+**keep** (still relevant, becomes a Step-5 candidate). Bulk-dismiss the passed
+ones on her word. Auction "Bidding closes" reminders are shown as a collapsed
+count — offer to bulk-dismiss them.
+Receipt example: `✅ Step 1 done — dismissed 3 ended-deal + 8 auction reminders;
+kept Chase Sapphire Lounges for today's social.`
 
-### Step 2 · ⏰ Reminders due today
-From the snapshot REMINDERS `[TODAY]` list. Bid-to-win auction reminders
-(Wyndham/Marriott/Accor "Bidding closes") are low-priority — note, don't push.
-Flag any real time-boxed action (a deal's last day).
+### Step 2 · ⏰ Reminders due TODAY
+The snapshot's `[TODAY]` rows — today's dated actions. Flag any real time-boxed
+one (a deal's last day). Same verdicts as Step 1.
+
+**How to dismiss/complete a reminder** (both steps): set `status='done'` +
+`completed_at=now` on the `reminders` row (mirrors the admin `toggleReminderDone`).
+Never hard-delete unless it's junk. Do it in one bulk update when Jill says so.
 
 ### Step 3 · 🔥 Decisions (the core)
 Feeds: fresh intel + pending drafts + transfer-data + welcome-bonus signals.
 **Pre-filter to the real ones.** The snapshot marks each item:
 - **🇺🇸 US-signal** and **🆕 new-program** → ALWAYS a real decision (never collapse).
 - **⤵ auto-handled candidate** (non-US / recurring-sale) → collapse into one
-  `auto-handled (N)` line. **FLAG-ONLY for now — reject nothing automatically.**
-  Show the line, say "say `show` to expand," and if Jill doesn't, they carry to
-  the default (non-US → reject, recurring → newsletter) but she saw the count.
+  `auto-handled (N)` line. **FLAG-ONLY: act on NOTHING automatically.** Show the
+  count + the one-line reason, offer `show` to expand. If Jill says `handle them`,
+  apply the defaults (non-US → REJECT, recurring → NEWSLETTER) and report it. If
+  she says nothing, **leave them in the queue** — they are NOT rejected (that's the
+  whole point of flag-only; we're measuring precision before trusting it). They'll
+  reappear tomorrow, which is fine and safe. A category only graduates to true
+  auto-reject after ~2 weeks of zero flagged misses.
 - Everything else → the decision card.
 
 Verify the chart-worthy candidates BEFORE presenting them (see Verification
@@ -160,6 +168,36 @@ Still owed by you: post the social · confirm the IHG deal terms
 Next-best move: <one line>
 ```
 Her outstanding actions ALWAYS last.
+
+---
+
+## Execution cheat-sheet (what each verdict actually DOES)
+Run DB scripts with `node_modules/.bin/tsx` from the repo root; a tsx script that
+imports `@/…` must live INSIDE the repo (copy to `scripts/_tmp-*.ts`, run, delete)
+for the alias + node_modules to resolve. Alert writes go through `writeAlertVariant`
+/ the content_variants pipeline — the `alerts` mirror blocks direct writes (G6).
+
+- **PUBLISH (new)** → `writeAlertVariant({status:'published', short_slug, title,
+  summary, description, type, action_type, primary_program_id, program_slugs,
+  end_date, source_url, …})`. Guardrails learned the hard way: `action_type` must
+  be a valid enum (`book·transfer·apply·status_match·buy_miles·activate·monitor·
+  learn` — there is no "enter"); impact/value/rarity scores ≤ 5 (check constraint);
+  `end_date` = the ACTIONABLE deadline stored as the calendar date (renders via
+  UTC); set a clean `short_slug`; NEVER put an internal note in `history_note`
+  (it renders publicly as "Historical Context").
+- **PUBLISH (existing draft)** → updateAlertVariantBody → logAlertOverride
+  (tnc/factcheck/voice/source) → checkAlertGates (must `canPublish`) →
+  publishAlertVariant. See [[reference_publish_alert_programmatically]].
+- **PAGE-NOTE** → edit the program/card page field (issuer source only, no
+  foreign-currency valuations, no em/en-dashes) and set `content_updated_at`
+  (SQL-authored pages 404 without it). This is also how a **📄 page-affecting**
+  fix lands.
+- **NEWSLETTER** → `intel_items.triage_decision='newsletter_idea'` (stays in the
+  newsletter bucket, leaves the alert queue).
+- **REJECT** → `intel_items` set `rejected_at=now, processed=true,
+  rejected_reason=…`.
+- **HOLD / SNOOZE** → `intel_items.snoozed_until=<date>` (re-surfaces later).
+- **DISMISS reminder** → `reminders` set `status='done', completed_at=now`.
 
 ---
 
