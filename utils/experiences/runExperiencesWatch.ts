@@ -148,11 +148,22 @@ export const EXPERIENCE_PROGRAMS: ExperienceProgram[] = [
     list_urls: ['https://www.experiencesbychoice.com/iSynApp/allAuction.action?rc=12'],
     complete: false,
   },
-  // Tested but NOT added (parse zero / marketing pages, flagged by scraper health):
-  // Flying Blue (flyingblue.com spend-miles), Bilt (biltrewards.com homepage),
-  // Capital One (capitalone.com/entertainment). Emirates/Qatar/Virgin-Red/
-  // Miles&More: 1-2 or messy (re-check for a separate catalog domain like Choice's
-  // experiencesbychoice.com). IHG/Aeroplan/Qantas/BA: blocked or landing pages.
+  {
+    program_slug: 'flying-blue',
+    directory_slug: 'flying-blue-experiences',
+    source_platform: 'Air France-KLM Flying Blue Experiences',
+    // The Flying Blue store is mostly retail merch, but /experiences is a clean
+    // PUBLIC catalog of concert/sports VIP packages priced in Miles (buy-now).
+    // (The earlier "spend-miles" test hit the retail homepage, not this category.)
+    list_urls: ['https://store.flyingblue.com/experiences'],
+    complete: true,
+  },
+  // Tested but NOT added:
+  // - Bilt (biltrewards.com homepage), Capital One (capitalone.com/entertainment),
+  //   Miles & More (Worldshop = retail merch, no experiences catalog): parse zero.
+  // - Emirates / Qatar / Virgin Red: real catalogs BUT member-login-gated — the
+  //   listings only render to signed-in members (verified 2026-08-12), so they
+  //   stay guide-only. IHG/Aeroplan/Qantas/BA: blocked or landing pages.
 ]
 
 interface ParsedListing {
