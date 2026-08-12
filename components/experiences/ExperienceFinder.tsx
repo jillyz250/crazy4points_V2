@@ -184,12 +184,21 @@ function formatLabel(f: string | null): string {
   return ''
 }
 
+interface BonusInfo {
+  card: string
+  pct: number | null
+  end: string | null
+  slug: string | null
+}
+
 export default function ExperienceFinder({
   listings,
   cardReach,
+  bestBonus,
 }: {
   listings: FinderListing[]
   cardReach: Record<string, string[]>
+  bestBonus: Record<string, BonusInfo>
 }) {
   const [q, setQ] = useState('')
   const [program, setProgram] = useState<string>('all')
@@ -200,9 +209,11 @@ export default function ExperienceFinder({
   const [transferCard, setTransferCard] = useState<string>('all') // 'all' | card slug
   const [maxPoints, setMaxPoints] = useState<string>('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'live' | 'buynow' | 'soon'>('all')
+  const [bonusOnly, setBonusOnly] = useState(false)
 
   const soldOutCount = useMemo(() => listings.filter((l) => l.sold_out).length, [listings])
   const nyCount = useMemo(() => listings.filter(isNYLocation).length, [listings])
+  const bonusCount = useMemo(() => listings.filter((l) => bestBonus[l.program_slug]).length, [listings, bestBonus])
 
   const programs = useMemo(() => {
     const m = new Map<string, string>()
@@ -239,6 +250,7 @@ export default function ExperienceFinder({
       if (statusFilter === 'soon' && !notYetOpen(l)) return false
       if (statusFilter === 'live' && (l.format !== 'bid' || notYetOpen(l))) return false
       if (statusFilter === 'buynow' && l.format !== 'redeem') return false
+      if (bonusOnly && !bestBonus[l.program_slug]) return false
       if (needle && !`${l.title} ${l.location ?? ''} ${l.program_label}`.toLowerCase().includes(needle)) return false
       return true
     })
@@ -276,7 +288,7 @@ export default function ExperienceFinder({
       }
     })
     return out
-  }, [listings, q, program, category, sort, hideSoldOut, nyOnly, transferCard, maxPoints, statusFilter, cardReach])
+  }, [listings, q, program, category, sort, hideSoldOut, nyOnly, transferCard, maxPoints, statusFilter, bonusOnly, cardReach, bestBonus])
 
   // Cardmember-access listings are perks (sign in, no bid), not auctions - they
   // read as broken when mixed in with biddable ones, so they get their own band.
@@ -358,6 +370,16 @@ export default function ExperienceFinder({
             {hideSoldOut ? 'Sold out hidden' : `Hide sold out (${soldOutCount})`}
           </button>
         )}
+        {bonusCount > 0 && (
+          <button
+            type="button"
+            className={pill(bonusOnly)}
+            aria-pressed={bonusOnly}
+            onClick={() => setBonusOnly((v) => !v)}
+          >
+            {bonusOnly ? 'Transfer bonus only' : `Active transfer bonus (${bonusCount})`}
+          </button>
+        )}
       </div>
 
       {/* Row 2: the power filters — what your points reach, status, budget */}
@@ -410,6 +432,7 @@ export default function ExperienceFinder({
         if (category !== 'all') chips.push({ label: cap(category), clear: () => setCategory('all') })
         if (nyOnly) chips.push({ label: 'New York only', clear: () => setNyOnly(false) })
         if (hideSoldOut) chips.push({ label: 'Sold out hidden', clear: () => setHideSoldOut(false) })
+        if (bonusOnly) chips.push({ label: 'Active transfer bonus', clear: () => setBonusOnly(false) })
         if (q.trim()) chips.push({ label: `“${q}”`, clear: () => setQ('') })
         if (!chips.length) return null
         return (
@@ -428,7 +451,7 @@ export default function ExperienceFinder({
               type="button"
               onClick={() => {
                 setTransferCard('all'); setStatusFilter('all'); setMaxPoints(''); setProgram('all')
-                setCategory('all'); setNyOnly(false); setHideSoldOut(false); setQ('')
+                setCategory('all'); setNyOnly(false); setHideSoldOut(false); setBonusOnly(false); setQ('')
               }}
               className="font-ui text-xs text-[var(--color-text-secondary)] underline hover:text-[var(--color-primary)]"
             >
@@ -471,6 +494,7 @@ export default function ExperienceFinder({
   function renderCard(l: FinderListing, key: string) {
     const href = l.detail_url ?? l.program_url ?? undefined
     const bucket = categoryBucket(l.category)
+    const bonus = bestBonus[l.program_slug]
     const cta = l.sold_out
       ? 'Sold out. Check the official site'
       : l.format === 'access'
@@ -481,6 +505,12 @@ export default function ExperienceFinder({
     const card = (
       <>
         <div className="mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+          {bonus && (
+            <span className="rounded-full bg-[var(--color-accent)] px-2 py-0.5 font-ui text-[0.6875rem] font-bold uppercase tracking-wide text-[#1A1A1A]">
+              {bonus.card}
+              {bonus.pct != null ? ` +${bonus.pct}%` : ''} transfer bonus
+            </span>
+          )}
           {l.sold_out && (
             <span className="rounded-full bg-[var(--color-alert)] px-2 py-0.5 font-ui text-[0.6875rem] font-bold uppercase tracking-wide text-white">
               Sold out

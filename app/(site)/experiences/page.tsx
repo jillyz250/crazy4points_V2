@@ -26,12 +26,36 @@ export default async function ExperiencesPage() {
     .select('slug, transfer_partners_outbound')
     .in('slug', ['amex', 'chase', 'citi', 'capital-one', 'bilt'])
   const cardReach: Record<string, string[]> = {}
+  // Active transfer bonuses, keyed by DESTINATION program -> a "great time to
+  // transfer" flag on that program's experiences. Our differentiator: only a
+  // transfer-bonus site can say "this Marriott moment is 30% cheaper right now".
+  // Gated on bonus_end_date >= today so a stale flag can never mislead.
+  const CARD_NAMES: Record<string, string> = {
+    amex: 'Amex', chase: 'Chase', citi: 'Citi', 'capital-one': 'Capital One', bilt: 'Bilt',
+  }
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const activeBonuses: Record<string, { card: string; pct: number | null; end: string | null; slug: string | null }[]> = {}
   for (const c of cardRows ?? []) {
     const dests = new Set<string>()
-    for (const p of ((c.transfer_partners_outbound as { from_slug?: string }[] | null) ?? [])) {
+    for (const p of ((c.transfer_partners_outbound as {
+      from_slug?: string; bonus_active?: boolean; bonus_end_date?: string; bonus_pct?: number; bonus_alert_slug?: string
+    }[] | null) ?? [])) {
       if (p?.from_slug) dests.add(p.from_slug)
+      if (p?.bonus_active && p?.from_slug && p?.bonus_end_date && p.bonus_end_date >= todayStr) {
+        ;(activeBonuses[p.from_slug] ??= []).push({
+          card: CARD_NAMES[c.slug as string] ?? (c.slug as string),
+          pct: p.bonus_pct ?? null,
+          end: p.bonus_end_date ?? null,
+          slug: p.bonus_alert_slug ?? null,
+        })
+      }
     }
     cardReach[c.slug as string] = [...dests]
+  }
+  // Best (highest %) bonus per program, for a compact card badge.
+  const bestBonus: Record<string, { card: string; pct: number | null; end: string | null; slug: string | null }> = {}
+  for (const [prog, list] of Object.entries(activeBonuses)) {
+    bestBonus[prog] = [...list].sort((a, b) => (b.pct ?? 0) - (a.pct ?? 0))[0]
   }
 
   // Live listings for the interactive finder. Program label + official URL come
@@ -102,7 +126,7 @@ export default async function ExperiencesPage() {
               Pick a program, search, and sort. Bidding and details are on the official site.
             </span>
           </div>
-          <ExperienceFinder listings={listings} cardReach={cardReach} />
+          <ExperienceFinder listings={listings} cardReach={cardReach} bestBonus={bestBonus} />
           <p className="mt-4 font-body text-sm text-[var(--color-text-secondary)]">
             A snapshot of what we&apos;re tracking, refreshed daily. Larger programs list more on their
             official sites, and inventory changes constantly, so always confirm what&apos;s bookable
