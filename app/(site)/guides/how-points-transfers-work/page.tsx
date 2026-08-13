@@ -77,7 +77,7 @@ const TRAPS: { title: string; body: string }[] = [
   },
   {
     title: 'Watch for fuel surcharges',
-    body: 'A few programs tack big cash surcharges onto certain airlines, so the same award seat can cost a few dollars in taxes through one program and several hundred through another. (Aeroplan skips them on most partners. Some programs do not.)',
+    body: 'A few programs tack big cash surcharges onto certain airlines, so the same award seat can cost a few dollars in taxes through one program and several hundred through another. Some programs skip them entirely; others do not, so it pays to compare.',
   },
   {
     title: 'Mind minimums and expiration',
@@ -124,7 +124,7 @@ export default function HowToTransferPointsGuide() {
           Tokyo.&rdquo; Same points, completely different ceiling.
         </p>
         <Callout>
-          <strong>Quick gut check.</strong> Not every card can do this. Flat cash-back cards (the
+          <strong>Quick gut check.</strong>{' '}Not every card can do this. Flat cash-back cards (the
           &ldquo;1.5% back on everything&rdquo; types) usually cannot transfer anywhere. The ones that can
           are tied to Amex Membership Rewards, Chase Ultimate Rewards, Citi ThankYou, Capital One miles, or
           Bilt. Hotels work the same way (you can transfer to Hyatt, Marriott, and others), but airline
@@ -156,7 +156,7 @@ export default function HowToTransferPointsGuide() {
           }}
         >
           <p className="font-body text-[var(--color-text-primary)]" style={{ flex: '1 1 16rem', margin: 0 }}>
-            <strong>See who partners with whom.</strong> Our Alliance Explorer maps every alliance and shows
+            <strong>See who partners with whom.</strong>{' '}Our Alliance Explorer maps every alliance and shows
             which programs can book which airlines.
           </p>
           <Link
@@ -189,7 +189,7 @@ export default function HowToTransferPointsGuide() {
               color: 'var(--color-text-secondary)',
             }}
           >
-            Same Lufthansa seat · U.S. East Coast to Europe · business class
+            Example · the same business-class seat to Europe
           </p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'stretch' }}>
             {/* Cheaper */}
@@ -226,13 +226,13 @@ export default function HowToTransferPointsGuide() {
                 Book through
               </p>
               <p className="font-body" style={{ margin: '0.15rem 0 0.6rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                Air Canada Aeroplan
+                One program
               </p>
               <p className="font-display" style={{ margin: 0, fontSize: '2.25rem', lineHeight: 1, fontWeight: 700, color: 'var(--color-primary)' }}>
                 60,000
               </p>
               <p className="font-body" style={{ margin: '0.3rem 0 0', color: 'var(--color-text-secondary)', fontSize: '0.9375rem' }}>
-                points, one way
+                miles, one way
               </p>
             </div>
             {/* Pricier */}
@@ -249,19 +249,20 @@ export default function HowToTransferPointsGuide() {
                 Book through
               </p>
               <p className="font-body" style={{ margin: '0.15rem 0 0.6rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                Avianca LifeMiles
+                A different program
               </p>
               <p className="font-display" style={{ margin: 0, fontSize: '2.25rem', lineHeight: 1, fontWeight: 700, color: 'var(--color-text-secondary)' }}>
-                90,000+
+                90,000
               </p>
               <p className="font-body" style={{ margin: '0.3rem 0 0', color: 'var(--color-text-secondary)', fontSize: '0.9375rem' }}>
-                points, one way
+                miles, one way
               </p>
             </div>
           </div>
           <figcaption className="font-body" style={{ marginTop: '0.85rem', fontSize: '0.9375rem', color: 'var(--color-text-secondary)' }}>
-            Identical plane, identical seat. The only difference is which program you booked it through,
-            roughly 50% more points for the exact same flight.
+            An illustration, not a live quote. Same plane, same seat, booked through two different programs.
+            Real prices shift constantly and the cheaper program changes over time, so the numbers here are
+            just an example. The point that never changes: the price depends on where you book, often by a lot.
           </figcaption>
         </figure>
 
@@ -270,9 +271,10 @@ export default function HowToTransferPointsGuide() {
           cheapest, then sending your points there.
         </p>
         <Callout>
-          <strong>Prices move, so always check.</strong> LifeMiles was the cheap option a year ago, before
-          a 2026 price hike flipped it. Confirm today&rsquo;s numbers before you transfer anything. Our
-          program pages track them.
+          <strong>Prices move, so always check.</strong>{' '}
+          A program that is a bargain today can get more expensive next year, and a pricey one can
+          suddenly run a sale. So never assume: confirm the current award pricing before you transfer.
+          Our program pages track it.
         </Callout>
 
         <h2 className={h2}>How to actually do it, in order</h2>
@@ -316,7 +318,7 @@ export default function HowToTransferPointsGuide() {
           ))}
         </ol>
         <Callout tone="warn">
-          <strong>The one unbreakable rule: transfers are one way.</strong> Once your points leave Chase or
+          <strong>The one unbreakable rule: transfers are one way.</strong>{' '}Once your points leave Chase or
           Amex and land in an airline program, you cannot pull them back. So never transfer on a hope or an
           &ldquo;I&rsquo;ll probably use these someday.&rdquo; Transfer only when you have found the seat and
           you are ready to book. The number one beginner mistake is transferring first and discovering the
@@ -327,10 +329,10 @@ export default function HowToTransferPointsGuide() {
           that lag can cost you it. Know your program&rsquo;s transfer speed before you rely on it.
         </p>
         <Callout>
-          <strong>Not sure where to search?</strong> Tools like seats.aero and point.me scan many programs
-          at once to find the cheapest way to book a given seat. Handy perk: if you carry an Amex Membership
-          Rewards card, you get point.me&rsquo;s award search free at point.me/amex, a subscription that
-          normally runs about $129 a year.
+          <strong>Not sure where to search?</strong>{' '}
+          Tools like seats.aero and point.me scan many programs at once to find the cheapest way to book a
+          given seat. Handy perk: if you carry an Amex Membership Rewards card, you get point.me&rsquo;s
+          award search free at point.me/amex, normally a paid subscription.
         </Callout>
 
         <h2 className={h2}>Ratios and bonuses (free extra miles)</h2>
@@ -339,10 +341,10 @@ export default function HowToTransferPointsGuide() {
           before you commit.
         </p>
         <p className={p}>
-          And watch for transfer bonuses. Every so often a card program runs a promo: transfer now, get 20%
-          to 30% extra miles, free. (Right now, for example, Chase is handing out a 20% bonus to Aeroplan
-          through September.) If you were going to transfer anyway, timing it to a bonus is found money. We
-          flag these the day they go live.
+          And watch for transfer bonuses. Every so often a card program runs a promo: transfer during a set
+          window and get a chunk of extra miles for free, often 20% or 30% on top. If you were going to
+          transfer anyway, timing it to a bonus is found money. We flag these the day they go live, so it is
+          worth checking before you move a big balance.
         </p>
 
         <h2 className={h2}>The traps to sidestep</h2>
@@ -402,14 +404,14 @@ export default function HowToTransferPointsGuide() {
           }}
         >
           <p className="font-body" style={{ margin: 0, color: 'var(--color-text-primary)' }}>
-            <strong>Next up:</strong> our deep dive on airline alliances, the map of exactly whose miles book
+            <strong>Next up:</strong>{' '}our deep dive on airline alliances, the map of exactly whose miles book
             whose planes. Ready to plan now?
           </p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem', marginTop: '0.9rem' }}>
             <Link href="/tools/alliances" className="rg-btn-primary" style={{ whiteSpace: 'nowrap' }}>
               Explore alliances
             </Link>
-            <Link href="/programs" className="rg-btn-secondary" style={{ whiteSpace: 'nowrap' }}>
+            <Link href="/programs?type=airline" className="rg-btn-secondary" style={{ whiteSpace: 'nowrap' }}>
               Browse program pricing
             </Link>
             <Link href="/alerts" className="rg-btn-secondary" style={{ whiteSpace: 'nowrap' }}>
