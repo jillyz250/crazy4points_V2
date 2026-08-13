@@ -18,6 +18,7 @@ import { preparePublishUpdates } from './_lib/preparePublish'
 import { computeReadingTimeMinutes } from '@/lib/blog/readingTime'
 import { PILLARS } from '@/lib/contentRoadmap'
 import { suggestRoadmapTags } from '@/utils/ai/suggestRoadmapTags'
+import { fillRoadmapGaps } from '@/utils/content/fillRoadmapGaps'
 import { isBlogCategorySlug, BLOG_CATEGORY_SLUGS } from '@/lib/blog/categories'
 
 type ProgramSource = Pick<
@@ -1566,4 +1567,18 @@ export async function rejectSuggestionAction(formData: FormData): Promise<void> 
   const sb = createAdminClient()
   await sb.from('content_ideas').update({ suggested_pillar: null, suggested_tags: null }).eq('id', id)
   revalidatePath('/admin/content-ideas')
+}
+
+// ---------------------------------------------------------------------------
+// Roadmap gap-filler — create a writable idea for every empty roadmap slot.
+// ---------------------------------------------------------------------------
+
+/** Generate a content idea for every planned roadmap slot that has nothing
+ *  behind it (no live guide, no existing idea). Idempotent; pre-tagged. */
+export async function fillRoadmapGapsAction(): Promise<void> {
+  await assertAdmin()
+  const sb = createAdminClient()
+  await fillRoadmapGaps(sb)
+  revalidatePath('/admin/content-ideas')
+  revalidatePath('/admin/roadmap')
 }

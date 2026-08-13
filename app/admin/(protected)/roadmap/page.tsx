@@ -4,6 +4,7 @@ import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Card } from '@/components/admin/ui/Card'
 import { Badge } from '@/components/admin/ui/Badge'
 import { createAdminClient } from '@/utils/supabase/server'
+import { fillRoadmapGapsAction } from '../content-ideas/actions'
 import {
   ROADMAP,
   PILLARS,
@@ -45,13 +46,21 @@ export default async function RoadmapPage() {
     .not('roadmap_pillar', 'is', null)
     .in('status', ['new', 'idea_bank'])
     .limit(500)
+  const normTitle = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+  const plannedTitles = new Set(ROADMAP.map((i) => normTitle(i.title)))
+  // Planned slots that now have a backing idea (gap-filler) → shown as "idea ready".
+  const backedTitles = new Set((promotedRows ?? []).map((r) => normTitle(r.title as string)))
   const promotedByPillar: Record<string, { id: string; title: string }[]> = {}
   // Coverage counter: how many tagged ideas carry each tag (mostly program
   // names), so gaps and pile-ups are visible at a glance.
   const tagCounts = new Map<string, number>()
   for (const r of promotedRows ?? []) {
     const key = r.roadmap_pillar as string
-    ;(promotedByPillar[key] ??= []).push({ id: r.id as string, title: r.title as string })
+    // "Tagged ideas" = ideas BEYOND the plan; a gap-filler idea that just backs
+    // a planned slot shows as "idea ready" on that slot instead of duplicating.
+    if (!plannedTitles.has(normTitle(r.title as string))) {
+      ;(promotedByPillar[key] ??= []).push({ id: r.id as string, title: r.title as string })
+    }
     for (const t of (Array.isArray(r.tags) ? (r.tags as string[]) : [])) {
       tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1)
     }
@@ -64,6 +73,18 @@ export default async function RoadmapPage() {
         title="Content roadmap"
         description="The whole plan across both tracks — content and platform — with what's shipped and what's next."
       />
+
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+        <form action={fillRoadmapGapsAction}>
+          <button
+            type="submit"
+            className="admin-btn admin-btn-ghost admin-btn-sm"
+            title="Create a writable content idea for every roadmap slot that has nothing behind it yet. Idempotent — safe to re-run."
+          >
+            ✨ Fill roadmap gaps
+          </button>
+        </form>
+      </div>
 
       {/* Summary */}
       <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(15rem, 1fr))', marginBottom: '1.5rem' }}>
@@ -155,7 +176,13 @@ export default async function RoadmapPage() {
                       ) : (
                         <span style={{ color: live ? 'var(--admin-text)' : 'var(--admin-text-muted)', flex: 1 }}>{item.title}</span>
                       )}
-                      {live ? <Badge tone="success">live</Badge> : <span style={{ fontSize: '0.72rem', color: 'var(--admin-text-subtle)' }}>planned</span>}
+                      {live ? (
+                        <Badge tone="success">live</Badge>
+                      ) : backedTitles.has(normTitle(item.title)) ? (
+                        <Badge tone="accent">idea ready</Badge>
+                      ) : (
+                        <span style={{ fontSize: '0.72rem', color: 'var(--admin-text-subtle)' }}>planned</span>
+                      )}
                     </li>
                   )
                 })}
