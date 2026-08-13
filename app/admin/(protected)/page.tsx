@@ -194,13 +194,6 @@ export default async function AdminDashboard() {
       hint: stats.bonusSignals > 0 ? "cards whose live SUB changed" : 'all current',
     },
     {
-      label: 'Prose to re-check',
-      value: stats.proseReview,
-      tone: stats.proseReview > 0 ? 'warning' : 'neutral',
-      href: '/admin/card-bonus-signals',
-      hint: stats.proseReview > 0 ? 'bonus changed - verify good_to_know' : 'all clear',
-    },
-    {
       label: 'Transfer-data changes',
       value: stats.changeSignals,
       tone: stats.changeSignals > 0 ? 'warning' : 'neutral',
