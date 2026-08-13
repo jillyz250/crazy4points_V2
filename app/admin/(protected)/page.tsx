@@ -4,6 +4,7 @@ import { createAdminClient } from '@/utils/supabase/server'
 import { countUnresolvedSystemErrors, getRefreshQueueCount, getRefreshQueue, listReminders } from '@/utils/supabase/queries'
 import { countHardcodedHits } from '@/utils/programs/auditHardcodedCounts'
 import RemindersWidget from '@/components/admin/reminders/RemindersWidget'
+import ContentRoadmapCard from '@/components/admin/ContentRoadmapCard'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Card } from '@/components/admin/ui/Card'
 import { LinkButton } from '@/components/admin/ui/Button'
@@ -392,6 +393,8 @@ export default async function AdminDashboard() {
       </Card>
 
       <TodayChecklist stats={stats} />
+
+      <ContentRoadmapCard />
 
       <div style={{ marginBottom: '0.75rem', fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, color: 'var(--admin-text-muted)' }}>
         Everything else
