@@ -41,15 +41,22 @@ export default async function RoadmapPage() {
   const sb = createAdminClient()
   const { data: promotedRows } = await sb
     .from('content_ideas')
-    .select('id, title, roadmap_pillar')
+    .select('id, title, roadmap_pillar, tags')
     .not('roadmap_pillar', 'is', null)
     .in('status', ['new', 'idea_bank'])
     .limit(500)
   const promotedByPillar: Record<string, { id: string; title: string }[]> = {}
+  // Coverage counter: how many tagged ideas carry each tag (mostly program
+  // names), so gaps and pile-ups are visible at a glance.
+  const tagCounts = new Map<string, number>()
   for (const r of promotedRows ?? []) {
     const key = r.roadmap_pillar as string
     ;(promotedByPillar[key] ??= []).push({ id: r.id as string, title: r.title as string })
+    for (const t of (Array.isArray(r.tags) ? (r.tags as string[]) : [])) {
+      tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1)
+    }
   }
+  const coverage = [...tagCounts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
 
   return (
     <div>
@@ -77,6 +84,25 @@ export default async function RoadmapPage() {
           <ProgressBar pct={Math.round((plat.done / plat.total) * 100)} />
         </Card>
       </div>
+
+      {/* Coverage — tagged ideas per tag (mostly program names). Shows where
+          content is stacking up and where the gaps are. */}
+      {coverage.length > 0 && (
+        <Card style={{ padding: '1rem 1.25rem', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '1rem', marginBottom: '0.6rem' }}>
+            <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--admin-text-subtle)', fontWeight: 700 }}>Coverage by tag</div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)' }}>{coverage.length} tags · {promotedRows?.length ?? 0} tagged ideas</span>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+            {coverage.map(([tag, count]) => (
+              <span key={tag} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.78rem', border: '1px solid var(--admin-border)', borderRadius: '999px', padding: '0.15rem 0.5rem', background: 'var(--admin-bg-subtle)' }}>
+                <span style={{ color: 'var(--admin-text)' }}>{tag}</span>
+                <span style={{ fontWeight: 800, color: 'var(--admin-accent)' }}>{count}</span>
+              </span>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* Up next */}
       <Card style={{ padding: '1rem 1.25rem', marginBottom: '1.5rem' }}>
