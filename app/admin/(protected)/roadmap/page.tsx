@@ -4,6 +4,7 @@ import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Card } from '@/components/admin/ui/Card'
 import { Badge } from '@/components/admin/ui/Badge'
 import { createAdminClient } from '@/utils/supabase/server'
+import { normalizeTag } from '@/lib/contentTags'
 import { fillRoadmapGapsAction } from '../content-ideas/actions'
 import {
   ROADMAP,
@@ -42,7 +43,7 @@ export default async function RoadmapPage() {
   const sb = createAdminClient()
   const { data: promotedRows } = await sb
     .from('content_ideas')
-    .select('id, title, roadmap_pillar, tags')
+    .select('id, title, roadmap_pillar, tags, priority')
     .not('roadmap_pillar', 'is', null)
     .in('status', ['new', 'idea_bank'])
     .limit(500)
@@ -50,20 +51,34 @@ export default async function RoadmapPage() {
   const plannedTitles = new Set(ROADMAP.map((i) => normTitle(i.title)))
   // Planned slots that now have a backing idea (gap-filler) → shown as "idea ready".
   const backedTitles = new Set((promotedRows ?? []).map((r) => normTitle(r.title as string)))
-  const promotedByPillar: Record<string, { id: string; title: string }[]> = {}
-  // Coverage counter: how many tagged ideas carry each tag (mostly program
-  // names), so gaps and pile-ups are visible at a glance.
+  const promotedByPillar: Record<string, { id: string; title: string; priority: number }[]> = {}
+  // Coverage counter: how many tagged ideas carry each tag. Tags are canonicalized
+  // (normalizeTag) at read time so program-name variants collapse to one bar,
+  // even for ideas tagged before the whitelist existed.
   const tagCounts = new Map<string, number>()
   for (const r of promotedRows ?? []) {
     const key = r.roadmap_pillar as string
     // "Tagged ideas" = ideas BEYOND the plan; a gap-filler idea that just backs
     // a planned slot shows as "idea ready" on that slot instead of duplicating.
     if (!plannedTitles.has(normTitle(r.title as string))) {
-      ;(promotedByPillar[key] ??= []).push({ id: r.id as string, title: r.title as string })
+      ;(promotedByPillar[key] ??= []).push({
+        id: r.id as string,
+        title: r.title as string,
+        priority: (r.priority as number | null) ?? 2,
+      })
     }
+    // Canonicalize + dedupe within a row so one idea can't double-count a tag.
+    const seen = new Set<string>()
     for (const t of (Array.isArray(r.tags) ? (r.tags as string[]) : [])) {
-      tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1)
+      const c = normalizeTag(t)
+      if (!c || seen.has(c)) continue
+      seen.add(c)
+      tagCounts.set(c, (tagCounts.get(c) ?? 0) + 1)
     }
+  }
+  // High-priority first within each pillar, then title.
+  for (const key of Object.keys(promotedByPillar)) {
+    promotedByPillar[key].sort((a, b) => a.priority - b.priority || a.title.localeCompare(b.title))
   }
   const coverage = [...tagCounts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
 
@@ -197,6 +212,12 @@ export default async function RoadmapPage() {
                       <li key={idea.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem' }}>
                         <span aria-hidden style={{ color: 'var(--admin-accent)', fontWeight: 700 }}>+</span>
                         <Link href="/admin/content-ideas" style={{ color: 'var(--admin-text)', flex: 1 }}>{idea.title}</Link>
+                        {idea.priority === 1 && (
+                          <span title="High priority" style={{ fontSize: '0.68rem', fontWeight: 800, color: 'var(--admin-accent)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>↑ High</span>
+                        )}
+                        {idea.priority === 3 && (
+                          <span title="Low priority" style={{ fontSize: '0.68rem', color: 'var(--admin-text-subtle)' }}>↓ Low</span>
+                        )}
                       </li>
                     ))}
                   </ul>
