@@ -2,6 +2,7 @@ import Link from "next/link";
 import HomeHeroV2 from "@/components/home/HomeHeroV2";
 import RedAlertBar from "@/components/home/RedAlertBar";
 import HomeToolsBand from "@/components/home/HomeToolsBand";
+import FeaturedGuides from "@/components/home/FeaturedGuides";
 import HomeNewsletterSubscribe from "@/components/home/HomeNewsletterSubscribe";
 import AlertsGridSB from "@/components/alerts/AlertsGridSB";
 import { createAdminClient } from "@/utils/supabase/server";
@@ -119,6 +120,8 @@ export default async function HomePage() {
       <HomeHeroV2 lastUpdated={lastUpdated} />
 
       <HomeToolsBand />
+
+      <FeaturedGuides />
 
       {latestIssue && <HomeNewsletterSubscribe latest={latestIssue} />}
 
