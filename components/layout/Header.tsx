@@ -107,7 +107,7 @@ const RESOURCE_ITEMS: {
   // Guides — editorial reference pages. The dropdown lists CATEGORIES (bounded),
   // not individual guides (unbounded); each anchors into the /guides hub, which
   // is driven by lib/guides.ts. Add a guide there, not here.
-  { label: "Guides", heading: true },
+  { label: "Guides", heading: true, href: "/guides" },
   { label: "Getting Started", href: "/guides#getting-started" },
   { label: "Airlines & Flying", href: "/guides#airlines" },
   { label: "Hotels & Stays", href: "/guides#hotels" },
@@ -222,11 +222,22 @@ export default function Header({
             <NavDropdown label="Resources" active={resourcesActive}>
               {RESOURCE_ITEMS.map((item) => {
                 if (item.heading) {
-                  return (
-                    <div
+                  const headingClass =
+                    "mt-1 border-t border-[var(--color-border-soft)] px-4 pb-1 pt-2 font-ui text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--color-text-secondary)]";
+                  return item.href ? (
+                    <Link
                       key={item.label}
-                      className="mt-1 border-t border-[var(--color-border-soft)] px-4 pb-1 pt-2 font-ui text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--color-text-secondary)]"
+                      href={item.href}
+                      aria-current={isActive(item.href) ? "page" : undefined}
+                      className={`${headingClass} flex items-center justify-between gap-2 hover:text-[var(--color-primary)]`}
                     >
+                      {item.label}
+                      <span aria-hidden="true" className="text-[var(--color-primary)]">
+                        &rarr;
+                      </span>
+                    </Link>
+                  ) : (
+                    <div key={item.label} className={headingClass}>
                       {item.label}
                     </div>
                   );
@@ -373,10 +384,24 @@ export default function Header({
           {resourcesOpen &&
             RESOURCE_ITEMS.map((item) => {
               if (item.heading) {
-                return (
+                const hClass =
+                  "border-b border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-6 pt-1 font-ui text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--color-text-secondary)]";
+                return item.href ? (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    onClick={() => setMenuOpen(false)}
+                    className={`${hClass} flex min-h-[44px] items-center justify-between hover:text-[var(--color-primary)]`}
+                  >
+                    {item.label}
+                    <span aria-hidden="true" className="text-[var(--color-primary)]">
+                      &rarr;
+                    </span>
+                  </Link>
+                ) : (
                   <div
                     key={item.label}
-                    className="flex min-h-[36px] items-center border-b border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-6 pt-1 font-ui text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--color-text-secondary)]"
+                    className={`${hClass} flex min-h-[36px] items-center`}
                   >
                     {item.label}
                   </div>
