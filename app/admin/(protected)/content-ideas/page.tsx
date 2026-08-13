@@ -702,12 +702,19 @@ const PROGRAM_TYPE_BADGE: Record<string, { emoji: string; label: string; bg: str
 // free-form tags. Server-action forms, so it works without client JS.
 function IdeaRoadmapTags({ idea }: { idea: ContentIdeaRow }) {
   const tags = Array.isArray(idea.tags) ? idea.tags : []
+  const onRoadmap = !!idea.roadmap_pillar
   const selStyle: React.CSSProperties = { fontSize: '0.78rem', padding: '0.2rem 0.4rem', borderRadius: 'var(--admin-radius)', border: '1px solid var(--admin-border)', background: 'var(--admin-bg)', color: 'var(--admin-text)' }
   const chipStyle: React.CSSProperties = { fontSize: '0.72rem', padding: '0.15rem 0.45rem', borderRadius: '999px', border: '1px solid var(--admin-border)', background: 'var(--admin-bg-subtle)', color: 'var(--admin-text)', cursor: 'pointer' }
+  // On-roadmap ideas get a gold-tinted banner so they stand out at a glance.
+  const wrapStyle: React.CSSProperties = onRoadmap
+    ? { background: '#FBF3DA', border: '1px solid #E5C55A', borderRadius: 'var(--admin-radius)', padding: '0.55rem 0.7rem', marginBottom: '0.7rem' }
+    : { borderBottom: '1px solid var(--admin-border)', paddingBottom: '0.6rem', marginBottom: '0.6rem' }
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.4rem', marginBottom: '0.6rem', paddingBottom: '0.6rem', borderBottom: '1px solid var(--admin-border)' }}>
-      <span style={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: idea.roadmap_pillar ? 'var(--admin-accent)' : 'var(--admin-text-subtle)', fontWeight: 700 }}>
-        {idea.roadmap_pillar ? 'On roadmap' : 'Roadmap'}
+    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.4rem', ...wrapStyle }}>
+      <span style={onRoadmap
+        ? { fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 800, background: '#D4AF37', color: '#1A1A1A', padding: '0.2rem 0.6rem', borderRadius: '999px' }
+        : { fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, color: 'var(--admin-text-subtle)' }}>
+        {onRoadmap ? '✓ On roadmap' : 'Roadmap'}
       </span>
       <form action={setIdeaPillarAction} style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
         <input type="hidden" name="id" value={idea.id} />
