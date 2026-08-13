@@ -114,7 +114,7 @@ const NEXT_STATUS: Record<IdeaStatus, { label: string; to: IdeaStatus; variant?:
 export default async function ContentIdeasPage({
   searchParams,
 }: {
-  searchParams: Promise<{ type?: string; status?: string; q?: string; program?: string; sortBy?: string; showExpired?: string }>
+  searchParams: Promise<{ type?: string; status?: string; q?: string; program?: string; sortBy?: string; showExpired?: string; page?: string }>
 }) {
   const sp = await searchParams
   const typeFilter = sp.type
@@ -129,6 +129,8 @@ export default async function ContentIdeasPage({
   // surface them with showExpired=1. Only relevant on Published — other
   // statuses don't have "expired" as a meaningful concept.
   const showExpired = sp.showExpired === '1'
+  const page = Math.max(1, parseInt(sp.page ?? '1', 10) || 1)
+  const PAGE_SIZE = 40
   const supabase = createAdminClient()
 
   // Program filter: get tagged alert_ids AND capture the program name so we
@@ -168,12 +170,11 @@ export default async function ContentIdeasPage({
         conflict_resolution
       )`)
     .order('created_at', { ascending: false })
-    // Cap the list. The page renders a heavy card per idea (editor + source
-    // panels + forms), so loading every open idea (165+) blew the render to
-    // 2+ minutes and OOM-crashed the render process — the page went blank.
-    // 60 most-recent keeps it fast; deeper browsing is via the status/search
-    // filters. (Proper fix: paginate + drop article_body from the list select.)
-    .limit(60)
+    // Paginate: each idea renders a heavy card (editor + source panels + forms),
+    // so loading every open idea (165+) blew the render to 2+ min and OOM-crashed
+    // the process. PAGE_SIZE per page keeps it fast; prev/next below. (Further
+    // win available later: drop article_body from this list select.)
+    .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1)
 
   if (typeFilter === 'newsletter' || typeFilter === 'blog') {
     query = query.eq('type', typeFilter)
@@ -199,6 +200,9 @@ export default async function ContentIdeasPage({
   const [queryRes, programs] = await Promise.all([query, getPrograms(supabase)])
   if (queryRes.error) throw queryRes.error
   let ideas = (queryRes.data ?? []) as ContentIdeaRow[]
+  // A full page back from the DB means there's likely a next page. (In-memory
+  // filters below can trim the page, but this is a good-enough next-page hint.)
+  const hasNextPage = ideas.length === PAGE_SIZE
 
   // Auto-suggest primary program for blog ideas: for any idea that has a
   // source_alert_id but no primary_program_slug set yet, infer the program
@@ -393,6 +397,18 @@ export default async function ContentIdeasPage({
       <IdeaSection title={sectionTitle('newsletter', statusFilter)} ideas={newsletter} programs={programs} suggestedProgramByAlertId={suggestedProgramByAlertId} />
       <IdeaSection title={sectionTitle('blog', statusFilter)} ideas={blog} programs={programs} suggestedProgramByAlertId={suggestedProgramByAlertId} />
 
+      {(page > 1 || hasNextPage) && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginTop: '1.25rem', paddingTop: '0.75rem', borderTop: '1px solid var(--admin-border)' }}>
+          {page > 1 ? (
+            <Link href={buildHref({ q, program: programSlug, type: typeFilter, status: statusFilter, sortBy: sp.sortBy, showExpired: showExpired ? '1' : undefined, page: String(page - 1) })} className="admin-btn admin-btn-ghost admin-btn-sm">← Prev</Link>
+          ) : <span />}
+          <span style={{ fontSize: '0.8rem', color: 'var(--admin-text-muted)' }}>Page {page}</span>
+          {hasNextPage ? (
+            <Link href={buildHref({ q, program: programSlug, type: typeFilter, status: statusFilter, sortBy: sp.sortBy, showExpired: showExpired ? '1' : undefined, page: String(page + 1) })} className="admin-btn admin-btn-ghost admin-btn-sm">Next →</Link>
+          ) : <span />}
+        </div>
+      )}
+
       {ideas.length === 0 && (
         <EmptyState title="Nothing here" description="The daily brief adds ideas automatically." />
       )}
@@ -418,7 +434,7 @@ function sectionTitle(type: 'newsletter' | 'blog', statusFilter: string | undefi
   return `${status} ${base}`
 }
 
-function buildHref(parts: { q?: string; program?: string; type?: string; status?: string; sortBy?: string; showExpired?: string }): string {
+function buildHref(parts: { q?: string; program?: string; type?: string; status?: string; sortBy?: string; showExpired?: string; page?: string }): string {
   const search = new URLSearchParams()
   if (parts.q) search.set('q', parts.q)
   if (parts.program) search.set('program', parts.program)
@@ -426,6 +442,7 @@ function buildHref(parts: { q?: string; program?: string; type?: string; status?
   if (parts.status) search.set('status', parts.status)
   if (parts.sortBy) search.set('sortBy', parts.sortBy)
   if (parts.showExpired) search.set('showExpired', parts.showExpired)
+  if (parts.page && parts.page !== '1') search.set('page', parts.page)
   const qs = search.toString()
   return qs ? `/admin/content-ideas?${qs}` : '/admin/content-ideas'
 }
