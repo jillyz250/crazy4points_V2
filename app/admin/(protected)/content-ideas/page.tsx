@@ -9,6 +9,9 @@ import {
   setIdeaPillarAction,
   addIdeaTagAction,
   removeIdeaTagAction,
+  autoSuggestUntaggedAction,
+  approveSuggestionAction,
+  rejectSuggestionAction,
 } from './actions'
 import { PILLARS } from '@/lib/contentRoadmap'
 import { CONTENT_TYPES, groupActivityFrames, type ContentType, type ActivityFrame } from '@/lib/admin/contentTaxonomy'
@@ -78,6 +81,10 @@ interface ContentIdeaRow {
   // Roadmap tagging (migration 619): structured pillar tag + free-form tags
   roadmap_pillar: string | null
   tags: string[] | null
+  // AI triage (migrations 620/621): pending suggestion + reviewed flag
+  suggested_pillar: string | null
+  suggested_tags: string[] | null
+  roadmap_reviewed: boolean | null
   reading_time_minutes: number | null
   featured: boolean | null
   featured_rank: number | null
@@ -189,8 +196,10 @@ export default async function ContentIdeasPage({
   } else if (statusFilter && ['new', 'idea_bank', 'dismissed'].includes(statusFilter)) {
     query = query.eq('status', statusFilter)
   } else if (!statusFilter) {
-    // "Open" view: New + Idea Bank
-    query = query.in('status', ['new', 'idea_bank'])
+    // "Open" view: New + Idea Bank, EXCLUDING anything already triaged for the
+    // roadmap (tagged into a pillar, or reviewed as "not roadmap"). Approving a
+    // suggestion sets one of those, so the idea clears out of the triage queue.
+    query = query.in('status', ['new', 'idea_bank']).is('roadmap_pillar', null).eq('roadmap_reviewed', false)
   }
   // Text search and program filter are applied in-memory below, not via
   // PostgREST `.or()` — PostgREST's or-filter has nasty edge cases with
@@ -323,6 +332,15 @@ export default async function ContentIdeasPage({
         >
           ⚡ New from prompt
         </Link>
+        <form action={autoSuggestUntaggedAction} style={{ display: 'inline' }}>
+          <button
+            type="submit"
+            className="admin-btn admin-btn-ghost admin-btn-sm"
+            title="AI suggests a roadmap pillar + tags for up to 40 untagged open ideas. Suggestions are pending until you Approve each one."
+          >
+            ✨ Auto-suggest roadmap tags
+          </button>
+        </form>
       </div>
 
       <form
@@ -733,6 +751,23 @@ function IdeaRoadmapTags({ idea }: { idea: ContentIdeaRow }) {
         : { fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, color: 'var(--admin-text-subtle)' }}>
         {onRoadmap ? '✓ On roadmap' : 'Roadmap'}
       </span>
+      {!onRoadmap && (idea.suggested_pillar || (idea.suggested_tags?.length ?? 0) > 0) && (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', background: 'var(--admin-info-soft)', border: '1px solid var(--admin-info)', borderRadius: '999px', padding: '0.15rem 0.5rem', fontSize: '0.72rem' }}>
+          <span style={{ fontWeight: 800, color: 'var(--admin-info)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>AI</span>
+          <span style={{ color: 'var(--admin-text)' }}>
+            {idea.suggested_pillar ? (PILLARS.find((p) => p.key === idea.suggested_pillar)?.label ?? idea.suggested_pillar) : 'not roadmap'}
+            {(idea.suggested_tags?.length ?? 0) > 0 ? ` · ${idea.suggested_tags!.join(', ')}` : ''}
+          </span>
+          <form action={approveSuggestionAction} style={{ display: 'inline' }}>
+            <input type="hidden" name="id" value={idea.id} />
+            <button type="submit" className="admin-btn admin-btn-primary admin-btn-sm" style={{ padding: '0.1rem 0.45rem' }}>Approve</button>
+          </form>
+          <form action={rejectSuggestionAction} style={{ display: 'inline' }}>
+            <input type="hidden" name="id" value={idea.id} />
+            <button type="submit" title="dismiss suggestion" style={{ ...chipStyle, padding: '0.1rem 0.4rem' }}>✕</button>
+          </form>
+        </span>
+      )}
       <form action={setIdeaPillarAction} style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
         <input type="hidden" name="id" value={idea.id} />
         <select name="pillar" defaultValue={idea.roadmap_pillar ?? ''} style={selStyle}>

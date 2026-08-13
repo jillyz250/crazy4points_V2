@@ -17,6 +17,7 @@ import type { Program } from '@/utils/supabase/queries'
 import { preparePublishUpdates } from './_lib/preparePublish'
 import { computeReadingTimeMinutes } from '@/lib/blog/readingTime'
 import { PILLARS } from '@/lib/contentRoadmap'
+import { suggestRoadmapTags } from '@/utils/ai/suggestRoadmapTags'
 import { isBlogCategorySlug, BLOG_CATEGORY_SLUGS } from '@/lib/blog/categories'
 
 type ProgramSource = Pick<
@@ -1506,5 +1507,63 @@ export async function removeIdeaTagAction(formData: FormData): Promise<void> {
   const { data } = await sb.from('content_ideas').select('tags').eq('id', id).single()
   const current: string[] = Array.isArray(data?.tags) ? (data!.tags as string[]) : []
   await sb.from('content_ideas').update({ tags: current.filter((t) => t !== tag) }).eq('id', id)
+  revalidatePath('/admin/content-ideas')
+}
+
+// ---------------------------------------------------------------------------
+// AI roadmap triage (migrations 620/621) — suggest pillar+tags, then approve.
+// ---------------------------------------------------------------------------
+
+/** Run the AI classifier over untagged, un-reviewed open ideas and store the
+ *  suggested pillar+tags (pending Jill's approval). Batched into one call. */
+export async function autoSuggestUntaggedAction(): Promise<void> {
+  await assertAdmin()
+  const sb = createAdminClient()
+  const { data } = await sb
+    .from('content_ideas')
+    .select('id, title, pitch')
+    .in('status', ['new', 'idea_bank'])
+    .is('roadmap_pillar', null)
+    .eq('roadmap_reviewed', false)
+    .order('created_at', { ascending: false })
+    .limit(40)
+  const ideas = (data ?? []) as { id: string; title: string; pitch: string | null }[]
+  if (ideas.length === 0) return
+  const suggestions = await suggestRoadmapTags(ideas)
+  // Write each suggestion. Sequential is fine at this scale (<=40).
+  for (const s of suggestions) {
+    await sb.from('content_ideas').update({ suggested_pillar: s.pillar, suggested_tags: s.tags }).eq('id', s.id)
+  }
+  revalidatePath('/admin/content-ideas')
+}
+
+/** Approve the AI suggestion for one idea. A pillar suggestion becomes the
+ *  final roadmap tag; a null suggestion ("not roadmap") marks it reviewed so it
+ *  clears the triage queue without going on the roadmap. */
+export async function approveSuggestionAction(formData: FormData): Promise<void> {
+  await assertAdmin()
+  const id = String(formData.get('id') || '')
+  if (!id) return
+  const sb = createAdminClient()
+  const { data } = await sb.from('content_ideas').select('suggested_pillar, suggested_tags').eq('id', id).single()
+  const pillar = (data?.suggested_pillar as string | null) ?? null
+  const tags = Array.isArray(data?.suggested_tags) ? (data!.suggested_tags as string[]) : []
+  const update: Record<string, unknown> = { suggested_pillar: null, suggested_tags: null, roadmap_reviewed: true }
+  if (pillar) {
+    update.roadmap_pillar = pillar
+    update.tags = tags
+  }
+  await sb.from('content_ideas').update(update).eq('id', id)
+  revalidatePath('/admin/content-ideas')
+  revalidatePath('/admin/roadmap')
+}
+
+/** Discard an AI suggestion without approving (leaves the idea untagged/open). */
+export async function rejectSuggestionAction(formData: FormData): Promise<void> {
+  await assertAdmin()
+  const id = String(formData.get('id') || '')
+  if (!id) return
+  const sb = createAdminClient()
+  await sb.from('content_ideas').update({ suggested_pillar: null, suggested_tags: null }).eq('id', id)
   revalidatePath('/admin/content-ideas')
 }
