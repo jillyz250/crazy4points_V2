@@ -138,8 +138,8 @@ export const PERK_CHAINS: PerkChain[] = [
     card: 'Bilt',
     cardSlug: 'bilt-blue',
     steps: [
-      'A Bilt card lets you pay rent (or a mortgage) with no transaction fee and earn points on it',
-      'Those points transfer to a long list of airline and hotel partners, including United, World of Hyatt, and Southwest',
+      'A Bilt card lets you pay rent (or a mortgage) with no transaction fee and earn Bilt rewards on it',
+      'Those rewards become Bilt Points, which transfer to a long list of airline and hotel partners, including United, World of Hyatt, and Southwest',
       'And on Rent Day, the 1st of each month, you get double points on other spending plus periodic transfer bonuses',
     ],
     payoff: 'Your largest monthly expense quietly becomes flights and hotel nights.',
