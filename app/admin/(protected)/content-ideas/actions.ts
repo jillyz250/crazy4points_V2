@@ -16,6 +16,7 @@ import { cardsToSourceText, CARD_FIELDS_FOR_SOURCE, type CardSource } from '@/ut
 import type { Program } from '@/utils/supabase/queries'
 import { preparePublishUpdates } from './_lib/preparePublish'
 import { computeReadingTimeMinutes } from '@/lib/blog/readingTime'
+import { PILLARS } from '@/lib/contentRoadmap'
 import { isBlogCategorySlug, BLOG_CATEGORY_SLUGS } from '@/lib/blog/categories'
 
 type ProgramSource = Pick<
@@ -1460,4 +1461,50 @@ export async function rewriteFromVerifiedFactsAction(
     old_length: oldLength,
     new_length: newLength,
   }
+}
+
+// ---------------------------------------------------------------------------
+// Roadmap tagging (migration 619) — connect content ideas to the roadmap.
+// ---------------------------------------------------------------------------
+
+const PILLAR_KEYS = new Set(PILLARS.map((p) => p.key as string))
+
+/** Slot an idea into a roadmap pillar (or clear it with an empty value). */
+export async function setIdeaPillarAction(formData: FormData): Promise<void> {
+  await assertAdmin()
+  const id = String(formData.get('id') || '')
+  const raw = String(formData.get('pillar') || '')
+  if (!id) return
+  const pillar = raw && PILLAR_KEYS.has(raw) ? raw : null
+  const sb = createAdminClient()
+  await sb.from('content_ideas').update({ roadmap_pillar: pillar }).eq('id', id)
+  revalidatePath('/admin/content-ideas')
+  revalidatePath('/admin/roadmap')
+}
+
+/** Add a free-form tag to an idea (deduped, lowercased, capped). */
+export async function addIdeaTagAction(formData: FormData): Promise<void> {
+  await assertAdmin()
+  const id = String(formData.get('id') || '')
+  const tag = String(formData.get('tag') || '').trim().toLowerCase().slice(0, 40)
+  if (!id || !tag) return
+  const sb = createAdminClient()
+  const { data } = await sb.from('content_ideas').select('tags').eq('id', id).single()
+  const current: string[] = Array.isArray(data?.tags) ? (data!.tags as string[]) : []
+  if (!current.includes(tag)) current.push(tag)
+  await sb.from('content_ideas').update({ tags: current }).eq('id', id)
+  revalidatePath('/admin/content-ideas')
+}
+
+/** Remove a free-form tag from an idea. */
+export async function removeIdeaTagAction(formData: FormData): Promise<void> {
+  await assertAdmin()
+  const id = String(formData.get('id') || '')
+  const tag = String(formData.get('tag') || '')
+  if (!id || !tag) return
+  const sb = createAdminClient()
+  const { data } = await sb.from('content_ideas').select('tags').eq('id', id).single()
+  const current: string[] = Array.isArray(data?.tags) ? (data!.tags as string[]) : []
+  await sb.from('content_ideas').update({ tags: current.filter((t) => t !== tag) }).eq('id', id)
+  revalidatePath('/admin/content-ideas')
 }

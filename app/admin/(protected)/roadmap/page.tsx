@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Card } from '@/components/admin/ui/Card'
 import { Badge } from '@/components/admin/ui/Badge'
+import { createAdminClient } from '@/utils/supabase/server'
 import {
   ROADMAP,
   PILLARS,
@@ -30,10 +31,25 @@ const platformTone: Record<string, 'success' | 'accent' | 'neutral'> = {
   planned: 'neutral',
 }
 
-export default function RoadmapPage() {
+export default async function RoadmapPage() {
   const prog = roadmapProgress()
   const plat = platformProgress()
   const next = upNext(4)
+
+  // Content ideas tagged into a pillar (migration 619) — the opportunistic feed
+  // promoted onto the roadmap spine. Only open ideas, grouped by pillar.
+  const sb = createAdminClient()
+  const { data: promotedRows } = await sb
+    .from('content_ideas')
+    .select('id, title, roadmap_pillar')
+    .not('roadmap_pillar', 'is', null)
+    .in('status', ['new', 'idea_bank'])
+    .limit(500)
+  const promotedByPillar: Record<string, { id: string; title: string }[]> = {}
+  for (const r of promotedRows ?? []) {
+    const key = r.roadmap_pillar as string
+    ;(promotedByPillar[key] ??= []).push({ id: r.id as string, title: r.title as string })
+  }
 
   return (
     <div>
@@ -118,6 +134,21 @@ export default function RoadmapPage() {
                   )
                 })}
               </ul>
+              {(promotedByPillar[pillar.key]?.length ?? 0) > 0 && (
+                <div style={{ marginTop: '0.7rem', borderTop: '1px dashed var(--admin-border)', paddingTop: '0.55rem' }}>
+                  <div style={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--admin-accent)', fontWeight: 700, marginBottom: '0.35rem' }}>
+                    Tagged ideas ({promotedByPillar[pillar.key].length})
+                  </div>
+                  <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    {promotedByPillar[pillar.key].map((idea) => (
+                      <li key={idea.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem' }}>
+                        <span aria-hidden style={{ color: 'var(--admin-accent)', fontWeight: 700 }}>+</span>
+                        <Link href="/admin/content-ideas" style={{ color: 'var(--admin-text)', flex: 1 }}>{idea.title}</Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </Card>
           )
         })}
