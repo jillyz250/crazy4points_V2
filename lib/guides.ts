@@ -47,8 +47,8 @@ export const GUIDES: Guide[] = [
     featured: true,
   },
   {
-    slug: 'how-to-transfer-points',
-    title: 'How to Transfer Points: A Beginner’s Guide to Flying Farther for Less',
+    slug: 'how-points-transfers-work',
+    title: 'How Points Transfers Work: A Beginner’s Guide',
     description:
       'The one skill that turns credit card points into airline miles, and why the same seat can cost far fewer points depending on where you book it.',
     category: 'getting-started',

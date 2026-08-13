@@ -32,6 +32,9 @@ const nextConfig: NextConfig = {
       { source: '/programs/expedia_one_key', destination: '/programs/expedia-one-key', permanent: true },
       { source: '/programs/star_alliance', destination: '/programs/star-alliance', permanent: true },
       { source: '/cards/hilton-honors-aspire', destination: '/cards/amex-hilton-honors-aspire', permanent: true },
+      // Guide slug rename: "how-to-transfer-points" oversold a step-by-step it
+      // is not; renamed to the explainer it actually is.
+      { source: '/guides/how-to-transfer-points', destination: '/guides/how-points-transfers-work', permanent: true },
     ]
   },
 };

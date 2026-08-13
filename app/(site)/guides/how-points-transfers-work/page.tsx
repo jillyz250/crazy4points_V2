@@ -5,15 +5,15 @@ import { GuideJsonLd } from '@/components/guides/GuideJsonLd'
 import GuideNewsletterCTA from '@/components/guides/GuideNewsletterCTA'
 
 export const metadata: Metadata = {
-  title: 'How to Transfer Points: A Beginner’s Guide to Flying Farther for Less',
+  title: 'How Points Transfers Work: A Beginner’s Guide',
   description:
     'Turn credit card points into airline miles, and learn why the exact same seat can cost far fewer points depending on which program you book it through. A plain-language beginner guide.',
-  alternates: { canonical: 'https://www.crazy4points.com/guides/how-to-transfer-points' },
+  alternates: { canonical: 'https://www.crazy4points.com/guides/how-points-transfers-work' },
   openGraph: {
-    title: 'How to Transfer Points: A Beginner’s Guide to Flying Farther for Less',
+    title: 'How Points Transfers Work: A Beginner’s Guide',
     description:
       'The one skill that turns points into airline miles, plus the trick most people miss: the same seat has more than one price.',
-    url: 'https://www.crazy4points.com/guides/how-to-transfer-points',
+    url: 'https://www.crazy4points.com/guides/how-points-transfers-work',
     type: 'article',
     siteName: 'crazy4points',
   },
@@ -100,10 +100,10 @@ export default function HowToTransferPointsGuide() {
           Getting Started
         </span>
         <h1 className="font-display text-3xl font-semibold text-[var(--color-primary)] md:text-4xl">
-          How to Transfer Points: A Beginner’s Guide to Flying Farther for Less
+          How Points Transfers Work: A Beginner’s Guide
         </h1>
-        <GuideDateline slug="how-to-transfer-points" />
-        <GuideJsonLd slug="how-to-transfer-points" />
+        <GuideDateline slug="how-points-transfers-work" />
+        <GuideJsonLd slug="how-points-transfers-work" />
 
         <p className="mt-4 font-body text-lg text-[var(--color-text-secondary)]">
           Here is a secret that sounds made up. The pile of &ldquo;points&rdquo; sitting in your credit
