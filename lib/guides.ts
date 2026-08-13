@@ -47,6 +47,15 @@ export const GUIDES: Guide[] = [
     featured: true,
   },
   {
+    slug: 'how-to-transfer-points',
+    title: 'How to Transfer Points: A Beginner’s Guide to Flying Farther for Less',
+    description:
+      'The one skill that turns credit card points into airline miles, and why the same seat can cost far fewer points depending on where you book it.',
+    category: 'getting-started',
+    updated: '2026-08-13',
+    featured: true,
+  },
+  {
     slug: 'best-first-card',
     title: 'The Best First Card for Every Type of Traveler',
     description:
