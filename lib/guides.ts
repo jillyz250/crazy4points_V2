@@ -56,6 +56,15 @@ export const GUIDES: Guide[] = [
     featured: true,
   },
   {
+    slug: 'hidden-perk-stacks',
+    title: 'Hidden Perk Stacks: Card Benefits That Unlock More Benefits',
+    description:
+      'The tricks nobody tells you: one card credit unlocks a service that bundles even more, from free streaming to hotel status to the two fastest airport lanes.',
+    category: 'cards',
+    updated: '2026-08-13',
+    featured: true,
+  },
+  {
     slug: 'best-first-card',
     title: 'The Best First Card for Every Type of Traveler',
     description:
