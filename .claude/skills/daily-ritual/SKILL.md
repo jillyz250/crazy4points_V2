@@ -228,7 +228,7 @@ Same method every time:
 8. Targeted/personalized offers can't be verified → can't publish as general alerts.
 
 ## Notes
-- The dashboard "Your day" checklist mirrors these steps — keep in sync.
+- The dashboard's daily-routine checklist was removed 2026-08-13 (Jill drives the ritual via this skill in chat, so the on-screen board was redundant). The ritual now lives ONLY here — there's no dashboard board to keep in sync.
 - Standing auto-filters are FLAG-ONLY today; a category only graduates to true
   auto-reject after ~2 weeks of zero flagged misses (US-signal + new-program are
   permanent hard guards, never collapsed). Standing-rules live in the snapshot

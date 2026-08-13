@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import ChecklistBoard, { type ChecklistGroupData } from './ChecklistBoard'
 import { createAdminClient } from '@/utils/supabase/server'
 import { countUnresolvedSystemErrors, getRefreshQueueCount, getRefreshQueue, listReminders } from '@/utils/supabase/queries'
 import { countHardcodedHits } from '@/utils/programs/auditHardcodedCounts'
@@ -174,105 +173,6 @@ function relativeDay(iso: string | null | undefined): string {
   return `${Math.round(hours / 24)}d ago`
 }
 
-function TodayChecklist({ stats }: { stats: Awaited<ReturnType<typeof loadStats>> }) {
-  const now = new Date()
-  const today = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' }) // YYYY-MM-DD, ET
-  const dateLabel = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/New_York' })
-  const weekday = now.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'America/New_York' })
-  const briefReady = stats.lastBrief?.brief_date === today
-  const isMon = weekday === 'Mon'
-  const isThu = weekday === 'Thu'
-  const isFri = weekday === 'Fri'
-  const nlNeedsSend = !!stats.currentNewsletter && stats.currentNewsletter.status !== 'sent'
-  const dataFlags = stats.bonusSignals + stats.changeSignals + stats.proseReview
-
-  const groups: ChecklistGroupData[] = [
-    {
-      label: 'Daily — make + share', note: '~90 min', numbered: true,
-      steps: [
-        {
-          id: 'forward-email', title: 'Forward promo emails to intel — first', time: '~5 min',
-          hint: 'Before you say "morning": forward issuer/program promo emails (Southwest, Accor, Hilton, Chase, Amex) to the intel inbox. They auto-classify and land in triage, so they’re in today’s table. Skip affiliate blasts (point.me) — they hide the card name and aren’t citable. Google Alerts are covered automatically by Scout, no forwarding needed.',
-          href: '/admin/triage', cta: 'Triage',
-        },
-        {
-          id: 'morning-review', title: 'Morning review with Claude', time: '~10 min',
-          count: stats.newIntel + stats.newDrafts + dataFlags || undefined,
-          hint: briefReady
-            ? 'Say "morning" — Claude pulls every queue into one publish / page-note / reject table: drafts, intel, transfer-data + welcome-bonus changes, refresh queue, program-drift (plus the emails you just forwarded), reviews the brief + digest, and runs the auto source gap-check.'
-            : 'Brief lands ~7am. Say "morning" — one decision table from every queue (drafts, intel, welcome-bonus changes, refresh queue, program-drift), plus the brief, digest, and the auto source gap-check.',
-          href: '/admin/briefs', cta: briefReady ? 'Today’s brief' : 'See briefs',
-        },
-        {
-          id: 'work-table', title: 'Work the table: publish + reject', time: '~35 min', count: stats.newDrafts,
-          hint: 'Make the calls from the table — Claude verifies each keeper against issuer sources; you edit and publish. Quality over clearing the pile.',
-          href: '/admin/drafts?view=needs_review', cta: 'Review drafts',
-        },
-        {
-          id: 'article', title: 'Write one article', time: '~30 min',
-          hint: 'Claude proposes the single best article from today’s intel + content ideas. You approve, Claude drafts + fact-checks, you review before publish.',
-          href: '/admin/content-ideas', cta: 'Content ideas',
-        },
-        {
-          id: 'facebook', title: 'Post one to Facebook', time: '~10 min',
-          hint: 'One happy-news item — a deal, bonus, or award win. Say "facebook post" and Claude writes it in your brand voice with the matching graphic.',
-          href: '/admin/social', cta: 'Social',
-        },
-        {
-          id: 'instagram', title: 'Post one to Instagram', time: '~10 min',
-          hint: 'One graphic post. Say "instagram post" and Claude builds the 1080x1080 graphic + caption.',
-          href: '/admin/social', cta: 'Social',
-        },
-      ],
-    },
-    {
-      label: 'Habits — whenever', numbered: false,
-      steps: [
-        {
-          id: 'reply-social', title: 'Reply to comments + DMs',
-          hint: 'Keep Facebook + Instagram engagement warm — quick replies drive follower growth.',
-          muted: true,
-        },
-      ],
-    },
-    {
-      label: 'Weekly — by day', numbered: false,
-      steps: [
-        {
-          id: 'newsletter', title: 'Newsletter', time: 'Thursdays',
-          hint: isThu || nlNeedsSend ? 'Build and send this week’s — it’s today.' : 'Build + send each Thursday.',
-          href: '/admin/newsletter', cta: 'Newsletter', muted: !(isThu || nlNeedsSend),
-        },
-        {
-          id: 'refresh', title: 'Refresh queue', time: 'Fridays', count: stats.refreshQueueCount,
-          hint: isFri ? 'Re-verify the oldest few today — no need to clear it all.' : 'Cards / programs / properties aging out. Re-verify the oldest few each Friday.',
-          href: '/admin/refresh-queue', cta: 'Open queue', muted: !isFri,
-        },
-        {
-          id: 'source-health', title: 'Source health', time: 'Mondays',
-          hint: 'Quick check that Scout sources are still producing — retire dead ones, add gaps. Keeps the feed from silently rotting.',
-          href: '/admin/sources', cta: 'Sources', muted: !isMon,
-        },
-        {
-          id: 'wyndham-experiences', title: 'Wyndham experiences watch', time: 'Mondays',
-          hint: 'Check Wyndham Rewards Experiences for new listings. These are bundled VIP packages (stay + dining + show), often good value. Marquee find -> social (Chase-transfer angle); timely -> newsletter. Note BID (auction, can lose) vs REDEEM (fixed), and that packages are non-refundable with travel not included.',
-          href: 'https://wyndhamrewardsexperiences.wyndhamrewards.com/', cta: 'Open', muted: !isMon,
-        },
-        {
-          id: 'analytics', title: 'Analytics glance', time: 'Fridays',
-          hint: 'Skim top pages + key events — what’s landing tells you what to write next.',
-          href: '/admin/analytics', cta: 'Analytics', muted: !isFri,
-        },
-      ],
-    },
-  ]
-
-  return (
-    <Card style={{ padding: '1rem 1.25rem', marginBottom: '1.5rem' }}>
-      <ChecklistBoard groups={groups} dateLabel={dateLabel} dayKey={`c4p-checklist-${today}`} />
-    </Card>
-  )
-}
 
 export default async function AdminDashboard() {
   const stats = await loadStats()
@@ -388,16 +288,9 @@ export default async function AdminDashboard() {
         description="What needs attention right now, and quick access to everything else."
       />
 
-      <Card style={{ padding: '1rem 1.25rem', marginBottom: '1.5rem' }}>
-        <RemindersWidget reminders={reminders} />
-      </Card>
-
-      <TodayChecklist stats={stats} />
-
-      <ContentRoadmapCard />
-
+      {/* Queues first — the actual "what needs attention right now". */}
       <div style={{ marginBottom: '0.75rem', fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, color: 'var(--admin-text-muted)' }}>
-        Everything else
+        Needs attention
       </div>
       <div
         style={{
@@ -429,6 +322,20 @@ export default async function AdminDashboard() {
           </Link>
         ))}
       </div>
+
+      <ContentRoadmapCard />
+
+      {/* Reminders — collapsed card (no longer dominating the top). */}
+      {reminders.length > 0 && (
+        <details style={{ marginBottom: '1.5rem', border: '1px solid var(--admin-border)', borderRadius: 'var(--admin-radius)', background: 'var(--admin-card-bg)' }}>
+          <summary style={{ cursor: 'pointer', padding: '0.875rem 1.25rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--admin-text)' }}>
+            Reminders ({reminders.length})
+          </summary>
+          <div style={{ padding: '0 1.25rem 1rem' }}>
+            <RemindersWidget reminders={reminders} />
+          </div>
+        </details>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.75rem', marginBottom: '1.5rem' }}>
         <Card style={{ padding: '0.875rem 1rem' }}>
