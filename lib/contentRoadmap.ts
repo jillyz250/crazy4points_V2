@@ -12,14 +12,15 @@
  */
 import { GUIDES } from './guides'
 
-export type PillarKey = 'foundations' | 'skills' | 'programs' | 'sweet-spots' | 'trips'
+export type PillarKey = 'foundations' | 'skills' | 'programs' | 'sweet-spots' | 'trips' | 'tricks'
 
-export const PILLARS: { key: PillarKey; label: string; short: string }[] = [
-  { key: 'foundations', label: 'Foundations', short: 'Foundation' },
-  { key: 'skills', label: 'How-To Skills', short: 'Skill' },
-  { key: 'programs', label: 'Program Guides', short: 'Program' },
-  { key: 'sweet-spots', label: 'Sweet Spots', short: 'Sweet spot' },
-  { key: 'trips', label: 'Planning & Trips', short: 'Trip' },
+export const PILLARS: { key: PillarKey; label: string; short: string; blurb: string }[] = [
+  { key: 'foundations', label: 'Foundations', short: 'Foundation', blurb: 'The beginner core: zero to first award.' },
+  { key: 'skills', label: 'How-To Skills', short: 'Skill', blurb: 'Do a specific thing, step by step.' },
+  { key: 'programs', label: 'Program Guides', short: 'Program', blurb: 'How to use each currency, airline, and hotel.' },
+  { key: 'sweet-spots', label: 'Sweet Spots', short: 'Sweet spot', blurb: 'The high-value plays.' },
+  { key: 'trips', label: 'Planning & Trips', short: 'Trip', blurb: 'Turn points into a specific trip.' },
+  { key: 'tricks', label: 'Tricks & Perk Stacks', short: 'Trick', blurb: 'Our differentiator: chaining benefits.' },
 ]
 
 export interface RoadmapItem {
@@ -93,7 +94,32 @@ export const ROADMAP: RoadmapItem[] = [
   { title: 'Japan on Points (Shoulder Season)', pillar: 'trips', order: 43 },
   { title: 'Honeymoon on Points', pillar: 'trips', order: 44 },
   { title: 'Best Ways Out of NYC on Points', pillar: 'trips', order: 45 },
+
+  // Pillar 6 — Tricks & Perk Stacks (our differentiator, growing catalog)
+  { title: 'Hidden Perk Stacks', pillar: 'tricks', guideSlug: 'hidden-perk-stacks' },
+  { title: 'The Status-Match Playbook', pillar: 'tricks', order: 46 },
+  { title: 'Perk Stacks, Card by Card', pillar: 'tricks', order: 47 },
 ]
+
+/** Platform / knowledge-graph build track — the machine under the content. */
+export type PlatformStatus = 'done' | 'next' | 'planned'
+export interface PlatformItem {
+  title: string
+  detail: string
+  status: PlatformStatus
+}
+export const PLATFORM_TRACK: PlatformItem[] = [
+  { title: 'Benefit-chains data layer', detail: 'lib/perkChains.ts — chains as structured, sourced data', status: 'done' },
+  { title: 'Content-roadmap dashboard', detail: 'progress + up-next, this page', status: 'done' },
+  { title: 'Program-page guide cross-linking', detail: 'every program page shows its guides + a beginner pointer', status: 'next' },
+  { title: 'Graph-aware alert publishing', detail: 'publishing an alert auto-pulls related guides, programs, and chains', status: 'planned' },
+  { title: 'AI visibility (AEO)', detail: 'structure so ChatGPT / Perplexity / AI answers cite us', status: 'planned' },
+  { title: 'Points Concierge (AI-B)', detail: 'a chatbot grounded in our verified data — the future flagship', status: 'planned' },
+]
+
+export function platformProgress(): { done: number; total: number } {
+  return { done: PLATFORM_TRACK.filter((i) => i.status === 'done').length, total: PLATFORM_TRACK.length }
+}
 
 const LIVE_SLUGS = new Set(GUIDES.map((g) => g.slug))
 
