@@ -43,6 +43,12 @@ ${PILLAR_GUIDE}
 
 For EACH idea, pick the single best pillar key, or null if it is a dated deal / timely news rather than an evergreen guide. Also give 2 to 4 short lowercase tags (program names, themes) for grouping.
 
+DEAL/NEWS TEST — default to null (NOT roadmap) when the idea reads like a dated promotion or one-off news, even if the topic is otherwise evergreen. Strong signals of null:
+- a specific date or window ("through Sept 14", "ends Aug 31", "this month", "book by")
+- a bonus percentage or amount ("30% transfer bonus", "80,000-point offer", "5x")
+- promo/registration language ("limited time", "register by", "promo code", "flash sale", "now booking", "just added", "increased offer")
+An evergreen guide teaches a durable how-to or sweet spot with no expiry. When in doubt between a pillar and null, choose null.
+
 Ideas:
 ${list}
 

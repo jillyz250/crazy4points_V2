@@ -17,6 +17,7 @@ import type { Program } from '@/utils/supabase/queries'
 import { preparePublishUpdates } from './_lib/preparePublish'
 import { computeReadingTimeMinutes } from '@/lib/blog/readingTime'
 import { PILLARS } from '@/lib/contentRoadmap'
+import { normalizeTag, normalizeTags } from '@/lib/contentTags'
 import { suggestRoadmapTags } from '@/utils/ai/suggestRoadmapTags'
 import { fillRoadmapGaps } from '@/utils/content/fillRoadmapGaps'
 import { isBlogCategorySlug, BLOG_CATEGORY_SLUGS } from '@/lib/blog/categories'
@@ -1484,11 +1485,13 @@ export async function setIdeaPillarAction(formData: FormData): Promise<void> {
   revalidatePath('/admin/roadmap')
 }
 
-/** Add a free-form tag to an idea (deduped, lowercased, capped). */
+/** Add a free-form tag to an idea (deduped, canonicalized, capped). */
 export async function addIdeaTagAction(formData: FormData): Promise<void> {
   await assertAdmin()
   const id = String(formData.get('id') || '')
-  const tag = String(formData.get('tag') || '').trim().toLowerCase().slice(0, 40)
+  // Canonicalize so program-name variants collapse to one tag (keeps the
+  // roadmap coverage counter clean). Theme tags pass through slugified.
+  const tag = normalizeTag(String(formData.get('tag') || ''))
   if (!id || !tag) return
   const sb = createAdminClient()
   const { data } = await sb.from('content_ideas').select('tags').eq('id', id).single()
@@ -1496,6 +1499,21 @@ export async function addIdeaTagAction(formData: FormData): Promise<void> {
   if (!current.includes(tag)) current.push(tag)
   await sb.from('content_ideas').update({ tags: current }).eq('id', id)
   revalidatePath('/admin/content-ideas')
+}
+
+/** Set write-priority within a pillar: 1=high, 2=normal, 3=low (empty clears
+ *  to null = normal). Lets the roadmap surface the highest-value slot next. */
+export async function setIdeaPriorityAction(formData: FormData): Promise<void> {
+  await assertAdmin()
+  const id = String(formData.get('id') || '')
+  const raw = String(formData.get('priority') || '')
+  if (!id) return
+  const n = parseInt(raw, 10)
+  const priority = n === 1 || n === 2 || n === 3 ? n : null
+  const sb = createAdminClient()
+  await sb.from('content_ideas').update({ priority }).eq('id', id)
+  revalidatePath('/admin/content-ideas')
+  revalidatePath('/admin/roadmap')
 }
 
 /** Remove a free-form tag from an idea. */
@@ -1533,7 +1551,10 @@ export async function autoSuggestUntaggedAction(): Promise<void> {
   const suggestions = await suggestRoadmapTags(ideas)
   // Write each suggestion. Sequential is fine at this scale (<=40).
   for (const s of suggestions) {
-    await sb.from('content_ideas').update({ suggested_pillar: s.pillar, suggested_tags: s.tags }).eq('id', s.id)
+    await sb
+      .from('content_ideas')
+      .update({ suggested_pillar: s.pillar, suggested_tags: normalizeTags(s.tags) })
+      .eq('id', s.id)
   }
   revalidatePath('/admin/content-ideas')
 }
@@ -1552,7 +1573,7 @@ export async function approveSuggestionAction(formData: FormData): Promise<void>
   const update: Record<string, unknown> = { suggested_pillar: null, suggested_tags: null, roadmap_reviewed: true }
   if (pillar) {
     update.roadmap_pillar = pillar
-    update.tags = tags
+    update.tags = normalizeTags(tags)
   }
   await sb.from('content_ideas').update(update).eq('id', id)
   revalidatePath('/admin/content-ideas')

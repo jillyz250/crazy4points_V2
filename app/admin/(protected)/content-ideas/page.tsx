@@ -7,6 +7,7 @@ import {
   updateContentIdeaOverrideAction,
   updateContentIdeaTypingAction,
   setIdeaPillarAction,
+  setIdeaPriorityAction,
   addIdeaTagAction,
   removeIdeaTagAction,
   autoSuggestUntaggedAction,
@@ -81,6 +82,8 @@ interface ContentIdeaRow {
   // Roadmap tagging (migration 619): structured pillar tag + free-form tags
   roadmap_pillar: string | null
   tags: string[] | null
+  // Priority within a pillar (migration 622): 1=high, 2=normal, 3=low, null=normal
+  priority: number | null
   // AI triage (migrations 620/621): pending suggestion + reviewed flag
   suggested_pillar: string | null
   suggested_tags: string[] | null
@@ -775,6 +778,16 @@ function IdeaRoadmapTags({ idea }: { idea: ContentIdeaRow }) {
           {PILLARS.map((p) => (
             <option key={p.key} value={p.key}>{p.label}</option>
           ))}
+        </select>
+        <button type="submit" className="admin-btn admin-btn-ghost admin-btn-sm">Set</button>
+      </form>
+      {/* Write-priority within the pillar. */}
+      <form action={setIdeaPriorityAction} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+        <input type="hidden" name="id" value={idea.id} />
+        <select name="priority" defaultValue={String(idea.priority ?? 2)} style={selStyle} title="Write-priority within the pillar">
+          <option value="1">↑ High</option>
+          <option value="2">Normal</option>
+          <option value="3">↓ Low</option>
         </select>
         <button type="submit" className="admin-btn admin-btn-ghost admin-btn-sm">Set</button>
       </form>
