@@ -6,11 +6,7 @@ import {
   updateContentIdeaNotesAction,
   updateContentIdeaOverrideAction,
   updateContentIdeaTypingAction,
-  setIdeaPillarAction,
-  addIdeaTagAction,
-  removeIdeaTagAction,
 } from './actions'
-import { PILLARS } from '@/lib/contentRoadmap'
 import { CONTENT_TYPES, groupActivityFrames, type ContentType, type ActivityFrame } from '@/lib/admin/contentTaxonomy'
 import { getBlogCategoryLabel } from '@/lib/blog/categories'
 import WriteArticleButton from '@/components/admin/WriteArticleButton'
@@ -75,9 +71,6 @@ interface ContentIdeaRow {
   primary_program_slug: string | null
   secondary_program_slugs: string[] | null
   card_slugs: string[] | null
-  // Roadmap tagging (migration 619): structured pillar tag + free-form tags
-  roadmap_pillar: string | null
-  tags: string[] | null
   reading_time_minutes: number | null
   featured: boolean | null
   featured_rank: number | null
@@ -692,42 +685,6 @@ const PROGRAM_TYPE_BADGE: Record<string, { emoji: string; label: string; bg: str
   loyalty_program: { emoji: '💱', label: 'Currency', bg: '#B45309' },
 }
 
-// Roadmap tag bar (migration 619): slot an idea into a roadmap pillar + add
-// free-form tags. Server-action forms, so it works without client JS.
-function IdeaRoadmapTags({ idea }: { idea: ContentIdeaRow }) {
-  const tags = Array.isArray(idea.tags) ? idea.tags : []
-  const selStyle: React.CSSProperties = { fontSize: '0.78rem', padding: '0.2rem 0.4rem', borderRadius: 'var(--admin-radius)', border: '1px solid var(--admin-border)', background: 'var(--admin-bg)', color: 'var(--admin-text)' }
-  const chipStyle: React.CSSProperties = { fontSize: '0.72rem', padding: '0.15rem 0.45rem', borderRadius: '999px', border: '1px solid var(--admin-border)', background: 'var(--admin-bg-subtle)', color: 'var(--admin-text)', cursor: 'pointer' }
-  return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.4rem', marginBottom: '0.6rem', paddingBottom: '0.6rem', borderBottom: '1px solid var(--admin-border)' }}>
-      <span style={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: idea.roadmap_pillar ? 'var(--admin-accent)' : 'var(--admin-text-subtle)', fontWeight: 700 }}>
-        {idea.roadmap_pillar ? 'On roadmap' : 'Roadmap'}
-      </span>
-      <form action={setIdeaPillarAction} style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
-        <input type="hidden" name="id" value={idea.id} />
-        <select name="pillar" defaultValue={idea.roadmap_pillar ?? ''} style={selStyle}>
-          <option value="">— pillar —</option>
-          {PILLARS.map((p) => (
-            <option key={p.key} value={p.key}>{p.label}</option>
-          ))}
-        </select>
-        <button type="submit" className="admin-btn admin-btn-ghost admin-btn-sm">Set</button>
-      </form>
-      {tags.map((t) => (
-        <form key={t} action={removeIdeaTagAction} style={{ display: 'inline' }}>
-          <input type="hidden" name="id" value={idea.id} />
-          <input type="hidden" name="tag" value={t} />
-          <button type="submit" title="remove tag" style={chipStyle}>{t} ×</button>
-        </form>
-      ))}
-      <form action={addIdeaTagAction} style={{ display: 'inline-flex' }}>
-        <input type="hidden" name="id" value={idea.id} />
-        <input name="tag" placeholder="+ tag" style={{ ...selStyle, width: '5.5rem' }} />
-      </form>
-    </div>
-  )
-}
-
 function IdeaCard({
   idea,
   programs,
@@ -779,7 +736,6 @@ function IdeaCard({
     : null
   return (
     <div className="admin-card" style={{ padding: '1rem 1.125rem' }}>
-      <IdeaRoadmapTags idea={idea} />
       {conflict && conflictProgram && (
         <ConflictBanner
           intelId={conflict.intel_id}
