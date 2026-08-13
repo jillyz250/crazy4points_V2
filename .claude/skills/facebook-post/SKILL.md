@@ -31,6 +31,15 @@ Casual travelers who have heard of points but are not experts. They are silently
 ## Length (READ FIRST — Jill's standing note is "too long")
 **Keep the whole post to ~50-80 words.** Facebook truncates after ~2 lines / ~250 characters ("See more"), and most people never expand — so the hook and the point MUST land in the first two lines. One idea, one CTA. The linked article carries all the detail; the post's only job is to stop the scroll and earn the click. Do NOT write 3-4 paragraphs. Locked in 2026-07-30.
 
+## Line-level craft (what separates good copy from sharp copy)
+The bones are usually right; sharpness is a line-level edit. Run every draft through these five moves (distilled 2026-08-13 from a Copilot critique Jill preferred, on the Chase→Aeroplan post):
+1. **Lead with the benefit, cut the throat-clearing.** Open on the payoff ("you'll get 20 percent extra"), never on setup or context. Any sentence that precedes the value is a speed bump — delete it or demote it.
+2. **One idea per sentence, then vary length for rhythm.** A long, value-packed line followed by a short punch ("You can stack it to 30 percent.") reads far better than two medium sentences. Short lines hit hardest right after long ones.
+3. **End sentences on the strong word.** "...two trips on one award." "...can't be undone." The final word echoes — put the payoff or the stakes there, never bury it mid-sentence.
+4. **Split the CTA into two clean beats.** "We break it down. Link in the comments." beats one comma-spliced sentence. Same for the close.
+5. **Prefer the plainer benefit phrase over the cute one** when they compete. "one of the best ways to stretch your points" outperforms "sneaky-good way to see the world" — a touch of insider voice is good, but clarity wins ties.
+Hard constraint that overrides all cleverness: **no em/en dashes** (colons, commas, periods, parentheses only) — a common trap when adapting outside copy that used them.
+
 ## Post structure (tight — hook line + 1-2 sentences + CTA + newsletter)
 1. **Headline (first line).** Plain text, under ~60 characters, benefit/news-first — this is the pre-"See more" hook, so the wording alone has to carry it. **NEVER use Unicode / "fancy" bold** (the 𝐌𝐚𝐭𝐡𝐞𝐦𝐚𝐭𝐢𝐜𝐚𝐥 𝐁𝐨𝐥𝐝 characters): those glyphs **break link/UTM tracking and Meta throttles delivery on ads that contain them**, so posts get served far less. Plain text only, everywhere — headlines, captions, and comments. (Rule set 2026-08-04, replacing the earlier Unicode-bold guidance.)
 2. **Body — 1 to 2 short sentences.** The core takeaway plus, when it fits, one concrete detail or a single practical caveat. That's it. No separate "hook / value / example" paragraphs — fold them into these 1-2 sentences.
