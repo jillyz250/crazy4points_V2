@@ -1,0 +1,130 @@
+/**
+ * Content roadmap — the one-year plan, as data. Drives the admin dashboard's
+ * "Content roadmap / up next" widget and is the single source of truth behind
+ * the strategy artifact.
+ *
+ * Live status is DERIVED, not stored: an item counts as published the moment a
+ * guide with its `guideSlug` exists in lib/guides.ts. So publishing a guide
+ * auto-advances the roadmap with no bookkeeping here.
+ *
+ * `order` sets the build queue for not-yet-written items (lower = sooner);
+ * omit it and the item sorts to the back.
+ */
+import { GUIDES } from './guides'
+
+export type PillarKey = 'foundations' | 'skills' | 'programs' | 'sweet-spots' | 'trips'
+
+export const PILLARS: { key: PillarKey; label: string; short: string }[] = [
+  { key: 'foundations', label: 'Foundations', short: 'Foundation' },
+  { key: 'skills', label: 'How-To Skills', short: 'Skill' },
+  { key: 'programs', label: 'Program Guides', short: 'Program' },
+  { key: 'sweet-spots', label: 'Sweet Spots', short: 'Sweet spot' },
+  { key: 'trips', label: 'Planning & Trips', short: 'Trip' },
+]
+
+export interface RoadmapItem {
+  title: string
+  pillar: PillarKey
+  /** Set when a live guide fulfills this item; live status derives from GUIDES. */
+  guideSlug?: string
+  /** Build-queue priority for not-yet-written items (lower = sooner). */
+  order?: number
+}
+
+export const ROADMAP: RoadmapItem[] = [
+  // Pillar 1 — Foundations (beginner core, 8)
+  { title: 'What Kind of Points Traveler Are You?', pillar: 'foundations', guideSlug: 'find-your-why' },
+  { title: 'Points & Miles 101: How It All Works', pillar: 'foundations', order: 2 },
+  { title: 'Will Travel Cards Wreck My Credit?', pillar: 'foundations', order: 3 },
+  { title: 'How to Earn Points: Welcome Bonuses & Everyday Spend', pillar: 'foundations', order: 4 },
+  { title: 'Your Best First Travel Card', pillar: 'foundations', guideSlug: 'best-first-card' },
+  { title: 'How Points Transfers Work', pillar: 'foundations', guideSlug: 'how-points-transfers-work' },
+  { title: 'Airline Alliances Explained', pillar: 'foundations', order: 1 },
+  { title: 'How to Find & Book Your First Award', pillar: 'foundations', order: 5 },
+
+  // Pillar 2 — How-To Skills (12)
+  { title: 'How to Find Award Seats', pillar: 'skills', order: 8 },
+  { title: 'How to Book a Partner Award', pillar: 'skills', order: 9 },
+  { title: 'How to Dodge Fuel Surcharges', pillar: 'skills', order: 12 },
+  { title: 'Travel Portal vs Transfer: Which Is Cheaper?', pillar: 'skills', order: 10 },
+  { title: 'How to Time a Transfer Bonus', pillar: 'skills', order: 13 },
+  { title: 'How to Read an Award Chart', pillar: 'skills', order: 14 },
+  { title: 'How to Book Award Travel for a Family', pillar: 'skills', order: 11 },
+  { title: 'How to Keep Your Points From Expiring', pillar: 'skills', order: 15 },
+  { title: 'How to Book a Sold-Out Hotel', pillar: 'skills', guideSlug: 'how-to-book-a-sold-out-hotel' },
+  { title: 'How to Win a Best Rate Guarantee', pillar: 'skills', guideSlug: 'how-to-win-a-best-rate-guarantee' },
+  { title: 'How to Upgrade to First Class', pillar: 'skills', guideSlug: 'how-to-upgrade-american-first-class' },
+  { title: 'Miles for Last-Minute Trips', pillar: 'skills', order: 20 },
+
+  // Pillar 3 — Program Guides ("How to Use X", 18)
+  { title: 'How to Use Amex Membership Rewards', pillar: 'programs', order: 16 },
+  { title: 'How to Use Chase Ultimate Rewards', pillar: 'programs', order: 17 },
+  { title: 'How to Use Citi ThankYou Points', pillar: 'programs', order: 24 },
+  { title: 'How to Use Capital One Miles', pillar: 'programs', order: 18 },
+  { title: 'How to Use Bilt Points', pillar: 'programs', order: 25 },
+  { title: 'How to Use United MileagePlus', pillar: 'programs', order: 26 },
+  { title: 'How to Use Delta SkyMiles', pillar: 'programs', order: 27 },
+  { title: 'How to Use American AAdvantage', pillar: 'programs', order: 28 },
+  { title: 'How to Use Alaska / Atmos', pillar: 'programs', order: 29 },
+  { title: 'How to Use Southwest Rapid Rewards', pillar: 'programs', order: 30 },
+  { title: 'How to Use Air Canada Aeroplan', pillar: 'programs', order: 21 },
+  { title: 'How to Use Flying Blue', pillar: 'programs', order: 31 },
+  { title: 'How to Use British Airways Avios', pillar: 'programs', order: 32 },
+  { title: 'How to Use World of Hyatt', pillar: 'programs', order: 22 },
+  { title: 'How to Use Marriott Bonvoy', pillar: 'programs', order: 33 },
+  { title: 'How to Use Hilton Honors', pillar: 'programs', order: 34 },
+  { title: 'How to Use IHG One Rewards', pillar: 'programs', order: 35 },
+  { title: 'How to Use Wyndham Rewards', pillar: 'programs', order: 36 },
+
+  // Pillar 4 — Sweet Spots & Deep Dives (8)
+  { title: 'Best Uses of Chase Ultimate Rewards', pillar: 'sweet-spots', order: 6 },
+  { title: 'Best Uses of Amex Membership Rewards', pillar: 'sweet-spots', order: 7 },
+  { title: 'Aeroplan Sweet Spots', pillar: 'sweet-spots', order: 23 },
+  { title: 'Avios Sweet Spots', pillar: 'sweet-spots', order: 37 },
+  { title: 'ANA / Star Alliance Sweet Spots', pillar: 'sweet-spots', order: 38 },
+  { title: 'The Best Hyatt Sweet Spots', pillar: 'sweet-spots', guideSlug: 'hyatt-points-sweet-spots' },
+  { title: 'Is Elite Status Worth It?', pillar: 'sweet-spots', order: 39 },
+  { title: 'Business Class to Europe for the Fewest Points', pillar: 'sweet-spots', order: 19 },
+
+  // Pillar 5 — Planning & Trips (seasonal, 6)
+  { title: 'How to Fly to Europe in Business on Points', pillar: 'trips', order: 40 },
+  { title: 'Hawaii on Points', pillar: 'trips', order: 41 },
+  { title: 'Caribbean / Mexico Beach Trip on Points', pillar: 'trips', order: 42 },
+  { title: 'Japan on Points (Shoulder Season)', pillar: 'trips', order: 43 },
+  { title: 'Honeymoon on Points', pillar: 'trips', order: 44 },
+  { title: 'Best Ways Out of NYC on Points', pillar: 'trips', order: 45 },
+]
+
+const LIVE_SLUGS = new Set(GUIDES.map((g) => g.slug))
+
+export function isLive(item: RoadmapItem): boolean {
+  return !!item.guideSlug && LIVE_SLUGS.has(item.guideSlug)
+}
+
+export function pillarLabel(key: PillarKey): string {
+  return PILLARS.find((p) => p.key === key)?.short ?? key
+}
+
+export interface RoadmapProgress {
+  done: number
+  total: number
+  pct: number
+  byPillar: { key: PillarKey; label: string; done: number; total: number }[]
+}
+
+export function roadmapProgress(): RoadmapProgress {
+  const done = ROADMAP.filter(isLive).length
+  const total = ROADMAP.length
+  const byPillar = PILLARS.map((p) => {
+    const items = ROADMAP.filter((i) => i.pillar === p.key)
+    return { key: p.key, label: p.label, done: items.filter(isLive).length, total: items.length }
+  })
+  return { done, total, pct: total ? Math.round((done / total) * 100) : 0, byPillar }
+}
+
+/** Next planned (not-yet-live) items, in build-queue order. */
+export function upNext(n = 4): RoadmapItem[] {
+  return ROADMAP.filter((i) => !isLive(i))
+    .sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
+    .slice(0, n)
+}
