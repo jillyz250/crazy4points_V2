@@ -5,6 +5,7 @@ import { countHardcodedHits } from '@/utils/programs/auditHardcodedCounts'
 import RemindersWidget from '@/components/admin/reminders/RemindersWidget'
 import ContentRoadmapCard from '@/components/admin/ContentRoadmapCard'
 import JillsTakesCard from '@/components/admin/JillsTakesCard'
+import { isPresaleListing } from '@/lib/experiences/presale'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Card } from '@/components/admin/ui/Card'
 import { LinkButton } from '@/components/admin/ui/Button'
@@ -126,10 +127,14 @@ async function loadStats() {
     // Experiences: new listings first seen in the last ~36h (dashboard alert).
     // Fetch the rows, not just a count, so the card can name and link the
     // listing instead of making Jill hunt for which one is new.
+    // "New to review" = active listings first-seen recently that Jill hasn't
+    // reviewed yet AND aren't boring card-member presales (concerts/shows/games).
+    // Presales + reviewed are filtered in JS below (category values are messy).
     supabase
       .from('experience_listings')
-      .select('title, detail_url, first_seen_at')
+      .select('title, detail_url, first_seen_at, category, editorial_reviewed_at')
       .eq('status', 'active')
+      .is('editorial_reviewed_at', null)
       .gte('first_seen_at', since)
       .order('first_seen_at', { ascending: false }),
     // Sweepstakes currently running (the daily sweepstakes-watch feeds this).
@@ -158,8 +163,9 @@ async function loadStats() {
     proseReview: proseReview.count ?? 0,
     newDrafts: newDrafts.count ?? 0,
     newIntel: newIntel.count ?? 0,
-    newExperiences: newExperiences.data?.length ?? 0,
-    newExperienceItems: (newExperiences.data ?? []) as Array<{ title: string; detail_url: string | null }>,
+    // Drop presales (concerts/shows/games) — only surface marquee experiences to review.
+    newExperiences: (newExperiences.data ?? []).filter((e) => !isPresaleListing((e as { category?: string | null }).category)).length,
+    newExperienceItems: ((newExperiences.data ?? []) as Array<{ title: string; detail_url: string | null; category?: string | null }>).filter((e) => !isPresaleListing(e.category)),
     sweepsRunning: sweepsRunning.count ?? 0,
     sweepsNeedPost: sweepsNeedPost.count ?? 0,
   }
