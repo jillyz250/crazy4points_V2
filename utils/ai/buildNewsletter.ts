@@ -183,7 +183,7 @@ SELECTION RULES
 ═══════════════════════════════════════════════════════════
 
 INPUT contains:
-- alerts (published last 7 days, with why_this_matters + end_date + alert_type)
+- alerts (ALL still-active published alerts, ranked by impact + freshness; not just this week — a still-live older transfer bonus or unexpired devaluation is eligible)
 - newsletter_ideas (content_ideas type=newsletter)
 - blog_ideas (content_ideas type=blog)
 - radar_signals (low/medium-confidence intel from this week)

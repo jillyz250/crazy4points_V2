@@ -84,12 +84,23 @@ export async function getNewsletterInputs(
       .limit(8),
   ])
 
+  // Candidate pool = ALL still-active published alerts (selectAlertViewFromVariants
+  // already filters to activeOnly, i.e. end_date not passed or evergreen), NOT just
+  // the last 7 days. A biweekly newsletter covers 14 days, and a still-live older
+  // alert (an active transfer bonus, an unexpired devaluation) can be the best Big
+  // Story or Sweet Spot. Rank by impact_score plus a freshness boost so recent news
+  // still leads, but a high-impact older alert stays eligible.
+  const freshBoost = (publishedAt: string | null): number => {
+    if (!publishedAt) return 0
+    const ageDays = (now.getTime() - new Date(publishedAt).getTime()) / 86_400_000
+    return ageDays <= 7 ? 2 : ageDays <= 14 ? 1 : 0
+  }
   const alerts: NewsletterAlertInput[] = alertViewRows
-    .filter((a) => a.published_at && a.published_at >= since7d)
+    .filter((a) => a.published_at)
     .sort((a, b) => {
-      const scoreA = a.impact_score ?? 0
-      const scoreB = b.impact_score ?? 0
-      if (scoreA !== scoreB) return scoreB - scoreA
+      const rankA = (a.impact_score ?? 0) + freshBoost(a.published_at)
+      const rankB = (b.impact_score ?? 0) + freshBoost(b.published_at)
+      if (rankA !== rankB) return rankB - rankA
       return (b.published_at ?? '').localeCompare(a.published_at ?? '')
     })
     .slice(0, 12)
