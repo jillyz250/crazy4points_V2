@@ -13,6 +13,14 @@ import { Badge } from '@/components/admin/ui/Badge'
 
 export const dynamic = 'force-dynamic'
 
+// A listing worth Jill's editorial review: marquee experiences, dropping boring
+// card-member presales (concerts/shows/games) — EXCEPT Marriott Moments, which
+// are points experiences (bid/redeem) despite their music/sports theming.
+type ReviewableExperience = { title: string; detail_url: string | null; category?: string | null; program_slug?: string | null }
+function reviewableExperience(e: ReviewableExperience): boolean {
+  return !isPresaleListing(e.category) || e.program_slug === 'marriott-bonvoy'
+}
+
 type Tone = 'accent' | 'success' | 'warning' | 'danger' | 'neutral' | 'info'
 
 type Tile = {
@@ -129,10 +137,12 @@ async function loadStats() {
     // listing instead of making Jill hunt for which one is new.
     // "New to review" = active listings first-seen recently that Jill hasn't
     // reviewed yet AND aren't boring card-member presales (concerts/shows/games).
-    // Presales + reviewed are filtered in JS below (category values are messy).
+    // EXCEPTION: Marriott Bonvoy Moments are music/sports/entertainment themed but
+    // are real points experiences (you bid/redeem points), so Jill reviews them.
+    // Filtering happens in JS below (category values are messy).
     supabase
       .from('experience_listings')
-      .select('title, detail_url, first_seen_at, category, editorial_reviewed_at')
+      .select('title, detail_url, first_seen_at, category, program_slug, editorial_reviewed_at')
       .eq('status', 'active')
       .is('editorial_reviewed_at', null)
       .gte('first_seen_at', since)
@@ -163,9 +173,10 @@ async function loadStats() {
     proseReview: proseReview.count ?? 0,
     newDrafts: newDrafts.count ?? 0,
     newIntel: newIntel.count ?? 0,
-    // Drop presales (concerts/shows/games) — only surface marquee experiences to review.
-    newExperiences: (newExperiences.data ?? []).filter((e) => !isPresaleListing((e as { category?: string | null }).category)).length,
-    newExperienceItems: ((newExperiences.data ?? []) as Array<{ title: string; detail_url: string | null; category?: string | null }>).filter((e) => !isPresaleListing(e.category)),
+    // Surface marquee experiences to review: drop card-member presales (concerts/
+    // shows/games) EXCEPT Marriott Moments, which are points experiences worth reviewing.
+    newExperiences: (newExperiences.data ?? []).filter((e) => reviewableExperience(e as ReviewableExperience)).length,
+    newExperienceItems: ((newExperiences.data ?? []) as Array<ReviewableExperience>).filter(reviewableExperience),
     sweepsRunning: sweepsRunning.count ?? 0,
     sweepsNeedPost: sweepsNeedPost.count ?? 0,
   }

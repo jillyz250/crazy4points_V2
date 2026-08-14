@@ -12,6 +12,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
 import { logUsage } from '@/utils/ai/logUsage'
+import { scrapeListingImage } from '@/utils/experiences/scrapeListingImage'
 
 export interface ExperienceProgram {
   program_slug: string // loyalty program, e.g. 'wyndham'
@@ -190,6 +191,7 @@ export interface WatchResult {
   archived: number
   enriched: number
   reminders: number
+  images: number
   success: boolean
   error?: string
 }
@@ -388,6 +390,41 @@ async function enrichCloseDates(supabase: SupabaseClient, program: ExperiencePro
       if (res.facts.event_date) patch.event_date = res.facts.event_date
       if (res.facts.bid_opens_at) patch.bid_opens_at = res.facts.bid_opens_at
       await supabase.from('experience_listings').update(patch).eq('id', res.id)
+      updated++
+    }
+  }
+  return updated
+}
+
+/**
+ * Backfill hero images for this program's new listings by scraping each detail
+ * page. Bounded per run (10/program) so the initial fill finishes over a few
+ * daily runs, then each run only touches brand-new listings — the same
+ * self-limiting pattern as enrichCloseDates. Keeps the /experiences gallery from
+ * slowly filling with blank gradient cards as fresh listings arrive.
+ */
+async function enrichImages(supabase: SupabaseClient, program: ExperienceProgram): Promise<number> {
+  const { data: need } = await supabase
+    .from('experience_listings')
+    .select('id, detail_url')
+    .eq('program_slug', program.program_slug)
+    .eq('status', 'active')
+    .is('image_url', null)
+    .not('detail_url', 'is', null)
+    .limit(10) // per-run cap; backfill finishes over a few daily runs
+  if (!need?.length) return 0
+  let updated = 0
+  for (let i = 0; i < need.length; i += 5) {
+    const batch = need.slice(i, i + 5)
+    const results = await Promise.all(
+      batch.map(async (r) => ({ id: r.id as string, img: await scrapeListingImage(r.detail_url as string) })),
+    )
+    for (const res of results) {
+      if (!res.img) continue
+      await supabase
+        .from('experience_listings')
+        .update({ image_url: res.img, updated_at: new Date().toISOString() })
+        .eq('id', res.id)
       updated++
     }
   }
@@ -727,12 +764,14 @@ export async function runExperiencesWatch(
   // "ending soonest" sort and drops a reminder when an auction is about to close.
   let enriched = 0
   let reminders = 0
+  let images = 0
   if (success) {
     try {
       enriched = await enrichCloseDates(supabase, program)
       reminders = await createBidReminders(supabase, program)
+      images = await enrichImages(supabase, program)
     } catch (err) {
-      console.error('[experiences-watch] close-date step failed:', err instanceof Error ? err.message : err)
+      console.error('[experiences-watch] enrichment step failed:', err instanceof Error ? err.message : err)
     }
   }
 
@@ -745,6 +784,7 @@ export async function runExperiencesWatch(
     archived,
     enriched,
     reminders,
+    images,
     success,
     error: success ? undefined : httpOk ? 'parsed zero listings' : 'scrape returned empty',
   }

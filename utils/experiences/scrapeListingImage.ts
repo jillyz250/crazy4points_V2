@@ -12,6 +12,16 @@
  */
 const BAD_IMAGE = /logo|icon|sprite|avatar|placeholder|favicon|badge|\/brand|pixel|1x1|spacer|atmos_open|_open_|default|share-image|og-default|bookends|ios@2x|\/hds\//i
 
+/**
+ * Upgrade a scraped image URL to its highest-resolution variant.
+ * The isyn/vafloc02 experience CDN (Delta, Wyndham, Hilton) serves the same
+ * photo at -t (250w, blurry on a card), -m (500w) and -f (1000w). Always take
+ * -f so featured cards are sharp instead of a stretched thumbnail.
+ */
+export function upgradeImageUrl(url: string): string {
+  return url.replace(/(\/img-\d+)-(?:t|m|s)(\.jpe?g)(\?.*)?$/i, '$1-f$2$3')
+}
+
 export async function scrapeListingImage(detailUrl: string): Promise<string | null> {
   const key = process.env.FIRECRAWL_API_KEY
   if (!key || !detailUrl || !/^https?:\/\//.test(detailUrl)) return null
@@ -42,5 +52,5 @@ export async function scrapeListingImage(detailUrl: string): Promise<string | nu
   }
 
   const good = candidates.find((u) => !BAD_IMAGE.test(u))
-  return good ?? null
+  return good ? upgradeImageUrl(good) : null
 }
