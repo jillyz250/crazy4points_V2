@@ -140,7 +140,7 @@ function renderBigStory(slots: NewsletterSlots, origin: string): string {
   // big_story_title field.
   const headlineText = slots.big_story_title || slots.subject
   const headline = headlineText
-    ? `<h1 style="margin:0 0 14px;font-family:${FONT_DISPLAY};font-size:30px;line-height:1.15;color:${BODY};font-weight:800;">${esc(headlineText)}</h1>`
+    ? `<h1 style="margin:0 0 14px;font-family:${FONT_DISPLAY};font-size:24px;line-height:1.2;color:${BODY};font-weight:800;">${esc(headlineText)}</h1>`
     : ''
   // Soft purple wash on the Big Story so it reads as a deliberate featured
   // section (tier 2) — sits visually between plain white content and the
@@ -334,7 +334,7 @@ function renderSweetSpot(sp: NewsletterSweetSpot | null): string {
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:2px solid ${GOLD};border-radius:12px;background:${SOFT_BG};">
         <tr><td style="padding:22px 24px;">
           <p style="margin:0 0 6px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${GOLD};font-weight:700;">Sweet Spot of the Week</p>
-          <h2 style="margin:0 0 12px;font-family:${FONT_DISPLAY};font-size:22px;line-height:1.3;color:${PURPLE};">${esc(sp.topic)}</h2>
+          <h2 style="margin:0 0 12px;font-family:${FONT_DISPLAY};font-size:18px;line-height:1.3;color:${PURPLE};">${esc(sp.topic)}</h2>
           ${explainer}
           ${uses ? `<p style="margin:18px 0 8px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${GOLD};font-weight:700;">Good for</p><ul style="margin:0;padding:0 0 0 18px;">${uses}</ul>` : ''}
         </td></tr>

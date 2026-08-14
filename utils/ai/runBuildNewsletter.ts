@@ -22,6 +22,10 @@ import { buildNewsletterSlots } from './buildNewsletterSlots'
 import { verifyNewsletterDraft } from './verifyNewsletterDraft'
 import { isBonusActive } from '@/utils/programs/transferBonus'
 import { getRecentlyUsed, syncContentUsageFromHistory } from '@/utils/content/contentUsage'
+import { getActiveOffers } from '@/utils/ai/gatherActiveOffers'
+import { getElevatedBonuses } from '@/utils/ai/gatherElevatedBonuses'
+import { getTopSweepstakes } from '@/utils/ai/gatherTopSweepstakes'
+import { getTopExperiences } from '@/utils/ai/gatherTopExperiences'
 
 export function mondayOfWeek(date: Date = new Date()): string {
   const d = new Date(date)
@@ -355,6 +359,17 @@ export async function runBuildNewsletter(opts: {
 
   const verify = await verifyNewsletterDraft({ draft, source_text: sourceText })
 
+  // Auto-fill the data-driven slots (transfer bonuses / earning promos, elevated
+  // card bonuses, top sweepstakes, top experiences) so a fresh build is complete
+  // instead of leaving those sections empty for the editor to pull in by hand.
+  // All four are pure DB reads (no AI); the editor's refresh buttons still work.
+  const [activeOffers, elevatedBonuses, topSweepstakes, topExperiences] = await Promise.all([
+    getActiveOffers(supabase),
+    getElevatedBonuses(supabase),
+    getTopSweepstakes(supabase),
+    getTopExperiences(supabase),
+  ])
+
   // Prefer slot subjects when available; fall back to V1 generator's options.
   const subjectOptions = slotDraft?.subject_options?.length
     ? slotDraft.subject_options
@@ -388,6 +403,11 @@ export async function runBuildNewsletter(opts: {
     sweet_spot: slotDraft?.sweet_spot ?? null,
     also_happening: slotDraft?.also_happening ?? [],
     jills_take_html: slotDraft?.jills_take_html ?? null,
+    // Data-driven slots (auto-filled above; editor can still refresh each).
+    active_offers: activeOffers,
+    elevated_bonuses: elevatedBonuses,
+    top_sweepstakes: topSweepstakes,
+    top_experiences: topExperiences,
   }
 
   if (existing) {
