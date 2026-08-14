@@ -148,24 +148,47 @@ Burn-rate: up to **5/morning**, but if the backlog > 30, do **10/morning until
 Receipt example: `✅ Step 4 done — fixed Choice page Japan rates (8k→20k Tokyo,
 sourced aa/choice), queued 2 minor Marriott drifts, promoted 1 that hit day 7.`
 
-### Step 5 · 📣 Social & posts (pick ONE)
-One step, **two sub-cards** (different logic, different volume):
-- **Sweepstakes** (usually 3-10) — the snapshot ⭐ is the ranked pick; points/miles
-  giveaways lead (Jill's best format). Avoid re-posting the same program two days
-  running; skip bid-to-win auctions and the HGV timeshare one for social.
-- **Experiences** (usually 0-2) — marquee/points-redeemable ones; be honest
-  bid-vs-redeem, note the Chase-transfer angle.
-Also weigh a deal expiring in 48h (last-chance) and a fresh publishable intel
-angle. Recommend THE one to post today with a one-line why-it-engages + our
-value-add. Draft it only when Jill says go (facebook-post / instagram-post skill).
+### Step 6 · 🔎 Mine today's work for roadmap topics
+Review everything done today (quick takes published, pages fixed, intel rejected,
+things verified) and pull out NEW article topics worth adding to the roadmap.
+Each becomes a `content_ideas` row tagged to a pillar (`roadmap_reviewed=true`),
+or an existing idea gets enriched. Turns the day's work into a compounding
+content pipeline. Show Jill the candidates; add on her nod.
 
-### Step 6 · ✍️ Article (propose-only)
-Pitch the single best article idea from today's intel + `/admin/content-ideas`.
-Write nothing until Jill picks it.
+### Step 6b · ✍️ Write + publish ONE article from the roadmap
+Pick the single highest-value roadmap-backed idea (Program-Guides-first) and
+WRITE it — draft in Jill's voice, fact-check against official sources, show her
+the full draft, publish. One real piece a day. (Supersedes the old propose-only
+step: we write + publish now, not just pitch.)
+
+### Step 7 · ✈️ Changes/Cancellations — next-up airline (1/day)
+Add the "Changes, Cancellations & Delays" section (`programs.changes_policy`) to
+the next-priority airline page — **cadence 1 airline/day**. Verify each against
+the airline's OWN official change/cancel page (no blogs). Priority: United,
+Delta, AA, Alaska/Atmos, Aeroplan, Avios, ANA, Cathay, Emirates, Turkish,
+KrisFlyer, Virgin, LifeMiles… See [[project_award_change_cancel_section]].
+
+### Step 8 · 🎭 New experiences → alerts?
+Review the day's new experiences (snapshot EXPERIENCES section). Any marquee /
+points-redeemable one worth its own alert? Honest bid-vs-redeem; note the
+Chase-transfer angle. Publish only the genuinely alert-worthy (most are just
+directory listings, not alerts).
+
+### Step 9 · 🎁 New sweepstakes review
+Review the day's new sweepstakes (snapshot SWEEPSTAKES section). Points/miles
+giveaways lead. Flag the best for Step 10; keep/dismiss the rest.
+
+### Step 10 · 📣 Social post (pick ONE, LAST)
+The daily social post. Candidates: the ⭐ sweepstakes pick (Step 9), a deal
+expiring in 48h (last-chance), a marquee experience, or today's best published
+quick take / article. Recommend THE one with a one-line why-it-engages + our
+value-add. Draft only on Jill's go (facebook-post / instagram-post skill). We
+always want a daily post.
 
 ### Coverage (folds into Step 4, only if non-empty)
 Source gaps: programs in blog/email intel with no active Scout source. Propose
-adding + live-test Firecrawl→Haiku before adding. Usually 0.
+adding + live-test Firecrawl→Haiku before adding. Usually 0. Google Alerts are
+now auto-quarantined at ingest (mig 625) so they no longer pollute the queues.
 
 ---
 
