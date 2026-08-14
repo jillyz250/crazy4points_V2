@@ -3,7 +3,7 @@ import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Card, CardBody } from '@/components/admin/ui/Card'
 import { Badge } from '@/components/admin/ui/Badge'
 import { EmptyState } from '@/components/admin/ui/EmptyState'
-import { dismissSignal } from './actions'
+import { dismissSignal, snoozeSignal } from './actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,6 +32,8 @@ export default async function ChangeSignalsPage() {
     .from('change_signals')
     .select('*')
     .eq('status', 'new')
+    // Hide snoozed signals until their snooze passes (then they auto-resurface).
+    .or(`snoozed_until.is.null,snoozed_until.lte.${new Date().toISOString()}`)
     .order('confidence', { ascending: true })
     .order('last_seen_at', { ascending: false })
   const signals = (data ?? []) as Signal[]
@@ -72,7 +74,14 @@ export default async function ChangeSignalsPage() {
                   <span style={{ color: 'var(--admin-muted, #4a4a4a)' }}>
                     seen {new Date(s.last_seen_at).toLocaleDateString()}
                   </span>
-                  <form action={dismissSignal} style={{ marginLeft: 'auto' }}>
+                  <form action={snoozeSignal} style={{ marginLeft: 'auto' }}>
+                    <input type="hidden" name="id" value={s.id} />
+                    <input type="hidden" name="days" value="30" />
+                    <button type="submit" className="admin-btn admin-btn-ghost" style={{ fontSize: '0.8125rem' }} title="Hide for 30 days, then auto-resurface (for 'coming soon' changes not live yet)">
+                      Snooze 30d
+                    </button>
+                  </form>
+                  <form action={dismissSignal}>
                     <input type="hidden" name="id" value={s.id} />
                     <button type="submit" className="admin-btn admin-btn-ghost" style={{ fontSize: '0.8125rem' }}>
                       Dismiss

@@ -77,7 +77,7 @@ const intelToTriage = (await q('count intel to triage', db.from('intel_items').s
   .or(`expires_at.is.null,expires_at.gte.${nowIso}`)
   .or(`snoozed_until.is.null,snoozed_until.lte.${nowIso}`))).count
 
-const changeSignals = (await q('count change signals', db.from('change_signals').select('id', { count: 'exact', head: true }).eq('status', 'new'))).count
+const changeSignals = (await q('count change signals', db.from('change_signals').select('id', { count: 'exact', head: true }).eq('status', 'new').or(`snoozed_until.is.null,snoozed_until.lte.${nowIso}`))).count
 const bonusSignals = (await q('count bonus signals', db.from('card_bonus_signals').select('id', { count: 'exact', head: true }).eq('status', 'new'))).count
 const proseReview = (await q('count prose review', db.from('credit_cards').select('id', { count: 'exact', head: true }).not('good_to_know_review_at', 'is', null))).count
 const refreshQueue = (await q('count refresh queue', db.from('admin_refresh_queue').select('*', { count: 'exact', head: true }))).count
@@ -174,6 +174,7 @@ if (updates.length) {
 // ---- Signals + refresh detail ---------------------------------------------
 const changeDetail = (await q('change signal detail', db.from('change_signals')
   .select('summary, program_slug, signal_type, source_name, created_at').eq('status', 'new')
+  .or(`snoozed_until.is.null,snoozed_until.lte.${nowIso}`)
   .order('created_at', { ascending: false }).limit(15))).data
 const bonusDetail = (await q('bonus signal detail', db.from('card_bonus_signals')
   .select('card_slug, card_name, summary, stored_amount, detected_amount, created_at').eq('status', 'new')

@@ -20,3 +20,20 @@ export async function dismissSignal(formData: FormData): Promise<void> {
   await supabase.from('change_signals').update({ status: 'dismissed' }).eq('id', id)
   revalidatePath('/admin/change-signals')
 }
+
+/**
+ * Snooze a signal: hide it from the queue until `days` from now (default 30),
+ * then it auto-resurfaces. For speculative "check back later" signals (a change
+ * announced as "coming soon" but not yet live) that are neither noise nor
+ * actionable today. status stays 'new' — it's still an open item, just deferred.
+ */
+export async function snoozeSignal(formData: FormData): Promise<void> {
+  await assertAdmin()
+  const id = String(formData.get('id') ?? '').trim()
+  if (!id) return
+  const days = parseInt(String(formData.get('days') ?? '30'), 10)
+  const until = new Date(Date.now() + (Number.isFinite(days) ? days : 30) * 86_400_000).toISOString()
+  const supabase = createAdminClient()
+  await supabase.from('change_signals').update({ status: 'new', snoozed_until: until }).eq('id', id)
+  revalidatePath('/admin/change-signals')
+}
