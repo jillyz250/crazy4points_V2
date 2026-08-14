@@ -168,6 +168,40 @@ export async function POST(req: NextRequest) {
   const senderDomain = (payload.from.split('@')[1] ?? '').toLowerCase()
   const senderEmail = payload.from.toLowerCase()
 
+  // --- 6b. Google Alerts → quarantine, don't ingest. You forward these from an
+  // allowlisted address, so they'd otherwise pass. They are aggregator digests
+  // (one-email-one-item, not citable, redundant with Scout's Google News feeds)
+  // that in practice only produced garbled/false items. Route them to the same
+  // quarantine review UI so nothing is lost — a genuinely good story stays
+  // recoverable there (and Scout's real sources almost always catch it too).
+  if (isGoogleAlert(payload.from, payload.subject, urls, bodyText)) {
+    const { data: q, error: qErr } = await supabase
+      .from('intel_email_quarantine')
+      .insert({
+        sender_email: senderEmail,
+        sender_domain: senderDomain,
+        subject: payload.subject ?? null,
+        reason: 'google_alert',
+        raw_payload: {
+          from: payload.from,
+          to: payload.to,
+          subject: payload.subject,
+          html_sanitized: html,
+          text: bodyText.slice(0, RAW_TEXT_CAP),
+          urls,
+          source_tag,
+          email_id: emailId,
+        },
+      })
+      .select('id')
+      .single()
+    if (qErr) await logIngestError('email', 'insert', qErr, { stage: 'quarantine-google-alert' })
+    console.log(
+      `[email-inbound] google-alert quarantined (q=${q?.id ?? 'failed'}): from=${senderEmail} subject=${payload.subject?.slice(0, 60)}`,
+    )
+    return NextResponse.json({ ok: true, quarantined: q?.id ?? null, reason: 'google_alert' })
+  }
+
   const { data: senderRow } = await supabase
     .from('intel_email_senders')
     .select('id, source_id, active')
@@ -425,6 +459,26 @@ function extractSourceTag(recipient: string): { source_tag: string | null; norma
 
 function stripHtmlForText(html: string): string {
   return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
+/**
+ * Detect a forwarded Google Alert. Strongest signal is a google.com/alerts
+ * link (present on every Google Alert email as the tracking/source URL, and
+ * exactly what showed up as source_url on the noise items). Also catches the
+ * native sender and the "Google Alert - ..." subject in case one is forwarded
+ * without link rewriting.
+ */
+function isGoogleAlert(
+  from: string,
+  subject: string | null,
+  urls: string[],
+  bodyText: string,
+): boolean {
+  const f = (from || '').toLowerCase()
+  if (f.includes('googlealerts-noreply@google.com') || f.includes('googlealerts')) return true
+  if ((subject || '').toLowerCase().startsWith('google alert')) return true
+  const hay = `${urls.join(' ')} ${bodyText.slice(0, 3000)}`.toLowerCase()
+  return /google\.com\/alerts/.test(hay)
 }
 
 /**
