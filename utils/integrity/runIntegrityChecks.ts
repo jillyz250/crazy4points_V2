@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { TransferPartnerRow } from '@/utils/supabase/queries'
-import { bonusDaysRemaining, isBonusActive } from '@/utils/programs/transferBonus'
+import { bonusDaysRemaining, isBonusActive, todayISO } from '@/utils/programs/transferBonus'
 import { diagnoseBucketTypicalCost } from '@/lib/awardChart.compute'
 import type { AwardChartProgram, Cabin } from '@/lib/awardChart'
 import type { RouteBucket } from '@/lib/airports'
@@ -369,6 +369,72 @@ async function checkAwardChartHealth(supabase: SupabaseClient): Promise<Integrit
   return out
 }
 
+/**
+ * Alert ⟷ program-page bonus reconciliation (the gap behind the 2026-08-14
+ * Citi→Turkish miss: a 40% bonus was live as a published alert while the Citi
+ * page's flag was OFF, so it was invisible on the program page and nothing
+ * flagged it). checkTransferBonusExpiry handles the page→date direction; this
+ * handles the alert→page direction:
+ *  - 'transfer_bonus_alert_not_on_page' (med): a published, unexpired
+ *    transfer-bonus alert that NO active program-page flag links to.
+ *  - 'transfer_bonus_flag_no_alert' (low): an active page flag with no
+ *    bonus_alert_slug, so its badge links nowhere.
+ */
+async function checkTransferBonusAlertPageSync(supabase: SupabaseClient): Promise<IntegrityFinding[]> {
+  const out: IntegrityFinding[] = []
+  const today = todayISO()
+
+  // Live (published, unexpired) transfer-bonus alerts. Match by TITLE, not
+  // action_type: these alerts inconsistently use 'monitor' AND 'transfer'
+  // (Turkish + Flying Blue are 'monitor'), so an action_type filter would miss
+  // the exact case this check exists for. A transfer-bonus title reads as both
+  // "transfer" and "bonus".
+  const { data: alerts } = await supabase
+    .from('alerts')
+    .select('title, short_slug, end_date')
+    .eq('status', 'published')
+    .ilike('title', '%bonus%')
+  const liveBonusAlerts = ((alerts ?? []) as { title: string | null; short_slug: string | null; end_date: string | null }[])
+    .filter((a) => !!a.short_slug && /transfer/i.test(a.title ?? '') && /bonus/i.test(a.title ?? '') && (!a.end_date || a.end_date.slice(0, 10) >= today))
+
+  // Every bonus_alert_slug referenced by a currently-active page flag.
+  const { data: progs } = await supabase
+    .from('programs')
+    .select('slug, transfer_partners_outbound')
+    .not('transfer_partners_outbound', 'is', null)
+  const activeFlagSlugs = new Set<string>()
+  for (const p of (progs ?? []) as ProgramRow[]) {
+    for (const row of p.transfer_partners_outbound ?? []) {
+      if (!isBonusActive(row)) continue
+      const slug = (row as { bonus_alert_slug?: string | null }).bonus_alert_slug
+      if (slug) activeFlagSlugs.add(slug)
+      else {
+        out.push({
+          check: 'transfer_bonus_flag_no_alert',
+          severity: 'low',
+          programSlug: p.slug,
+          detail: `Active bonus flag for "${row.from_slug}" has no bonus_alert_slug — its badge links nowhere. Link it to the published alert.`,
+        })
+      }
+    }
+  }
+
+  // Direction B: a live bonus alert that no active page flag points to.
+  for (const a of liveBonusAlerts) {
+    if (!activeFlagSlugs.has(a.short_slug as string)) {
+      out.push({
+        check: 'transfer_bonus_alert_not_on_page',
+        severity: 'med',
+        programSlug: null,
+        href: `/alerts/${a.short_slug}`,
+        label: a.short_slug as string,
+        detail: `Live transfer-bonus alert "${(a.title ?? '').slice(0, 60)}" (ends ${a.end_date?.slice(0, 10) ?? 'n/a'}) isn't reflected on any program page — flip the currency's transfer_partners_outbound bonus flag on so it shows on the program page.`,
+      })
+    }
+  }
+  return out
+}
+
 export async function runIntegrityChecks(supabase: SupabaseClient): Promise<IntegrityFinding[]> {
   const { data, error } = await supabase
     .from('programs')
@@ -494,6 +560,9 @@ export async function runIntegrityChecks(supabase: SupabaseClient): Promise<Inte
   // CHECK: transfer-bonus flags expiring soon / past their end date / active
   // with no end date (can't auto-expire).
   findings.push(...(await checkTransferBonusExpiry(supabase)))
+
+  // Alert ⟷ page bonus reconciliation (2026-08-14 Turkish gap).
+  findings.push(...(await checkTransferBonusAlertPageSync(supabase)))
 
   // CHECK: inbound/outbound bonus-flag drift between a currency and a
   // destination program's page mirror.
