@@ -118,6 +118,7 @@ export const PLATFORM_TRACK: PlatformItem[] = [
   { title: 'Content-roadmap dashboard', detail: 'progress + up-next, this page', status: 'done' },
   { title: 'AEO foundation (flavor C, now)', detail: 'llms.txt, HowTo/FAQ/ItemList schema, reference-style guide sections (What this covers / Key facts / Definitions / Sources), consistent slugs', status: 'next' },
   { title: 'Program-page guide cross-linking', detail: 'every program page shows its guides + a beginner pointer', status: 'next' },
+  { title: 'Changes/Cancellations section — all airlines', detail: 'backfill programs.changes_policy across ~106 airline pages (Flying Blue piloted, PR #1197). Prioritize the top redemption currencies (United, Delta, AA, Alaska/Atmos, Aeroplan, Avios, ANA, Cathay, Emirates, Turkish, KrisFlyer, Virgin, LifeMiles); verify each vs the airline official page. Long-tail carriers low priority.', status: 'next' },
   { title: 'Perk-chain system (the moat)', detail: 'evolve chains from a list into a queryable directory + stack builder ("what do my cards unlock?") — loyalty as a graph, not a list', status: 'next' },
   { title: 'Structured glossary', detail: 'every term a citation target for AI answers', status: 'planned' },
   { title: 'Per-chain canonical pages', detail: 'each chain its own AEO page: graph, requirements, official sources, variants', status: 'planned' },
