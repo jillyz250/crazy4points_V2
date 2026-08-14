@@ -145,6 +145,20 @@ Drift **SLA**: nothing sits > 7 days — anything older auto-promotes to Fix-NOW
 Burn-rate: up to **5/morning**, but if the backlog > 30, do **10/morning until
 < 20**. Fixing a page = verify vs the issuer's own page, fix, resolve at
 `/admin/program-drift`. Never fix from a blog.
+
+**DIGEST SYNC — do not skip drift + change_signals here.** Jill's daily digest
+(`buildDigest.ts`) is built from the SAME monitors this step works: change_signals
++ program-fact drift + card_bonus_signals. If you skip them here, they surface in
+her digest as "alerts we never discussed" (the disconnect she flagged 2026-08-14).
+Work them so the digest can never show something the ritual skipped. Fast patterns:
+most drift is **transient-promo false-positives** — a bonus/% flagged as a "page
+contradiction," but we never put promos on program pages (they're alerts), so
+resolve those `false_positive` in bulk; **already-on-page** facts (the detector is
+fuzzy) resolve too; verify only the genuinely-distinct few vs the issuer. For a
+"coming soon / not live yet" change_signal, **Snooze 30d** (auto-resurfaces) rather
+than dismiss. Google Alerts are auto-quarantined at ingest now (mig 625), but the
+existing backlog + the quarantine bucket should be skimmed — GA occasionally
+surfaces a real gem (verify vs official before using).
 Receipt example: `✅ Step 4 done — fixed Choice page Japan rates (8k→20k Tokyo,
 sourced aa/choice), queued 2 minor Marriott drifts, promoted 1 that hit day 7.`
 
