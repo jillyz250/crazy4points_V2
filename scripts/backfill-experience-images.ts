@@ -9,7 +9,7 @@
  * stay polite to Firecrawl + the source sites.
  */
 import { createAdminClient } from '@/utils/supabase/server'
-import { isPresaleListing } from '@/lib/experiences/presale'
+import { isPointsExperience, type MarqueeListing } from '@/lib/experiences/marquee'
 import { scrapeListingImage } from '@/utils/experiences/scrapeListingImage'
 
 async function main() {
@@ -20,13 +20,14 @@ async function main() {
   const sb = createAdminClient()
   const { data } = await sb
     .from('experience_listings')
-    .select('id, title, category, detail_url, image_url')
+    .select('id, title, category, format, points_required, current_bid, minimum_bid, detail_url, image_url')
     .eq('status', 'active')
   let targets = (data ?? []).filter((e) => e.detail_url && !e.image_url)
-  if (!all) targets = targets.filter((e) => !isPresaleListing(e.category as string | null))
+  // default: points experiences (the gallery/finder need them); --all = everything
+  if (!all) targets = targets.filter((e) => isPointsExperience(e as unknown as MarqueeListing))
   if (limit > 0) targets = targets.slice(0, limit)
 
-  console.log(`backfilling images for ${targets.length} listing(s)${all ? ' (incl. presales)' : ' (marquee only)'}...`)
+  console.log(`backfilling images for ${targets.length} listing(s)${all ? ' (incl. presales)' : ' (points experiences)'}...`)
   let hit = 0
   let miss = 0
   for (const t of targets) {

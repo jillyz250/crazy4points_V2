@@ -118,12 +118,28 @@ h6 {
   font-family: var(--font-display);
   color: var(--color-primary);
   line-height: 1.2;
-  margin: 0;
 }
 
 p {
-  margin: 0;
   color: var(--color-text-secondary);
+}
+
+/* Default margin reset for headings/paragraphs lives in @layer base so Tailwind
+   utilities (@layer utilities, which wins over base) can override it. Previously
+   this reset was UNLAYERED, and unlayered rules beat layered utilities, which
+   silently killed every margin spacing class (mb, mt, my) on headings and
+   paragraphs site-wide. Keeping the reset as the default preserves existing
+   zero-margin layouts; only elements that explicitly set a margin utility change. */
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  p {
+    margin: 0;
+  }
 }
 
 a {
