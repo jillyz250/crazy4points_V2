@@ -142,7 +142,7 @@ function dupeHeadline(h) {
 
 // ---- Fresh intel (last 36h, still open) -----------------------------------
 const freshIntel = (await q('fresh intel', db.from('intel_items')
-  .select('headline, source_name, source_type, programs, confidence, alert_type, expires_at, created_at, confirmation_count, confirming_sources')
+  .select('id, headline, source_name, source_type, programs, confidence, alert_type, expires_at, created_at, confirmation_count, confirming_sources')
   .eq('processed', false).is('rejected_at', null).is('archived_at', null).is('triage_decision', null)
   .gte('created_at', since36).order('created_at', { ascending: false }))).data
 
@@ -313,6 +313,7 @@ console.log(`FRESH INTEL — last 36h, still needing a decision (${freshIntel.le
 if (!freshIntel.length) console.log('  (none — queue clear)')
 let lowSignal = 0
 let idupCount = 0
+const dupeIds = []       // ids of items flagged LIKELY DUPE — for the ready reject command
 const autoHandled = []   // flag-only collapse candidates (non-US / recurring-sale)
 const pageAffFacts = []  // facts that must trigger a page check regardless of verdict
 for (const r of freshIntel) {
@@ -347,11 +348,16 @@ for (const r of freshIntel) {
   if (pageAff) pageAffFacts.push(`[${r.alert_type}|${progs || '?'}] ${(r.headline || '').slice(0, 60)}`)
   console.log(`  - [${(r.source_type || '?').padEnd(8)}|${(r.confidence || '?').padEnd(6)}]${official}${expd} ${(r.headline || '').slice(0, 72)}${mk}${warn}${cc}`)
   const idup = dupeHeadline(r.headline)
-  if (idup) { idupCount++; console.log(`      <<LIKELY DUPE ${(idup.score * 100).toFixed(0)}% of published: "${(idup.match.title || '').slice(0, 50)}">> — reject unless genuinely new`) }
-  console.log(`      src=${r.source_name || '?'}  type=${r.alert_type || '?'}  programs=[${progs}]  exp=${r.expires_at ? r.expires_at.slice(0, 10) : '-'}`)
+  if (idup) { idupCount++; dupeIds.push(r.id); console.log(`      <<LIKELY DUPE ${(idup.score * 100).toFixed(0)}% of published: "${(idup.match.title || '').slice(0, 50)}">> — reject unless genuinely new`) }
+  // id printed so triage decisions act on the EXACT row (never a re-derived
+  // substring match — that once over-rejected 5 non-dupes). Feed to
+  // scripts/triage-apply.mjs --reject/--newsletter/--snooze <id...>.
+  console.log(`      id=${r.id}  src=${r.source_name || '?'}  type=${r.alert_type || '?'}  programs=[${progs}]  exp=${r.expires_at ? r.expires_at.slice(0, 10) : '-'}`)
 }
 if (idupCount) {
   console.log(`  >> ${idupCount} of ${freshIntel.length} look like DUPES of already-published alerts — bulk-reject those first, then triage the rest.`)
+  console.log(`     REJECT ALL FLAGGED DUPES → node scripts/triage-apply.mjs --reject ${dupeIds.join(' ')} --reason "duplicate of live alert"`)
+  console.log(`     (review the list first — flags are fuzzy; drop any genuinely-new item before running)`)
 }
 if (lowSignal) {
   console.log(`  NOTE: ${lowSignal} low-signal item(s) (confidence=low and/or no program).`)

@@ -188,6 +188,18 @@ imports `@/…` must live INSIDE the repo (copy to `scripts/_tmp-*.ts`, run, del
 for the alias + node_modules to resolve. Alert writes go through `writeAlertVariant`
 / the content_variants pipeline — the `alerts` mirror blocks direct writes (G6).
 
+**REJECT/NEWSLETTER/SNOOZE intel by ID, never by substring.** Use
+`node scripts/triage-apply.mjs --reject|--newsletter|--snooze <ids> [--reason … | --until …]`
+with the exact `id=` values the snapshot prints beside each item (the snapshot
+also prints a ready `REJECT ALL FLAGGED DUPES →` command). NEVER hand-write a
+throwaway script that matches on a headline substring — on 2026-08-14 a
+`headline.includes('aeroplan')` filter over-rejected 5 non-dupes (a $2.5B stake
+sale, partnership news) alongside the real re-forwards. **Rule: when a targeted
+action returns 0 rows or errors, diagnose the target (wrong column? exact string?)
+— do NOT broaden the filter to "just make it work."** The intel column is
+`headline`, not `title`. `--dry` previews; prefixes need 8+ chars and must be
+unambiguous or the run aborts.
+
 - **PUBLISH (new)** → `writeAlertVariant({status:'published', short_slug, title,
   summary, description, type, action_type, primary_program_id, program_slugs,
   end_date, source_url, …})`. Guardrails learned the hard way: `action_type` must
