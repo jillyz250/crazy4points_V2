@@ -96,9 +96,13 @@ one (a deal's last day). Same verdicts as Step 1.
 Never hard-delete unless it's junk. Do it in one bulk update when Jill says so.
 
 ### Step 3 · 🔥 Decisions (the core) — batch the noise, then ONE publish-candidate at a time
-Feeds: fresh intel + pending drafts + transfer-data + welcome-bonus signals. The
-snapshot marks each item (🇺🇸 US-signal + 🆕 new-program = ALWAYS a real decision,
-never collapse; ⤵ = auto-handled candidate). Split the work in two:
+Feeds: fresh intel + pending drafts + transfer-data + welcome-bonus signals +
+**experiences worth an alert** (snapshot's `EXPERIENCES WORTH AN ALERT` block —
+dreamy, points-priced, closing-soonest first) + **newsletter items expiring soon**
+(snapshot's `NEWSLETTER ITEMS EXPIRING SOON` block — parked newsletter ideas with
+a deadline in the next 10 days). The snapshot marks each item (🇺🇸 US-signal + 🆕
+new-program = ALWAYS a real decision, never collapse; ⤵ = auto-handled candidate).
+Split the work in two:
 
 **Step 3a — clear the non-publish pile in ONE batch (nothing here needs a draft).**
 Present these as short groups for a single confirm — do NOT walk them one at a time:
@@ -128,6 +132,15 @@ anything goes live. ALWAYS. Never publish an alert she hasn't seen.** She approv
 or edits; only then publish via the content_variants pipeline (clean `short_slug`)
 and fix the **needs fixing** page as part of publishing. Receipt, then the NEXT
 candidate. One at a time — never batch the publish candidates.
+
+**Experience + newsletter-expiring candidates** (the two new feeds) are walked here
+too, one at a time, verified against the official source first:
+- **Experience worth an alert** → Jill picks **PUBLISH** (full alert), **QUICK-TAKE**
+  (short depth='quick' alert), or **SKIP**. Whatever she picks, set that listing's
+  `editorial_reviewed_at=now` so it leaves the morning list AND clears the /admin
+  experiences review queue. Niche ticket auctions are never surfaced here.
+- **Newsletter item expiring soon** → **PUBLISH now** (draft it, promote to an alert
+  before the deadline), **keep for newsletter** (leave as-is), or **REJECT**.
 
 ### Step 4 · 📄 Page accuracy (the guarantee — never skipped when facts exist)
 **Every page-affecting fact updates its page, whether or not we published it.**
