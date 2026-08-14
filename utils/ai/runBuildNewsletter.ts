@@ -111,6 +111,20 @@ export async function getNewsletterInputs(
   }
   const rankOf = (a: (typeof alertViewRows)[number]): number =>
     (a.impact_score ?? 0) + freshBoost(a.published_at) - (recentlyCoveredIds.has(a.id) ? 100 : 0)
+  const toInput = (a: (typeof alertViewRows)[number]): NewsletterAlertInput => ({
+    id: a.id,
+    slug: a.slug ?? null,
+    title: a.title,
+    summary: a.summary ?? null,
+    ai_summary: null, // legacy field never actually existed on alerts; kept null for shape compat
+    why_this_matters: a.why_this_matters ?? null,
+    description: a.description ?? null,
+    published_at: a.published_at ?? null,
+    end_date: a.end_date ?? null,
+    alert_type: a.type ?? null,
+    impact_score: a.impact_score ?? null,
+    recently_covered: recentlyCoveredIds.has(a.id),
+  })
   const alerts: NewsletterAlertInput[] = alertViewRows
     .filter((a) => a.published_at)
     .sort((a, b) => {
@@ -119,20 +133,22 @@ export async function getNewsletterInputs(
       return (b.published_at ?? '').localeCompare(a.published_at ?? '')
     })
     .slice(0, 12)
-    .map((a) => ({
-      id: a.id,
-      slug: a.slug ?? null,
-      title: a.title,
-      summary: a.summary ?? null,
-      ai_summary: null, // legacy field never actually existed on alerts; kept null for shape compat
-      why_this_matters: a.why_this_matters ?? null,
-      description: a.description ?? null,
-      published_at: a.published_at ?? null,
-      end_date: a.end_date ?? null,
-      alert_type: a.type ?? null,
-      impact_score: a.impact_score ?? null,
-      recently_covered: recentlyCoveredIds.has(a.id),
-    }))
+    .map(toInput)
+
+  // A locked headline / Sweet Spot MUST be in the pool so the builder has its
+  // content to write from — even if it's a low-impact evergreen story the editor
+  // deliberately chose to lead (e.g. a free-tool benefit). Without this, the ref
+  // is set but the Big Story prose is written about a different alert.
+  const { data: lockRow } = await supabase
+    .from('newsletters')
+    .select('big_story_ref_id, sweet_spot_ref_id')
+    .eq('week_of', weekOf)
+    .maybeSingle()
+  for (const lockedId of [lockRow?.big_story_ref_id, lockRow?.sweet_spot_ref_id]) {
+    if (!lockedId || alerts.some((a) => a.id === lockedId)) continue
+    const locked = alertViewRows.find((a) => a.id === lockedId)
+    if (locked) alerts.unshift(toInput(locked))
+  }
 
   const newsletter_ideas: NewsletterIdeaInput[] = (newsletterIdeasRes.data ?? []).map((i) => ({
     id: i.id,
