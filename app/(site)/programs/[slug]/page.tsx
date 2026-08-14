@@ -389,6 +389,7 @@ export default async function ProgramPage({
             ...((program.tier_benefits?.length ?? 0) > 0 ? [{ id: 'tiers', label: 'Tiers' }] : []),
             ...((program.free_night_certs?.length ?? 0) > 0 && program.type !== 'alliance' ? [{ id: 'free-night-certs', label: 'Free nights' }] : []),
             ...(program.lounge_access ? [{ id: 'lounge-access', label: 'Lounges' }] : []),
+            ...(program.changes_policy && program.type !== 'alliance' ? [{ id: 'changes', label: 'Changes' }] : []),
             ...(program.quirks ? [{ id: 'quirks', label: 'Tips' }] : []),
             ...(properties.length > 0 ? [{ id: 'properties', label: 'Hotels' }] : []),
             ...(earnIntoCards.length > 0 ? [{ id: 'earn-into', label: 'Cards' }] : []),

@@ -300,6 +300,9 @@ export interface Program {
   marquee_pitch_source_url: string | null
   quirks: string | null
   how_to_spend: string | null
+  /** Markdown: how to change/cancel an award, fees, delay/involuntary rules,
+   *  phone numbers. Rendered as the "Changes, Cancellations & Delays" tile. */
+  changes_policy: string | null
   tier_benefits: TierBenefitRow[] | null
   lounge_access: string | null
   alliance: Alliance | null

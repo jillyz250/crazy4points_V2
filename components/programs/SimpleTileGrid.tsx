@@ -81,6 +81,7 @@ export default async function SimpleTileGrid({
   const hasSweetSpots = !!program.sweet_spots?.trim()
   const hasQuirks = !!program.quirks?.trim()
   const hasHowToSpend = !!program.how_to_spend?.trim() && !isAlliance
+  const hasChanges = !!program.changes_policy?.trim() && !isAlliance
   const hasTiers = (program.tier_benefits?.length ?? 0) > 0
   const hasLounge = !!program.lounge_access?.trim()
 
@@ -92,6 +93,7 @@ export default async function SimpleTileGrid({
     !hasSweetSpots &&
     !hasQuirks &&
     !hasHowToSpend &&
+    !hasChanges &&
     !hasTiers &&
     !hasLounge
   ) {
@@ -111,6 +113,7 @@ export default async function SimpleTileGrid({
       )
     : []
   const howToSpendHtml = hasHowToSpend ? await renderProseMarkdown(program.how_to_spend) : null
+  const changesHtml = hasChanges ? await renderProseMarkdown(program.changes_policy) : null
   const loungeAccessHtml = hasLounge ? await renderProseMarkdown(program.lounge_access) : null
 
   const partnerCount = inboundCount
@@ -268,6 +271,18 @@ export default async function SimpleTileGrid({
           preview="The smart-money plays."
         >
           <div className="rg-prose" dangerouslySetInnerHTML={{ __html: howToSpendHtml }} />
+        </SimpleTile>
+      )}
+
+      {changesHtml && (
+        <SimpleTile
+          id="changes"
+          title="Changes, Cancellations & Delays"
+          description="What to do when plans move: how to change or cancel an award, the fees, and your rights when a flight is delayed."
+          cta="Know before you call"
+          preview="When plans change."
+        >
+          <div className="rg-prose" dangerouslySetInnerHTML={{ __html: changesHtml }} />
         </SimpleTile>
       )}
 
