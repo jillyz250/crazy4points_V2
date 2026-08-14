@@ -140,12 +140,15 @@ async function loadStats() {
     // EXCEPTION: Marriott Bonvoy Moments are music/sports/entertainment themed but
     // are real points experiences (you bid/redeem points), so Jill reviews them.
     // Filtering happens in JS below (category values are messy).
+    // NO time window: an experience stays in this count until Jill has LOOKED at it
+    // (editorial_reviewed_at set) — deciding one in the morning routine clears it.
+    // Only still-bookable ones (not past their close date) count.
     supabase
       .from('experience_listings')
       .select('title, detail_url, first_seen_at, category, program_slug, editorial_reviewed_at')
       .eq('status', 'active')
       .is('editorial_reviewed_at', null)
-      .gte('first_seen_at', since)
+      .or(`close_date.is.null,close_date.gte.${new Date().toISOString()}`)
       .order('first_seen_at', { ascending: false }),
     // Sweepstakes currently running (the daily sweepstakes-watch feeds this).
     supabase.from('sweepstakes').select('id', { count: 'exact', head: true }).eq('status', 'running'),
