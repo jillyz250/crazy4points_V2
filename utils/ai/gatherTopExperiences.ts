@@ -1,5 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { TopExperienceItem } from './newsletterSlots'
+import { tierOf } from '@/lib/experiences/marquee'
+import { isPresaleListing } from '@/lib/experiences/presale'
+
+// Only genuinely aspirational categories belong in the newsletter — the dreamy
+// stuff, not city bike rentals or ballgame tickets.
+const DREAMY_EXP = /travel|culinar|dining|wellness|adventure|cruise|luxur|money|tour|safari|retreat/i
 
 /**
  * Build the newsletter "Money Can't Buy: New Experiences" section from the
@@ -22,7 +28,6 @@ import type { TopExperienceItem } from './newsletterSlots'
  */
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-const FRESH_DAYS = 10
 // Tight shortlist — the section is meant to be 2-3 picks, not a firehose. The
 // editor trims from here.
 const CAP = 4
@@ -49,6 +54,9 @@ interface ListingRow {
   close_date: string | null
   location: string | null
   detail_url: string | null
+  category: string | null
+  image_url: string | null
+  first_seen_at: string | null
 }
 
 function isNewYork(r: ListingRow): boolean {
@@ -118,24 +126,33 @@ export async function getTopExperiences(supabase: SupabaseClient): Promise<TopEx
   // close_date is a cutoff INSTANT, so compare to now (not today's date) — a
   // listing closing "Aug 10 00:00" is already done on Aug 10.
   const nowIso = now.toISOString()
-  const freshSince = new Date(now.getTime() - FRESH_DAYS * 24 * 60 * 60 * 1000).toISOString()
 
   const { data } = await supabase
     .from('experience_listings')
     .select(
-      'title, source_platform, format, points_required, current_bid, minimum_bid, event_date, close_date, location, detail_url, first_seen_at, status',
+      'title, source_platform, format, points_required, current_bid, minimum_bid, event_date, close_date, location, detail_url, category, image_url, first_seen_at, status',
     )
     .eq('status', 'active')
     .in('format', ['redeem', 'bid'])
-    .gte('first_seen_at', freshSince)
     .or(`close_date.is.null,close_date.gte.${nowIso}`)
 
   const rows = (data ?? []) as (ListingRow & { first_seen_at: string })[]
 
-  // Keep only genuine points plays (a redeem with a price, or any bid).
+  // QUALITY GATE — good ones only. Keep genuine points plays that are:
+  //  - actually aspirational (dreamy category: travel/culinary/wellness/cruise…),
+  //  - NOT ticket-themed (sports/concerts/shows),
+  //  - feature-tier (drops filler like city bike rentals + not-yet-live TEASERs),
+  //  - imaged (a photo means it reads well in the email).
+  // Freshness is a preference in the sort, not a hard cutoff, so an awesome
+  // evergreen experience isn't excluded just for being older than 10 days.
   const eligible = rows.filter((r) => {
-    if (r.format === 'bid') return true
-    return typeof r.points_required === 'number' && r.points_required > 0
+    const isPoints = r.format === 'bid' || (typeof r.points_required === 'number' && r.points_required > 0)
+    if (!isPoints) return false
+    if (isPresaleListing(r.category)) return false
+    if (!DREAMY_EXP.test(r.category ?? '')) return false
+    if (tierOf(r.title ?? '') !== 'feature') return false
+    if (!r.image_url) return false
+    return true
   })
 
   // Collapse same-event listings that differ only by date/price (e.g. the same
@@ -164,20 +181,18 @@ export async function getTopExperiences(supabase: SupabaseClient): Promise<TopEx
   }
   const deduped = [...bestByEvent.values()]
 
-  // New York metro first (audience is NY-heavy), then redeem before bid, then
-  // soonest close first (nulls last), then cheapest as a stable tiebreak.
+  // Everything here already passed the quality gate, so: New York metro first
+  // (audience is NY-heavy, but a non-NY pick is fine since they're all dreamy),
+  // then freshest first (recently-added leads), then redeem before bid.
   const rank = (r: ListingRow) => (r.format === 'redeem' ? 0 : 1)
   deduped.sort((a, b) => {
     const nyA = isNewYork(a) ? 0 : 1
     const nyB = isNewYork(b) ? 0 : 1
     if (nyA !== nyB) return nyA - nyB
-    if (rank(a) !== rank(b)) return rank(a) - rank(b)
-    const ca = a.close_date ?? '9999-12-31'
-    const cb = b.close_date ?? '9999-12-31'
-    if (ca !== cb) return ca.localeCompare(cb)
-    const pa = a.points_required ?? a.current_bid ?? a.minimum_bid ?? Number.MAX_SAFE_INTEGER
-    const pb = b.points_required ?? b.current_bid ?? b.minimum_bid ?? Number.MAX_SAFE_INTEGER
-    return pa - pb
+    const fa = a.first_seen_at ?? ''
+    const fb = b.first_seen_at ?? ''
+    if (fa !== fb) return fb.localeCompare(fa) // freshest first
+    return rank(a) - rank(b)
   })
 
   return deduped.slice(0, CAP).map(toItem)

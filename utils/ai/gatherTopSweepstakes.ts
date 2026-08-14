@@ -63,10 +63,31 @@ export async function getTopSweepstakes(supabase: SupabaseClient): Promise<TopSw
     .or(`ends_at.is.null,ends_at.gte.${today}`)
     // Soonest deadline first (most urgent), undated ones last.
     .order('ends_at', { ascending: true, nullsFirst: false })
-    .limit(CAP)
+    .limit(40) // over-fetch; we dedup by prize below, then cap
 
   const rows = (data ?? []) as SweepRow[]
-  return rows.map((r) => ({
+
+  // Show variety, not three copies of the same giveaway. A dozen AAdvantage team
+  // "Perks" sites all give away "100,000 AAdvantage miles" — collapse identical
+  // prizes to one (keeping the soonest-ending, since rows are already deadline-
+  // sorted). Key on the normalized prize with the specific team/program stripped.
+  const prizeKey = (r: SweepRow) =>
+    (r.prize || r.title || '')
+      .toLowerCase()
+      .replace(/[®™]/g, '')
+      .replace(/\d+/g, '#') // 100,000 and 100000 collapse together
+      .replace(/\s+/g, ' ')
+      .trim()
+  const seen = new Set<string>()
+  const deduped: SweepRow[] = []
+  for (const r of rows) {
+    const k = prizeKey(r)
+    if (seen.has(k)) continue
+    seen.add(k)
+    deduped.push(r)
+  }
+
+  return deduped.slice(0, CAP).map((r) => ({
     program: (r.program ?? '').trim(),
     title: (r.title ?? '').trim(),
     prize: r.prize ? String(r.prize).trim() : null,
