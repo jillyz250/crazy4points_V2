@@ -129,9 +129,18 @@ export default async function ExperiencesPage() {
       </section>
 
       <div className="rg-container">
+        {/* Quick-jump nav so the non-U.S. block (and the rest) are reachable without
+            scrolling past the long U.S. gallery. */}
+        <nav aria-label="Jump to a section" className="flex flex-wrap gap-2 py-6">
+          {us.length > 0 && <JumpPill href="#in-the-us" label="In the U.S." />}
+          {intl.length > 0 && <JumpPill href="#beyond-us" label="Beyond the U.S." />}
+          <JumpPill href="#browse" label="Browse all" />
+          <JumpPill href="#programs" label="Programs" />
+        </nav>
+
         {/* Featured — U.S. */}
         {us.length > 0 && (
-          <section className="rg-sub-section">
+          <section id="in-the-us" className="rg-sub-section scroll-mt-24">
             <SectionHead title="Featured in the U.S." count={us.length} />
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {us.map((g) => (
@@ -143,7 +152,7 @@ export default async function ExperiencesPage() {
 
         {/* Featured — non-U.S. */}
         {intl.length > 0 && (
-          <section className="rg-sub-section">
+          <section id="beyond-us" className="rg-sub-section scroll-mt-24">
             <SectionHead title="Featured beyond the U.S." count={intl.length} />
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {intl.map((g) => (
@@ -155,7 +164,7 @@ export default async function ExperiencesPage() {
 
         {/* Browse all — the full catalog (points experiences + presales), filterable */}
         {finderListings.length > 0 && (
-          <section className="rg-sub-section">
+          <section id="browse" className="rg-sub-section scroll-mt-24">
             <SectionHead title="Browse every experience" count={finderListings.length} />
             <p className="mb-5 max-w-2xl font-body text-sm text-[var(--color-text-secondary)]">
               Every experience we&apos;re tracking, from points redemptions and auctions to cardholder
@@ -166,7 +175,7 @@ export default async function ExperiencesPage() {
         )}
 
         {/* Directory footer — the quiet "how to access them all" */}
-        <section className="rg-sub-section">
+        <section id="programs" className="rg-sub-section scroll-mt-24">
           <SectionHead title="Every program & how it works" />
           <p className="mb-6 max-w-2xl font-body text-sm text-[var(--color-text-secondary)]">
             The full list of programs that trade points, miles, or cardholder status for experiences, split
@@ -182,6 +191,17 @@ export default async function ExperiencesPage() {
         </p>
       </div>
     </main>
+  )
+}
+
+function JumpPill({ href, label }: { href: string; label: string }) {
+  return (
+    <a
+      href={href}
+      className="rg-tap-target inline-flex items-center rounded-full border border-[var(--color-border-soft)] px-4 py-2 font-ui text-sm text-[var(--color-primary)] transition-colors hover:border-[var(--color-accent)] hover:bg-[var(--color-background-soft)]"
+    >
+      {label}
+    </a>
   )
 }
 
