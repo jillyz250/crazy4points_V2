@@ -36,6 +36,10 @@ export interface NewsletterAlertInput {
   end_date: string | null
   alert_type: string | null
   impact_score: number | null
+  /** True if we featured this story as a newsletter headline / Jill's Take /
+   *  Sweet Spot recently (content_usage ledger). The AI must NOT reuse it as the
+   *  Big Story or Sweet Spot — it may still appear in Also Happening / Live Offers. */
+  recently_covered?: boolean
 }
 
 export interface NewsletterIdeaInput {
@@ -190,6 +194,7 @@ INPUT contains:
 
 the_headline:
 - The single most important alert. Highest impact_score, ties broken by recency.
+- NEVER choose an alert with "recently_covered": true — we already featured it as a headline/Sweet Spot and must not repeat ourselves. Pick the best story that is NOT recently_covered.
 - MUST be from input alerts. Reuse the exact id.
 
 quick_wins (2-3 items):

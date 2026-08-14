@@ -505,6 +505,24 @@ for (const it of nlExpiring) {
 }
 if (nlExpiring.length) console.log('  -> per one: PUBLISH now (before it expires) / keep for newsletter / REJECT.')
 
+// ---- Recently covered (content_usage ledger) — don't repeat ----------------
+// The running list of stories we've already published per channel. The newsletter
+// builder auto-avoids reusing a recent headline/Sweet Spot/Jill's Take; this view
+// is mainly so social picks don't repeat a recent post.
+const since30d = new Date(Date.now() - 30 * 86_400_000).toISOString()
+const usage = (await q('recently covered', db.from('content_usage')
+  .select('channel, title, ref_slug, used_at')
+  .gte('used_at', since30d)
+  .order('used_at', { ascending: false })
+  .limit(80))).data
+const usedSocial = (usage || []).filter((u) => u.channel === 'social')
+const usedHeads = (usage || []).filter((u) => u.channel === 'newsletter_headline')
+console.log('\n' + B)
+console.log("RECENTLY COVERED (last 30d) — don't repeat:")
+console.log(`  social posts (${usedSocial.length}):`)
+usedSocial.slice(0, 10).forEach((u) => console.log(`    ${String(u.used_at).slice(5, 10)} ${(u.title || u.ref_slug || '?').slice(0, 52)}`))
+if (usedHeads.length) console.log(`  newsletter headlines (${usedHeads.length}) + Sweet Spots are auto-blocked from repeating in the builder`)
+
 // ---- Sweepstakes post candidates (the daily social opportunity) ------------
 console.log('\n' + B)
 console.log(`SWEEPSTAKES — post candidates, ranked by content + soonest deadline (${sweeps.length} unposted):`)

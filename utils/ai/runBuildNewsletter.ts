@@ -21,6 +21,7 @@ import {
 import { buildNewsletterSlots } from './buildNewsletterSlots'
 import { verifyNewsletterDraft } from './verifyNewsletterDraft'
 import { isBonusActive } from '@/utils/programs/transferBonus'
+import { getRecentlyUsed, syncContentUsageFromHistory } from '@/utils/content/contentUsage'
 
 export function mondayOfWeek(date: Date = new Date()): string {
   const d = new Date(date)
@@ -84,23 +85,37 @@ export async function getNewsletterInputs(
       .limit(8),
   ])
 
+  // Repeat-avoidance: stories we've already featured as a headline / Sweet Spot /
+  // Jill's Take recently (content_usage ledger). They're flagged recently_covered
+  // so the AI won't reuse them as the Big Story, AND sunk in the rank so the pool
+  // leads with fresh stories — but they stay in the pool for Also Happening / Offers.
+  // Refresh the ledger from the latest sent issue + social posts before reading it,
+  // so a story we just featured can't slip back in as this issue's headline.
+  await syncContentUsageFromHistory(supabase)
+  const recentlyUsed = await getRecentlyUsed(supabase, {
+    channels: ['newsletter_headline', 'sweet_spot', 'jills_take'],
+    sinceDays: 60,
+  })
+  const recentlyCoveredIds = new Set(recentlyUsed.map((u) => u.ref_id).filter(Boolean) as string[])
+
   // Candidate pool = ALL still-active published alerts (selectAlertViewFromVariants
   // already filters to activeOnly, i.e. end_date not passed or evergreen), NOT just
   // the last 7 days. A biweekly newsletter covers 14 days, and a still-live older
   // alert (an active transfer bonus, an unexpired devaluation) can be the best Big
   // Story or Sweet Spot. Rank by impact_score plus a freshness boost so recent news
-  // still leads, but a high-impact older alert stays eligible.
+  // still leads, minus a penalty for anything we covered recently.
   const freshBoost = (publishedAt: string | null): number => {
     if (!publishedAt) return 0
     const ageDays = (now.getTime() - new Date(publishedAt).getTime()) / 86_400_000
     return ageDays <= 7 ? 2 : ageDays <= 14 ? 1 : 0
   }
+  const rankOf = (a: (typeof alertViewRows)[number]): number =>
+    (a.impact_score ?? 0) + freshBoost(a.published_at) - (recentlyCoveredIds.has(a.id) ? 100 : 0)
   const alerts: NewsletterAlertInput[] = alertViewRows
     .filter((a) => a.published_at)
     .sort((a, b) => {
-      const rankA = (a.impact_score ?? 0) + freshBoost(a.published_at)
-      const rankB = (b.impact_score ?? 0) + freshBoost(b.published_at)
-      if (rankA !== rankB) return rankB - rankA
+      const d = rankOf(b) - rankOf(a)
+      if (d !== 0) return d
       return (b.published_at ?? '').localeCompare(a.published_at ?? '')
     })
     .slice(0, 12)
@@ -116,6 +131,7 @@ export async function getNewsletterInputs(
       end_date: a.end_date ?? null,
       alert_type: a.type ?? null,
       impact_score: a.impact_score ?? null,
+      recently_covered: recentlyCoveredIds.has(a.id),
     }))
 
   const newsletter_ideas: NewsletterIdeaInput[] = (newsletterIdeasRes.data ?? []).map((i) => ({
