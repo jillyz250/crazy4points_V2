@@ -443,33 +443,46 @@ for (const r of lastRun) {
   if (r.success === false) console.log(`  !! ${r.program_slug} scrape UNHEALTHY (${r.error_message || '?'}) at ${(r.run_started_at || '').slice(5, 16)}`)
 }
 
-// ---- Experiences WORTH AN ALERT — Jill decides which to post ---------------
-// Dreamy, points-priced, unreviewed experiences, closing-soonest first (time-
-// sensitive ones surface before they expire). Niche ticket auctions (sports/
-// concerts/shows) are deliberately excluded — they're noise, not alert material.
-// Deciding an experience (alert or skip) sets editorial_reviewed_at so it leaves
-// this list, which keeps the /admin experiences review queue clear.
-const alertExp = (await q('alert-worthy experiences', db.from('experience_listings')
-  .select('title, program_slug, format, current_bid, points_required, category, location, close_date, detail_url')
+// ---- New EXPERIENCES TO REVIEW — Jill runs through ALL, alerts the good ones
+// Every reviewable experience she hasn't LOOKED at yet (editorial_reviewed_at
+// null), still bookable. Presale-only ticket listings (Citi/Amex access) are
+// excluded; niche Marriott/Delta ticket Moments are kept so nothing points-
+// redeemable is missed. Alert-worthy (dreamy + points-priced) sort to the top
+// with a ⭐. Deciding one (ANY verdict, incl. skip) sets editorial_reviewed_at,
+// clearing it from this list AND the /admin dashboard "to review" number. There
+// is NO time window — an experience stays here until it has been looked at.
+const isPresaleCat = (c) => ['entertainment', 'music', 'sports', 'music & film'].includes((c || '').trim().toLowerCase())
+const DREAMY_EXP = /travel|culinar|dining|wellness|adventure|cruise|luxur|money/i
+const revRaw = (await q('experiences to review', db.from('experience_listings')
+  .select('title, program_slug, format, current_bid, points_required, category, location, close_date, first_seen_at')
   .eq('status', 'active')
   .is('editorial_reviewed_at', null)
-  .not('points_required', 'is', null)
   .or(`close_date.is.null,close_date.gte.${nowIso}`)
-  .order('close_date', { ascending: true, nullsFirst: false })
-  .limit(150))).data
-const DREAMY_EXP = /travel|culinar|dining|wellness|adventure|cruise|luxur|money/i
-const alertCands = (alertExp || []).filter((e) => DREAMY_EXP.test(e.category || '')).slice(0, 8)
+  .order('first_seen_at', { ascending: false })
+  .limit(400))).data
+const toReview = (revRaw || []).filter((e) => !isPresaleCat(e.category) || e.program_slug === 'marriott-bonvoy')
+const worthy = (e) => DREAMY_EXP.test(e.category || '') && e.points_required != null
+toReview.sort((a, b) => {
+  if (worthy(a) !== worthy(b)) return worthy(a) ? -1 : 1
+  const ca = a.close_date || '9999', cb = b.close_date || '9999'
+  if (ca !== cb) return ca < cb ? -1 : 1
+  return (b.first_seen_at || '') < (a.first_seen_at || '') ? -1 : 1
+})
 console.log('\n' + B)
-console.log(`EXPERIENCES WORTH AN ALERT — you decide which to post (${alertCands.length}):`)
-if (!alertCands.length) console.log('  (none pending — all reviewed)')
-for (const e of alertCands) {
-  const when = e.close_date ? `closes ${String(e.close_date).slice(5, 10)}` : 'no deadline'
-  const pts = `${Math.round((e.points_required || 0) / 1000)}k`.padStart(5)
-  console.log(`  [${when}] ${pts} · ${e.program_slug} · ${(e.title || '').slice(0, 48)} @ ${(e.location || '').slice(0, 20)}`)
+console.log(`NEW EXPERIENCES TO REVIEW — look at each, alert on the good ones (${toReview.length}):`)
+if (!toReview.length) console.log('  (all caught up — none to review)')
+const SHOW_EXP = 30
+for (const e of toReview.slice(0, SHOW_EXP)) {
+  const star = worthy(e) ? '⭐' : '  '
+  const when = e.close_date ? `closes ${String(e.close_date).slice(5, 10)}` : 'no deadline '
+  const pts = e.points_required != null ? `${Math.round(e.points_required / 1000)}k` : (e.current_bid != null ? 'bid' : '—')
+  console.log(`  ${star} [${when}] ${String(pts).padStart(5)} · ${e.program_slug} · ${(e.title || '').slice(0, 46)}`)
 }
-if (alertCands.length) {
-  console.log('  -> per one: PUBLISH (full alert) / QUICK-TAKE (short) / SKIP. Verify vs the official')
-  console.log('     source first. Mark every decided one editorial_reviewed_at=now so it leaves this list.')
+if (toReview.length > SHOW_EXP) console.log(`  ... +${toReview.length - SHOW_EXP} more`)
+if (toReview.length) {
+  console.log('  -> ⭐ = alert-worthy (dreamy + points-priced). Run through ALL: per one PUBLISH (full')
+  console.log('     alert) / QUICK-TAKE (short) / SKIP. ANY verdict marks editorial_reviewed_at (looked')
+  console.log('     at) and clears it from the dash number. Verify vs the official source before publishing.')
 }
 
 // ---- Newsletter-bucket items EXPIRING SOON — promote to an alert? ----------
