@@ -4,6 +4,7 @@ import { countUnresolvedSystemErrors, getRefreshQueueCount, getRefreshQueue, lis
 import { countHardcodedHits } from '@/utils/programs/auditHardcodedCounts'
 import RemindersWidget from '@/components/admin/reminders/RemindersWidget'
 import ContentRoadmapCard from '@/components/admin/ContentRoadmapCard'
+import JillsTakesCard from '@/components/admin/JillsTakesCard'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Card } from '@/components/admin/ui/Card'
 import { LinkButton } from '@/components/admin/ui/Button'
@@ -315,6 +316,8 @@ export default async function AdminDashboard() {
           </Link>
         ))}
       </div>
+
+      <JillsTakesCard />
 
       <ContentRoadmapCard />
 
