@@ -1,5 +1,13 @@
 # crazy4points — Project Reference
 
+## Prime directive (read first)
+**The number-one goal on every task is to leave the system better, more efficient, and more accurate.** Shipping the immediate ask is table stakes; the real win is that the platform, its data, and its workflows improve as a result. Concretely:
+- **Fix root causes, not just symptoms.** If a task surfaces a bug, a fragile process, or a data-quality gap, fix the underlying cause and quantify the blast radius (e.g. "23 of 71 alerts affected"), don't patch the one instance.
+- **Proactively recommend improvements — even unasked.** Whenever you spot a cheaper, simpler, safer, or higher-leverage path, or an efficiency/accuracy win, say so before executing and offer it. Jill wants these recommendations surfaced, not withheld.
+- **Accuracy is non-negotiable.** Every published fact traces to an official/issuer source (never a blog); verify before asserting; when you can't verify, say so and omit. See the editorial rules below and in memory.
+- **Build reusable rails over one-off fixes.** Prefer a vetted helper/field/section that generalizes (and a memory note) over a throwaway script that solves today only.
+- **Leave a trail.** Verify your work (typecheck, real render/DB checks), and record durable lessons so the improvement compounds across sessions.
+
 ## Stack
 - Next.js 16 (App Router), React 19, TypeScript
 - Tailwind CSS v4 (no config file — tokens defined in `styles/globals.css` via `@theme inline`)
