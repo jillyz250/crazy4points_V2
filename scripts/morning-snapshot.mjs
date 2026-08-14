@@ -443,6 +443,55 @@ for (const r of lastRun) {
   if (r.success === false) console.log(`  !! ${r.program_slug} scrape UNHEALTHY (${r.error_message || '?'}) at ${(r.run_started_at || '').slice(5, 16)}`)
 }
 
+// ---- Experiences WORTH AN ALERT — Jill decides which to post ---------------
+// Dreamy, points-priced, unreviewed experiences, closing-soonest first (time-
+// sensitive ones surface before they expire). Niche ticket auctions (sports/
+// concerts/shows) are deliberately excluded — they're noise, not alert material.
+// Deciding an experience (alert or skip) sets editorial_reviewed_at so it leaves
+// this list, which keeps the /admin experiences review queue clear.
+const alertExp = (await q('alert-worthy experiences', db.from('experience_listings')
+  .select('title, program_slug, format, current_bid, points_required, category, location, close_date, detail_url')
+  .eq('status', 'active')
+  .is('editorial_reviewed_at', null)
+  .not('points_required', 'is', null)
+  .or(`close_date.is.null,close_date.gte.${nowIso}`)
+  .order('close_date', { ascending: true, nullsFirst: false })
+  .limit(150))).data
+const DREAMY_EXP = /travel|culinar|dining|wellness|adventure|cruise|luxur|money/i
+const alertCands = (alertExp || []).filter((e) => DREAMY_EXP.test(e.category || '')).slice(0, 8)
+console.log('\n' + B)
+console.log(`EXPERIENCES WORTH AN ALERT — you decide which to post (${alertCands.length}):`)
+if (!alertCands.length) console.log('  (none pending — all reviewed)')
+for (const e of alertCands) {
+  const when = e.close_date ? `closes ${String(e.close_date).slice(5, 10)}` : 'no deadline'
+  const pts = `${Math.round((e.points_required || 0) / 1000)}k`.padStart(5)
+  console.log(`  [${when}] ${pts} · ${e.program_slug} · ${(e.title || '').slice(0, 48)} @ ${(e.location || '').slice(0, 20)}`)
+}
+if (alertCands.length) {
+  console.log('  -> per one: PUBLISH (full alert) / QUICK-TAKE (short) / SKIP. Verify vs the official')
+  console.log('     source first. Mark every decided one editorial_reviewed_at=now so it leaves this list.')
+}
+
+// ---- Newsletter-bucket items EXPIRING SOON — promote to an alert? ----------
+// Items parked for the biweekly newsletter that carry a near deadline: surface
+// them so a time-sensitive one can become an alert before it goes stale in the
+// newsletter queue. Only those WITH an expires_at inside the next 10 days.
+const nlSoonIso = new Date(Date.now() + 10 * 86_400_000).toISOString()
+const nlExpiring = (await q('newsletter items expiring', db.from('intel_items')
+  .select('headline, programs, expires_at, source_name')
+  .eq('triage_decision', 'newsletter_idea')
+  .is('archived_at', null).is('rejected_at', null)
+  .not('expires_at', 'is', null)
+  .gte('expires_at', nowIso).lte('expires_at', nlSoonIso)
+  .order('expires_at', { ascending: true }).limit(10))).data
+console.log('\n' + B)
+console.log(`NEWSLETTER ITEMS EXPIRING SOON — promote to an alert? (${nlExpiring.length}):`)
+if (!nlExpiring.length) console.log('  (none expiring in the next 10 days)')
+for (const it of nlExpiring) {
+  console.log(`  [exp ${String(it.expires_at).slice(5, 10)}] ${(it.headline || '').slice(0, 62)}`)
+}
+if (nlExpiring.length) console.log('  -> per one: PUBLISH now (before it expires) / keep for newsletter / REJECT.')
+
 // ---- Sweepstakes post candidates (the daily social opportunity) ------------
 console.log('\n' + B)
 console.log(`SWEEPSTAKES — post candidates, ranked by content + soonest deadline (${sweeps.length} unposted):`)
