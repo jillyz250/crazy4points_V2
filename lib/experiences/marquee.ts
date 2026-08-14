@@ -14,6 +14,7 @@
  *
  * Region (US vs non-US) is read from the free-text `location` field.
  */
+import { isPresaleListing } from '@/lib/experiences/presale'
 
 export type MarqueeListing = {
   id: string
@@ -32,6 +33,18 @@ export type MarqueeListing = {
   image_url: string | null
 }
 
+/**
+ * A points experience = you redeem or bid POINTS for it (format redeem/bid, or a
+ * points/bid value present) — regardless of its concert/sports/culinary theme.
+ * This is the correct marquee-vs-presale line: category alone wrongly buried
+ * Marriott Moments (music/sports themed but points-biddable) as "presales".
+ * A pure card-early-access ticket (format 'access', no points) is NOT one.
+ */
+export function isPointsExperience(l: MarqueeListing): boolean {
+  if (l.format === 'redeem' || l.format === 'bid') return true
+  return l.points_required != null || l.current_bid != null || l.minimum_bid != null
+}
+
 /** One experience card = a group of one-or-more bookable packages/dates. */
 export type ExperienceGroup = {
   key: string
@@ -47,6 +60,8 @@ export type ExperienceGroup = {
   fromPoints: number | null
   /** true if any package is an auction (bid) */
   isAuction: boolean
+  /** soonest booking/bidding deadline across packages (ISO), for an urgency pill */
+  nearestClose: string | null
   packages: {
     detail_url: string | null
     event_date: string | null
@@ -152,6 +167,7 @@ export function groupExperiences(listings: MarqueeListing[]): ExperienceGroup[] 
         format: l.format,
         fromPoints: null,
         isAuction: false,
+        nearestClose: null,
         packages: [],
       }
       groups.set(key, g)
@@ -160,6 +176,10 @@ export function groupExperiences(listings: MarqueeListing[]): ExperienceGroup[] 
     if (!g.image_url && l.image_url) g.image_url = l.image_url
     if (l.points_required != null) g.fromPoints = g.fromPoints == null ? l.points_required : Math.min(g.fromPoints, l.points_required)
     if (l.current_bid != null || l.minimum_bid != null || l.format === 'bid') g.isAuction = true
+    // track soonest real close date (ISO only; free-text dates skipped)
+    if (l.close_date && /^\d{4}-\d{2}-\d{2}/.test(l.close_date)) {
+      g.nearestClose = g.nearestClose == null || l.close_date < g.nearestClose ? l.close_date : g.nearestClose
+    }
     g.packages.push({
       detail_url: l.detail_url,
       event_date: l.event_date,
@@ -179,34 +199,47 @@ export function groupExperiences(listings: MarqueeListing[]): ExperienceGroup[] 
 }
 
 export type MarqueeSections = {
+  /** featured image cards, U.S. */
   us: ExperienceGroup[]
+  /** featured image cards, non-U.S. */
   intl: ExperienceGroup[]
-  more: MarqueeListing[]
+  /** every real points experience (redeem/bid), for the browse-all finder */
+  points: MarqueeListing[]
+  /** pure card-early-access tickets (no points), for the tucked presale section */
+  presales: MarqueeListing[]
 }
 
+/**
+ * Split ALL active listings into the page's surfaces, losing nothing:
+ *   - featured galleries = the dreamy, image-led points experiences (US / non-US).
+ *     Image-gated so the hero stays curated instead of a wall of blank cards; the
+ *     imageless ones are still fully reachable in the finder below.
+ *   - points = every real points experience (the finder's full catalog).
+ *   - presales = access-only tickets, tucked in their own section.
+ * The handful that aren't real experiences (tierOf 'hide') are excluded entirely.
+ */
 export function buildMarqueeSections(listings: MarqueeListing[]): MarqueeSections {
-  const feature: MarqueeListing[] = []
-  const more: MarqueeListing[] = []
-  const seenMoreUrls = new Set<string>()
-  for (const l of listings) {
-    const tier = tierOf(l.title)
-    if (tier === 'hide') continue
-    if (tier === 'more') {
-      // collapse true duplicates (same detail_url scraped twice)
-      if (l.detail_url) {
-        if (seenMoreUrls.has(l.detail_url)) continue
-        seenMoreUrls.add(l.detail_url)
-      }
-      more.push(l)
-    } else feature.push(l)
-  }
-  const grouped = groupExperiences(feature)
-  // image-first, then points-priced, then auctions, for a strong visual lead
-  const rank = (g: ExperienceGroup) => (g.image_url ? 0 : 1) * 10 + (g.fromPoints != null ? 0 : g.isAuction ? 1 : 2)
-  grouped.sort((a, b) => rank(a) - rank(b))
+  const visible = listings.filter((l) => tierOf(l.title) !== 'hide')
+  const points = visible.filter(isPointsExperience)
+  const presales = visible.filter((l) => !isPointsExperience(l))
+
+  // Featured = the DREAMY points experiences: photogenic (have an image), not
+  // demoted to 'more', and not a concert/sports/show TICKET (those are real
+  // points experiences too — they live in the finder below — but they shouldn't
+  // lead the aspirational hero gallery). The presale-category set is exactly the
+  // ticket themes, so we reuse it as the "not dreamy" test here.
+  const featureRows = points.filter(
+    (l) => l.image_url && tierOf(l.title) === 'feature' && !isPresaleListing(l.category),
+  )
+  const grouped = groupExperiences(featureRows)
+  // points-priced first, then auctions, cheapest-forward within each — a strong lead
+  const rank = (g: ExperienceGroup) => (g.fromPoints != null ? 0 : g.isAuction ? 1 : 2)
+  grouped.sort((a, b) => rank(a) - rank(b) || (a.fromPoints ?? 9e9) - (b.fromPoints ?? 9e9))
+
   return {
     us: grouped.filter((g) => g.region === 'US'),
     intl: grouped.filter((g) => g.region === 'INTL'),
-    more,
+    points,
+    presales,
   }
 }

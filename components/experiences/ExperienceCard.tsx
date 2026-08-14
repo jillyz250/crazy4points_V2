@@ -42,12 +42,21 @@ function shortLocation(loc: string | null): string | null {
   return tail.join(', ').replace(/\b\d{4,}\b/g, '').replace(/\s+/g, ' ').trim() || parts[0]
 }
 
+// "Closes Aug 27" urgency pill from the soonest deadline, only if it's upcoming.
+function deadlinePill(iso: string | null): string | null {
+  if (!iso) return null
+  const d = new Date(iso)
+  if (isNaN(d.getTime()) || d.getTime() < Date.now()) return null
+  return `Closes ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}`
+}
+
 export default function ExperienceCard({ group }: { group: ExperienceGroup }) {
   const label = programLabel(group)
   const price = priceLine(group)
   const loc = shortLocation(group.location)
   const dated = group.packages.filter((p) => p.label && p.detail_url)
   const primaryUrl = group.packages.find((p) => p.detail_url)?.detail_url ?? null
+  const deadline = deadlinePill(group.nearestClose)
 
   return (
     <article className="group flex flex-col overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] shadow-[var(--shadow-soft)] transition-transform duration-200 hover:-translate-y-1">
@@ -69,6 +78,11 @@ export default function ExperienceCard({ group }: { group: ExperienceGroup }) {
         {group.category && (
           <span className="absolute left-3 top-3 rounded-full bg-black/55 px-2.5 py-1 font-ui text-[0.65rem] uppercase tracking-wide text-white backdrop-blur-sm">
             {group.category}
+          </span>
+        )}
+        {deadline && (
+          <span className="absolute right-3 top-3 rounded-full bg-[var(--color-accent)] px-2.5 py-1 font-ui text-[0.65rem] font-semibold text-[var(--color-text-primary)] shadow-sm">
+            {deadline}
           </span>
         )}
       </div>
