@@ -561,6 +561,19 @@ export async function publishAlertVariant(
       shortSlug = null
     }
   }
+  // Fallback: generate a slug even when the caller passed no generator.
+  // Automated publish paths (Scout auto-publish, bulk) used to omit it, which
+  // left the alert slug-less — breaking its public URL AND silently skipping
+  // the social reminder below (the `if (link)` guard). Never depend on the
+  // caller for this. Idempotent: an existing slug is never overwritten.
+  if (!shortSlug && (v?.title as string)?.trim()) {
+    try {
+      const { generateUniqueShortSlug } = await import('@/utils/alerts/generateShortSlug')
+      shortSlug = await generateUniqueShortSlug(supabase, v!.title as string)
+    } catch (err) {
+      console.error('[publishAlertVariant] fallback short_slug generation failed (non-fatal):', err)
+    }
+  }
 
   const newMeta: Record<string, unknown> = { ...currentMeta, decided_at: now }
   if (shortSlug) newMeta.short_slug = shortSlug

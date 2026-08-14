@@ -80,17 +80,24 @@ if (fullIds.length) {
   const missing = fullIds.filter((x) => !resolved.has(x))
   if (missing.length) { console.error('No intel row for id(s): ' + missing.join(', ')); process.exit(1) }
 }
-// Prefixes: resolve against recent intel; abort on zero or ambiguous match.
-if (prefixes.length) {
-  const since = new Date(Date.now() - 21 * 24 * 3600 * 1000).toISOString()
-  const { data, error } = await db.from('intel_items').select('id, headline').gte('created_at', since)
+// Prefixes: resolve via an exact server-side UUID range (not a client-side
+// filter over a capped fetch — that silently missed items past Supabase's
+// 1000-row default limit on busy days). A hex prefix maps to [lo..hi] UUIDs.
+function prefixToRange(p) {
+  const hex = p.toLowerCase().replace(/-/g, '')
+  if (!/^[0-9a-f]+$/.test(hex) || hex.length > 32) return null
+  const fmt = (h) => `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20, 32)}`
+  return [fmt(hex.padEnd(32, '0')), fmt(hex.padEnd(32, 'f'))]
+}
+for (const p of prefixes) {
+  const range = prefixToRange(p)
+  if (!range) { console.error(`Prefix "${p}" is not valid hex.`); process.exit(1) }
+  const { data, error } = await db.from('intel_items').select('id, headline').gte('id', range[0]).lte('id', range[1])
   if (error) { console.error('prefix lookup error: ' + error.message); process.exit(1) }
-  for (const p of prefixes) {
-    const hits = (data ?? []).filter((r) => r.id.startsWith(p.toLowerCase()))
-    if (hits.length === 0) { console.error(`No recent intel matches prefix "${p}".`); process.exit(1) }
-    if (hits.length > 1) { console.error(`Prefix "${p}" is ambiguous (${hits.length} matches). Use a longer prefix or the full UUID.`); process.exit(1) }
-    resolved.set(hits[0].id, hits[0].headline)
-  }
+  const hits = data ?? []
+  if (hits.length === 0) { console.error(`No intel matches prefix "${p}".`); process.exit(1) }
+  if (hits.length > 1) { console.error(`Prefix "${p}" is ambiguous (${hits.length} matches). Use a longer prefix or the full UUID.`); process.exit(1) }
+  resolved.set(hits[0].id, hits[0].headline)
 }
 
 const targetIds = [...resolved.keys()]
