@@ -108,6 +108,7 @@ INPUT contains:
 big_story:
 - If input includes \`locked_big_story\` (the editor has picked the lead manually), you MUST use that as the Big Story — set big_story_ref_id and big_story_ref_type to match exactly. Do NOT pick a different story.
 - Otherwise, pick the SINGLE most-important alert OR a major industry-news item from radar_signals if it eclipses any alert (e.g. an airline shutdown).
+- NEVER pick an alert with "recently_covered": true as the Big Story — we already featured it recently and must not repeat ourselves. Choose the best story that is NOT recently_covered.
 - big_story_ref_id MUST be the alert's uuid (or intel uuid if from radar_signals).
 - big_story_html: ~150 words, structured as:
     <p>Lead paragraph — what happened, in plain language, reader-payoff first.</p>
