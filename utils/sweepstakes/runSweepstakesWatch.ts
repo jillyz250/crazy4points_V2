@@ -16,6 +16,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
 import { logUsage } from '@/utils/ai/logUsage'
+import { sweepstakesSponsorLogo } from '@/lib/sweepstakes/sponsorLogo'
 
 export interface SweepstakesSource {
   id: string
@@ -267,6 +268,7 @@ export async function runSweepstakesWatch(supabase: SupabaseClient): Promise<Wat
           mechanic: s.mechanic,
           ends_at: s.ends_at,
           status: 'running',
+          image_url: sweepstakesSponsorLogo(program, s.title),
           last_seen: nowIso,
           updated_at: nowIso,
         },
