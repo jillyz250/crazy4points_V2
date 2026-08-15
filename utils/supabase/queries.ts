@@ -2643,6 +2643,8 @@ export interface FinderCard {
   sub: { bonus_amount: number; bonus_currency: string; estimated_value_usd: number | null } | null
   /** Referral/affiliate apply link when we have one — drives the tile's Apply CTA. */
   affiliateUrl: string | null
+  /** Issuer's official card page — Apply fallback when there's no referral link. */
+  officialUrl: string | null
 }
 
 /**
@@ -2652,7 +2654,7 @@ export interface FinderCard {
 export async function listCardsForFinder(supabase: SupabaseClient): Promise<FinderCard[]> {
   const { data: cards, error } = await supabase
     .from('credit_cards')
-    .select('id, slug, name, annual_fee_usd, card_type, network, transfer_eligibility, foreign_transaction_fee_pct, currency_program_id, co_brand_program_id, intro, affiliate_url, issuer:issuers!issuer_id(name, logo_url)')
+    .select('id, slug, name, annual_fee_usd, card_type, network, transfer_eligibility, foreign_transaction_fee_pct, currency_program_id, co_brand_program_id, intro, affiliate_url, official_url, issuer:issuers!issuer_id(name, logo_url)')
     .eq('is_active', true)
     .eq('closed_to_new_applicants', false)
     .order('name')
@@ -2660,7 +2662,7 @@ export async function listCardsForFinder(supabase: SupabaseClient): Promise<Find
   const rows = (cards ?? []) as unknown as Array<{
     id: string; slug: string; name: string; annual_fee_usd: number | null; card_type: CardType
     network: string | null; transfer_eligibility: FinderCard['transferEligibility']; foreign_transaction_fee_pct: number | null
-    currency_program_id: string | null; co_brand_program_id: string | null; intro: string | null; affiliate_url: string | null; issuer: { name: string; logo_url: string | null } | null
+    currency_program_id: string | null; co_brand_program_id: string | null; intro: string | null; affiliate_url: string | null; official_url: string | null; issuer: { name: string; logo_url: string | null } | null
   }>
   const ids = rows.map((c) => c.id)
   if (ids.length === 0) return []
@@ -2717,6 +2719,7 @@ export async function listCardsForFinder(supabase: SupabaseClient): Promise<Find
     topEarn: (earnByCard.get(c.id) ?? []).sort((a, b) => b.multiplier - a.multiplier).slice(0, 3),
     sub: subByCard.get(c.id) ?? null,
     affiliateUrl: c.affiliate_url ?? null,
+    officialUrl: c.official_url ?? null,
   }))
 }
 
