@@ -118,6 +118,7 @@ export default async function ProgramPage({
   let program
   let allAlerts: AlertWithPrograms[]
   let programNameBySlug = new Map<string, string>()
+  let logoBySlug = new Map<string, string>()
   let homeCarrierSlugs: string[] = []
 
   try {
@@ -128,6 +129,7 @@ export default async function ProgramPage({
     program = result.program
     allAlerts = result.alerts
     programNameBySlug = new Map(allPrograms.map((p) => [p.slug, p.name]))
+    logoBySlug = new Map(allPrograms.filter((p) => p.logo_url).map((p) => [p.slug, p.logo_url as string]))
     // Home carriers = programs that name THIS program as their parent
     // (Air France / KLM → Flying Blue; BA / Iberia → BA Avios). Used by
     // ProgramPageHero to emphasize the operator pills.
@@ -503,7 +505,7 @@ export default async function ProgramPage({
 
         {/* Simple uniform-grid tile cards for reference sections.
             Each tile click expands inline (server-rendered <details>). */}
-        <SimpleTileGrid program={program} programNameBySlug={programNameBySlug} inboundRows={inboundRows} />
+        <SimpleTileGrid program={program} programNameBySlug={programNameBySlug} logoBySlug={logoBySlug} inboundRows={inboundRows} />
 
         {/* Per-property table — hotels only. */}
         {properties.length > 0 && (

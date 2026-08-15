@@ -51,10 +51,12 @@ function splitQuirkGroups(md: string): Array<{ label: string | null; body: strin
 export default async function SimpleTileGrid({
   program,
   programNameBySlug,
+  logoBySlug,
   inboundRows,
 }: {
   program: Program
   programNameBySlug: Map<string, string>
+  logoBySlug?: Map<string, string>
   /** "Ways to earn more" rows derived from other programs' outbound lists
    *  (the source of truth). When provided, replaces the legacy
    *  program.transfer_partners column so the section can never drift. */
@@ -179,6 +181,7 @@ export default async function SimpleTileGrid({
           <TransferPartnersTable
             rows={program.transfer_partners_outbound ?? []}
             programNameBySlug={programNameBySlug}
+            logoBySlug={logoBySlug}
             direction="outbound"
           />
         </SimpleTile>
@@ -205,6 +208,7 @@ export default async function SimpleTileGrid({
           <TransferPartnersTable
             rows={waysToEarnRows}
             programNameBySlug={programNameBySlug}
+            logoBySlug={logoBySlug}
             direction="inbound"
           />
         </SimpleTile>

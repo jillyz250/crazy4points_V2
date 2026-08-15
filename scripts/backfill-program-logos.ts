@@ -58,6 +58,20 @@ const DOMAINS: Record<string, string> = {
   rakuten: 'rakuten.com', 'expedia-one-key': 'expedia.com', 'booking-com': 'booking.com',
   'hotels-com': 'hotels.com', priceline: 'priceline.com', agoda: 'agoda.com', 'trip-com': 'trip.com',
   vrbo: 'vrbo.com', hotwire: 'hotwire.com',
+  // Long-tail airlines
+  'aerolineas-argentinas': 'aerolineas.com.ar', 'air-astana': 'airastana.com', 'air-china': 'airchina.com',
+  'air-europa': 'aireuropa.com', 'air-india-express': 'airindiaexpress.com', 'air-tahiti-nui': 'airtahitinui.com',
+  airasia: 'airasia.com', 'aleutian-airways': 'flyaleutian.com', bahamasair: 'bahamasair.com',
+  bamboo: 'bambooairways.com', 'bulgaria-air': 'air.bg', 'cape-air': 'capeair.com',
+  'caribbean-airlines': 'caribbean-airlines.com', 'cebu-pacific': 'cebupacificair.com',
+  'china-eastern': 'ceair.com', 'china-southern': 'csair.com', 'contour-airlines': 'contourairlines.com',
+  egyptair: 'egyptair.com', 'el-al': 'elal.com', flydubai: 'flydubai.com', 'gulf-air': 'gulfair.com',
+  'hainan-airlines': 'hainanairlines.com', indigo: 'goindigo.in', jetsmart: 'jetsmart.com',
+  juneyao: 'juneyaoair.com', 'kenmore-air': 'kenmoreair.com', 'kenya-airways': 'kenya-airways.com',
+  malaysia: 'malaysiaairlines.com', 'mokulele-airlines': 'iflymokulele.com', pegasus: 'flypgs.com',
+  'philippine-airlines': 'philippineairlines.com', 'porter-airlines': 'flyporter.com',
+  'royal-air-maroc': 'royalairmaroc.com', 'royal-jordanian': 'rj.com', 'south-african-airways': 'flysaa.com',
+  'southern-airways-express': 'iflysouthern.com', vivaaerobus: 'vivaaerobus.com', 'wizz-air': 'wizzair.com',
 }
 
 async function main() {
