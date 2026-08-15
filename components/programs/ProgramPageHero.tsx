@@ -65,19 +65,39 @@ export default function ProgramPageHero({
         {program.type.replace(/_/g, ' ')}
       </p>
 
-      {/* Title */}
-      <h1
-        style={{
-          fontFamily: 'var(--font-display)',
-          fontSize: 'clamp(2rem, 5vw, 2.75rem)',
-          fontWeight: 700,
-          lineHeight: 1.1,
-          marginBottom: '0.875rem',
-          color: 'var(--color-text-primary)',
-        }}
-      >
-        {program.name}
-      </h1>
+      {/* Title (with the program's own logo, when we have one) */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.875rem' }}>
+        {program.logo_url && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={program.logo_url}
+            alt=""
+            width={44}
+            height={44}
+            style={{
+              width: 44,
+              height: 44,
+              flexShrink: 0,
+              borderRadius: 10,
+              border: '1px solid var(--color-border-soft)',
+              background: '#fff',
+              objectFit: 'contain',
+              padding: 4,
+            }}
+          />
+        )}
+        <h1
+          style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: 'clamp(2rem, 5vw, 2.75rem)',
+            fontWeight: 700,
+            lineHeight: 1.1,
+            color: 'var(--color-text-primary)',
+          }}
+        >
+          {program.name}
+        </h1>
+      </div>
 
       {/* Badge row */}
       <div
