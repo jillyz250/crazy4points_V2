@@ -540,17 +540,17 @@ function CardTile({ c, showTransferNote, compare }: { c: FinderCard; showTransfe
   const freeEveryday = th.tier === 'everyday' && c.annualFee === 0
 
   const body = (
-    <Link href={`/cards/${c.slug}`} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', textDecoration: 'none', color: th.text, position: 'relative', zIndex: 1 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, color: th.issuerColor }}>
+    <Link href={`/cards/${c.slug}`} style={{ display: 'flex', flexDirection: 'column', gap: '0.5625rem', textDecoration: 'none', color: th.text, position: 'relative', zIndex: 1 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: 0, fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, color: th.issuerColor }}>
           {c.issuerLogo && (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={c.issuerLogo} alt="" width={18} height={18} style={{ width: 18, height: 18, flexShrink: 0, borderRadius: 4, objectFit: 'contain', background: th.logoBg, padding: 1 }} />
           )}
-          <span>{c.issuerName}{netLabel}</span>
+          <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.issuerName}{netLabel}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexShrink: 0 }}>
-          {th.flag && <span style={flagSeal}>Flagship</span>}
+          {th.flag && <span style={flagSeal}>Premium</span>}
           {compare && (
             <button
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (!compareDisabled) compare.toggle(c.id) }}
@@ -591,28 +591,32 @@ function CardTile({ c, showTransferNote, compare }: { c: FinderCard; showTransfe
     </Link>
   )
 
+  // Apply → our referral link when we have one, otherwise the issuer's own
+  // official card page. Only the referral case carries the "we may earn" note.
+  const applyUrl = c.affiliateUrl ?? c.officialUrl
+  const isReferral = !!c.affiliateUrl
   const cta = (
-    <div style={{ position: 'relative', zIndex: 1, marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: `1px solid ${th.divider}`, display: 'grid', gap: '0.4375rem' }}>
+    <div style={{ position: 'relative', zIndex: 1, marginTop: 'auto', paddingTop: '0.875rem', borderTop: `1px solid ${th.divider}`, display: 'grid', gap: '0.4375rem' }}>
       <div style={{ display: 'flex', gap: '0.5rem' }}>
-        {c.affiliateUrl ? (
+        {applyUrl ? (
           <>
-            <a href={c.affiliateUrl} target="_blank" rel="noopener nofollow sponsored" style={{ ...ctaBtn, ...th.apply, flex: '1.6 1 0' }}>Apply →</a>
+            <a href={applyUrl} target="_blank" rel={isReferral ? 'noopener nofollow sponsored' : 'noopener nofollow'} style={{ ...ctaBtn, ...th.apply, flex: '1.6 1 0' }}>Apply →</a>
             <Link href={`/cards/${c.slug}`} style={{ ...ctaBtn, ...th.ghost, flex: '1 1 0' }}>Details</Link>
           </>
         ) : (
           <Link href={`/cards/${c.slug}`} style={{ ...ctaBtn, ...th.ghost, flex: '1 1 0' }}>View card details →</Link>
         )}
       </div>
-      {c.affiliateUrl && (
-        <div style={{ fontFamily: 'var(--font-ui)', fontSize: '0.625rem', color: th.ftc }}>Referral link — we may earn a bonus, at no cost to you.</div>
-      )}
+      <div style={{ fontFamily: 'var(--font-ui)', fontSize: '0.625rem', color: th.ftc, minHeight: '0.85rem' }}>
+        {isReferral ? 'Referral link — we may earn a bonus, at no cost to you.' : applyUrl ? `Applies on the issuer's official site.` : ''}
+      </div>
     </div>
   )
 
   // Premium wears a gold gradient frame around an obsidian face; the others sit
   // on a brand-tinted card with a rail (rewards) or top accent bar (everyday).
   const inner = (
-    <div style={{ position: 'relative', overflow: 'hidden', borderRadius: th.frame ? '13px' : 'var(--radius-card)', background: th.bg, border: th.frame ? 'none' : `1px solid ${th.border}`, padding: th.rail ? '1rem 1.125rem 1rem 1.25rem' : '1rem 1.125rem', boxShadow: th.frame ? undefined : 'var(--shadow-soft)', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ position: 'relative', overflow: 'hidden', height: '100%', flex: '1 1 auto', borderRadius: th.frame ? '13px' : 'var(--radius-card)', background: th.bg, border: th.frame ? 'none' : `1px solid ${th.border}`, padding: th.rail ? '1.125rem 1.25rem 1.125rem 1.375rem' : th.accentBar ? '1.25rem 1.25rem 1.125rem' : '1.125rem 1.25rem', boxShadow: th.frame ? undefined : 'var(--shadow-soft)', display: 'flex', flexDirection: 'column' }}>
       {th.rail && <div aria-hidden style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 5, background: th.rail }} />}
       {th.accentBar && <div aria-hidden style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 4, background: th.accentBar }} />}
       {th.glow && <div aria-hidden style={{ position: 'absolute', right: -30, top: -30, width: 130, height: 130, borderRadius: '50%', background: `radial-gradient(circle, ${th.glow}, transparent 68%)`, pointerEvents: 'none' }} />}
@@ -621,7 +625,7 @@ function CardTile({ c, showTransferNote, compare }: { c: FinderCard; showTransfe
     </div>
   )
   if (th.frame) {
-    return <div style={{ borderRadius: '15px', padding: '2px', background: th.frame, boxShadow: '0 14px 30px rgba(0,0,0,0.34)' }}>{inner}</div>
+    return <div style={{ height: '100%', display: 'flex', flexDirection: 'column', borderRadius: '15px', padding: '2px', background: th.frame, boxShadow: '0 14px 30px rgba(0,0,0,0.34)' }}>{inner}</div>
   }
   return inner
 }
