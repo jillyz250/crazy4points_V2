@@ -564,7 +564,8 @@ function CardTile({ c, showTransferNote, compare }: { c: FinderCard; showTransfe
           )}
         </div>
       </div>
-      <div style={{ fontFamily: th.tier === 'premium' ? 'var(--font-display)' : undefined, fontWeight: th.tier === 'premium' ? 700 : 600, fontSize: th.tier === 'premium' ? '1.2rem' : '1.0625rem', lineHeight: 1.25, color: th.text }}>{c.name}</div>
+      {/* Reserve 2 lines so the currency pill below lines up across cards. */}
+      <div style={{ fontFamily: th.tier === 'premium' ? 'var(--font-display)' : undefined, fontWeight: th.tier === 'premium' ? 700 : 600, fontSize: th.tier === 'premium' ? '1.2rem' : '1.0625rem', lineHeight: 1.25, minHeight: '2.5em', color: th.text }}>{c.name}</div>
       {currencyName && (
         <span style={{ alignSelf: 'flex-start', fontFamily: 'var(--font-ui)', fontSize: '0.6875rem', fontWeight: 700, padding: '0.25rem 0.625rem', borderRadius: '999px', background: th.pillBg, color: th.pillColor, border: `1px solid ${th.pillBorder}` }}>Earns {currencyName}</span>
       )}
@@ -607,8 +608,10 @@ function CardTile({ c, showTransferNote, compare }: { c: FinderCard; showTransfe
           <Link href={`/cards/${c.slug}`} style={{ ...ctaBtn, ...th.ghost, flex: '1 1 0' }}>View card details →</Link>
         )}
       </div>
-      <div style={{ fontFamily: 'var(--font-ui)', fontSize: '0.625rem', color: th.ftc, minHeight: '0.85rem' }}>
-        {isReferral ? 'Referral link — we may earn a bonus, at no cost to you.' : applyUrl ? `Applies on the issuer's official site.` : ''}
+      {/* Fixed 2-line height so the Apply/Details row sits at the same spot on
+          every card regardless of how long the disclosure wraps. */}
+      <div style={{ fontFamily: 'var(--font-ui)', fontSize: '0.625rem', lineHeight: 1.3, color: th.ftc, height: '1.7rem', overflow: 'hidden' }}>
+        {isReferral ? 'Referral link. We may earn a bonus, at no cost to you.' : applyUrl ? "Applies on the issuer's official site." : ''}
       </div>
     </div>
   )
