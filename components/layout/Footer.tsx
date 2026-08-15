@@ -111,7 +111,7 @@ export default function Footer() {
       <div className="border-t border-[var(--color-border-soft)]">
         <div className="rg-container px-6 pt-5 pb-1 md:px-8">
           <p className="text-center font-body text-[11px] leading-relaxed text-[var(--color-text-secondary)] opacity-70">
-            Content on Crazy4Points is for informational purposes only. We are not affiliated with any bank, airline, hotel loyalty program, or sweepstakes sponsor. Always verify details directly with the relevant bank, airline, hotel, or sponsor.
+            Content on Crazy4Points is for informational purposes only. We are not affiliated with any bank, airline, hotel loyalty program, or sweepstakes sponsor. All logos, brand names, and trademarks are the property of their respective owners and are used for identification purposes only. Always verify details directly with the relevant bank, airline, hotel, or sponsor.
           </p>
         </div>
         <div className="rg-container flex flex-col items-center justify-between gap-4 px-6 py-6 md:flex-row md:px-8">
