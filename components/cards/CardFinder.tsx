@@ -455,7 +455,11 @@ function CardTile({ c, showTransferNote, compare }: { c: FinderCard; showTransfe
   return (
     <Link href={`/cards/${c.slug}`} style={tile}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.375rem' }}>
-        <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+          {c.issuerLogo && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={c.issuerLogo} alt="" width={16} height={16} style={{ width: 16, height: 16, flexShrink: 0, borderRadius: 3, objectFit: 'contain' }} />
+          )}
           {c.issuerName}{c.network ? ` · ${c.network[0].toUpperCase() + c.network.slice(1)}` : ''}
         </div>
         {compare && (

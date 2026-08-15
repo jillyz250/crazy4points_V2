@@ -12,6 +12,7 @@ export type SweepRow = {
   mechanic: string | null
   ends_at: string | null
   first_seen: string | null
+  image_url: string | null
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -108,9 +109,15 @@ export default function SweepstakesBrowser({ sweeps }: { sweeps: SweepRow[] }) {
               className="flex flex-col rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] p-5"
               style={{ boxShadow: 'var(--shadow-soft)' }}
             >
-              <p className="mb-1.5 font-ui text-[0.6875rem] font-bold uppercase tracking-[0.1em] text-[var(--color-primary)]">
-                {s.program}
-              </p>
+              <div className="mb-1.5 flex items-center gap-1.5">
+                {s.image_url && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={s.image_url} alt="" width={18} height={18} className="h-[18px] w-[18px] shrink-0 rounded object-contain" />
+                )}
+                <p className="font-ui text-[0.6875rem] font-bold uppercase tracking-[0.1em] text-[var(--color-primary)]">
+                  {s.program}
+                </p>
+              </div>
               <h2 className="mb-2 font-display text-xl leading-snug text-[var(--color-text-primary)]">
                 {s.title}
               </h2>
