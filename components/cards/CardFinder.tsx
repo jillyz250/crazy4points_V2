@@ -434,6 +434,87 @@ function Group({ title, subtitle, cards, showTransferNote, compare }: { title: s
   )
 }
 
+// ── Tiered tile look ────────────────────────────────────────────────────────
+// The tile dresses itself by category, straight from the annual fee already in
+// the data: Premium ($400+) wears a gold-framed obsidian face, Rewards ($1–399)
+// a brand-tinted wash, Everyday ($0) a light card with a brand accent bar. No
+// new data, no manual tagging.
+type Tier = 'premium' | 'rewards' | 'everyday'
+function cardTier(fee: number | null): Tier {
+  if (fee != null && fee >= 400) return 'premium'
+  if (fee != null && fee > 0) return 'rewards'
+  return 'everyday'
+}
+// Issuer brand colors — UI accents only (not published facts). Keyed by the
+// exact issuers.name value. Falls back to the site purple for anything new.
+const ISSUER_BRAND: Record<string, [string, string]> = {
+  'Chase': ['#1554b0', '#2f7ac4'],
+  'American Express': ['#016fd0', '#1c7ed6'],
+  'Citi': ['#0a4ea2', '#1a6bb5'],
+  'Capital One': ['#004977', '#c8102e'],
+  'Barclays': ['#0075c9', '#00a3e0'],
+  'Bank of America': ['#012169', '#c8102e'],
+  'US Bank': ['#0c2074', '#1746a2'],
+  'Wells Fargo': ['#b31b30', '#c99a1e'],
+  'Synchrony': ['#0060a9', '#00a0df'],
+  'First National Bank of Omaha': ['#00447c', '#0a6cb0'],
+  'First Bank & Trust': ['#003a70', '#2f7ac4'],
+  'Bilt': ['#2b2b30', '#55555e'],
+}
+function brandFor(issuer: string): [string, string] {
+  return ISSUER_BRAND[issuer] ?? ['#6B2D8F', '#9B4FC0']
+}
+interface TileTheme {
+  tier: Tier
+  frame?: string; bg: string; border: string
+  rail?: string; accentBar?: string; glow?: string
+  text: string; sub: string; issuerColor: string; logoBg: string
+  pillBg: string; pillColor: string; pillBorder: string; accent: string
+  badgeBg: string; badgeColor: string; badgeBorder: string
+  cmp: React.CSSProperties; cmpOn: React.CSSProperties
+  divider: string; apply: React.CSSProperties; ghost: React.CSSProperties; ftc: string
+  flag: boolean
+}
+function tileTheme(tier: Tier, issuer: string): TileTheme {
+  const [brand, brand2] = brandFor(issuer)
+  if (tier === 'premium') {
+    return {
+      tier,
+      frame: 'linear-gradient(135deg,#f6dc92 0%,#b8912f 34%,#8a6a1e 52%,#e8c877 72%,#b8912f 100%)',
+      bg: 'linear-gradient(158deg,#2f2935 0%,#17141c 55%,#0c0a0f 100%)',
+      border: 'transparent',
+      text: '#F7F1E5', sub: 'rgba(239,231,218,0.62)', issuerColor: '#E0BC63', logoBg: '#ffffff',
+      pillBg: 'linear-gradient(180deg,rgba(212,175,55,0.14),rgba(212,175,55,0))', pillColor: '#F0D488', pillBorder: 'rgba(212,175,55,0.5)', accent: '#F0D488',
+      badgeBg: 'rgba(255,255,255,0.05)', badgeColor: 'rgba(239,231,218,0.82)', badgeBorder: 'rgba(212,175,55,0.28)',
+      cmp: { background: 'rgba(255,255,255,0.06)', color: '#E0BC63', border: '1px solid rgba(212,175,55,0.4)' },
+      cmpOn: { background: 'linear-gradient(135deg,#f4d78a,#c99b30)', color: '#241704', border: '1px solid transparent' },
+      divider: 'rgba(255,255,255,0.10)',
+      apply: { background: 'linear-gradient(135deg,#f4d78a,#cc9f34)', color: '#241704', boxShadow: '0 5px 14px rgba(212,175,55,0.32)' },
+      ghost: { background: 'transparent', color: '#F0D488', boxShadow: 'inset 0 0 0 1px rgba(212,175,55,0.45)' },
+      ftc: 'rgba(239,231,218,0.5)', flag: true,
+    }
+  }
+  const bg = tier === 'rewards'
+    ? `linear-gradient(162deg, color-mix(in srgb, ${brand} 9%, var(--color-background)), var(--color-background) 60%)`
+    : `linear-gradient(180deg, color-mix(in srgb, ${brand} 6%, var(--color-background)), var(--color-background) 72%)`
+  return {
+    tier,
+    bg, border: 'var(--color-border-soft)',
+    rail: tier === 'rewards' ? `linear-gradient(180deg, ${brand}, ${brand2})` : undefined,
+    accentBar: tier === 'everyday' ? `linear-gradient(90deg, ${brand}, ${brand2})` : undefined,
+    glow: tier === 'rewards' ? `color-mix(in srgb, ${brand2} 22%, transparent)` : undefined,
+    text: 'var(--color-text-primary)', sub: 'var(--color-text-secondary)', issuerColor: 'var(--color-text-secondary)', logoBg: 'var(--color-background)',
+    pillBg: `linear-gradient(135deg, ${brand}, ${brand2})`, pillColor: '#ffffff', pillBorder: 'transparent', accent: brand,
+    badgeBg: 'var(--color-background-soft)', badgeColor: 'var(--color-text-secondary)', badgeBorder: 'var(--color-border-soft)',
+    cmp: { background: 'var(--color-background)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border-soft)' },
+    cmpOn: { background: 'var(--color-primary)', color: '#fff', border: '1px solid var(--color-primary)' },
+    divider: 'var(--color-border-soft)',
+    apply: { background: `linear-gradient(135deg, ${brand}, ${brand2})`, color: '#ffffff', boxShadow: `0 4px 12px color-mix(in srgb, ${brand} 35%, transparent)` },
+    ghost: { background: 'transparent', color: brand, boxShadow: `inset 0 0 0 1px ${brand}` },
+    ftc: 'var(--color-text-secondary)', flag: false,
+  }
+}
+
 function CardTile({ c, showTransferNote, compare }: { c: FinderCard; showTransferNote?: boolean; compare?: CompareApi }) {
   // Not fully authored yet -> greyed, non-clickable "coming soon" tile.
   if (!c.authored) {
@@ -452,50 +533,105 @@ function CardTile({ c, showTransferNote, compare }: { c: FinderCard; showTransfe
   const has = ALL_BENEFITS.filter((b) => cardHas(c, b)).slice(0, 5)
   const comparing = compare?.has(c.id) ?? false
   const compareDisabled = !comparing && (compare?.full ?? false)
-  return (
-    <Link href={`/cards/${c.slug}`} style={tile}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.375rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+  const th = tileTheme(cardTier(c.annualFee), c.issuerName)
+  const currencyName = c.currency?.name ?? c.coBrand?.name ?? null
+  const feeText = c.annualFee === 0 ? '$0' : c.annualFee != null ? `$${c.annualFee}` : 'See card'
+  const netLabel = c.network ? ` · ${c.network[0].toUpperCase() + c.network.slice(1)}` : ''
+  const freeEveryday = th.tier === 'everyday' && c.annualFee === 0
+
+  const body = (
+    <Link href={`/cards/${c.slug}`} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', textDecoration: 'none', color: th.text, position: 'relative', zIndex: 1 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, color: th.issuerColor }}>
           {c.issuerLogo && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={c.issuerLogo} alt="" width={16} height={16} style={{ width: 16, height: 16, flexShrink: 0, borderRadius: 3, objectFit: 'contain' }} />
+            <img src={c.issuerLogo} alt="" width={18} height={18} style={{ width: 18, height: 18, flexShrink: 0, borderRadius: 4, objectFit: 'contain', background: th.logoBg, padding: 1 }} />
           )}
-          {c.issuerName}{c.network ? ` · ${c.network[0].toUpperCase() + c.network.slice(1)}` : ''}
+          <span>{c.issuerName}{netLabel}</span>
         </div>
-        {compare && (
-          <button
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (!compareDisabled) compare.toggle(c.id) }}
-            disabled={compareDisabled}
-            aria-pressed={comparing}
-            title={compareDisabled ? 'Comparing 3 cards already' : comparing ? 'Remove from compare' : 'Add to compare'}
-            style={comparing ? compareTileBtnOn : { ...compareTileBtn, opacity: compareDisabled ? 0.4 : 1, cursor: compareDisabled ? 'default' : 'pointer' }}
-          >
-            {comparing ? '✓ Comparing' : '+ Compare'}
-          </button>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexShrink: 0 }}>
+          {th.flag && <span style={flagSeal}>Flagship</span>}
+          {compare && (
+            <button
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (!compareDisabled) compare.toggle(c.id) }}
+              disabled={compareDisabled}
+              aria-pressed={comparing}
+              title={compareDisabled ? 'Comparing 3 cards already' : comparing ? 'Remove from compare' : 'Add to compare'}
+              style={comparing ? { ...compareBase, ...th.cmpOn, cursor: 'pointer' } : { ...compareBase, ...th.cmp, opacity: compareDisabled ? 0.4 : 1, cursor: compareDisabled ? 'default' : 'pointer' }}
+            >
+              {comparing ? '✓ Compare' : '+ Compare'}
+            </button>
+          )}
+        </div>
       </div>
-      <div style={{ fontWeight: 600, fontSize: '1.0625rem', marginBottom: '0.5rem', lineHeight: 1.3 }}>{c.name}</div>
-      <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'baseline', flexWrap: 'wrap', marginBottom: (has.length || c.topEarn.length) ? '0.625rem' : 0 }}>
-        <Stat label="Annual fee" value={c.annualFee === 0 ? '$0' : c.annualFee != null ? `$${c.annualFee}` : 'See card'} />
-        {c.sub && <Stat label="Welcome bonus" value={formatBonus(c.sub.bonus_amount, c.sub.bonus_currency)} />}
-        {c.noFxFee && <Stat label="FX fee" value="None" />}
+      <div style={{ fontFamily: th.tier === 'premium' ? 'var(--font-display)' : undefined, fontWeight: th.tier === 'premium' ? 700 : 600, fontSize: th.tier === 'premium' ? '1.2rem' : '1.0625rem', lineHeight: 1.25, color: th.text }}>{c.name}</div>
+      {currencyName && (
+        <span style={{ alignSelf: 'flex-start', fontFamily: 'var(--font-ui)', fontSize: '0.6875rem', fontWeight: 700, padding: '0.25rem 0.625rem', borderRadius: '999px', background: th.pillBg, color: th.pillColor, border: `1px solid ${th.pillBorder}` }}>Earns {currencyName}</span>
+      )}
+      <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'baseline', flexWrap: 'wrap' }}>
+        <ThemedStat label="Annual fee" value={freeEveryday ? 'No annual fee' : feeText} th={th} color={freeEveryday ? '#2f7d4f' : th.text} />
+        {c.sub && <ThemedStat label="Welcome bonus" value={formatBonus(c.sub.bonus_amount, c.sub.bonus_currency)} th={th} color={th.accent} strong />}
+        {c.noFxFee && <ThemedStat label="FX fee" value="None" th={th} color={th.text} />}
       </div>
       {c.topEarn.length > 0 && (
-        <div style={{ fontFamily: 'var(--font-ui)', fontSize: '0.8125rem', color: 'var(--color-text-primary)', marginBottom: has.length ? '0.625rem' : 0 }}>
+        <div style={{ fontFamily: 'var(--font-ui)', fontSize: '0.8125rem', color: th.sub }}>
           {c.topEarn.map((e) => `${e.multiplier % 1 === 0 ? e.multiplier : e.multiplier.toFixed(1)}x ${earnLabel(e.category)}`).join(' · ')}
         </div>
       )}
       {has.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3125rem' }}>
-          {has.map((b) => <span key={b.key} style={famBadge}>{b.label}</span>)}
+          {has.map((b) => <span key={b.key} style={{ fontFamily: 'var(--font-ui)', fontSize: '0.6875rem', padding: '0.1875rem 0.5rem', borderRadius: '999px', background: th.badgeBg, border: `1px solid ${th.badgeBorder}`, color: th.badgeColor }}>{b.label}</span>)}
         </div>
       )}
       {pool && (
-        <div style={{ marginTop: '0.625rem', fontSize: '0.75rem', color: 'var(--color-text-secondary)', fontFamily: 'var(--font-ui)' }}>
+        <div style={{ fontSize: '0.75rem', color: th.sub, fontFamily: 'var(--font-ui)' }}>
           Requires pairing with a premium sibling card to transfer.
         </div>
       )}
     </Link>
+  )
+
+  const cta = (
+    <div style={{ position: 'relative', zIndex: 1, marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: `1px solid ${th.divider}`, display: 'grid', gap: '0.4375rem' }}>
+      <div style={{ display: 'flex', gap: '0.5rem' }}>
+        {c.affiliateUrl ? (
+          <>
+            <a href={c.affiliateUrl} target="_blank" rel="noopener nofollow sponsored" style={{ ...ctaBtn, ...th.apply, flex: '1.6 1 0' }}>Apply →</a>
+            <Link href={`/cards/${c.slug}`} style={{ ...ctaBtn, ...th.ghost, flex: '1 1 0' }}>Details</Link>
+          </>
+        ) : (
+          <Link href={`/cards/${c.slug}`} style={{ ...ctaBtn, ...th.ghost, flex: '1 1 0' }}>View card details →</Link>
+        )}
+      </div>
+      {c.affiliateUrl && (
+        <div style={{ fontFamily: 'var(--font-ui)', fontSize: '0.625rem', color: th.ftc }}>Referral link — we may earn a bonus, at no cost to you.</div>
+      )}
+    </div>
+  )
+
+  // Premium wears a gold gradient frame around an obsidian face; the others sit
+  // on a brand-tinted card with a rail (rewards) or top accent bar (everyday).
+  const inner = (
+    <div style={{ position: 'relative', overflow: 'hidden', borderRadius: th.frame ? '13px' : 'var(--radius-card)', background: th.bg, border: th.frame ? 'none' : `1px solid ${th.border}`, padding: th.rail ? '1rem 1.125rem 1rem 1.25rem' : '1rem 1.125rem', boxShadow: th.frame ? undefined : 'var(--shadow-soft)', display: 'flex', flexDirection: 'column' }}>
+      {th.rail && <div aria-hidden style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 5, background: th.rail }} />}
+      {th.accentBar && <div aria-hidden style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 4, background: th.accentBar }} />}
+      {th.glow && <div aria-hidden style={{ position: 'absolute', right: -30, top: -30, width: 130, height: 130, borderRadius: '50%', background: `radial-gradient(circle, ${th.glow}, transparent 68%)`, pointerEvents: 'none' }} />}
+      {body}
+      {cta}
+    </div>
+  )
+  if (th.frame) {
+    return <div style={{ borderRadius: '15px', padding: '2px', background: th.frame, boxShadow: '0 14px 30px rgba(0,0,0,0.34)' }}>{inner}</div>
+  }
+  return inner
+}
+
+function ThemedStat({ label, value, th, color, strong }: { label: string; value: string; th: TileTheme; color: string; strong?: boolean }) {
+  return (
+    <div>
+      <div style={{ fontSize: '0.625rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: th.sub }}>{label}</div>
+      <div style={{ fontWeight: 800, fontFamily: 'var(--font-ui)', color, fontSize: strong ? '0.95rem' : '0.9rem' }}>{value}</div>
+    </div>
   )
 }
 
@@ -617,3 +753,7 @@ const moreFiltersLink: React.CSSProperties = { fontFamily: 'var(--font-ui)', fon
 // Presets read as curated shortcuts, not filters: gold-accented pills.
 const presetChip: React.CSSProperties = { fontFamily: 'var(--font-ui)', fontSize: '0.8125rem', fontWeight: 700, padding: '0.5rem 0.875rem', borderRadius: '999px', minHeight: 38, cursor: 'pointer', border: '1px solid var(--color-accent)', background: 'var(--color-background)', color: 'var(--color-text-primary)' }
 const presetChipOn: React.CSSProperties = { ...presetChip, background: 'var(--color-accent)', color: '#1A1A1A' }
+// Tiered tile: Apply/Details CTA button, compare pill, premium "Flagship" seal.
+const ctaBtn: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem', minHeight: 44, padding: '0 1rem', borderRadius: 'var(--radius-ui)', border: 'none', fontFamily: 'var(--font-ui)', fontSize: '0.875rem', fontWeight: 800, textDecoration: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }
+const compareBase: React.CSSProperties = { fontFamily: 'var(--font-ui)', fontSize: '0.625rem', fontWeight: 700, padding: '0.25rem 0.5rem', borderRadius: '999px', whiteSpace: 'nowrap', flexShrink: 0 }
+const flagSeal: React.CSSProperties = { fontFamily: 'var(--font-ui)', fontSize: '0.5625rem', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#0d0a0f', background: 'linear-gradient(135deg,#f4d78a,#c99b30)', padding: '0.2rem 0.5rem', borderRadius: '999px' }
