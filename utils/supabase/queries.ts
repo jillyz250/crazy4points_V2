@@ -2619,6 +2619,7 @@ export interface FinderCard {
   slug: string
   name: string
   issuerName: string
+  issuerLogo: string | null
   annualFee: number | null
   cardType: CardType
   network: string | null
@@ -2649,7 +2650,7 @@ export interface FinderCard {
 export async function listCardsForFinder(supabase: SupabaseClient): Promise<FinderCard[]> {
   const { data: cards, error } = await supabase
     .from('credit_cards')
-    .select('id, slug, name, annual_fee_usd, card_type, network, transfer_eligibility, foreign_transaction_fee_pct, currency_program_id, co_brand_program_id, intro, issuer:issuers!issuer_id(name)')
+    .select('id, slug, name, annual_fee_usd, card_type, network, transfer_eligibility, foreign_transaction_fee_pct, currency_program_id, co_brand_program_id, intro, issuer:issuers!issuer_id(name, logo_url)')
     .eq('is_active', true)
     .eq('closed_to_new_applicants', false)
     .order('name')
@@ -2657,7 +2658,7 @@ export async function listCardsForFinder(supabase: SupabaseClient): Promise<Find
   const rows = (cards ?? []) as unknown as Array<{
     id: string; slug: string; name: string; annual_fee_usd: number | null; card_type: CardType
     network: string | null; transfer_eligibility: FinderCard['transferEligibility']; foreign_transaction_fee_pct: number | null
-    currency_program_id: string | null; co_brand_program_id: string | null; intro: string | null; issuer: { name: string } | null
+    currency_program_id: string | null; co_brand_program_id: string | null; intro: string | null; issuer: { name: string; logo_url: string | null } | null
   }>
   const ids = rows.map((c) => c.id)
   if (ids.length === 0) return []
@@ -2697,6 +2698,7 @@ export async function listCardsForFinder(supabase: SupabaseClient): Promise<Find
     slug: c.slug,
     name: c.name,
     issuerName: c.issuer?.name ?? '',
+    issuerLogo: c.issuer?.logo_url ?? null,
     annualFee: c.annual_fee_usd,
     cardType: c.card_type,
     network: c.network,
