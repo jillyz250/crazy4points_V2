@@ -142,11 +142,14 @@ export function isPublishableTransferRow(row: TransferPartnerRow): boolean {
 export default function TransferPartnersTable({
   rows: allRows,
   programNameBySlug,
+  logoBySlug,
   direction = 'inbound',
   currentCardSlug,
 }: {
   rows: TransferPartnerRow[]
   programNameBySlug: Map<string, string>
+  /** slug -> logo_url, so each partner row can show its brand mark. Optional. */
+  logoBySlug?: Map<string, string>
   direction?: 'inbound' | 'outbound'
   /** When rendered on a card detail page, pass the card's slug so tiered rows
    *  filter to the card's eligibility tier. Omit on program pages to show
@@ -206,6 +209,16 @@ export default function TransferPartnersTable({
                 }}
               >
                 <td style={{ padding: '0.75rem', fontWeight: 500, verticalAlign: 'top', wordBreak: 'break-word' }}>
+                  {logoBySlug?.get(row.from_slug) && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={logoBySlug.get(row.from_slug)}
+                      alt=""
+                      width={18}
+                      height={18}
+                      style={{ width: 18, height: 18, borderRadius: 4, objectFit: 'contain', verticalAlign: 'middle', marginRight: '0.4rem' }}
+                    />
+                  )}
                   <Link
                     href={`/programs/${row.from_slug}`}
                     style={{ color: 'var(--color-text-primary)', textDecoration: 'none' }}
