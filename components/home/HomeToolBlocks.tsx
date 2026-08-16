@@ -143,7 +143,7 @@ const ALLIANCES = [
 ];
 function AllianceVisual({ members }: { members: Record<string, string[]> }) {
   return (
-    <div className="mx-auto grid max-w-[420px] grid-cols-3 gap-2.5 md:gap-3">
+    <div className="mx-auto grid max-w-[460px] grid-cols-3 gap-2.5 md:gap-3">
       {ALLIANCES.map((a) => {
         const list = members[a.slug] ?? [];
         return (
@@ -151,7 +151,7 @@ function AllianceVisual({ members }: { members: Record<string, string[]> }) {
             <Link
               href={`/tools/alliances#${a.slug}`}
               aria-label={`${a.name}: ${list.length} member airlines. Open in the Alliance Explorer.`}
-              className="relative block h-[172px] w-full rounded-2xl shadow-[0_1px_2px_rgba(0,0,0,0.12),0_12px_24px_-10px_rgba(0,0,0,0.4)] transition-transform duration-500 [transform-style:preserve-3d] group-hover:[transform:rotateY(180deg)] group-focus-within:[transform:rotateY(180deg)] motion-reduce:transition-none motion-reduce:group-hover:[transform:none]"
+              className="relative block h-[176px] w-full rounded-2xl shadow-[0_1px_2px_rgba(0,0,0,0.12),0_12px_24px_-10px_rgba(0,0,0,0.4)] transition-transform duration-500 md:h-[216px] [transform-style:preserve-3d] group-hover:[transform:rotateY(180deg)] group-focus-within:[transform:rotateY(180deg)] motion-reduce:transition-none motion-reduce:group-hover:[transform:none]"
             >
               {/* FRONT */}
               <div className="absolute inset-0 flex flex-col overflow-hidden rounded-2xl bg-[var(--color-background)] [backface-visibility:hidden]">
@@ -165,17 +165,13 @@ function AllianceVisual({ members }: { members: Record<string, string[]> }) {
                   <p className="mt-1.5 font-ui text-[0.5rem] font-semibold uppercase tracking-wide" style={{ color: a.c1 }}>{list.length} airlines</p>
                 </div>
               </div>
-              {/* BACK — member airlines */}
+              {/* BACK — just the member airlines */}
               <div className="absolute inset-0 overflow-hidden rounded-2xl [backface-visibility:hidden] [transform:rotateY(180deg)]" style={{ background: `linear-gradient(150deg, ${a.c1}, ${a.c2})` }}>
-                <div className="flex h-full flex-col px-2 py-2 text-white">
-                  <p className="text-center font-display text-[0.72rem] font-bold leading-tight">{a.name}</p>
-                  <p className="text-center font-ui text-[0.44rem] uppercase tracking-[0.12em] text-white/75">Member airlines</p>
-                  <ul className="mt-1 flex-1 columns-2 gap-1.5 overflow-y-auto text-[0.5rem] leading-[1.42] text-white/95">
-                    {list.map((m) => (
-                      <li key={m} className="mb-px break-inside-avoid">{m}</li>
-                    ))}
-                  </ul>
-                </div>
+                <ul className="h-full columns-2 gap-x-2 px-2.5 py-3 text-[0.58rem] font-medium leading-[1.3] text-white">
+                  {list.map((m) => (
+                    <li key={m} className="mb-[2px] break-inside-avoid">{m}</li>
+                  ))}
+                </ul>
               </div>
             </Link>
           </div>
