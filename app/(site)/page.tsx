@@ -2,7 +2,9 @@ import Link from "next/link";
 import HomeHeroV2 from "@/components/home/HomeHeroV2";
 import RedAlertBar from "@/components/home/RedAlertBar";
 import HomeToolsBand from "@/components/home/HomeToolsBand";
+import HomeExperiencesBlock from "@/components/home/HomeExperiencesBlock";
 import FeaturedGuides from "@/components/home/FeaturedGuides";
+import { getHomeExperiences } from "@/utils/experiences/getHomeExperiences";
 import HomeNewsletterSubscribe from "@/components/home/HomeNewsletterSubscribe";
 import AlertsGridSB from "@/components/alerts/AlertsGridSB";
 import { createAdminClient } from "@/utils/supabase/server";
@@ -82,6 +84,8 @@ function selectHotAlerts(alerts: AlertView[]): HotAlertSelection {
 
 export default async function HomePage() {
   const supabase = createAdminClient();
+  // Homepage Experiences block — 3 freshest photographed listings.
+  const homeExperiences = await getHomeExperiences(supabase);
   // Phase 3 Wave 2 flip #6: hot alerts source from content_variants + topics
   // via the AlertView adapter. ET-based active filter applied client-side to
   // match legacy getActiveAlerts semantics exactly (the adapter's activeOnly
@@ -120,6 +124,8 @@ export default async function HomePage() {
       <HomeHeroV2 lastUpdated={lastUpdated} />
 
       <HomeToolsBand />
+
+      <HomeExperiencesBlock groups={homeExperiences} />
 
       <FeaturedGuides />
 
