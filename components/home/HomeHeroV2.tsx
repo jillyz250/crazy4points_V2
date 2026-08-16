@@ -14,24 +14,27 @@ function formatTimestamp(iso: string | null): string {
   return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
 }
 
-// One hero photo tile — rounded, cover-fit, captioned so it reads as a real
-// bookable experience (name + points cue), not a mystery image.
+// One hero photo tile — a clickable experience teaser: a clear category label
+// (Travel / Culinary…) so its purpose reads instantly, and a points cue. Links
+// to the experiences page. No long title overlay (it read as messy on-image).
 function HeroTile({ photo, className }: { photo: HeroPhoto; className?: string }) {
+  const category = photo.category || "Experience";
   return (
-    <div className={`relative overflow-hidden rounded-[var(--radius-card)] shadow-[0_12px_30px_-12px_rgba(74,32,95,0.4)] ${className ?? ""}`}>
+    <Link
+      href="/experiences"
+      aria-label={`${photo.title} — experiences you can book with points`}
+      className={`group relative block overflow-hidden rounded-[var(--radius-card)] shadow-[0_12px_30px_-12px_rgba(74,32,95,0.4)] ${className ?? ""}`}
+    >
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={photo.image_url} alt={photo.title} loading="eager" decoding="async" className="h-full w-full object-cover" />
-      <span aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
-      {photo.category && (
-        <span className="absolute left-2.5 top-2.5 rounded-full bg-black/50 px-2 py-0.5 font-ui text-[0.6rem] uppercase tracking-wide text-white backdrop-blur-sm">
-          {photo.category}
-        </span>
-      )}
-      <div className="absolute inset-x-0 bottom-0 p-2.5">
-        <p className="line-clamp-2 font-display text-[0.82rem] font-semibold leading-tight text-white drop-shadow">{photo.title}</p>
-        <p className="mt-0.5 font-ui text-[0.66rem] font-bold uppercase tracking-wide text-[#F0D488]">{photo.cue}</p>
-      </div>
-    </div>
+      <img src={photo.image_url} alt={photo.title} loading="eager" decoding="async" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+      <span aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-black/25" />
+      <span className="absolute left-3 top-3 rounded-full bg-black/55 px-3 py-1 font-ui text-[0.68rem] font-bold uppercase tracking-wide text-white backdrop-blur-sm">
+        {category}
+      </span>
+      <span className="absolute inset-x-0 bottom-0 p-3 font-ui text-[0.72rem] font-bold uppercase tracking-wide text-[#F0D488]">
+        {photo.cue}
+      </span>
+    </Link>
   );
 }
 

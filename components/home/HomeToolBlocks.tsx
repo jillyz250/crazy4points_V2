@@ -18,8 +18,8 @@ function ToolShowcase({
             <p className="mt-2 max-w-md font-body text-[var(--color-text-secondary)]">{copy}</p>
             <Link
               href={ctaHref}
-              className="mt-5 inline-flex min-h-[46px] items-center gap-2 rounded-[10px] px-5 font-ui text-sm font-bold text-white transition hover:brightness-110"
-              style={{ background: accent, boxShadow: `0 8px 20px -6px ${accent}` }}
+              className="mt-5 inline-flex min-h-[46px] items-center gap-2 rounded-[10px] px-5 font-ui text-sm font-bold transition hover:brightness-110"
+              style={{ background: accent, color: "#ffffff", boxShadow: `0 8px 20px -6px ${accent}` }}
             >
               {ctaLabel} <span aria-hidden>&rarr;</span>
             </Link>
@@ -31,33 +31,43 @@ function ToolShowcase({
   );
 }
 
-// ── Decision Engine visual — fanned real destination photos ─────────────────
-function DestCard({ d, pos, spin }: { d: DestPreview; pos: string; spin?: boolean }) {
-  return (
-    <div className={`absolute aspect-[4/3] overflow-hidden rounded-2xl shadow-[0_18px_36px_-12px_rgba(0,0,0,0.45)] ring-1 ring-black/5 ${pos}`}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={d.image_url} alt={d.title} loading="eager" decoding="async" className="h-full w-full object-cover" />
-      <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
-      {spin && (
-        <span className="absolute right-2 top-2 rounded-full bg-white px-2.5 py-0.5 font-ui text-[0.55rem] font-bold uppercase tracking-wide text-[var(--color-primary)] shadow">
-          Spin
-        </span>
-      )}
-      <div className="absolute inset-x-0 bottom-0 p-2.5">
-        <p className="line-clamp-1 font-display text-sm font-bold leading-tight text-white drop-shadow">{d.title}</p>
-        {d.country && <p className="font-ui text-[0.6rem] font-semibold uppercase tracking-wide text-[#F0D488]">{d.country}</p>}
-      </div>
-    </div>
-  );
-}
+// ── Decision Engine visual — a slot machine whose reels are real destinations.
+// The slot-machine metaphor makes the "spin for a trip idea" tool obvious.
 function DecisionEngineVisual({ destinations }: { destinations: DestPreview[] }) {
-  const [a, b, c] = destinations;
+  const reels = destinations.slice(0, 3);
   return (
-    <div className="relative mx-auto aspect-[5/4] w-full max-w-[420px] overflow-hidden">
-      {a && <DestCard d={a} pos="left-[2%] top-[6%] w-[56%] -rotate-[7deg] opacity-80" />}
-      {b && <DestCard d={b} pos="right-[2%] top-[0%] w-[56%] rotate-[6deg] opacity-90" />}
-      {c && <DestCard d={c} pos="bottom-[3%] left-1/2 w-[60%] -translate-x-1/2 rotate-[1deg] z-10" spin />}
-    </div>
+    <Link
+      href="/decision-engine"
+      aria-label="Spin the Decision Engine for a points-trip idea"
+      className="group relative mx-auto block w-full max-w-[380px] pr-6"
+    >
+      {/* pull lever */}
+      <span aria-hidden className="absolute right-1 top-7 z-20 flex flex-col items-center">
+        <span className="h-5 w-5 rounded-full bg-gradient-to-br from-[#ff6a6a] to-[#c81e1e] shadow-md ring-2 ring-white/70 transition-transform duration-300 group-hover:translate-y-2" />
+        <span className="h-14 w-1.5 rounded-full bg-gradient-to-b from-[#d1d5db] to-[#8a8f98]" />
+      </span>
+      {/* machine body */}
+      <div className="rounded-[20px] p-3 shadow-[0_22px_44px_-16px_rgba(74,32,95,0.55)]" style={{ background: "linear-gradient(160deg,#7d3aa3,#54276e)" }}>
+        <div
+          className="mb-2 rounded-lg py-1.5 text-center font-ui text-[0.62rem] font-extrabold uppercase tracking-[0.22em] text-[#3a2606]"
+          style={{ background: "linear-gradient(135deg,#f7e08c,#d0a43a)" }}
+        >
+          Where to next?
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {reels.map((d, i) => (
+            <div key={i} className="relative aspect-[3/4] overflow-hidden rounded-lg ring-2 ring-white/30">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={d.image_url} alt={d.title} loading="eager" decoding="async" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" />
+              <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+              <span className="absolute inset-x-0 bottom-0 line-clamp-1 p-1 text-center font-ui text-[0.5rem] font-bold uppercase tracking-wide text-white">{d.title}</span>
+            </div>
+          ))}
+        </div>
+        {/* payline */}
+        <div className="mx-auto mt-2 h-1 w-3/4 rounded-full" style={{ background: "linear-gradient(90deg,transparent,#f7e08c,transparent)" }} />
+      </div>
+    </Link>
   );
 }
 
@@ -106,18 +116,22 @@ function CardExplorerVisual({ cards }: { cards: CardPreview[] }) {
 
 // ── Alliance Explorer visual — 3 alliance tiles (verified members) ───────────
 const ALLIANCES = [
-  { name: "oneworld", members: "AA · BA · Qatar", grad: "linear-gradient(150deg,#b3122a,#7a0c1c)", mark: "◉" },
-  { name: "SkyTeam", members: "Delta · AF · KLM", grad: "linear-gradient(150deg,#0a4ea2,#062f63)", mark: "◈" },
-  { name: "Star Alliance", members: "United · ANA · Lufthansa", grad: "linear-gradient(150deg,#0f2a5c,#c99a1e)", mark: "✦" },
+  { name: "oneworld", members: "AA · BA · Qatar", domain: "oneworld.com", accent: "#B3122A" },
+  { name: "SkyTeam", members: "Delta · AF · KLM", domain: "skyteam.com", accent: "#0A4EA2" },
+  { name: "Star Alliance", members: "United · ANA · LH", domain: "staralliance.com", accent: "#1a3a6b" },
 ];
 function AllianceVisual() {
   return (
     <div className="mx-auto grid max-w-[420px] grid-cols-3 gap-2.5 md:gap-3">
       {ALLIANCES.map((a) => (
-        <div key={a.name} className="flex flex-col items-center rounded-2xl p-4 text-center text-white shadow-[0_14px_28px_-10px_rgba(0,0,0,0.4)]" style={{ background: a.grad }}>
-          <span aria-hidden className="mb-2 flex h-10 w-10 items-center justify-center rounded-full border-2 border-white/40 bg-white/15 text-lg">{a.mark}</span>
-          <span className="font-display text-[0.9rem] font-bold leading-tight">{a.name}</span>
-          <span className="mt-1 font-ui text-[0.6rem] opacity-85">{a.members}</span>
+        <div key={a.name} className="relative flex flex-col items-center overflow-hidden rounded-2xl border border-[var(--color-border-soft)] bg-[var(--color-background)] p-3 pt-4 text-center shadow-[var(--shadow-soft)]">
+          <span aria-hidden className="absolute inset-x-0 top-0 h-1" style={{ background: a.accent }} />
+          <span className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-white ring-1 ring-[var(--color-border-soft)]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={`https://www.google.com/s2/favicons?domain=${a.domain}&sz=128`} alt={a.name} width={28} height={28} className="h-7 w-7 object-contain" />
+          </span>
+          <span className="font-display text-[0.85rem] font-bold leading-tight text-[var(--color-primary)]">{a.name}</span>
+          <span className="mt-1 font-ui text-[0.58rem] leading-tight text-[var(--color-text-secondary)]">{a.members}</span>
         </div>
       ))}
     </div>
@@ -133,13 +147,14 @@ export function HomeSweepstakesCTA() {
           className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 rounded-[var(--radius-card)] p-5 shadow-[0_14px_30px_-14px_rgba(14,116,144,0.55)] md:p-6"
           style={{ background: "linear-gradient(120deg,#0E7490,#0b5563)" }}
         >
-          <div className="text-white">
-            <p className="font-display text-lg font-semibold">Free points &amp; miles giveaways</p>
-            <p className="font-body text-sm text-white/85">Airlines, hotels, and banks, refreshed daily. Enter the live ones before they close.</p>
+          <div>
+            <p className="font-display text-lg font-semibold" style={{ color: "#ffffff" }}>Free points &amp; miles giveaways</p>
+            <p className="font-body text-sm" style={{ color: "rgba(255,255,255,0.88)" }}>Airlines, hotels, and banks, refreshed daily. Enter the live ones before they close.</p>
           </div>
           <Link
             href="/sweepstakes"
-            className="inline-flex min-h-[46px] shrink-0 items-center gap-2 rounded-[10px] bg-white px-5 font-ui text-sm font-bold text-[#0E7490] transition hover:brightness-95"
+            className="inline-flex min-h-[46px] shrink-0 items-center gap-2 rounded-[10px] bg-white px-5 font-ui text-sm font-bold transition hover:brightness-95"
+            style={{ color: "#0E7490" }}
           >
             See giveaways <span aria-hidden>&rarr;</span>
           </Link>
@@ -177,7 +192,7 @@ export default function HomeToolBlocks({
       </ToolShowcase>
 
       <ToolShowcase
-        eyebrow="Alliance Explorer" accent="#6B2D8F" bg="paper"
+        eyebrow="Alliance Explorer" accent="#8B3FB0" bg="paper"
         title="Know your alliance."
         copy="oneworld, SkyTeam, and Star Alliance, side by side: tier ladders, lounge access, and status equivalency at a glance, so you know what your status is really worth."
         ctaLabel="Explore alliances" ctaHref="/tools/alliances"

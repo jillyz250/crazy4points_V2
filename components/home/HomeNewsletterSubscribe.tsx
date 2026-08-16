@@ -23,12 +23,32 @@ export default function HomeNewsletterSubscribe({ latest }: { latest: PublicNews
             </div>
           </div>
 
-          <Link href={`/newsletter/${latest.slug}`} className="block rounded-[var(--radius-card)] bg-white p-6 shadow-lg transition-shadow hover:shadow-xl">
-            <p className="font-ui text-xs font-semibold uppercase tracking-[0.12em] !text-red-600">Latest Issue</p>
-            <p className="mt-2 font-body text-xs text-[var(--color-text-secondary)]">{latest.issue_number ? `Issue #${latest.issue_number} · ` : ""}{fmt(latest.sent_at)}</p>
-            <p className="mt-1 font-display text-xl font-semibold text-[var(--color-primary)]">{issueTitle(latest)}</p>
-            {latest.hero_kicker && <p className="mt-2 font-body text-[var(--color-text-secondary)]">{latest.hero_kicker}</p>}
-            <span className="mt-3 inline-block font-ui text-sm font-semibold text-[var(--color-primary)]">Read it &rarr;</span>
+          {/* Styled to read like an actual newsletter front page: masthead +
+              gold double-rule + dateline + serif lead story, on cream paper. */}
+          <Link
+            href={`/newsletter/${latest.slug}`}
+            className="group block overflow-hidden rounded-[var(--radius-card)] transition-transform hover:-translate-y-1"
+            style={{
+              background: "#FBF8F1",
+              backgroundImage: "repeating-linear-gradient(0deg, rgba(74,32,95,0.025) 0 1px, transparent 1px 28px)",
+              boxShadow: "0 22px 48px -16px rgba(0,0,0,0.45)",
+            }}
+          >
+            <div className="px-6 pt-5 pb-3 text-center" style={{ borderBottom: "3px double #C9A227" }}>
+              <p className="font-ui text-[0.58rem] font-semibold uppercase tracking-[0.28em]" style={{ color: "#8A6A1E" }}>Crazy4Points presents</p>
+              <p className="mt-1 font-display text-2xl font-bold tracking-tight" style={{ color: "var(--color-primary)" }}>The Insider List</p>
+              <p className="mt-1.5 font-ui text-[0.6rem] uppercase tracking-[0.18em]" style={{ color: "#6B6470" }}>
+                {latest.issue_number ? `No. ${latest.issue_number}` : "Latest"} &middot; {fmt(latest.sent_at)}
+              </p>
+            </div>
+            <div className="px-6 py-5">
+              <p className="font-ui text-[0.58rem] font-bold uppercase tracking-[0.16em]" style={{ color: "#C0392B" }}>Lead Story</p>
+              <p className="mt-1.5 font-display text-xl font-bold leading-snug" style={{ color: "var(--color-primary)" }}>{issueTitle(latest)}</p>
+              {latest.hero_kicker && <p className="mt-2 font-body text-sm" style={{ color: "#4A4A4A" }}>{latest.hero_kicker}</p>}
+              <span className="mt-3 inline-flex items-center gap-1 font-ui text-sm font-semibold" style={{ color: "var(--color-primary)" }}>
+                Read the full issue <span aria-hidden className="transition-transform group-hover:translate-x-1">&rarr;</span>
+              </span>
+            </div>
           </Link>
         </div>
       </div>
