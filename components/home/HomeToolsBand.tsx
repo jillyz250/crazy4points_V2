@@ -81,35 +81,44 @@ const TOOLS: Tool[] = [
 function TileInner({ tool }: { tool: Tool }) {
   return (
     <>
+      {/* Oversized faint icon watermark, bleeding off the bottom-right corner —
+          adds depth/texture in the tile's own accent without imagery. */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute bottom-0 right-0 origin-bottom-right opacity-[0.07] transition-opacity duration-300 group-hover:opacity-[0.12]"
+        style={{ color: tool.accent, transform: "translate(12px, 12px) scale(4)" }}
+      >
+        {tool.icon}
+      </span>
       {/* Always-on accent bar at top; grows full-bleed on hover */}
       <span
         aria-hidden
         className="absolute inset-x-0 top-0 h-1 origin-left scale-x-[0.18] opacity-80 transition-transform duration-200 group-hover:scale-x-100"
         style={{ background: tool.accent }}
       />
-      {/* Corner glow */}
+      {/* Corner glow — softly on by default, brighter on hover */}
       <span
         aria-hidden
-        className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-50"
+        className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full opacity-20 blur-2xl transition-opacity duration-300 group-hover:opacity-60"
         style={{ background: tool.accent }}
       />
 
       <span
         aria-hidden
-        className="inline-flex h-12 w-12 items-center justify-center rounded-xl text-white shadow-[0_4px_12px_-2px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.25)] transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:scale-105"
-        style={{ background: tool.accent }}
+        className="relative inline-flex h-12 w-12 items-center justify-center rounded-xl text-white shadow-[0_6px_16px_-3px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.35)] transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:scale-105"
+        style={{ background: `linear-gradient(140deg, ${tool.accent} 0%, color-mix(in srgb, ${tool.accent} 60%, #000) 100%)` }}
       >
         {tool.icon}
       </span>
 
-      <h3 className="font-display text-lg font-semibold text-[var(--color-primary)]">
+      <h3 className="relative font-display text-lg font-semibold text-[var(--color-primary)]">
         {tool.label}
       </h3>
-      <p className="font-body text-sm text-[var(--color-text-secondary)]">
+      <p className="relative font-body text-sm text-[var(--color-text-secondary)]">
         {tool.blurb}
       </p>
       <span
-        className="mt-auto inline-flex items-center gap-1 pt-1 font-ui text-xs font-semibold uppercase tracking-[0.1em]"
+        className="relative mt-auto inline-flex items-center gap-1 pt-1 font-ui text-xs font-semibold uppercase tracking-[0.1em]"
         style={{ color: tool.comingSoon ? "var(--color-text-secondary)" : tool.accent }}
       >
         {tool.cta}
