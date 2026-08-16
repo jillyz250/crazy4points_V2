@@ -115,23 +115,44 @@ function CardExplorerVisual({ cards }: { cards: CardPreview[] }) {
 }
 
 // ── Alliance Explorer visual — 3 alliance tiles (verified members) ───────────
+// Crisp drawn emblems (generic geometry, not the copyrighted alliance marks) —
+// sharp at any size, unlike the low-res favicons.
+const EMBLEMS = {
+  rings: (
+    <svg viewBox="0 0 40 40" width="34" height="34" fill="none" stroke="currentColor" strokeWidth={3.2}>
+      <circle cx="20" cy="20" r="15" />
+      <circle cx="20" cy="20" r="6" fill="currentColor" stroke="none" />
+    </svg>
+  ),
+  diamond: (
+    <svg viewBox="0 0 40 40" width="34" height="34" fill="none" stroke="currentColor" strokeWidth={3.2}>
+      <path d="M20 5 L34 20 L20 35 L6 20 Z" />
+      <path d="M20 13 L27 20 L20 27 L13 20 Z" fill="currentColor" stroke="none" />
+    </svg>
+  ),
+  star: (
+    <svg viewBox="0 0 40 40" width="34" height="34" fill="currentColor">
+      <path d="M20 3.5 l4.94 10.6 11.66 1.2 -8.7 7.8 2.48 11.45 -10.38 -6.02 -10.38 6.02 2.48 -11.45 -8.7 -7.8 11.66 -1.2 Z" />
+    </svg>
+  ),
+};
 const ALLIANCES = [
-  { name: "oneworld", members: "AA · BA · Qatar", domain: "oneworld.com", accent: "#B3122A" },
-  { name: "SkyTeam", members: "Delta · AF · KLM", domain: "skyteam.com", accent: "#0A4EA2" },
-  { name: "Star Alliance", members: "United · ANA · LH", domain: "staralliance.com", accent: "#1a3a6b" },
+  { name: "oneworld", members: "AA · BA · Qatar", c1: "#d0102e", c2: "#8f0a1f", emblem: EMBLEMS.rings },
+  { name: "SkyTeam", members: "Delta · AF · KLM", c1: "#1a56a8", c2: "#0d2f63", emblem: EMBLEMS.diamond },
+  { name: "Star Alliance", members: "United · ANA · LH", c1: "#1c3f7a", c2: "#0b1f42", emblem: EMBLEMS.star },
 ];
 function AllianceVisual() {
   return (
     <div className="mx-auto grid max-w-[420px] grid-cols-3 gap-2.5 md:gap-3">
       {ALLIANCES.map((a) => (
-        <div key={a.name} className="relative flex flex-col items-center overflow-hidden rounded-2xl border border-[var(--color-border-soft)] bg-[var(--color-background)] p-3 pt-4 text-center shadow-[var(--shadow-soft)]">
-          <span aria-hidden className="absolute inset-x-0 top-0 h-1" style={{ background: a.accent }} />
-          <span className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-white ring-1 ring-[var(--color-border-soft)]">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={`https://www.google.com/s2/favicons?domain=${a.domain}&sz=128`} alt={a.name} width={28} height={28} className="h-7 w-7 object-contain" />
-          </span>
-          <span className="font-display text-[0.85rem] font-bold leading-tight text-[var(--color-primary)]">{a.name}</span>
-          <span className="mt-1 font-ui text-[0.58rem] leading-tight text-[var(--color-text-secondary)]">{a.members}</span>
+        <div key={a.name} className="overflow-hidden rounded-2xl shadow-[0_16px_32px_-12px_rgba(0,0,0,0.4)]">
+          <div className="flex h-[74px] items-center justify-center" style={{ background: `linear-gradient(150deg, ${a.c1}, ${a.c2})`, color: "#ffffff" }}>
+            {a.emblem}
+          </div>
+          <div className="bg-[var(--color-background)] px-2 py-3 text-center">
+            <p className="font-display text-[0.85rem] font-bold leading-tight" style={{ color: "var(--color-primary)" }}>{a.name}</p>
+            <p className="mt-1 font-ui text-[0.56rem] leading-tight" style={{ color: "var(--color-text-secondary)" }}>{a.members}</p>
+          </div>
         </div>
       ))}
     </div>
