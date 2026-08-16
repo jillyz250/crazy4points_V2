@@ -90,7 +90,17 @@ export default async function HomePage() {
   const heroPhotos = homeExperiences
     .slice(0, 3)
     .filter((g) => g.image_url)
-    .map((g) => ({ image_url: g.image_url as string, title: g.title, category: g.category }));
+    .map((g) => ({
+      image_url: g.image_url as string,
+      title: g.title,
+      category: g.category,
+      cue:
+        g.fromPoints != null
+          ? `From ${g.fromPoints.toLocaleString("en-US")} pts`
+          : g.isAuction
+            ? "Bid with points"
+            : "Book with points",
+    }));
   const blockExperiences =
     homeExperiences.length > 3 ? homeExperiences.slice(3, 6) : homeExperiences;
   // Phase 3 Wave 2 flip #6: hot alerts source from content_variants + topics

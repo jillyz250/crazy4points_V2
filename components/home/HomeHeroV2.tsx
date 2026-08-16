@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export type HeroPhoto = { image_url: string; title: string; category: string | null };
+export type HeroPhoto = { image_url: string; title: string; category: string | null; cue: string };
 
 interface Props {
   lastUpdated: string | null;
@@ -14,18 +14,23 @@ function formatTimestamp(iso: string | null): string {
   return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
 }
 
-// One hero photo tile — rounded, cover-fit, with a soft scrim + category chip.
+// One hero photo tile — rounded, cover-fit, captioned so it reads as a real
+// bookable experience (name + points cue), not a mystery image.
 function HeroTile({ photo, className }: { photo: HeroPhoto; className?: string }) {
   return (
     <div className={`relative overflow-hidden rounded-[var(--radius-card)] shadow-[0_12px_30px_-12px_rgba(74,32,95,0.4)] ${className ?? ""}`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={photo.image_url} alt={photo.title} loading="eager" decoding="async" className="h-full w-full object-cover" />
-      <span aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent" />
+      <span aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
       {photo.category && (
         <span className="absolute left-2.5 top-2.5 rounded-full bg-black/50 px-2 py-0.5 font-ui text-[0.6rem] uppercase tracking-wide text-white backdrop-blur-sm">
           {photo.category}
         </span>
       )}
+      <div className="absolute inset-x-0 bottom-0 p-2.5">
+        <p className="line-clamp-2 font-display text-[0.82rem] font-semibold leading-tight text-white drop-shadow">{photo.title}</p>
+        <p className="mt-0.5 font-ui text-[0.66rem] font-bold uppercase tracking-wide text-[#F0D488]">{photo.cue}</p>
+      </div>
     </div>
   );
 }
@@ -66,12 +71,22 @@ export default function HomeHeroV2({ lastUpdated, photos = [] }: Props) {
             )}
           </div>
 
-          {/* Right — experience photo grid (one tall + two stacked). */}
+          {/* Right — experience photo grid (one tall + two stacked), captioned
+              + labeled so it's clear these are experiences bookable with points. */}
           {hasGrid && (
-            <div className="grid h-[300px] grid-cols-2 grid-rows-2 gap-2.5 md:h-[380px] md:gap-3">
-              <HeroTile photo={photos[0]} className="row-span-2" />
-              <HeroTile photo={photos[1]} />
-              <HeroTile photo={photos[2]} />
+            <div className="flex flex-col gap-2.5">
+              <div className="grid h-[300px] grid-cols-2 grid-rows-2 gap-2.5 md:h-[380px] md:gap-3">
+                <HeroTile photo={photos[0]} className="row-span-2" />
+                <HeroTile photo={photos[1]} />
+                <HeroTile photo={photos[2]} />
+              </div>
+              <Link
+                href="/experiences"
+                className="group inline-flex items-center gap-1 self-center font-ui text-xs font-semibold uppercase tracking-[0.1em] text-[var(--color-primary)] transition-colors hover:text-[var(--color-accent)] md:self-end"
+              >
+                Real experiences you can book with points
+                <span aria-hidden className="transition-transform duration-200 group-hover:translate-x-1">&rarr;</span>
+              </Link>
             </div>
           )}
         </div>
