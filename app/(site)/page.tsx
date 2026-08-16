@@ -84,8 +84,15 @@ function selectHotAlerts(alerts: AlertView[]): HotAlertSelection {
 
 export default async function HomePage() {
   const supabase = createAdminClient();
-  // Homepage Experiences block — 3 freshest photographed listings.
-  const homeExperiences = await getHomeExperiences(supabase);
+  // Homepage experiences — 6 freshest photographed listings, split so the hero
+  // grid and the functional block never show the same listing.
+  const homeExperiences = await getHomeExperiences(supabase, 6);
+  const heroPhotos = homeExperiences
+    .slice(0, 3)
+    .filter((g) => g.image_url)
+    .map((g) => ({ image_url: g.image_url as string, title: g.title, category: g.category }));
+  const blockExperiences =
+    homeExperiences.length > 3 ? homeExperiences.slice(3, 6) : homeExperiences;
   // Phase 3 Wave 2 flip #6: hot alerts source from content_variants + topics
   // via the AlertView adapter. ET-based active filter applied client-side to
   // match legacy getActiveAlerts semantics exactly (the adapter's activeOnly
@@ -121,11 +128,11 @@ export default async function HomePage() {
   return (
     <>
       <RedAlertBar alerts={hotAlerts} overflowCount={overflowCount} />
-      <HomeHeroV2 lastUpdated={lastUpdated} />
-
-      <HomeExperiencesBlock groups={homeExperiences} />
+      <HomeHeroV2 lastUpdated={lastUpdated} photos={heroPhotos} />
 
       <HomeToolsBand />
+
+      <HomeExperiencesBlock groups={blockExperiences} />
 
       <FeaturedGuides />
 
