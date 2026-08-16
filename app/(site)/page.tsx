@@ -123,9 +123,9 @@ export default async function HomePage() {
       <RedAlertBar alerts={hotAlerts} overflowCount={overflowCount} />
       <HomeHeroV2 lastUpdated={lastUpdated} />
 
-      <HomeToolsBand />
-
       <HomeExperiencesBlock groups={homeExperiences} />
+
+      <HomeToolsBand />
 
       <FeaturedGuides />
 
