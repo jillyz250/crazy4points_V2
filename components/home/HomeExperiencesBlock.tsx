@@ -106,7 +106,7 @@ export default function HomeExperiencesBlock({ groups }: { groups: ExperienceGro
                 Money can&apos;t buy it. Points can.
               </h2>
               <p className="mt-2 font-body text-[var(--color-text-secondary)]">
-                Book or bid on bucket-list experiences with points, from front-row shows to chef&apos;s tables.
+                Find real-world experiences your points unlock: concerts, sports, chef&apos;s tables, VIP trips. Redeem points outright, or bid on them in an auction.
               </p>
             </div>
             <Link
