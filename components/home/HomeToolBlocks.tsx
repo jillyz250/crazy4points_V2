@@ -141,27 +141,46 @@ const ALLIANCES = [
   { name: "SkyTeam", members: "Delta · AF · KLM", slug: "skyteam", c1: "#1a56a8", c2: "#0d2f63", emblem: EMBLEMS.diamond },
   { name: "Star Alliance", members: "United · ANA · LH", slug: "star-alliance", c1: "#1c3f7a", c2: "#0b1f42", emblem: EMBLEMS.star },
 ];
-function AllianceVisual() {
+function AllianceVisual({ members }: { members: Record<string, string[]> }) {
   return (
     <div className="mx-auto grid max-w-[420px] grid-cols-3 gap-2.5 md:gap-3">
-      {ALLIANCES.map((a) => (
-        <Link
-          key={a.name}
-          href={`/tools/alliances#${a.slug}`}
-          aria-label={`${a.name} in the Alliance Explorer`}
-          className="group block overflow-hidden rounded-2xl shadow-[0_1px_2px_rgba(0,0,0,0.12),0_12px_24px_-10px_rgba(0,0,0,0.4)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_2px_4px_rgba(0,0,0,0.14),0_24px_38px_-12px_rgba(0,0,0,0.5)]"
-        >
-          {/* Colored header with a top-light gloss + raised emblem = 3D depth. */}
-          <div className="relative flex h-[74px] items-center justify-center" style={{ background: `linear-gradient(150deg, ${a.c1}, ${a.c2})` }}>
-            <span aria-hidden className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0.05) 42%, rgba(0,0,0,0.14) 100%)" }} />
-            <span className="relative text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.35)] transition-transform duration-300 group-hover:scale-110">{a.emblem}</span>
+      {ALLIANCES.map((a) => {
+        const list = members[a.slug] ?? [];
+        return (
+          <div key={a.name} className="group [perspective:900px]">
+            <Link
+              href={`/tools/alliances#${a.slug}`}
+              aria-label={`${a.name}: ${list.length} member airlines. Open in the Alliance Explorer.`}
+              className="relative block h-[172px] w-full rounded-2xl shadow-[0_1px_2px_rgba(0,0,0,0.12),0_12px_24px_-10px_rgba(0,0,0,0.4)] transition-transform duration-500 [transform-style:preserve-3d] group-hover:[transform:rotateY(180deg)] group-focus-within:[transform:rotateY(180deg)] motion-reduce:transition-none motion-reduce:group-hover:[transform:none]"
+            >
+              {/* FRONT */}
+              <div className="absolute inset-0 flex flex-col overflow-hidden rounded-2xl bg-[var(--color-background)] [backface-visibility:hidden]">
+                <div className="relative flex h-[74px] shrink-0 items-center justify-center" style={{ background: `linear-gradient(150deg, ${a.c1}, ${a.c2})` }}>
+                  <span aria-hidden className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0.05) 42%, rgba(0,0,0,0.14) 100%)" }} />
+                  <span className="relative text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.35)]">{a.emblem}</span>
+                </div>
+                <div className="flex flex-1 flex-col items-center justify-center px-2 text-center">
+                  <p className="font-display text-[0.85rem] font-bold leading-tight" style={{ color: "var(--color-primary)" }}>{a.name}</p>
+                  <p className="mt-1 font-ui text-[0.56rem] leading-tight" style={{ color: "var(--color-text-secondary)" }}>{a.members}</p>
+                  <p className="mt-1.5 font-ui text-[0.5rem] font-semibold uppercase tracking-wide" style={{ color: a.c1 }}>{list.length} airlines</p>
+                </div>
+              </div>
+              {/* BACK — member airlines */}
+              <div className="absolute inset-0 overflow-hidden rounded-2xl [backface-visibility:hidden] [transform:rotateY(180deg)]" style={{ background: `linear-gradient(150deg, ${a.c1}, ${a.c2})` }}>
+                <div className="flex h-full flex-col px-2 py-2 text-white">
+                  <p className="text-center font-display text-[0.72rem] font-bold leading-tight">{a.name}</p>
+                  <p className="text-center font-ui text-[0.44rem] uppercase tracking-[0.12em] text-white/75">Member airlines</p>
+                  <ul className="mt-1 flex-1 columns-2 gap-1.5 overflow-y-auto text-[0.5rem] leading-[1.42] text-white/95">
+                    {list.map((m) => (
+                      <li key={m} className="mb-px break-inside-avoid">{m}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </Link>
           </div>
-          <div className="bg-[var(--color-background)] px-2 py-3 text-center">
-            <p className="font-display text-[0.85rem] font-bold leading-tight" style={{ color: "var(--color-primary)" }}>{a.name}</p>
-            <p className="mt-1 font-ui text-[0.56rem] leading-tight" style={{ color: "var(--color-text-secondary)" }}>{a.members}</p>
-          </div>
-        </Link>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -194,10 +213,11 @@ export function HomeSweepstakesCTA() {
 
 // ── the three tool showcase blocks ──────────────────────────────────────────
 export default function HomeToolBlocks({
-  destinations, cards,
+  destinations, cards, allianceMembers,
 }: {
   destinations: DestPreview[];
   cards: CardPreview[];
+  allianceMembers: Record<string, string[]>;
 }) {
   return (
     <>
@@ -225,7 +245,7 @@ export default function HomeToolBlocks({
         copy="oneworld, SkyTeam, and Star Alliance, side by side: tier ladders, lounge access, and status equivalency at a glance, so you know what your status is really worth."
         ctaLabel="Explore alliances" ctaHref="/tools/alliances"
       >
-        <AllianceVisual />
+        <AllianceVisual members={allianceMembers} />
       </ToolShowcase>
     </>
   );
