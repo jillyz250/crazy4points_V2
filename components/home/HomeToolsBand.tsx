@@ -61,6 +61,21 @@ const TOOLS: Tool[] = [
       </svg>
     ),
   },
+  {
+    label: "Sweepstakes",
+    href: "/sweepstakes",
+    blurb: "Free points and miles giveaways from airlines, hotels, and banks — refreshed daily. Enter the live ones before they close.",
+    cta: "See giveaways",
+    accent: "#0E9AA5",
+    tint: "#DBF1F2",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
+        <rect x="3" y="8" width="18" height="4" rx="1" />
+        <path d="M5 12v8h14v-8M12 8v12" />
+        <path d="M12 8S9.5 3 7.2 4.6 8.9 8 12 8zm0 0s2.5-5 4.8-3.4S15.1 8 12 8z" />
+      </svg>
+    ),
+  },
 ];
 
 function TileInner({ tool }: { tool: Tool }) {
@@ -117,11 +132,11 @@ export default function HomeToolsBand() {
             Tools to plan your next trip
           </h2>
           <p className="mt-3 font-body text-[var(--color-text-secondary)]">
-            Compare cards, explore the alliances, or spin up a trip idea — all live now.
+            Compare cards, explore the alliances, spin up a trip idea, or catch a live giveaway — all live now.
           </p>
         </div>
 
-        <div className="mx-auto grid max-w-4xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mx-auto grid max-w-6xl gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {TOOLS.map((tool) => {
             const baseClass =
               "group relative flex flex-col gap-3 overflow-hidden rounded-[var(--radius-card)] border border-white/60 p-6 shadow-[0_1px_2px_rgba(26,26,26,0.04),0_8px_24px_-12px_rgba(26,26,26,0.18),inset_0_1px_0_rgba(255,255,255,0.7)] ring-1 ring-[var(--color-border-soft)] transition-all duration-300 will-change-transform";
