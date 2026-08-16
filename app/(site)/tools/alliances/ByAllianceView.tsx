@@ -19,11 +19,13 @@ export default function ByAllianceView({
       {sorted.map((alliance) => (
         <article
           key={alliance.id}
+          id={alliance.slug}
           style={{
             background: 'var(--color-background-soft)',
             borderRadius: 'var(--radius-card)',
             padding: '2rem',
             border: '1px solid var(--color-border-soft)',
+            scrollMarginTop: '6rem',
           }}
         >
           <header style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '1rem' }}>

@@ -137,23 +137,30 @@ const EMBLEMS = {
   ),
 };
 const ALLIANCES = [
-  { name: "oneworld", members: "AA · BA · Qatar", c1: "#d0102e", c2: "#8f0a1f", emblem: EMBLEMS.rings },
-  { name: "SkyTeam", members: "Delta · AF · KLM", c1: "#1a56a8", c2: "#0d2f63", emblem: EMBLEMS.diamond },
-  { name: "Star Alliance", members: "United · ANA · LH", c1: "#1c3f7a", c2: "#0b1f42", emblem: EMBLEMS.star },
+  { name: "oneworld", members: "AA · BA · Qatar", slug: "oneworld", c1: "#d0102e", c2: "#8f0a1f", emblem: EMBLEMS.rings },
+  { name: "SkyTeam", members: "Delta · AF · KLM", slug: "skyteam", c1: "#1a56a8", c2: "#0d2f63", emblem: EMBLEMS.diamond },
+  { name: "Star Alliance", members: "United · ANA · LH", slug: "star-alliance", c1: "#1c3f7a", c2: "#0b1f42", emblem: EMBLEMS.star },
 ];
 function AllianceVisual() {
   return (
     <div className="mx-auto grid max-w-[420px] grid-cols-3 gap-2.5 md:gap-3">
       {ALLIANCES.map((a) => (
-        <div key={a.name} className="overflow-hidden rounded-2xl shadow-[0_16px_32px_-12px_rgba(0,0,0,0.4)]">
-          <div className="flex h-[74px] items-center justify-center" style={{ background: `linear-gradient(150deg, ${a.c1}, ${a.c2})`, color: "#ffffff" }}>
-            {a.emblem}
+        <Link
+          key={a.name}
+          href={`/tools/alliances#${a.slug}`}
+          aria-label={`${a.name} in the Alliance Explorer`}
+          className="group block overflow-hidden rounded-2xl shadow-[0_1px_2px_rgba(0,0,0,0.12),0_12px_24px_-10px_rgba(0,0,0,0.4)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_2px_4px_rgba(0,0,0,0.14),0_24px_38px_-12px_rgba(0,0,0,0.5)]"
+        >
+          {/* Colored header with a top-light gloss + raised emblem = 3D depth. */}
+          <div className="relative flex h-[74px] items-center justify-center" style={{ background: `linear-gradient(150deg, ${a.c1}, ${a.c2})` }}>
+            <span aria-hidden className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0.05) 42%, rgba(0,0,0,0.14) 100%)" }} />
+            <span className="relative text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.35)] transition-transform duration-300 group-hover:scale-110">{a.emblem}</span>
           </div>
           <div className="bg-[var(--color-background)] px-2 py-3 text-center">
             <p className="font-display text-[0.85rem] font-bold leading-tight" style={{ color: "var(--color-primary)" }}>{a.name}</p>
             <p className="mt-1 font-ui text-[0.56rem] leading-tight" style={{ color: "var(--color-text-secondary)" }}>{a.members}</p>
           </div>
-        </div>
+        </Link>
       ))}
     </div>
   );
