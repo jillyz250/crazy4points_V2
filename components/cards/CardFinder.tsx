@@ -596,23 +596,19 @@ function CardTile({ c, showTransferNote, compare }: { c: FinderCard; showTransfe
   // official card page. Only the referral case carries the "we may earn" note.
   const applyUrl = c.affiliateUrl ?? c.officialUrl
   const isReferral = !!c.affiliateUrl
+  // Per-card disclosure removed in favor of one blanket disclosure on the page
+  // (see the Card Explorer page). The button row stays bottom-pinned so CTAs
+  // still line up across cards of different heights.
   const cta = (
-    <div style={{ position: 'relative', zIndex: 1, marginTop: 'auto', paddingTop: '0.875rem', borderTop: `1px solid ${th.divider}`, display: 'grid', gap: '0.4375rem' }}>
-      <div style={{ display: 'flex', gap: '0.5rem' }}>
-        {applyUrl ? (
-          <>
-            <a href={applyUrl} target="_blank" rel={isReferral ? 'noopener nofollow sponsored' : 'noopener nofollow'} style={{ ...ctaBtn, ...th.apply, flex: '1.6 1 0' }}>Apply →</a>
-            <Link href={`/cards/${c.slug}`} style={{ ...ctaBtn, ...th.ghost, flex: '1 1 0' }}>Details</Link>
-          </>
-        ) : (
-          <Link href={`/cards/${c.slug}`} style={{ ...ctaBtn, ...th.ghost, flex: '1 1 0' }}>View card details →</Link>
-        )}
-      </div>
-      {/* Fixed 2-line height so the Apply/Details row sits at the same spot on
-          every card regardless of how long the disclosure wraps. */}
-      <div style={{ fontFamily: 'var(--font-ui)', fontSize: '0.625rem', lineHeight: 1.3, color: th.ftc, height: '1.7rem', overflow: 'hidden' }}>
-        {isReferral ? 'Referral link. We may earn a bonus, at no cost to you.' : applyUrl ? "Applies on the issuer's official site." : ''}
-      </div>
+    <div style={{ position: 'relative', zIndex: 1, marginTop: 'auto', paddingTop: '0.875rem', borderTop: `1px solid ${th.divider}`, display: 'flex', gap: '0.5rem' }}>
+      {applyUrl ? (
+        <>
+          <a href={applyUrl} target="_blank" rel={isReferral ? 'noopener nofollow sponsored' : 'noopener nofollow'} style={{ ...ctaBtn, ...th.apply, flex: '1.6 1 0' }}>Apply →</a>
+          <Link href={`/cards/${c.slug}`} style={{ ...ctaBtn, ...th.ghost, flex: '1 1 0' }}>Details</Link>
+        </>
+      ) : (
+        <Link href={`/cards/${c.slug}`} style={{ ...ctaBtn, ...th.ghost, flex: '1 1 0' }}>View card details →</Link>
+      )}
     </div>
   )
 

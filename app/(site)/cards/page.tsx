@@ -61,6 +61,10 @@ export default async function CardFinderPage({
           Browse every card, sort by what matters, and quick-filter as you go. Need to get specific?
           Open <strong>All filters</strong> for the full benefit, program, and issuer breakdown.
         </p>
+        <p style={{ marginTop: '0.875rem', fontSize: '0.8125rem', color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+          Some &ldquo;Apply&rdquo; buttons use referral links and we may earn a bonus, at no cost to you.
+          Either way, you complete your application on the card issuer&rsquo;s official site.
+        </p>
       </header>
       <CardFinder cards={cards} programOptions={programOptions} transferSources={transferSources} initial={initial} />
     </div>
