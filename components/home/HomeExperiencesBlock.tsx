@@ -91,7 +91,7 @@ function GlassCard({ group }: { group: ExperienceGroup }) {
 export default function HomeExperiencesBlock({ groups }: { groups: ExperienceGroup[] }) {
   if (!groups.length) return null;
   return (
-    <section className="border-b border-[var(--color-border-soft)] bg-[var(--color-background)] py-12 md:py-16">
+    <section className="bg-[var(--color-background-soft)] py-12 md:py-16">
       <div className="rg-container px-6 md:px-8">
         <div
           className="mx-auto max-w-5xl overflow-hidden rounded-[calc(var(--radius-card)+4px)] border border-[var(--color-border-soft)] p-6 shadow-[0_1px_2px_rgba(26,26,26,0.04),0_18px_40px_-20px_rgba(74,32,95,0.28)] md:p-8"

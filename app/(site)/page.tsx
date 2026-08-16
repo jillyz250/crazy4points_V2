@@ -1,10 +1,11 @@
 import Link from "next/link";
 import HomeHeroV2 from "@/components/home/HomeHeroV2";
 import RedAlertBar from "@/components/home/RedAlertBar";
-import HomeToolsBand from "@/components/home/HomeToolsBand";
+import HomeToolBlocks, { HomeSweepstakesCTA } from "@/components/home/HomeToolBlocks";
 import HomeExperiencesBlock from "@/components/home/HomeExperiencesBlock";
 import FeaturedGuides from "@/components/home/FeaturedGuides";
 import { getHomeExperiences } from "@/utils/experiences/getHomeExperiences";
+import { getHomeToolPreviews } from "@/utils/home/getHomeToolPreviews";
 import HomeNewsletterSubscribe from "@/components/home/HomeNewsletterSubscribe";
 import AlertsGridSB from "@/components/alerts/AlertsGridSB";
 import { createAdminClient } from "@/utils/supabase/server";
@@ -103,6 +104,8 @@ export default async function HomePage() {
     }));
   const blockExperiences =
     homeExperiences.length > 3 ? homeExperiences.slice(3, 6) : homeExperiences;
+  // Preview data for the tool showcase blocks (real destinations + cards).
+  const { destinations: toolDestinations, cards: toolCards } = await getHomeToolPreviews(supabase);
   // Phase 3 Wave 2 flip #6: hot alerts source from content_variants + topics
   // via the AlertView adapter. ET-based active filter applied client-side to
   // match legacy getActiveAlerts semantics exactly (the adapter's activeOnly
@@ -140,9 +143,11 @@ export default async function HomePage() {
       <RedAlertBar alerts={hotAlerts} overflowCount={overflowCount} />
       <HomeHeroV2 lastUpdated={lastUpdated} photos={heroPhotos} />
 
-      <HomeToolsBand />
+      <HomeToolBlocks destinations={toolDestinations} cards={toolCards} />
 
       <HomeExperiencesBlock groups={blockExperiences} />
+
+      <HomeSweepstakesCTA />
 
       <FeaturedGuides />
 
