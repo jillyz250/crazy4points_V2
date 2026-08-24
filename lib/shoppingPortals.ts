@@ -84,5 +84,22 @@ export const PORTAL_GROUPS: { key: PortalGroup; label: string; blurb: string }[]
   { key: "airline", label: "Airline miles", blurb: "Log in with your frequent-flyer account and earn miles on everyday online shopping." },
 ];
 
+// Curated "hot portal offers this week" — elevated rates worth calling out.
+// Kept as a hand-vetted list (every rate verified before it goes in) rather
+// than a scraper; the section auto-hides when empty. Add an entry when a real,
+// current elevated offer is confirmed.
+export interface HotPortalOffer {
+  portal: string;
+  store: string;
+  /** Verified, current rate — qualitative is fine ("10x", "up to 15%"). */
+  rate: string;
+  earns: string;
+  url: string;
+  /** ISO date the offer ends, if known — used for an urgency pill. */
+  ends?: string;
+  referral?: boolean;
+}
+export const HOT_PORTAL_OFFERS: HotPortalOffer[] = [];
+
 export const PORTAL_DISCLOSURE =
   'Rows marked "Referral" use our personal referral link and may earn us a reward when you sign up, at no cost to you. Portal earn rates change by store and over time, so check the portal for the current rate before you shop.';

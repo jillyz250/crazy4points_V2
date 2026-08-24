@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { SHOPPING_PORTALS, PORTAL_GROUPS, PORTAL_DISCLOSURE, type ShoppingPortal } from "@/lib/shoppingPortals";
+import { SHOPPING_PORTALS, PORTAL_GROUPS, PORTAL_DISCLOSURE, HOT_PORTAL_OFFERS, type ShoppingPortal } from "@/lib/shoppingPortals";
+import PortalRateSearch from "@/components/tools/PortalRateSearch";
 
 export const metadata: Metadata = {
   title: "Shopping Portals — Earn Points & Cash Back Online | Crazy4Points",
@@ -56,6 +57,32 @@ export default function ShoppingPortalsPage() {
           <strong>Amex Membership Rewards points</strong>.
         </p>
       </header>
+
+      <div className="mt-8">
+        <PortalRateSearch />
+      </div>
+
+      {HOT_PORTAL_OFFERS.length > 0 && (
+        <section className="mt-10">
+          <h2 className="font-display text-xl font-semibold text-[var(--color-primary)] md:text-2xl">Hot portal offers this week</h2>
+          <p className="mt-1 font-body text-sm text-[var(--color-text-secondary)]">Elevated rates we've spotted. Verify the current rate on the portal before you shop.</p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {HOT_PORTAL_OFFERS.map((o, i) => (
+              <a
+                key={`${o.portal}-${o.store}-${i}`}
+                href={o.url}
+                target="_blank"
+                rel={o.referral ? "nofollow sponsored noopener" : "noopener noreferrer"}
+                className="flex flex-col gap-1 rounded-[var(--radius-card)] border border-[var(--color-accent)] bg-[var(--color-background)] p-4 shadow-[var(--shadow-soft)] transition-transform hover:-translate-y-0.5"
+              >
+                <span className="font-ui text-[0.6rem] font-bold uppercase tracking-wide text-[var(--color-accent)]">{o.rate} · {o.portal}</span>
+                <span className="font-display text-base font-semibold text-[var(--color-primary)]">{o.store}</span>
+                <span className="font-body text-sm text-[var(--color-text-secondary)]">{o.earns}</span>
+              </a>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="mt-10 flex flex-col gap-10">
         {PORTAL_GROUPS.map((g) => {
