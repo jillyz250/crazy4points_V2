@@ -9,6 +9,7 @@ const footerNav = [
       { label: "Credit Card Explorer", href: "/cards" },
       { label: "Alliance Explorer", href: "/tools/alliances" },
       { label: "Decision Engine", href: "/decision-engine" },
+      { label: "Shopping Portals", href: "/tools/shopping-portals" },
       { label: "Alerts", href: "/alerts" },
       { label: "Blog", href: "/blog" },
     ],
