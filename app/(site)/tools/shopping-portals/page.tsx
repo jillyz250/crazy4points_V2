@@ -30,7 +30,12 @@ function PortalCard({ p }: { p: ShoppingPortal }) {
         href={p.url}
         target="_blank"
         rel={p.referral ? "nofollow sponsored noopener" : "noopener noreferrer"}
-        className="mt-1 inline-flex min-h-[44px] w-fit items-center gap-2 rounded-[var(--radius-ui)] bg-[var(--color-primary)] px-5 font-ui text-sm font-bold text-white transition hover:bg-[var(--color-primary-hover)]"
+        className="mt-1 inline-flex min-h-[44px] w-fit items-center gap-2 rounded-[var(--radius-ui)] px-5 font-ui text-sm font-bold transition hover:brightness-110"
+        style={{
+          background: `linear-gradient(160deg, color-mix(in srgb, ${p.accent} 68%, #ffffff) 0%, ${p.accent} 62%)`,
+          color: "#ffffff",
+          boxShadow: `0 6px 16px -6px ${p.accent}`,
+        }}
       >
         {p.referral ? "Sign up" : "Visit portal"} <span aria-hidden>&rarr;</span>
       </a>
