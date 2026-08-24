@@ -11,6 +11,7 @@
  */
 import type { NewsletterSlots, AlsoHappeningItem, NewsletterSweetSpot, ActiveOffers, OfferItem, ElevatedBonusItem, TopExperienceItem, TopSweepstakesItem } from './newsletterSlots'
 import { unsubscribeUrlFor } from '@/utils/email/unsubscribeToken'
+import { CAPITAL_ONE_SHOPPING } from '@/lib/referrals'
 
 const PURPLE = '#6B2D8F'
 const GOLD = '#D4AF37'
@@ -527,6 +528,21 @@ export interface RenderNewsletterV2Args {
   currentBonuses?: CurrentBonusRow[]
 }
 
+// Recurring "Editor's tip" for Capital One Shopping (a referral link). Gated on
+// the week so it appears roughly every other weekly issue — a nudge, not a nag.
+function renderCapOneTip(weekOf: string): string {
+  const days = Math.floor(Date.parse(`${weekOf}T00:00:00Z`) / 86400000)
+  if (!Number.isFinite(days) || Math.floor(days / 7) % 2 !== 0) return ''
+  return `
+        <tr><td style="padding:18px 28px;background:#FBF4DD;border-top:1px solid ${BORDER};">
+          <p style="margin:0 0 4px;font-family:${FONT_UI};font-size:10px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:${GOLD};">Editor's tip</p>
+          <p style="margin:0 0 6px;font-family:${FONT_DISPLAY};font-size:16px;font-weight:700;color:${PURPLE};">Save on everyday shopping</p>
+          <p style="margin:0 0 12px;font-family:${FONT_UI};font-size:13px;color:${BODY};line-height:1.5;">We use ${CAPITAL_ONE_SHOPPING.name}, a free tool that finds coupon codes and compares prices while you check out online.</p>
+          <a href="${CAPITAL_ONE_SHOPPING.url}" style="display:inline-block;font-family:${FONT_UI};font-size:13px;font-weight:700;color:#ffffff;background:${PURPLE};text-decoration:none;padding:9px 18px;border-radius:6px;">Try it free &rarr;</a>
+          <p style="margin:10px 0 0;font-family:${FONT_UI};font-size:10px;color:${MUTED};font-style:italic;">${CAPITAL_ONE_SHOPPING.disclosure}</p>
+        </td></tr>`
+}
+
 export function renderNewsletterV2Html({
   slots,
   weekOf,
@@ -593,6 +609,7 @@ export function renderNewsletterV2Html({
         ${renderElevatedBonuses(slots.elevated_bonuses, origin)}
         ${renderGame(slots.game, origin)}
         ${renderJillsTake(slots.jills_take_html)}
+        ${renderCapOneTip(weekOf)}
 
         <!-- Footer: social row, then disclaimer, then fine-print links. -->
         <tr><td style="padding:22px 28px 18px;border-top:1px solid ${BORDER};background:${SOFT_BG};text-align:center;">
