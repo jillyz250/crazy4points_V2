@@ -7,6 +7,7 @@ import FeaturedGuides from "@/components/home/FeaturedGuides";
 import { getHomeExperiences } from "@/utils/experiences/getHomeExperiences";
 import { getHomeToolPreviews } from "@/utils/home/getHomeToolPreviews";
 import { getAllianceMembers } from "@/utils/home/getAllianceMembers";
+import PeriodicCapOneCallout from "@/components/home/PeriodicCapOneCallout";
 import HomeNewsletterSubscribe from "@/components/home/HomeNewsletterSubscribe";
 import AlertsGridSB from "@/components/alerts/AlertsGridSB";
 import { createAdminClient } from "@/utils/supabase/server";
@@ -173,6 +174,8 @@ export default async function HomePage() {
           </div>
         </section>
       )}
+
+      <PeriodicCapOneCallout />
     </>
   );
 }
