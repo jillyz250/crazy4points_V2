@@ -13,6 +13,9 @@ export interface ShoppingPortal {
   group: PortalGroup;
   /** Brand-ish accent for the card rail. */
   accent: string;
+  /** Optional related guide — renders a "Read" link on the card. */
+  guideHref?: string;
+  guideLabel?: string;
 }
 
 // Single source of truth for the Shopping Portals page. Add a portal by adding
@@ -27,6 +30,8 @@ export const SHOPPING_PORTALS: ShoppingPortal[] = [
     url: "https://www.rakuten.com/r/JC250E?eeid=28187",
     referral: true,
     accent: "#6B2D8F",
+    guideHref: "/guides/rakuten-cash-back-to-amex-points",
+    guideLabel: "Read: how to get paid in Amex points",
   },
   {
     group: "flexible",

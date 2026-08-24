@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { SHOPPING_PORTALS, PORTAL_GROUPS, PORTAL_DISCLOSURE, HOT_PORTAL_OFFERS, type ShoppingPortal } from "@/lib/shoppingPortals";
 import PortalRateSearch from "@/components/tools/PortalRateSearch";
 
@@ -27,6 +28,14 @@ function PortalCard({ p }: { p: ShoppingPortal }) {
         Earns: {p.earns}
       </p>
       <p className="font-body text-sm text-[var(--color-text-secondary)]">{p.note}</p>
+      {p.guideHref && p.guideLabel && (
+        <Link
+          href={p.guideHref}
+          className="font-ui text-xs font-semibold text-[var(--color-primary)] underline decoration-[var(--color-border-soft)] underline-offset-2 transition-colors hover:decoration-[var(--color-primary)]"
+        >
+          {p.guideLabel} &rarr;
+        </Link>
+      )}
       <a
         href={p.url}
         target="_blank"
