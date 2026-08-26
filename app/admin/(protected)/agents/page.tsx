@@ -3,7 +3,7 @@ import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Card, CardBody } from '@/components/admin/ui/Card'
 import { Badge } from '@/components/admin/ui/Badge'
 import { EmptyState } from '@/components/admin/ui/EmptyState'
-import { markReviewed } from './actions'
+import { resolveFinding } from './actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -53,7 +53,7 @@ const metric = (label: string, value: number | string) => (
 export default async function AgentsPage() {
   const supabase = createAdminClient()
 
-  const [{ data: findings }, totalRes, discRes] = await Promise.all([
+  const [{ data: findings }, totalRes, discRes, foundRes, fixedRes, fpRes] = await Promise.all([
     supabase
       .from('claim_verifications')
       .select(
@@ -65,11 +65,17 @@ export default async function AgentsPage() {
       .limit(50),
     supabase.from('claim_verifications').select('id', { count: 'exact', head: true }),
     supabase.from('claim_verifications').select('id', { count: 'exact', head: true }).is('reviewed_at', null).eq('discrepancy', true),
+    supabase.from('claim_verifications').select('id', { count: 'exact', head: true }).eq('discrepancy', true),
+    supabase.from('claim_verifications').select('id', { count: 'exact', head: true }).eq('resolution', 'fixed'),
+    supabase.from('claim_verifications').select('id', { count: 'exact', head: true }).eq('resolution', 'false_positive'),
   ])
 
   const rows = (findings ?? []) as Finding[]
   const totalChecks = totalRes.count ?? 0
   const openDiscrepancies = discRes.count ?? 0
+  const discrepanciesFound = foundRes.count ?? 0
+  const fixedCount = fixedRes.count ?? 0
+  const falsePositives = fpRes.count ?? 0
   const liveAgents = ROSTER.filter((a) => a.status === 'live').length
 
   return (
@@ -84,6 +90,14 @@ export default async function AgentsPage() {
         {metric('Open discrepancies', openDiscrepancies)}
         {metric('Checks logged', totalChecks)}
         {metric('Agents live', `${liveAgents} of ${ROSTER.length}`)}
+      </div>
+
+      <h2 style={{ fontSize: '1.1rem', margin: '0 0 0.75rem' }}>Accuracy scorecard</h2>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0.75rem', marginBottom: '1.5rem' }}>
+        {metric('Discrepancies found', discrepanciesFound)}
+        {metric('Fixed', fixedCount)}
+        {metric('False positives', falsePositives)}
+        {metric('Precision', fixedCount + falsePositives > 0 ? `${Math.round((fixedCount / (fixedCount + falsePositives)) * 100)}%` : '—')}
       </div>
 
       <h2 style={{ fontSize: '1.1rem', margin: '0 0 0.75rem' }}>Needs your attention</h2>
@@ -142,10 +156,23 @@ export default async function AgentsPage() {
                     <span style={{ fontSize: '0.75rem', color: '#888780' }}>
                       {new Date(f.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                     </span>
-                    <form action={markReviewed} style={{ marginLeft: 'auto' }}>
-                      <input type="hidden" name="id" value={f.id} />
-                      <button type="submit" className="admin-btn admin-btn-sm">Done / dismiss</button>
-                    </form>
+                    <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px' }}>
+                      <form action={resolveFinding}>
+                        <input type="hidden" name="id" value={f.id} />
+                        <input type="hidden" name="resolution" value="fixed" />
+                        <button type="submit" className="admin-btn admin-btn-sm">Fixed</button>
+                      </form>
+                      <form action={resolveFinding}>
+                        <input type="hidden" name="id" value={f.id} />
+                        <input type="hidden" name="resolution" value="dismissed" />
+                        <button type="submit" className="admin-btn admin-btn-sm">Dismiss</button>
+                      </form>
+                      <form action={resolveFinding}>
+                        <input type="hidden" name="id" value={f.id} />
+                        <input type="hidden" name="resolution" value="false_positive" />
+                        <button type="submit" className="admin-btn admin-btn-sm">False positive</button>
+                      </form>
+                    </div>
                   </div>
                 </CardBody>
               </Card>
