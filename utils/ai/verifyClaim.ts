@@ -122,6 +122,58 @@ function compactCard(c: Record<string, unknown>) {
   }
 }
 
+type SourceRow = { canonical_url: string; fetch_method: string | null; fact_type: string | null; tier: string | null }
+
+/**
+ * Consensus fallback for login-gated facts (Jill's "group of reliable sources"):
+ * when no public official page confirms a claim, check a GROUP of corroborating
+ * sources. Confirmed if they mostly agree and none contradict; conflict if any
+ * reliable source contradicts our page. For verification only — never for citing.
+ */
+async function consensusVerify(
+  client: Anthropic,
+  claim: string,
+  sources: SourceRow[],
+): Promise<{ reconciliation: 'match' | 'conflict' | 'unchecked'; note: string }> {
+  let confirm = 0
+  let contradict = 0
+  let reachable = 0
+  const notes: string[] = []
+  for (const src of sources.slice(0, 5)) {
+    const fc =
+      src.fetch_method === 'browser'
+        ? await fetchFirecrawlInteractive(src.canonical_url, { maxChars: 12000 })
+        : await fetchFirecrawl(src.canonical_url, { maxChars: 12000 })
+    if (!fc.ok || !fc.markdown) continue
+    reachable++
+    const raw = await callClaude(
+      client,
+      [
+        'Does the SOURCE below confirm, contradict, or not address the CLAIM? Judge ONLY from the source text.',
+        'A general statement that covers the claim counts as confirm (e.g. "all Chase partners transfer at 1:1" confirms a 1:1 claim for any single Chase partner). Only say contradict if the source states a DIFFERENT value for the exact thing claimed.',
+        'Return ONLY JSON: {"verdict":"confirm"|"contradict"|"silent","note":"<short>"}.',
+        `CLAIM: ${claim}`,
+        `SOURCE: ${fc.markdown}`,
+      ].join('\n'),
+      'verifyClaim.consensus',
+      MODEL_VERIFY,
+      200,
+    )
+    const v = parseJson<{ verdict: string; note: string }>(raw)
+    if (v?.verdict === 'confirm') confirm++
+    else if (v?.verdict === 'contradict') {
+      contradict++
+      notes.push(v.note)
+    }
+  }
+  if (reachable === 0) return { reconciliation: 'unchecked', note: 'No corroborating sources reachable.' }
+  if (contradict > 0)
+    return { reconciliation: 'conflict', note: `${contradict} of ${reachable} reliable sources contradict our page: ${notes.join('; ')}` }
+  if (confirm >= 2 && confirm >= Math.ceil(reachable / 2))
+    return { reconciliation: 'match', note: `Confirmed by consensus of ${confirm} of ${reachable} reliable sources (login-gated; no single official page).` }
+  return { reconciliation: 'unchecked', note: `Inconclusive: only ${confirm} of ${reachable} reliable sources confirmed. Needs a manual check.` }
+}
+
 export async function verifyClaim(
   supabase: SupabaseClient,
   claim: string,
@@ -235,19 +287,23 @@ export async function verifyClaim(
     const prog = (progs?.[0] ?? undefined) as Record<string, unknown> | undefined
     const card = (cards?.[0] ?? undefined) as Record<string, unknown> | undefined
 
-    // 1) Prefer the CORRECT page from the source-canonicalization registry.
+    // 1) Prefer the CORRECT official page from the source-canonicalization registry.
     let officialUrl: string | null = null
     let fetchMethod = 'firecrawl'
+    let corroborating: SourceRow[] = []
     const entitySlugs = [...base.matched.programs, ...base.matched.cards]
     if (entitySlugs.length) {
       const { data: srcs } = await supabase
         .from('official_sources')
-        .select('canonical_url, fetch_method, fact_type')
+        .select('canonical_url, fetch_method, fact_type, tier')
         .in('entity_slug', entitySlugs)
-      if (srcs && srcs.length) {
-        const chosen = srcs.find((s) => s.fact_type === ex.fact_type) ?? srcs.find((s) => !s.fact_type) ?? srcs[0]
-        officialUrl = chosen.canonical_url as string
-        fetchMethod = (chosen.fetch_method as string) ?? 'firecrawl'
+      const all = (srcs ?? []) as SourceRow[]
+      const officialTier = all.filter((s) => (s.tier ?? 'official') === 'official')
+      corroborating = all.filter((s) => s.tier === 'corroborating')
+      const pick = officialTier.find((s) => s.fact_type === ex.fact_type) ?? officialTier.find((s) => !s.fact_type) ?? officialTier[0]
+      if (pick) {
+        officialUrl = pick.canonical_url
+        fetchMethod = pick.fetch_method ?? 'firecrawl'
       }
     }
     // 2) Fallback to the URL on the program/card row (programs: partner_chart_url; cards: official_url).
@@ -313,6 +369,19 @@ export async function verifyClaim(
             base.source = { type: 'official', ref: officialUrl }
           }
         }
+      }
+    }
+
+    // 3) Consensus fallback for login-gated facts: if no official page confirmed
+    //    the claim, poll a GROUP of reliable sources (match only if they mostly
+    //    agree; conflict if any reliable source contradicts our page).
+    if ((base.reconciliation === 'unchecked' || base.reconciliation === 'skipped') && corroborating.length >= 2) {
+      const cons = await consensusVerify(client, claim, corroborating)
+      if (cons.reconciliation !== 'unchecked') {
+        base.reconciliation = cons.reconciliation
+        base.official = cons.note
+        base.discrepancy = cons.reconciliation === 'conflict'
+        base.source = { type: 'official', ref: 'consensus' }
       }
     }
   }
