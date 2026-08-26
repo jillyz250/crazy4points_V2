@@ -19,6 +19,10 @@ import { fetchFirecrawl, fetchFirecrawlInteractive } from '../ai/firecrawl'
 
 const MODEL = 'claude-sonnet-4-6'
 
+// Defunct programs — an official page may still list them, but we correctly do
+// not, so never flag them as a "gap to add". (Spirit Airlines ceased operations.)
+const DEFUNCT = ['spirit']
+
 interface WatchdogFinding {
   kind: 'conflict' | 'our_extra' | 'official_extra'
   partner: string
@@ -127,6 +131,8 @@ export async function runWatchdog(
     const findings = parsed?.findings ?? []
     let logged = 0
     for (const f of findings) {
+      // Never suggest adding a defunct program the official page still lists.
+      if (f.kind === 'official_extra' && DEFUNCT.some((d) => (f.partner ?? '').toLowerCase().includes(d))) continue
       const recon = f.kind === 'official_extra' ? 'gap' : 'conflict'
       await supabase.from('claim_verifications').insert({
         claim_text: `${prog.name} -> ${f.partner}${f.our_ratio ? ` (${f.our_ratio})` : ''}`,
