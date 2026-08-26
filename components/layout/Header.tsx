@@ -79,6 +79,7 @@ const toolsMenu: { label: string; href: string; comingSoon?: boolean }[] = [
   { label: "Decision Engine", href: "/decision-engine" },
   { label: "Credit Card Explorer", href: "/cards" },
   { label: "Alliance Explorer", href: "/tools/alliances" },
+  { label: "Sweet Spots", href: "/sweet-spots" },
   { label: "Experiences Finder", href: "/experiences" },
   { label: "Sweepstakes", href: "/sweepstakes" },
   { label: "Shopping Portals", href: "/tools/shopping-portals" },
