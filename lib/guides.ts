@@ -57,11 +57,11 @@ export const GUIDES: Guide[] = [
   },
   {
     slug: 'hidden-perk-stacks',
-    title: 'Hidden Perk Stacks: Card Benefits That Unlock More Benefits',
+    title: 'Chain Reactions: Card Perks That Unlock More Perks',
     description:
       'The tricks nobody tells you: one card credit unlocks a service that bundles even more, from free streaming to hotel status to the two fastest airport lanes.',
     category: 'cards',
-    updated: '2026-08-13',
+    updated: '2026-08-26',
     featured: true,
   },
   {
