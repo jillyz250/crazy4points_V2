@@ -270,7 +270,8 @@ export async function verifyClaim(
           client,
           [
             'Reconcile a points-and-miles claim across two sources: OUR PAGE and the OFFICIAL source below.',
-            'Return ONLY JSON: {"reconciliation":"match"|"conflict"|"gap"|"unchecked","official_evidence":"<one sentence: what the official source says about this>","discrepancy":boolean,"correction":"<if conflict: how to fix our page; else null>","proposed_addition":"<if gap: the fact official states that our page is MISSING and should add; else null>"}.',
+            'Return ONLY JSON: {"specific_target":"<the exact partner/card/entity/value the claim hinges on, e.g. \\"American Airlines\\" or \\"5:3\\">","official_confirms_specific":boolean,"reconciliation":"match"|"conflict"|"gap"|"unchecked","official_evidence":"<one sentence: what the official source says about this>","discrepancy":boolean,"correction":"<if conflict: how to fix our page; else null>","proposed_addition":"<if gap: the fact official states that our page is MISSING and should add; else null>"}.',
+            'official_confirms_specific = true ONLY if the official text explicitly confirms that exact specific_target. If the claim names a partner and the official partner list does NOT include it, official_confirms_specific is false.',
             'match = our page agrees with official (discrepancy=false). conflict = they disagree (discrepancy=true). gap = official states a relevant fact our page is missing (discrepancy=true). unchecked = the official text does not address the claim (discrepancy=false).',
             'CRITICAL: if the claim names a SPECIFIC partner, card, ratio, or entity, the official source must confirm THAT specific thing to be a match. Do NOT return match on a general statement alone (e.g. "airlines transfer at 1:1") when the specific partner named in the claim is absent from the official source. If our page asserts a specific partner/fact the official source does not list, that is a conflict (official appears to contradict) or unchecked (official simply does not cover it) — never match.',
             'Judge only from the official text provided. Do not use outside knowledge.',
@@ -286,6 +287,8 @@ export async function verifyClaim(
           600,
         )
         const rec = parseJson<{
+          specific_target: string | null
+          official_confirms_specific: boolean
           reconciliation: 'match' | 'conflict' | 'gap' | 'unchecked'
           official_evidence: string
           discrepancy: boolean
@@ -298,7 +301,15 @@ export async function verifyClaim(
           base.discrepancy = !!rec.discrepancy
           if (rec.correction) base.correction = rec.correction
           base.proposed_addition = rec.proposed_addition
-          if (rec.reconciliation === 'conflict' || rec.reconciliation === 'gap') {
+          // Enforce in CODE: a "match" is invalid if the official source did not
+          // confirm the specific partner/entity/value the claim hinges on. The
+          // model over-matches on a general ratio while the named partner is
+          // absent — downgrade to unchecked so it surfaces for a manual look.
+          if (base.reconciliation === 'match' && rec.official_confirms_specific === false) {
+            base.reconciliation = 'unchecked'
+            base.official = `Official source did not confirm "${rec.specific_target ?? 'the specific claim'}" (it is not listed / not addressed). ${rec.official_evidence} Needs a manual check.`
+          }
+          if (base.reconciliation === 'conflict' || base.reconciliation === 'gap') {
             base.source = { type: 'official', ref: officialUrl }
           }
         }
