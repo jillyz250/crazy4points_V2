@@ -17,7 +17,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { logUsage } from './logUsage'
-import { fetchFirecrawl } from './firecrawl'
+import { fetchFirecrawl, fetchFirecrawlInteractive } from './firecrawl'
 
 // Cheap model for entity extraction; the accuracy-critical judgment (compare +
 // reconcile) uses Sonnet, matching the existing verifyAlertDraft verifier.
@@ -234,14 +234,33 @@ export async function verifyClaim(
   if (opts.checkOfficial !== false) {
     const prog = (progs?.[0] ?? undefined) as Record<string, unknown> | undefined
     const card = (cards?.[0] ?? undefined) as Record<string, unknown> | undefined
-    // programs carry partner_chart_url (the transfer/award chart); cards carry official_url.
-    const officialUrl =
-      (prog?.partner_chart_url as string | null) ||
-      (card?.official_url as string | null) ||
-      null
+
+    // 1) Prefer the CORRECT page from the source-canonicalization registry.
+    let officialUrl: string | null = null
+    let fetchMethod = 'firecrawl'
+    const entitySlugs = [...base.matched.programs, ...base.matched.cards]
+    if (entitySlugs.length) {
+      const { data: srcs } = await supabase
+        .from('official_sources')
+        .select('canonical_url, fetch_method, fact_type')
+        .in('entity_slug', entitySlugs)
+      if (srcs && srcs.length) {
+        const chosen = srcs.find((s) => s.fact_type === ex.fact_type) ?? srcs.find((s) => !s.fact_type) ?? srcs[0]
+        officialUrl = chosen.canonical_url as string
+        fetchMethod = (chosen.fetch_method as string) ?? 'firecrawl'
+      }
+    }
+    // 2) Fallback to the URL on the program/card row (programs: partner_chart_url; cards: official_url).
+    if (!officialUrl) {
+      officialUrl = (prog?.partner_chart_url as string | null) || (card?.official_url as string | null) || null
+    }
+
     if (officialUrl) {
       base.official_source_url = officialUrl
-      const fc = await fetchFirecrawl(officialUrl, { maxChars: 6000 })
+      const fc =
+        fetchMethod === 'browser'
+          ? await fetchFirecrawlInteractive(officialUrl, { maxChars: 6000 })
+          : await fetchFirecrawl(officialUrl, { maxChars: 6000 })
       if (!fc.ok || !fc.markdown) {
         base.reconciliation = 'unchecked'
         const reason = fc.ok ? 'empty' : (fc.reason ?? 'error')
