@@ -272,6 +272,7 @@ export async function verifyClaim(
             'Reconcile a points-and-miles claim across two sources: OUR PAGE and the OFFICIAL source below.',
             'Return ONLY JSON: {"reconciliation":"match"|"conflict"|"gap"|"unchecked","official_evidence":"<one sentence: what the official source says about this>","discrepancy":boolean,"correction":"<if conflict: how to fix our page; else null>","proposed_addition":"<if gap: the fact official states that our page is MISSING and should add; else null>"}.',
             'match = our page agrees with official (discrepancy=false). conflict = they disagree (discrepancy=true). gap = official states a relevant fact our page is missing (discrepancy=true). unchecked = the official text does not address the claim (discrepancy=false).',
+            'CRITICAL: if the claim names a SPECIFIC partner, card, ratio, or entity, the official source must confirm THAT specific thing to be a match. Do NOT return match on a general statement alone (e.g. "airlines transfer at 1:1") when the specific partner named in the claim is absent from the official source. If our page asserts a specific partner/fact the official source does not list, that is a conflict (official appears to contradict) or unchecked (official simply does not cover it) — never match.',
             'Judge only from the official text provided. Do not use outside knowledge.',
             '',
             `CLAIM: ${claim}`,
