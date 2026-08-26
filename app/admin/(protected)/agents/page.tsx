@@ -3,7 +3,7 @@ import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Card, CardBody } from '@/components/admin/ui/Card'
 import { Badge } from '@/components/admin/ui/Badge'
 import { EmptyState } from '@/components/admin/ui/EmptyState'
-import { resolveFinding } from './actions'
+import { resolveFinding, dismissVerificationFinding } from './actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,11 +25,25 @@ type Finding = {
   created_at: string
 }
 
-// Which agents exist. Only the fact-checker is live today; the rest are the
-// planned roster from the AI-agents roadmap so the control center reads true.
+type DriftFinding = {
+  id: string
+  program_slug: string
+  partner_name: string | null
+  partner_slug: string | null
+  finding_type: string
+  ours: string | null
+  theirs: string | null
+  source_label: string | null
+  source_url: string | null
+  confidence: string | null
+  summary: string | null
+}
+
+// Which agents exist. Fact-checker (on-demand) and the weekly transfer
+// re-verification sweep are live; the rest are the planned roadmap roster.
 const ROSTER: { name: string; watches: string; status: 'live' | 'planned' }[] = [
-  { name: 'Fact-checker', watches: 'Checks our page vs official before publish', status: 'live' },
-  { name: 'Watchdog', watches: 'Re-checks published facts for drift', status: 'planned' },
+  { name: 'Fact-checker', watches: 'Checks our page vs official (on demand)', status: 'live' },
+  { name: 'Transfer re-verification', watches: 'Weekly audit of transfer data vs official rosters', status: 'live' },
   { name: 'Sweet-spot hunter', watches: 'Finds high-value redemptions', status: 'planned' },
   { name: 'Intel triage', watches: 'Sorts the news firehose', status: 'planned' },
   { name: 'Site-health', watches: 'Broken links, stale pages', status: 'planned' },
@@ -53,7 +67,7 @@ const metric = (label: string, value: number | string) => (
 export default async function AgentsPage() {
   const supabase = createAdminClient()
 
-  const [{ data: findings }, totalRes, discRes, foundRes, fixedRes, fpRes] = await Promise.all([
+  const [{ data: findings }, totalRes, discRes, foundRes, fixedRes, fpRes, { data: drift }] = await Promise.all([
     supabase
       .from('claim_verifications')
       .select(
@@ -68,6 +82,13 @@ export default async function AgentsPage() {
     supabase.from('claim_verifications').select('id', { count: 'exact', head: true }).eq('discrepancy', true),
     supabase.from('claim_verifications').select('id', { count: 'exact', head: true }).eq('resolution', 'fixed'),
     supabase.from('claim_verifications').select('id', { count: 'exact', head: true }).eq('resolution', 'false_positive'),
+    supabase
+      .from('verification_findings')
+      .select('id, program_slug, partner_name, partner_slug, finding_type, ours, theirs, source_label, source_url, confidence, summary')
+      .eq('status', 'new')
+      .order('confidence', { ascending: true })
+      .order('program_slug', { ascending: true })
+      .limit(50),
   ])
 
   const rows = (findings ?? []) as Finding[]
@@ -76,6 +97,7 @@ export default async function AgentsPage() {
   const discrepanciesFound = foundRes.count ?? 0
   const fixedCount = fixedRes.count ?? 0
   const falsePositives = fpRes.count ?? 0
+  const driftRows = (drift ?? []) as DriftFinding[]
   const liveAgents = ROSTER.filter((a) => a.status === 'live').length
 
   return (
@@ -86,7 +108,7 @@ export default async function AgentsPage() {
       />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.75rem', marginBottom: '1.5rem' }}>
-        {metric('Needs your attention', rows.length)}
+        {metric('Needs your attention', rows.length + driftRows.length)}
         {metric('Open discrepancies', openDiscrepancies)}
         {metric('Checks logged', totalChecks)}
         {metric('Agents live', `${liveAgents} of ${ROSTER.length}`)}
@@ -178,6 +200,40 @@ export default async function AgentsPage() {
               </Card>
             )
           })}
+        </div>
+      )}
+
+      <h2 style={{ fontSize: '1.1rem', margin: '2rem 0 0.75rem' }}>Transfer-data drift (weekly re-verification)</h2>
+      {driftRows.length === 0 ? (
+        <EmptyState title="No open drift" description="The weekly re-verification sweep found no unresolved transfer-data discrepancies." />
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+          {driftRows.map((f) => (
+            <Card key={f.id}>
+              <CardBody>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.4rem' }}>
+                  <Badge tone={f.finding_type === 'wrong_ratio' ? 'danger' : f.finding_type === 'missing' ? 'warning' : 'info'}>
+                    {(f.finding_type ?? '').replace('_', ' ')}
+                  </Badge>
+                  <span style={{ fontSize: '0.8rem', color: '#5F5E5A' }}>
+                    {f.program_slug} → {f.partner_name || f.partner_slug} · {f.confidence} confidence
+                  </span>
+                </div>
+                <p style={{ margin: '0 0 0.5rem', fontSize: '0.9rem' }}>{f.summary}</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  {f.source_url && (
+                    <a href={f.source_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.8rem', color: '#6B2D8F' }}>
+                      {f.source_label || 'Source'}
+                    </a>
+                  )}
+                  <form action={dismissVerificationFinding} style={{ marginLeft: 'auto' }}>
+                    <input type="hidden" name="id" value={f.id} />
+                    <button type="submit" className="admin-btn admin-btn-sm">Dismiss</button>
+                  </form>
+                </div>
+              </CardBody>
+            </Card>
+          ))}
         </div>
       )}
 

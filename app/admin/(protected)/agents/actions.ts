@@ -25,3 +25,18 @@ export async function resolveFinding(formData: FormData): Promise<void> {
     .eq('id', id)
   revalidatePath('/admin/agents')
 }
+
+/**
+ * Dismiss a transfer-data re-verification finding (from the weekly `reverify`
+ * sweep) directly from the unified control center. Mirrors the action on
+ * /admin/verification-findings — detection-only, human verifies + fixes the page
+ * against the issuer, then dismisses.
+ */
+export async function dismissVerificationFinding(formData: FormData): Promise<void> {
+  await assertAdmin()
+  const id = String(formData.get('id') ?? '').trim()
+  if (!id) return
+  const supabase = createAdminClient()
+  await supabase.from('verification_findings').update({ status: 'dismissed' }).eq('id', id)
+  revalidatePath('/admin/agents')
+}
