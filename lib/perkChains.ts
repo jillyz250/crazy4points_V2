@@ -162,4 +162,18 @@ export const PERK_CHAINS: PerkChain[] = [
     verifiedAt: '2026-08-13',
     caveat: 'Each credit is tied to specific merchants and resets monthly or semi-annually, so you have to actually use them, and most need a one-time enrollment.',
   },
+  {
+    id: 'club-avolta-status-match',
+    title: 'One card status, matched into hotel, car, and lounge perks',
+    card: 'Any card that grants elite status',
+    steps: [
+      'Get mid-tier or top elite status, often free from a credit card (Marriott Gold, Hilton Diamond, IHG Platinum, and airline-card elites all count)',
+      'Status-match that status to Club Avolta Platinum for free, with a quick form and a screenshot of your current status',
+      'Club Avolta Platinum then carries Radisson VIP, Avis President\'s Club car-rental status, and 25 percent off Plaza Premium lounges',
+    ],
+    payoff: 'One status you may already hold becomes top-tier hotel status, top-tier car-rental status, and a lounge discount, all for free.',
+    source: 'Club Avolta',
+    verifiedAt: '2026-08-26',
+    caveat: 'It is a status match, not points, and Radisson\'s US footprint is thin, so the Avis and lounge perks are the bigger draw here. Match offers come and go, so confirm it is live.',
+  },
 ]

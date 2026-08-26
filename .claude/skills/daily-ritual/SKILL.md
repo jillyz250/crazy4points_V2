@@ -145,6 +145,16 @@ too, one at a time, verified against the official source first:
 - **Newsletter item expiring soon** → **PUBLISH now** (draft it, promote to an alert
   before the deadline), **keep for newsletter** (leave as-is), or **REJECT**.
 
+**Step 3c — 🔗 CHAIN CHECK (always run).** After the day's intel is triaged and
+anything is published, scan the new intel + today's publishes for **perk chains** —
+where one benefit unlocks another, which unlocks another. Canonical examples: Amex
+Platinum → free Walmart+ → free Paramount+; a credit card's elite status →
+free Club Avolta status match → Radisson VIP + Avis President's Club + Plaza Premium
+lounge discount. For ANY chain found: **flag it to Jill explicitly** (she asked to
+always be told), and offer to add it to the **hidden-perk-stacks guide** (the
+site's "chains article", `app/(site)/guides/hidden-perk-stacks/page.tsx`). If no
+chain today, say so in one line. See [[feedback_always_flag_perk_chains]].
+
 ### Step 4 · 📄 Page accuracy (the guarantee — never skipped when facts exist)
 **Every page-affecting fact updates its page, whether or not we published it.**
 Source: the snapshot's `📄 PAGE-AFFECTING FACTS` list + the program-fact-drift

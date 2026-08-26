@@ -6,12 +6,12 @@ import GuideNewsletterCTA from '@/components/guides/GuideNewsletterCTA'
 import { PERK_CHAINS } from '@/lib/perkChains'
 
 export const metadata: Metadata = {
-  title: 'Hidden Perk Stacks: Card Benefits That Unlock More Benefits',
+  title: 'Chain Reactions: Card Perks That Unlock More Perks',
   description:
     'The tricks nobody tells you: one card credit unlocks a service that bundles even more, from free streaming to instant hotel status to the two fastest airport lanes.',
   alternates: { canonical: 'https://www.crazy4points.com/guides/hidden-perk-stacks' },
   openGraph: {
-    title: 'Hidden Perk Stacks: Card Benefits That Unlock More Benefits',
+    title: 'Chain Reactions: Card Perks That Unlock More Perks',
     description:
       'One card credit can unlock a service that bundles even more. Here are the perk chains most people never notice.',
     url: 'https://www.crazy4points.com/guides/hidden-perk-stacks',
@@ -55,7 +55,7 @@ export default function HiddenPerkStacksGuide() {
           Cards & Points
         </span>
         <h1 className="font-display text-3xl font-semibold text-[var(--color-primary)] md:text-4xl">
-          Hidden Perk Stacks: Card Benefits That Unlock More Benefits
+          Chain Reactions: Card Perks That Unlock More Perks
         </h1>
         <GuideDateline slug="hidden-perk-stacks" />
         <GuideJsonLd slug="hidden-perk-stacks" />
