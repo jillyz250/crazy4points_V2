@@ -112,6 +112,7 @@ Only include programs the page actually presents as transfer partners (ignore na
     const message = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 2000,
+      temperature: 0, // deterministic extraction — stops ratios being hallucinated differently each run (the Accor "2:0.5" false-positive source)
       messages: [{ role: 'user', content: prompt }],
     })
     const text = message.content.find((c) => c.type === 'text')?.text ?? '[]'
@@ -130,12 +131,13 @@ Only include programs the page actually presents as transfer partners (ignore na
   }
 }
 
-async function reverifyProgram(
+export async function reverifyProgram(
   supabase: SupabaseClient,
   slug: string,
   slugList: string,
   validSlugs: Set<string>,
   source: { url: string; label: string },
+  corroborating: { url: string; label: string }[] = [],
 ): Promise<VerificationFinding[]> {
   const { data: prog } = await supabase
     .from('programs')
@@ -194,6 +196,43 @@ async function reverifyProgram(
     }
   }
 
+  // Multi-source consensus: corroborate WRONG_RATIO candidates against extra
+  // sources (from official_sources). Kills single-source parse errors where one
+  // aggregator mis-reads a whole program's ratios (e.g. Accor showing 2:0.5).
+  if (corroborating.length) {
+    const corrRosters: Map<string, string | null>[] = []
+    for (const cs of corroborating) {
+      const cres = await fetchFirecrawl(cs.url, { maxChars: 18000 })
+      if (!cres.ok) continue
+      const croster = await extractSourceRoster(prog.name as string, slugList, cs.label, cres.markdown)
+      const m = new Map<string, string | null>()
+      for (const sp of croster) if (sp.matched_slug && validSlugs.has(sp.matched_slug)) m.set(sp.matched_slug, sp.ratio)
+      corrRosters.push(m)
+    }
+    const kept: typeof out = []
+    for (const f of out) {
+      if (f.findingType !== 'wrong_ratio' || !f.partnerSlug) {
+        kept.push(f)
+        continue
+      }
+      let agreeOurs = 0
+      let agreeTheirs = 0
+      for (const m of corrRosters) {
+        if (!m.has(f.partnerSlug)) continue
+        const cr = m.get(f.partnerSlug) ?? null
+        if (ratiosEqual(f.ours, cr)) agreeOurs++
+        else if (ratiosEqual(f.theirs, cr)) agreeTheirs++
+      }
+      // Corroborating sources back OUR value -> the primary source was likely wrong. Suppress.
+      if (agreeOurs > 0 && agreeOurs >= agreeTheirs) continue
+      // Corroborating sources back the primary's differing value -> real drift, high confidence.
+      if (agreeTheirs > 0) f.summary += ` Confirmed by ${agreeTheirs} more source(s).`
+      kept.push(f)
+    }
+    out.length = 0
+    out.push(...kept)
+  }
+
   return out.map((f) => ({
     ...f,
     programSlug: slug,
@@ -228,7 +267,17 @@ export async function reverifyDue(supabase: SupabaseClient, limit = 8): Promise<
   const findings: VerificationFinding[] = []
   for (const row of (due ?? []) as Array<{ slug: string; reverify_source_url: string; reverify_source_label: string | null }>) {
     const source = { url: row.reverify_source_url, label: row.reverify_source_label ?? 'source' }
-    const f = await reverifyProgram(supabase, row.slug, slugList, validSlugs, source)
+    // Corroborating sources from the official_sources registry (excludes the primary).
+    const { data: extra } = await supabase
+      .from('official_sources')
+      .select('canonical_url')
+      .eq('entity_type', 'program')
+      .eq('entity_slug', row.slug)
+      .eq('fact_type', 'transfer_ratio')
+    const corroborating = ((extra ?? []) as Array<{ canonical_url: string }>)
+      .filter((e) => e.canonical_url !== row.reverify_source_url)
+      .map((e) => ({ url: e.canonical_url, label: 'corroborating' }))
+    const f = await reverifyProgram(supabase, row.slug, slugList, validSlugs, source, corroborating)
     findings.push(...f)
     await supabase.from('programs').update({ reverified_at: new Date().toISOString() }).eq('slug', row.slug)
   }
