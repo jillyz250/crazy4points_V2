@@ -18,8 +18,12 @@ blogs** and **verified against official sources AND our program pages**, that
 3. **Accurate:** verified against the **official source** AND reconciled with **our program-page data**.
 4. **Constantly improving:** scheduled re-run; factors in **new alerts, transfer bonuses, buy-points bonuses, award-chart changes, partner-airline redemptions**.
 
+## SOURCE OF TRUTH (updated 2026-08-26 — cross-referenced!)
+**The authored `programs.sweet_spots` field is the source** — ~610 vetted bullets across 112 of 142 programs, already on each program page. The `/sweet-spots` explorer already aggregates them (built 2026-08-26, zero-API). The agent's job is NOT to re-research from scratch — it is to **(a) STRUCTURE** the authored bullets into `sweet_spots` rows, **(b) VERIFY** each against official (points/route/cabin), **(c) AUGMENT** the ~30 programs with no authored sweet spots via multi-blog research, and **(d) keep fresh** (retire deval'd, add new). Blog research is for the gap-fill + corroboration only.
+
 ## The pipeline (per program)
-1. **Discover sources** — Firecrawl search `"best <program> sweet spots 2026"` → top reliable aggregator URLs. Filter to a **trusted-domain allowlist** (awardwallet, upgradedpoints, awardtravelfinder, frequentmiler, thepointsguy, point.me, awardlocker, onemileatatime, etc.). Blogs are LEADS only — never cited in published content.
+0. **Source from `programs.sweet_spots`** (authored) FIRST — parse bullets into structured candidates. Only fall through to blog discovery for programs with none.
+1. **Discover sources (gap-fill / corroboration)** — Firecrawl search `"best <program> sweet spots 2026"` → top reliable aggregator URLs. Filter to a **trusted-domain allowlist** (awardwallet, upgradedpoints, awardtravelfinder, frequentmiler, thepointsguy, point.me, awardlocker, onemileatatime, etc.). Blogs are LEADS only — never cited in published content.
 2. **Scrape each source** — `fetchFirecrawl` (or `fetchFirecrawlInteractive` for JS-heavy pages).
 3. **Extract per source** — LLM (Haiku, **temperature 0**), extraction ONLY, no judgment (the `reverifyTransfers` lesson): `{title, value_type, cabin, points, route, operating_partner, value_angle}`.
 4. **Vet by consensus** — merge semantically-equivalent spots across sources (LLM merge or fuzzy key of program+route+cabin), count **distinct sources** per merged spot; keep spots with **≥2 sources**. Record `source_count` + `source_urls`. *(Reuses the `verifyClaim.consensusVerify` mechanism.)*
