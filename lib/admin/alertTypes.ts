@@ -13,6 +13,7 @@ export const ALERT_TYPES: readonly { value: AlertType; label: string }[] = [
   { value: 'award_availability', label: 'Award Availability' },
   { value: 'award_sale', label: 'Award Sale' },
   { value: 'sweet_spot', label: 'Sweet Spot' },
+  { value: 'experience', label: 'Experience' },
   { value: 'companion_pass', label: 'Companion Pass' },
   // Card Offers
   { value: 'limited_time_offer', label: 'Limited Time Offer' },

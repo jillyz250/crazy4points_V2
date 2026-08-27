@@ -15,10 +15,14 @@ publish, write, **and make the platform better than yesterday**.
    Jill"** and the one-screen board. Then present Phase 1, wait for her call, act,
    send the receipt, then the next phase. Never paste multiple phases at once. She
    should never scroll to know what to do next.
-2. **Confirmation receipt after every phase.** When a phase's actions are done,
-   send a short receipt: **`✅ Phase N done —`** then 1-3 bullet lines of exactly
-   what happened (reverified X against source, changed program page field Z,
-   published alert W, dismissed reminder V). Then `Next →`.
+2. **Confirmation receipt + phase retro after every phase.** When a phase's
+   actions are done, send a short receipt: **`✅ Phase N done —`** then 1-3 bullet
+   lines of exactly what happened. Then, before `Next →`, add a one-line
+   **`🔧 Phase N retro:`** — the single best idea to make THIS phase better (or
+   "running well, no change") and ask if she wants it. Jill wants every phase to
+   keep sharpening (2026-08-27). If she says do it, apply the improvement to this
+   skill file (and commit) before moving on; if "next"/"skip", proceed. Keep the
+   retro to ONE idea, never a list.
 3. **Same layout every day.** Fixed card header (`PHASE N of 16 · TITLE`), fixed
    columns, fixed verdict words. Consistency is the feature.
 4. **Empty phases auto-skip** with one line (`Phase 8 · Experiences — none new ✅`).

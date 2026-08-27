@@ -15,6 +15,7 @@ export type AlertType =
   | 'status_change'
   | 'policy_change'
   | 'sweet_spot'
+  | 'experience'
   | 'industry_news'
   | 'signup_bonus'
   | 'referral_bonus'
