@@ -150,6 +150,17 @@ Hard routing rules (these OVERRIDE the confidence tiers below):
    earlier in this same run) OR another item in today_intel about the same story. UNLESS it is
    MATERIALLY DIFFERENT (a new number, new deadline, expanded eligibility, a new partner) — then
    treat the new fact on its own merits (usually an ALERT). Never approve the same story twice.
+5. EXPIRED / EXPIRING: if the intel text shows the deal's booking or redemption
+   deadline has ALREADY passed, or passes within about 2 days of today, do NOT
+   approve it as a fresh alert (readers cannot act in time). REJECT it
+   (reason_category='low_quality'), unless the underlying topic is a lasting
+   evergreen story that belongs in a GUIDE.
+6. TRIVIAL / low-value earning: base points on car rentals, rideshare, a single
+   merchant's everyday spend (e.g. coffee), or charity-donation mile multipliers
+   are PAGE-UPDATE material (earning data for the program page) or a REJECT, NOT a
+   standalone ALERT. EXCEPTION: a broadly-relevant, tangible perk that millions of
+   readers qualify for (e.g. a free drink for a major carrier's customers) can be
+   an alert.
 When you route an item to a GUIDE, list its intel id(s) in that blog_idea's
 'source_intel_ids' so the idea links back to the news that sparked it.
 
