@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ExperienceGroup } from "@/lib/experiences/marquee";
+import { categoryBucket } from "@/lib/experiences/categories";
 
 // Short, on-brand program labels (source_platform is verbose). Mirrors the
 // map in ExperienceCard so a home card reads like one on /experiences.
@@ -50,11 +51,18 @@ function GlassCard({ group }: { group: ExperienceGroup }) {
           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
         />
         <span aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-black/5 to-transparent" />
-        {group.category && (
-          <span className="absolute left-2.5 top-2.5 rounded-full bg-black/55 px-2 py-0.5 font-ui text-[0.6rem] uppercase tracking-wide text-white backdrop-blur-sm">
-            {group.category}
-          </span>
-        )}
+        {(() => {
+          const bucket = categoryBucket(group.category);
+          if (!bucket) return null;
+          return (
+            <span
+              className="absolute left-2.5 top-2.5 rounded-full px-2 py-0.5 font-ui text-[0.6rem] font-semibold uppercase tracking-wide text-white shadow-sm"
+              style={{ backgroundColor: bucket.color }}
+            >
+              {bucket.label}
+            </span>
+          );
+        })()}
       </div>
       <div className="flex grow flex-col gap-1 p-3">
         <p className="font-ui text-[0.65rem] uppercase tracking-wide text-[var(--color-text-secondary)]">{label}</p>
