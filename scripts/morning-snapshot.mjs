@@ -118,6 +118,13 @@ const expiringDeals = (await q('deals expiring 48h', db.from('alerts')
   .not('end_date', 'is', null).gte('end_date', nowIso).lte('end_date', in48Iso)
   .order('end_date', { ascending: true }))).data
 
+// ---- Experience / auction closings within 5 days (Phase 2 feature candidates)
+const in5dIso = new Date(Date.now() + 5 * 86400 * 1000).toISOString()
+const expClosings = (await q('experience closings 5d', db.from('experience_listings')
+  .select('title, source_platform, current_bid, minimum_bid, points_required, close_date, detail_url')
+  .eq('status', 'active').gte('close_date', nowIso).lte('close_date', in5dIso)
+  .order('close_date', { ascending: true }))).data
+
 // ---- All alert variants (60d) — powers drafts list + the DUPE check --------
 const variants = (await q('alert variants 60d', db.from('content_variants')
   .select('title, status, created_at, updated_at, metadata, snoozed_until')
@@ -294,6 +301,16 @@ console.log('\n' + B)
 console.log(`DEALS EXPIRING WITHIN 48h — last-chance social candidates (${expiringDeals.length}):`)
 if (!expiringDeals.length) console.log('  (none)')
 for (const d of expiringDeals) console.log(`  - ends ${d.end_date ? d.end_date.slice(0, 10) : '?'} · ${(d.title || '').slice(0, 60)}  -> /alerts/${d.short_slug || ''}`)
+
+console.log('\n' + B)
+console.log(`EXPERIENCE / AUCTION CLOSINGS — within 5 days (Phase 2 feature candidates) (${expClosings.length}):`)
+if (!expClosings.length) console.log('  (none)')
+for (const e of expClosings) {
+  const pts = e.current_bid || e.minimum_bid || e.points_required
+  const ptsStr = pts ? `${Number(pts).toLocaleString()} pts` : 'bid'
+  console.log(`  - closes ${e.close_date ? e.close_date.slice(0, 10) : '?'} · ${ptsStr} · [${e.source_platform || '?'}] ${(e.title || '').slice(0, 52)}`)
+}
+if (expClosings.length) console.log('  -> read US-relevance from the title (NY/US audience); FEATURE the great ones (alert + social/newsletter), honest bid framing.')
 
 console.log('\n' + B)
 console.log(`PENDING DRAFTS — dupe-checked vs ${settled.length} published/archived (${drafts.length}):`)
