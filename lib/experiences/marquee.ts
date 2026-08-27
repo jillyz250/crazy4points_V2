@@ -19,6 +19,35 @@ import { isPresaleListing } from '@/lib/experiences/presale'
 /** Featured is a curated hero, capped small on purpose (Jill: "top 2 or 4"). */
 export const FEATURED_MAX = 4
 
+/**
+ * "How marquee is this?" — a zero-API excitement score from the title/category,
+ * so the AUTO fallback (before Jill curates) surfaces the dreamy ones instead of
+ * whatever is cheapest. The old rank was cheapest-points-first, which buried a
+ * $70k festival-VIP under a $5k city hike. Higher = more exciting. Applies to
+ * every category equally (the fix Jill asked for: "do we have good logic for the
+ * other categories"). Editorial ⭐ picks still override this entirely.
+ */
+export function marqueeScore(title: string | null, category: string | null): number {
+  const t = `${title ?? ''} ${category ?? ''}`.toLowerCase()
+  let s = 0
+  // money-can't-buy access signals
+  if (/\b(vip|backstage|side[- ]stage|meet[- ](and|&)?[- ]?greet|private|exclusive|behind[- ]the[- ]scenes|all[- ]access|front row|courtside|suite)\b/.test(t)) s += 3
+  // marquee venues + tentpole events
+  if (/\b(madison square garden|\bmsg\b|hollywood bowl|red rocks|super ?bowl|world series|finals|championship|festival|grand prix|the masters|u\.?s\.? open|coachella|lollapalooza|formula ?1|\bf1\b|premiere|gala|red carpet)\b/.test(t)) s += 3
+  // culinary prestige
+  if (/\b(chef'?s? table|michelin|multi[- ]course|kitchen tour|grand tasting|champagne|per se|omakase)\b/.test(t)) s += 2
+  // real event tickets (vs a generic activity)
+  if (/\b(tickets|club level|lower bowl|floor seats|box seats|pit pass|paddock)\b/.test(t)) s += 1
+  // a marquee head-to-head matchup (e.g. "Texas vs. Ohio State") is an event
+  if (/\bvs\.?\b/.test(t) && /\b(football|basketball|hockey|soccer|baseball|game|match)\b/.test(t)) s += 2
+  // generic standalone activities — push DOWN hard
+  if (/\b(bike rental|walking tour|city tour|day pass|advanced ticket|self[- ]guided)\b/.test(t)) s -= 3
+  if (/\b(hike|\brental\b)\b/.test(t)) s -= 1
+  // add-on words (parking/shuttle/gift) are minor noise, not disqualifying
+  if (/\b(shuttle|transfer|parking|gift|merch|gear)\b/.test(t)) s -= 1
+  return s
+}
+
 export type MarqueeListing = {
   id: string
   title: string
@@ -246,15 +275,16 @@ export function buildMarqueeSections(listings: MarqueeListing[]): MarqueeSection
       ? editorialPicks
       : points.filter((l) => l.image_url && tierOf(l.title) === 'feature' && !isPresaleListing(l.category))
   const grouped = groupExperiences(featureRows)
-  // Rank for the top-4 hero: U.S. first (our audience skews US/NY, so the default
-  // tab should never be near-empty), then points-priced over auctions, then
-  // cheapest-forward. Editorial ⭐ picks flow through the same ranking.
-  const kind = (g: ExperienceGroup) => (g.fromPoints != null ? 0 : g.isAuction ? 1 : 2)
+  // Rank for the top-4 hero: MOST MARQUEE first (so the auto fallback leads with
+  // dreamy, not cheap), then U.S. (audience skews US/NY), then cheapest-forward
+  // as a tiebreak. Editorial ⭐ picks flow through the same ranking.
   grouped.sort((a, b) => {
+    const ms = marqueeScore(b.title, b.category) - marqueeScore(a.title, a.category)
+    if (ms !== 0) return ms
     const ra = a.region === 'US' ? 0 : 1
     const rb = b.region === 'US' ? 0 : 1
     if (ra !== rb) return ra - rb
-    return kind(a) - kind(b) || (a.fromPoints ?? 9e9) - (b.fromPoints ?? 9e9)
+    return (a.fromPoints ?? 9e9) - (b.fromPoints ?? 9e9)
   })
   // Featured is a small CURATED hero, not a wall: cap to the top 4. Everything
   // else (image or not) lives in the browse grid below, which now shows images
