@@ -30,6 +30,10 @@
 ## Alerts
 - Source of truth: `content_variants` + `topics` (writes via `writeAlertVariant`; `alerts` is a trigger-synced mirror, direct mirror writes blocked by G6). `alert_programs` junction links alerts↔programs. Public URL = `/alerts/<topics.slug>`.
 
+## Daily-improvement engine
+- **`scripts/improvement-radar.mjs`** — zero-API read-only scanner that ranks the site's real gaps (data-integrity, content, process) with blast radius and prints `TOP PICKS`. Powers daily-ritual Phases 13-15. Run in Phase 0b alongside `morning-snapshot.mjs`. **Counts array/JSON columns by real length, never truthiness** (empty `[]` is truthy — that trap turned a real "4 programs need reverify" into a phantom "133" on 2026-08-26). Has the same loud `q()` error guard as morning-snapshot.
+- daily-ritual skill = 16 flat phases in 3 acts (Clear / Keep-true / Improve). Phase 14 = data-integrity pick, 13 = process, 15 = visual sweep.
+
 ## Crons (`vercel.json`)
 - run-scout, build-brief, intel-triage-sweep, content-ideas-sweep, question-radar, stale-drafts-sweep, card-bonus-monitor, build-newsletter, quarterly-rotating-refresh, **reverify**, nightly-snapshot, link-audit, auto-archive, auto-expire, experiences-*, announcement-monitor, audit-good-to-know, data-integrity, schedule-watch, sweepstakes-watch, recompute-surface-locations.
 
