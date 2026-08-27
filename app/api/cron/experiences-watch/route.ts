@@ -58,20 +58,19 @@ async function handle(request: Request) {
       }
       try {
         results.push(await runExperiencesWatch(supabase, program))
-        // Email Jill immediately if this program's scrape surfaced a near-free
-        // flash drop (100-mile / 1-point) — these sell out fast.
-        await alertFlashDrops(supabase, program.program_slug)
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err)
         console.error(`[experiences-watch] ${program.program_slug} failed:`, message)
         results.push({ program_slug: program.program_slug, success: false, error: message })
       }
     }
+    // One combined flash-drop email for everything new this run (max 1/hour).
+    const flashAlerted = await alertFlashDrops(supabase)
     // Watchdog: surface any program that has now gone quiet for >36h as a real
     // system error, so a coverage lapse can never stay silent again.
     let staleAlert: string[] = []
     if (!only) staleAlert = await checkExperiencesCoverage(supabase)
-    return NextResponse.json({ ok: true, ran: results.length, skipped, staleAlert, results })
+    return NextResponse.json({ ok: true, ran: results.length, skipped, flashAlerted, staleAlert, results })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('[experiences-watch] failed:', message)
