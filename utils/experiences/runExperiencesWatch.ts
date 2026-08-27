@@ -312,6 +312,7 @@ interface ListingFacts {
   close_date: string | null
   event_date: string | null
   bid_opens_at: string | null
+  quantity_available: number | null
 }
 
 /**
@@ -324,7 +325,7 @@ interface ListingFacts {
  * here in code, because a model computing "today + 56 days" is not reliable.
  */
 async function extractListingFacts(anthropic: Anthropic, markdown: string, todayIso: string): Promise<ListingFacts> {
-  const empty: ListingFacts = { close_date: null, event_date: null, bid_opens_at: null }
+  const empty: ListingFacts = { close_date: null, event_date: null, bid_opens_at: null, quantity_available: null }
   const msg = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 260,
@@ -335,7 +336,8 @@ async function extractListingFacts(anthropic: Anthropic, markdown: string, today
 {"close_date": ISO 8601 datetime when BIDDING CLOSES (the auction deadline / "End Date" / "Close Date"), or null;
  "event_date": ISO 8601 date when the EXPERIENCE happens (first date of any range), or null;
  "not_open_yet": true ONLY if the page shows a "Starting Bid" with NO current bid AND a countdown to when packages/bidding become available, else false;
- "opens_in_days": integer number of whole days in that "available in" countdown, or null}
+ "opens_in_days": integer number of whole days in that "available in" countdown, or null;
+ "quantity_available": integer count of items/tickets still available if the page states one (e.g. "Quantity available: 26"), else null}
 If a year is missing, assume the soonest FUTURE date.
 
 ${markdown.slice(0, 12000)}`,
@@ -369,7 +371,11 @@ ${markdown.slice(0, 12000)}`,
   if (raw.not_open_yet === true && typeof raw.opens_in_days === 'number' && raw.opens_in_days > 0) {
     opensAt = new Date(now + raw.opens_in_days * 86_400_000).toISOString()
   }
-  return { close_date: iso(raw.close_date), event_date: iso(raw.event_date), bid_opens_at: opensAt }
+  const qty =
+    typeof raw.quantity_available === 'number' && Number.isFinite(raw.quantity_available) && raw.quantity_available >= 0
+      ? Math.round(raw.quantity_available)
+      : null
+  return { close_date: iso(raw.close_date), event_date: iso(raw.event_date), bid_opens_at: opensAt, quantity_available: qty }
 }
 
 /**
@@ -409,7 +415,7 @@ async function enrichCloseDates(supabase: SupabaseClient, program: ExperiencePro
         }
         if (md.length < 800) return null
         const facts = await extractListingFacts(anthropic, md, todayIso)
-        if (!facts.close_date && !facts.event_date && !facts.bid_opens_at) return null
+        if (!facts.close_date && !facts.event_date && !facts.bid_opens_at && facts.quantity_available == null) return null
         return { id: r.id as string, facts }
       }),
     )
@@ -422,6 +428,7 @@ async function enrichCloseDates(supabase: SupabaseClient, program: ExperiencePro
       }
       if (res.facts.event_date) patch.event_date = res.facts.event_date
       if (res.facts.bid_opens_at) patch.bid_opens_at = res.facts.bid_opens_at
+      if (res.facts.quantity_available != null) patch.quantity_available = res.facts.quantity_available
       await supabase.from('experience_listings').update(patch).eq('id', res.id)
       updated++
     }
