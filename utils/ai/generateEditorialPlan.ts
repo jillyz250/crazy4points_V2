@@ -74,6 +74,13 @@ export interface GenerateEditorialPlanInput {
    * keep prompt size manageable (recommend 100 most recent).
    */
   existing_open_blog_ideas?: string[]
+  /**
+   * Titles of stories ALREADY COVERED — recently published alerts plus items already approved
+   * earlier in THIS run (when classifying in batches). The model rejects an intel item that
+   * matches one of these as a dupe, which stops the same story being approved twice across
+   * batches or re-approved when we've already published it. Cap upstream (~150).
+   */
+  already_covered?: string[]
 }
 
 const SYSTEM_PROMPT = `You are the editorial director for crazy4points, a premium award travel intelligence site.
@@ -138,9 +145,11 @@ Hard routing rules (these OVERRIDE the confidence tiers below):
    bonus) may ALSO be an ALERT — approve it AND add the guide idea.
 3. LOWER-VALUE but real → ALERT if it's worth surfacing at all, otherwise REJECT. Never
    route it to a guide unless it's genuinely evergreen.
-4. DUPE of something we've already published → REJECT (reason_category='low_quality'),
-   UNLESS it is MATERIALLY DIFFERENT (a new number, new deadline, expanded eligibility, a
-   new partner) — then treat the new fact on its own merits (usually an ALERT).
+4. DUPE → REJECT (reason_category='low_quality'). An item is a dupe if it matches anything in
+   the input's 'already_covered' list (stories we have already published OR already approved
+   earlier in this same run) OR another item in today_intel about the same story. UNLESS it is
+   MATERIALLY DIFFERENT (a new number, new deadline, expanded eligibility, a new partner) — then
+   treat the new fact on its own merits (usually an ALERT). Never approve the same story twice.
 When you route an item to a GUIDE, list its intel id(s) in that blog_idea's
 'source_intel_ids' so the idea links back to the news that sparked it.
 
@@ -472,6 +481,7 @@ export async function generateEditorialPlan(
       today_intel: input.today_intel.slice(0, MAX_INTEL_FOR_PLAN),
       voice_samples: (input.voice_samples ?? []).slice(0, 3),
       existing_open_blog_ideas: (input.existing_open_blog_ideas ?? []).slice(0, 100),
+      already_covered: (input.already_covered ?? []).slice(0, 150),
     },
     null,
     2
