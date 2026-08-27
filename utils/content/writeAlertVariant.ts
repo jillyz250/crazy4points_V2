@@ -175,6 +175,7 @@ const TOPIC_TYPE_BY_ALERT_TYPE: Record<string, string> = {
   status_promo: 'status_promo',
   award_availability: 'award_availability',
   sweet_spot: 'sweet_spot',
+  experience: 'experience',
   glitch: 'glitch',
   devaluation: 'devaluation',
   earn_rate_change: 'earn_rate_change',

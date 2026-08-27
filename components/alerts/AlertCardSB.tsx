@@ -18,6 +18,7 @@ const TYPE_BADGE: Record<string, { label: string; cls: string }> = {
   award_availability:    { label: 'Award Availability',   cls: 'bg-blue-50 text-blue-700' },
   award_sale:            { label: 'Award Sale',           cls: 'bg-blue-50 text-blue-800' },
   sweet_spot:            { label: 'Sweet Spot',           cls: 'bg-green-50 text-green-700' },
+  experience:            { label: 'Experience',           cls: 'bg-amber-50 text-amber-700' },
   companion_pass:        { label: 'Companion Pass',       cls: 'bg-green-50 text-green-800' },
   // Card Offers
   limited_time_offer:    { label: 'Limited Offer',        cls: 'bg-red-50 text-red-700' },

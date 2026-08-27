@@ -20,6 +20,7 @@ const TYPE_BADGE: Record<string, { label: string; cls: string }> = {
   status_change:       { label: 'Status Change',     cls: 'bg-amber-50 text-amber-700' },
   policy_change:       { label: 'Policy Change',     cls: 'bg-amber-50 text-amber-700' },
   sweet_spot:          { label: 'Sweet Spot',        cls: 'bg-green-50 text-green-700' },
+  experience:          { label: 'Experience',        cls: 'bg-amber-50 text-amber-700' },
   industry_news:       { label: 'Industry News',     cls: 'bg-slate-100 text-slate-600' },
 }
 
