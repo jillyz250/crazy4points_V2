@@ -27,6 +27,13 @@ export interface PerkChain {
   verifiedAt: string
   /** Honest catch, when there is one. */
   caveat?: string
+  /** Program slugs this chain touches, so it can render on those program pages. */
+  programSlugs?: string[]
+}
+
+/** Chains that involve a given program — powers the per-program "Chain Reactions" section. */
+export function perkChainsForProgram(slug: string): PerkChain[] {
+  return PERK_CHAINS.filter((c) => c.programSlugs?.includes(slug))
 }
 
 export const PERK_CHAINS: PerkChain[] = [
@@ -175,5 +182,20 @@ export const PERK_CHAINS: PerkChain[] = [
     source: 'Club Avolta',
     verifiedAt: '2026-08-26',
     caveat: 'It is a status match, not points, and Radisson\'s US footprint is thin, so the Avis and lounge perks are the bigger draw here. Match offers come and go, so confirm it is live.',
+  },
+  {
+    id: 'tmobile-delta-perks',
+    title: 'A phone plan that quietly hands you three Delta perks',
+    card: 'T-Mobile plan',
+    steps: [
+      'Link your T-Mobile and Delta SkyMiles accounts (in the T-Life app for the drink perk, at deltastarbucks.com for Starbucks)',
+      'Your T-Mobile plan then covers free in-flight WiFi on Delta and a free premium drink on qualifying Delta flights',
+      'And on days you have a Delta flight booked, your Starbucks runs earn double Stars',
+    ],
+    payoff: 'A phone bill you already pay turns into free WiFi, a free drink, and bonus coffee rewards on Delta.',
+    source: 'Delta + T-Mobile + Starbucks',
+    verifiedAt: '2026-08-27',
+    caveat: 'You must link the accounts (24 hours ahead for the drink), be 21+ for the drink, and have flown Delta in the past year to keep earning Starbucks miles. Perks and eligibility can change.',
+    programSlugs: ['delta'],
   },
 ]

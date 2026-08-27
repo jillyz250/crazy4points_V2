@@ -18,6 +18,8 @@ import LiveBarsHero, { OTHER_LIVE_TYPES } from '@/components/programs/LiveBarsHe
 import SimpleTileGrid from '@/components/programs/SimpleTileGrid'
 import { isPublishableTransferRow } from '@/components/programs/TransferPartnersTable'
 import IntroBlock from '@/components/programs/IntroBlock'
+import ProgramPerkChains from '@/components/programs/ProgramPerkChains'
+import { perkChainsForProgram } from '@/lib/perkChains'
 import { getActivePromosForProgram, type PromoReward } from '@/utils/supabase/promoQueries'
 import { expandIntroTokens } from '@/utils/programs/expandIntroTokens'
 import { safeJsonLd } from '@/lib/jsonLd'
@@ -393,6 +395,7 @@ export default async function ProgramPage({
             ...(program.lounge_access ? [{ id: 'lounge-access', label: 'Lounges' }] : []),
             ...(program.changes_policy && program.type !== 'alliance' ? [{ id: 'changes', label: 'Changes' }] : []),
             ...(program.quirks ? [{ id: 'quirks', label: 'Tips' }] : []),
+            ...(perkChainsForProgram(slug).length > 0 ? [{ id: 'chain-reactions', label: 'Chains' }] : []),
             ...(properties.length > 0 ? [{ id: 'properties', label: 'Hotels' }] : []),
             ...(earnIntoCards.length > 0 ? [{ id: 'earn-into', label: 'Cards' }] : []),
             ...(allAlerts.length > 0 ? [{ id: 'alerts', label: 'Alerts' }] : []),
@@ -566,6 +569,8 @@ export default async function ProgramPage({
         )}
 
         {/* Alerts heading — only show when content above exists, to mark transition */}
+        <ProgramPerkChains chains={perkChainsForProgram(slug)} />
+
         {(program.intro || inboundRows.length > 0 || (program.transfer_partners_outbound?.length ?? 0) > 0 || program.sweet_spots || program.quirks || properties.length > 0) && (
           <h2
             id="alerts"
