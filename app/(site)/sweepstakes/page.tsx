@@ -2,7 +2,13 @@ import type { Metadata } from 'next'
 import { createAdminClient } from '@/utils/supabase/server'
 import SweepstakesBrowser, { type SweepRow } from '@/components/sweepstakes/SweepstakesBrowser'
 import SweepCard from '@/components/sweepstakes/SweepCard'
-import { SWEEP_CATEGORY_PILLS } from '@/lib/sweepstakes/categories'
+import {
+  SWEEP_CATEGORY_PILLS,
+  isTimeshareSweep,
+  sweepCategory,
+  sweepScore,
+  sweepPrizeValue,
+} from '@/lib/sweepstakes/categories'
 
 // Live sweepstakes change at most once a day (the watcher cron runs at 14:00 UTC).
 export const revalidate = 3600
@@ -32,8 +38,23 @@ export default async function SweepstakesPage({
     .or(`ends_at.is.null,ends_at.gte.${today}`)
     .order('ends_at', { ascending: true, nullsFirst: false })
     .order('first_seen', { ascending: false })
-  const sweeps = (data ?? []) as SweepRow[]
-  const featured = sweeps.filter((s) => s.featured)
+  // Keep timeshare / vacation-ownership lead-gen sweeps OFF the public page —
+  // their "2M point" prizes are bait for a high-pressure presentation.
+  const sweeps = ((data ?? []) as SweepRow[]).filter((s) => !isTimeshareSweep(s.program, s.prize, s.title))
+  // Featured = editorial ⭐ picks; when nothing is curated, fall back to the top
+  // prizes (biggest points/miles) so the section is never empty or weak.
+  const starred = sweeps.filter((s) => s.featured)
+  const featured =
+    starred.length > 0
+      ? starred
+      : [...sweeps]
+          .sort(
+            (a, b) =>
+              sweepScore(b.prize, b.title, sweepCategory(b.prize, b.title).key) -
+                sweepScore(a.prize, a.title, sweepCategory(a.prize, a.title).key) ||
+              sweepPrizeValue(b.prize, b.title) - sweepPrizeValue(a.prize, a.title),
+          )
+          .slice(0, 3)
 
   return (
     <div>
