@@ -31,6 +31,9 @@ export type MarqueeListing = {
   close_date: string | null
   detail_url: string | null
   image_url: string | null
+  /** editorial ⭐ pick (set in /admin/experiences) — drives the featured galleries.
+   *  Optional so consumers that don't select it (e.g. the home block) still type. */
+  featured?: boolean | null
 }
 
 /**
@@ -223,14 +226,18 @@ export function buildMarqueeSections(listings: MarqueeListing[]): MarqueeSection
   const points = visible.filter(isPointsExperience)
   const presales = visible.filter((l) => !isPointsExperience(l))
 
-  // Featured = the DREAMY points experiences: photogenic (have an image), not
-  // demoted to 'more', and not a concert/sports/show TICKET (those are real
-  // points experiences too — they live in the finder below — but they shouldn't
-  // lead the aspirational hero gallery). The presale-category set is exactly the
-  // ticket themes, so we reuse it as the "not dreamy" test here.
-  const featureRows = points.filter(
-    (l) => l.image_url && tierOf(l.title) === 'feature' && !isPresaleListing(l.category),
-  )
+  // Featured galleries are EDITORIAL: whatever Jill ⭐-picks in /admin/experiences
+  // leads, regardless of whether the scraper grabbed an image (an imageless pick
+  // renders as a program-colored gradient card). This is the fix for "the ones
+  // with images aren't the best ones" — curation, not image-luck, decides.
+  // FALLBACK: until any pick exists, keep the old heuristic (photogenic + not
+  // demoted + not a ticket) so the page is never blank; as Jill curates, her
+  // picks take over.
+  const editorialPicks = visible.filter((l) => l.featured)
+  const featureRows =
+    editorialPicks.length > 0
+      ? editorialPicks
+      : points.filter((l) => l.image_url && tierOf(l.title) === 'feature' && !isPresaleListing(l.category))
   const grouped = groupExperiences(featureRows)
   // points-priced first, then auctions, cheapest-forward within each — a strong lead
   const rank = (g: ExperienceGroup) => (g.fromPoints != null ? 0 : g.isAuction ? 1 : 2)

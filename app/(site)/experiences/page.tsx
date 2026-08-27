@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { createAdminClient } from '@/utils/supabase/server'
 import { getExperiences } from '@/utils/supabase/queries'
 import { buildMarqueeSections, type MarqueeListing } from '@/lib/experiences/marquee'
-import ExperienceCard from '@/components/experiences/ExperienceCard'
+import FeaturedGallery from '@/components/experiences/FeaturedGallery'
 import ExperienceFinder, { type FinderListing } from '@/components/experiences/ExperienceFinder'
 import ExperiencesDirectory from '@/components/experiences/ExperiencesDirectory'
 
@@ -63,7 +63,7 @@ export default async function ExperiencesPage() {
   const { data: rows } = await supabase
     .from('experience_listings')
     .select(
-      'id, title, category, location, format, program_slug, source_platform, points_required, current_bid, minimum_bid, event_date, close_date, close_date_confidence, bid_opens_at, detail_url, image_url, first_seen_at, last_seen_at, sold_out',
+      'id, title, category, location, format, program_slug, source_platform, points_required, current_bid, minimum_bid, event_date, close_date, close_date_confidence, bid_opens_at, detail_url, image_url, featured, first_seen_at, last_seen_at, sold_out',
     )
     .eq('status', 'active')
     .or(`close_date.is.null,close_date.gte.${nowIso}`)
@@ -132,33 +132,16 @@ export default async function ExperiencesPage() {
         {/* Quick-jump nav so the non-U.S. block (and the rest) are reachable without
             scrolling past the long U.S. gallery. */}
         <nav aria-label="Jump to a section" className="flex flex-wrap gap-2 py-6">
-          {us.length > 0 && <JumpPill href="#in-the-us" label="In the U.S." />}
-          {intl.length > 0 && <JumpPill href="#beyond-us" label="Beyond the U.S." />}
+          {(us.length > 0 || intl.length > 0) && <JumpPill href="#featured" label="Featured" />}
           <JumpPill href="#browse" label="Browse all" />
           <JumpPill href="#programs" label="Programs" />
         </nav>
 
-        {/* Featured — U.S. */}
-        {us.length > 0 && (
-          <section id="in-the-us" className="rg-sub-section scroll-mt-24">
-            <SectionHead title="Featured in the U.S." count={us.length} />
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {us.map((g) => (
-                <ExperienceCard key={g.key} group={g} />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Featured — non-U.S. */}
-        {intl.length > 0 && (
-          <section id="beyond-us" className="rg-sub-section scroll-mt-24">
-            <SectionHead title="Featured beyond the U.S." count={intl.length} />
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {intl.map((g) => (
-                <ExperienceCard key={g.key} group={g} />
-              ))}
-            </div>
+        {/* Featured — one gallery, U.S. / Beyond toggle (was two stacked sections) */}
+        {(us.length > 0 || intl.length > 0) && (
+          <section id="featured" className="rg-sub-section scroll-mt-24">
+            <SectionHead title="Featured right now" count={us.length + intl.length} />
+            <FeaturedGallery us={us} intl={intl} />
           </section>
         )}
 
