@@ -11,11 +11,12 @@ import { Resend } from 'resend'
  * experience_listings.flash_alert_sent_at so each drop is emailed exactly once.
  */
 
-// The "basically free" threshold. Catches 100-mile / 1-point drops. Tunable via
-// FLASH_DROP_MAX_POINTS. Title patterns catch labelled drops even if the price
-// didn't parse.
+// Trigger on ANYTHING flash-type: a near-free price (<=100 miles/points, tunable
+// via FLASH_DROP_MAX_POINTS) OR a title that reads like a flash sale / drop /
+// limited-time offer. Covers "100 Mile Drop", "1-Point Drop", "Flash Sale",
+// "Limited Time", "Last Chance", etc. across United Exclusives + Marriott Moments.
 const MAX_POINTS = Number(process.env.FLASH_DROP_MAX_POINTS ?? 100)
-const DROP_TITLE = /\b\d+\s*[- ]?(?:mile|point)s?\s+drop\b/i
+const DROP_TITLE = /\bflash\b|\bdrop\b|\b1[\s-]?point\b|limited[\s-]?time|last[\s-]?chance|24[\s-]?hour/i
 
 type FlashRow = {
   id: string
