@@ -37,6 +37,9 @@ through `content_variants`, never the `alerts` mirror.
 
 The 16 phases fall in three acts: **A. Clear the overnight (1-6)** ·
 **B. Keep the site true & fed (7-12)** · **C. Improve every day (13-16)**.
+**On Thursdays only, a 17th phase — the Newsletter build — runs DEAD LAST**, after
+everything else, so the whole day's verified publishes and decisions feed into it.
+On any other day, header the run as `PHASE N of 16`; on Thursdays, `N of 17`.
 
 ---
 
@@ -273,9 +276,31 @@ quick take / article (Phase 5/12). Recommend THE one with a one-line
 why-it-engages + our value-add. Draft only on Jill's go (facebook-post /
 instagram-post skill). We always want a daily post.
 
+### Phase 17 · 📰 Newsletter build (THURSDAYS ONLY — dead last)
+Runs only on Thursdays (the snapshot header prints `WEEKLY: Newsletter day`), and
+**always last** so every alert published, page fixed, experience/sweepstakes
+picked, and article written *earlier today* is eligible for it — the newsletter is
+the day's wrap-up, not a parallel track. On any other weekday this phase does not
+exist; do not surface it.
+
+Build it from the day's material, newest-first:
+- **today's verified publishes** (Phase 5 alerts + Phase 12 article),
+- **newsletter items expiring soon** (snapshot `NEWSLETTER ITEMS EXPIRING SOON`)
+  and **parked `newsletter_idea` intel** (Phase 4 sent items here),
+- **Jill's Takes** (the biweekly-anecdote inbox), and the week's best evergreen.
+
+Use the existing builder — `runBuildNewsletter` / the `/admin/newsletter` page —
+then `verifyNewsletterDraft` before anything is shown. **Editorial rules (hard):**
+no fabrication, every claim sourced to official/issuer (see
+[[feedback_newsletter_no_fabrication]]); the **editorial note tops the brief**
+([[feedback_brief_editorial_top]]); no foreign-currency valuations or derived
+point math. **Show Jill the FULL draft before sending — always.** On her approval,
+send via Resend, **throttled to ≤4/sec** ([[feedback_resend_rate_limit]]). Receipt:
+what led, how many stories, recipient count.
+
 ---
 
-## CLOSE (send after Phase 16)
+## CLOSE (send after the last phase — Phase 16, or Phase 17 on Thursdays)
 A fixed recap:
 ```
 🌙 WRAP — Aug 12
