@@ -15,6 +15,7 @@ import { createAdminClient } from '@/utils/supabase/server'
 import { assertCron } from '@/lib/auth/cron'
 import { runExperiencesWatch, EXPERIENCE_PROGRAMS } from '@/utils/experiences/runExperiencesWatch'
 import { orderProgramsByStaleness, checkExperiencesCoverage } from '@/utils/experiences/coverage'
+import { alertFlashDrops } from '@/utils/experiences/flashDrops'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
@@ -57,6 +58,9 @@ async function handle(request: Request) {
       }
       try {
         results.push(await runExperiencesWatch(supabase, program))
+        // Email Jill immediately if this program's scrape surfaced a near-free
+        // flash drop (100-mile / 1-point) — these sell out fast.
+        await alertFlashDrops(supabase, program.program_slug)
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err)
         console.error(`[experiences-watch] ${program.program_slug} failed:`, message)
