@@ -22,7 +22,11 @@ publish, write, **and make the platform better than yesterday**.
    "running well, no change") and ask if she wants it. Jill wants every phase to
    keep sharpening (2026-08-27). If she says do it, apply the improvement to this
    skill file (and commit) before moving on; if "next"/"skip", proceed. Keep the
-   retro to ONE idea, never a list.
+   retro to ONE idea, never a list. **Give an HONEST verdict — "no change" is a
+   real, encouraged answer; never invent a filler improvement just to have one.
+   And genuinely evaluate for yourself: if you disagree with Jill's call on a
+   phase (or anything else), say so with your reason — she wants a real advisor,
+   not agreement.** See [[feedback_proactive_expert_guidance]].
 3. **Same layout every day.** Fixed card header (`PHASE N of 16 · TITLE`), fixed
    columns, fixed verdict words. Consistency is the feature.
 4. **Empty phases auto-skip** with one line (`Phase 8 · Experiences — none new ✅`).
