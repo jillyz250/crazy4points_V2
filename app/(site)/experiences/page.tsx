@@ -15,7 +15,24 @@ export const metadata: Metadata = {
     'The dreamiest experiences you can book with points and miles — private airplane tours, Michelin chef tables, adventure cruises, wellness retreats, and money-can\'t-buy access, plus every program that offers them.',
 }
 
-export default async function ExperiencesPage() {
+// Quick category pills shown at the top of the page — they deep-link into the
+// browse finder pre-filtered, so a reader can jump straight to "Music" etc.
+// without scrolling past the featured hero. Colors match the finder's pills.
+const TOP_CATEGORIES: { key: string; label: string; color: string }[] = [
+  { key: 'music', label: 'Music', color: '#B03D77' },
+  { key: 'sports', label: 'Sports', color: '#2E7D5B' },
+  { key: 'dining', label: 'Culinary', color: '#B8901F' },
+  { key: 'travel', label: 'Travel', color: '#17868A' },
+  { key: 'misc', label: 'Misc', color: '#6E6486' },
+]
+
+export default async function ExperiencesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ category?: string }>
+}) {
+  const sp = await searchParams
+  const activeCat = TOP_CATEGORIES.find((c) => c.key === sp.category)?.key
   const supabase = createAdminClient()
   const experiences = await getExperiences(supabase)
 
@@ -102,28 +119,40 @@ export default async function ExperiencesPage() {
 
   return (
     <main>
-      {/* Hero */}
+      {/* Hero — compact: a tight headline + one-line intro so the filters and the
+          experiences are reachable without a screenful of scrolling. (The full
+          availability disclaimer lives once at the page foot.) */}
       <section className="border-b border-[var(--color-border-soft)] bg-[var(--color-background-soft)]">
-        <div className="rg-container py-16 md:py-20">
-          {/* flex `gap` (not margins) so spacing survives the global h1/p margin
-              reset that silently kills margin utilities on headings/paragraphs */}
-          <div className="flex max-w-2xl flex-col gap-10 md:gap-12">
-            <div className="flex flex-col gap-3">
-              <p className="font-ui text-sm uppercase tracking-widest text-[var(--color-accent)]">Experiences</p>
-              <h1 className="font-display text-4xl leading-tight text-[var(--color-primary)] md:text-5xl">
-                Your points are a passport to the unforgettable.
-              </h1>
-            </div>
-            <div className="flex flex-col gap-4">
-              <p className="font-body text-lg text-[var(--color-text-primary)]">
-                Not just flights and hotel nights. A private airplane tour over Monument Valley, a chef&apos;s
-                counter at a Michelin table, an adventure cruise through Costa Rica, a temple blessing in Bali.
-                Here are the dreamiest experiences you can book with points and miles right now.
-              </p>
-              <p className="font-body text-sm text-[var(--color-text-secondary)]">
-                Prices and availability are set by each program and change often. Always confirm on the official
-                site before you plan or transfer points.
-              </p>
+        <div className="rg-container py-7 md:py-9">
+          <div className="flex max-w-3xl flex-col gap-2">
+            <p className="font-ui text-xs uppercase tracking-widest text-[var(--color-accent)]">Experiences</p>
+            <h1 className="font-display text-3xl leading-tight text-[var(--color-primary)] md:text-4xl">
+              Your points are a passport to the unforgettable.
+            </h1>
+            <p className="font-body text-[var(--color-text-secondary)] md:text-lg">
+              Michelin chef&apos;s tables, adventure cruises, VIP festival access, a temple blessing in Bali &mdash;
+              the dreamiest experiences you can book with points and miles right now.
+            </p>
+            {/* Colorful quick-category pills — jump straight to filtered results. */}
+            <div className="mt-1 flex flex-wrap gap-2">
+              {TOP_CATEGORIES.map((c) => {
+                const on = activeCat === c.key
+                return (
+                  <a
+                    key={c.key}
+                    href={on ? '/experiences#browse' : `/experiences?category=${c.key}#browse`}
+                    className="rg-tap-target inline-flex items-center gap-2 rounded-full border-2 px-4 py-2 font-ui text-sm font-semibold shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md"
+                    style={
+                      on
+                        ? { background: c.color, borderColor: c.color, color: '#fff', boxShadow: `0 6px 16px -3px ${c.color}80` }
+                        : { background: `${c.color}14`, borderColor: `${c.color}80`, color: c.color }
+                    }
+                  >
+                    <span className="inline-block h-2 w-2 rounded-full" style={{ background: on ? '#fff' : c.color }} aria-hidden />
+                    {c.label}
+                  </a>
+                )
+              })}
             </div>
           </div>
         </div>
@@ -132,7 +161,7 @@ export default async function ExperiencesPage() {
       <div className="rg-container">
         {/* Quick-jump nav so the non-U.S. block (and the rest) are reachable without
             scrolling past the long U.S. gallery. */}
-        <nav aria-label="Jump to a section" className="flex flex-wrap gap-2 py-6">
+        <nav aria-label="Jump to a section" className="flex flex-wrap gap-2 py-4">
           {(us.length > 0 || intl.length > 0) && <JumpPill href="#featured" label="Featured" />}
           <JumpPill href="#browse" label="Browse all" />
           <JumpPill href="#programs" label="Programs" />
@@ -154,7 +183,12 @@ export default async function ExperiencesPage() {
               Every experience we&apos;re tracking, from points redemptions and auctions to cardholder
               presales. Filter by program, category, or what your card&apos;s points can reach.
             </p>
-            <ExperienceFinder listings={finderListings} cardReach={cardReach} bestBonus={bestBonus} />
+            <ExperienceFinder
+              listings={finderListings}
+              cardReach={cardReach}
+              bestBonus={bestBonus}
+              initialCats={activeCat ? [activeCat] : undefined}
+            />
           </section>
         )}
 
