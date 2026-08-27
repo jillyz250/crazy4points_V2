@@ -213,13 +213,24 @@ export default async function ExperiencesPage({
 }
 
 function JumpPill({ href, label, emphasis, icon }: { href: string; label: string; emphasis?: boolean; icon?: 'filter' }) {
+  // Emphasis = a SOFT purple pill (light tint + purple border + purple text), not
+  // a heavy dark-purple fill. Inline style so the purple text can't be overridden
+  // by a global link color (the cascade trap that rendered the label dark before).
+  const emphasisStyle = emphasis
+    ? {
+        background: 'color-mix(in srgb, var(--color-primary) 12%, white)',
+        borderColor: 'var(--color-primary)',
+        color: 'var(--color-primary)',
+      }
+    : undefined
   return (
     <a
       href={href}
+      style={emphasisStyle}
       className={
         'rg-tap-target inline-flex items-center gap-1.5 rounded-full border-2 px-4 py-2 font-ui text-sm font-semibold shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md ' +
         (emphasis
-          ? 'border-[var(--color-primary)] bg-[var(--color-primary)] text-white'
+          ? ''
           : 'border-[var(--color-border-soft)] bg-[var(--color-background)] text-[var(--color-primary)] hover:border-[var(--color-primary)]')
       }
     >

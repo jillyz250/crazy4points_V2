@@ -54,15 +54,16 @@ function TabPill({
       role="tab"
       aria-selected={active}
       onClick={onClick}
+      style={active ? { background: 'color-mix(in srgb, var(--color-primary) 14%, white)' } : undefined}
       className={
-        'rg-tap-target inline-flex items-center gap-2 rounded-full px-4 py-2 font-ui text-sm transition-colors ' +
+        'rg-tap-target inline-flex items-center gap-2 rounded-full border-2 px-4 py-2 font-ui text-sm font-semibold transition-colors ' +
         (active
-          ? 'bg-[var(--color-primary)] text-white'
-          : 'border border-[var(--color-border-soft)] text-[var(--color-primary)] hover:border-[var(--color-accent)] hover:bg-[var(--color-background-soft)]')
+          ? 'border-[var(--color-primary)] text-[var(--color-primary)]'
+          : 'border-[var(--color-border-soft)] text-[var(--color-primary)] hover:border-[var(--color-accent)] hover:bg-[var(--color-background-soft)]')
       }
     >
       {label}
-      <span className={active ? 'text-white/70' : 'text-[var(--color-text-secondary)]'}>{count}</span>
+      <span className={active ? 'text-[var(--color-primary)] opacity-60' : 'text-[var(--color-text-secondary)]'}>{count}</span>
     </button>
   )
 }
