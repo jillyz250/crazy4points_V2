@@ -93,6 +93,8 @@ export type ExperienceGroup = {
   format: string | null
   /** cheapest points across packages, if any package is points-priced */
   fromPoints: number | null
+  /** lowest CURRENT/min bid across auction packages, for the "Current bid X" line */
+  fromBid: number | null
   /** true if any package is an auction (bid) */
   isAuction: boolean
   /** soonest booking/bidding deadline across packages (ISO), for an urgency pill */
@@ -206,6 +208,7 @@ export function groupExperiences(listings: MarqueeListing[]): ExperienceGroup[] 
         image_url: l.image_url,
         format: l.format,
         fromPoints: null,
+        fromBid: null,
         isAuction: false,
         nearestClose: null,
         featured: false,
@@ -217,6 +220,10 @@ export function groupExperiences(listings: MarqueeListing[]): ExperienceGroup[] 
     // prefer any package that has an image if the group leader lacked one
     if (!g.image_url && l.image_url) g.image_url = l.image_url
     if (l.points_required != null) g.fromPoints = g.fromPoints == null ? l.points_required : Math.min(g.fromPoints, l.points_required)
+    // track the lowest bid figure (current bid, else the starting/min bid) so an
+    // auction card can show "Current bid X points" like the browse cards do.
+    const bid = l.current_bid ?? l.minimum_bid
+    if (bid != null) g.fromBid = g.fromBid == null ? bid : Math.min(g.fromBid, bid)
     if (l.current_bid != null || l.minimum_bid != null || l.format === 'bid') g.isAuction = true
     // track soonest real close date (ISO only; free-text dates skipped)
     if (l.close_date && /^\d{4}-\d{2}-\d{2}/.test(l.close_date)) {

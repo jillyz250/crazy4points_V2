@@ -27,7 +27,7 @@ function programLabel(g: ExperienceGroup): string {
 // Points-forward one-liner + a Book/Bid tag, no derived math.
 function priceLine(g: ExperienceGroup): { label: string; tag: string } {
   if (g.fromPoints != null) return { label: `From ${g.fromPoints.toLocaleString("en-US")} points`, tag: "Book" };
-  if (g.isAuction) return { label: "Bid with points", tag: "Bid" };
+  if (g.isAuction) return { label: g.fromBid != null ? `Current bid ${g.fromBid.toLocaleString("en-US")} points` : "Bid with points", tag: "Bid" };
   return { label: "Redeem or bid", tag: "View" };
 }
 
