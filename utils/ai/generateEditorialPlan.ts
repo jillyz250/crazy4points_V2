@@ -39,6 +39,8 @@ export interface EditorialPlan {
     pitch: string
     priority: 'hot' | 'sweet_spot' | 'evergreen' | 'deep_dive'
     why_now: string
+    /** intel item ids that feed this guide idea, so it links back to the news. */
+    source_intel_ids?: string[]
   }[]
   newsletter_candidates: {
     intel_id: string
@@ -118,9 +120,31 @@ Produce a single JSON object matching the SCHEMA below. No prose outside the JSO
 DECISION RULES
 ═══════════════════════════════════════════════════════════
 
-APPROVE / REJECT every intel item. No omissions.
+ROUTE every intel item to exactly ONE of three destinations (the editor's rules):
+- ALERT (put it in 'approve') — anything worth publishing as a timely, actionable alert.
+- GUIDE (put it in 'blog_ideas', NOT approve) — recurring/evergreen/educational material
+  that belongs in a lasting guide or article, not a one-off alert.
+- REJECT (put it in 'reject') — dupes and low-value noise.
+There is NO "newsletter" destination: the weekly newsletter auto-fills its Live Offers
+section from published alerts, so a newsletter-worthy item is simply an ALERT.
 
-Confidence tiers:
+Hard routing rules (these OVERRIDE the confidence tiers below):
+1. TRANSFER BONUSES → always ALERT (approve), even a quick, factual one — as long as it's
+   for a program we actually cover with real US redemption value. A transfer bonus to a
+   defunct or non-US-only program we don't cover is a REJECT, not an alert.
+2. RECURRING / EVERGREEN (monthly buy-points sales, "spontaneous escapes", seasonal promos
+   that repeat) and EDUCATIONAL / how-to material → GUIDE (blog_ideas). Do NOT alert a
+   monthly rerun. EXCEPTION: a genuinely record-breaking instance (e.g. an all-time-high
+   bonus) may ALSO be an ALERT — approve it AND add the guide idea.
+3. LOWER-VALUE but real → ALERT if it's worth surfacing at all, otherwise REJECT. Never
+   route it to a guide unless it's genuinely evergreen.
+4. DUPE of something we've already published → REJECT (reason_category='low_quality'),
+   UNLESS it is MATERIALLY DIFFERENT (a new number, new deadline, expanded eligibility, a
+   new partner) — then treat the new fact on its own merits (usually an ALERT).
+When you route an item to a GUIDE, list its intel id(s) in that blog_idea's
+'source_intel_ids' so the idea links back to the news that sparked it.
+
+Confidence tiers (apply AFTER the hard rules above):
 - high      → approve by default, unless a brand-exclude rule fires
 - medium    → approve only if there's a clear hook (deadline, new partnership, rare value)
 - low       → reject unless genuinely compelling; rumors go here with reason_category='rumor'
