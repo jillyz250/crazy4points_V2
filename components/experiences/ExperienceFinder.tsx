@@ -362,14 +362,19 @@ export default function ExperienceFinder({
   const biddable = useMemo(() => grouped.filter((g) => g.rep.format !== 'access'), [grouped])
   const access = useMemo(() => grouped.filter((g) => g.rep.format === 'access'), [grouped])
 
-  // Dimensional pills: a soft drop shadow + a lift on hover so they feel tactile,
-  // not flat. Active = filled purple, raised.
-  const pill = (active: boolean) =>
-    `rg-tap-target inline-flex items-center gap-1.5 rounded-full border-2 px-4 py-2 font-ui text-sm font-semibold shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md ${
+  // Dimensional pills: a soft drop shadow + a lift on hover so they feel tactile.
+  // Active = a SOFT purple (light tint + purple border + purple text), never a
+  // heavy dark-purple fill (Jill dislikes those). The tint is an INLINE color-mix
+  // (an arbitrary bg-[color-mix(...)] class doesn't compile in this Tailwind v4
+  // setup — same comma-in-arbitrary issue as the shadow classes).
+  const pillProps = (active: boolean): { className: string; style?: CSSProperties } => ({
+    className: `rg-tap-target inline-flex items-center gap-1.5 rounded-full border-2 px-4 py-2 font-ui text-sm font-semibold shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md ${
       active
-        ? 'border-[var(--color-primary)] bg-[var(--color-primary)] text-white shadow-md'
+        ? 'border-[var(--color-primary)] text-[var(--color-primary)]'
         : 'border-[var(--color-border-soft)] bg-[var(--color-background)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]'
-    }`
+    }`,
+    style: active ? { background: 'color-mix(in srgb, var(--color-primary) 14%, white)' } : undefined,
+  })
 
   // Category pills wear their OWN category color — a tinted fill + colored border
   // + a dot when idle, a solid color fill with a matching glow when active. This
@@ -396,7 +401,7 @@ export default function ExperienceFinder({
             <button
               key={c.slug}
               type="button"
-              className={pill(heldCards.includes(c.slug))}
+              {...pillProps(heldCards.includes(c.slug))}
               aria-pressed={heldCards.includes(c.slug)}
               onClick={() => toggleHeld(c.slug)}
             >
@@ -443,14 +448,14 @@ export default function ExperienceFinder({
         {/* Budget tier pills */}
         <p className="mb-2 mt-4 font-ui text-sm font-semibold text-[var(--color-primary)]">Your budget</p>
         <div className="flex flex-wrap gap-2">
-          <button type="button" className={pill(budget === null)} onClick={() => setBudget(null)}>
+          <button type="button" {...pillProps(budget === null)} onClick={() => setBudget(null)}>
             Any
           </button>
           {BUDGET_TIERS.map((t) => (
             <button
               key={t.cap}
               type="button"
-              className={pill(budget === t.cap)}
+              {...pillProps(budget === t.cap)}
               aria-pressed={budget === t.cap}
               onClick={() => setBudget(t.cap)}
             >
@@ -497,7 +502,7 @@ export default function ExperienceFinder({
         {nyCount > 0 && (
           <button
             type="button"
-            className={pill(nyOnly)}
+            {...pillProps(nyOnly)}
             aria-pressed={nyOnly}
             onClick={() => setNyOnly((v) => !v)}
           >
@@ -518,7 +523,7 @@ export default function ExperienceFinder({
         {soldOutCount > 0 && (
           <button
             type="button"
-            className={pill(hideSoldOut)}
+            {...pillProps(hideSoldOut)}
             aria-pressed={hideSoldOut}
             onClick={() => setHideSoldOut((v) => !v)}
           >
@@ -528,7 +533,7 @@ export default function ExperienceFinder({
         {bonusCount > 0 && (
           <button
             type="button"
-            className={pill(bonusOnly)}
+            {...pillProps(bonusOnly)}
             aria-pressed={bonusOnly}
             onClick={() => setBonusOnly((v) => !v)}
           >
