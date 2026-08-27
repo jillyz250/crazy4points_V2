@@ -3,7 +3,7 @@ import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Card, CardBody } from '@/components/admin/ui/Card'
 import { Badge } from '@/components/admin/ui/Badge'
 import { EmptyState } from '@/components/admin/ui/EmptyState'
-import { togglePosted, endSweep, draftSweepstakesPostAction, clearSweepstakesDraftAction } from './actions'
+import { togglePosted, endSweep, draftSweepstakesPostAction, clearSweepstakesDraftAction, toggleSweepFeatured } from './actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,6 +19,7 @@ type Sweep = {
   status: string
   posted_social: boolean
   social_draft: string | null
+  featured: boolean | null
   first_seen: string
   last_seen: string
 }
@@ -105,6 +106,13 @@ export default async function SweepstakesPage() {
                       seen {new Date(s.last_seen).toLocaleDateString()}
                     </span>
                     <div style={{ display: 'flex', gap: '0.5rem', marginLeft: 'auto' }}>
+                      <form action={toggleSweepFeatured}>
+                        <input type="hidden" name="id" value={s.id} />
+                        <input type="hidden" name="next" value={(!s.featured).toString()} />
+                        <button type="submit" className={`admin-btn ${s.featured ? 'admin-btn-ghost' : 'admin-btn-primary'}`} style={{ fontSize: '0.8125rem' }}>
+                          {s.featured ? '★ Unfeature' : '⭐ Feature'}
+                        </button>
+                      </form>
                       <form action={draftSweepstakesPostAction}>
                         <input type="hidden" name="id" value={s.id} />
                         <button type="submit" className="admin-btn admin-btn-primary" style={{ fontSize: '0.8125rem' }}>

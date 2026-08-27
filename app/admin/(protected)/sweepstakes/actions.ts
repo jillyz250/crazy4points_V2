@@ -7,6 +7,21 @@ import { generateFacebook } from '@/utils/ai/variants/generateFacebook'
 
 const SWEEPS_PAGE_URL = 'https://www.crazy4points.com/sweepstakes'
 
+/** Toggle whether a sweepstakes is ⭐ Featured on the public /sweepstakes page. */
+export async function toggleSweepFeatured(formData: FormData): Promise<void> {
+  await assertAdmin()
+  const id = String(formData.get('id') ?? '').trim()
+  const next = String(formData.get('next') ?? '') === 'true'
+  if (!id) return
+  const supabase = createAdminClient()
+  await supabase
+    .from('sweepstakes')
+    .update({ featured: next, featured_at: next ? new Date().toISOString() : null })
+    .eq('id', id)
+  revalidatePath('/admin/sweepstakes')
+  revalidatePath('/sweepstakes')
+}
+
 /**
  * Generate a Facebook post draft for one sweepstakes, on demand.
  *
