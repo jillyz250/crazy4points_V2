@@ -71,9 +71,12 @@ const RECURRING = /\b(monthly|buy points|buy miles|global getaways|mileage barga
 const pendingReview = (await q('count pending drafts', db.from('content_variants').select('id', { count: 'exact', head: true })
   .eq('status', 'needs_review').or(`snoozed_until.is.null,snoozed_until.lte.${nowIso}`))).count
 
+// Match the admin dashboard exactly: only TRULY-undecided intel counts (a
+// decided item — newsletter_idea/approved — has left the triage queue). Counting
+// those too made the board read 207 while the dashboard correctly showed 162.
 const intelToTriage = (await q('count intel to triage', db.from('intel_items').select('id', { count: 'exact', head: true })
   .eq('processed', false).is('rejected_at', null)
-  .or('triage_decision.is.null,triage_decision.in.(approved,newsletter_idea)')
+  .is('triage_decision', null)
   .or(`expires_at.is.null,expires_at.gte.${nowIso}`)
   .or(`snoozed_until.is.null,snoozed_until.lte.${nowIso}`))).count
 
