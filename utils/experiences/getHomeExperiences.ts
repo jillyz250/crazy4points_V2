@@ -5,7 +5,7 @@ import { buildMarqueeSections, type MarqueeListing, type ExperienceGroup } from 
 // filtered to listings that actually have a hero image so the home block is
 // always photo-rich.
 const SELECT =
-  'id, title, category, location, format, program_slug, source_platform, points_required, current_bid, minimum_bid, event_date, close_date, detail_url, image_url, first_seen_at'
+  'id, title, category, location, format, program_slug, source_platform, points_required, current_bid, minimum_bid, event_date, close_date, detail_url, image_url, featured, first_seen_at'
 
 /**
  * The 3 (default) freshest, US-first, feature-tier experiences that have a real

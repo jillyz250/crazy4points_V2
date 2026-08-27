@@ -22,6 +22,29 @@ function programLabel(g: ExperienceGroup): string {
   return (g.program_slug && PROGRAM_LABEL[g.program_slug]) || g.source_platform || 'Points program'
 }
 
+// Imageless featured cards get a program-specific gradient so they look
+// intentional and are distinguishable at a glance — not an identical wall of
+// purple. We use a curated set of deep, on-brand (Royal Glow-adjacent) tones
+// rather than literal issuer blues, which would cheapen the gallery, and assign
+// each program a STABLE tone by hashing its slug so the same program always
+// reads the same color.
+const GRADIENTS: [string, string][] = [
+  ['#6B2D8F', '#D4AF37'], // plum → gold (house)
+  ['#3A1C5A', '#8E5BB0'], // deep violet
+  ['#0F4C5C', '#2A9D8F'], // teal
+  ['#5A1E3C', '#B5657F'], // wine
+  ['#1B3A4B', '#3E7CB1'], // slate blue
+  ['#4A2C1A', '#C08457'], // bronze
+  ['#123524', '#4F8A5B'], // forest
+  ['#4B1E2F', '#C4506B'], // garnet
+]
+function gradientFor(slug: string | null): [string, string] {
+  const key = slug ?? ''
+  let h = 0
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0
+  return GRADIENTS[h % GRADIENTS.length]
+}
+
 // The one-line "what it costs / how you get it" — points-forward, no derived math.
 function priceLine(g: ExperienceGroup): { label: string; tone: 'points' | 'auction' | 'access' } {
   if (g.fromPoints != null) {
@@ -71,9 +94,18 @@ export default function ExperienceCard({ group }: { group: ExperienceGroup }) {
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-accent)] p-4">
-            <span className="text-center font-display text-lg text-white/90">{label}</span>
-          </div>
+          (() => {
+            const [from, to] = gradientFor(group.program_slug)
+            return (
+              <div
+                className="flex h-full w-full flex-col items-center justify-center gap-2 p-5 text-center"
+                style={{ backgroundImage: `linear-gradient(135deg, ${from}, ${to})` }}
+              >
+                <span className="font-ui text-[0.65rem] uppercase tracking-[0.2em] text-white/70">{label}</span>
+                <span className="line-clamp-3 font-display text-xl leading-snug text-white">{group.title}</span>
+              </div>
+            )
+          })()
         )}
         {group.category && (
           <span className="absolute left-3 top-3 rounded-full bg-black/55 px-2.5 py-1 font-ui text-[0.65rem] uppercase tracking-wide text-white backdrop-blur-sm">
