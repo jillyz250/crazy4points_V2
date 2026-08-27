@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { CardThatEarnsIn } from '@/utils/supabase/queries'
+import CardFace from './CardFace'
 
 // No real card art exists yet (image_url is empty table-wide), so each row leads
 // with a stylized mini card-face in the issuer's brand color, sitting on a white
@@ -53,43 +54,9 @@ export default function CardsThatEarnIntoProgram({
   )
 }
 
-/** Mini credit-card visual in the issuer's brand color — sits on white, so it
- *  carries a subtle brand-dark edge and a brand-tinted shadow to lift off. */
-function CardFace({ issuer }: { issuer: CardThatEarnsIn['issuer'] }) {
-  const [from, to] = gradientFor(issuer.slug)
-  return (
-    <div
-      aria-hidden
-      style={{
-        position: 'relative',
-        width: '90px',
-        aspectRatio: '1.586',
-        flexShrink: 0,
-        borderRadius: '8px',
-        backgroundImage: `linear-gradient(135deg, ${from}, ${to})`,
-        border: `1px solid ${from}33`,
-        boxShadow: `0 7px 16px -4px ${to}73`,
-        overflow: 'hidden',
-      }}
-    >
-      <div style={{ position: 'absolute', top: '9px', left: '8px', width: '14px', height: '11px', borderRadius: '2px', background: 'linear-gradient(135deg, #f4d77e, #c9a227)' }} />
-      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(120deg, rgba(255,255,255,0.18), rgba(255,255,255,0) 46%)' }} />
-      {issuer.logo_url ? (
-        <span style={{ position: 'absolute', right: '6px', bottom: '5px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '2px', borderRadius: '3px', background: 'rgba(255,255,255,0.94)' }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={issuer.logo_url} alt="" width={13} height={13} style={{ height: '13px', width: 'auto', objectFit: 'contain' }} />
-        </span>
-      ) : (
-        <span style={{ position: 'absolute', right: '8px', bottom: '6px', fontFamily: 'var(--font-ui)', fontSize: '0.5rem', fontWeight: 700, textTransform: 'uppercase', color: 'rgba(255,255,255,0.9)' }}>
-          {issuer.name}
-        </span>
-      )}
-    </div>
-  )
-}
-
 function CardTile({ entry }: { entry: CardThatEarnsIn }) {
   const { card, issuer, relationship, current_welcome_bonus: sub } = entry
+  const [faceFrom, faceTo] = gradientFor(issuer.slug)
   const relLabel =
     relationship === 'direct_co_brand'
       ? 'Direct co-brand'
@@ -115,7 +82,7 @@ function CardTile({ entry }: { entry: CardThatEarnsIn }) {
         href={`/cards/${card.slug}`}
         style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: 0, textDecoration: 'none', color: 'var(--color-text-primary)' }}
       >
-        <CardFace issuer={issuer} />
+        <CardFace from={faceFrom} to={faceTo} logoUrl={issuer.logo_url} width={90} />
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: '0.625rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, color: relationship === 'transfer_partner' ? 'var(--color-text-secondary)' : 'var(--color-primary)' }}>
             {relLabel} · {issuer.name}
