@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import type { FinderCard } from '@/utils/supabase/queries'
 import { type SortKey, SORT_OPTIONS, FEE_BANDS, cardInFeeBands, sortCards } from '@/utils/cards/finder'
+import CardFace from './CardFace'
 
 // Specific, recognizable benefits — the things that actually sell a card.
 // Each maps to one or more benefit_type values (or a description-derived feature).
@@ -534,6 +535,7 @@ function CardTile({ c, showTransferNote, compare }: { c: FinderCard; showTransfe
   const comparing = compare?.has(c.id) ?? false
   const compareDisabled = !comparing && (compare?.full ?? false)
   const th = tileTheme(cardTier(c.annualFee), c.issuerName)
+  const [faceFrom, faceTo] = brandFor(c.issuerName)
   const currencyName = c.currency?.name ?? c.coBrand?.name ?? null
   const feeText = c.annualFee === 0 ? '$0' : c.annualFee != null ? `$${c.annualFee}` : 'See card'
   const netLabel = c.network ? ` · ${c.network[0].toUpperCase() + c.network.slice(1)}` : ''
@@ -541,12 +543,9 @@ function CardTile({ c, showTransferNote, compare }: { c: FinderCard; showTransfe
 
   const body = (
     <Link href={`/cards/${c.slug}`} style={{ display: 'flex', flexDirection: 'column', gap: '0.5625rem', textDecoration: 'none', color: th.text, position: 'relative', zIndex: 1 }}>
+      <CardFace from={faceFrom} to={faceTo} logoUrl={c.issuerLogo} width={72} />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: 0, fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, color: th.issuerColor }}>
-          {c.issuerLogo && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={c.issuerLogo} alt="" width={18} height={18} style={{ width: 18, height: 18, flexShrink: 0, borderRadius: 4, objectFit: 'contain', background: th.logoBg, padding: 1 }} />
-          )}
           <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.issuerName}{netLabel}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexShrink: 0 }}>

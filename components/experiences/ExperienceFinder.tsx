@@ -37,8 +37,10 @@ interface GroupedListing {
   nearestClose: string | null // soonest close across the group
 }
 
-// The card currencies whose points can REACH experiences (own listings + transfer
-// partners). Order = rough popularity. Powers the "what my points can get me" filter.
+// The flexible BANK currencies that lead the "which points do you have?" filter —
+// their transfer partners reach many program listings. Program currencies that host
+// their own experiences (Delta, Wyndham, Atmos, Marriott, etc.) are appended
+// data-driven in `heldOptions` below. Order here = rough popularity.
 const TRANSFER_CARDS: { slug: string; label: string }[] = [
   { slug: 'chase', label: 'Chase' },
   { slug: 'amex', label: 'Amex' },
@@ -256,6 +258,27 @@ export default function ExperienceFinder({
     return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1]))
   }, [listings])
 
+  // Held-points pills: the flexible bank currencies (their transfer partners reach
+  // many listings) PLUS every loyalty program that hosts its OWN experiences — so
+  // someone who holds Delta, Wyndham, Atmos, Marriott, etc. can filter to what
+  // THEIR points actually book. Data-driven off the live listings, so a newly
+  // scraped program shows up automatically. Program currencies are sorted by how
+  // many listings they host (biggest first) after the banks.
+  const heldOptions = useMemo(() => {
+    const bankSlugs = new Set(TRANSFER_CARDS.map((c) => c.slug))
+    const counts = new Map<string, { label: string; n: number }>()
+    for (const l of listings) {
+      if (bankSlugs.has(l.program_slug)) continue
+      const cur = counts.get(l.program_slug)
+      if (cur) cur.n++
+      else counts.set(l.program_slug, { label: l.program_label, n: 1 })
+    }
+    const programCurrencies = [...counts.entries()]
+      .sort((a, b) => b[1].n - a[1].n)
+      .map(([slug, v]) => ({ slug, label: v.label }))
+    return [...TRANSFER_CARDS, ...programCurrencies]
+  }, [listings])
+
   // Count listings per category pill so we can show a count and hide empty pills.
   const catCounts = useMemo(() => {
     const m: Record<string, number> = {}
@@ -397,7 +420,7 @@ export default function ExperienceFinder({
           <span className="font-normal text-[var(--color-text-secondary)]">Check all that apply</span>
         </p>
         <div className="flex flex-wrap gap-2">
-          {TRANSFER_CARDS.map((c) => (
+          {heldOptions.map((c) => (
             <button
               key={c.slug}
               type="button"
