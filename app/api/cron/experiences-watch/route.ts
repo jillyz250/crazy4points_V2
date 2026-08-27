@@ -14,9 +14,15 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/utils/supabase/server'
 import { assertCron } from '@/lib/auth/cron'
 import { runExperiencesWatch, EXPERIENCE_PROGRAMS } from '@/utils/experiences/runExperiencesWatch'
+import { orderProgramsByStaleness, checkExperiencesCoverage } from '@/utils/experiences/coverage'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
+
+// Stop STARTING new programs past this — a program in flight finishes, then we
+// stop, leaving headroom under the 300s function cap so we never get killed
+// mid-run (a kill is silent — it leaves no error and no scrape_run row).
+const BUDGET_MS = 230_000
 
 export async function GET(request: Request) {
   return handle(request)
@@ -34,11 +40,21 @@ async function handle(request: Request) {
     // Used to re-scrape one catalog after a config fix without re-running the
     // whole (expensive) sweep. Omit for the normal daily all-programs run.
     const only = new URL(request.url).searchParams.get('program')
+    // Normal run: process programs STALEST-FIRST and stop before the time budget,
+    // so the most-neglected always get covered and we never time out. With the
+    // cron running every few hours, all 18 cycle several times a day (which also
+    // catches flash drops). A `?program=` run does just that one, unbounded.
     const programs = only
       ? EXPERIENCE_PROGRAMS.filter((p) => p.program_slug === only)
-      : EXPERIENCE_PROGRAMS
-    const results = []
+      : await orderProgramsByStaleness(supabase)
+    const started = Date.now()
+    const results: unknown[] = []
+    const skipped: string[] = []
     for (const program of programs) {
+      if (!only && Date.now() - started > BUDGET_MS) {
+        skipped.push(program.program_slug)
+        continue
+      }
       try {
         results.push(await runExperiencesWatch(supabase, program))
       } catch (err) {
@@ -47,7 +63,11 @@ async function handle(request: Request) {
         results.push({ program_slug: program.program_slug, success: false, error: message })
       }
     }
-    return NextResponse.json({ ok: true, results })
+    // Watchdog: surface any program that has now gone quiet for >36h as a real
+    // system error, so a coverage lapse can never stay silent again.
+    let staleAlert: string[] = []
+    if (!only) staleAlert = await checkExperiencesCoverage(supabase)
+    return NextResponse.json({ ok: true, ran: results.length, skipped, staleAlert, results })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('[experiences-watch] failed:', message)
