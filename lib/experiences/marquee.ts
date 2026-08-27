@@ -129,8 +129,11 @@ const MORE = [
 // US state codes + names + explicit US markers for region detection.
 const US_STATES =
   /\b(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY)\b/
+// Full US state names (+ DC) so a location like "Ocean City, Maryland" that
+// spells the state out isn't misread as international. Abbreviations are handled
+// separately by US_STATES below.
 const US_WORDS =
-  /united states|,\s*usa\b|\bhawaii\b|\balaska\b|\bcalifornia\b|\bflorida\b|\barizona\b|\bnew york\b|\btexas\b|\bcolorado\b|\bmassachusetts\b/i
+  /united states|,\s*usa\b|\b(alabama|alaska|arizona|arkansas|california|colorado|connecticut|delaware|florida|georgia|hawaii|idaho|illinois|indiana|iowa|kansas|kentucky|louisiana|maine|maryland|massachusetts|michigan|minnesota|mississippi|missouri|montana|nebraska|nevada|new hampshire|new jersey|new mexico|new york|north carolina|north dakota|ohio|oklahoma|oregon|pennsylvania|rhode island|south carolina|south dakota|tennessee|texas|utah|vermont|virginia|washington|west virginia|wisconsin|wyoming|district of columbia)\b/i
 
 export function classifyRegion(location: string | null | undefined): 'US' | 'INTL' {
   const loc = (location ?? '').trim()
