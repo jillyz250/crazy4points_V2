@@ -17,8 +17,14 @@ export interface PerkChain {
   card: string
   /** Slug for /cards/[slug], when we carry the card. */
   cardSlug?: string
-  /** The chain itself: each string is one link (start -> unlocks -> unlocks). */
+  /** The chain itself: each string is one link (start -> unlocks -> unlocks).
+   *  When `action` is set, these are the PERKS the action unlocks (the cascade). */
   steps: string[]
+  /** The one setup action to take (e.g. "link your accounts"). When present, it
+   *  renders as a distinct "do this once" card above the perk cascade. */
+  action?: string
+  /** Optional emoji per step, same order as `steps`. Falls back to numbered nodes. */
+  stepIcons?: string[]
   /** The "so what". */
   payoff: string
   /** Short source label (issuer/official only). */
@@ -191,11 +197,13 @@ export const PERK_CHAINS: PerkChain[] = [
     id: 'tmobile-delta-perks',
     title: 'Your phone plan unlocks three Delta perks',
     card: 'T-Mobile plan',
+    action: 'Link your T-Mobile and Delta SkyMiles accounts (in the T-Life app for the drink, at deltastarbucks.com for Starbucks)',
     steps: [
-      'Link your T-Mobile and Delta SkyMiles accounts (in the T-Life app for the drink perk, at deltastarbucks.com for Starbucks)',
-      'Your T-Mobile plan then covers free in-flight WiFi on Delta and a free premium drink on qualifying Delta flights',
-      'And on days you have a Delta flight booked, your Starbucks runs earn double Stars',
+      'Free in-flight WiFi on every Delta flight',
+      'A free premium drink on qualifying Delta flights',
+      'Double Starbucks Stars on days you fly Delta',
     ],
+    stepIcons: ['📶', '🍸', '☕'],
     payoff: 'A phone bill you already pay turns into free WiFi, a free drink, and bonus coffee rewards on Delta.',
     source: 'Delta + T-Mobile + Starbucks',
     verifiedAt: '2026-08-27',
