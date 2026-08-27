@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type CSSProperties } from 'react'
 
 // Interactive finder over the LIVE experience listings (experience_listings),
 // distinct from the program directory. Data is a few hundred rows, so all
@@ -35,6 +35,15 @@ const TRANSFER_CARDS: { slug: string; label: string }[] = [
   { slug: 'capital-one', label: 'Capital One' },
   { slug: 'citi', label: 'Citi' },
   { slug: 'bilt', label: 'Bilt' },
+]
+
+// Budget ceilings (points), sized to the real listing spread (median ~40k, most
+// under 250k, a handful up to ~795k). Each pill keeps listings at or under the cap.
+const BUDGET_TIERS: { cap: number; label: string }[] = [
+  { cap: 25_000, label: 'Under 25k' },
+  { cap: 50_000, label: 'Under 50k' },
+  { cap: 100_000, label: 'Under 100k' },
+  { cap: 250_000, label: 'Under 250k' },
 ]
 
 // A short, honest date line for the tile. close_date drives urgency (bidding
@@ -206,10 +215,17 @@ export default function ExperienceFinder({
   const [sort, setSort] = useState<SortKey>('newest')
   const [hideSoldOut, setHideSoldOut] = useState(false)
   const [nyOnly, setNyOnly] = useState(false)
-  const [transferCard, setTransferCard] = useState<string>('all') // 'all' | card slug
-  const [maxPoints, setMaxPoints] = useState<string>('')
+  // Which point currencies the reader HOLDS — multi-select (they can have Amex
+  // AND Citi AND Chase). A listing matches if ANY held currency reaches it
+  // (its own program + that currency's transfer partners). Empty = show all.
+  const [heldCards, setHeldCards] = useState<string[]>([])
+  // Budget ceiling in points (null = any). Preset tiers as pills, matching the
+  // real spread (median ~40k, max ~795k) — see BUDGET_TIERS.
+  const [budget, setBudget] = useState<number | null>(null)
   const [statusFilter, setStatusFilter] = useState<'all' | 'live' | 'buynow' | 'soon'>('all')
   const [bonusOnly, setBonusOnly] = useState(false)
+  const toggleHeld = (slug: string) =>
+    setHeldCards((prev) => (prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug]))
 
   const soldOutCount = useMemo(() => listings.filter((l) => l.sold_out).length, [listings])
   const nyCount = useMemo(() => listings.filter(isNYLocation).length, [listings])
@@ -233,18 +249,18 @@ export default function ExperienceFinder({
       if (category !== 'all' && l.category !== category) return false
       if (hideSoldOut && l.sold_out) return false
       if (nyOnly && !isNYLocation(l)) return false
-      // Transfer filter: a card reaches its OWN listings + its transfer partners.
-      if (transferCard !== 'all') {
-        const reach = cardReach[transferCard] ?? []
-        if (l.program_slug !== transferCard && !reach.includes(l.program_slug)) return false
+      // Points-held filter (multi-select): keep the listing if ANY held currency
+      // reaches it — its own program OR that currency's transfer partners.
+      if (heldCards.length > 0) {
+        const reachable = heldCards.some(
+          (card) => l.program_slug === card || (cardReach[card] ?? []).includes(l.program_slug),
+        )
+        if (!reachable) return false
       }
-      // Max points (compare the bid/points figure; unpriced listings are excluded).
-      if (maxPoints.trim()) {
-        const cap = parseInt(maxPoints.replace(/[,\s]/g, ''), 10)
-        if (!Number.isNaN(cap)) {
-          const p = pointsOf(l)
-          if (p == null || p > cap) return false
-        }
+      // Budget ceiling (points). Unpriced listings are excluded when a cap is set.
+      if (budget != null) {
+        const p = pointsOf(l)
+        if (p == null || p > budget) return false
       }
       // Status: live auction / buy-now / coming soon.
       if (statusFilter === 'soon' && !notYetOpen(l)) return false
@@ -288,7 +304,7 @@ export default function ExperienceFinder({
       }
     })
     return out
-  }, [listings, q, program, category, sort, hideSoldOut, nyOnly, transferCard, maxPoints, statusFilter, bonusOnly, cardReach, bestBonus])
+  }, [listings, q, program, category, sort, hideSoldOut, nyOnly, heldCards, budget, statusFilter, bonusOnly, cardReach, bestBonus])
 
   // Cardmember-access listings are perks (sign in, no bid), not auctions - they
   // read as broken when mixed in with biddable ones, so they get their own band.
@@ -304,19 +320,56 @@ export default function ExperienceFinder({
 
   return (
     <div>
-      {/* Program pills */}
-      <div className="mb-3 flex flex-wrap gap-2">
-        <button type="button" className={pill(program === 'all')} onClick={() => setProgram('all')}>
-          All programs
-        </button>
-        {programs.map(([slug, label]) => (
-          <button key={slug} type="button" className={pill(program === slug)} onClick={() => setProgram(slug)}>
-            {label}
+      {/* PRIMARY filter — which points you hold (multi-select, check all that apply).
+          This is the question most readers actually have, so it leads. */}
+      <div className="mb-4 rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] p-4">
+        <p className="mb-2 font-ui text-sm font-semibold text-[var(--color-primary)]">
+          Which points do you have?{' '}
+          <span className="font-normal text-[var(--color-text-secondary)]">Check all that apply</span>
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {TRANSFER_CARDS.map((c) => (
+            <button
+              key={c.slug}
+              type="button"
+              className={pill(heldCards.includes(c.slug))}
+              aria-pressed={heldCards.includes(c.slug)}
+              onClick={() => toggleHeld(c.slug)}
+            >
+              {c.label}
+            </button>
+          ))}
+          {heldCards.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setHeldCards([])}
+              className="font-ui text-sm text-[var(--color-text-secondary)] underline hover:text-[var(--color-primary)]"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+        {/* Budget tier pills */}
+        <p className="mb-2 mt-4 font-ui text-sm font-semibold text-[var(--color-primary)]">Your budget</p>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className={pill(budget === null)} onClick={() => setBudget(null)}>
+            Any
           </button>
-        ))}
+          {BUDGET_TIERS.map((t) => (
+            <button
+              key={t.cap}
+              type="button"
+              className={pill(budget === t.cap)}
+              aria-pressed={budget === t.cap}
+              onClick={() => setBudget(t.cap)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Search + category + sort */}
+      {/* Search + category + program + sort */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <input
           type="search"
@@ -325,6 +378,19 @@ export default function ExperienceFinder({
           placeholder="Search experiences, artists, cities..."
           className="min-w-[12rem] flex-1 rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background)] px-3 py-2 font-body text-base"
         />
+        <select
+          value={program}
+          onChange={(e) => setProgram(e.target.value)}
+          className="rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background)] px-3 py-2 font-ui text-base"
+          aria-label="Filter by program"
+        >
+          <option value="all">All programs</option>
+          {programs.map(([slug, label]) => (
+            <option key={slug} value={slug}>
+              {label}
+            </option>
+          ))}
+        </select>
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
@@ -360,6 +426,17 @@ export default function ExperienceFinder({
             {nyOnly ? 'New York only' : `New York (${nyCount})`}
           </button>
         )}
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+          className="rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background)] px-3 py-2 font-ui text-base"
+          aria-label="Filter by status"
+        >
+          <option value="all">Any status</option>
+          <option value="live">Live auctions</option>
+          <option value="buynow">Buy now</option>
+          <option value="soon">Coming soon</option>
+        </select>
         {soldOutCount > 0 && (
           <button
             type="button"
@@ -382,52 +459,18 @@ export default function ExperienceFinder({
         )}
       </div>
 
-      {/* Row 2: the power filters — what your points reach, status, budget */}
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <select
-          value={transferCard}
-          onChange={(e) => setTransferCard(e.target.value)}
-          className="rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background)] px-3 py-2 font-ui text-base"
-          aria-label="Filter by what your points can reach"
-        >
-          <option value="all">Any points I hold</option>
-          {TRANSFER_CARDS.map((c) => (
-            <option key={c.slug} value={c.slug}>
-              I have {c.label} points
-            </option>
-          ))}
-        </select>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
-          className="rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background)] px-3 py-2 font-ui text-base"
-          aria-label="Filter by status"
-        >
-          <option value="all">Any status</option>
-          <option value="live">Live auctions</option>
-          <option value="buynow">Buy now</option>
-          <option value="soon">Coming soon</option>
-        </select>
-        <input
-          type="text"
-          inputMode="numeric"
-          value={maxPoints}
-          onChange={(e) => setMaxPoints(e.target.value)}
-          placeholder="Max points"
-          className="w-32 rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background)] px-3 py-2 font-body text-base"
-          aria-label="Maximum points"
-        />
-      </div>
-
       {(() => {
         const statusLabels: Record<'live' | 'buynow' | 'soon', string> = {
           live: 'Live auctions', buynow: 'Buy now', soon: 'Coming soon',
         }
         const chips: { label: string; clear: () => void }[] = []
-        if (transferCard !== 'all')
-          chips.push({ label: `Reachable with ${TRANSFER_CARDS.find((c) => c.slug === transferCard)?.label ?? transferCard}`, clear: () => setTransferCard('all') })
+        for (const slug of heldCards) {
+          const label = TRANSFER_CARDS.find((c) => c.slug === slug)?.label ?? slug
+          chips.push({ label: `${label} points`, clear: () => toggleHeld(slug) })
+        }
+        if (budget != null)
+          chips.push({ label: `Under ${(budget / 1000).toLocaleString()}k points`, clear: () => setBudget(null) })
         if (statusFilter !== 'all') chips.push({ label: statusLabels[statusFilter], clear: () => setStatusFilter('all') })
-        if (maxPoints.trim()) chips.push({ label: `≤ ${maxPoints} points`, clear: () => setMaxPoints('') })
         if (program !== 'all') chips.push({ label: programs.find(([s]) => s === program)?.[1] ?? program, clear: () => setProgram('all') })
         if (category !== 'all') chips.push({ label: cap(category), clear: () => setCategory('all') })
         if (nyOnly) chips.push({ label: 'New York only', clear: () => setNyOnly(false) })
@@ -450,7 +493,7 @@ export default function ExperienceFinder({
             <button
               type="button"
               onClick={() => {
-                setTransferCard('all'); setStatusFilter('all'); setMaxPoints(''); setProgram('all')
+                setHeldCards([]); setStatusFilter('all'); setBudget(null); setProgram('all')
                 setCategory('all'); setNyOnly(false); setHideSoldOut(false); setBonusOnly(false); setQ('')
               }}
               className="font-ui text-xs text-[var(--color-text-secondary)] underline hover:text-[var(--color-primary)]"
@@ -592,19 +635,27 @@ export default function ExperienceFinder({
     // Sold-out cards stay clickable (a waitlist may open) but read as spent:
     // dimmed, muted CTA, no hover lift.
     const dim = l.sold_out ? ' opacity-60' : ''
+    // Category tint: a 4px colored left edge + a faint fill of the same jewel
+    // tone, so a concert (mulberry) reads differently from a game (emerald) at a
+    // glance — without loud borders. `${color}14` ≈ 8% alpha fill. Falls back to
+    // the neutral card when a listing has no category.
+    const tint: CSSProperties = bucket
+      ? { borderLeftWidth: '4px', borderLeftColor: bucket.color, backgroundColor: `${bucket.color}14` }
+      : {}
     return href ? (
       <a
         key={key}
         href={href}
         target="_blank"
         rel="noopener noreferrer"
+        style={tint}
         className={`block rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] p-4 shadow-[var(--shadow-soft)] transition hover:border-[var(--color-primary)]${l.sold_out ? '' : ' hover:-translate-y-0.5'}${dim}`}
       >
         {card}
         <span className={`mt-2 inline-block font-ui text-sm ${l.sold_out ? 'text-[var(--color-text-secondary)]' : 'text-[var(--color-primary)]'}`}>{cta} &rarr;</span>
       </a>
     ) : (
-      <div key={key} className={`rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] p-4 shadow-[var(--shadow-soft)]${dim}`}>
+      <div key={key} style={tint} className={`rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] p-4 shadow-[var(--shadow-soft)]${dim}`}>
         {card}
       </div>
     )
