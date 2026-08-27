@@ -50,7 +50,12 @@ function priceLine(g: ExperienceGroup): { label: string; tone: 'points' | 'aucti
   if (g.fromPoints != null) {
     return { label: `From ${g.fromPoints.toLocaleString('en-US')} points`, tone: 'points' }
   }
-  if (g.isAuction) return { label: 'Bid with points', tone: 'auction' }
+  if (g.isAuction) {
+    return {
+      label: g.fromBid != null ? `Current bid ${g.fromBid.toLocaleString('en-US')} points` : 'Bid with points',
+      tone: 'auction',
+    }
+  }
   if (g.format === 'access') return { label: 'Cardholder access', tone: 'access' }
   return { label: 'Redeem or bid', tone: 'points' }
 }
