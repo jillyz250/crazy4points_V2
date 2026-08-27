@@ -79,6 +79,15 @@ const intelToTriage = (await q('count intel to triage', db.from('intel_items').s
   .is('triage_decision', null)
   .or(`expires_at.is.null,expires_at.gte.${nowIso}`)
   .or(`snoozed_until.is.null,snoozed_until.lte.${nowIso}`))).count
+// Oldest undecided item — a growing/aging backlog means the AI classifier
+// (build-brief's planner) has stalled (usually low API), so intel isn't being
+// sorted. Surface it in HEALTH so a pileup never hides behind "all clear" again.
+const oldestUndecided = (await q('oldest undecided intel', db.from('intel_items')
+  .select('created_at').eq('processed', false).is('rejected_at', null).is('triage_decision', null)
+  .or(`snoozed_until.is.null,snoozed_until.lte.${nowIso}`)
+  .order('created_at', { ascending: true }).limit(1))).data[0]
+const triageOldestDays = oldestUndecided ? Math.floor((Date.now() - new Date(oldestUndecided.created_at).getTime()) / 86400000) : 0
+const triageBacklogBad = (intelToTriage ?? 0) > 30 || triageOldestDays > 3
 
 const changeSignals = (await q('count change signals', db.from('change_signals').select('id', { count: 'exact', head: true }).eq('status', 'new').or(`snoozed_until.is.null,snoozed_until.lte.${nowIso}`))).count
 const bonusSignals = (await q('count bonus signals', db.from('card_bonus_signals').select('id', { count: 'exact', head: true }).eq('status', 'new'))).count
@@ -280,6 +289,7 @@ const scoutFlag = scoutAgeHrs === null ? '!! no intel ever' : scoutAgeHrs <= 30 
 console.log('HEALTH (step 0):')
 console.log(`  Daily brief . ${briefFlag}`)
 console.log(`  Scout intel . ${scoutFlag}`)
+console.log(`  Triage classifier . ${triageBacklogBad ? `⚠️ BACKLOG ${intelToTriage} undecided, oldest ${triageOldestDays}d — planner likely stalled (check API budget)` : 'OK'}`)
 console.log(B)
 console.log('QUEUE COUNTS (act highest-first):')
 console.log(`  Pending drafts (needs_review) . ${n(pendingReview)}   -> /admin/drafts?view=needs_review`)
