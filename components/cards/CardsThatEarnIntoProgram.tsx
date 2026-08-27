@@ -67,7 +67,10 @@ function CardFace({ issuer, width = 88 }: { issuer: CardThatEarnsIn['issuer']; w
         flexShrink: 0,
         borderRadius: '8px',
         backgroundImage: `linear-gradient(135deg, ${from}, ${to})`,
-        boxShadow: '0 4px 11px -3px rgba(0,0,0,0.5)',
+        // A light hairline edge + a strong shadow so the card lifts off the
+        // (darker) brand panel instead of blending into it.
+        border: '1px solid rgba(255,255,255,0.38)',
+        boxShadow: '0 7px 16px -4px rgba(0,0,0,0.6)',
         overflow: 'hidden',
       }}
     >
@@ -123,8 +126,16 @@ function CardTile({ entry }: { entry: CardThatEarnsIn }) {
         color: 'var(--color-text-primary)',
       }}
     >
-      {/* Zone 1 — brand panel holding the card-face */}
-      <div style={{ display: 'flex', alignItems: 'center', padding: '14px 16px', backgroundImage: `linear-gradient(135deg, ${from}, ${to})`, flexShrink: 0 }}>
+      {/* Zone 1 — brand panel (darkened so the brighter card-face pops off it) */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          padding: '14px 16px',
+          backgroundImage: `linear-gradient(135deg, color-mix(in srgb, ${from} 68%, #000), color-mix(in srgb, ${to} 68%, #000))`,
+          flexShrink: 0,
+        }}
+      >
         <CardFace issuer={issuer} width={86} />
       </div>
 
