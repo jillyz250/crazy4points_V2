@@ -95,13 +95,21 @@ empty because the cron failed, not because it's clear — verify before trusting
 empty phase downstream). If all green, one line: `Phase 1 · Health — all green ✅`.
 Receipt: what's healthy, what's stale, and whether any downstream phase is suspect.
 
-### Phase 2 · 🧹 Loose ends (OVERDUE)
-The snapshot's overdue reminders (`[YYYY-MM-DD]` rows) — yesterday's actions that
-didn't complete (esp. "Social post:" / "Social post before it ends:"). For each,
-recommend **post today** (still live), **DISMISS** (deal ended / stale), or
-**keep** (still relevant → becomes a Phase-16 candidate). Auction "Bidding closes"
-reminders show as a collapsed count — offer to bulk-dismiss. Bulk-dismiss the
-passed ones on her word.
+### Phase 2 · 🧹 Loose ends (overdue) + closings within 5 days
+Two buckets:
+- **Overdue reminders** (`[YYYY-MM-DD]` rows) — yesterday's actions that didn't
+  complete (esp. "Social post:"). Recommend **post today** (still live),
+  **DISMISS** (deal ended / stale), or **keep** (→ Phase-16 candidate). Bulk-dismiss
+  the passed ones on her word.
+- **Auction / experience "bidding closes" reminders ending within the NEXT 5 DAYS**
+  — list each with what it is + close date (NOT a collapsed count, NOT auto-dismiss).
+  Jill flagged these as **huge for social + the newsletter** (2026-08-27), and a
+  1-day heads-up is too tight — 5 days gives lead time to feature the great ones.
+  For each: name it, note US-relevance (audience is NY/US-heavy — a US college
+  sports or marquee experience beats a niche overseas one), and recommend
+  **FEATURE** (draft an alert + social / hold for the newsletter) or **skip** (auto-
+  clears when it closes). These are auctions → always honest **bid-don't-buy**
+  framing (no fixed price, transfers final). Only truly past-close ones get dismissed.
 
 ### Phase 3 · ⏰ Reminders due TODAY
 The snapshot's `[TODAY]` rows — today's dated actions. Flag any real time-boxed one

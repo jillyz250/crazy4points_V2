@@ -48,6 +48,7 @@ const TILES: Tile[] = [
   { title: 'Program-Fact Drift', description: 'Where fresh intel contradicts a program page (award charts, tiers, partners, fees). Surfaced in the Daily Digest.', href: '/admin/program-drift', cta: 'Review' },
   { title: 'Welcome-Bonus Signals', description: "Daily scan of each card's welcome-bonus source page; flags live sign-up bonuses that differ from our data.", href: '/admin/card-bonus-signals', cta: 'Review' },
   { title: 'Re-verification', description: 'Weekly sweep comparing our transfer ratios to current rosters; flags discrepancies.', href: '/admin/verification-findings', cta: 'Review' },
+  { title: 'AI Agents', description: 'Control center for the accuracy agents: fact-checker findings, the transfer-drift sweep, and the accuracy scorecard (found / fixed / precision).', href: '/admin/agents', cta: 'Open' },
   { title: 'AI Usage', description: 'Anthropic API spend by day, caller, and model.', href: '/admin/ai-usage', cta: 'View' },
   { title: 'Analytics', description: 'GA4 — active users, key events, top cities, top pages.', href: '/admin/analytics', cta: 'View' },
 ]
