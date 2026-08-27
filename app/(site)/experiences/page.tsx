@@ -92,6 +92,7 @@ export default async function ExperiencesPage() {
       event_date: (l.event_date as string) ?? null,
       bid_opens_at: (l.bid_opens_at as string) ?? null,
       detail_url: (l.detail_url as string) ?? null,
+      image_url: (l.image_url as string) ?? null,
       first_seen_at: (l.first_seen_at as string) ?? null,
       last_seen_at: (l.last_seen_at as string) ?? null,
       sold_out: (l.sold_out as boolean) ?? false,
