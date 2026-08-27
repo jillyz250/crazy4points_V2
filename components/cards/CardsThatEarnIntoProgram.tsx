@@ -1,12 +1,13 @@
 import Link from 'next/link'
 import type { CardThatEarnsIn } from '@/utils/supabase/queries'
 
-// No real card art exists yet (image_url is empty across the table), so each tile
-// gets a stylized mini "card face" in the ISSUER's brand color — a gradient + a
-// gold chip + the issuer logo/name — so the list reads as a wall of cards instead
-// of flat text boxes. Keyed on issuer slug; falls back to the house purple.
+// No real card art exists yet (image_url is empty table-wide), so each row is a
+// three-zone tile: a brand-colored panel holding a stylized mini card-face, the
+// card name in the middle, and the sign-up bonus as a gold hero on the right (the
+// number people actually shop on). Gradient keyed on issuer slug; house-purple
+// fallback.
 const ISSUER_GRADIENT: Record<string, [string, string]> = {
-  chase: ['#0b4c8c', '#1476c6'],
+  chase: ['#0b3a6b', '#1476c6'],
   amex: ['#00175a', '#016fd0'],
   'american-express': ['#00175a', '#016fd0'],
   citi: ['#003b7e', '#0a6bb0'],
@@ -21,7 +22,14 @@ const ISSUER_GRADIENT: Record<string, [string, string]> = {
   synchrony: ['#1a3d1f', '#3a8f4a'],
 }
 function gradientFor(slug: string | null | undefined): [string, string] {
-  return (slug && ISSUER_GRADIENT[slug]) || ['#4a2a6a', '#6b2d8f']
+  return (slug && ISSUER_GRADIENT[slug]) || ['#3a1c5a', '#6b2d8f']
+}
+
+function bonusLabel(currency: string | null | undefined): string {
+  const c = (currency ?? '').toLowerCase()
+  if (/mile/.test(c)) return 'Bonus miles'
+  if (/point/.test(c)) return 'Bonus points'
+  return 'Sign-up bonus'
 }
 
 export default function CardsThatEarnIntoProgram({
@@ -32,19 +40,12 @@ export default function CardsThatEarnIntoProgram({
   programName: string
 }) {
   if (cards.length === 0) return null
-
   return (
     <div>
       <p style={{ fontSize: '0.9375rem', color: 'var(--color-text-secondary)', marginBottom: '1rem' }}>
         Cards that earn {programName} directly, or that transfer into it from a flexible-currency program.
       </p>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-          gap: '1rem',
-        }}
-      >
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem' }}>
         {cards.map((entry) => (
           <CardTile key={entry.card.id} entry={entry} />
         ))}
@@ -54,74 +55,43 @@ export default function CardsThatEarnIntoProgram({
 }
 
 /** A mini credit-card visual in the issuer's brand color: gradient + chip + logo. */
-function CardFace({ issuer }: { issuer: CardThatEarnsIn['issuer'] }) {
+function CardFace({ issuer, width = 88 }: { issuer: CardThatEarnsIn['issuer']; width?: number }) {
   const [from, to] = gradientFor(issuer.slug)
   return (
     <div
       aria-hidden
       style={{
         position: 'relative',
-        width: '104px',
+        width: `${width}px`,
         aspectRatio: '1.586',
         flexShrink: 0,
-        borderRadius: '9px',
+        borderRadius: '8px',
         backgroundImage: `linear-gradient(135deg, ${from}, ${to})`,
-        boxShadow: '0 4px 10px -3px rgba(26,26,26,0.35)',
+        boxShadow: '0 4px 11px -3px rgba(0,0,0,0.5)',
         overflow: 'hidden',
       }}
     >
-      {/* chip */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '12px',
-          left: '11px',
-          width: '17px',
-          height: '13px',
-          borderRadius: '3px',
-          background: 'linear-gradient(135deg, #f4d77e, #c9a227)',
-        }}
-      />
-      {/* subtle sheen */}
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background: 'linear-gradient(120deg, rgba(255,255,255,0.16), rgba(255,255,255,0) 45%)',
-        }}
-      />
-      {/* issuer logo (white-boxed) or name */}
+      <div style={{ position: 'absolute', top: '9px', left: '8px', width: '14px', height: '11px', borderRadius: '2px', background: 'linear-gradient(135deg, #f4d77e, #c9a227)' }} />
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(120deg, rgba(255,255,255,0.18), rgba(255,255,255,0) 46%)' }} />
       {issuer.logo_url ? (
         <span
           style={{
             position: 'absolute',
-            right: '8px',
-            bottom: '8px',
+            right: '6px',
+            bottom: '5px',
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '2px 3px',
+            padding: '2px',
             borderRadius: '3px',
-            background: 'rgba(255,255,255,0.92)',
+            background: 'rgba(255,255,255,0.94)',
           }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={issuer.logo_url} alt="" width={22} height={12} style={{ height: '12px', width: 'auto', objectFit: 'contain' }} />
+          <img src={issuer.logo_url} alt="" width={13} height={13} style={{ height: '13px', width: 'auto', objectFit: 'contain' }} />
         </span>
       ) : (
-        <span
-          style={{
-            position: 'absolute',
-            right: '9px',
-            bottom: '7px',
-            fontFamily: 'var(--font-ui)',
-            fontSize: '0.5rem',
-            fontWeight: 700,
-            letterSpacing: '0.04em',
-            textTransform: 'uppercase',
-            color: 'rgba(255,255,255,0.9)',
-          }}
-        >
+        <span style={{ position: 'absolute', right: '8px', bottom: '6px', fontFamily: 'var(--font-ui)', fontSize: '0.5rem', fontWeight: 700, textTransform: 'uppercase', color: 'rgba(255,255,255,0.9)' }}>
           {issuer.name}
         </span>
       )}
@@ -131,6 +101,7 @@ function CardFace({ issuer }: { issuer: CardThatEarnsIn['issuer'] }) {
 
 function CardTile({ entry }: { entry: CardThatEarnsIn }) {
   const { card, issuer, relationship, current_welcome_bonus: sub } = entry
+  const [from, to] = gradientFor(issuer.slug)
   const relLabel =
     relationship === 'direct_co_brand'
       ? 'Direct co-brand'
@@ -143,51 +114,42 @@ function CardTile({ entry }: { entry: CardThatEarnsIn }) {
       className="rg-card-tile"
       style={{
         display: 'flex',
-        gap: '0.875rem',
-        alignItems: 'center',
-        padding: '0.9375rem',
-        border: '1px solid var(--color-border-soft)',
         borderRadius: 'var(--radius-card)',
         background: 'var(--color-background)',
+        border: '1px solid var(--color-border-soft)',
         boxShadow: 'var(--shadow-soft)',
+        overflow: 'hidden',
         textDecoration: 'none',
         color: 'var(--color-text-primary)',
       }}
     >
-      <CardFace issuer={issuer} />
-      <div style={{ minWidth: 0, flex: 1 }}>
-        <div
-          style={{
-            fontSize: '0.625rem',
-            textTransform: 'uppercase',
-            letterSpacing: '0.06em',
-            fontWeight: 700,
-            color: relationship === 'transfer_partner' ? 'var(--color-text-secondary)' : 'var(--color-primary)',
-            marginBottom: '0.25rem',
-          }}
-        >
+      {/* Zone 1 — brand panel holding the card-face */}
+      <div style={{ display: 'flex', alignItems: 'center', padding: '14px 16px', backgroundImage: `linear-gradient(135deg, ${from}, ${to})`, flexShrink: 0 }}>
+        <CardFace issuer={issuer} width={86} />
+      </div>
+
+      {/* Zone 2 — relationship, name, annual fee */}
+      <div style={{ minWidth: 0, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '12px 16px' }}>
+        <div style={{ fontSize: '0.625rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, color: relationship === 'transfer_partner' ? 'var(--color-text-secondary)' : 'var(--color-primary)' }}>
           {relLabel} · {issuer.name}
         </div>
-        <div style={{ fontWeight: 700, fontSize: '1.0625rem', marginBottom: '0.5rem', lineHeight: 1.25 }}>{card.name}</div>
-        <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'baseline', flexWrap: 'wrap' }}>
-          <div>
-            <div style={{ fontSize: '0.625rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-secondary)' }}>
-              Annual fee
-            </div>
-            <div style={{ fontWeight: 700 }}>{card.annual_fee_usd != null ? `$${card.annual_fee_usd}` : '—'}</div>
-          </div>
-          {sub && (
-            <div>
-              <div style={{ fontSize: '0.625rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-secondary)' }}>
-                Current SUB
-              </div>
-              <div style={{ fontWeight: 700, fontFamily: 'var(--font-ui)', color: 'var(--color-primary)' }}>
-                {sub.bonus_amount.toLocaleString()}
-              </div>
-            </div>
-          )}
+        <div style={{ fontWeight: 700, fontSize: '1.0625rem', lineHeight: 1.2, margin: '3px 0 5px' }}>{card.name}</div>
+        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+          Annual fee <span style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>{card.annual_fee_usd != null ? `$${card.annual_fee_usd}` : '—'}</span>
         </div>
       </div>
+
+      {/* Zone 3 — sign-up bonus hero (gold), only when there is one */}
+      {sub && (
+        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '12px 18px', background: '#fbf3dd', borderLeft: '1px solid #f0e2b8', flexShrink: 0, textAlign: 'center' }}>
+          <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#7a5c0b', lineHeight: 1, fontFamily: 'var(--font-ui)' }}>
+            {sub.bonus_amount.toLocaleString()}
+          </div>
+          <div style={{ fontSize: '0.5625rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#a07d1a', marginTop: '3px' }}>
+            {bonusLabel(sub.bonus_currency)}
+          </div>
+        </div>
+      )}
     </Link>
   )
 }
