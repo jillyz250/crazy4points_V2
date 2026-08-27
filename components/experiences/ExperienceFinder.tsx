@@ -58,12 +58,12 @@ const BUDGET_TIERS: { cap: number; label: string }[] = [
 
 // Category filter pills. The four named buckets plus a Misc catch-all (culture,
 // entertainment, and anything uncategorized) — the set Jill asked for.
-const CATEGORY_PILLS: { key: string; label: string }[] = [
-  { key: 'music', label: 'Music' },
-  { key: 'sports', label: 'Sports' },
-  { key: 'dining', label: 'Culinary' },
-  { key: 'travel', label: 'Travel' },
-  { key: 'misc', label: 'Misc' },
+const CATEGORY_PILLS: { key: string; label: string; color: string }[] = [
+  { key: 'music', label: 'Music', color: '#B03D77' }, // mulberry
+  { key: 'sports', label: 'Sports', color: '#2E7D5B' }, // emerald
+  { key: 'dining', label: 'Culinary', color: '#B8901F' }, // bronze
+  { key: 'travel', label: 'Travel', color: '#17868A' }, // teal
+  { key: 'misc', label: 'Misc', color: '#6E6486' }, // muted
 ]
 // Map a listing to its category-pill key (anything outside the 4 named → 'misc').
 function catPillKey(l: FinderListing): string {
@@ -359,12 +359,25 @@ export default function ExperienceFinder({
   const biddable = useMemo(() => grouped.filter((g) => g.rep.format !== 'access'), [grouped])
   const access = useMemo(() => grouped.filter((g) => g.rep.format === 'access'), [grouped])
 
+  // Dimensional pills: a soft drop shadow + a lift on hover so they feel tactile,
+  // not flat. Active = filled purple, raised.
   const pill = (active: boolean) =>
-    `rg-tap-target inline-flex items-center rounded-full border px-3.5 py-1.5 font-ui text-sm transition ${
+    `rg-tap-target inline-flex items-center gap-1.5 rounded-full border-2 px-4 py-2 font-ui text-sm font-semibold shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md ${
       active
-        ? 'border-[var(--color-primary)] bg-[var(--color-primary)] text-white'
-        : 'border-[var(--color-border-soft)] bg-[var(--color-background)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary)]'
+        ? 'border-[var(--color-primary)] bg-[var(--color-primary)] text-white shadow-md'
+        : 'border-[var(--color-border-soft)] bg-[var(--color-background)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]'
     }`
+
+  // Category pills wear their OWN category color — a tinted fill + colored border
+  // + a dot when idle, a solid color fill with a matching glow when active. This
+  // is what makes the filter bar colorful instead of a row of grey ovals.
+  const catPillProps = (color: string, active: boolean): { className: string; style: CSSProperties } => ({
+    className:
+      'rg-tap-target inline-flex items-center gap-2 rounded-full border-2 px-4 py-2 font-ui text-sm font-semibold shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md',
+    style: active
+      ? { background: color, borderColor: color, color: '#fff', boxShadow: `0 6px 16px -3px ${color}80` }
+      : { background: `${color}14`, borderColor: `${color}80`, color, boxShadow: `0 2px 6px ${color}22` },
+  })
 
   return (
     <div>
@@ -400,17 +413,20 @@ export default function ExperienceFinder({
         {/* Category pills (multi-select) */}
         <p className="mb-2 mt-4 font-ui text-sm font-semibold text-[var(--color-primary)]">Category</p>
         <div className="flex flex-wrap gap-2">
-          {CATEGORY_PILLS.filter((c) => (catCounts[c.key] ?? 0) > 0).map((c) => (
-            <button
-              key={c.key}
-              type="button"
-              className={pill(selectedCats.includes(c.key))}
-              aria-pressed={selectedCats.includes(c.key)}
-              onClick={() => toggleCat(c.key)}
-            >
-              {c.label}
-            </button>
-          ))}
+          {CATEGORY_PILLS.filter((c) => (catCounts[c.key] ?? 0) > 0).map((c) => {
+            const active = selectedCats.includes(c.key)
+            const p = catPillProps(c.color, active)
+            return (
+              <button key={c.key} type="button" className={p.className} style={p.style} aria-pressed={active} onClick={() => toggleCat(c.key)}>
+                <span
+                  className="inline-block h-2 w-2 rounded-full"
+                  style={{ background: active ? '#fff' : c.color }}
+                  aria-hidden
+                />
+                {c.label}
+              </button>
+            )
+          })}
           {selectedCats.length > 0 && (
             <button
               type="button"
