@@ -166,6 +166,15 @@ export default function ExperienceCard({ group }: { group: ExperienceGroup }) {
             )
           )}
         </div>
+
+        {group.program_slug && (
+          <a
+            href={`/cards?program=${encodeURIComponent(group.program_slug)}`}
+            className="-mx-4 -mb-4 mt-3 flex items-center gap-1 border-t border-[var(--color-border-soft)] px-4 py-2.5 font-ui text-[0.72rem] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-background-soft)] hover:text-[var(--color-primary)]"
+          >
+            Don&apos;t have {label}? Find a card that earns it &rarr;
+          </a>
+        )}
       </div>
     </article>
   )

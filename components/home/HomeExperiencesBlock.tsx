@@ -77,17 +77,35 @@ function GlassCard({ group }: { group: ExperienceGroup }) {
     </>
   );
 
-  const cls =
-    "group flex flex-col overflow-hidden rounded-[var(--radius-card)] border border-white/60 bg-white/60 shadow-[0_8px_20px_-8px_rgba(74,32,95,0.22)] ring-1 ring-[var(--color-border-soft)] backdrop-blur-sm transition-transform duration-200 hover:-translate-y-1";
+  const linkCls = "group flex grow flex-col";
+  const wrapCls =
+    "flex flex-col overflow-hidden rounded-[var(--radius-card)] border border-white/60 bg-white/60 shadow-[0_8px_20px_-8px_rgba(74,32,95,0.22)] ring-1 ring-[var(--color-border-soft)] backdrop-blur-sm transition-transform duration-200 hover:-translate-y-1";
 
-  return external ? (
-    <a href={href} target="_blank" rel="noopener noreferrer" className={cls}>
-      {inner}
+  // Monetization: a soft referral CTA for readers who don't hold this program's
+  // points, into the Card Explorer pre-filtered to cards that reach it. A sibling
+  // link so it never nests inside the experience link.
+  const cardCta = group.program_slug ? (
+    <a
+      href={`/cards?program=${encodeURIComponent(group.program_slug)}`}
+      className="flex items-center gap-1 border-t border-[var(--color-border-soft)] px-3 py-2 font-ui text-[0.65rem] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-white/70 hover:text-[var(--color-primary)]"
+    >
+      Don&apos;t have {label}? Find a card &rarr;
     </a>
-  ) : (
-    <Link href={href} className={cls}>
-      {inner}
-    </Link>
+  ) : null;
+
+  return (
+    <div className={wrapCls}>
+      {external ? (
+        <a href={href} target="_blank" rel="noopener noreferrer" className={linkCls}>
+          {inner}
+        </a>
+      ) : (
+        <Link href={href} className={linkCls}>
+          {inner}
+        </Link>
+      )}
+      {cardCta}
+    </div>
   );
 }
 
