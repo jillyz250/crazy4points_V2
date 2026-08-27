@@ -201,6 +201,12 @@ export async function GET(req: NextRequest) {
     today_intel: todayIntel,
     voice_samples: voiceSamples,
     existing_open_blog_ideas: existingOpenBlogIdeas,
+    // Recently-published alert titles so the planner rejects re-approving a story
+    // we already covered (dupe guard).
+    already_covered: (recentAlertsView as Array<{ title?: string }>)
+      .map((a) => a.title ?? '')
+      .filter(Boolean)
+      .slice(0, 40),
   })
 
   // A null plan means NO brief gets built or emailed. That was a SILENT outage
