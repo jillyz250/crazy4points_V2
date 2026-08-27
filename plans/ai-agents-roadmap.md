@@ -179,13 +179,23 @@ Three foundational pieces:
   ideas: "Drift Re-verifier" + "Page-Freshness".)*
 - **A3. Deal Verifier** — promo-specialized pre-publish check (dates, spend, US eligibility, strip
   foreign-currency valuations). **Folds into A1**, not a separate build.
+- **A4. Content Accuracy Re-checker** *(added 2026-08-27, Jill)* — re-verifies our own **published
+  guides/articles** (`content_ideas` with `article_body`) on a set schedule since `fact_checked_at`
+  (e.g. every 90–180d): re-reads the official sources behind each claim, flags what drifted, and
+  enqueues stale ones into the refresh list. **Distinct from A2** (A2 re-checks program/card *data*;
+  A4 re-checks our *editorial content*). Nothing does this today — every article ages unverified.
 - **G0. In-session verify-before-assert guardrail** — forces any correction / negative / "this changed"
   claim to hit the DB or official source **before it is stated in chat**. This is the actual root-cause
   fix and (per the first review) the single most valuable item; it's *not* a publish gate.
 
 **Group B — Intake / throughput:**
-- **B1. Intel Triage Agent** — auto-collapse benefits-email fan-outs, flag dupes/re-forwards, bucket
-  non-US/recurring, surface real publish candidates. *(Extends existing dedup/triage.)*
+- **B1. Intel Triage Agent** — sorts the forwarded-email firehose into ALERT / GUIDE-idea / REJECT by
+  Jill's editorial policy (transfer bonuses → alert; recurring/evergreen/educational → guide-idea with
+  roadmap dedup; lower value → alert-or-dismiss; dupe → reject unless materially different), routing
+  guide-ideas into `content_ideas`. *(PROTOTYPED 2026-08-27: policy encoded in `generateEditorialPlan`;
+  ran as a batch over the backlog. TO PRODUCTIZE: a resilient cron that classifies daily beyond
+  build-brief's 24h/35-item window, with a zero-API dedup pre-pass for low-API days — see
+  `scripts/pretriage.mjs` + the triage backlog alarm in the morning snapshot.)*
 - **B2. Watchers (merge)** — schedule-open + transfer-bonus + award-availability. All "watch external
   state → draft an alert." Mostly already exist; extend, don't rebuild. Must **stop at draft**.
 - **B3. Chain-Finder** *(demoted from earlier top-5)* — scans intel/content for "perk chains" (one
