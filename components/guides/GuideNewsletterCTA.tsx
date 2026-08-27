@@ -92,7 +92,7 @@ export default function GuideNewsletterCTA() {
             <button
               type="submit"
               disabled={status === 'loading'}
-              className="rg-tap-target shrink-0 rounded-[var(--radius-ui)] bg-[var(--color-accent)] px-6 py-3 font-ui text-sm font-bold uppercase tracking-[0.1em] text-[#1A1A1A] transition-opacity hover:opacity-90 disabled:opacity-60"
+              className="rg-tap-target shrink-0 rounded-[var(--radius-ui)] !bg-[var(--color-accent)] px-6 py-3 font-ui text-sm font-bold uppercase tracking-[0.1em] !text-[#1A1A1A] transition-opacity hover:opacity-90 disabled:opacity-60"
             >
               {status === 'loading' ? 'Signing up…' : 'Subscribe'}
             </button>

@@ -151,11 +151,16 @@ a:hover {
   color: var(--color-primary);
 }
 
-button {
-  font: inherit;
-  color: inherit;
-  background: none;
-  border: none;
+/* In @layer base so Tailwind bg-*/text-* utilities on a button WIN over this
+   reset. Un-layered, `background: none` clobbered every styled button (the
+   newsletter Subscribe button rendered invisible — gold background stripped). */
+@layer base {
+  button {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: none;
+  }
 }
 
 .rg-container {
