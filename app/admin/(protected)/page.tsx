@@ -243,10 +243,7 @@ export default async function AdminDashboard() {
       // name it in the hint so there is nothing to hunt for. Reviewing a listing
       // (editorial_reviewed_at) clears it; anything not reviewed ages out of the
       // 7-day window on its own - no dismiss needed.
-      href:
-        stats.newExperiences === 1 && stats.newExperienceItems[0]?.detail_url
-          ? stats.newExperienceItems[0].detail_url
-          : '/experiences',
+      href: '/admin/experiences',
       hint:
         stats.newExperiences === 0
           ? 'no new listings'
