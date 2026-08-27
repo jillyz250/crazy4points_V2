@@ -22,9 +22,18 @@ export interface FinderListing {
   event_date: string | null
   bid_opens_at: string | null
   detail_url: string | null
+  image_url: string | null
   first_seen_at: string | null
   last_seen_at: string | null
   sold_out: boolean
+}
+
+// One card = one experience, which may bundle several duplicate lots/dates.
+interface GroupedListing {
+  rep: FinderListing // the representative (cheapest) lot — drives the link + details
+  count: number // how many lots/dates were collapsed into this card
+  fromPoints: number | null // lowest price across the group
+  nearestClose: string | null // soonest close across the group
 }
 
 // The card currencies whose points can REACH experiences (own listings + transfer
@@ -306,10 +315,40 @@ export default function ExperienceFinder({
     return out
   }, [listings, q, program, category, sort, hideSoldOut, nyOnly, heldCards, budget, statusFilter, bonusOnly, cardReach, bestBonus])
 
+  // Collapse duplicate listings of the SAME experience (Wyndham lists one party
+  // as 10 separate auction lots; Marriott lists a show on several dates) into ONE
+  // card. Key = program + normalized title. The card shows the count + the lowest
+  // price ("10 auctions · from 7,500 points") and links to the cheapest lot.
+  const grouped = useMemo(() => {
+    const map = new Map<string, FinderListing[]>()
+    for (const l of filtered) {
+      const key = `${l.program_slug}::${l.title.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()}`
+      const arr = map.get(key)
+      if (arr) arr.push(l)
+      else map.set(key, [l])
+    }
+    const out: GroupedListing[] = []
+    for (const arr of map.values()) {
+      // representative = the cheapest lot (what the reader would actually book)
+      const rep = [...arr].sort((a, b) => (pointsOf(a) ?? Infinity) - (pointsOf(b) ?? Infinity))[0]
+      const prices = arr.map(pointsOf).filter((x): x is number => x != null)
+      const closes = arr
+        .map((a) => (a.close_date ? Date.parse(a.close_date) : null))
+        .filter((x): x is number => x != null)
+      out.push({
+        rep,
+        count: arr.length,
+        fromPoints: prices.length ? Math.min(...prices) : null,
+        nearestClose: closes.length ? new Date(Math.min(...closes)).toISOString() : rep.close_date,
+      })
+    }
+    return out
+  }, [filtered])
+
   // Cardmember-access listings are perks (sign in, no bid), not auctions - they
   // read as broken when mixed in with biddable ones, so they get their own band.
-  const biddable = useMemo(() => filtered.filter((l) => l.format !== 'access'), [filtered])
-  const access = useMemo(() => filtered.filter((l) => l.format === 'access'), [filtered])
+  const biddable = useMemo(() => grouped.filter((g) => g.rep.format !== 'access'), [grouped])
+  const access = useMemo(() => grouped.filter((g) => g.rep.format === 'access'), [grouped])
 
   const pill = (active: boolean) =>
     `rg-tap-target inline-flex items-center rounded-full border px-3.5 py-1.5 font-ui text-sm transition ${
@@ -505,12 +544,12 @@ export default function ExperienceFinder({
       })()}
 
       <p className="mb-3 font-ui text-sm text-[var(--color-text-secondary)]">
-        {filtered.length} experience{filtered.length === 1 ? '' : 's'}
+        {grouped.length} experience{grouped.length === 1 ? '' : 's'}
       </p>
 
       {/* Biddable + redeemable listings */}
-      <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(min(100%,20rem),1fr))]">
-        {biddable.map((l, i) => renderCard(l, `b${i}`))}
+      <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(100%,20rem),1fr))]">
+        {biddable.map((g, i) => renderCard(g, `b${i}`))}
       </div>
 
       {/* Cardmember access - its own band, since these are perks not auctions */}
@@ -520,8 +559,8 @@ export default function ExperienceFinder({
           <p className="mb-3 font-ui text-sm text-[var(--color-text-secondary)]">
             Presale windows and members-only access. No bidding - you sign in on the issuer&apos;s site with an eligible card.
           </p>
-          <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(min(100%,20rem),1fr))]">
-            {access.map((l, i) => renderCard(l, `a${i}`))}
+          <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(100%,20rem),1fr))]">
+            {access.map((g, i) => renderCard(g, `a${i}`))}
           </div>
         </div>
       )}
@@ -534,7 +573,8 @@ export default function ExperienceFinder({
     </div>
   )
 
-  function renderCard(l: FinderListing, key: string) {
+  function renderCard(g: GroupedListing, key: string) {
+    const l = g.rep
     const href = l.detail_url ?? l.program_url ?? undefined
     const bucket = categoryBucket(l.category)
     const bonus = bestBonus[l.program_slug]
@@ -545,6 +585,11 @@ export default function ExperienceFinder({
         : l.format === 'bid'
           ? 'View & bid on the official site'
           : 'View & redeem on the official site'
+    // Price line: a grouped card shows the count + the lowest price across lots.
+    const priceText =
+      g.count > 1 && g.fromPoints != null
+        ? `${g.count} ${l.format === 'bid' ? 'auctions' : 'dates'} · from ${g.fromPoints.toLocaleString()} points`
+        : pointsLabel(l)
     const card = (
       <>
         <div className="mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -605,9 +650,9 @@ export default function ExperienceFinder({
             </div>
           )
         })()}
-        <p className="mt-2 font-ui text-sm font-semibold text-[var(--color-primary)]">{pointsLabel(l)}</p>
+        <p className="mt-2 font-ui text-sm font-semibold text-[var(--color-primary)]">{priceText}</p>
         {(() => {
-          const s = statusLine(l)
+          const s = statusLine({ ...l, close_date: g.nearestClose })
           if (!s) return null
           // Distinct colors so bidding urgency and the experience date never
           // read the same: red = closing now, purple = bidding activity,
@@ -642,6 +687,22 @@ export default function ExperienceFinder({
     const tint: CSSProperties = bucket
       ? { borderLeftWidth: '4px', borderLeftColor: bucket.color, backgroundColor: `${bucket.color}14` }
       : {}
+    // Image-led tile when the listing has a photo, so the browse grid is as rich
+    // as the featured hero — a beautiful listing no longer looks plain just
+    // because it isn't "featured". Imageless ones keep the compact text tile.
+    const imageHeader = l.image_url ? (
+      <div className="relative aspect-[16/9] w-full overflow-hidden bg-[var(--color-background-soft)]">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={l.image_url}
+          alt={l.title}
+          loading="lazy"
+          decoding="async"
+          className="h-full w-full object-cover"
+        />
+      </div>
+    ) : null
+    const wrapClass = `block overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] shadow-[var(--shadow-soft)] transition${dim}`
     return href ? (
       <a
         key={key}
@@ -649,14 +710,18 @@ export default function ExperienceFinder({
         target="_blank"
         rel="noopener noreferrer"
         style={tint}
-        className={`block rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] p-4 shadow-[var(--shadow-soft)] transition hover:border-[var(--color-primary)]${l.sold_out ? '' : ' hover:-translate-y-0.5'}${dim}`}
+        className={`${wrapClass} hover:border-[var(--color-primary)]${l.sold_out ? '' : ' hover:-translate-y-0.5'}`}
       >
-        {card}
-        <span className={`mt-2 inline-block font-ui text-sm ${l.sold_out ? 'text-[var(--color-text-secondary)]' : 'text-[var(--color-primary)]'}`}>{cta} &rarr;</span>
+        {imageHeader}
+        <div className="p-4">
+          {card}
+          <span className={`mt-2 inline-block font-ui text-sm ${l.sold_out ? 'text-[var(--color-text-secondary)]' : 'text-[var(--color-primary)]'}`}>{cta} &rarr;</span>
+        </div>
       </a>
     ) : (
-      <div key={key} style={tint} className={`rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] p-4 shadow-[var(--shadow-soft)]${dim}`}>
-        {card}
+      <div key={key} style={tint} className={wrapClass}>
+        {imageHeader}
+        <div className="p-4">{card}</div>
       </div>
     )
   }

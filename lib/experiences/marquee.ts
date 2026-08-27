@@ -16,6 +16,9 @@
  */
 import { isPresaleListing } from '@/lib/experiences/presale'
 
+/** Featured is a curated hero, capped small on purpose (Jill: "top 2 or 4"). */
+export const FEATURED_MAX = 4
+
 export type MarqueeListing = {
   id: string
   title: string
@@ -239,13 +242,24 @@ export function buildMarqueeSections(listings: MarqueeListing[]): MarqueeSection
       ? editorialPicks
       : points.filter((l) => l.image_url && tierOf(l.title) === 'feature' && !isPresaleListing(l.category))
   const grouped = groupExperiences(featureRows)
-  // points-priced first, then auctions, cheapest-forward within each — a strong lead
-  const rank = (g: ExperienceGroup) => (g.fromPoints != null ? 0 : g.isAuction ? 1 : 2)
-  grouped.sort((a, b) => rank(a) - rank(b) || (a.fromPoints ?? 9e9) - (b.fromPoints ?? 9e9))
+  // Rank for the top-4 hero: U.S. first (our audience skews US/NY, so the default
+  // tab should never be near-empty), then points-priced over auctions, then
+  // cheapest-forward. Editorial ⭐ picks flow through the same ranking.
+  const kind = (g: ExperienceGroup) => (g.fromPoints != null ? 0 : g.isAuction ? 1 : 2)
+  grouped.sort((a, b) => {
+    const ra = a.region === 'US' ? 0 : 1
+    const rb = b.region === 'US' ? 0 : 1
+    if (ra !== rb) return ra - rb
+    return kind(a) - kind(b) || (a.fromPoints ?? 9e9) - (b.fromPoints ?? 9e9)
+  })
+  // Featured is a small CURATED hero, not a wall: cap to the top 4. Everything
+  // else (image or not) lives in the browse grid below, which now shows images
+  // too — so nothing beautiful is hidden, it's just no longer "featured".
+  const top = grouped.slice(0, FEATURED_MAX)
 
   return {
-    us: grouped.filter((g) => g.region === 'US'),
-    intl: grouped.filter((g) => g.region === 'INTL'),
+    us: top.filter((g) => g.region === 'US'),
+    intl: top.filter((g) => g.region === 'INTL'),
     points,
     presales,
   }
