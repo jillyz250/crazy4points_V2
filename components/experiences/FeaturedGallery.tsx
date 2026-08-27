@@ -26,7 +26,9 @@ export default function FeaturedGallery({ us, intl }: { us: ExperienceGroup[]; i
           <TabPill active={tab === 'INTL'} onClick={() => setTab('INTL')} label={`Beyond the U.S.`} count={intl.length} />
         </div>
       )}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      {/* 4-across on desktop so the curated hero stays a single tight row, not a
+          tall stack you have to scroll past to reach the filters. */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {groups.map((g) => (
           <ExperienceCard key={g.key} group={g} />
         ))}

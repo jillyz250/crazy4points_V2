@@ -215,15 +215,18 @@ export default function ExperienceFinder({
   listings,
   cardReach,
   bestBonus,
+  initialCats,
 }: {
   listings: FinderListing[]
   cardReach: Record<string, string[]>
   bestBonus: Record<string, BonusInfo>
+  /** category pill keys pre-selected from the ?category= URL (top quick-pills). */
+  initialCats?: string[]
 }) {
   const [q, setQ] = useState('')
   const [program, setProgram] = useState<string>('all')
   // Category filter as multi-select bucket pills (Music/Sports/Culinary/Travel/Misc).
-  const [selectedCats, setSelectedCats] = useState<string[]>([])
+  const [selectedCats, setSelectedCats] = useState<string[]>(initialCats ?? [])
   const [sort, setSort] = useState<SortKey>('newest')
   // Sold-out experiences are hidden by DEFAULT — there's nothing left to book, so
   // they shouldn't be the first thing a browser sees. Toggle to reveal them.
