@@ -159,17 +159,17 @@ export default async function ExperiencesPage({
       </section>
 
       <div className="rg-container">
-        {/* Quick-jump nav so the non-U.S. block (and the rest) are reachable without
-            scrolling past the long U.S. gallery. */}
-        <nav aria-label="Jump to a section" className="flex flex-wrap gap-2 py-4">
+        {/* Quick-jump nav. "Browse & filter" is the emphasized (filled) pill so it
+            reads as THE way to filter, not just another anchor. */}
+        <nav aria-label="Jump to a section" className="flex flex-wrap items-center gap-2 pb-3 pt-4">
           {(us.length > 0 || intl.length > 0) && <JumpPill href="#featured" label="Featured" />}
-          <JumpPill href="#browse" label="Browse all" />
+          <JumpPill href="#browse" label="Browse &amp; filter" emphasis icon="filter" />
           <JumpPill href="#programs" label="Programs" />
         </nav>
 
         {/* Featured — one gallery, U.S. / Beyond toggle (was two stacked sections) */}
         {(us.length > 0 || intl.length > 0) && (
-          <section id="featured" className="rg-sub-section scroll-mt-24">
+          <section id="featured" className="scroll-mt-24 pb-10 pt-2">
             <SectionHead title="Featured right now" count={us.length + intl.length} />
             <FeaturedGallery us={us} intl={intl} />
           </section>
@@ -212,12 +212,22 @@ export default async function ExperiencesPage({
   )
 }
 
-function JumpPill({ href, label }: { href: string; label: string }) {
+function JumpPill({ href, label, emphasis, icon }: { href: string; label: string; emphasis?: boolean; icon?: 'filter' }) {
   return (
     <a
       href={href}
-      className="rg-tap-target inline-flex items-center rounded-full border border-[var(--color-border-soft)] px-4 py-2 font-ui text-sm text-[var(--color-primary)] transition-colors hover:border-[var(--color-accent)] hover:bg-[var(--color-background-soft)]"
+      className={
+        'rg-tap-target inline-flex items-center gap-1.5 rounded-full border-2 px-4 py-2 font-ui text-sm font-semibold shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md ' +
+        (emphasis
+          ? 'border-[var(--color-primary)] bg-[var(--color-primary)] text-white'
+          : 'border-[var(--color-border-soft)] bg-[var(--color-background)] text-[var(--color-primary)] hover:border-[var(--color-primary)]')
+      }
     >
+      {icon === 'filter' && (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />
+        </svg>
+      )}
       {label}
     </a>
   )
