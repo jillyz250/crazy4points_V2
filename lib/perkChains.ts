@@ -39,7 +39,7 @@ export function perkChainsForProgram(slug: string): PerkChain[] {
 export const PERK_CHAINS: PerkChain[] = [
   {
     id: 'amex-plat-walmart-streaming',
-    title: 'A travel card that quietly hands you free streaming',
+    title: 'A travel card that unlocks free streaming',
     card: 'Amex Platinum',
     cardSlug: 'amex-platinum',
     steps: [
@@ -189,7 +189,7 @@ export const PERK_CHAINS: PerkChain[] = [
   },
   {
     id: 'tmobile-delta-perks',
-    title: 'A phone plan that quietly hands you three Delta perks',
+    title: 'Your phone plan unlocks three Delta perks',
     card: 'T-Mobile plan',
     steps: [
       'Link your T-Mobile and Delta SkyMiles accounts (in the T-Life app for the drink perk, at deltastarbucks.com for Starbucks)',
