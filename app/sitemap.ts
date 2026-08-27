@@ -26,14 +26,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // alerts query did. Verification gate
     // (scripts/phase3-verify-wave2.mjs) confirmed parity vs the old read path
     // before this flip shipped.
-    const alerts = await selectAlertViewFromVariants(supabase, { status: 'published', activeOnly: true })
+    // Include EXPIRED alerts too (activeOnly:false): an ended deal's page still
+    // renders (with an "ended" banner) and keeps its search traffic, so it stays
+    // in the sitemap — just ranked lower and crawled less often.
+    const alerts = await selectAlertViewFromVariants(supabase, { status: 'published', activeOnly: false })
+    const todayUTC = new Date().toISOString().slice(0, 10)
 
-    alertEntries = alerts.map((a) => ({
-      url: `${BASE_URL}/alerts/${a.slug}`,
-      lastModified: a.published_at ?? undefined,
-      changeFrequency: 'weekly' as const,
-      priority: 0.7,
-    }))
+    alertEntries = alerts.map((a) => {
+      const ended = !!a.end_date && a.end_date < todayUTC
+      return {
+        url: `${BASE_URL}/alerts/${a.slug}`,
+        lastModified: a.published_at ?? undefined,
+        changeFrequency: ended ? ('monthly' as const) : ('weekly' as const),
+        priority: ended ? 0.4 : 0.7,
+      }
+    })
 
     // content_updated_at is bumped on every content write (the staleness
     // signal); updated_at is the row-level fallback. Preferring the former
@@ -137,6 +144,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/start-here`, changeFrequency: 'weekly', priority: 0.8 },
     { url: `${BASE_URL}/guides`, changeFrequency: 'weekly', priority: 0.8 },
     { url: `${BASE_URL}/experiences`, changeFrequency: 'weekly', priority: 0.7 },
+    { url: `${BASE_URL}/sweepstakes`, changeFrequency: 'daily', priority: 0.7 },
+    { url: `${BASE_URL}/sweet-spots`, changeFrequency: 'weekly', priority: 0.7 },
+    { url: `${BASE_URL}/tools/shopping-portals`, changeFrequency: 'weekly', priority: 0.6 },
     { url: `${BASE_URL}/decision-engine`, changeFrequency: 'weekly', priority: 0.7 },
     { url: `${BASE_URL}/destinations`, changeFrequency: 'weekly', priority: 0.6 },
     { url: `${BASE_URL}/newsletter`, changeFrequency: 'weekly', priority: 0.7 },

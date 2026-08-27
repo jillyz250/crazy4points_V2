@@ -14,7 +14,7 @@ export const alt = 'Crazy4Points alert'
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
   const supabase = createAdminClient()
-  const alert = await getAlertBySlug(supabase, slug).catch(() => null)
+  const alert = await getAlertBySlug(supabase, slug, { allowExpired: true }).catch(() => null)
   const title = alert?.title ?? 'Crazy4Points'
 
   // Program from the alert_programs junction (role 'primary') — the mirror's

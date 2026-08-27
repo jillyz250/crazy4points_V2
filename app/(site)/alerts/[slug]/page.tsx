@@ -78,7 +78,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   try {
     const supabase = await createClient()
-    const alert = await getAlertBySlug(supabase, slug)
+    const alert = await getAlertBySlug(supabase, slug, { allowExpired: true })
     return {
       title: `${alert.title}`,
       description: alert.summary,
@@ -101,7 +101,7 @@ export default async function AlertDetailPage({ params }: Props) {
 
   let alert
   try {
-    alert = await getAlertBySlug(supabase, slug)
+    alert = await getAlertBySlug(supabase, slug, { allowExpired: true })
   } catch {
     notFound()
   }
@@ -110,7 +110,10 @@ export default async function AlertDetailPage({ params }: Props) {
   // A future-dated / one-day promo (e.g. Bilt Rent Day) shows "Aug 1 only"
   // rather than a misleading "N days left" countdown to its end_date.
   const expiry = futureStartLabel(alert.start_date, alert.end_date) ?? daysRemaining(alert.end_date)
-  const isExpired = expiry === 'Expired'
+  const isExpired =
+    expiry === 'Expired' ||
+    alert.status === 'expired' ||
+    (!!alert.end_date && alert.end_date < new Date().toISOString().slice(0, 10))
 
   // CTA target — link to the alert's primary program reference page rather
   // than the original news article (which often lives off-site and bounces
@@ -195,6 +198,22 @@ export default async function AlertDetailPage({ params }: Props) {
             ← Back to Alerts
           </Link>
         </nav>
+
+        {/* Expired-deal banner — kept live (not 404'd) so the page retains its
+            search traffic; readers are told it ended and pointed to what's live. */}
+        {isExpired && (
+          <div className="mb-6 rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] p-4">
+            <p className="font-ui text-xs font-bold uppercase tracking-[0.1em] text-[var(--color-text-secondary)]">
+              This deal has ended
+            </p>
+            <p className="mt-1 font-body text-sm text-[var(--color-text-secondary)]">
+              The offer below is no longer live, but the details may still be useful.{' '}
+              <Link href="/alerts" className="font-semibold text-[var(--color-primary)] hover:underline">
+                See what&apos;s live now &rarr;
+              </Link>
+            </p>
+          </div>
+        )}
 
         {/* Type badge + expiry */}
         <div className="mb-6 flex flex-wrap items-center gap-3">
