@@ -3,6 +3,7 @@ import {
   groupExperiences,
   isPointsExperience,
   tierOf,
+  marqueeScore,
   type MarqueeListing,
   type ExperienceGroup,
 } from '@/lib/experiences/marquee'
@@ -46,13 +47,15 @@ export async function getHomeExperiences(supabase: SupabaseClient, limit = 6): P
     all.filter((l) => isPointsExperience(l) && !!l.image_url && tierOf(l.title) !== 'hide'),
   ).filter((g) => g.image_url)
 
-  // Order the pool: ⭐ featured first, then US before international (audience
-  // skews NY), then freshest (the query already returned newest-first, and
-  // groupExperiences preserves first-seen order within that).
+  // Order the pool: ⭐ featured first, then MOST MARQUEE (so the auto set is
+  // exciting, not just cheap/fresh), then US before international (audience skews
+  // NY). Freshness is the final tiebreak (query already returned newest-first).
   const pool = groups.sort((a, b) => {
     const fa = a.featured ? 0 : 1
     const fb = b.featured ? 0 : 1
     if (fa !== fb) return fa - fb
+    const ms = marqueeScore(b.title, b.category) - marqueeScore(a.title, a.category)
+    if (ms !== 0) return ms
     const ra = a.region === 'US' ? 0 : 1
     const rb = b.region === 'US' ? 0 : 1
     return ra - rb
