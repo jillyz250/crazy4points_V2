@@ -4,6 +4,7 @@ import { GuideDateline } from '@/components/guides/GuideDateline'
 import { GuideJsonLd } from '@/components/guides/GuideJsonLd'
 import GuideNewsletterCTA from '@/components/guides/GuideNewsletterCTA'
 import { PERK_CHAINS } from '@/lib/perkChains'
+import ChainCard from '@/components/chains/ChainCard'
 
 export const metadata: Metadata = {
   title: 'Chain Reactions: Card Perks That Unlock More Perks',
@@ -74,90 +75,7 @@ export default function HiddenPerkStacksGuide() {
           current terms on the issuer&rsquo;s page before you count on one.
         </Callout>
 
-        {PERK_CHAINS.map((chain) => (
-          <section
-            key={chain.id}
-            style={{
-              marginTop: '1.5rem',
-              background: 'var(--color-background)',
-              border: '1px solid var(--color-border-soft)',
-              borderRadius: 'var(--radius-card)',
-              padding: '1.25rem 1.35rem 1.4rem',
-              boxShadow: 'var(--shadow-soft)',
-            }}
-          >
-            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '0.5rem 0.75rem' }}>
-              <h2 className="font-display" style={{ margin: 0, fontSize: '1.3rem', fontWeight: 600, color: 'var(--color-primary)', flex: '1 1 16rem' }}>
-                {chain.title}
-              </h2>
-              {chain.cardSlug ? (
-                <Link
-                  href={`/cards/${chain.cardSlug}`}
-                  className="font-ui"
-                  style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-primary)', textDecoration: 'underline', textUnderlineOffset: '3px', whiteSpace: 'nowrap' }}
-                >
-                  {chain.card}
-                </Link>
-              ) : (
-                <span className="font-ui" style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}>
-                  {chain.card}
-                </span>
-              )}
-            </div>
-
-            <ol style={{ listStyle: 'none', margin: '0.9rem 0 0', padding: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {chain.steps.map((step, i) => (
-                <li key={i} style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
-                  <span
-                    className="font-ui"
-                    aria-hidden="true"
-                    style={{
-                      flex: '0 0 auto',
-                      display: 'grid',
-                      placeItems: 'center',
-                      width: '1.5rem',
-                      height: '1.5rem',
-                      borderRadius: '999px',
-                      background: i === chain.steps.length - 1 ? 'var(--color-primary)' : 'var(--color-background-soft)',
-                      border: '1px solid var(--color-border-soft)',
-                      color: i === chain.steps.length - 1 ? '#fff' : 'var(--color-text-secondary)',
-                      fontSize: '0.7rem',
-                      fontWeight: 700,
-                    }}
-                  >
-                    {i === chain.steps.length - 1 ? '→' : i + 1}
-                  </span>
-                  <span className="font-body" style={{ flex: 1, color: 'var(--color-text-primary)', lineHeight: 1.5 }}>{step}</span>
-                </li>
-              ))}
-            </ol>
-
-            <div
-              style={{
-                marginTop: '0.9rem',
-                background: 'var(--color-background-soft)',
-                borderLeft: '4px solid var(--color-accent)',
-                borderRadius: '0 var(--radius-ui) var(--radius-ui) 0',
-                padding: '0.6rem 0.9rem',
-              }}
-            >
-              <span className="font-ui" style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-accent)' }}>
-                The payoff
-              </span>
-              <p className="font-body" style={{ margin: '0.1rem 0 0', color: 'var(--color-text-primary)', fontWeight: 600 }}>{chain.payoff}</p>
-            </div>
-
-            {chain.caveat && (
-              <p className="font-body" style={{ marginTop: '0.7rem', fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
-                <strong style={{ color: 'var(--color-text-primary)' }}>The catch:</strong> {chain.caveat}
-              </p>
-            )}
-
-            <p className="font-ui" style={{ marginTop: '0.7rem', fontSize: '0.72rem', color: 'var(--color-text-secondary)' }}>
-              Verified {chain.verifiedAt} · {chain.source}
-            </p>
-          </section>
-        ))}
+        {(<div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', marginTop: '1.5rem' }}>{PERK_CHAINS.map((chain) => (<ChainCard key={chain.id} c={chain} />))}</div>)}
 
         <h2 className={h2}>The multiplier: status matching</h2>
         <p className={p}>

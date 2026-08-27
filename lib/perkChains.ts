@@ -51,9 +51,8 @@ export const PERK_CHAINS: PerkChain[] = [
     steps: [
       'The Amex Platinum includes a monthly credit that covers a Walmart+ membership',
       'Walmart+ now includes your choice of Peacock or Paramount+ at no extra cost',
-      'So a travel card ends up paying for a streaming service you never bought',
     ],
-    payoff: 'Free streaming, funded by a credit you already have.',
+    payoff: 'A travel card ends up paying for a streaming service you never bought.',
     source: 'Amex + Walmart',
     verifiedAt: '2026-08-13',
     caveat: 'Choose the monthly Walmart+ plan (not annual) or the credit will not trigger, and you re-pick Peacock vs Paramount+ every 90 days.',
@@ -80,9 +79,8 @@ export const PERK_CHAINS: PerkChain[] = [
     steps: [
       'Many premium cards credit your Global Entry application fee',
       'Global Entry itself includes TSA PreCheck at no extra cost',
-      'So one free application gets you faster customs AND faster security',
     ],
-    payoff: 'Skip lines at the border and at the checkpoint, all covered by the card.',
+    payoff: 'One free application, faster customs AND faster security, covered by the card.',
     source: 'CBP / TSA',
     verifiedAt: '2026-08-13',
   },
