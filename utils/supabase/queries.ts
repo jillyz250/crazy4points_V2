@@ -1350,17 +1350,24 @@ export async function getAllPrograms(supabase: SupabaseClient): Promise<Program[
  */
 export async function getAlertBySlug(
   supabase: SupabaseClient,
-  slug: string
+  slug: string,
+  // SEO: the public /alerts/[slug] page passes allowExpired so an ended deal
+  // still RENDERS (with an "expired" banner) instead of 404-ing. Keeping these
+  // pages live retains their search traffic and inbound links. Other callers
+  // keep the published-only default.
+  { allowExpired = false }: { allowExpired?: boolean } = {}
 ): Promise<Alert> {
   // Phase 3 Wave 2 flip #11 (final): read from content_variants + topics
   // via the AlertView adapter. SEO-critical — every /alerts/[slug] URL
   // resolves through this function. Two-step lookup preserved exactly:
   // exact slug first, then short_slug fallback for legacy URLs.
   const { getAlertViewBySlug, selectAlertViewFromVariants } = await import('@/utils/content/alertView')
+  const okStatus = (st: string | null | undefined) =>
+    st === 'published' || (allowExpired && st === 'expired')
 
   // Primary lookup — exact slug match against topics.slug.
   const primary = await getAlertViewBySlug(supabase, slug)
-  if (primary && primary.status === 'published') return primary
+  if (primary && okStatus(primary.status)) return primary
 
   // Fallback — short_slug match (legacy URLs). variant.metadata.short_slug
   // is preserved by the dual-write trigger.
@@ -1368,7 +1375,7 @@ export async function getAlertBySlug(
     .from('content_variants')
     .select('topic_id, topics:topics!inner(slug)')
     .eq('format', 'alert')
-    .eq('status', 'published')
+    .in('status', allowExpired ? ['published', 'expired'] : ['published'])
     .eq('metadata->>short_slug', slug)
     .maybeSingle()
 
