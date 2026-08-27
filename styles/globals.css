@@ -163,6 +163,16 @@ a:hover {
   }
 }
 
+/* Card-list tiles (e.g. "Cards that earn into X") — tactile hover lift. */
+.rg-card-tile {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.rg-card-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px -8px rgba(74, 32, 95, 0.28);
+  border-color: var(--color-primary);
+}
+
 .rg-container {
   max-width: 80rem;
   margin-inline: auto;

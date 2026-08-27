@@ -2447,7 +2447,7 @@ export async function getRecentExtractions(
  */
 export interface CardThatEarnsIn {
   card: CreditCard
-  issuer: Pick<Issuer, 'slug' | 'name'>
+  issuer: Pick<Issuer, 'slug' | 'name' | 'logo_url'>
   /** direct_co_brand = co-brand card (airline/hotel); direct_earn = card whose
    *  flexible currency IS this program (e.g. Venture earns Capital One Miles);
    *  transfer_partner = card whose currency transfers into this program. */
@@ -2461,7 +2461,7 @@ export async function getCardsThatEarnIntoProgram(
 ): Promise<CardThatEarnsIn[]> {
   const { data: directCards, error: directError } = await supabase
     .from('credit_cards')
-    .select('*, issuer:issuers!issuer_id(slug, name)')
+    .select('*, issuer:issuers!issuer_id(slug, name, logo_url)')
     .eq('co_brand_program_id', programId)
     .eq('is_active', true)
     .neq('status', 'defunct')
@@ -2472,7 +2472,7 @@ export async function getCardsThatEarnIntoProgram(
   // transferable-currency pages, which have no co-brand cards of their own.
   const { data: earnCurrencyCards, error: earnError } = await supabase
     .from('credit_cards')
-    .select('*, issuer:issuers!issuer_id(slug, name)')
+    .select('*, issuer:issuers!issuer_id(slug, name, logo_url)')
     .eq('currency_program_id', programId)
     .eq('is_active', true)
     .neq('status', 'defunct')
@@ -2485,21 +2485,21 @@ export async function getCardsThatEarnIntoProgram(
 
   const transferableCurrencyIds = (transferRows ?? []).map((r: { from_program_id: string }) => r.from_program_id)
 
-  let transferCards: Array<CreditCard & { issuer: Pick<Issuer, 'slug' | 'name'> }> = []
+  let transferCards: Array<CreditCard & { issuer: Pick<Issuer, 'slug' | 'name' | 'logo_url'> }> = []
   if (transferableCurrencyIds.length > 0) {
     const { data: tCards, error: tErr } = await supabase
       .from('credit_cards')
-      .select('*, issuer:issuers!issuer_id(slug, name)')
+      .select('*, issuer:issuers!issuer_id(slug, name, logo_url)')
       .in('currency_program_id', transferableCurrencyIds)
       .eq('is_active', true)
       .neq('status', 'defunct')
     if (tErr) throw tErr
-    transferCards = (tCards ?? []) as Array<CreditCard & { issuer: Pick<Issuer, 'slug' | 'name'> }>
+    transferCards = (tCards ?? []) as Array<CreditCard & { issuer: Pick<Issuer, 'slug' | 'name' | 'logo_url'> }>
   }
 
-  const earnCards = (earnCurrencyCards ?? []) as Array<CreditCard & { issuer: Pick<Issuer, 'slug' | 'name'> }>
+  const earnCards = (earnCurrencyCards ?? []) as Array<CreditCard & { issuer: Pick<Issuer, 'slug' | 'name' | 'logo_url'> }>
   const allCards = [
-    ...((directCards ?? []) as Array<CreditCard & { issuer: Pick<Issuer, 'slug' | 'name'> }>),
+    ...((directCards ?? []) as Array<CreditCard & { issuer: Pick<Issuer, 'slug' | 'name' | 'logo_url'> }>),
     ...earnCards,
     ...transferCards,
   ]
@@ -2524,7 +2524,7 @@ export async function getCardsThatEarnIntoProgram(
   const seen = new Set<string>()
   const result: CardThatEarnsIn[] = []
 
-  for (const card of (directCards ?? []) as Array<CreditCard & { issuer: Pick<Issuer, 'slug' | 'name'> }>) {
+  for (const card of (directCards ?? []) as Array<CreditCard & { issuer: Pick<Issuer, 'slug' | 'name' | 'logo_url'> }>) {
     if (seen.has(card.id)) continue
     seen.add(card.id)
     const { issuer, ...rest } = card
