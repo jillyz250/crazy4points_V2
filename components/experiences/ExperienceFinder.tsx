@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState, type CSSProperties } from 'react'
+import { categoryBucket } from '@/lib/experiences/categories'
 
 // Interactive finder over the LIVE experience listings (experience_listings),
 // distinct from the program directory. Data is a few hundred rows, so all
@@ -101,21 +102,8 @@ type SortKey = (typeof SORTS)[number]['key']
 
 const cap = (s: string | null) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : '')
 
-// Collapse the messy category values (music / music & film / entertainment /
-// sports / culinary / culture...) into a few buckets, each with its own accent
-// so a concert reads differently from a game at a glance. Colors are muted
-// jewel tones that live with the Royal Glow palette.
-type Bucket = { label: string; color: string }
-function categoryBucket(category: string | null): Bucket | null {
-  const c = (category ?? '').toLowerCase()
-  if (!c) return null
-  if (c.includes('sport')) return { label: 'Sports', color: '#2E7D5B' } // emerald
-  if (c.includes('music') || c.includes('concert')) return { label: 'Music', color: '#B03D77' } // mulberry
-  if (c.includes('culinar') || c.includes('dining') || c.includes('food')) return { label: 'Dining', color: '#B8901F' } // bronze
-  if (c.includes('theat') || c.includes('art') || c.includes('cultur')) return { label: 'Culture', color: '#3F5BA8' } // indigo
-  if (c.includes('entertain') || c.includes('film')) return { label: 'Entertainment', color: '#6B2D8F' } // purple
-  return { label: cap(category), color: '#6E6486' } // muted fallback
-}
+// Category buckets are shared with the homepage (lib/experiences/categories.ts)
+// so a "Music" tile reads the same everywhere.
 // New York metro detection on the LOCATION field only (title geo is unreliable:
 // "Cubs vs a New York team" is played in Chicago). Mirrors the newsletter's
 // isNewYork so the site and the email agree on what counts as NY-area.

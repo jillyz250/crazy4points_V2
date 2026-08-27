@@ -68,6 +68,8 @@ export type ExperienceGroup = {
   isAuction: boolean
   /** soonest booking/bidding deadline across packages (ISO), for an urgency pill */
   nearestClose: string | null
+  /** true if any member listing is an editorial ⭐ pick */
+  featured: boolean
   packages: {
     detail_url: string | null
     event_date: string | null
@@ -174,10 +176,12 @@ export function groupExperiences(listings: MarqueeListing[]): ExperienceGroup[] 
         fromPoints: null,
         isAuction: false,
         nearestClose: null,
+        featured: false,
         packages: [],
       }
       groups.set(key, g)
     }
+    if (l.featured) g.featured = true
     // prefer any package that has an image if the group leader lacked one
     if (!g.image_url && l.image_url) g.image_url = l.image_url
     if (l.points_required != null) g.fromPoints = g.fromPoints == null ? l.points_required : Math.min(g.fromPoints, l.points_required)

@@ -5,6 +5,7 @@ import HomeToolBlocks, { HomeSweepstakesCTA } from "@/components/home/HomeToolBl
 import HomeExperiencesBlock from "@/components/home/HomeExperiencesBlock";
 import FeaturedGuides from "@/components/home/FeaturedGuides";
 import { getHomeExperiences } from "@/utils/experiences/getHomeExperiences";
+import { categoryBucket } from "@/lib/experiences/categories";
 import { getHomeToolPreviews } from "@/utils/home/getHomeToolPreviews";
 import { getAllianceMembers } from "@/utils/home/getAllianceMembers";
 import PeriodicCapOneCallout from "@/components/home/PeriodicCapOneCallout";
@@ -96,7 +97,7 @@ export default async function HomePage() {
     .map((g) => ({
       image_url: g.image_url as string,
       title: g.title,
-      category: g.category,
+      category: categoryBucket(g.category)?.label ?? g.category,
       cue:
         g.fromPoints != null
           ? `From ${g.fromPoints.toLocaleString("en-US")} pts`
