@@ -256,14 +256,47 @@ async function parseListings(markdown: string, program: ExperienceProgram): Prom
   return results.flat()
 }
 
-/** Stable dedup key: a listing id from the detail URL if present, else title+date. */
-function listingKey(programSlug: string, l: ParsedListing): string {
-  if (l.detail_url) {
-    const m = l.detail_url.match(/([0-9]{5,})/)
-    if (m) return `${programSlug}:listing:${m[1]}`
+/**
+ * Normalize a detail URL to a stable dedup basis: drop protocol, `www.`, the
+ * hash, and any trailing slash, strip only KNOWN tracking params (utm_*, fbclid,
+ * gclid, mc_*), then lowercase — but KEEP the rest of the query string. Some
+ * platforms (e.g. Wyndham auctions) carry the listing's unique id IN a query
+ * param, so blanket-stripping the query would merge genuinely-distinct listings.
+ * We strip only the drifting tracking noise, which is what actually spawned dupes.
+ */
+const TRACKING_PARAM = /^(utm_[a-z]+|fbclid|gclid|mc_cid|mc_eid|_ga|ref|ref_|source)$/i
+export function normalizeDetailUrl(url: string): string {
+  let u = url.trim().replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/#.*$/, '')
+  const qIdx = u.indexOf('?')
+  if (qIdx !== -1) {
+    const base = u.slice(0, qIdx)
+    const kept = u
+      .slice(qIdx + 1)
+      .split('&')
+      .filter((kv) => kv && !TRACKING_PARAM.test(kv.split('=')[0]))
+      .sort()
+    u = kept.length ? `${base}?${kept.join('&')}` : base
+  }
+  return u.replace(/\/+$/, '').toLowerCase()
+}
+
+/**
+ * Stable dedup key. When the listing has its own detail page, key on the
+ * NORMALIZED URL — it's the one truly stable, unique identity for a listing.
+ * (The old key only extracted a 5+ digit run, so UUID/slug URLs fell through to
+ * a title+date key whose date FORMAT drifted between scrapes — "2026-09-10" vs
+ * "september-10-2026" — spawning a duplicate row every time. See the exact-URL
+ * dupe cleanup, 2026-08-27.) Only when there is NO detail_url do we fall back to
+ * title + an ISO-normalized event date, so the fallback itself no longer drifts.
+ */
+export function listingKey(programSlug: string, l: ParsedListing): string {
+  if (l.detail_url && l.detail_url.trim()) {
+    return `${programSlug}:url:${normalizeDetailUrl(l.detail_url)}`
   }
   const t = (l.title || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60)
-  const d = (l.event_date || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 20)
+  // ISO-normalize the date so "september-10-2026" and "2026-09-10" collapse.
+  const parsed = l.event_date ? Date.parse(l.event_date) : NaN
+  const d = Number.isNaN(parsed) ? '' : new Date(parsed).toISOString().slice(0, 10)
   return `${programSlug}:${t}:${d}`
 }
 
