@@ -108,6 +108,7 @@ export const PERK_CHAINS: PerkChain[] = [
     source: 'Amex',
     verifiedAt: '2026-08-13',
     caveat: 'Most of these require a one-time enrollment in your Amex account, they do not switch on automatically.',
+    programSlugs: ['hilton', 'marriott-bonvoy'],
   },
   {
     id: 'csr-ihg-hertz',
@@ -123,6 +124,7 @@ export const PERK_CHAINS: PerkChain[] = [
     source: 'Chase / IHG',
     verifiedAt: '2026-08-13',
     caveat: 'Platinum is complimentary; the jump to Diamond (and the Hertz status it carries) takes $75,000 in annual spend.',
+    programSlugs: ['ihg'],
   },
   {
     id: 'venture-x-fee-funds-itself',
@@ -153,6 +155,7 @@ export const PERK_CHAINS: PerkChain[] = [
     source: 'Bilt',
     verifiedAt: '2026-08-13',
     caveat: 'The no-annual-fee version is the entry Bilt card; higher tiers earn more but carry a fee.',
+    programSlugs: ['bilt'],
   },
   {
     id: 'amex-gold-credits-beat-fee',
@@ -182,6 +185,7 @@ export const PERK_CHAINS: PerkChain[] = [
     source: 'Club Avolta',
     verifiedAt: '2026-08-26',
     caveat: 'It is a status match, not points, and Radisson\'s US footprint is thin, so the Avis and lounge perks are the bigger draw here. Match offers come and go, so confirm it is live.',
+    programSlugs: ['radisson'],
   },
   {
     id: 'tmobile-delta-perks',
