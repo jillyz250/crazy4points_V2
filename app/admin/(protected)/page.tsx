@@ -59,6 +59,9 @@ async function loadStats() {
   // "Today's slice" window — drafts/intel that arrived since ~yesterday, so the
   // daily checklist shows what's NEW to act on, not the whole cumulative pile.
   const since = new Date(Date.now() - 36 * 60 * 60 * 1000).toISOString()
+  // Experiences use a wider 7-day "recently new" window (survives a skipped day)
+  // so the card shows genuinely-new listings, not the lifetime unreviewed backlog.
+  const expSince = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
 
   const [
     pendingReview,
@@ -133,22 +136,25 @@ async function loadStats() {
       .is('archived_at', null)
       .is('triage_decision', null)
       .gte('created_at', since),
-    // Experiences: new listings first seen in the last ~36h (dashboard alert).
-    // Fetch the rows, not just a count, so the card can name and link the
-    // listing instead of making Jill hunt for which one is new.
-    // "New to review" = active listings first-seen recently that Jill hasn't
-    // reviewed yet AND aren't boring card-member presales (concerts/shows/games).
-    // EXCEPTION: Marriott Bonvoy Moments are music/sports/entertainment themed but
-    // are real points experiences (you bid/redeem points), so Jill reviews them.
-    // Filtering happens in JS below (category values are messy).
-    // NO time window: an experience stays in this count until Jill has LOOKED at it
-    // (editorial_reviewed_at set) — deciding one in the morning routine clears it.
-    // Only still-bookable ones (not past their close date) count.
+    // Experiences: genuinely-NEW listings to review. Fetch the rows, not just a
+    // count, so the card can name and link the listing instead of making Jill
+    // hunt for which one is new.
+    // "New to review" = active listings FIRST-SEEN in the last 7 days that Jill
+    // hasn't reviewed yet AND aren't boring card-member presales (concerts/shows/
+    // games). EXCEPTION: Marriott Bonvoy Moments are music/sports/entertainment
+    // themed but are real points experiences (you bid/redeem points), so Jill
+    // reviews them. Filtering happens in JS below (category values are messy).
+    // The 7-day first_seen window is the fix for the "stuck at 30-something" card:
+    // WITHOUT it, every never-reviewed listing counted forever (a 200-deep lifetime
+    // backlog), so the number never dropped. Now once Jill reviews a listing
+    // (editorial_reviewed_at set) it leaves the count, and stale unreviewed ones
+    // age out after a week instead of piling up. Only still-bookable ones count.
     supabase
       .from('experience_listings')
       .select('title, detail_url, first_seen_at, category, program_slug, editorial_reviewed_at')
       .eq('status', 'active')
       .is('editorial_reviewed_at', null)
+      .gte('first_seen_at', expSince)
       .or(`close_date.is.null,close_date.gte.${new Date().toISOString()}`)
       .order('first_seen_at', { ascending: false }),
     // Sweepstakes currently running (the daily sweepstakes-watch feeds this).
@@ -234,8 +240,9 @@ export default async function AdminDashboard() {
       value: stats.newExperiences,
       tone: stats.newExperiences > 0 ? 'warning' : 'neutral',
       // Link straight to the newest listing (or the directory if several), and
-      // name it in the hint so there is nothing to hunt for. Self-clears after
-      // ~36h - no dismiss needed.
+      // name it in the hint so there is nothing to hunt for. Reviewing a listing
+      // (editorial_reviewed_at) clears it; anything not reviewed ages out of the
+      // 7-day window on its own - no dismiss needed.
       href:
         stats.newExperiences === 1 && stats.newExperienceItems[0]?.detail_url
           ? stats.newExperienceItems[0].detail_url
@@ -244,8 +251,8 @@ export default async function AdminDashboard() {
         stats.newExperiences === 0
           ? 'no new listings'
           : stats.newExperiences === 1
-            ? stats.newExperienceItems[0]?.title ?? 'new listing since yesterday'
-            : `${stats.newExperiences} new since yesterday - consider a post`,
+            ? stats.newExperienceItems[0]?.title ?? 'new listing to review'
+            : `${stats.newExperiences} new this week to review`,
     },
     {
       label: 'Sweepstakes running',
