@@ -44,9 +44,17 @@ type DriftFinding = {
 const ROSTER: { name: string; watches: string; status: 'live' | 'planned' }[] = [
   { name: 'Fact-checker', watches: 'Checks our page vs official (on demand)', status: 'live' },
   { name: 'Transfer re-verification', watches: 'Weekly audit of transfer data vs official rosters', status: 'live' },
-  { name: 'Sweet-spot hunter', watches: 'Finds high-value redemptions', status: 'planned' },
-  { name: 'Intel triage', watches: 'Sorts the news firehose', status: 'planned' },
-  { name: 'Site-health', watches: 'Broken links, stale pages', status: 'planned' },
+  // Backlog — the agents we still need to build (see plans/ai-agents-roadmap.md).
+  { name: 'Intel Triage', watches: 'Sorts the forwarded-email firehose into alerts / guide-ideas / rejects by editorial policy', status: 'planned' },
+  { name: 'Sweet Spot', watches: 'Finds + verifies high-value redemptions across every program (spec ready)', status: 'planned' },
+  { name: 'Content Accuracy', watches: 'Re-verifies published guides/articles on a set schedule (nothing does this today)', status: 'planned' },
+  { name: 'Site-Health', watches: 'Broken links, 404s, lingering expired-offer pages, stale pages', status: 'planned' },
+  { name: 'Program/Card Authoring', watches: 'Drafts new reference pages from official sources', status: 'planned' },
+  { name: 'Newsletter', watches: 'Assembles the issue from verified alerts + parked items', status: 'planned' },
+  { name: 'Social', watches: 'Daily best-content pick + FB/IG drafts in brand voice', status: 'planned' },
+  { name: 'SEO / Content-Gap', watches: 'Uncovered search demand + internal-linking gaps; feeds the roadmap', status: 'planned' },
+  { name: 'Monetization / Affiliate', watches: 'Surfaces referral/affiliate placements + tracks what converts', status: 'planned' },
+  { name: 'Competitive / Rank-Watch', watches: 'Monitors competitors + our rankings; flags missed stories', status: 'planned' },
 ]
 
 function findingBadge(f: Finding): { tone: 'danger' | 'warning' | 'info' | 'neutral'; label: string } {
