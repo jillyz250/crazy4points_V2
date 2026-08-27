@@ -53,6 +53,7 @@ node scripts/morning-dedup.mjs --apply   # after a glance, suppress the confirme
 node scripts/morning-reminders-sweep.mjs         # preview dead reminders (ended deals + closed auctions)
 node scripts/morning-reminders-sweep.mjs --apply # auto-complete them (keeps still-live deals + evergreen)
 node scripts/morning-snapshot.mjs        # the full structured feed for the phases below
+node scripts/improvement-radar.mjs       # ranked data/content/process gaps → feeds Phases 13-15
 ```
 The reminders sweep is SAFE: it only completes "…before it ends" reminders whose
 tied alert has already ended (a still-live deal is kept) and auction "Bidding
@@ -229,6 +230,15 @@ draft, publish. One real piece a day.
 > dimension, every day, forever. Never invent filler — if the honest best idea is
 > small, say it's small; if you're genuinely out of ideas in one dimension, say so
 > and pull the next-best from the backlog in memory.
+>
+> **`scripts/improvement-radar.mjs` (run in Phase 0b) does the finding for you** —
+> it ranks the real data-integrity, content, and process gaps with blast radius and
+> prints a `TOP PICKS` block. Use its top data pick for Phase 14, its process line
+> for Phase 13, and run the mobile sweep for Phase 15. The Radar counts array/JSON
+> columns by real length (never truthiness) and prints `!! QUERY PROBLEM(S)` loudly
+> if a query fails — if you see that, FIX it before trusting the numbers (a phantom
+> "133 programs need reverify" on 2026-08-26 came from counting an empty `[]` as
+> present; the real number was 4).
 
 ### Phase 13 · ⚙️ Process improvement of the day
 One workflow/automation/rail upgrade that makes US faster or less error-prone.
