@@ -56,6 +56,21 @@ const BUDGET_TIERS: { cap: number; label: string }[] = [
   { cap: 250_000, label: 'Under 250k' },
 ]
 
+// Category filter pills. The four named buckets plus a Misc catch-all (culture,
+// entertainment, and anything uncategorized) — the set Jill asked for.
+const CATEGORY_PILLS: { key: string; label: string }[] = [
+  { key: 'music', label: 'Music' },
+  { key: 'sports', label: 'Sports' },
+  { key: 'dining', label: 'Culinary' },
+  { key: 'travel', label: 'Travel' },
+  { key: 'misc', label: 'Misc' },
+]
+// Map a listing to its category-pill key (anything outside the 4 named → 'misc').
+function catPillKey(l: FinderListing): string {
+  const k = categoryBucket(l.category)?.key
+  return k && ['music', 'sports', 'dining', 'travel'].includes(k) ? k : 'misc'
+}
+
 // A short, honest date line for the tile. close_date drives urgency (bidding
 // ends); event_date is when the experience happens. Guessed close dates get a
 // "~" so we never assert a scraped estimate as fact.
@@ -100,7 +115,6 @@ const SORTS = [
 ] as const
 type SortKey = (typeof SORTS)[number]['key']
 
-const cap = (s: string | null) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : '')
 
 // Category buckets are shared with the homepage (lib/experiences/categories.ts)
 // so a "Music" tile reads the same everywhere.
@@ -208,10 +222,15 @@ export default function ExperienceFinder({
 }) {
   const [q, setQ] = useState('')
   const [program, setProgram] = useState<string>('all')
-  const [category, setCategory] = useState<string>('all')
+  // Category filter as multi-select bucket pills (Music/Sports/Culinary/Travel/Misc).
+  const [selectedCats, setSelectedCats] = useState<string[]>([])
   const [sort, setSort] = useState<SortKey>('newest')
-  const [hideSoldOut, setHideSoldOut] = useState(false)
+  // Sold-out experiences are hidden by DEFAULT — there's nothing left to book, so
+  // they shouldn't be the first thing a browser sees. Toggle to reveal them.
+  const [hideSoldOut, setHideSoldOut] = useState(true)
   const [nyOnly, setNyOnly] = useState(false)
+  const toggleCat = (key: string) =>
+    setSelectedCats((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]))
   // Which point currencies the reader HOLDS — multi-select (they can have Amex
   // AND Citi AND Chase). A listing matches if ANY held currency reaches it
   // (its own program + that currency's transfer partners). Empty = show all.
@@ -234,16 +253,18 @@ export default function ExperienceFinder({
     return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1]))
   }, [listings])
 
-  const categories = useMemo(
-    () => Array.from(new Set(listings.map((l) => l.category).filter(Boolean) as string[])).sort(),
-    [listings],
-  )
+  // Count listings per category pill so we can show a count and hide empty pills.
+  const catCounts = useMemo(() => {
+    const m: Record<string, number> = {}
+    for (const l of listings) m[catPillKey(l)] = (m[catPillKey(l)] ?? 0) + 1
+    return m
+  }, [listings])
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase()
     let out = listings.filter((l) => {
       if (program !== 'all' && l.program_slug !== program) return false
-      if (category !== 'all' && l.category !== category) return false
+      if (selectedCats.length > 0 && !selectedCats.includes(catPillKey(l))) return false
       if (hideSoldOut && l.sold_out) return false
       if (nyOnly && !isNYLocation(l)) return false
       // Points-held filter (multi-select): keep the listing if ANY held currency
@@ -301,7 +322,7 @@ export default function ExperienceFinder({
       }
     })
     return out
-  }, [listings, q, program, category, sort, hideSoldOut, nyOnly, heldCards, budget, statusFilter, bonusOnly, cardReach, bestBonus])
+  }, [listings, q, program, selectedCats, sort, hideSoldOut, nyOnly, heldCards, budget, statusFilter, bonusOnly, cardReach, bestBonus])
 
   // Collapse duplicate listings of the SAME experience (Wyndham lists one party
   // as 10 separate auction lots; Marriott lists a show on several dates) into ONE
@@ -376,6 +397,30 @@ export default function ExperienceFinder({
             </button>
           )}
         </div>
+        {/* Category pills (multi-select) */}
+        <p className="mb-2 mt-4 font-ui text-sm font-semibold text-[var(--color-primary)]">Category</p>
+        <div className="flex flex-wrap gap-2">
+          {CATEGORY_PILLS.filter((c) => (catCounts[c.key] ?? 0) > 0).map((c) => (
+            <button
+              key={c.key}
+              type="button"
+              className={pill(selectedCats.includes(c.key))}
+              aria-pressed={selectedCats.includes(c.key)}
+              onClick={() => toggleCat(c.key)}
+            >
+              {c.label}
+            </button>
+          ))}
+          {selectedCats.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setSelectedCats([])}
+              className="font-ui text-sm text-[var(--color-text-secondary)] underline hover:text-[var(--color-primary)]"
+            >
+              Clear
+            </button>
+          )}
+        </div>
         {/* Budget tier pills */}
         <p className="mb-2 mt-4 font-ui text-sm font-semibold text-[var(--color-primary)]">Your budget</p>
         <div className="flex flex-wrap gap-2">
@@ -396,7 +441,7 @@ export default function ExperienceFinder({
         </div>
       </div>
 
-      {/* Search + category + program + sort */}
+      {/* Search + program + sort */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <input
           type="search"
@@ -415,19 +460,6 @@ export default function ExperienceFinder({
           {programs.map(([slug, label]) => (
             <option key={slug} value={slug}>
               {label}
-            </option>
-          ))}
-        </select>
-        <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          className="rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background)] px-3 py-2 font-ui text-base"
-          aria-label="Filter by category"
-        >
-          <option value="all">All categories</option>
-          {categories.map((c) => (
-            <option key={c} value={c}>
-              {cap(c)}
             </option>
           ))}
         </select>
@@ -499,7 +531,10 @@ export default function ExperienceFinder({
           chips.push({ label: `Under ${(budget / 1000).toLocaleString()}k points`, clear: () => setBudget(null) })
         if (statusFilter !== 'all') chips.push({ label: statusLabels[statusFilter], clear: () => setStatusFilter('all') })
         if (program !== 'all') chips.push({ label: programs.find(([s]) => s === program)?.[1] ?? program, clear: () => setProgram('all') })
-        if (category !== 'all') chips.push({ label: cap(category), clear: () => setCategory('all') })
+        for (const key of selectedCats) {
+          const label = CATEGORY_PILLS.find((c) => c.key === key)?.label ?? key
+          chips.push({ label, clear: () => toggleCat(key) })
+        }
         if (nyOnly) chips.push({ label: 'New York only', clear: () => setNyOnly(false) })
         if (hideSoldOut) chips.push({ label: 'Sold out hidden', clear: () => setHideSoldOut(false) })
         if (bonusOnly) chips.push({ label: 'Active transfer bonus', clear: () => setBonusOnly(false) })
@@ -521,7 +556,7 @@ export default function ExperienceFinder({
               type="button"
               onClick={() => {
                 setHeldCards([]); setStatusFilter('all'); setBudget(null); setProgram('all')
-                setCategory('all'); setNyOnly(false); setHideSoldOut(false); setBonusOnly(false); setQ('')
+                setSelectedCats([]); setNyOnly(false); setHideSoldOut(true); setBonusOnly(false); setQ('')
               }}
               className="font-ui text-xs text-[var(--color-text-secondary)] underline hover:text-[var(--color-primary)]"
             >
