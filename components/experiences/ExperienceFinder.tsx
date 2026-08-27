@@ -725,26 +725,41 @@ export default function ExperienceFinder({
         />
       </div>
     ) : null
-    const wrapClass = `block overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] shadow-[var(--shadow-soft)] transition${dim}`
-    return href ? (
+    const wrapClass = `overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] shadow-[var(--shadow-soft)] transition hover:border-[var(--color-primary)]${l.sold_out ? '' : ' hover:-translate-y-0.5'}${dim}`
+    // Monetization: for a reader who doesn't hold this program's points, a soft
+    // referral CTA into the Card Explorer, pre-filtered to cards that reach it.
+    // A SEPARATE link below the experience link (never nested inside the <a>).
+    const cardCta = l.program_slug ? (
       <a
-        key={key}
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
-        style={tint}
-        className={`${wrapClass} hover:border-[var(--color-primary)]${l.sold_out ? '' : ' hover:-translate-y-0.5'}`}
+        href={`/cards?program=${encodeURIComponent(l.program_slug)}`}
+        className="flex items-center gap-1 border-t border-[var(--color-border-soft)] px-4 py-2.5 font-ui text-[0.72rem] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-background-soft)] hover:text-[var(--color-primary)]"
       >
+        Don&apos;t have {l.program_label}? Find a card that earns it &rarr;
+      </a>
+    ) : null
+    // The experience itself (image + content) stays clickable to the official
+    // listing; the card CTA is a sibling link so the two never nest.
+    const body = (
+      <>
         {imageHeader}
         <div className="p-4">
           {card}
-          <span className={`mt-2 inline-block font-ui text-sm ${l.sold_out ? 'text-[var(--color-text-secondary)]' : 'text-[var(--color-primary)]'}`}>{cta} &rarr;</span>
+          {href && (
+            <span className={`mt-2 inline-block font-ui text-sm ${l.sold_out ? 'text-[var(--color-text-secondary)]' : 'text-[var(--color-primary)]'}`}>{cta} &rarr;</span>
+          )}
         </div>
-      </a>
-    ) : (
+      </>
+    )
+    return (
       <div key={key} style={tint} className={wrapClass}>
-        {imageHeader}
-        <div className="p-4">{card}</div>
+        {href ? (
+          <a href={href} target="_blank" rel="noopener noreferrer" className="block">
+            {body}
+          </a>
+        ) : (
+          body
+        )}
+        {cardCta}
       </div>
     )
   }
