@@ -151,7 +151,7 @@ a:hover {
   color: var(--color-primary);
 }
 
-/* In @layer base so Tailwind bg-*/text-* utilities on a button WIN over this
+/* In @layer base so Tailwind background/text utilities on a button WIN over this
    reset. Un-layered, `background: none` clobbered every styled button (the
    newsletter Subscribe button rendered invisible — gold background stripped). */
 @layer base {
