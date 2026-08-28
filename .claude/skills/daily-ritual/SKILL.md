@@ -27,8 +27,8 @@ publish, write, **and make the platform better than yesterday**.
    And genuinely evaluate for yourself: if you disagree with Jill's call on a
    phase (or anything else), say so with your reason — she wants a real advisor,
    not agreement.** See [[feedback_proactive_expert_guidance]].
-3. **Same layout every day.** Fixed card header (`PHASE N of 16 · TITLE`), fixed
-   columns, fixed verdict words. Consistency is the feature.
+3. **Same layout every day.** Fixed card header (`PHASE N of 17 · TITLE`; `of 18`
+   on Thursdays), fixed columns, fixed verdict words. Consistency is the feature.
 4. **Empty phases auto-skip** with one line (`Phase 7 · Experiences — none new ✅`).
 5. **Jill drives:** `next` / `skip` / `back` / `done`.
 6. **Verdict vocabulary** (use these exact words): `PUBLISH · PAGE-NOTE ·
@@ -47,9 +47,11 @@ The 16 phases fall in three acts: **A. Clear the overnight (1-5)** ·
 **B. Keep the site true & fed (6-12)** · **C. Improve every day (13-16)**.
 The chain check runs LAST in Act B (Phase 12, after the article) so it sweeps
 **everything produced today** — publishes, page fixes, the article, experiences.
-**On Thursdays only, a 17th phase — the Newsletter build — runs DEAD LAST**, after
-everything else, so the whole day's verified publishes and decisions feed into it.
-On any other day, header the run as `PHASE N of 16`; on Thursdays, `N of 17`.
+**Phase 17 · Analytics review is the daily wrap and runs LAST every day.** On
+**Thursdays only**, the **Newsletter build** runs as the last *content* phase
+(17), so the whole day's verified publishes feed it, and **Analytics moves to
+Phase 18** right after. On any other day, header the run as `PHASE N of 17`
+(Analytics is 17); on Thursdays, `N of 18`.
 
 ---
 
@@ -355,12 +357,13 @@ quick take / article (Phase 5/12). Recommend THE one with a one-line
 why-it-engages + our value-add. Draft only on Jill's go (facebook-post /
 instagram-post skill). We always want a daily post.
 
-### Phase 17 · 📰 Newsletter build (THURSDAYS ONLY — dead last)
+### Phase 17 · 📰 Newsletter build (THURSDAYS ONLY — last content phase, before Analytics)
 Runs only on Thursdays (the snapshot header prints `WEEKLY: Newsletter day`), and
-**always last** so every alert published, page fixed, experience/sweepstakes
-picked, and article written *earlier today* is eligible for it — the newsletter is
-the day's wrap-up, not a parallel track. On any other weekday this phase does not
-exist; do not surface it.
+**always the last content phase** (only the Analytics wrap follows it) so every
+alert published, page fixed, experience/sweepstakes picked, and article written
+*earlier today* is eligible for it — the newsletter is the day's content wrap-up,
+not a parallel track. On any other weekday this phase does not exist; do not
+surface it (Analytics then becomes Phase 17).
 
 Build it from the day's material, newest-first:
 - **today's verified publishes** (Phase 5 alerts + Phase 11 article),
@@ -377,9 +380,26 @@ point math. **Show Jill the FULL draft before sending — always.** On her appro
 send via Resend, **throttled to ≤4/sec** ([[feedback_resend_rate_limit]]). Receipt:
 what led, how many stories, recipient count.
 
+### Phase 17 (Phase 18 on Thursdays) · 📊 Analytics review — the daily wrap
+Runs **LAST every day** (after the Newsletter on Thursdays). Added 2026-08-28
+(Jill). Review the numbers and pull **1-2 insights that should change tomorrow's
+priorities** — do not just recite metrics:
+- **Traffic:** top pages + search movement (Google Search Console / Vercel
+  Analytics) — which alerts/guides/programs draw, what's rising or falling.
+- **Newsletter:** opens / clicks / unsubs when available (open+click stats are a
+  backlog build — flag the gap if we still can't see them).
+- **Social:** engagement on recent FB/IG posts (Jill reports what she sees; not
+  auto-pulled yet).
+- **Conversion:** newsletter signups (subscribers added), referral/affiliate clicks.
+- **Content:** the day's top-performing alert / experience / sweepstakes.
+Format: **what moved → why it likely moved → one thing to do differently tomorrow.**
+Same accuracy bar as everything else: **no number we haven't actually pulled**, and
+name which metrics we CAN'T yet see (a gap to build). See [[project_newsletter_open_click_stats]],
+[[project_gsc_pickup_2026_05_07]], [[project_social_media_dashboard]].
+
 ---
 
-## CLOSE (send after the last phase — Phase 16, or Phase 17 on Thursdays)
+## CLOSE (send after the last phase — Phase 17 Analytics, or Phase 18 on Thursdays)
 A fixed recap:
 ```
 🌙 WRAP — Aug 12
