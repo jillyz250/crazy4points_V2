@@ -52,7 +52,7 @@ export const SWEEP_CATEGORY_PILLS: SweepCategory[] = RULES.map((r) => ({ key: r.
  * send readers into a high-pressure funnel). Matched on ownership-specific terms
  * only — plain hotel-loyalty sweeps ("Wyndham Rewards", "Hilton Honors") stay.
  */
-const TIMESHARE = /grand vacations|\bhgv\b|vacation club|vacation ownership|timeshare|club wyndham|wyndham destinations|westgate resorts|bluegreen|diamond resorts|holiday inn club|marriott vacation|vacation village|welk resorts|ownership/i
+const TIMESHARE = /grand vacations|\bhgv\b|vacation club|vacation ownership|timeshare|club wyndham|wyndham destinations|westgate resorts|bluegreen|diamond resorts|holiday inn club|marriott vacation|vacation village|welk resorts|ownership|vistana|worldmark|capital vacations|festiva|sales presentation|\d{2,3}[\s-]?minute .{0,20}presentation|resort preview|resort tour/i
 export function isTimeshareSweep(program: string | null | undefined, prize: string | null | undefined, title: string | null | undefined): boolean {
   return TIMESHARE.test(`${program ?? ''} ${prize ?? ''} ${title ?? ''}`)
 }

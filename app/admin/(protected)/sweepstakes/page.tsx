@@ -3,6 +3,7 @@ import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Card, CardBody } from '@/components/admin/ui/Card'
 import { Badge } from '@/components/admin/ui/Badge'
 import { EmptyState } from '@/components/admin/ui/EmptyState'
+import { isTimeshareSweep } from '@/lib/sweepstakes/categories'
 import { togglePosted, endSweep, draftSweepstakesPostAction, clearSweepstakesDraftAction, toggleSweepFeatured } from './actions'
 
 export const dynamic = 'force-dynamic'
@@ -77,6 +78,7 @@ export default async function SweepstakesPage() {
                 <CardBody>
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
                     <Badge tone="neutral">{s.program}</Badge>
+                    {isTimeshareSweep(s.program, s.prize, s.title) && <Badge tone="warning">⚠ Timeshare</Badge>}
                     {mech && <Badge tone="neutral">{mech}</Badge>}
                     {ends && <Badge tone="warning">{ends}</Badge>}
                     {s.posted_social ? (
