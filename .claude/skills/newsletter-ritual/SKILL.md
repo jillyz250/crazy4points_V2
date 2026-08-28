@@ -60,10 +60,24 @@ Jill reviews via the `/admin/newsletter` preview (refresh after each edit).
 2. **Top options from the last 1-2 weeks of alerts** — transfer bonuses, award
    sales, and standout redemptions. For EACH: the value **and** the honest catch
    (e.g. "Turkish is great value but hard to book"). Recommend the most *usable*.
-3. On her pick: write the sweet spot (topic + 3 best-uses with a concrete example),
-   **multi-source-verify every figure**, and if it's a newly-verified sweet spot,
-   **document it on the program page's `sweet_spots`** so the win compounds
+3. On her pick: write the sweet spot, **multi-source-verify every figure**, and if
+   it's newly verified, **document it on the program page's `sweet_spots`**
    ([[feedback_check_prose_on_data_change]]).
+
+**Sweet-spot FORMAT (Jill's standard, 2026-08-28):**
+- **`topic`** = the headline (short, specific — e.g. "Atmos 4,500-Point Short-Haul
+  Flights on American Metal").
+- **`takeaway`** = a **bold one-line summary** right under the headline (the "what
+  it is in a sentence" — e.g. "Any nonstop American flight under 700 miles is just
+  4,500 points one way…"). The render bolds it automatically.
+- **`best_uses`** = the "Good for" list — **concrete routes/redemptions with the
+  honest catch**, in Jill's warm first-person voice (real, specific examples like
+  "Columbus to New York for Thanksgiving," not vague "a short flight"). This renders
+  ABOVE the earning section.
+- **`mechanic_explainer`** = "How to earn the points" as **tight bullets** (not a
+  wall of text): earning paths, buy price + the bonus play, and the catches.
+- Voice: personal, relatable, sassy-warm — NOT ad copy. And **no em/en dashes** (the
+  render strips them via `noDashes`, but write clean anyway).
 
 ### N3 · 📌 Also Happening
 Show this week's published-alert pool grouped by theme; recommend a **varied** set

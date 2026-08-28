@@ -32,9 +32,19 @@ const FONT_DISPLAY = "'Playfair Display', Georgia, serif"
 const FONT_BODY = "'Lato', 'Helvetica Neue', Arial, sans-serif"
 const FONT_UI = "'Montserrat', 'Helvetica Neue', Arial, sans-serif"
 
+/**
+ * Strip em/en dashes — the newsletter never uses them (Jill's hard rule), but
+ * Sonnet keeps generating them. Applied at RENDER (in esc + bodyHtml) so no
+ * AI-generated dash can slip through, no matter what a section field contains.
+ * Em dash -> comma; en dash -> hyphen (handles ranges like Aug 30-Sep 13).
+ */
+function noDashes(s: string): string {
+  return s.replace(/\s*—\s*/g, ', ').replace(/\s*–\s*/g, '-')
+}
+
 function esc(s: string | null | undefined): string {
   if (!s) return ''
-  return s
+  return noDashes(s)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -52,7 +62,7 @@ function esc(s: string | null | undefined): string {
  */
 function bodyHtml(raw: string | null | undefined): string {
   if (!raw) return ''
-  let html = raw
+  let html = noDashes(raw)
 
   // Strip stale label paragraphs ("What this means for you:" etc.) that
   // older Sonnet generations baked in. Bullets stand alone — the visual
@@ -335,7 +345,8 @@ function renderSweetSpot(sp: NewsletterSweetSpot | null): string {
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:2px solid ${GOLD};border-radius:12px;background:${SOFT_BG};">
         <tr><td style="padding:22px 24px;">
           <p style="margin:0 0 12px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${GOLD};font-weight:700;">Sweet Spot of the Week</p>
-          <h2 style="margin:0 0 16px;font-family:${FONT_DISPLAY};font-size:18px;line-height:1.3;color:${PURPLE};">${esc(sp.topic)}</h2>
+          <h2 style="margin:0 0 10px;font-family:${FONT_DISPLAY};font-size:18px;line-height:1.3;color:${PURPLE};">${esc(sp.topic)}</h2>
+          ${(sp as { takeaway?: string | null }).takeaway ? `<p style="margin:0 0 16px;font-family:${FONT_BODY};font-size:15px;line-height:1.5;color:${BODY};font-weight:700;">${esc((sp as { takeaway?: string }).takeaway)}</p>` : ''}
           ${uses ? `<p style="margin:0 0 8px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${GOLD};font-weight:700;">Good for</p><ul style="margin:0;padding:0 0 0 18px;">${uses}</ul>` : ''}
           ${explainer ? `<p style="margin:18px 0 8px;font-family:${FONT_UI};font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${GOLD};font-weight:700;">How to earn the points</p>${explainer}` : ''}
         </td></tr>
