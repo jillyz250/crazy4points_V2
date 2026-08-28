@@ -87,9 +87,8 @@ export default function ChainCard({ c }: { c: PerkChain }) {
             <span className="font-semibold">Catch:</span> {c.caveat}
           </p>
         )}
-        <p className="mt-1 font-ui text-[0.62rem] uppercase tracking-wide text-[var(--color-text-secondary)] opacity-60">
-          Source: {c.source} · verified {c.verifiedAt}
-        </p>
+        {/* source + verifiedAt are internal re-verification data, not rendered —
+            a stale "verified" date reads as neglect. Kept in lib/perkChains.ts. */}
       </div>
     </div>
   )

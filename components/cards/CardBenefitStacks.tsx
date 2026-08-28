@@ -57,9 +57,19 @@ function NetworkPerkCard({ p, label }: { p: NetworkPerk; label: string }) {
             <span className="font-semibold">Catch:</span> {p.caveat}
           </p>
         )}
-        <p className="mt-1 font-ui text-[0.62rem] uppercase tracking-wide text-[var(--color-text-secondary)] opacity-60">
-          Source: {p.source} · verified {p.verifiedAt}
-        </p>
+        {/* Reader-facing link to the issuer terms (when we have one). The internal
+            source label + verified date stay in the data for our re-verification,
+            not rendered — a stale "verified" date reads as neglect, not trust. */}
+        {p.sourceUrl && (
+          <a
+            href={p.sourceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 inline-block font-ui text-[0.66rem] font-semibold text-[var(--color-primary)] underline underline-offset-2"
+          >
+            See the official terms →
+          </a>
+        )}
       </div>
     </div>
   )
