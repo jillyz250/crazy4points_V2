@@ -88,22 +88,9 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
           />
         )}
 
-        {includes.length > 0 && (
-          <div className="mt-6 rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] p-5">
-            <p className="font-ui text-xs font-bold uppercase tracking-[0.1em] text-[var(--color-primary)]">
-              What&rsquo;s included
-            </p>
-            <ul className="mt-3 list-disc space-y-1.5 pl-5">
-              {includes.map((line, i) => (
-                <li key={i} className="font-body text-[var(--color-text-primary)]">{line}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* PRIMARY action: go bid on the real offer. This is what the visitor
-            came for (the ad promised it), so it leads — big and obvious. */}
-        <div className="mt-7 rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] p-5 text-center">
+        {/* PRIMARY action: go bid on the real offer, right under the image —
+            it's what the visitor came for (the ad promised it). */}
+        <div className="mt-6 rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] p-5 text-center">
           <p className="font-body text-[var(--color-text-primary)]">
             You bid with points on the official page. The highest bid wins, and bidding closes before
             the event.
@@ -117,6 +104,19 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
             {l.outbound_label} ↗
           </a>
         </div>
+
+        {includes.length > 0 && (
+          <div className="mt-6 rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] p-5">
+            <p className="font-ui text-xs font-bold uppercase tracking-[0.1em] text-[var(--color-primary)]">
+              What&rsquo;s included
+            </p>
+            <ul className="mt-3 list-disc space-y-1.5 pl-5">
+              {includes.map((line, i) => (
+                <li key={i} className="font-body text-[var(--color-text-primary)]">{line}</li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* SECONDARY conversion: the newsletter capture. */}
         <aside className="my-8 overflow-hidden rounded-[var(--radius-card)] bg-[var(--color-primary)] px-6 py-7 sm:px-8">
