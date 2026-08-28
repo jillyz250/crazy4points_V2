@@ -92,6 +92,9 @@ export interface TopExperienceItem {
   /** Optional secondary CTA (e.g. "New to Bonvoy? Get the card") linking to
    *  our own card page, for readers who don't hold the required card. */
   secondary_link?: { label: string; url: string } | null
+  /** Optional hero image for the card (listing image or a custom creative).
+   *  Renders full-width at the top of the card. Empty/null = no image. */
+  image_url?: string | null
 }
 
 /**
