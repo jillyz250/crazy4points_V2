@@ -136,10 +136,10 @@ function renderGame(game: NewsletterSlots['game'], origin: string): string {
 
 function renderBigStory(slots: NewsletterSlots, origin: string): string {
   if (!slots.big_story_html) return ''
-  // Big Story headline uses its own title field, independent of the email
-  // subject line. Falls back to the subject for older drafts that predate the
-  // big_story_title field.
-  const headlineText = slots.big_story_title || slots.subject
+  // Big Story headline uses ONLY its own title field. We do NOT fall back to the
+  // subject (Jill, 2026-08-28) — that just repeated the subject line as a
+  // redundant headline. No big_story_title = no headline, just the eyebrow + body.
+  const headlineText = slots.big_story_title
   const headline = headlineText
     ? `<h1 style="margin:0 0 14px;font-family:${FONT_DISPLAY};font-size:24px;line-height:1.2;color:${BODY};font-weight:800;">${esc(headlineText)}</h1>`
     : ''
