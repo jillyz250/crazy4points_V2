@@ -29,7 +29,7 @@ publish, write, **and make the platform better than yesterday**.
    not agreement.** See [[feedback_proactive_expert_guidance]].
 3. **Same layout every day.** Fixed card header (`PHASE N of 16 · TITLE`), fixed
    columns, fixed verdict words. Consistency is the feature.
-4. **Empty phases auto-skip** with one line (`Phase 8 · Experiences — none new ✅`).
+4. **Empty phases auto-skip** with one line (`Phase 7 · Experiences — none new ✅`).
 5. **Jill drives:** `next` / `skip` / `back` / `done`.
 6. **Verdict vocabulary** (use these exact words): `PUBLISH · PAGE-NOTE ·
    NEWSLETTER · REJECT · HOLD · DISMISS`. Status marks: `Reverified ✅/⚠️` ·
@@ -43,8 +43,10 @@ only verified facts (official issuer/program source, never a blog); clickable
 links for anything to open; her outstanding actions go LAST; alert writes go
 through `content_variants`, never the `alerts` mirror.
 
-The 16 phases fall in three acts: **A. Clear the overnight (1-6)** ·
-**B. Keep the site true & fed (7-12)** · **C. Improve every day (13-16)**.
+The 16 phases fall in three acts: **A. Clear the overnight (1-5)** ·
+**B. Keep the site true & fed (6-12)** · **C. Improve every day (13-16)**.
+The chain check runs LAST in Act B (Phase 12, after the article) so it sweeps
+**everything produced today** — publishes, page fixes, the article, experiences.
 **On Thursdays only, a 17th phase — the Newsletter build — runs DEAD LAST**, after
 everything else, so the whole day's verified publishes and decisions feed into it.
 On any other day, header the run as `PHASE N of 16`; on Thursdays, `N of 17`.
@@ -106,7 +108,7 @@ Receipt: what's healthy, what's stale, and whether any downstream phase is suspe
 
 ### Phase 2 · 🧹 Loose ends (reminders table ONLY — overdue + dead)
 This phase does ONE thing: clear the reminders table. Nothing else (live
-experience closings are a featuring decision → Phase 8). Two moves, same domain:
+experience closings are a featuring decision → Phase 7). Two moves, same domain:
 - **Overdue reminders** (`[YYYY-MM-DD]` rows) — yesterday's actions that didn't
   complete (esp. "Social post:"). Recommend **post today** (still live),
   **DISMISS** (deal ended / stale), or **keep** (→ Phase-16 candidate).
@@ -170,39 +172,11 @@ Two extra feeds are walked here too, one at a time, verified against official fi
   **PUBLISH now** (promote to an alert before the deadline), **keep for
   newsletter**, or **REJECT**.
 
-### Phase 6 · 🔗 Chain check (always run)
-Scan the day's new intel + today's publishes for **perk chains** — where one
-benefit unlocks another, which unlocks another. Canonical: Amex Platinum → free
-Walmart+ → free Paramount+; a card's elite status → free Club Avolta status match
-→ Radisson VIP + Avis President's Club + Plaza Premium lounge discount. Best
-candidates cluster in the `card_credit` / `partner_change` / `status_promo` intel
-type-groups (from `morning-triage-by-type`) — start there rather than eyeballing.
-
-**⚠️ VERIFY BEFORE FLAGGING OR ADDING (2026-08-28).** Do NOT present something as a
-chain until you've confirmed it against the **issuer/network's official terms**. A
-headline that lists two perks ("free Instacart+ and Peacock") is usually NOT a chain
-— on 2026-08-28 that one looked like Amex Plat → Walmart+ → Paramount+ but the
-official terms showed Instacart+ and Peacock are two **separate** Mastercard perks,
-no "A unlocks B". Flag chains as *candidates* until verified.
-
-**Two homes, pick the right one:**
-- **True chain** (A unlocks B unlocks C) → `lib/perkChains.ts` + the Chain Reactions
-  guide (`app/(site)/guides/hidden-perk-stacks/page.tsx`, slug kept). Renders on
-  program pages AND card pages (via `cardSlug` / `programSlugs`).
-- **Network-level perk** (a standalone benefit shared across a network tier, e.g.
-  Mastercard World Elite) → `lib/networkPerks.ts` (NOT the chain guide). One
-  definition renders on every matching card via `CardBenefitStacks`, with an
-  issuer source + verified date + `validThrough` so it auto-expires.
-
-Every entry carries the official source + verified date. **Flag any chain to Jill
-explicitly** (she asked to always be told). No chain today → say so in one line.
-See [[feedback_always_flag_perk_chains]], [[feedback_verify_before_correcting]].
-
 ---
 
 # ACT B — Keep the site true & fed
 
-### Phase 7 · 📄 Page accuracy (the guarantee — never skipped when facts exist)
+### Phase 6 · 📄 Page accuracy (the guarantee — never skipped when facts exist)
 **Every page-affecting fact updates its page, whether or not we published it.**
 Source: snapshot's `📄 PAGE-AFFECTING FACTS` + the program-fact-drift section. Two
 buckets:
@@ -230,7 +204,7 @@ backlog + quarantine — GA occasionally surfaces a real gem (verify vs official
 Also fold in **source-gap coverage** here (programs in intel with no active Scout
 source): propose adding + live-test Firecrawl→Haiku before adding. Usually 0.
 
-### Phase 8 · 🎭 Experiences → alerts? (new listings + closings within 5 days)
+### Phase 7 · 🎭 Experiences → alerts? (new listings + closings within 5 days)
 ALL experience-featuring decisions live here, so the phase owns one thing end to
 end. Two feeds, one verdict set (**FEATURE** = alert + social / hold for
 newsletter · **skip**):
@@ -247,28 +221,57 @@ newsletter · **skip**):
 Publish only the genuinely alert-worthy (most are directory listings, not alerts).
 Auto-skip if nothing new AND nothing featureable is closing.
 
-### Phase 9 · 🎁 Sweepstakes review
+### Phase 8 · 🎁 Sweepstakes review
 Review the day's new sweepstakes (snapshot SWEEPSTAKES section). Points/miles
 giveaways lead. Flag the best as a Phase-16 social candidate; keep/dismiss the
 rest. Auto-skip if none new.
 
-### Phase 10 · ✈️ Changes/Cancellations — next airline (1/day)
+### Phase 9 · ✈️ Changes/Cancellations — next airline (1/day)
 Add the "Changes, Cancellations & Delays" section (`programs.changes_policy`) to
 the next-priority airline page — **cadence 1 airline/day**. Verify against the
 airline's OWN official change/cancel page (no blogs). Priority: United, Delta, AA,
 Alaska/Atmos, Aeroplan, Avios, ANA, Cathay, Emirates, Turkish, KrisFlyer, Virgin,
 LifeMiles… See [[project_award_change_cancel_section]].
 
-### Phase 11 · 🔎 Roadmap mining
+### Phase 10 · 🔎 Roadmap mining
 Review everything done today (quick takes, page fixes, intel rejected, things
 verified) and pull out NEW article topics worth adding to the roadmap. Each →
 a `content_ideas` row tagged to a pillar (`roadmap_reviewed=true`), or enrich an
 existing idea. Show Jill the candidates; add on her nod.
 
-### Phase 12 · ✍️ Write & publish one article
+### Phase 11 · ✍️ Write & publish one article
 Pick the single highest-value roadmap-backed idea (Program-Guides-first) and WRITE
 it — draft in Jill's voice, fact-check against official sources, show her the full
 draft, publish. One real piece a day.
+
+### Phase 12 · 🔗 Chain sweep (LAST in Act B — covers the whole day)
+Runs last in Act B so it sweeps **everything produced today** — publishes (Phase 5),
+page fixes (Phase 6), the article (Phase 11), experiences/sweepstakes reviewed — not
+just the morning intel. Look for **perk chains**: one benefit unlocks another, which
+unlocks another. Canonical: Amex Platinum → free Walmart+ → free Paramount+; a card's
+elite status → free Club Avolta status match → Radisson VIP + Avis President's Club +
+Plaza Premium lounge discount. Best candidates cluster in the `card_credit` /
+`partner_change` / `status_promo` intel type-groups (`morning-triage-by-type`).
+
+**⚠️ VERIFY BEFORE FLAGGING OR ADDING (2026-08-28).** Do NOT present something as a
+chain until you've confirmed it against the **issuer/network's official terms**. Two
+perks listed together ("free Instacart+ and Peacock") are usually NOT a chain — that
+one looked like Amex Plat → Walmart+ → Paramount+ but the terms showed Instacart+ and
+Peacock are two **separate** Mastercard perks, no "A unlocks B". Flag as *candidates*
+until verified.
+
+**Two homes, pick the right one:**
+- **True chain** (A unlocks B unlocks C) → `lib/perkChains.ts` + the Chain Reactions
+  guide (`app/(site)/guides/hidden-perk-stacks/page.tsx`, slug kept). Renders on
+  program pages AND card pages (via `cardSlug` / `programSlugs`).
+- **Network-level perk** (a standalone benefit shared across a network tier, e.g.
+  Mastercard World Elite) → `lib/networkPerks.ts` (NOT the chain guide). One
+  definition renders on every matching card via `CardBenefitStacks`, with `validThrough`
+  auto-expiry. `source`/`verifiedAt` are internal (not rendered); a `sourceUrl` shows
+  as a public "official terms" link.
+
+**Flag any chain to Jill explicitly** (she asked to always be told). No chain today →
+say so in one line. See [[feedback_always_flag_perk_chains]], [[feedback_verify_before_correcting]].
 
 ---
 
@@ -318,7 +321,7 @@ my rec.** Example: "/alerts cards wrap awkwardly at 320px and the CTA is a thin
 text link — bump to a real button and tighten the grid. Effort S."
 
 ### Phase 16 · 📣 Social post (pick ONE, LAST)
-The daily social post. Candidates: the ⭐ sweepstakes pick (Phase 9), a deal
+The daily social post. Candidates: the ⭐ sweepstakes pick (Phase 8), a deal
 expiring in 48h (last-chance), a marquee experience, or today's best published
 quick take / article (Phase 5/12). Recommend THE one with a one-line
 why-it-engages + our value-add. Draft only on Jill's go (facebook-post /
@@ -332,7 +335,7 @@ the day's wrap-up, not a parallel track. On any other weekday this phase does no
 exist; do not surface it.
 
 Build it from the day's material, newest-first:
-- **today's verified publishes** (Phase 5 alerts + Phase 12 article),
+- **today's verified publishes** (Phase 5 alerts + Phase 11 article),
 - **newsletter items expiring soon** (snapshot `NEWSLETTER ITEMS EXPIRING SOON`)
   and **parked `newsletter_idea` intel** (Phase 4 sent items here),
 - **Jill's Takes** (the biweekly-anecdote inbox), and the week's best evergreen.
