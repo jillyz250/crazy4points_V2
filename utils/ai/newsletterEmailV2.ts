@@ -462,6 +462,7 @@ function renderTopExperiences(items: TopExperienceItem[] | null, origin: string)
       ${sectionHeading('Experiences', '10px')}
       <p style="margin:0 0 16px;font-family:${FONT_BODY};font-size:13px;line-height:1.55;color:${MUTED};">${intro}</p>
       ${cards}
+      ${anyAuction ? `<p style="margin:14px 0 0;font-family:${FONT_BODY};font-size:12px;line-height:1.45;color:${MUTED};font-style:italic;">These are live auctions, so the bids shown were current when we sent this and change constantly. Check the listing for the latest before you plan around a price.</p>` : ''}
     </td></tr>`
 }
 
