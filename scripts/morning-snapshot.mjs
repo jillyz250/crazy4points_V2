@@ -304,11 +304,23 @@ const badWatch = [...new Map((watchRuns || []).map((r) => [r.program_slug, r])).
 const watchFlag = badWatch.length
   ? `⚠️ ${badWatch.length} empty/failed: ${badWatch.map((r) => r.program_slug).join(', ')} — auto-retries next run; watchdog emails if >36h`
   : 'OK'
+// Unresolved logged errors (2026-08-28, Jill): a background-job failure written
+// to system_errors must appear on the board, not hide in /admin/errors. This is
+// what makes Phase 1's error check actually fire every morning.
+const sysErrors = (await q('system errors', db.from('system_errors')
+  .select('source, message, created_at').is('resolved_at', null)
+  .order('created_at', { ascending: false }))).data
+const errFlag = sysErrors.length
+  ? `🔴 ${sysErrors.length} unresolved: ${[...new Set(sysErrors.map((e) => e.source))].join(', ')} -> /admin/errors`
+  : 'OK'
+
 console.log('HEALTH (step 0):')
 console.log(`  Daily brief . ${briefFlag}`)
 console.log(`  Scout intel . ${scoutFlag}`)
 console.log(`  Triage classifier . ${triageBacklogBad ? `⚠️ BACKLOG ${intelToTriage} undecided, oldest ${triageOldestDays}d — planner likely stalled (check API budget)` : 'OK'}`)
 console.log(`  Watchers (experiences) . ${watchFlag}`)
+console.log(`  Logged errors . ${errFlag}`)
+if (sysErrors.length) for (const e of sysErrors.slice(0, 5)) console.log(`      • [${e.source}] ${(e.message || '').slice(0, 90)}`)
 console.log(B)
 console.log('QUEUE COUNTS (act highest-first):')
 console.log(`  Pending drafts (needs_review) . ${n(pendingReview)}   -> /admin/drafts?view=needs_review`)

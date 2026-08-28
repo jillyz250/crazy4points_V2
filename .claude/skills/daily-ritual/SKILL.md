@@ -99,13 +99,18 @@ counts + reminders + deals-expiring:
 
 ```
 ☀️ Good morning, Jill — Wed, Aug 12
-🩺 Health:   brief ⚠️ 2d stale · Scout ✅ · watchers ✅        ← flag anything red
+🩺 Health:   brief ⚠️ 2d stale · Scout ✅ · watchers ✅ · errors 🔴 1    ← flag anything red
 🔴 Urgent:   1 deal ends in 48h · 2 reminders due today
 📋 Decisions: ~4 real · 12 auto-handled · 7 page-affecting facts
 🛠️ Improve:  today's process / data / visual picks queued (Phases 15-17)
 → say "next" to start Phase 1
 ```
-Then wait for `next`.
+Then wait for `next`. **The Health line MUST include a `Logged errors` state from
+the snapshot's `Logged errors` HEALTH line (`system_errors` where `resolved_at IS
+NULL`).** Any 🔴 there is a hard-stop flag — name it on the board and resolve or
+escalate it in Phase 1; never open the day reporting "all green" while an error
+sits unresolved (2026-08-28: an `experiences-coverage` error hid for a day because
+the board didn't surface logged errors at all).
 
 ---
 
