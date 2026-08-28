@@ -53,6 +53,27 @@ function linkFor(row: SweepRow): string {
   return '/sweepstakes'
 }
 
+/**
+ * Belt-and-suspenders link check right before the newsletter ships. The watcher
+ * validates links nightly, but ticketed sweep subdomains (…perkstickets.com) can
+ * 404 within hours of a run — and this is the last gate before a reader clicks.
+ * A dead link (404/410/5xx/network error) is dropped; 401/403 (bot walls) and our
+ * own /sweepstakes fallback are treated as alive.
+ */
+async function linkIsAlive(url: string): Promise<boolean> {
+  if (!/^https?:\/\//i.test(url)) return true // internal fallback like /sweepstakes
+  try {
+    const r = await fetch(url, {
+      redirect: 'follow',
+      signal: AbortSignal.timeout(10_000),
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+    })
+    return !(r.status === 404 || r.status === 410 || r.status >= 500)
+  } catch {
+    return false
+  }
+}
+
 export async function getTopSweepstakes(supabase: SupabaseClient): Promise<TopSweepstakesItem[]> {
   const today = new Date().toISOString().slice(0, 10)
 
@@ -95,11 +116,20 @@ export async function getTopSweepstakes(supabase: SupabaseClient): Promise<TopSw
     deduped.push(r)
   }
 
-  return deduped.slice(0, CAP).map((r) => ({
-    program: (r.program ?? '').trim(),
-    title: (r.title ?? '').trim(),
-    prize: r.prize ? String(r.prize).trim() : null,
-    deadline: fmtDeadline(r.ends_at),
-    link_url: linkFor(r),
-  }))
+  // Verify links before shipping, but only as far down the list as we need: walk
+  // the deduped rows in priority order, keep the first CAP whose link is alive.
+  const out: TopSweepstakesItem[] = []
+  for (const r of deduped) {
+    if (out.length >= CAP) break
+    const link = linkFor(r)
+    if (!(await linkIsAlive(link))) continue
+    out.push({
+      program: (r.program ?? '').trim(),
+      title: (r.title ?? '').trim(),
+      prize: r.prize ? String(r.prize).trim() : null,
+      deadline: fmtDeadline(r.ends_at),
+      link_url: link,
+    })
+  }
+  return out
 }
