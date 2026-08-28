@@ -23,6 +23,25 @@ export async function toggleSweepFeatured(formData: FormData): Promise<void> {
 }
 
 /**
+ * Toggle whether a sweepstakes has been Reviewed (Jill has looked at it and made
+ * a call, whether or not she Featured it). Mirrors the Experiences review flow:
+ * reviewed rows drop out of the "still to look at" view so the board shrinks as
+ * she curates. Separate from featured/posted_social.
+ */
+export async function toggleSweepReviewed(formData: FormData): Promise<void> {
+  await assertAdmin()
+  const id = String(formData.get('id') ?? '').trim()
+  const next = String(formData.get('next') ?? '') === 'true'
+  if (!id) return
+  const supabase = createAdminClient()
+  await supabase
+    .from('sweepstakes')
+    .update({ reviewed_at: next ? new Date().toISOString() : null })
+    .eq('id', id)
+  revalidatePath('/admin/sweepstakes')
+}
+
+/**
  * Generate a Facebook post draft for one sweepstakes, on demand.
  *
  * Feeds the sweep's VERIFIED facts (program, prize, deadline, mechanic) to the

@@ -4,7 +4,7 @@ import { Card, CardBody } from '@/components/admin/ui/Card'
 import { Badge } from '@/components/admin/ui/Badge'
 import { EmptyState } from '@/components/admin/ui/EmptyState'
 import { isTimeshareSweep } from '@/lib/sweepstakes/categories'
-import { togglePosted, endSweep, draftSweepstakesPostAction, clearSweepstakesDraftAction, toggleSweepFeatured } from './actions'
+import { togglePosted, endSweep, draftSweepstakesPostAction, clearSweepstakesDraftAction, toggleSweepFeatured, toggleSweepReviewed } from './actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,6 +21,7 @@ type Sweep = {
   posted_social: boolean
   social_draft: string | null
   featured: boolean | null
+  reviewed_at: string | null
   first_seen: string
   last_seen: string
 }
@@ -46,12 +47,15 @@ export default async function SweepstakesPage() {
     .from('sweepstakes')
     .select('*')
     .eq('status', 'running')
-    // Needs-a-post first, then soonest deadline, then newest.
+    // Un-reviewed first (the "still to look at" pile), then needs-a-post, then
+    // soonest deadline, then newest.
+    .order('reviewed_at', { ascending: true, nullsFirst: true })
     .order('posted_social', { ascending: true })
     .order('ends_at', { ascending: true, nullsFirst: false })
     .order('first_seen', { ascending: false })
   const sweeps = (data ?? []) as Sweep[]
   const needPost = sweeps.filter((s) => !s.posted_social).length
+  const toReview = sweeps.filter((s) => !s.reviewed_at).length
 
   return (
     <div>
@@ -60,11 +64,10 @@ export default async function SweepstakesPage() {
         description="Live points/miles sweepstakes the daily watcher (/api/cron/sweepstakes-watch) is tracking. Each running one is a Facebook-post opportunity — the Wyndham giveaway was our best post ever. Say “facebook post” and Claude drafts it (point the ad at a c4p landing page). Mark it posted once it's live."
       />
 
-      {needPost > 0 && (
-        <div style={{ marginBottom: '1rem', fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-primary, #6B2D8F)' }}>
-          {needPost} {needPost === 1 ? 'sweepstakes needs' : 'sweepstakes need'} a social post.
-        </div>
-      )}
+      <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', marginBottom: '1rem', fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-primary, #6B2D8F)' }}>
+        {toReview > 0 && <span>{toReview} to review</span>}
+        {needPost > 0 && <span>{needPost} {needPost === 1 ? 'needs' : 'need'} a social post</span>}
+      </div>
 
       {sweeps.length === 0 ? (
         <EmptyState title="No live sweepstakes" description="The watcher hasn't found any running sweepstakes yet. It scrapes the configured source pages daily." />
@@ -78,6 +81,7 @@ export default async function SweepstakesPage() {
                 <CardBody>
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
                     <Badge tone="neutral">{s.program}</Badge>
+                    {s.reviewed_at && <Badge tone="neutral">✓ Reviewed</Badge>}
                     {isTimeshareSweep(s.program, s.prize, s.title) && <Badge tone="warning">⚠ Timeshare</Badge>}
                     {mech && <Badge tone="neutral">{mech}</Badge>}
                     {ends && <Badge tone="warning">{ends}</Badge>}
@@ -108,6 +112,13 @@ export default async function SweepstakesPage() {
                       seen {new Date(s.last_seen).toLocaleDateString()}
                     </span>
                     <div style={{ display: 'flex', gap: '0.5rem', marginLeft: 'auto' }}>
+                      <form action={toggleSweepReviewed}>
+                        <input type="hidden" name="id" value={s.id} />
+                        <input type="hidden" name="next" value={(!s.reviewed_at).toString()} />
+                        <button type="submit" className="admin-btn admin-btn-ghost" style={{ fontSize: '0.8125rem' }}>
+                          {s.reviewed_at ? 'Unreview' : '✓ Reviewed'}
+                        </button>
+                      </form>
                       <form action={toggleSweepFeatured}>
                         <input type="hidden" name="id" value={s.id} />
                         <input type="hidden" name="next" value={(!s.featured).toString()} />

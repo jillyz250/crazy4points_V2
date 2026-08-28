@@ -107,6 +107,12 @@ async function extractSweepstakes(
 ): Promise<ParsedSweep[]> {
   const today = new Date().toISOString().slice(0, 10)
   const isAgg = source.kind === 'aggregator'
+  // Aggregator directory pages are long and front-load nav/ToC chrome, so the
+  // real sweep listings sit well past the first 12K chars — a 12K cut returned
+  // ZERO from Sweeps Advantage (hotels) while 30K recovered a live Choice
+  // Privileges sweep (diagnosed 2026-08-28). Program pages are small offer pages;
+  // 12K is plenty and keeps their token cost down.
+  const budget = isAgg ? 30_000 : 12_000
   const prompt = isAgg
     ? // Aggregator: a directory listing MANY sponsors' sweeps. Keep ONLY sweeps
       // run by a points/miles loyalty program (or whose prize IS that program's
@@ -123,7 +129,7 @@ async function extractSweepstakes(
       ` "prize": what you can win (null if unclear),\n` +
       ` "entry_url": the enter/official-rules link if shown (else null),\n` +
       ` "ends_at": ISO YYYY-MM-DD enter-by date if stated (else null)}\n` +
-      `Only use info the page states - never invent. If none qualify, return [].\n\nPAGE:\n${md.slice(0, 12000)}`
+      `Only use info the page states - never invent. If none qualify, return [].\n\nPAGE:\n${md.slice(0, budget)}`
     : `Today is ${today}. Below is a page from ${source.program}. Extract every CURRENTLY-RUNNING ` +
       `free-to-enter sweepstakes, giveaway, or prize drawing (NOT generic offers, bonuses, sales, or ` +
       `bid-to-win auctions where you spend miles/points to bid, e.g. SkyMiles Experiences) as a STRICT ` +
