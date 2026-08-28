@@ -10,6 +10,7 @@ import { getExperienceProgramsForCard } from '@/utils/cards/getExperienceProgram
 import TransferPartnersTable from '@/components/programs/TransferPartnersTable'
 import RotatingCategoriesBanner from '@/components/cards/RotatingCategoriesBanner'
 import SimpleTile from '@/components/programs/SimpleTile'
+import CardBenefitStacks from '@/components/cards/CardBenefitStacks'
 import { safeJsonLd } from '@/lib/jsonLd'
 import { getCardGuides } from '@/lib/guides'
 
@@ -763,6 +764,10 @@ export default async function CardPage({
           <p style={{ fontSize: '1.0625rem', lineHeight: 1.65 }}>{introExpanded}</p>
         </section>
       )}
+
+      {/* Network perks (Mastercard World Elite, etc.) + any perk chain that starts
+          from this card — one shared definition each, no per-card drift. */}
+      <CardBenefitStacks network={card.network} networkLevel={card.network_level} cardSlug={card.slug} />
 
       {/* Tile grid — each major section becomes a clickable, expandable block */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(20rem, 1fr))', gap: '1rem', marginBottom: '2.5rem' }}>

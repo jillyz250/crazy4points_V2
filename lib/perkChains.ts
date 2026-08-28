@@ -42,6 +42,11 @@ export function perkChainsForProgram(slug: string): PerkChain[] {
   return PERK_CHAINS.filter((c) => c.programSlugs?.includes(slug))
 }
 
+/** Chains that START from a given card — powers the per-card benefit-stacks section. */
+export function perkChainsForCard(cardSlug: string): PerkChain[] {
+  return PERK_CHAINS.filter((c) => c.cardSlug === cardSlug)
+}
+
 export const PERK_CHAINS: PerkChain[] = [
   {
     id: 'amex-plat-walmart-streaming',

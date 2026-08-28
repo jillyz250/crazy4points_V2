@@ -2040,6 +2040,10 @@ export interface CreditCard {
   annual_fee_usd: number | null
   card_type: CardType
   card_tier: CardTier | null
+  /** Payment network ('mastercard' | 'visa' | 'amex' | 'discover') and its tier
+   *  ('world_elite', 'world', 'infinite', …). Powers network-level perks. */
+  network: string | null
+  network_level: string | null
   currency_program_id: string | null
   co_brand_program_id: string | null
   /** When true, the card transfers points directly to the airline/hotel
