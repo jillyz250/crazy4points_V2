@@ -98,10 +98,27 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
           </div>
         )}
 
-        {/* Primary conversion: the newsletter capture. */}
+        {/* PRIMARY action: go bid on the real offer. This is what the visitor
+            came for (the ad promised it), so it leads — big and obvious. */}
+        <div className="mt-7 rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] p-5 text-center">
+          <p className="font-body text-[var(--color-text-primary)]">
+            You bid with points on the official page. The highest bid wins, and bidding closes before
+            the event.
+          </p>
+          <a
+            href={l.outbound_url}
+            target="_blank"
+            rel="noopener noreferrer nofollow"
+            className="rg-tap-target mt-4 inline-block rounded-[var(--radius-ui)] bg-[var(--color-accent)] px-8 py-4 font-ui text-base font-bold uppercase tracking-[0.08em] text-[#1A1A1A] transition-opacity hover:opacity-90"
+          >
+            {l.outbound_label} ↗
+          </a>
+        </div>
+
+        {/* SECONDARY conversion: the newsletter capture. */}
         <aside className="my-8 overflow-hidden rounded-[var(--radius-card)] bg-[var(--color-primary)] px-6 py-7 sm:px-8">
           <p className="font-ui text-xs font-semibold uppercase tracking-[0.2em] !text-[var(--color-accent)]">
-            Before you go
+            Not ready to bid?
           </p>
           <h2 className="mt-2 font-display text-2xl font-semibold !text-white">
             Get deals like this in your inbox
@@ -115,15 +132,6 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
           </div>
         </aside>
 
-        {/* Secondary: outbound to the real offer. */}
-        <a
-          href={l.outbound_url}
-          target="_blank"
-          rel="noopener noreferrer nofollow"
-          className="rg-btn-secondary inline-block"
-        >
-          {l.outbound_label} ↗
-        </a>
         <p className="mt-3 font-body text-sm text-[var(--color-text-secondary)]">
           crazy4points is not affiliated with the brands featured. Always confirm the current terms
           on the official page before you redeem.
