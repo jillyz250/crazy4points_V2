@@ -381,6 +381,21 @@ her** (the Verification standard — official + independent current source,
 staleness-guard, red-team, show sourcing per fact), show the FULL draft, publish
 on her nod. Two real pieces a day: one evergreen guide + one general blog.
 
+**C) One CARD COMPANION GUIDE — 1/day backfill (Jill, 2026-08-28).** In addition to
+A+B, produce ONE per-card "How to Get the Most from [Card]" guide each day, working
+through the ~108 active `credit_cards` (see `PLATFORM_TRACK` "Per-card companion
+guides"). It's semi-data-driven: pull the card's VERIFIED welcome offer, credits,
+annual fee, `CardBenefitStacks` (network perks + perk chains), transfer partners,
+and `good_to_know`, then write the maximize-it guide, cross-link it from the card
+page, and register it in `lib/guides.ts` (Cards). Still multi-source-verify every
+figure and check the card page's own prose can't drift (see
+[[feedback_check_prose_on_data_change]]). Priority: highest-traffic / most-applied
+cards first (Chase Sapphire, Amex Platinum/Gold, Capital One Venture X…). **OPEN
+SHAPE DECISION — confirm with Jill on the FIRST one:** standalone `/guides` page per
+card (recommended, SEO/AEO win, "companion" = accompanies the card) vs an on-page
+prose section (redundant with good_to_know + CardBenefitStacks). Default to
+standalone until she says otherwise.
+
 ### Phase 14 · 🔗 Chain sweep (LAST in Act B — covers the whole day)
 Runs last in Act B so it sweeps **everything produced today** — publishes (Phase 5),
 page fixes (Phase 6), the article (Phase 13), experiences/sweepstakes reviewed — not
