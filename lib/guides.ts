@@ -141,6 +141,15 @@ export const GUIDES: Guide[] = [
     category: 'cards',
     updated: '2026-08-24',
   },
+  {
+    slug: 'how-to-use-chase-ultimate-rewards',
+    title: 'How to Use Chase Ultimate Rewards',
+    description:
+      'Earn Chase points, unlock transfers with the one card rule that matters, and turn them into outsized value at all 14 partners. Includes the Hyatt sweet spot and the new card-dependent ratio.',
+    category: 'cards',
+    updated: '2026-08-28',
+    featured: true,
+  },
 ]
 
 /**
