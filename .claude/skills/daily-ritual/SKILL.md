@@ -37,7 +37,7 @@ publish, write, **and make the platform better than yesterday**.
    And genuinely evaluate for yourself: if you disagree with Jill's call on a
    phase (or anything else), say so with your reason — she wants a real advisor,
    not agreement.** See [[feedback_proactive_expert_guidance]].
-3. **Same layout every day.** Fixed card header (`PHASE N of 19 · TITLE`; `of 20`
+3. **Same layout every day.** Fixed card header (`PHASE N of 20 · TITLE`; `of 21`
    on Thursdays), fixed columns, fixed verdict words. Consistency is the feature.
 4. **Empty phases auto-skip** with one line (`Phase 9 · Experiences — none new ✅`).
 5. **Jill drives:** `next` / `skip` / `back` / `done`. **Never PROPOSE skipping or
@@ -61,9 +61,9 @@ The phases fall in three acts: **A. Clear the overnight (1-5)** ·
 daily wrap. The chain check runs LAST in Act B (Phase 14, after the articles) so it
 sweeps **everything produced today** (publishes, page fixes, the articles,
 experiences). **Analytics review is the daily wrap and runs LAST every day**
-(Phase 19). On **Thursdays only**, the **Newsletter build** runs just before it as
-Phase 19, pushing Analytics to Phase 20. Header the run as `PHASE N of 19`; on
-Thursdays, `N of 20`.
+(Phase 20). On **Thursdays only**, the **Newsletter build** runs just before it as
+Phase 20, pushing Analytics to Phase 21. Header the run as `PHASE N of 20`; on
+Thursdays, `N of 21`.
 
 ---
 
@@ -473,13 +473,31 @@ quick take / article (Phase 5/13). Recommend THE one with a one-line
 why-it-engages + our value-add. Draft only on Jill's go (facebook-post /
 instagram-post skill). We always want a daily post.
 
-### Phase 19 · 📰 Newsletter build (THURSDAYS ONLY — last content phase, before Analytics)
+### Phase 19 · 🖼️ Campaign creative for the image library
+Build ONE reusable ad creative for the library (`/admin/creatives` +
+`campaign_creatives`, mirrored in `plans/campaign-creative-library.md`). Pick the
+day's best campaign-worthy candidate — a marquee experience/Moment, a big transfer
+bonus, a sweet spot, a flash drop — and produce a scroll-stopping creative for it:
+- **Write a tailored Copilot prompt** from the reusable template
+  ([[reference_campaign_landing_pages]]), swapping the **color scheme to the event's
+  team/brand colors** (brand-safe — colors aren't trademarks, only logos are; NEVER
+  a real team logo) and the hero words/banner/date to the offer. Hand it to Jill to
+  generate in Copilot.
+- When she has the image, **catalog it** (insert a `campaign_creatives` row: name,
+  event, category, color_scheme, prompt, image_url in `public/campaigns/`, used_on)
+  so it appears in the gallery and is one-click reusable next time.
+- Build the clean `build_graphic.py` counterpart too when we'll A/B test it.
+No campaign-worthy candidate today → auto-skip in one line; never force a creative
+just to have one. The point is a growing library that's ready the moment a campaign
+is.
+
+### Phase 20 · 📰 Newsletter build (THURSDAYS ONLY — last content phase, before Analytics)
 Runs only on Thursdays (the snapshot header prints `WEEKLY: Newsletter day`), and
 **always the last content phase** (only the Analytics wrap follows it) so every
 alert published, page fixed, experience/sweepstakes picked, and article written
 *earlier today* is eligible for it — the newsletter is the day's content wrap-up,
 not a parallel track. On any other weekday this phase does not exist; do not
-surface it (Analytics then becomes Phase 19).
+surface it (Analytics then becomes Phase 20).
 
 Build it from the day's material, newest-first:
 - **today's verified publishes** (Phase 5 alerts + Phase 13 article),
@@ -496,7 +514,7 @@ point math. **Show Jill the FULL draft before sending — always.** On her appro
 send via Resend, **throttled to ≤4/sec** ([[feedback_resend_rate_limit]]). Receipt:
 what led, how many stories, recipient count.
 
-### Phase 19 (Phase 20 on Thursdays) · 📊 Analytics review — the daily wrap
+### Phase 20 (Phase 21 on Thursdays) · 📊 Analytics review — the daily wrap
 Runs **LAST every day** (after the Newsletter on Thursdays). Added 2026-08-28
 (Jill). Review the numbers and pull **1-2 insights that should change tomorrow's
 priorities** — do not just recite metrics:
@@ -515,7 +533,7 @@ name which metrics we CAN'T yet see (a gap to build). See [[project_newsletter_o
 
 ---
 
-## CLOSE (send after the last phase — Phase 19 Analytics, or Phase 20 on Thursdays)
+## CLOSE (send after the last phase — Phase 20 Analytics, or Phase 21 on Thursdays)
 A fixed recap:
 ```
 🌙 WRAP — Aug 12
