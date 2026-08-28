@@ -443,10 +443,27 @@ unambiguous or the run aborts.
 
 ---
 
-## Verification (run on chart-worthy candidates BEFORE Phase 5's card)
+## Verification (run on ANY factual draft BEFORE it reaches Jill)
+**⭐ GLOBAL STANDARD — see [[feedback_multi_source_verify_before_draft]].** The
+accuracy safety net is MY process, not Jill; she approves voice/judgment, never
+catches my facts. Before presenting ANY new factual item (alert, program page,
+`changes_policy`, card, chain/network perk, guide, social, newsletter):
+- **A) Multi-source BEFORE the draft.** Every specific figure (fee, %, date,
+  threshold, ratio, count) confirmed by the **official page AND ≥1 independent
+  current source** — one search is NEVER enough. Sources disagree → dig or flag.
+- **B) Staleness guard.** Recently rebranded/merged program (Atmos, any rename) →
+  old pages are suspect; explicitly hunt the CURRENT policy. An official page can
+  be stale and search will still hand it back as authoritative.
+- **C) Red-team my own draft** ("what would an expert dispute?") and re-verify the
+  shakiest facts myself — I am the adversarial check.
+- **D) Show sourcing per fact**; flag single-source / low-confidence out loud.
+  (2026-08-28: I nearly shipped a stale Atmos $125 fee off one search; caught only
+  because Jill asked Copilot. Never again.)
+
 Same method every time:
-1. **Never verify from a blog/aggregator** — they contradict themselves. Blogs are
-   a tip, never the source. Cite issuer/official or nothing.
+1. **A blog is corroboration, never the sole source.** Blogs contradict themselves,
+   so cite issuer/official first — but note an official page can be STALE, so
+   confirm with a current independent source too (rule A above).
 2. A forwarded email's `source_url` is a tracking blob → don't cite/verify from it.
 3. Structural facts → check `programs.scrape_urls` as a shortcut (~53/154 have it),
    else Firecrawl `site:<issuer-domain>`.

@@ -6,6 +6,7 @@
 - **Fix root causes, not just symptoms.** If a task surfaces a bug, a fragile process, or a data-quality gap, fix the underlying cause and quantify the blast radius (e.g. "23 of 71 alerts affected"), don't patch the one instance.
 - **Proactively recommend improvements — even unasked.** Whenever you spot a cheaper, simpler, safer, or higher-leverage path, or an efficiency/accuracy win, say so before executing and offer it. Jill wants these recommendations surfaced, not withheld.
 - **Accuracy is non-negotiable.** Every published fact traces to an official/issuer source (never a blog); verify before asserting; when you can't verify, say so and omit. See the editorial rules below and in memory.
+- **⭐ Multi-source verify BEFORE any factual draft reaches the user (global).** Every specific figure (fee, %, date, threshold, ratio, count) in a NEW item must be confirmed by the **official page AND ≥1 independent current source** before it's presented — one search is never enough, an official page can be STALE (staleness-guard rebranded/merged programs), and you must red-team your own facts and show sourcing per fact. The user approves voice and judgment, never catches your facts. See `feedback_multi_source_verify_before_draft` in memory.
 - **Build reusable rails over one-off fixes.** Prefer a vetted helper/field/section that generalizes (and a memory note) over a throwaway script that solves today only.
 - **Leave a trail.** Verify your work (typecheck, real render/DB checks), and record durable lessons so the improvement compounds across sessions.
 
