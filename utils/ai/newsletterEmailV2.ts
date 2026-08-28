@@ -235,17 +235,33 @@ function goldPill(text: string): string {
   return `<span style="display:inline-block;background:#FBF3D9;color:#7A5B00;font-family:${FONT_UI};font-size:11px;font-weight:800;padding:2px 9px;border-radius:999px;white-space:nowrap;">${esc(text)}</span>`
 }
 
+const DEADLINE_MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
+/** Sort key from a human deadline like "Ends Aug 31" → month*100+day, so offers
+ *  render soonest-first (Aug before Sep). Undated / unparseable sort last. (Year
+ *  isn't in the string; near-term offers never straddle a year boundary here.) */
+function deadlineSortKey(deadline: string | null | undefined): number {
+  if (!deadline) return Number.POSITIVE_INFINITY
+  const m = deadline.toLowerCase().match(/([a-z]{3})\s+(\d{1,2})/)
+  if (!m) return Number.POSITIVE_INFINITY
+  const mi = DEADLINE_MONTHS.indexOf(m[1])
+  if (mi < 0) return Number.POSITIVE_INFINITY
+  return mi * 100 + parseInt(m[2], 10)
+}
+
 function renderOfferBucket(label: string, items: OfferItem[], origin: string, accent: string): string {
   if (!items || items.length === 0) return ''
   // Dedupe within a bucket by headline (defensive against the same offer being
   // pulled twice).
   const seen = new Set<string>()
-  const unique = items.filter((it) => {
-    const key = (it.headline ?? '').trim().toLowerCase()
-    if (!key || seen.has(key)) return false
-    seen.add(key)
-    return true
-  })
+  const unique = items
+    .filter((it) => {
+      const key = (it.headline ?? '').trim().toLowerCase()
+      if (!key || seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+    // Soonest deadline first, so Aug offers group ahead of Sep (Jill's rule).
+    .sort((a, b) => deadlineSortKey(a.deadline) - deadlineSortKey(b.deadline))
   // Each offer is its own bordered card with a colored top strip (accent =
   // purple for transfers, gold for promos) so offers read as distinct, not a
   // wall of same-looking lines. The program name is bold purple; the deadline
@@ -296,38 +312,92 @@ function renderActiveOffers(offers: ActiveOffers | null, origin: string): string
     </td></tr>`
 }
 
+/**
+ * Per-card brand accent + logo domain for the elevated-bonus cards, so each
+ * reads in its own colors (Delta red, Chase blue, ...) with the brand's mark,
+ * echoing the site's CardFace treatment. Co-brand airline/hotel keywords are
+ * checked BEFORE the issuer so a Delta Amex card reads Delta red, not Amex blue
+ * (the site colors those by issuer; here Jill wants the airline/hotel brand).
+ * Logos use the same Google-favicon marks as the site (ISSUER logos there).
+ */
+// Logos are self-hosted PNGs under /public/brand-logos (same favicon marks the
+// site uses), so they render reliably in email instead of depending on an
+// external favicon service.
+const ELEVATED_BRANDS: { re: RegExp; color: string; logo: string }[] = [
+  { re: /delta/i, color: '#E01933', logo: 'delta' },
+  { re: /wyndham/i, color: '#00519E', logo: 'wyndham' },
+  { re: /hyatt/i, color: '#00558C', logo: 'hyatt' },
+  { re: /aadvantage|american airlines/i, color: '#0078D2', logo: 'aa' },
+  { re: /atmos|alaska/i, color: '#01426A', logo: 'alaska' },
+  { re: /marriott|bonvoy/i, color: '#8A253B', logo: 'marriott' },
+  { re: /hilton|honors/i, color: '#104C97', logo: 'hilton' },
+  { re: /\bihg\b|one rewards/i, color: '#6B2D8F', logo: 'ihg' },
+  { re: /united/i, color: '#0033A0', logo: 'united' },
+  // Issuer fallbacks (bank cards without a co-brand travel program).
+  { re: /chase/i, color: '#1554B0', logo: 'chase' },
+  { re: /american express|amex/i, color: '#016FD0', logo: 'amex' },
+  { re: /citi/i, color: '#0A4EA2', logo: 'citi' },
+  { re: /capital one/i, color: '#C8102E', logo: 'capitalone' },
+  { re: /barclay/i, color: '#0075C9', logo: 'barclays' },
+]
+function elevatedBrand(cardName: string): { color: string; logo: string | null } {
+  for (const b of ELEVATED_BRANDS) if (b.re.test(cardName)) return { color: b.color, logo: b.logo }
+  return { color: PURPLE, logo: null }
+}
+
 function renderElevatedBonuses(items: ElevatedBonusItem[] | null, origin: string): string {
   if (!items || items.length === 0) return ''
   const fmt = (n: number) => n.toLocaleString('en-US')
-  const rows = items
+  const cards = items
     .map((it) => {
       const url = `${origin}${it.link_url}`
+      const brand = elevatedBrand(it.card_name)
       // Cash-back cards store a USD currency (USD_cash_back / USD_cashback); render
       // those as "$1,000" with no currency suffix instead of "1,000 USD_cash_back".
       const isUsd = /^USD/i.test(it.currency)
       const fmtAmt = (n: number) => (isUsd ? `$${fmt(n)}` : fmt(n))
       const newAmt = `${it.is_tiered ? 'Up to ' : ''}${fmtAmt(it.current_amount)}`
-      const currencySuffix = isUsd ? '' : ` ${it.currency}`
+      const currencySuffix = isUsd ? '' : ` ${esc(it.currency)}`
       const spend = it.spend_required_usd
-        ? ` after $${fmt(it.spend_required_usd)}${it.spend_window_label ? ` in ${it.spend_window_label}` : ''}`
+        ? `after $${fmt(it.spend_required_usd)}${it.spend_window_label ? ` in ${esc(it.spend_window_label)}` : ''}`
         : ''
-      const deadline = it.deadline
-        ? `<span style="color:${MUTED};"> &middot; ${esc(it.deadline)}</span>`
+      const deadlinePill = it.deadline ? `${goldPill(it.deadline)}` : ''
+      // Brand logo chip on a white tile (top-right), self-hosted so it renders in email.
+      const imgBase = origin.replace('https://crazy4points.com', 'https://www.crazy4points.com')
+      const logo = brand.logo
+        ? `<td valign="top" align="right" width="34" style="width:34px;"><span style="display:inline-block;padding:3px;border-radius:5px;background:#ffffff;border:1px solid ${BORDER};line-height:0;"><img src="${imgBase}/brand-logos/${brand.logo}.png" alt="" width="24" height="24" style="display:block;width:24px;height:24px;border:0;border-radius:3px;" /></span></td>`
         : ''
+      // The value line: the usual (baseline) offer struck through in grey, then the
+      // elevated offer in the brand color so the jump reads at a glance.
       return `
-        <div style="padding:11px 0;border-bottom:1px solid ${BORDER};">
-          <a href="${url}" style="font-family:${FONT_BODY};font-size:15px;font-weight:700;color:${LINK_COLOR};text-decoration:none;">${esc(it.card_name)}</a>
-          <div style="margin-top:3px;font-family:${FONT_BODY};font-size:13.5px;line-height:1.45;color:${BODY};">
-            <strong style="color:${GOLD};">${esc(newAmt)}${esc(currencySuffix)}</strong>${esc(spend)}
-            <span style="color:${MUTED};">(normally ${esc(fmtAmt(it.baseline_amount))})</span>${deadline}
-          </div>
-        </div>`
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 12px;border:1px solid ${BORDER};border-radius:12px;background:#ffffff;overflow:hidden;">
+          <tr><td style="height:5px;line-height:5px;font-size:0;background:${brand.color};">&nbsp;</td></tr>
+          <tr><td style="padding:14px 16px;">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr>
+              <td valign="top" style="padding-right:10px;">
+                <a href="${url}" style="font-family:${FONT_DISPLAY};font-size:16px;font-weight:800;color:${PURPLE};text-decoration:none;">${esc(it.card_name)}</a>
+              </td>
+              ${logo}
+            </tr></table>
+            <p style="margin:9px 0 0;font-family:${FONT_BODY};font-size:14px;line-height:1.4;color:${BODY};">
+              <span style="color:${MUTED};text-decoration:line-through;font-weight:600;">${esc(fmtAmt(it.baseline_amount))}</span>
+              <span style="color:${MUTED};">&nbsp;&rarr;&nbsp;</span>
+              <strong style="color:${brand.color};font-weight:800;font-size:16px;">${esc(newAmt)}</strong><span style="color:${BODY};font-weight:700;">${currencySuffix}</span>
+            </p>
+            ${spend ? `<p style="margin:4px 0 0;font-family:${FONT_BODY};font-size:12.5px;line-height:1.4;color:${MUTED};">${spend}</p>` : ''}
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr>
+              <td valign="middle" style="padding-top:11px;">${deadlinePill}</td>
+              <td valign="middle" align="right" style="padding-top:11px;"><a href="${url}" style="font-family:${FONT_UI};font-size:12px;font-weight:700;color:${brand.color};text-decoration:none;">Learn more &rarr;</a></td>
+            </tr></table>
+          </td></tr>
+        </table>`
     })
     .join('')
   return `
     <tr><td style="padding:38px 30px 6px;">
       ${sectionHeading('Elevated Welcome Bonuses', '14px')}
-      ${rows}
+      <p style="margin:0 0 16px;font-family:${FONT_BODY};font-size:13px;line-height:1.55;color:${MUTED};">Welcome offers running above their usual level right now. Grab one while it is elevated.</p>
+      ${cards}
     </td></tr>`
 }
 
@@ -570,6 +640,32 @@ function renderCapOneTip(weekOf: string): string {
         </td></tr>`
 }
 
+/** A zero-height anchor row placed just before a section so the "In this issue"
+ *  links can jump to it. Anchors are honored in Apple Mail / iOS Mail; Gmail
+ *  ignores them, in which case the links still read as an elegant contents
+ *  preview (progressive enhancement). */
+function sectionAnchor(id: string): string {
+  return `<tr><td style="font-size:0;line-height:0;height:0;padding:0;"><a name="${id}" id="${id}" style="display:block;height:0;line-height:0;font-size:0;"></a></td></tr>`
+}
+
+/** The "In this issue" contents strip — a wrapped row of soft-purple pills, one
+ *  per present section, linked to its anchor. Hidden when fewer than 2 sections
+ *  (a table of one is pointless). */
+function renderTableOfContents(items: { id: string; label: string }[]): string {
+  if (items.length < 2) return ''
+  const pills = items
+    .map(
+      (s) =>
+        `<a href="#${s.id}" style="display:inline-block;background:${SOFT_BG};border:1px solid ${BORDER};color:${PURPLE};font-family:${FONT_UI};font-size:11px;font-weight:700;letter-spacing:0.3px;text-decoration:none;padding:6px 12px;border-radius:999px;margin:0 6px 8px 0;">${esc(s.label)}</a>`,
+    )
+    .join('')
+  return `
+        <tr><td style="padding:16px 30px 6px;background:#ffffff;">
+          <p style="margin:0 0 10px;font-family:${FONT_UI};font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:${GOLD};font-weight:800;">In this issue</p>
+          ${pills}
+        </td></tr>`
+}
+
 export function renderNewsletterV2Html({
   slots,
   weekOf,
@@ -593,6 +689,24 @@ export function renderNewsletterV2Html({
 
   // Hero kicker is unused in pass-5 hero (date-only). Kept in slots for
   // possible future use; just don't render it here.
+
+  // Build every content section once, in render order, each with an anchor id +
+  // TOC label. Empty sections drop out, so the "In this issue" strip and the
+  // body stay in sync automatically.
+  const allSections: { id: string; label: string; html: string }[] = [
+    { id: 'big-story', label: 'Big Story', html: renderBigStory(slots, origin) },
+    { id: 'sweet-spot', label: 'Sweet Spot', html: renderSweetSpot(slots.sweet_spot) },
+    { id: 'experiences', label: 'Experiences', html: renderTopExperiences(slots.top_experiences, origin) },
+    { id: 'sweepstakes', label: 'Sweepstakes', html: renderTopSweepstakes(slots.top_sweepstakes, origin) },
+    { id: 'also-happening', label: 'Also Happening', html: renderAlsoHappening(slots.also_happening, origin) },
+    { id: 'live-offers', label: 'Live Offers', html: renderActiveOffers(slots.active_offers, origin) },
+    { id: 'elevated', label: 'Elevated Bonuses', html: renderElevatedBonuses(slots.elevated_bonuses, origin) },
+    { id: 'game', label: 'Game', html: renderGame(slots.game, origin) },
+    { id: 'jills-take', label: "Jill's Take", html: renderJillsTake(slots.jills_take_html) },
+  ]
+  const sections = allSections.filter((s) => s.html && s.html.trim())
+  const tableOfContents = renderTableOfContents(sections.map((s) => ({ id: s.id, label: s.label })))
+  const sectionsHtml = sections.map((s) => `${sectionAnchor(s.id)}${s.html}`).join('\n')
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -626,15 +740,8 @@ export function renderNewsletterV2Html({
           <div style="height:1px;background:${BORDER};line-height:1px;font-size:0;">&nbsp;</div>
         </td></tr>
 
-        ${renderBigStory(slots, origin)}
-        ${renderSweetSpot(slots.sweet_spot)}
-        ${renderTopExperiences(slots.top_experiences, origin)}
-        ${renderTopSweepstakes(slots.top_sweepstakes, origin)}
-        ${renderAlsoHappening(slots.also_happening, origin)}
-        ${renderActiveOffers(slots.active_offers, origin)}
-        ${renderElevatedBonuses(slots.elevated_bonuses, origin)}
-        ${renderGame(slots.game, origin)}
-        ${renderJillsTake(slots.jills_take_html)}
+        ${tableOfContents}
+        ${sectionsHtml}
         ${renderCapOneTip(weekOf)}
 
         <!-- Footer: social row, then disclaimer, then fine-print links. -->
