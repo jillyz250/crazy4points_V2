@@ -236,6 +236,17 @@ DROPPED bonus makes a card page stale. For each pending signal:
   publishing). Issuer marketing/apply pages are authoritative.
 - **Raised / new best-ever** → PUBLISH a short factual alert + update the card
   page's welcome bonus. **Lowered / expired** → PAGE-NOTE (fix the card page).
+- **Elevated offers use the card's built-in display.** The card page already shows
+  an elevated offer as a red strikethrough of the standard + "Elevated offer" /
+  "Limited-time offer" badge (`is_elevated` + `baseline_bonus_amount`,
+  `app/(site)/cards/[slug]/page.tsx`). **But CHECK it FITS first** ([[feedback_check_existing_mechanism_before_editing]]):
+  the tile renders a MILE JUMP (lower baseline struck through, higher bonus shown),
+  and does NOT render `extras` (statement credits) or certs. A same-miles-plus-a-
+  credit offer (Delta Gold/Platinum, 2026-08-28) or a cert offer (Delta Reserve)
+  does NOT fit, marking it elevated would show a badge with no visible boost and
+  MISLEAD, so route those to an alert instead (or enhance the tile to show extras).
+  Our welcome-bonus rows deliberately track the STANDARD "BAU" offer (see the row
+  `notes`), not temporary promos; don't overwrite that without cause.
   **Targeted/personalized** → can't verify as general → REJECT.
 - **Coverage guardrail:** if Jill flags a SUB change we did NOT catch (Delta,
   2026-08-28 — the monitor had nothing that day), treat it as a monitor gap:
