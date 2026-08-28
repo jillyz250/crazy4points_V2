@@ -381,19 +381,9 @@ her** (the Verification standard — official + independent current source,
 staleness-guard, red-team, show sourcing per fact), show the FULL draft, publish
 on her nod. Two real pieces a day: one evergreen guide + one general blog.
 
-**C) One CARD COMPANION — 1/day backfill (Jill, 2026-08-28).** The companion is an
-**interactive, fillable PDF Jill designs** (Royal Glow, claim-every-credit + track-
-spend — see the Sapphire Reserve Companion pilot), NOT an HTML guide. Claude's daily
-role is the FACT ENGINE, not the layout: for the next card, assemble every figure it
-needs (welcome offer, each credit + its cap/reset/expiry date, annual fee, earn
-multipliers, `CardBenefitStacks` perks + chains, transfer partners, protections,
-key dates) and **MULTI-SOURCE-VERIFY each one vs the issuer's OWN terms** (official +
-independent current source; issuer pages that 403 WebFetch → in-app browser). Hand
-Jill a clean verified fact sheet (with per-fact sourcing + anything that changed),
-she builds/tweaks the PDF, then Claude hosts the finished PDF on the card page +
-links it from guides and checks the card page's prose can't drift
-([[feedback_check_prose_on_data_change]]). Priority: highest-traffic cards first
-(Sapphire Reserve pilot done; then Amex Platinum/Gold, Venture X…).
+The per-card **Card Companion PDF** initiative is its own workstream — see the
+standing project phase (**Phase 20**) at the end of this file. It is NOT one of the
+two daily articles.
 
 ### Phase 14 · 🔗 Chain sweep (LAST in Act B — covers the whole day)
 Runs last in Act B so it sweeps **everything produced today** — publishes (Phase 5),
@@ -531,6 +521,41 @@ Still owed by you: post the social · confirm the IHG deal terms
 Next-best move: <one line>
 ```
 Her outstanding actions ALWAYS last.
+
+---
+
+## Phase 20 · 💳 Card Companion PDFs (STANDING PROJECT — not daily yet)
+A separate workstream, outside the daily 1-19 flow. **Do NOT run it every morning
+or push it — Jill activates it when she is ready (she said so 2026-08-28).** The
+deliverable is a branded, fillable **interactive PDF Jill designs** (Royal Glow,
+"claim every credit + track your spend"), one per card — see the **Sapphire Reserve
+Companion (v54)**, the pilot. Claude is the fact engine + plumbing, never the
+layout. The phase has three setup steps, then a per-card cadence:
+
+1. **Fact-check the pilot (Sapphire Reserve) — FIRST, do NOT publish.** Red-team
+   EVERY figure on the PDF against Chase's OWN current terms (chase.com 403s
+   WebFetch → use the in-app browser): the $795 fee, the $2,190 credit stack and
+   each component, the dated credits (Lyft 9/30/2027, Apple TV+/Music 6/22/2027,
+   $250 Chase Travel hotel 12/31/26), the $75K spend-club unlocks, earn multipliers,
+   and protection limits. Deliver a per-line checklist (✅ accurate / ⚠️ changed →
+   fix, with the source per line). Multi-source-verify standard
+   ([[feedback_multi_source_verify_before_draft]]); nothing on the PDF changes
+   unless a real discrepancy is found. **Never set it live in this step.**
+2. **Email-gated hosting.** Build the delivery: a "Get the Companion" capture on the
+   card page (+ a `/guides` link) that takes an email and delivers the PDF — every
+   companion becomes a subscriber engine (the PDF's QR already points at the Insider
+   List). Free-download-with-CTA is the lighter fallback.
+3. **Fact-sheet generator template (the reusable rail).** A helper that, for any
+   card, assembles + multi-source-verifies the figures the PDF needs (welcome offer,
+   each credit + cap/reset/expiry, annual fee, earn, `CardBenefitStacks`, transfer
+   partners, protections, key dates) into a clean sourced fact sheet Jill builds the
+   PDF from. This is what makes the eventual ~1/day per-card cadence realistic.
+
+Then per card (once activated): run the generator → hand Jill the verified fact
+sheet → she builds/tweaks the PDF → Claude hosts it + checks the card page prose
+can't drift ([[feedback_check_prose_on_data_change]]). Priority: highest-traffic
+cards first (Sapphire Reserve pilot, then Amex Platinum/Gold, Venture X…). See
+[[project_card_companion_pdfs]].
 
 ---
 
