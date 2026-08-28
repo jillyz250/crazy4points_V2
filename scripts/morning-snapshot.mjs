@@ -74,8 +74,13 @@ const pendingReview = (await q('count pending drafts', db.from('content_variants
 // Match the admin dashboard exactly: only TRULY-undecided intel counts (a
 // decided item — newsletter_idea/approved — has left the triage queue). Counting
 // those too made the board read 207 while the dashboard correctly showed 162.
+// "Needs triage" = UNDECIDED and still live. Do NOT gate on processed=false —
+// email intel is flagged processed=true on ingest before any decision, so that
+// gate silently hid ~600 undecided items from the ritual (found 2026-08-28). The
+// reliable signal is triage_decision IS NULL, matching the /admin/triage "active"
+// tab (rejected/archived/promoted excluded, not snoozed, unexpired).
 const intelToTriage = (await q('count intel to triage', db.from('intel_items').select('id', { count: 'exact', head: true })
-  .eq('processed', false).is('rejected_at', null)
+  .is('rejected_at', null).is('archived_at', null).is('alert_id', null)
   .is('triage_decision', null)
   .or(`expires_at.is.null,expires_at.gte.${nowIso}`)
   .or(`snoozed_until.is.null,snoozed_until.lte.${nowIso}`))).count
@@ -83,7 +88,7 @@ const intelToTriage = (await q('count intel to triage', db.from('intel_items').s
 // (build-brief's planner) has stalled (usually low API), so intel isn't being
 // sorted. Surface it in HEALTH so a pileup never hides behind "all clear" again.
 const oldestUndecided = (await q('oldest undecided intel', db.from('intel_items')
-  .select('created_at').eq('processed', false).is('rejected_at', null).is('triage_decision', null)
+  .select('created_at').is('rejected_at', null).is('archived_at', null).is('alert_id', null).is('triage_decision', null)
   .or(`snoozed_until.is.null,snoozed_until.lte.${nowIso}`)
   .order('created_at', { ascending: true }).limit(1))).data[0]
 const triageOldestDays = oldestUndecided ? Math.floor((Date.now() - new Date(oldestUndecided.created_at).getTime()) / 86400000) : 0
