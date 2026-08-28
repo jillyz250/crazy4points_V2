@@ -126,6 +126,8 @@ export const PLATFORM_TRACK: PlatformItem[] = [
   { title: 'Per-chain canonical pages', detail: 'each chain its own AEO page: graph, requirements, official sources, variants', status: 'planned' },
   { title: 'Graph-aware alert publishing', detail: 'publishing an alert auto-pulls related guides, programs, and chains', status: 'planned' },
   { title: 'Points Concierge (AI-B)', detail: 'chatbot grounded in the graph — the future flagship, after the chain-system matures', status: 'planned' },
+  { title: 'TikTok channel', detail: 'start posting short-form video — repurpose alerts, experiences, and tips into scroll-stopping clips; TikTok drives discovery without IG\'s link-in-bio friction. Jill request 2026-08-28.', status: 'planned' },
+  { title: 'AI video avatar ("AI me")', detail: 'an AI avatar of Jill that reads a written script and generates a talking-head video (HeyGen-style), so we produce TikTok/Reels at scale from scripts without filming. Pairs with the TikTok channel. Jill request 2026-08-28.', status: 'planned' },
 ]
 
 export function platformProgress(): { done: number; total: number } {
