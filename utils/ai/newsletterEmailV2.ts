@@ -201,8 +201,10 @@ function renderAlsoHappening(items: AlsoHappeningItem[], origin: string): string
 function splitHeadline(h: string): [string, string] {
   const c = h.indexOf(':')
   const a = h.indexOf('→') // →
-  const cands = [c, a].filter((i) => i > 0)
-  const idx = cands.length ? Math.min(...cands) : -1
+  // Prefer the colon so a "Chase → IHG One Rewards: 70% bonus" headline bolds
+  // the whole program pair (up to the colon), not just "Chase". Fall back to the
+  // arrow when there's no colon.
+  const idx = c > 0 ? c : a > 0 ? a : -1
   if (idx > 0) return [h.slice(0, idx), h.slice(idx)]
   const sp = h.indexOf(' ')
   if (sp > 0) return [h.slice(0, sp), h.slice(sp)]
@@ -233,7 +235,7 @@ function goldPill(text: string): string {
   return `<span style="display:inline-block;background:#FBF3D9;color:#7A5B00;font-family:${FONT_UI};font-size:11px;font-weight:800;padding:2px 9px;border-radius:999px;white-space:nowrap;">${esc(text)}</span>`
 }
 
-function renderOfferBucket(label: string, items: OfferItem[], origin: string): string {
+function renderOfferBucket(label: string, items: OfferItem[], origin: string, accent: string): string {
   if (!items || items.length === 0) return ''
   // Dedupe within a bucket by headline (defensive against the same offer being
   // pulled twice).
@@ -244,43 +246,48 @@ function renderOfferBucket(label: string, items: OfferItem[], origin: string): s
     seen.add(key)
     return true
   })
-  // One line per offer — this section is a compact rundown/index, not full
-  // cards. Headline links to the full alert (built-in "see more"), with the
-  // deadline as a gold tag. No blurb: keeps the section short so the email
-  // doesn't blow past Gmail's ~102KB clip threshold and cut off later
-  // sections (Jill's Take renders below this).
-  const rows = unique
+  // Each offer is its own bordered card with a colored top strip (accent =
+  // purple for transfers, gold for promos) so offers read as distinct, not a
+  // wall of same-looking lines. The program name is bold purple; the deadline
+  // sits on its own line beneath as a left-aligned gold pill (no more mid-line
+  // wrapping). Kept compact (no blurb) so the email stays under Gmail's ~102KB
+  // clip threshold and later sections (Jill's Take) don't get cut.
+  const cards = unique
     .map((it) => {
       const href = it.link_url
         ? (it.link_url.startsWith('http') ? it.link_url : `${origin}${it.link_url}`)
         : ''
       // Names already embed the deadline ("... Through August 22"); the pill
-      // repeats it, so strip the trailing date clause from the display name to
-      // avoid redundancy and keep the line short.
+      // repeats it, so strip the trailing date clause from the display name.
       const name = stripTrailingDate(it.headline)
       const [lead, rest] = splitHeadline(name)
-      const linkInner = `<strong style="font-weight:700;">${esc(lead)}</strong><span style="font-weight:400;">${esc(rest)}</span>`
+      const linkInner = `<strong style="color:${PURPLE};font-weight:800;">${esc(lead)}</strong><span style="color:${BODY};font-weight:400;">${esc(rest)}</span>`
       const headline = href
-        ? `<a href="${esc(href)}" style="color:${LINK_COLOR};text-decoration:none;">${linkInner}</a>`
+        ? `<a href="${esc(href)}" style="text-decoration:none;">${linkInner}</a>`
         : linkInner
-      // Deadline as a gold pill, flowing INLINE after the name (no two-column
-      // table — long names were overflowing and colliding with a right cell).
-      const pill = it.deadline ? ` ${goldPill(it.deadline)}` : ''
-      return `<p style="margin:0 0 10px;font-family:${FONT_BODY};font-size:14px;line-height:1.55;color:${BODY};">${headline}${pill}</p>`
+      const footer = it.deadline ? `<p style="margin:10px 0 0;">${goldPill(it.deadline)}</p>` : ''
+      return `
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 12px;border:1px solid ${BORDER};border-radius:12px;background:#ffffff;overflow:hidden;">
+          <tr><td style="height:5px;line-height:5px;font-size:0;background:${accent};">&nbsp;</td></tr>
+          <tr><td style="padding:13px 16px;">
+            <p style="margin:0;font-family:${FONT_BODY};font-size:14px;line-height:1.4;color:${BODY};">${headline}</p>
+            ${footer}
+          </td></tr>
+        </table>`
     })
     .join('')
   return `
-    <p style="margin:0 0 5px;font-family:${FONT_UI};font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:${MUTED};font-weight:700;">${esc(label)}</p>
-    ${rows}
-    <div style="height:14px;line-height:14px;font-size:0;">&nbsp;</div>`
+    <p style="margin:0 0 10px;font-family:${FONT_UI};font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:${MUTED};font-weight:700;">${esc(label)}</p>
+    ${cards}
+    <div style="height:8px;line-height:8px;font-size:0;">&nbsp;</div>`
 }
 
 function renderActiveOffers(offers: ActiveOffers | null, origin: string): string {
   if (!offers) return ''
   const buckets =
-    renderOfferBucket('Transfer bonuses', offers.transfer_bonuses ?? [], origin) +
-    renderOfferBucket('Other Promos & Experiences', offers.earning_promos ?? [], origin) +
-    renderOfferBucket('Points purchase bonuses', offers.purchase_bonuses ?? [], origin)
+    renderOfferBucket('Transfer bonuses', offers.transfer_bonuses ?? [], origin, PURPLE) +
+    renderOfferBucket('Other Promos & Experiences', offers.earning_promos ?? [], origin, GOLD) +
+    renderOfferBucket('Points purchase bonuses', offers.purchase_bonuses ?? [], origin, GOLD)
   if (!buckets) return ''
   return `
     <tr><td style="padding:36px 30px 0;">
