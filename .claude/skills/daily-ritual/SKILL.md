@@ -261,7 +261,19 @@ DROPPED bonus makes a card page stale. For each pending signal:
 - **Coverage guardrail:** if Jill flags a SUB change we did NOT catch (Delta,
   2026-08-28 — the monitor had nothing that day), treat it as a monitor gap:
   verify + publish manually, and note the miss so the monitor can be widened.
-Resolve each at `/admin/card-bonus-signals`. Auto-skip if none pending AND nothing flagged.
+Resolve each at `/admin/card-bonus-signals`.
+
+**Also report the "prose to re-check" queue** (same dashboard) — cards with
+`good_to_know_review_at` set: the welcome-bonus DATA changed but the card's
+`good_to_know` prose may still quote the OLD figure. **Give a per-item status
+breakdown, never just a count** (Jill, 2026-08-28: "let me know the status of each
+— 8 in the queue, one needs fixing, etc."): for each card, classify it
+**🔧 NEEDS FIXING** (prose quotes a stale number → fix the prose, which clears the
+flag), **🔍 VERIFY** (offer status uncertain → confirm vs official/consensus, then
+fix or mark reviewed), or **⏳ PENDING** (a future-dated revert like an elevated
+offer ending, or a watch for a rumored change — correctly waiting, leave it). Fix
+the stale, verify the uncertain, leave the pending, and say which is which.
+Auto-skip if none pending AND nothing flagged.
 
 ### Phase 8 · ♻️ Refresh queue (freshness guardrail — nothing goes stale silently)
 Source: snapshot `REFRESH QUEUE — oldest due`. Walk the **oldest-due** items
