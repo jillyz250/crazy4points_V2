@@ -15,6 +15,7 @@ export type SweepRow = {
   ends_at: string | null
   first_seen: string | null
   image_url: string | null
+  hero_image_url?: string | null
   featured?: boolean | null
 }
 

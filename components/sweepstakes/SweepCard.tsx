@@ -43,6 +43,12 @@ export default function SweepCard({ sweep }: { sweep: SweepRow }) {
       className="flex flex-col overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] shadow-[var(--shadow-soft)] transition-transform duration-200 hover:-translate-y-1"
       style={{ backgroundColor: `${cat.color}0a` }}
     >
+      {sweep.hero_image_url && (
+        // A designed hero creative (custom graphic). Full width, no crop, so on-image
+        // text stays legible. Only a few sweeps have one; most fall back to the strip.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={sweep.hero_image_url} alt="" className="block h-auto w-full" />
+      )}
       <div className="h-1.5 w-full" style={{ background: cat.color }} aria-hidden />
       <div className="flex grow flex-col p-5">
         <div className="mb-2 flex items-center justify-between gap-2">
