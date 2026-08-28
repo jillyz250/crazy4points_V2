@@ -381,20 +381,19 @@ her** (the Verification standard — official + independent current source,
 staleness-guard, red-team, show sourcing per fact), show the FULL draft, publish
 on her nod. Two real pieces a day: one evergreen guide + one general blog.
 
-**C) One CARD COMPANION GUIDE — 1/day backfill (Jill, 2026-08-28).** In addition to
-A+B, produce ONE per-card "How to Get the Most from [Card]" guide each day, working
-through the ~108 active `credit_cards` (see `PLATFORM_TRACK` "Per-card companion
-guides"). It's semi-data-driven: pull the card's VERIFIED welcome offer, credits,
-annual fee, `CardBenefitStacks` (network perks + perk chains), transfer partners,
-and `good_to_know`, then write the maximize-it guide, cross-link it from the card
-page, and register it in `lib/guides.ts` (Cards). Still multi-source-verify every
-figure and check the card page's own prose can't drift (see
-[[feedback_check_prose_on_data_change]]). Priority: highest-traffic / most-applied
-cards first (Chase Sapphire, Amex Platinum/Gold, Capital One Venture X…). **OPEN
-SHAPE DECISION — confirm with Jill on the FIRST one:** standalone `/guides` page per
-card (recommended, SEO/AEO win, "companion" = accompanies the card) vs an on-page
-prose section (redundant with good_to_know + CardBenefitStacks). Default to
-standalone until she says otherwise.
+**C) One CARD COMPANION — 1/day backfill (Jill, 2026-08-28).** The companion is an
+**interactive, fillable PDF Jill designs** (Royal Glow, claim-every-credit + track-
+spend — see the Sapphire Reserve Companion pilot), NOT an HTML guide. Claude's daily
+role is the FACT ENGINE, not the layout: for the next card, assemble every figure it
+needs (welcome offer, each credit + its cap/reset/expiry date, annual fee, earn
+multipliers, `CardBenefitStacks` perks + chains, transfer partners, protections,
+key dates) and **MULTI-SOURCE-VERIFY each one vs the issuer's OWN terms** (official +
+independent current source; issuer pages that 403 WebFetch → in-app browser). Hand
+Jill a clean verified fact sheet (with per-fact sourcing + anything that changed),
+she builds/tweaks the PDF, then Claude hosts the finished PDF on the card page +
+links it from guides and checks the card page's prose can't drift
+([[feedback_check_prose_on_data_change]]). Priority: highest-traffic cards first
+(Sapphire Reserve pilot done; then Amex Platinum/Gold, Venture X…).
 
 ### Phase 14 · 🔗 Chain sweep (LAST in Act B — covers the whole day)
 Runs last in Act B so it sweeps **everything produced today** — publishes (Phase 5),
