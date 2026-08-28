@@ -38,8 +38,17 @@ export async function GET(req: NextRequest) {
   try {
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
   const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+  const nowIso = new Date().toISOString()
 
-  const [intelRes, recentAlertsView, programsRes] = await Promise.all([
+  // Backlog re-feed (2026-08-28): the planner only ever saw last-24h intel, so any
+  // item it left undecided fell out of the window forever — ~600 orphaned. Now we
+  // also re-feed a bounded batch of older UNDECIDED items (oldest first) each run,
+  // capped alongside the fresh set so the planner's JSON never truncates. Orphans
+  // drain a batch a day and nothing is stranded again.
+  const BACKLOG_BATCH = 25
+  const MAX_PLANNER_ITEMS = 60
+
+  const [intelRes, backlogRes, recentAlertsView, programsRes] = await Promise.all([
     supabase
       .from('intel_items')
       .select('id, headline, raw_text, source_name, source_url, confidence, alert_type, programs, expires_at, conflict_detected_at')
@@ -47,12 +56,25 @@ export async function GET(req: NextRequest) {
       .is('rejected_at', null)
       .order('confidence', { ascending: false })
       .order('created_at', { ascending: false }),
+    supabase
+      .from('intel_items')
+      .select('id, headline, raw_text, source_name, source_url, confidence, alert_type, programs, expires_at, conflict_detected_at')
+      .lt('created_at', since24h)
+      .is('triage_decision', null)
+      .is('rejected_at', null)
+      .is('archived_at', null)
+      .is('alert_id', null)
+      .or(`expires_at.is.null,expires_at.gte.${nowIso}`)
+      .order('created_at', { ascending: true })
+      .limit(BACKLOG_BATCH),
     // Phase 3 Wave 2 flip #3: voice samples now read from variants.
     // selectAlertViewFromVariants returns Alert-shape rows ordered by
     // published_at desc; activeOnly excludes formerly-expired alerts to
     // match the legacy `status='published'` behavior. since30d filter
     // applied client-side because the adapter doesn't take a date range.
-    selectAlertViewFromVariants(supabase, { status: 'published', activeOnly: true, limit: 12 }),
+    // limit 60 (was 12): a wider net for the planner's `already_covered` dupe
+    // guard, which matters now that the backlog re-feed sends older items past it.
+    selectAlertViewFromVariants(supabase, { status: 'published', activeOnly: true, limit: 60 }),
     supabase.from('programs').select('id, slug, name, type'),
   ])
 
@@ -77,21 +99,42 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'DB error (programs)' }, { status: 500 })
   }
 
-  const allItems = intelRes.data ?? []
+  if (backlogRes.error) {
+    // Non-fatal: a backlog-fetch failure just means no orphan drain this run.
+    console.error('[build-brief] backlog intel fetch failed (continuing with fresh only):', backlogRes.error)
+  }
+
+  // Fresh last-24h intel first (time-sensitive), then the oldest undecided backlog.
+  // Dedup by id (the two windows don't overlap, but guard anyway).
+  const seenIntelIds = new Set<string>()
+  const allItems = [...(intelRes.data ?? []), ...(backlogRes.data ?? [])].filter((r) => {
+    const id = r.id as string
+    if (seenIntelIds.has(id)) return false
+    seenIntelIds.add(id)
+    return true
+  })
+  const backlogFed = (backlogRes.data ?? []).length
   const recentAlertRows = recentRes.data ?? []
 
   // Filter out intel items whose deal has already expired — they shouldn't
   // clutter the Scout brief or get approved. The program archive page is the
   // permanent home for expired offers.
   const nowTs = Date.now()
-  const items = allItems.filter((row) => {
+  const itemsUncapped = allItems.filter((row) => {
     const exp = row.expires_at as string | null
     if (!exp) return true
     const t = new Date(exp).getTime()
     if (isNaN(t)) return true
     return t >= nowTs
   })
-  const droppedExpired = allItems.length - items.length
+  // Hard cap the batch sent to Sonnet so its JSON output never truncates (a past
+  // silent outage). Fresh items lead the array, so a big fresh day is never
+  // starved by the backlog; leftover backlog simply rides the next run.
+  const items = itemsUncapped.slice(0, MAX_PLANNER_ITEMS)
+  if (backlogFed > 0) {
+    console.log(`[build-brief] re-fed ${backlogFed} undecided backlog item(s); ${items.length}/${itemsUncapped.length} sent to Sonnet (cap ${MAX_PLANNER_ITEMS})`)
+  }
+  const droppedExpired = allItems.length - itemsUncapped.length
   if (droppedExpired > 0) {
     console.log(`[build-brief] dropped ${droppedExpired} expired intel item(s) before Sonnet`)
   }
@@ -206,7 +249,7 @@ export async function GET(req: NextRequest) {
     already_covered: (recentAlertsView as Array<{ title?: string }>)
       .map((a) => a.title ?? '')
       .filter(Boolean)
-      .slice(0, 40),
+      .slice(0, 60),
   })
 
   // A null plan means NO brief gets built or emailed. That was a SILENT outage
