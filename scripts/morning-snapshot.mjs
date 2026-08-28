@@ -286,10 +286,24 @@ console.log(B)
 // STEP 0 — overnight health. A stale cron must shout, not hide as "all clear".
 const briefFlag = briefStaleDays === 0 ? 'OK (today)' : `!! ${briefStaleDays}d STALE — cron may have failed`
 const scoutFlag = scoutAgeHrs === null ? '!! no intel ever' : scoutAgeHrs <= 30 ? `OK (${scoutAgeHrs}h ago)` : `!! ${scoutAgeHrs}h ago — Scout may be down`
+// Watcher health, promoted into HEALTH (2026-08-28, Jill): surface any
+// experiences scrape that FAILED or returned empty in the last ~16h right here,
+// so a watcher break can't hide down in the Experiences section. Auto-retries on
+// the next 8h run; the coverage watchdog emails if a program goes >36h with none.
+const sinceWatch = new Date(Date.now() - 16 * 3600e3).toISOString()
+const watchRuns = (await q('watcher health', db.from('experience_scrape_runs')
+  .select('program_slug, success, error_message, run_started_at')
+  .gte('run_started_at', sinceWatch).eq('success', false)
+  .order('run_started_at', { ascending: false }))).data
+const badWatch = [...new Map((watchRuns || []).map((r) => [r.program_slug, r])).values()]
+const watchFlag = badWatch.length
+  ? `⚠️ ${badWatch.length} empty/failed: ${badWatch.map((r) => r.program_slug).join(', ')} — auto-retries next run; watchdog emails if >36h`
+  : 'OK'
 console.log('HEALTH (step 0):')
 console.log(`  Daily brief . ${briefFlag}`)
 console.log(`  Scout intel . ${scoutFlag}`)
 console.log(`  Triage classifier . ${triageBacklogBad ? `⚠️ BACKLOG ${intelToTriage} undecided, oldest ${triageOldestDays}d — planner likely stalled (check API budget)` : 'OK'}`)
+console.log(`  Watchers (experiences) . ${watchFlag}`)
 console.log(B)
 console.log('QUEUE COUNTS (act highest-first):')
 console.log(`  Pending drafts (needs_review) . ${n(pendingReview)}   -> /admin/drafts?view=needs_review`)
