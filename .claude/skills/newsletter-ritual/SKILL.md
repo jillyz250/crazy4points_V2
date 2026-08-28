@@ -115,8 +115,12 @@ Featured points/miles sweepstakes (timeshare excluded, per `isTimeshareSweep`).
 She picks; set `top_sweepstakes`.
 
 ### N8 · ✍️ Jill's Take
-The editorial note that TOPS the brief. Draft it from the week's theme — tie the
-sections together in one sharp paragraph. Show her; she edits. Set `jills_take_html`.
+The editorial closing note. **It renders LAST in the email (bottom, above the
+footer), NOT at the top** — so never say "below" or point to a section as if it
+follows (the sweet spot, offers, etc. are all ABOVE it). Draft it from the week's
+theme in one sharp paragraph, end on a strong line. Show her; she edits. Set
+`jills_take_html`. (Jill likes a POV angle, e.g. "cards are competing on VIP
+access and exclusivity," over a plain section recap.)
 
 ### N9 · 📤 Review & Send
 Run `verifyNewsletterDraft`, then show the **FULL rendered preview** (`/admin/newsletter`).
