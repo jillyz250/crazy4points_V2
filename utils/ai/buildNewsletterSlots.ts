@@ -146,6 +146,10 @@ subject_options (EXACTLY 5):
 - Vary the angle across the five: one curiosity question, one playful
   juxtaposition, one specific number/deadline, one rhetorical jab,
   one ALL-lowercase casual-text feel.
+- DO NOT echo or repeat the big story's opening line. The subject is the
+  FIRST thing a reader sees and the big story's first sentence is the SECOND —
+  they must not say the same thing. Tease the big story from a DIFFERENT angle
+  (e.g. if the big story opens on the perk, the subject leads with the deadline).
 - HARD CAP 50 chars each — Gmail mobile truncates beyond that. Count
   the characters yourself before returning. If any option is over 50
   chars, rewrite it shorter — DO NOT return it long.
