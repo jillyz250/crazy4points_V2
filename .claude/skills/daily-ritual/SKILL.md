@@ -27,9 +27,9 @@ publish, write, **and make the platform better than yesterday**.
    And genuinely evaluate for yourself: if you disagree with Jill's call on a
    phase (or anything else), say so with your reason — she wants a real advisor,
    not agreement.** See [[feedback_proactive_expert_guidance]].
-3. **Same layout every day.** Fixed card header (`PHASE N of 17 · TITLE`; `of 18`
+3. **Same layout every day.** Fixed card header (`PHASE N of 19 · TITLE`; `of 20`
    on Thursdays), fixed columns, fixed verdict words. Consistency is the feature.
-4. **Empty phases auto-skip** with one line (`Phase 7 · Experiences — none new ✅`).
+4. **Empty phases auto-skip** with one line (`Phase 9 · Experiences — none new ✅`).
 5. **Jill drives:** `next` / `skip` / `back` / `done`. **Never PROPOSE skipping or
    deferring a non-empty phase** (Jill, 2026-08-28: "don't suggest again to skip
    phases... we have plenty of time"). Go through them in order; she skips if she
@@ -46,15 +46,14 @@ only verified facts (official issuer/program source, never a blog); clickable
 links for anything to open; her outstanding actions go LAST; alert writes go
 through `content_variants`, never the `alerts` mirror.
 
-The 16 phases fall in three acts: **A. Clear the overnight (1-5)** ·
-**B. Keep the site true & fed (6-12)** · **C. Improve every day (13-16)**.
-The chain check runs LAST in Act B (Phase 12, after the article) so it sweeps
-**everything produced today** — publishes, page fixes, the article, experiences.
-**Phase 17 · Analytics review is the daily wrap and runs LAST every day.** On
-**Thursdays only**, the **Newsletter build** runs as the last *content* phase
-(17), so the whole day's verified publishes feed it, and **Analytics moves to
-Phase 18** right after. On any other day, header the run as `PHASE N of 17`
-(Analytics is 17); on Thursdays, `N of 18`.
+The phases fall in three acts: **A. Clear the overnight (1-5)** ·
+**B. Keep the site true & fed (6-14)** · **C. Improve every day (15-18)**, then the
+daily wrap. The chain check runs LAST in Act B (Phase 14, after the articles) so it
+sweeps **everything produced today** (publishes, page fixes, the articles,
+experiences). **Analytics review is the daily wrap and runs LAST every day**
+(Phase 19). On **Thursdays only**, the **Newsletter build** runs just before it as
+Phase 19, pushing Analytics to Phase 20. Header the run as `PHASE N of 19`; on
+Thursdays, `N of 20`.
 
 ---
 
@@ -72,7 +71,7 @@ node scripts/morning-reminders-sweep.mjs         # preview dead reminders (ended
 node scripts/morning-reminders-sweep.mjs --apply # auto-complete them (keeps still-live deals + evergreen)
 node scripts/morning-snapshot.mjs        # the full structured feed for the phases below
 node scripts/morning-triage-by-type.mjs  # undecided intel grouped BY TYPE, near-dupes collapsed, already-covered flagged (Phase 4)
-node scripts/improvement-radar.mjs       # ranked data/content/process gaps → feeds Phases 13-15
+node scripts/improvement-radar.mjs       # ranked data/content/process gaps → feeds Phases 15-17
 ```
 The reminders sweep is SAFE: it only completes "…before it ends" reminders whose
 tied alert has already ended (a still-live deal is kept) and auction "Bidding
@@ -93,7 +92,7 @@ counts + reminders + deals-expiring:
 🩺 Health:   brief ⚠️ 2d stale · Scout ✅ · watchers ✅        ← flag anything red
 🔴 Urgent:   1 deal ends in 48h · 2 reminders due today
 📋 Decisions: ~4 real · 12 auto-handled · 7 page-affecting facts
-🛠️ Improve:  today's process / data / visual picks queued (Phases 13-15)
+🛠️ Improve:  today's process / data / visual picks queued (Phases 15-17)
 → say "next" to start Phase 1
 ```
 Then wait for `next`.
@@ -124,10 +123,10 @@ and whether any downstream phase is suspect.
 
 ### Phase 2 · 🧹 Loose ends (reminders table ONLY — overdue + dead)
 This phase does ONE thing: clear the reminders table. Nothing else (live
-experience closings are a featuring decision → Phase 7). Two moves, same domain:
+experience closings are a featuring decision → Phase 9). Two moves, same domain:
 - **Overdue reminders** (`[YYYY-MM-DD]` rows) — yesterday's actions that didn't
   complete (esp. "Social post:"). Recommend **post today** (still live),
-  **DISMISS** (deal ended / stale), or **keep** (→ Phase-16 candidate).
+  **DISMISS** (deal ended / stale), or **keep** (→ Phase-18 candidate).
 - **Dead reminders** — the reminders-sweep's past-close auction "Bidding closes"
   rows and any ended-deal rows. Bulk-**DISMISS** on her word (status='done').
 Keep it to reminders. Do NOT surface experience/auction closings here — even the
@@ -220,7 +219,37 @@ backlog + quarantine — GA occasionally surfaces a real gem (verify vs official
 Also fold in **source-gap coverage** here (programs in intel with no active Scout
 source): propose adding + live-test Firecrawl→Haiku before adding. Usually 0.
 
-### Phase 7 · 🎭 Experiences → alerts? (new listings + closings within 5 days)
+### Phase 7 · 💳 Welcome-bonus changes (card SUB moves — never miss one)
+Source: the `card_bonus_signals` monitor (`/admin/card-bonus-signals`; snapshot
+QUEUE COUNTS "Welcome-bonus changes" + "Prose to re-check"). A raised or brand-new
+sign-up bonus is often ALERT-worthy (Jill's audience is ~50% points-value), and a
+DROPPED bonus makes a card page stale. For each pending signal:
+- **Verify against the ISSUER's own card page** (multi-source standard — a SUB
+  number is exactly the kind of figure that must be official + corroborated before
+  publishing). Issuer marketing/apply pages are authoritative.
+- **Raised / new best-ever** → PUBLISH a short factual alert + update the card
+  page's welcome bonus. **Lowered / expired** → PAGE-NOTE (fix the card page).
+  **Targeted/personalized** → can't verify as general → REJECT.
+- **Coverage guardrail:** if Jill flags a SUB change we did NOT catch (Delta,
+  2026-08-28 — the monitor had nothing that day), treat it as a monitor gap:
+  verify + publish manually, and note the miss so the monitor can be widened.
+Resolve each at `/admin/card-bonus-signals`. Auto-skip if none pending AND nothing flagged.
+
+### Phase 8 · ♻️ Refresh queue (freshness guardrail — nothing goes stale silently)
+Source: snapshot `REFRESH QUEUE — oldest due`. Walk the **oldest-due** items
+(programs, transfer-partner sets, alerts, and GUIDES & evergreen articles) and
+re-verify the top few against official sources (multi-source standard). Cadence:
+process the **3-5 oldest due each day** so the queue never grows; if the backlog is
+large, do more until it's under control. A re-verified item gets a fresh
+`content_updated_at` / review date and drops off.
+**Guides & evergreen articles enter the queue on a 6-MONTH cadence (Jill,
+2026-08-28):** every guide/article carries a `reviewedAt` date; six months on it
+surfaces here for a re-verify pass (exactly how our Chase page went stale on the
+Hyatt ratio — a guide would too). Fixing = verify vs official, correct, restamp
+`reviewedAt`. This is guardrail #2 (freshness) for the content itself.
+Auto-skip if nothing is due.
+
+### Phase 9 · 🎭 Experiences → alerts? (new listings + closings within 5 days)
 ALL experience-featuring decisions live here, so the phase owns one thing end to
 end. Two feeds, one verdict set (**FEATURE** = alert + social / hold for
 newsletter · **skip**):
@@ -237,19 +266,19 @@ newsletter · **skip**):
 Publish only the genuinely alert-worthy (most are directory listings, not alerts).
 Auto-skip if nothing new AND nothing featureable is closing.
 
-### Phase 8 · 🎁 Sweepstakes review
+### Phase 10 · 🎁 Sweepstakes review
 Review the day's new sweepstakes (snapshot SWEEPSTAKES section). Points/miles
-giveaways lead. Flag the best as a Phase-16 social candidate; keep/dismiss the
+giveaways lead. Flag the best as a Phase-18 social candidate; keep/dismiss the
 rest. Auto-skip if none new.
 
-### Phase 9 · ✈️ Changes/Cancellations — next airline (1/day)
+### Phase 11 · ✈️ Changes/Cancellations — next airline (1/day)
 Add the "Changes, Cancellations & Delays" section (`programs.changes_policy`) to
 the next-priority airline page — **cadence 1 airline/day**. Verify against the
 airline's OWN official change/cancel page (no blogs). Priority: United, Delta, AA,
 Alaska/Atmos, Aeroplan, Avios, ANA, Cathay, Emirates, Turkish, KrisFlyer, Virgin,
 LifeMiles… See [[project_award_change_cancel_section]].
 
-### Phase 10 · 🔎 Roadmap mining + reconcile (keep it CURRENT)
+### Phase 12 · 🔎 Roadmap mining + reconcile (keep it CURRENT)
 Two halves — mine forward, and true up what shipped:
 - **Mine:** review everything done today (quick takes, page fixes, intel rejected,
   things verified) and pull out NEW article topics. Each → a `content_ideas` row
@@ -272,7 +301,7 @@ Two halves — mine forward, and true up what shipped:
   `morning-triage-by-type` is the intended rail — build when there's time.)
 Show Jill the candidates + any status flips; apply on her nod.
 
-### Phase 11 · ✍️ Write & publish TWO articles a day
+### Phase 13 · ✍️ Write & publish TWO articles a day
 **Two pieces daily (Jill, 2026-08-28), one from each content system:**
 
 **A) The evergreen GUIDE — from the ROADMAP ladder, pillar rotation.** Always from
@@ -290,16 +319,16 @@ timely piece (explainers, comparisons, "perks you're missing", a news idea now
 evergreen enough to write). Pick the highest-value un-written `content_ideas` row
 (status `new`/`idea_bank`), preferring roadmap_pillar-tagged + tied to recent
 verified work. When a general blog turns out to be a durable guide, promote it into
-the ladder (Phase 10).
+the ladder (Phase 12).
 
 **Both:** draft in Jill's voice, **multi-source verify EVERY fact BEFORE showing
 her** (the Verification standard — official + independent current source,
 staleness-guard, red-team, show sourcing per fact), show the FULL draft, publish
 on her nod. Two real pieces a day: one evergreen guide + one general blog.
 
-### Phase 12 · 🔗 Chain sweep (LAST in Act B — covers the whole day)
+### Phase 14 · 🔗 Chain sweep (LAST in Act B — covers the whole day)
 Runs last in Act B so it sweeps **everything produced today** — publishes (Phase 5),
-page fixes (Phase 6), the article (Phase 11), experiences/sweepstakes reviewed — not
+page fixes (Phase 6), the article (Phase 13), experiences/sweepstakes reviewed — not
 just the morning intel. Look for **perk chains**: one benefit unlocks another, which
 unlocks another. Canonical: Amex Platinum → free Walmart+ → free Paramount+; a card's
 elite status → free Club Avolta status match → Radisson VIP + Avis President's Club +
@@ -330,7 +359,7 @@ say so in one line. See [[feedback_always_flag_perk_chains]], [[feedback_verify_
 
 # ACT C — Improve every day (the compounding engine)
 
-> Phases 13-15 are **one sharp recommendation each — not a walkthrough.** Surface
+> Phases 15-17 are **one sharp recommendation each — not a walkthrough.** Surface
 > the single highest-leverage idea in that dimension, in plain terms, with the
 > **why** and a rough **effort** (S/M/L). Jill says **do it now** / **spawn a
 > task** / **backlog** / **skip**. The point is momentum: one real upgrade in each
@@ -340,14 +369,14 @@ say so in one line. See [[feedback_always_flag_perk_chains]], [[feedback_verify_
 >
 > **`scripts/improvement-radar.mjs` (run in Phase 0b) does the finding for you** —
 > it ranks the real data-integrity, content, and process gaps with blast radius and
-> prints a `TOP PICKS` block. Use its top data pick for Phase 14, its process line
-> for Phase 13, and run the mobile sweep for Phase 15. The Radar counts array/JSON
+> prints a `TOP PICKS` block. Use its top data pick for Phase 16, its process line
+> for Phase 15, and run the mobile sweep for Phase 17. The Radar counts array/JSON
 > columns by real length (never truthiness) and prints `!! QUERY PROBLEM(S)` loudly
 > if a query fails — if you see that, FIX it before trusting the numbers (a phantom
 > "133 programs need reverify" on 2026-08-26 came from counting an empty `[]` as
 > present; the real number was 4).
 
-### Phase 13 · ⚙️ Process improvement of the day
+### Phase 15 · ⚙️ Process improvement of the day
 One workflow/automation/rail upgrade that makes US faster or less error-prone.
 Mine it from: friction in *today's* work, a manual step done ≥2x, a check-first
 miss, a fragile script, a gap in `REFERENCE-existing-systems.md`, or the backlog in
@@ -355,7 +384,7 @@ memory. Format: **the pain → the fix → effort (S/M/L) → my rec.** Example:
 hand-verify every transfer ratio in Phase 5; we already have `reverifyTransfers` —
 wire a one-command `verify <program>` helper. Effort S."
 
-### Phase 14 · 🛡️ Data-integrity improvement of the day
+### Phase 16 · 🛡️ Data-integrity improvement of the day
 One concrete accuracy/coverage/freshness fix. Mine it from: `verification_findings`,
 `/admin/program-drift`, reverify coverage gaps (programs with no
 `reverify_source_url`), `sweet_spots` gaps, the accuracy agent (`verifyClaim` /
@@ -365,7 +394,7 @@ many records) → my rec.** Quantify the blast radius. Example: "31 of 82 airlin
 programs have no `reverify_source_url`, so the weekly drift sweep skips them — enroll
 the top 10 today. Effort M."
 
-### Phase 15 · 🎨 Visual / UX improvement of the day
+### Phase 17 · 🎨 Visual / UX improvement of the day
 One design, mobile, or usability upgrade. Mine it from: the mobile contract
 (overflow at 375px, tap targets), a page that renders plain/dated, a component that
 could be sharper, a slow or confusing flow. **Verify against a real render when you
@@ -373,23 +402,23 @@ can** (the preview browser). Format: **the page/element → what's weak → the 
 my rec.** Example: "/alerts cards wrap awkwardly at 320px and the CTA is a thin
 text link — bump to a real button and tighten the grid. Effort S."
 
-### Phase 16 · 📣 Social post (pick ONE, LAST)
-The daily social post. Candidates: the ⭐ sweepstakes pick (Phase 8), a deal
+### Phase 18 · 📣 Social post (pick ONE, LAST)
+The daily social post. Candidates: the ⭐ sweepstakes pick (Phase 10), a deal
 expiring in 48h (last-chance), a marquee experience, or today's best published
-quick take / article (Phase 5/12). Recommend THE one with a one-line
+quick take / article (Phase 5/13). Recommend THE one with a one-line
 why-it-engages + our value-add. Draft only on Jill's go (facebook-post /
 instagram-post skill). We always want a daily post.
 
-### Phase 17 · 📰 Newsletter build (THURSDAYS ONLY — last content phase, before Analytics)
+### Phase 19 · 📰 Newsletter build (THURSDAYS ONLY — last content phase, before Analytics)
 Runs only on Thursdays (the snapshot header prints `WEEKLY: Newsletter day`), and
 **always the last content phase** (only the Analytics wrap follows it) so every
 alert published, page fixed, experience/sweepstakes picked, and article written
 *earlier today* is eligible for it — the newsletter is the day's content wrap-up,
 not a parallel track. On any other weekday this phase does not exist; do not
-surface it (Analytics then becomes Phase 17).
+surface it (Analytics then becomes Phase 19).
 
 Build it from the day's material, newest-first:
-- **today's verified publishes** (Phase 5 alerts + Phase 11 article),
+- **today's verified publishes** (Phase 5 alerts + Phase 13 article),
 - **newsletter items expiring soon** (snapshot `NEWSLETTER ITEMS EXPIRING SOON`)
   and **parked `newsletter_idea` intel** (Phase 4 sent items here),
 - **Jill's Takes** (the biweekly-anecdote inbox), and the week's best evergreen.
@@ -403,7 +432,7 @@ point math. **Show Jill the FULL draft before sending — always.** On her appro
 send via Resend, **throttled to ≤4/sec** ([[feedback_resend_rate_limit]]). Receipt:
 what led, how many stories, recipient count.
 
-### Phase 17 (Phase 18 on Thursdays) · 📊 Analytics review — the daily wrap
+### Phase 19 (Phase 20 on Thursdays) · 📊 Analytics review — the daily wrap
 Runs **LAST every day** (after the Newsletter on Thursdays). Added 2026-08-28
 (Jill). Review the numbers and pull **1-2 insights that should change tomorrow's
 priorities** — do not just recite metrics:
@@ -422,7 +451,7 @@ name which metrics we CAN'T yet see (a gap to build). See [[project_newsletter_o
 
 ---
 
-## CLOSE (send after the last phase — Phase 17 Analytics, or Phase 18 on Thursdays)
+## CLOSE (send after the last phase — Phase 19 Analytics, or Phase 20 on Thursdays)
 A fixed recap:
 ```
 🌙 WRAP — Aug 12
@@ -440,7 +469,7 @@ Her outstanding actions ALWAYS last.
 Just **"morning"** fires the whole ritual. To also prime the discovery engine, she
 can add: **"and give me your single highest-leverage upgrade for the site today —
 the one thing that would make us more accurate, more useful, or more efficient that
-we haven't built yet."** That sharpens Phases 13-15 toward the biggest unbuilt win.
+we haven't built yet."** That sharpens Phases 15-17 toward the biggest unbuilt win.
 
 ---
 
@@ -528,7 +557,7 @@ Same method every time:
 - Reminders can be auto-generated from a published alert's explicit ISO `end_date`
   (skip fuzzy "through August" dates); auto-expire past ones to keep the table lean.
 - **Phase renumber (2026-08-26):** flattened old 3a/3b/3c into Phases 4/5/6, added
-  Phase 1 Health check as its own phase, and added Act C (Phases 13-15) — the daily
+  Phase 1 Health check as its own phase, and added Act C (Phases 15-17) — the daily
   process / data-integrity / visual improvement engine. Greeting is now
   "Good morning, Jill."
 - Related: [[feedback_morning_pretriage]], [[project_daily_ritual_plan]],
