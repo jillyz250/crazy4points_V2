@@ -505,6 +505,14 @@ Build it from the day's material, newest-first:
   and **parked `newsletter_idea` intel** (Phase 4 sent items here),
 - **Jill's Takes** (the biweekly-anecdote inbox), and the week's best evergreen.
 
+**SWEET SPOT — never repeat a recent one (Jill, 2026-08-28).** Before picking the
+week's Sweet Spot, pull the **last 10 sweet spots from SENT newsletters only**
+via `node scripts/sweet-spot-history.mjs`
+and show Jill that list with dates. Pick a program/topic that is NOT on it — the
+sweet spot should feel fresh every issue. When a genuinely new sweet spot is
+verified (e.g. Atmos short-haul partner economy 4,500), DOCUMENT it on the
+program page's `sweet_spots` too so the win compounds ([[feedback_check_prose_on_data_change]]).
+
 Use the existing builder — `runBuildNewsletter` / the `/admin/newsletter` page —
 then `verifyNewsletterDraft` before anything is shown. **Editorial rules (hard):**
 no fabrication, every claim sourced to official/issuer (see
