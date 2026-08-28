@@ -593,7 +593,6 @@ export function renderNewsletterV2Html({
         <tr><td style="padding:16px 30px 12px;background:#ffffff;">
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr>
             <td align="left" style="font-family:${FONT_DISPLAY};font-style:italic;font-size:18px;font-weight:600;color:${PURPLE};letter-spacing:0.3px;">${esc(weekOf)}</td>
-            <td align="right" valign="middle" style="font-family:${FONT_UI};font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:${GOLD};white-space:nowrap;">The Points Brief</td>
           </tr></table>
         </td></tr>
         <tr><td style="padding:0 30px;background:#ffffff;">
