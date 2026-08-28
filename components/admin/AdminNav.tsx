@@ -44,6 +44,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/admin/question-radar', label: 'Question Radar', abbr: 'QR' },
       { href: '/admin/experiences', label: 'Experiences', abbr: 'Xp' },
       { href: '/admin/creatives', label: 'Creatives', abbr: 'Cr' },
+      { href: '/admin/short-links', label: 'Short links', abbr: 'Sl' },
     ],
   },
   {
