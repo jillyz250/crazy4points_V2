@@ -79,7 +79,17 @@ export default async function SweepstakesPage() {
             const ends = endsLabel(s.ends_at)
             const mech = s.mechanic ? MECHANIC_LABEL[s.mechanic] ?? '' : ''
             return (
-              <Card key={s.id}>
+              <Card
+                key={s.id}
+                style={
+                  s.featured
+                    ? {
+                        borderLeft: '4px solid var(--color-accent, #D4AF37)',
+                        background: 'color-mix(in srgb, var(--color-accent, #D4AF37) 7%, transparent)',
+                      }
+                    : undefined
+                }
+              >
                 <CardBody>
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
                     <Badge tone="neutral">{s.program}</Badge>
