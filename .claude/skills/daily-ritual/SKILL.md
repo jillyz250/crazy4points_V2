@@ -104,7 +104,18 @@ reverify, link-audit, the watchers) — **green ✅ / stale ⚠️ / down 🔴**
 anything is red or stale, **call it out and say what it means** (a queue may look
 empty because the cron failed, not because it's clear — verify before trusting an
 empty phase downstream). If all green, one line: `Phase 1 · Health — all green ✅`.
-Receipt: what's healthy, what's stale, and whether any downstream phase is suspect.
+
+**Also resolve logged errors here (added 2026-08-28, Jill).** Query the
+`system_errors` table for **unresolved** rows (`resolved_at IS NULL`). For each:
+verify whether it's still true (the watchdog may have caught a gap that has since
+self-healed) — if stale, mark `resolved_at=now`; if still real, **investigate the
+root cause or spawn a tracked task**, and leave it open. Never blanket-resolve
+without checking (2026-08-28: a coverage error listed chase/amex/united/citi as
+stale — united/citi had recovered but chase/amex were genuinely 5 days dead, a real
+scrape bug). Watchdogs should auto-resolve when their condition clears; where one
+doesn't yet, resolve it by hand here.
+Receipt: what's healthy, what's stale, which errors were resolved vs escalated,
+and whether any downstream phase is suspect.
 
 ### Phase 2 · 🧹 Loose ends (reminders table ONLY — overdue + dead)
 This phase does ONE thing: clear the reminders table. Nothing else (live
@@ -233,11 +244,20 @@ airline's OWN official change/cancel page (no blogs). Priority: United, Delta, A
 Alaska/Atmos, Aeroplan, Avios, ANA, Cathay, Emirates, Turkish, KrisFlyer, Virgin,
 LifeMiles… See [[project_award_change_cancel_section]].
 
-### Phase 10 · 🔎 Roadmap mining
-Review everything done today (quick takes, page fixes, intel rejected, things
-verified) and pull out NEW article topics worth adding to the roadmap. Each →
-a `content_ideas` row tagged to a pillar (`roadmap_reviewed=true`), or enrich an
-existing idea. Show Jill the candidates; add on her nod.
+### Phase 10 · 🔎 Roadmap mining + reconcile (keep it CURRENT)
+Two halves — mine forward, and true up what shipped:
+- **Mine:** review everything done today (quick takes, page fixes, intel rejected,
+  things verified) and pull out NEW article topics. Each → a `content_ideas` row
+  tagged to a pillar (`roadmap_reviewed=true`), or enrich an existing idea.
+- **Reconcile (added 2026-08-28, Jill):** the roadmap must reflect reality — if we
+  shipped something, mark it done. Check `lib/contentRoadmap.ts` `PLATFORM_TRACK`
+  (statuses `done`/`next`/`planned`) against what actually shipped and flip stale
+  `next` items — Jill noticed the perk-chain line still read "up next" after we'd
+  built a chunk of it (2026-08-28: added a `done` "Benefits on card pages" item and
+  narrowed the "moat" to the unbuilt stack-builder). A `content_ideas` row whose
+  guide is now live also drops off automatically (status derives from GUIDES), but
+  the PLATFORM_TRACK is hand-authored, so it's the one that goes stale.
+Show Jill the candidates + any status flips; apply on her nod.
 
 ### Phase 11 · ✍️ Write & publish one article
 Pick the single highest-value roadmap-backed idea (Program-Guides-first) and WRITE
