@@ -257,6 +257,14 @@ Two halves — mine forward, and true up what shipped:
   narrowed the "moat" to the unbuilt stack-builder). A `content_ideas` row whose
   guide is now live also drops off automatically (status derives from GUIDES), but
   the PLATFORM_TRACK is hand-authored, so it's the one that goes stale.
+- **Drain the backlog:** `content_ideas` has a large un-actioned pile (~775 on
+  2026-08-28: 203 `new` + 572 `idea_bank`, ~747 with no pillar). Like the intel
+  queue, it needs a per-bucket drain — group by pillar (`roadmap_pillar` /
+  `suggested_pillar`; NOTE the column is `roadmap_pillar`, not `pillar` — the
+  silent-column trap), dedup, surface the best per bucket, retire stale ones
+  (261 are >90 days old). Walk ONE pillar-bucket at a time: promote the valuable
+  to the roadmap, dismiss dupes/stale. (A `content-ideas-by-bucket` tool mirroring
+  `morning-triage-by-type` is the intended rail — build when there's time.)
 Show Jill the candidates + any status flips; apply on her nod.
 
 ### Phase 11 · ✍️ Write & publish one article
