@@ -70,7 +70,37 @@ function coveredBy(item) {
     const progOverlap = iprog.some((x) => p.programs.includes(x)) ||
       iprog.some((x) => p.tokens.includes(x.replace(/-/g, ' ').split(' ')[0]))
     if (!progOverlap && iprog.length) continue
-    if (jaccard(it, p.tokens) >= 0.42) return p.title
+    if (jaccard(it, p.tokens) >= 0.42) return `alert: ${p.title}`
+  }
+  return null
+}
+
+// --- program-page reconcile ------------------------------------------------
+// A story can already be captured on a PROGRAM PAGE even with no alert (Jill,
+// 2026-08-28: "check program pages to see if we already made notes"). Flag an
+// item as on-page when either (a) another program it's tagged with is already
+// named in this program's transfer_partners_outbound/quirks (the transfer-
+// partner case), or (b) ≥2 of its distinctive (non-generic) headline tokens
+// appear in the program's text. Generic loyalty words are excluded so a page
+// merely containing "transfer partner" never false-matches. Bias to NEW.
+const { data: progRows } = await db.from('programs')
+  .select('slug, transfer_partners_outbound, quirks, good_to_know, intro, changes_policy')
+const GENERIC = new Set(('transfer transfers partner partners point points mile miles bonus card cards program ' +
+  'status award awards earn earning hotel hotels airline airlines offer offers travel loyalty rewards members').split(' '))
+const progBlob = new Map()
+for (const p of progRows || []) {
+  const tpo = Array.isArray(p.transfer_partners_outbound) ? JSON.stringify(p.transfer_partners_outbound) : ''
+  progBlob.set(p.slug, [p.quirks, p.good_to_know, p.intro, p.changes_policy, tpo].filter(Boolean).join(' ').toLowerCase())
+}
+function onPage(item) {
+  const iprog = Array.isArray(item.programs) ? item.programs : []
+  const distinctive = toks(item.headline).filter((t) => !GENERIC.has(t) &&
+    !iprog.some((p) => p.replace(/-/g, ' ').split(' ').includes(t)))
+  for (const slug of iprog) {
+    const blob = progBlob.get(slug); if (!blob) continue
+    const partnerHit = iprog.some((o) => o !== slug && blob.includes(o.replace(/-/g, ' ')))
+    const tokHits = distinctive.filter((t) => blob.includes(t)).length
+    if (partnerHit || tokHits >= 2) return slug
   }
   return null
 }
@@ -99,7 +129,8 @@ const uniq = [...seen.values()]
 const groups = new Map()
 let totalNew = 0, totalCovered = 0, totalDupes = (intel || []).length - uniq.length
 for (const r of uniq) {
-  const cov = coveredBy(r)
+  const op = onPage(r)
+  const cov = coveredBy(r) || (op ? `program page: ${op}` : null)
   if (cov) totalCovered++; else totalNew++
   const t = r.alert_type || 'untyped'
   if (!groups.has(t)) groups.set(t, { new: [], covered: [] })
