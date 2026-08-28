@@ -484,6 +484,9 @@ export default async function CardPage({
                   )}
                   <span>{wb.amount}</span>
                   {wb.unit && <span style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}> {wb.unit}</span>}
+                  {sub.extras && (
+                    <span style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--color-primary)' }}>+ {sub.extras}</span>
+                  )}
                   {sub.is_elevated && (
                     <span style={{ alignSelf: 'center', color: '#D92D20', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 800, fontSize: '0.66rem', fontFamily: 'var(--font-ui)', whiteSpace: 'nowrap', marginLeft: '0.4rem' }}>
                       Elevated offer
@@ -817,10 +820,20 @@ export default async function CardPage({
               sub.baseline_bonus_amount != null &&
               sub.baseline_bonus_amount !== sub.bonus_amount && (
                 <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', margin: '-0.25rem 0 0.75rem' }}>
-                  This is an elevated, limited-time offer — the standard bonus is{' '}
+                  This is an elevated, limited-time offer. The standard bonus is{' '}
                   <strong>{sub.baseline_bonus_amount.toLocaleString()} {pluralizeCurrency(sub.baseline_bonus_amount, sub.bonus_currency)}</strong>.
                 </p>
               )}
+            {sub.extras && (
+              <p style={{ fontSize: '0.9rem', color: 'var(--color-text-primary)', margin: '0 0 0.5rem' }}>
+                Plus <strong>{sub.extras}</strong>.
+              </p>
+            )}
+            {sub.is_elevated && sub.window_end && (
+              <p style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', margin: '-0.15rem 0 0.75rem' }}>
+                Available through {new Date(sub.window_end).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}.
+              </p>
+            )}
             {hasSpendReq ? (
               wb.isTiered ? (
                 // Tiered bonus: break out main offer + each additional tier
