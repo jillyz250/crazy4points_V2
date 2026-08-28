@@ -220,8 +220,15 @@ Also fold in **source-gap coverage** here (programs in intel with no active Scou
 source): propose adding + live-test Firecrawl→Haiku before adding. Usually 0.
 
 ### Phase 7 · 💳 Welcome-bonus changes (card SUB moves — never miss one)
-Source: the `card_bonus_signals` monitor (`/admin/card-bonus-signals`; snapshot
-QUEUE COUNTS "Welcome-bonus changes" + "Prose to re-check"). A raised or brand-new
+**TWO sources, because the scraper is blind to the big issuers.** (1) the
+`card_bonus_signals` monitor (`/admin/card-bonus-signals`; snapshot QUEUE COUNTS
+"Welcome-bonus changes" + "Prose to re-check") — but it scrapes issuer pages, and
+Amex/Chase BLOCK scraping, so it goes blind on exactly the cards that matter most.
+(2) the **`signup_bonus` type-group from `morning-triage-by-type`** — Scout catches
+issuer SUB changes via newsrooms/blogs when the scraper can't (that's how the Delta
+Reserve "2 Comfort certs + 50k" offer came in as a draft 2026-08-28, while the
+scraper had nothing). Always check BOTH; the scraper alone is not coverage.
+A raised or brand-new
 sign-up bonus is often ALERT-worthy (Jill's audience is ~50% points-value), and a
 DROPPED bonus makes a card page stale. For each pending signal:
 - **Verify against the ISSUER's own card page** (multi-source standard — a SUB
