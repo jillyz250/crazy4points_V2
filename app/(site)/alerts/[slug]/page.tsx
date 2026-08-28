@@ -265,24 +265,11 @@ export default async function AlertDetailPage({ params }: Props) {
             for a stale bundle to be missing. */}
         <div aria-hidden style={{ height: '36px' }} />
 
-        {/* Editorial subhead — "Why this matters" in the writer's voice.
-            Styled as a pull-quote: soft purple background, eyebrow
-            label so it reads as a labeled callout, generous padding.
-            Inline-style spacers on either side (36px) for the same
-            cache-proof reason as the spacer above. */}
-        {alert.why_this_matters && (
-          <>
-            <div className="rounded-[var(--radius-card)] border-l-4 border-[var(--color-primary)] bg-[var(--color-background-soft)] py-5 pl-6 pr-5">
-              <p className="mb-2 font-ui text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-primary)]">
-                Why this matters
-              </p>
-              <p className="font-body text-base italic leading-relaxed text-[var(--color-text-primary)]">
-                {alert.why_this_matters}
-              </p>
-            </div>
-            <div aria-hidden style={{ height: '36px' }} />
-          </>
-        )}
+        {/* "Why this matters" is intentionally NOT rendered publicly (2026-08-28).
+            It was populated on only ~11% of alerts and, unlike the alert body,
+            bypassed the sourcing/fact-check bar — so it became a path for
+            unverified editorial claims to reach readers. It stays an internal
+            editorial field; anything reader-worthy goes in the sourced body. */}
 
         {/* "Terms still developing" notice — set when admin shipped without
             verified T&Cs (e.g. press release only, official page not yet
