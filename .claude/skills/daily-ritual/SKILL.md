@@ -64,6 +64,7 @@ node scripts/morning-dedup.mjs --apply   # after a glance, suppress the confirme
 node scripts/morning-reminders-sweep.mjs         # preview dead reminders (ended deals + closed auctions)
 node scripts/morning-reminders-sweep.mjs --apply # auto-complete them (keeps still-live deals + evergreen)
 node scripts/morning-snapshot.mjs        # the full structured feed for the phases below
+node scripts/morning-triage-by-type.mjs  # undecided intel grouped BY TYPE, near-dupes collapsed, already-covered flagged (Phase 4)
 node scripts/improvement-radar.mjs       # ranked data/content/process gaps → feeds Phases 13-15
 ```
 The reminders sweep is SAFE: it only completes "…before it ends" reminders whose
@@ -122,20 +123,27 @@ The snapshot's `[TODAY]` rows — today's dated actions. Flag any real time-boxe
 `completed_at=now` on the `reminders` row (mirrors admin `toggleReminderDone`).
 Never hard-delete unless it's junk. One bulk update when Jill says so.
 
-### Phase 4 · 🗂️ Clear the noise (batch — nothing here needs a draft)
-The non-publish pile, presented as short groups for a **single confirm** — do NOT
-walk one at a time. Feeds: fresh intel + drafts marked non-actionable. The snapshot
-marks each item (🇺🇸 US-signal + 🆕 new-program = ALWAYS a real decision, never
-collapse — those go to Phase 5; ⤵ = auto-handled candidate). Groups:
-- **auto-handled (N), flag-only:** non-US / recurring. **Act on NOTHING
-  automatically.** Show count + reason; `show` to expand. If Jill says `handle
-  them`, apply defaults (non-US → REJECT, recurring → NEWSLETTER). If she says
-  nothing, leave them in the queue — NOT rejected (a category graduates to true
-  auto-reject only after ~2 weeks of zero flagged misses).
-- **clear rejects (N):** dupes, industry-only-not-actionable, auctions — one line
-  each with the reason; reject on her nod.
-- **newsletter-only (N):** recurring sales / minor notes → `triage_decision='newsletter_idea'`.
-One bulk confirm, execute, receipt.
+### Phase 4 · 🗂️ Triage the intel queue — BY TYPE (grouped, one type at a time)
+Source: `node scripts/morning-triage-by-type.mjs` — it groups the undecided queue
+by Scout's `alert_type`, collapses near-duplicate re-forwards, and flags every
+item **✓ COVERED** (matches a published/expired alert) vs **🆕 NEW**. Only 🆕
+items are shown. **Rules that shape this phase (Jill, 2026-08-28):**
+- **A sale / points-buy / bonus is an ALERT candidate, not "just newsletter
+  fodder."** Each type-group ("5 transfer bonuses — here they are") is the unit of
+  decision; they only reach the newsletter *because* an alert exists. So walk the
+  groups and decide which few become alerts (even a one-to-two-sentence quick take).
+- **NEVER recommend an item as a fresh alert without the COVERED check.** The tool
+  does it deterministically (program overlap + title-token match); trust the 🆕
+  flag, and when spot-checking use `--covered`. This is the guard against floating
+  something we've already published (the mistake caught 2026-08-28).
+- Walk the **change-type groups first** (transfer_bonus, devaluation, partner_
+  change, fee_change, program_change, policy_change) — those make real alerts —
+  then the promo groups (limited_time_offer, signup_bonus, award_sale), deciding
+  the genuinely-fresh few. Drill a group with `--type <alert_type>`.
+Per group, Jill calls PUBLISH / QUICK-TAKE / NEWSLETTER / REJECT on the 🆕 items;
+apply by ID via `triage-apply.mjs`. US-signal + new-program are never auto-collapsed.
+NOTE: going forward the classifier drains this automatically once the build-brief
+re-feed-undecided fix lands; this phase is the human layer over what's left.
 
 ### Phase 5 · 🔥 Publish decisions (ONE at a time)
 The candidates that need her judgment + a draft. Verify each against its official
