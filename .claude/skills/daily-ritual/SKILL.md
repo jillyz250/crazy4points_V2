@@ -272,26 +272,30 @@ Two halves — mine forward, and true up what shipped:
   `morning-triage-by-type` is the intended rail — build when there's time.)
 Show Jill the candidates + any status flips; apply on her nod.
 
-### Phase 11 · ✍️ Write & publish one roadmap guide (ROTATE through pillars)
-The article ALWAYS comes from the **content roadmap** (`lib/contentRoadmap.ts`
-`ROADMAP` ladder — evergreen guides), NOT from today's news / `content_ideas`.
-Today's news feeds ALERTS (Phase 5) and the roadmap backlog (Phase 10); Phase 11 is
-the steady evergreen build. (2026-08-28: don't pick a fresh news idea here.)
+### Phase 11 · ✍️ Write & publish TWO articles a day
+**Two pieces daily (Jill, 2026-08-28), one from each content system:**
 
-**Pillar rotation (Jill, 2026-08-28) — grow coverage evenly, don't finish one
-pillar first.** Fixed cycle: **foundations → skills → programs → sweet-spots →
-trips → tricks → (loop)**. Find the pillar of the **most-recently-published ladder
-guide** (a ladder item has a `guideSlug` once it's live; check the guides' publish
-dates), advance to the **NEXT** pillar in the cycle, skip any pillar with no
-unwritten items left, and write that pillar's **highest-priority unwritten guide**
-(lowest `order`; items without a `guideSlug` are unwritten). Present the pick +
-2-3 alternates from the same pillar so Jill can swap.
+**A) The evergreen GUIDE — from the ROADMAP ladder, pillar rotation.** Always from
+`lib/contentRoadmap.ts` `ROADMAP` (the structured guides), NEVER from fresh news.
+**Rotate pillars** so coverage grows evenly: fixed cycle **foundations → skills →
+programs → sweet-spots → trips → tricks → (loop)**. Find the pillar of the
+most-recently-published ladder guide (a ladder item gets a `guideSlug` once live;
+check guides' publish dates), advance to the NEXT pillar, skip any pillar with no
+unwritten items, and write that pillar's highest-priority unwritten guide (lowest
+`order`). Present the pick + 2-3 same-pillar alternates. (Ladder ~50 guides, ~8
+written; programs 0/18 and trips 0/6 are emptiest.)
 
-Then WRITE it — draft in Jill's voice, **multi-source verify every fact BEFORE
-showing her** (see the Verification standard: official + independent current
-source, staleness-guard, red-team, show sourcing), show the full draft, publish.
-One real evergreen piece a day. Current ladder: ~50 guides, ~8 written; programs
-(0/18) and trips (0/6) are the emptiest pillars.
+**B) The general-content BLOG — from the `content_ideas` pool.** The topical/
+timely piece (explainers, comparisons, "perks you're missing", a news idea now
+evergreen enough to write). Pick the highest-value un-written `content_ideas` row
+(status `new`/`idea_bank`), preferring roadmap_pillar-tagged + tied to recent
+verified work. When a general blog turns out to be a durable guide, promote it into
+the ladder (Phase 10).
+
+**Both:** draft in Jill's voice, **multi-source verify EVERY fact BEFORE showing
+her** (the Verification standard — official + independent current source,
+staleness-guard, red-team, show sourcing per fact), show the FULL draft, publish
+on her nod. Two real pieces a day: one evergreen guide + one general blog.
 
 ### Phase 12 · 🔗 Chain sweep (LAST in Act B — covers the whole day)
 Runs last in Act B so it sweeps **everything produced today** — publishes (Phase 5),
