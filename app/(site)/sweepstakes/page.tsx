@@ -31,7 +31,7 @@ export default async function SweepstakesPage({
   const today = new Date().toISOString().slice(0, 10)
   const { data } = await supabase
     .from('sweepstakes')
-    .select('id, program, title, prize, entry_url, source_url, mechanic, ends_at, first_seen, image_url, featured')
+    .select('id, program, title, prize, entry_url, source_url, mechanic, ends_at, first_seen, image_url, hero_image_url, featured')
     .eq('status', 'running')
     // Hide anything already past its enter-by date the instant it expires — the
     // watcher only flips status to 'ended' on its daily run. Undated ones stay.

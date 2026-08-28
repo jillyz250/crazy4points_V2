@@ -369,8 +369,12 @@ function renderTopSweepstakes(items: TopSweepstakesItem[] | null, origin: string
         : ''
       const deadlinePill = it.deadline ? `<p style="margin:8px 0 0;">${goldPill(it.deadline)}</p>` : ''
       const cta = `<p style="margin:9px 0 0;"><a href="${esc(href)}" style="font-family:${FONT_UI};font-size:13px;font-weight:700;color:${LINK_COLOR};text-decoration:underline;">Enter now &rarr;</a></p>`
+      const img = it.image_url
+        ? `<tr><td style="padding:0;font-size:0;line-height:0;"><img src="${esc(it.image_url.startsWith('http') ? it.image_url : origin + it.image_url)}" alt="" width="100%" style="display:block;width:100%;height:auto;border-radius:12px 12px 0 0;border:0;" /></td></tr>`
+        : ''
       return `
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 13px;border:1px solid ${BORDER};border-radius:12px;background:#ffffff;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 13px;border:1px solid ${BORDER};border-radius:12px;background:#ffffff;overflow:hidden;">
+          ${img}
           <tr><td style="padding:17px 19px;">
             <p style="margin:0 0 4px;font-family:${FONT_UI};font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:${PURPLE};font-weight:700;">${esc(it.program)}</p>
             <h3 style="margin:0 0 7px;font-family:${FONT_DISPLAY};font-size:18px;line-height:1.3;color:${BODY};font-weight:700;">${title}</h3>

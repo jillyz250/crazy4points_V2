@@ -53,6 +53,25 @@ PALETTES = {
 }
 
 
+def _hex(h):
+    h = h.lstrip("#")
+    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+
+
+def build_palette(cfg):
+    """Custom color scheme via cfg['colors'] = {primary, accent, bg?} — e.g. team
+    colors (Eagles midnight green + silver). Colors are not trademarks, so team
+    palettes are brand-safe. Falls back to a named `variant` palette."""
+    c = cfg.get("colors")
+    if c:
+        prim = _hex(c["primary"]) if "primary" in c else PURPLE
+        acc = _hex(c["accent"]) if "accent" in c else GOLD
+        bg = _hex(c["bg"]) if "bg" in c else prim
+        return dict(bg=bg, accent=acc, eyebrow=WHITE, head=WHITE, payoff=acc,
+                    sub=SOFT, pill=prim, pill_text=WHITE, dot=acc, cta=acc)
+    return PALETTES[cfg.get("variant", "gold")]
+
+
 def _font(rel, size):
     return ImageFont.truetype(os.path.join(FONTS, rel), size)
 
@@ -332,7 +351,7 @@ TEMPLATES = {
 
 
 def render(cfg, out):
-    pal = PALETTES[cfg.get("variant", "gold")]
+    pal = build_palette(cfg)
     img = Image.new("RGB", (W, H), pal["bg"])
     d = ImageDraw.Draw(img)
     tmpl = cfg.get("template", "big_word")

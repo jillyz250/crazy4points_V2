@@ -113,6 +113,9 @@ export interface TopSweepstakesItem {
   deadline: string | null
   /** Where the card links — the sweep's entry page (falls back to our page). */
   link_url: string
+  /** Optional hero creative (custom graphic). Renders full-width, no crop, at the
+   *  top of the card. Empty/null = no image (the plain card). */
+  image_url?: string | null
 }
 
 export interface SweetSpotBestUse {
