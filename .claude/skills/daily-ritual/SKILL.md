@@ -103,21 +103,16 @@ empty because the cron failed, not because it's clear — verify before trusting
 empty phase downstream). If all green, one line: `Phase 1 · Health — all green ✅`.
 Receipt: what's healthy, what's stale, and whether any downstream phase is suspect.
 
-### Phase 2 · 🧹 Loose ends (overdue) + closings within 5 days
-Two buckets:
+### Phase 2 · 🧹 Loose ends (reminders table ONLY — overdue + dead)
+This phase does ONE thing: clear the reminders table. Nothing else (live
+experience closings are a featuring decision → Phase 8). Two moves, same domain:
 - **Overdue reminders** (`[YYYY-MM-DD]` rows) — yesterday's actions that didn't
   complete (esp. "Social post:"). Recommend **post today** (still live),
-  **DISMISS** (deal ended / stale), or **keep** (→ Phase-16 candidate). Bulk-dismiss
-  the passed ones on her word.
-- **Auction / experience "bidding closes" reminders ending within the NEXT 5 DAYS**
-  — list each with what it is + close date (NOT a collapsed count, NOT auto-dismiss).
-  Jill flagged these as **huge for social + the newsletter** (2026-08-27), and a
-  1-day heads-up is too tight — 5 days gives lead time to feature the great ones.
-  For each: name it, note US-relevance (audience is NY/US-heavy — a US college
-  sports or marquee experience beats a niche overseas one), and recommend
-  **FEATURE** (draft an alert + social / hold for the newsletter) or **skip** (auto-
-  clears when it closes). These are auctions → always honest **bid-don't-buy**
-  framing (no fixed price, transfers final). Only truly past-close ones get dismissed.
+  **DISMISS** (deal ended / stale), or **keep** (→ Phase-16 candidate).
+- **Dead reminders** — the reminders-sweep's past-close auction "Bidding closes"
+  rows and any ended-deal rows. Bulk-**DISMISS** on her word (status='done').
+Keep it to reminders. Do NOT surface experience/auction closings here — even the
+featureable ones — so the phase stays single-focus.
 
 ### Phase 3 · ⏰ Reminders due TODAY
 The snapshot's `[TODAY]` rows — today's dated actions. Flag any real time-boxed one
@@ -209,11 +204,22 @@ backlog + quarantine — GA occasionally surfaces a real gem (verify vs official
 Also fold in **source-gap coverage** here (programs in intel with no active Scout
 source): propose adding + live-test Firecrawl→Haiku before adding. Usually 0.
 
-### Phase 8 · 🎭 Experiences → alerts?
-Review the day's new experiences (snapshot EXPERIENCES section). Any marquee /
-points-redeemable one worth its OWN alert? Honest bid-vs-redeem; note the
-Chase-transfer angle. Publish only the genuinely alert-worthy (most are directory
-listings, not alerts). Auto-skip if none new.
+### Phase 8 · 🎭 Experiences → alerts? (new listings + closings within 5 days)
+ALL experience-featuring decisions live here, so the phase owns one thing end to
+end. Two feeds, one verdict set (**FEATURE** = alert + social / hold for
+newsletter · **skip**):
+- **New listings** (snapshot EXPERIENCES section) — any marquee / points-
+  redeemable one worth its OWN alert? Honest bid-vs-redeem; note the Chase-transfer
+  angle.
+- **Closings within 5 days** (snapshot EXPERIENCE / AUCTION CLOSINGS) — live
+  auctions/experiences closing soon; the lead-time list Jill flagged as **huge for
+  social + newsletter** (2026-08-27). A 1-day heads-up is too tight; 5 days gives
+  runway to feature the great ones. **Curate** to US-relevant + ATTAINABLE points
+  (audience is NY/US-heavy; skip the 300k+ mega-auctions) — don't walk all 30+.
+  Auctions → always honest **bid-don't-buy** framing (no fixed price, transfers
+  final).
+Publish only the genuinely alert-worthy (most are directory listings, not alerts).
+Auto-skip if nothing new AND nothing featureable is closing.
 
 ### Phase 9 · 🎁 Sweepstakes review
 Review the day's new sweepstakes (snapshot SWEEPSTAKES section). Points/miles
