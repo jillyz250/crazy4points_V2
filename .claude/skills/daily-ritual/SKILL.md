@@ -174,11 +174,29 @@ Two extra feeds are walked here too, one at a time, verified against official fi
 Scan the day's new intel + today's publishes for **perk chains** — where one
 benefit unlocks another, which unlocks another. Canonical: Amex Platinum → free
 Walmart+ → free Paramount+; a card's elite status → free Club Avolta status match
-→ Radisson VIP + Avis President's Club + Plaza Premium lounge discount. For ANY
-chain found: **flag it to Jill explicitly** (she asked to always be told), and
-offer to add it to the **Chain Reactions guide**
-(`app/(site)/guides/hidden-perk-stacks/page.tsx`, slug kept) + `lib/perkChains.ts`.
-No chain today → say so in one line. See [[feedback_always_flag_perk_chains]].
+→ Radisson VIP + Avis President's Club + Plaza Premium lounge discount. Best
+candidates cluster in the `card_credit` / `partner_change` / `status_promo` intel
+type-groups (from `morning-triage-by-type`) — start there rather than eyeballing.
+
+**⚠️ VERIFY BEFORE FLAGGING OR ADDING (2026-08-28).** Do NOT present something as a
+chain until you've confirmed it against the **issuer/network's official terms**. A
+headline that lists two perks ("free Instacart+ and Peacock") is usually NOT a chain
+— on 2026-08-28 that one looked like Amex Plat → Walmart+ → Paramount+ but the
+official terms showed Instacart+ and Peacock are two **separate** Mastercard perks,
+no "A unlocks B". Flag chains as *candidates* until verified.
+
+**Two homes, pick the right one:**
+- **True chain** (A unlocks B unlocks C) → `lib/perkChains.ts` + the Chain Reactions
+  guide (`app/(site)/guides/hidden-perk-stacks/page.tsx`, slug kept). Renders on
+  program pages AND card pages (via `cardSlug` / `programSlugs`).
+- **Network-level perk** (a standalone benefit shared across a network tier, e.g.
+  Mastercard World Elite) → `lib/networkPerks.ts` (NOT the chain guide). One
+  definition renders on every matching card via `CardBenefitStacks`, with an
+  issuer source + verified date + `validThrough` so it auto-expires.
+
+Every entry carries the official source + verified date. **Flag any chain to Jill
+explicitly** (she asked to always be told). No chain today → say so in one line.
+See [[feedback_always_flag_perk_chains]], [[feedback_verify_before_correcting]].
 
 ---
 
