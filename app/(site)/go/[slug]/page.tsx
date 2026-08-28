@@ -67,10 +67,13 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
         )}
 
         {(l.deadline_label || left !== null) && (
-          <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-[var(--color-accent)] px-4 py-2 font-ui text-sm font-bold text-[#1A1A1A]">
+          <div
+            className="mt-5 inline-flex items-center gap-2 rounded-full border border-[var(--color-accent)] px-4 py-1.5 font-ui text-sm font-semibold text-[var(--color-primary)]"
+            style={{ background: 'color-mix(in srgb, var(--color-accent) 12%, transparent)' }}
+          >
             {l.deadline_label || 'Ends soon'}
             {left !== null && left <= 30 && (
-              <span className="font-normal">· {left} {left === 1 ? 'day' : 'days'} left</span>
+              <span className="font-normal text-[var(--color-text-secondary)]">· {left} {left === 1 ? 'day' : 'days'} left</span>
             )}
           </div>
         )}
