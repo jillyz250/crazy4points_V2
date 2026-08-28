@@ -16,15 +16,18 @@ publish, write, **and make the platform better than yesterday**.
    send the receipt, then the next phase. Never paste multiple phases at once. She
    should never scroll to know what to do next.
 2. **Confirmation receipt + phase retro after every phase.** When a phase's
-   actions are done, send a receipt: **`✅ Phase N done —`** then an **ITEMIZED
-   status of every concrete thing that changed this phase**, one bullet each
-   (what was fact-checked/verified and against which source, each data change,
-   each page or copy edit, each alert published, each cron/guardrail added, each
-   auto-expiry set). Jill wants a COMPLETE record, not a capped summary (2026-08-28:
-   "each phase should have a status... fact checked, changed the delta card bonus,
-   changed the welcome offer wording, set them both to auto expire on Nov 4, etc").
-   List everything that changed; don't artificially cap it. Then, before `Next →`,
-   add a one-line
+   actions are done, send a **categorized status** headed `✅ Phase N · TITLE —
+   status`, grouping every concrete change under only the buckets that apply, each
+   bullet SOURCED or LINKED where relevant (2026-08-28, Jill wants a complete,
+   scannable record, not a capped dump — "status can improve"):
+   - **🔍 Verified** — what was fact-checked + against which source(s)
+   - **📣 Published** — alerts/social, with the clickable URL
+   - **💾 Data changed** — each field/row edit (show the new value)
+   - **💻 Code shipped** — each change, with the PR link
+   - **🛡️ Guardrails** — monitors/rules/checks added
+   - **⏲️ Auto-jobs set** — crons, reminders, auto-expiries with their date
+   Skip empty buckets; list everything that changed, don't artificially cap it.
+   Then, before `Next →`, add a one-line
    **`🔧 Phase N retro:`** — the single best idea to make THIS phase better (or
    "running well, no change") and ask if she wants it. Jill wants every phase to
    keep sharpening (2026-08-27). If she says do it, apply the improvement to this
