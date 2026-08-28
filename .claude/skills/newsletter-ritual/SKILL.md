@@ -94,7 +94,19 @@ today** (it'll be dead on arrival). She picks; set `active_offers`.
 
 ### N6 · 🎭 Experiences
 Top points-redeemable experiences, **NY-relevant first**, honest bid-vs-redeem
-(auctions = bid-don't-buy). She picks; set `top_experiences`.
+(auctions = bid-don't-buy). She picks; set `top_experiences`. Learnings (2026-08-28):
+- **Link ON-SITE, not external.** Point each card's `link_url` at the program's
+  crazy4points directory page (`/experiences/<directory_slug>` from the `experiences`
+  table, e.g. `/experiences/united-mileageplus-exclusives`,
+  `/experiences/marriott-bonvoy-moments`), NOT the raw United/Delta/Marriott URL.
+  Keeps readers on the site. **Gap:** there is NO Delta directory page yet, so Delta
+  SkyMiles Experiences have no on-site home (build one, or link external + flag it).
+- **Each card takes an `image_url` and a `tag` badge** (Sports / Culinary / College
+  Football). Use the listing's own image, or a custom creative (the ND VIP graphic
+  at `/campaigns/…`). The render shows the FULL image (no crop) so designed creatives
+  with text stay legible.
+- **Live-auction disclaimer** renders automatically when any card is an auction.
+- Section heading is "Experiences".
 
 ### N7 · 🎁 Sweepstakes
 Featured points/miles sweepstakes (timeshare excluded, per `isTimeshareSweep`).

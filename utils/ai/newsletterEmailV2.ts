@@ -434,7 +434,7 @@ function renderTopExperiences(items: TopExperienceItem[] | null, origin: string)
         ? `<p style="margin:5px 0 0;font-family:${FONT_BODY};font-size:12px;line-height:1.4;color:${MUTED};">${esc(it.secondary_link.label)} <a href="${esc(it.secondary_link.url.startsWith('http') ? it.secondary_link.url : origin + it.secondary_link.url)}" style="color:${LINK_COLOR};text-decoration:underline;font-weight:600;">here &rarr;</a></p>`
         : ''
       const img = it.image_url
-        ? `<tr><td style="padding:0;font-size:0;line-height:0;"><img src="${esc(it.image_url)}" alt="" width="100%" style="display:block;width:100%;max-height:190px;object-fit:cover;border-radius:12px 12px 0 0;border:0;" /></td></tr>`
+        ? `<tr><td style="padding:0;font-size:0;line-height:0;"><img src="${esc(it.image_url)}" alt="" width="100%" style="display:block;width:100%;height:auto;border-radius:12px 12px 0 0;border:0;" /></td></tr>`
         : ''
       return `
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 13px;border:1px solid ${BORDER};border-radius:12px;background:#ffffff;overflow:hidden;">
