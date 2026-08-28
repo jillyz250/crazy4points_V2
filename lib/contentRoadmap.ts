@@ -60,6 +60,7 @@ export const ROADMAP: RoadmapItem[] = [
   { title: 'How to Book a Sold-Out Hotel', pillar: 'skills', guideSlug: 'how-to-book-a-sold-out-hotel' },
   { title: 'How to Win a Best Rate Guarantee', pillar: 'skills', guideSlug: 'how-to-win-a-best-rate-guarantee' },
   { title: 'How to Upgrade to First Class', pillar: 'skills', guideSlug: 'how-to-upgrade-american-first-class' },
+  { title: 'How to Spot an Elevated Welcome Offer', pillar: 'skills', guideSlug: 'how-to-spot-an-elevated-welcome-offer' },
   { title: 'Miles for Last-Minute Trips', pillar: 'skills', order: 32 },
 
   // Pillar 3 — Program Guides ("How to Use X", 18) — LEAD THE QUEUE
