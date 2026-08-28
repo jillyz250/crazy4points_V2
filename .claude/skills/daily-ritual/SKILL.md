@@ -309,8 +309,22 @@ Auto-skip if nothing new AND nothing featureable is closing.
 
 ### Phase 10 · 🎁 Sweepstakes review
 Review the day's new sweepstakes (snapshot SWEEPSTAKES section). Points/miles
-giveaways lead. Flag the best as a Phase-18 social candidate; keep/dismiss the
-rest. Auto-skip if none new.
+giveaways lead. Flag the best as a Phase-18 social candidate; **Feature** the
+keepers (they lead the newsletter) and **Reviewed** the rest so the board shrinks;
+`⚠ Timeshare` rows are vacation-club lead-gen (hidden from the public page). Curate
+at `/admin/sweepstakes`. Auto-skip if none new.
+
+**Scope = STRICT (Jill, 2026-08-28): loyalty-program points/miles sweeps ONLY** —
+run by an airline/hotel/card rewards program, OR whose prize IS that program's
+points/miles. Third-party "win a free trip / free flights on route X" giveaways are
+OUT (off-brand for a points site; verified 2026-08-28 that ContestGirl / Sweeps
+Fanatics / Sweeps Advantage are ~all third-party travel prizes, so generic
+aggregators add noise, not data). **Grow coverage from ORIGINAL first-party sources
+as we go:** when a real loyalty-program points sweep surfaces (in intel, a scrape,
+or anywhere), enroll ITS OWN page in `sweepstakes_sources` (kind `program`) — the
+way each AAdvantage "Perks" team site is enrolled — after a quick Firecrawl→Haiku
+live-test. Don't bulk-add directory aggregators; the only one that yields is Sweeps
+Advantage (airlines+hotels), already enrolled. See [[reference_sweepstakes_sourcing_strict]].
 
 ### Phase 11 · ✈️ Changes/Cancellations — next airline (1/day)
 Add the "Changes, Cancellations & Delays" section (`programs.changes_policy`) to
