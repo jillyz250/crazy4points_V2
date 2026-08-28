@@ -104,6 +104,10 @@ export const ROADMAP: RoadmapItem[] = [
   { title: 'Hidden Perk Stacks', pillar: 'tricks', guideSlug: 'hidden-perk-stacks' },
   { title: 'The Status-Match Playbook', pillar: 'tricks', order: 46 },
   { title: 'Perk Stacks, Card by Card', pillar: 'tricks', order: 47 },
+  { title: "Network Perks You're Not Using (Visa & Mastercard)", pillar: 'tricks', order: 49 },
+  // Promoted from content_ideas (2026-08-28) — evergreen, so they earn a ladder slot.
+  { title: 'Award Change & Cancel Rules, Airline by Airline', pillar: 'skills', order: 48 },
+  { title: 'How to Use U.S. Bank Altitude Points', pillar: 'programs', order: 50 },
 ]
 
 /** Platform / knowledge-graph build track — the machine under the content. */

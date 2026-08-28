@@ -30,7 +30,10 @@ publish, write, **and make the platform better than yesterday**.
 3. **Same layout every day.** Fixed card header (`PHASE N of 17 · TITLE`; `of 18`
    on Thursdays), fixed columns, fixed verdict words. Consistency is the feature.
 4. **Empty phases auto-skip** with one line (`Phase 7 · Experiences — none new ✅`).
-5. **Jill drives:** `next` / `skip` / `back` / `done`.
+5. **Jill drives:** `next` / `skip` / `back` / `done`. **Never PROPOSE skipping or
+   deferring a non-empty phase** (Jill, 2026-08-28: "don't suggest again to skip
+   phases... we have plenty of time"). Go through them in order; she skips if she
+   wants to. Empty phases still auto-skip with one line.
 6. **Verdict vocabulary** (use these exact words): `PUBLISH · PAGE-NOTE ·
    NEWSLETTER · REJECT · HOLD · DISMISS`. Status marks: `Reverified ✅/⚠️` ·
    Page status in plain words: **correct** / **needs fixing** / **n/a**.
@@ -269,10 +272,26 @@ Two halves — mine forward, and true up what shipped:
   `morning-triage-by-type` is the intended rail — build when there's time.)
 Show Jill the candidates + any status flips; apply on her nod.
 
-### Phase 11 · ✍️ Write & publish one article
-Pick the single highest-value roadmap-backed idea (Program-Guides-first) and WRITE
-it — draft in Jill's voice, fact-check against official sources, show her the full
-draft, publish. One real piece a day.
+### Phase 11 · ✍️ Write & publish one roadmap guide (ROTATE through pillars)
+The article ALWAYS comes from the **content roadmap** (`lib/contentRoadmap.ts`
+`ROADMAP` ladder — evergreen guides), NOT from today's news / `content_ideas`.
+Today's news feeds ALERTS (Phase 5) and the roadmap backlog (Phase 10); Phase 11 is
+the steady evergreen build. (2026-08-28: don't pick a fresh news idea here.)
+
+**Pillar rotation (Jill, 2026-08-28) — grow coverage evenly, don't finish one
+pillar first.** Fixed cycle: **foundations → skills → programs → sweet-spots →
+trips → tricks → (loop)**. Find the pillar of the **most-recently-published ladder
+guide** (a ladder item has a `guideSlug` once it's live; check the guides' publish
+dates), advance to the **NEXT** pillar in the cycle, skip any pillar with no
+unwritten items left, and write that pillar's **highest-priority unwritten guide**
+(lowest `order`; items without a `guideSlug` are unwritten). Present the pick +
+2-3 alternates from the same pillar so Jill can swap.
+
+Then WRITE it — draft in Jill's voice, **multi-source verify every fact BEFORE
+showing her** (see the Verification standard: official + independent current
+source, staleness-guard, red-team, show sourcing), show the full draft, publish.
+One real evergreen piece a day. Current ladder: ~50 guides, ~8 written; programs
+(0/18) and trips (0/6) are the emptiest pillars.
 
 ### Phase 12 · 🔗 Chain sweep (LAST in Act B — covers the whole day)
 Runs last in Act B so it sweeps **everything produced today** — publishes (Phase 5),
