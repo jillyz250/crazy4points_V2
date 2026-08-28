@@ -28,6 +28,7 @@ const ALLOWED_SOURCES = new Set([
   'newsletter_link',
   'tools_checklist',
   'guide_inline',
+  'campaign_landing',
   'manual',
   'api_direct',
 ])
