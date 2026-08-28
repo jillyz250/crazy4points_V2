@@ -39,6 +39,8 @@ Jill reviews via the `/admin/newsletter` preview (refresh after each edit).
 
 ---
 
+**Section order (matches the newsletter render top-to-bottom):** N1 Big Story, N2 Sweet Spot, N3 Experiences, N4 Sweepstakes, N5 Also Happening, N6 Active Offers, N7 Elevated Bonuses, N8 Jill's Take, N9 Review & Send. (The blocks below are grouped by topic; follow the N-numbers.)
+
 ### N1 · 🎯 The Big Story
 1. **Select the big story.** Show the eligible candidates — this week's published
    alerts, most-newsworthy first (devaluations, marquee card offers, timely/seasonal
@@ -79,20 +81,20 @@ Jill reviews via the `/admin/newsletter` preview (refresh after each edit).
 - Voice: personal, relatable, sassy-warm — NOT ad copy. And **no em/en dashes** (the
   render strips them via `noDashes`, but write clean anyway).
 
-### N3 · 📌 Also Happening
+### N5 · 📌 Also Happening
 Show this week's published-alert pool grouped by theme; recommend a **varied** set
 of 3-4 (one devaluation, one card offer, one perk/status win — not three of a kind).
 Each links to a real page. She picks; set `also_happening`.
 
-### N4 · ⬆️ Elevated Card Bonuses
+### N7 · ⬆️ Elevated Card Bonuses
 Show the current elevated welcome offers (`is_elevated` cards + `card_bonus_signals`).
 She picks which to feature; verify each vs the issuer's own page. Set `elevated_bonuses`.
 
-### N5 · 🔁 Active Offers
+### N6 · 🔁 Active Offers
 Transfer bonuses + earning promos live this week. **DROP anything expired or ending
 today** (it'll be dead on arrival). She picks; set `active_offers`.
 
-### N6 · 🎭 Experiences
+### N3 · 🎭 Experiences
 Top points-redeemable experiences, **NY-relevant first**, honest bid-vs-redeem
 (auctions = bid-don't-buy). She picks; set `top_experiences`. Learnings (2026-08-28):
 - **Link ON-SITE, not external.** Point each card's `link_url` at the program's
@@ -108,7 +110,7 @@ Top points-redeemable experiences, **NY-relevant first**, honest bid-vs-redeem
 - **Live-auction disclaimer** renders automatically when any card is an auction.
 - Section heading is "Experiences".
 
-### N7 · 🎁 Sweepstakes
+### N4 · 🎁 Sweepstakes
 Featured points/miles sweepstakes (timeshare excluded, per `isTimeshareSweep`).
 She picks; set `top_sweepstakes`.
 
