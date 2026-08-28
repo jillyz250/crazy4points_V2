@@ -150,6 +150,15 @@ export const GUIDES: Guide[] = [
     updated: '2026-08-28',
     featured: true,
   },
+  {
+    slug: 'how-to-spot-an-elevated-welcome-offer',
+    title: 'How to Spot an Elevated Welcome Offer',
+    description:
+      'Issuers raise card welcome offers above their usual level a few times a year. How to tell an elevated offer from the everyday one, when to apply versus wait, and the terms to check first.',
+    category: 'cards',
+    updated: '2026-08-28',
+    featured: true,
+  },
 ]
 
 /**
