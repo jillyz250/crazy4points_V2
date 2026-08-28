@@ -243,10 +243,11 @@ process the **3-5 oldest due each day** so the queue never grows; if the backlog
 large, do more until it's under control. A re-verified item gets a fresh
 `content_updated_at` / review date and drops off.
 **Guides & evergreen articles enter the queue on a 6-MONTH cadence (Jill,
-2026-08-28):** every guide/article carries a `reviewedAt` date; six months on it
-surfaces here for a re-verify pass (exactly how our Chase page went stale on the
-Hyatt ratio — a guide would too). Fixing = verify vs official, correct, restamp
-`reviewedAt`. This is guardrail #2 (freshness) for the content itself.
+2026-08-28):** every guide carries an `updated` (last-verified) date in
+`lib/guides.ts`. Run `node_modules/.bin/tsx scripts/guides-due-refresh.ts` to list
+any past 6 months; re-verify each vs official (multi-source standard), correct, and
+bump its `updated` date. Exactly how our Chase page went stale on the Hyatt ratio, a
+guide would too. This is guardrail #2 (freshness) for the content itself.
 Auto-skip if nothing is due.
 
 ### Phase 9 · 🎭 Experiences → alerts? (new listings + closings within 5 days)

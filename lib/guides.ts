@@ -261,3 +261,24 @@ export function guidesInCategory(key: GuideCategoryKey): Guide[] {
 export function getGuide(slug: string): Guide | undefined {
   return GUIDES.find((g) => g.slug === slug)
 }
+
+/**
+ * Guides whose `updated` (last-verified) date is older than `months` (default 6),
+ * oldest first — the freshness guardrail. Evergreen content goes stale silently
+ * (our Chase program page did, on the Hyatt ratio); a guide would too. The daily
+ * ritual's Refresh-queue phase reads this so every guide gets re-verified against
+ * official sources at least twice a year. A guide with no `updated` date is treated
+ * as due (we can't prove it's fresh). Added 2026-08-28 (Jill: guardrail everything).
+ */
+export function guidesDueForRefresh(months = 6, today: Date = new Date()): Array<Guide & { ageMonths: number }> {
+  const cutoff = new Date(today)
+  cutoff.setMonth(cutoff.getMonth() - months)
+  const monthsBetween = (iso?: string): number => {
+    if (!iso) return Infinity
+    const d = new Date(iso)
+    return (today.getFullYear() - d.getFullYear()) * 12 + (today.getMonth() - d.getMonth())
+  }
+  return GUIDES.filter((g) => !g.updated || new Date(g.updated) < cutoff)
+    .map((g) => ({ ...g, ageMonths: monthsBetween(g.updated) }))
+    .sort((a, b) => b.ageMonths - a.ageMonths)
+}
