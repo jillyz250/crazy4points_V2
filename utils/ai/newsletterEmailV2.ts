@@ -433,8 +433,12 @@ function renderTopExperiences(items: TopExperienceItem[] | null, origin: string)
       const secondary = it.secondary_link
         ? `<p style="margin:5px 0 0;font-family:${FONT_BODY};font-size:12px;line-height:1.4;color:${MUTED};">${esc(it.secondary_link.label)} <a href="${esc(it.secondary_link.url.startsWith('http') ? it.secondary_link.url : origin + it.secondary_link.url)}" style="color:${LINK_COLOR};text-decoration:underline;font-weight:600;">here &rarr;</a></p>`
         : ''
+      const img = it.image_url
+        ? `<tr><td style="padding:0;font-size:0;line-height:0;"><img src="${esc(it.image_url)}" alt="" width="100%" style="display:block;width:100%;max-height:190px;object-fit:cover;border-radius:12px 12px 0 0;border:0;" /></td></tr>`
+        : ''
       return `
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 13px;border:1px solid ${BORDER};border-radius:12px;background:#ffffff;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 13px;border:1px solid ${BORDER};border-radius:12px;background:#ffffff;overflow:hidden;">
+          ${img}
           <tr><td style="padding:17px 19px;">
             ${tag}
             <p style="margin:0 0 4px;font-family:${FONT_UI};font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:${PURPLE};font-weight:700;">${esc(it.program_label)}</p>
@@ -455,7 +459,7 @@ function renderTopExperiences(items: TopExperienceItem[] | null, origin: string)
   // Full-width soft-purple band so this section pops as the aspirational one.
   return `
     <tr><td style="padding:40px 30px 34px;background:${TINT};">
-      ${sectionHeading('Beyond Flights &amp; Hotels', '10px')}
+      ${sectionHeading('Experiences', '10px')}
       <p style="margin:0 0 16px;font-family:${FONT_BODY};font-size:13px;line-height:1.55;color:${MUTED};">${intro}</p>
       ${cards}
     </td></tr>`
