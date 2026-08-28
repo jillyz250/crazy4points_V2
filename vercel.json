@@ -9,6 +9,10 @@
       "schedule": "0 10 * * *"
     },
     {
+      "path": "/api/cron/expire-elevated-offers",
+      "schedule": "15 9 * * *"
+    },
+    {
       "path": "/api/build-brief",
       "schedule": "30 10 * * *"
     },
