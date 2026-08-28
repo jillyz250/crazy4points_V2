@@ -1,15 +1,17 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { TopSweepstakesItem } from './newsletterSlots'
+import { isTimeshareSweep } from '@/lib/sweepstakes/categories'
 
 /**
  * Build the newsletter "Top Sweepstakes to Enter" section from the `sweepstakes`
  * table.
  *
- * Curation (Jill's logic): feature only the sweeps she has ALREADY posted to
- * social (posted_social = true) and that are STILL running (status='running';
- * the watcher auto-expires past-deadline ones, and we re-guard on the date here
- * so a stale row never ships a dead link). Soonest deadline first — those are
- * the most urgent to enter — then a shortlist of 3.
+ * Curation (Jill, 2026-08-28): lead with the sweeps she FEATURED at
+ * /admin/sweepstakes (featured = true, her editorial picks), then fall back to any
+ * she's posted to social (posted_social = true). Both must still be running
+ * (status='running'; re-guarded on the date so a stale row never ships a dead
+ * link). **Timeshare sweeps are excluded** — they're vacation-club lead-gen, not
+ * something to send readers to. Featured first, then soonest deadline, top 3.
  *
  * Detection only — this auto-fills the slot; the editor trims/reorders before
  * sending.
@@ -26,6 +28,7 @@ interface SweepRow {
   entry_url: string | null
   source_url: string | null
   ends_at: string | null
+  featured: boolean | null
 }
 
 /** "2026-08-09" -> "Ends Aug 9". Null when unparseable. */
@@ -55,9 +58,10 @@ export async function getTopSweepstakes(supabase: SupabaseClient): Promise<TopSw
 
   const { data } = await supabase
     .from('sweepstakes')
-    .select('program, title, prize, entry_url, source_url, ends_at')
+    .select('program, title, prize, entry_url, source_url, ends_at, featured')
     .eq('status', 'running')
-    .eq('posted_social', true)
+    // Jill's featured picks OR anything already posted to social.
+    .or('featured.eq.true,posted_social.eq.true')
     // Belt-and-suspenders vs the watcher's auto-expire: never feature a sweep
     // whose enter-by date has already passed. Undated ones are kept.
     .or(`ends_at.is.null,ends_at.gte.${today}`)
@@ -65,7 +69,11 @@ export async function getTopSweepstakes(supabase: SupabaseClient): Promise<TopSw
     .order('ends_at', { ascending: true, nullsFirst: false })
     .limit(40) // over-fetch; we dedup by prize below, then cap
 
-  const rows = (data ?? []) as SweepRow[]
+  // Exclude timeshare lead-gen sweeps, then float FEATURED to the top (stable, so
+  // the deadline order is preserved within each group).
+  const rows = ((data ?? []) as SweepRow[])
+    .filter((r) => !isTimeshareSweep(r.program, r.prize, r.title))
+    .sort((a, b) => Number(!!b.featured) - Number(!!a.featured))
 
   // Show variety, not three copies of the same giveaway. A dozen AAdvantage team
   // "Perks" sites all give away "100,000 AAdvantage miles" — collapse identical
