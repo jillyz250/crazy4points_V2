@@ -159,11 +159,14 @@ async function loadStats() {
       .order('first_seen_at', { ascending: false }),
     // Sweepstakes currently running (the daily sweepstakes-watch feeds this).
     supabase.from('sweepstakes').select('id', { count: 'exact', head: true }).eq('status', 'running'),
-    // Running sweepstakes we haven't posted to social yet — the "do a post" nudge.
+    // Sweepstakes Jill FEATURED but hasn't posted yet — the "do a post" nudge.
+    // She only posts the best (the featured ones), so the nudge counts those, not
+    // every un-posted sweep (which would nag her to post dozens she'll never touch).
     supabase
       .from('sweepstakes')
       .select('id', { count: 'exact', head: true })
       .eq('status', 'running')
+      .eq('featured', true)
       .eq('posted_social', false),
   ])
 
@@ -261,8 +264,8 @@ export default async function AdminDashboard() {
         stats.sweepsRunning === 0
           ? 'none live right now'
           : stats.sweepsNeedPost > 0
-            ? `${stats.sweepsNeedPost} need a social post`
-            : 'all posted',
+            ? `${stats.sweepsNeedPost} featured to post`
+            : 'featured picks all posted',
     },
     {
       label: 'Open content ideas',

@@ -54,7 +54,9 @@ export default async function SweepstakesPage() {
     .order('ends_at', { ascending: true, nullsFirst: false })
     .order('first_seen', { ascending: false })
   const sweeps = (data ?? []) as Sweep[]
-  const needPost = sweeps.filter((s) => !s.posted_social).length
+  // Jill only posts the ones she FEATURED, so the "to post" count is featured-but-
+  // not-posted, not every un-posted sweep (that nagged her to post dozens she'd skip).
+  const toPost = sweeps.filter((s) => s.featured && !s.posted_social).length
   const toReview = sweeps.filter((s) => !s.reviewed_at).length
 
   return (
@@ -66,7 +68,7 @@ export default async function SweepstakesPage() {
 
       <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', marginBottom: '1rem', fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-primary, #6B2D8F)' }}>
         {toReview > 0 && <span>{toReview} to review</span>}
-        {needPost > 0 && <span>{needPost} {needPost === 1 ? 'needs' : 'need'} a social post</span>}
+        {toPost > 0 && <span>⭐ {toPost} featured to post</span>}
       </div>
 
       {sweeps.length === 0 ? (
@@ -85,11 +87,8 @@ export default async function SweepstakesPage() {
                     {isTimeshareSweep(s.program, s.prize, s.title) && <Badge tone="warning">⚠ Timeshare</Badge>}
                     {mech && <Badge tone="neutral">{mech}</Badge>}
                     {ends && <Badge tone="warning">{ends}</Badge>}
-                    {s.posted_social ? (
-                      <Badge tone="success">posted</Badge>
-                    ) : (
-                      <Badge tone="accent">needs a post</Badge>
-                    )}
+                    {s.featured && <Badge tone="accent">⭐ Featured</Badge>}
+                    {s.posted_social && <Badge tone="success">posted</Badge>}
                   </div>
                   <p style={{ margin: '0 0 0.25rem', fontWeight: 600 }}>{s.title}</p>
                   {s.prize && (
