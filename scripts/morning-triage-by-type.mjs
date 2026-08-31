@@ -120,8 +120,10 @@ const sigOf = (r) => {
 const seen = new Map()
 for (const r of intel || []) {
   const s = sigOf(r)
-  if (!seen.has(s)) seen.set(s, { ...r, dupes: 1 })
-  else seen.get(s).dupes++
+  // Keep ALL underlying ids per signature so a group-reject covers every reworded
+  // dupe of the same offer, not just the representative.
+  if (!seen.has(s)) seen.set(s, { ...r, dupes: 1, ids: [r.id] })
+  else { const u = seen.get(s); u.dupes++; u.ids.push(r.id) }
 }
 const uniq = [...seen.values()]
 
@@ -150,9 +152,16 @@ for (const [type, g] of ordered) {
   console.log(`\n### ${label.toUpperCase()} — ${g.new.length} new${g.covered.length ? ` · ${g.covered.length} covered` : ''}`)
   for (const r of g.new.slice(0, ARG_TYPE ? 100 : 12)) {
     const progs = (Array.isArray(r.programs) ? r.programs : []).slice(0, 3).join(',')
-    console.log(`  🆕 [${progs || '—'}] ${(r.headline || '').slice(0, 74)}${r.dupes > 1 ? `  (×${r.dupes})` : ''}`)
+    console.log(`  🆕 ${r.id.slice(0, 8)} [${progs || '—'}] ${(r.headline || '').slice(0, 66)}${r.dupes > 1 ? `  (×${r.dupes})` : ''}`)
   }
   if (!ARG_TYPE && g.new.length > 12) console.log(`     …+${g.new.length - 12} more new (drill: --type ${type})`)
+  // Ready reject command for the WHOLE group's NEW items (all dupe ids, 8-char
+  // prefixes) — paste to clear a routine promo group in one shot. Shown when
+  // drilled (--type) so the summary view stays scannable.
+  if (ARG_TYPE && g.new.length) {
+    const ids = g.new.flatMap((r) => (r.ids || [r.id]).map((x) => x.slice(0, 8)))
+    console.log(`\n  REJECT-GROUP → node scripts/triage-apply.mjs --reject ${ids.join(' ')} --reason "routine ${label}"`)
+  }
   if (SHOW_COVERED) for (const r of g.covered.slice(0, 20)) {
     console.log(`  ✓ [covered] ${(r.headline || '').slice(0, 50)}  ⇐ ${r.coveredBy.slice(0, 42)}`)
   }
