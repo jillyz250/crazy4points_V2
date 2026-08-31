@@ -55,14 +55,32 @@ const { data: intel } = await db.from('intel_items')
   .or(`expires_at.is.null,expires_at.gte.${now}`)
   .order('created_at', { ascending: false }).limit(3000)
 
-// --- pull published + expired alerts (title + programs) for the covered guard
+// --- covered guard corpus: published/expired alerts PLUS stories we already
+// DISMISSED — soft-rejected/rejected alert drafts and recently-rejected intel —
+// so a story we decided against doesn't re-surface as "new" every day (Jill,
+// 2026-08-31: an AA upgrade change we'd dismissed + page-noted came back).
 const { data: pubRaw } = await db.from('content_variants')
-  .select('title, topics(programs)')
-  .eq('format', 'alert').in('status', ['published', 'expired'])
-  .limit(2000)
-const pub = (pubRaw || []).map((p) => ({ title: p.title, tokens: toks(p.title), programs: p.topics?.programs || [] }))
+  .select('title, status, topics(programs)')
+  .eq('format', 'alert').in('status', ['published', 'expired', 'soft_rejected', 'rejected'])
+  .limit(2500)
+const REJ_SINCE = new Date(Date.now() - 60 * 864e5).toISOString()
+const { data: rejRaw } = await db.from('intel_items')
+  .select('headline, programs, rejected_at')
+  .not('rejected_at', 'is', null).gte('rejected_at', REJ_SINCE).limit(3000)
+const pub = [
+  ...(pubRaw || []).map((p) => ({
+    title: p.title, tokens: toks(p.title), programs: p.topics?.programs || [],
+    dismissed: p.status === 'soft_rejected' || p.status === 'rejected',
+  })),
+  ...(rejRaw || []).map((r) => ({
+    title: r.headline, tokens: toks(r.headline),
+    programs: Array.isArray(r.programs) ? r.programs : [], dismissed: true, strict: true,
+  })),
+]
 
-// covered = a published/expired alert shares a program AND enough title tokens.
+// covered = a live alert OR a dismissed story shares a program AND enough tokens.
+// The rejected-INTEL corpus is large (~3k), so it needs a STRONGER match (0.55)
+// before it hides an item from the NEW list — curated alert drafts stay at 0.42.
 function coveredBy(item) {
   const it = toks(item.headline)
   const iprog = Array.isArray(item.programs) ? item.programs : []
@@ -70,7 +88,7 @@ function coveredBy(item) {
     const progOverlap = iprog.some((x) => p.programs.includes(x)) ||
       iprog.some((x) => p.tokens.includes(x.replace(/-/g, ' ').split(' ')[0]))
     if (!progOverlap && iprog.length) continue
-    if (jaccard(it, p.tokens) >= 0.42) return `alert: ${p.title}`
+    if (jaccard(it, p.tokens) >= (p.strict ? 0.55 : 0.42)) return `${p.dismissed ? 'dismissed' : 'alert'}: ${p.title}`
   }
   return null
 }
