@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { GuideDateline } from '@/components/guides/GuideDateline'
 import { GuideJsonLd } from '@/components/guides/GuideJsonLd'
 import GuideNewsletterCTA from '@/components/guides/GuideNewsletterCTA'
+import { GuideFaq } from '@/components/guides/GuideFaq'
 
 export const metadata: Metadata = {
   title: 'How to Use Amex Membership Rewards',
@@ -153,17 +154,34 @@ export default function Page() {
           </li>
         </ul>
 
-        <h2 className={h2}>Quick answers</h2>
-        <ul className="mt-4 list-disc space-y-2 pl-6">
-          <li className={li}>
-            <strong>Do Membership Rewards points expire?</strong> Not while you hold at least one Membership Rewards card
-            that is open and in good standing.
-          </li>
-          <li className={li}>
-            <strong>Is there a non-travel transfer partner?</strong> Amex has announced Fanatics FanCash as its first
-            non-travel partner, but it is not live for transfers yet.
-          </li>
-        </ul>
+        <GuideFaq
+          items={[
+            {
+              q: 'What is the best way to use Membership Rewards?',
+              a: 'Transfer them to an airline partner and book a premium-cabin or partner award. That is where the points stretch furthest; cash, gift cards, and Pay with Points are the weakest uses.',
+            },
+            {
+              q: 'Which cards earn Membership Rewards?',
+              a: 'The Amex Platinum, Gold, and Green on the personal side, and the Business Platinum, Business Gold, and Blue Business Plus on the business side. The older EveryDay cards still earn them but are closed to new applicants. Co-brand cards (Delta, Hilton, Marriott) earn those partners’ points instead.',
+            },
+            {
+              q: 'Does Amex charge a fee to transfer points?',
+              a: 'Only a small excise-tax fee, capped per transfer, when you move points to a U.S. airline partner (currently Delta and JetBlue). Transfers to other partners have no fee.',
+            },
+            {
+              q: 'Are Amex transfers instant and reversible?',
+              a: 'Most airline partners post quickly, though a few take longer, and every transfer is one-way and final. Only transfer once you have found the exact award you want to book.',
+            },
+            {
+              q: 'Do Membership Rewards points expire?',
+              a: 'Not while you hold at least one Membership Rewards card that is open and in good standing.',
+            },
+            {
+              q: 'Is there a non-travel transfer partner?',
+              a: 'Amex has announced Fanatics FanCash as its first non-travel transfer partner, but it is not live for transfers yet.',
+            },
+          ]}
+        />
 
         <p className={p}>
           Bottom line: Membership Rewards is a top-tier flexible currency because of its airline transfer partners. Earn
