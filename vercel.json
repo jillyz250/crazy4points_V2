@@ -49,6 +49,10 @@
       "schedule": "0 7 * * *"
     },
     {
+      "path": "/api/cron/reminders-sweep",
+      "schedule": "30 9 * * *"
+    },
+    {
       "path": "/api/cron/recompute-surface-locations",
       "schedule": "30 7 * * *"
     },
