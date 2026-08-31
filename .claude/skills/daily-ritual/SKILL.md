@@ -297,7 +297,11 @@ Source: snapshot `REFRESH QUEUE — oldest due`. Walk the **oldest-due** items
 re-verify the top few against official sources (multi-source standard). Cadence:
 process the **3-5 oldest due each day** so the queue never grows; if the backlog is
 large, do more until it's under control. A re-verified item gets a fresh
-`content_updated_at` / review date and drops off.
+`content_updated_at` / review date and drops off. **To clear a re-verified ALERT
+from the queue, use `node scripts/mark-alert-verified.mjs <short-slug> ...`** — a
+direct `alerts.last_verified` write is blocked by G6, so this stamps the alert's
+content_variant metadata and lets the variants->alerts trigger mirror it. Only
+stamp an alert you actually re-verified against an official source today.
 **Guides & evergreen articles enter the queue on a 6-MONTH cadence (Jill,
 2026-08-28):** every guide carries an `updated` (last-verified) date in
 `lib/guides.ts`. Run `node_modules/.bin/tsx scripts/guides-due-refresh.ts` to list
