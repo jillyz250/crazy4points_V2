@@ -197,6 +197,21 @@ export const PERK_CHAINS: PerkChain[] = [
     programSlugs: ['radisson'],
   },
   {
+    id: 'finnair-radisson-partnership',
+    title: 'Finnair Plus status and points, matched and converted into Radisson',
+    card: 'Any Finnair Plus status (Avios can feed it)',
+    steps: [
+      'Hold Finnair Plus status (Silver, Gold, Platinum, or Lumo)',
+      'Match it to Radisson Rewards for two years: Silver, Gold, and Platinum match to Radisson Premium; Lumo matches to Radisson VIP',
+      'Separately, convert points both ways (3 Avios become 5 Radisson points; 10 Radisson points become 1 Avios) to top off whichever balance you need',
+    ],
+    payoff: 'Finnair status becomes Radisson hotel status, and the two currencies flow both ways for topping off an award.',
+    source: 'Radisson Rewards / Finnair Plus',
+    verifiedAt: '2026-08-31',
+    caveat: 'The status match and conversions launched August 2026. Radisson\'s US footprint is thin, and conversions can take up to 4 to 6 weeks to post. Link accounts through the Finnair Shop portal.',
+    programSlugs: ['radisson'],
+  },
+  {
     id: 'tmobile-delta-perks',
     title: 'Your phone plan unlocks three Delta perks',
     card: 'T-Mobile plan',
