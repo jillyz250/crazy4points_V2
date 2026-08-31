@@ -11,7 +11,6 @@
  *
  * Decisions (mirror the daily-ritual cheat-sheet + toggleReminderDone):
  *   --reject       rejected_at=now, processed=true, rejected_reason=<reason>
- *   --newsletter   triage_decision='newsletter_idea'  (leaves the alert queue)
  *   --snooze       snoozed_until=<--until date>        (re-surfaces later)
  *   --restore      undo: rejected_at/processed/triage_decision/snoozed_until cleared
  *
@@ -21,7 +20,6 @@
  *
  * Usage:
  *   node scripts/triage-apply.mjs --reject <id> <id> ... [--reason "duplicate of live alert"]
- *   node scripts/triage-apply.mjs --newsletter <id> ...
  *   node scripts/triage-apply.mjs --snooze <id> ... --until 2026-09-01
  *   node scripts/triage-apply.mjs --restore <id> ...
  *   add --dry to preview without writing.
@@ -39,7 +37,7 @@ const db = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_
 
 // ---- parse args ------------------------------------------------------------
 const argv = process.argv.slice(2)
-const DECISIONS = ['reject', 'newsletter', 'snooze', 'restore']
+const DECISIONS = ['reject', 'snooze', 'restore']
 let decision = null
 let reason = null
 let until = null
@@ -55,7 +53,7 @@ for (let i = 0; i < argv.length; i++) {
   else ids.push(a.trim())
 }
 
-if (!decision) { console.error('Need a decision flag: --reject | --newsletter | --snooze | --restore'); process.exit(1) }
+if (!decision) { console.error('Need a decision flag: --reject | --snooze | --restore'); process.exit(1) }
 if (!ids.length) { console.error('Need at least one intel id (full UUID or 8+ char prefix).'); process.exit(1) }
 if (decision === 'snooze' && !/^\d{4}-\d{2}-\d{2}$/.test(until || '')) {
   console.error('--snooze requires --until YYYY-MM-DD'); process.exit(1)
@@ -106,7 +104,6 @@ const targetIds = [...resolved.keys()]
 const now = new Date().toISOString()
 let update
 if (decision === 'reject') update = { rejected_at: now, processed: true, rejected_reason: reason || 'morning triage (triage-apply)' }
-else if (decision === 'newsletter') update = { triage_decision: 'newsletter_idea', triage_decided_at: now }
 else if (decision === 'snooze') update = { snoozed_until: until }
 else if (decision === 'restore') update = { rejected_at: null, processed: false, rejected_reason: null, triage_decision: null, snoozed_until: null }
 
