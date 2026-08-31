@@ -208,10 +208,20 @@ const refreshDetail = (await q('refresh queue detail', db.from('admin_refresh_qu
 
 // ---- Program-fact drift (same filter as /admin/program-drift + digest) -----
 const driftRes = await q('program drift', db.from('intel_items')
-  .select('headline, conflict_field, conflict_summary, conflicts_program_id', { count: 'exact' })
+  .select('id, headline, conflict_field, conflict_summary, conflicts_program_id', { count: 'exact' })
   .not('conflicts_program_id', 'is', null).is('conflict_resolution', null).is('archived_at', null)
-  .order('conflict_detected_at', { ascending: false }).limit(6))
-const driftDetail = driftRes.data, driftCount = driftRes.count
+  .order('conflict_detected_at', { ascending: false }).limit(60))
+const driftCount = driftRes.count
+// Collapse duplicate rows: the same fact re-forwarded by several sources stamps
+// several drift rows (7 rows for 2 facts on 2026-08-31). One line per
+// program+field so it reads as "one fact = one thing to resolve."
+const driftGroups = new Map()
+for (const d of driftRes.data || []) {
+  const key = `${d.conflicts_program_id}|${d.conflict_field}`
+  if (!driftGroups.has(key)) driftGroups.set(key, { ...d, dupes: 1 })
+  else driftGroups.get(key).dupes++
+}
+const driftDetail = [...driftGroups.values()]
 
 // ---- Programs + sources (page-check + gap-check) ---------------------------
 const programsAll = (await q('programs', db.from('programs').select('*'))).data
@@ -474,9 +484,9 @@ if (refreshDetail.length) {
 }
 
 console.log('\n' + B)
-console.log(`PROGRAM-FACT DRIFT — fresh intel contradicts a program page (top ${driftDetail.length} of ${n(driftCount)}):`)
+console.log(`PROGRAM-FACT DRIFT — fresh intel contradicts a program page (${driftDetail.length} distinct fact(s) across ${n(driftCount)} rows):`)
 if (!driftDetail.length) console.log('  (none open — pages current)')
-for (const d of driftDetail) console.log(`  - [${d.conflict_field || '?'}] ${(d.conflict_summary || d.headline || '').slice(0, 74)}`)
+for (const d of driftDetail.slice(0, 12)) console.log(`  - [${d.conflict_field || '?'}] ${(d.conflict_summary || d.headline || '').slice(0, 74)}${d.dupes > 1 ? `  (×${d.dupes} rows)` : ''}`)
 if (driftDetail.length) console.log('  -> verify vs issuer page, fix if real, resolve at /admin/program-drift')
 
 console.log('\n' + B)
