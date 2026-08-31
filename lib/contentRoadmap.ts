@@ -65,7 +65,7 @@ export const ROADMAP: RoadmapItem[] = [
 
   // Pillar 3 — Program Guides ("How to Use X", 18) — LEAD THE QUEUE
   { title: 'How to Use Chase Ultimate Rewards', pillar: 'programs', guideSlug: 'how-to-use-chase-ultimate-rewards' },
-  { title: 'How to Use Amex Membership Rewards', pillar: 'programs', order: 3 },
+  { title: 'How to Use Amex Membership Rewards', pillar: 'programs', guideSlug: 'how-to-use-amex-membership-rewards' },
   { title: 'How to Use Capital One Miles', pillar: 'programs', order: 4 },
   { title: 'How to Use Bilt Points', pillar: 'programs', order: 5 },
   { title: 'How to Use United MileagePlus', pillar: 'programs', order: 6 },

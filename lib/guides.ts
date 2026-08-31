@@ -151,6 +151,14 @@ export const GUIDES: Guide[] = [
     featured: true,
   },
   {
+    slug: 'how-to-use-amex-membership-rewards',
+    title: 'How to Use Amex Membership Rewards',
+    description:
+      'Which cards earn Membership Rewards, every airline and hotel transfer partner and ratio, the sweet spots, and the traps that quietly burn value. A plain-language guide to Amex’s flexible currency.',
+    category: 'cards',
+    updated: '2026-08-31',
+  },
+  {
     slug: 'how-to-spot-an-elevated-welcome-offer',
     title: 'How to Spot an Elevated Welcome Offer',
     description:
