@@ -37,7 +37,7 @@ publish, write, **and make the platform better than yesterday**.
    And genuinely evaluate for yourself: if you disagree with Jill's call on a
    phase (or anything else), say so with your reason — she wants a real advisor,
    not agreement.** See [[feedback_proactive_expert_guidance]].
-3. **Same layout every day.** Fixed card header (`PHASE N of 20 · TITLE`; `of 21`
+3. **Same layout every day.** Fixed card header (`PHASE N of 23 · TITLE`; `of 24`
    on Thursdays), fixed columns, fixed verdict words. Consistency is the feature.
 4. **Empty phases auto-skip** with one line (`Phase 9 · Experiences — none new ✅`).
 5. **Jill drives:** `next` / `skip` / `back` / `done`. **Never PROPOSE skipping or
@@ -60,10 +60,14 @@ The phases fall in three acts: **A. Clear the overnight (1-5)** ·
 **B. Keep the site true & fed (6-14)** · **C. Improve every day (15-18)**, then the
 daily wrap. The chain check runs LAST in Act B (Phase 14, after the articles) so it
 sweeps **everything produced today** (publishes, page fixes, the articles,
-experiences). **Analytics review is the daily wrap and runs LAST every day**
-(Phase 20). On **Thursdays only**, the **Newsletter build** runs just before it as
-Phase 20, pushing Analytics to Phase 21. Header the run as `PHASE N of 20`; on
-Thursdays, `N of 21`.
+experiences). **Analytics review is the content/performance wrap** (Phase 20),
+then the day closes with three standing "are we covered / is the core asset
+healthy" checks: **Deliverability & list health (Phase 21)**, **Security
+(Phase 22)**, and **Backup & recovery (Phase 23)** — fast posture checks daily,
+with a deeper pass on a cadence (Security deep on Mondays, a Backup restore-drill
+monthly). On **Thursdays only**, the **Newsletter build** runs as Phase 20,
+pushing Analytics→21, Deliverability→22, Security→23, Backup→24. Header the run as
+`PHASE N of 23`; on Thursdays, `N of 24`.
 
 ---
 
@@ -387,7 +391,7 @@ staleness-guard, red-team, show sourcing per fact), show the FULL draft, publish
 on her nod. Two real pieces a day: one evergreen guide + one general blog.
 
 The per-card **Card Companion PDF** initiative is its own workstream — see the
-standing project phase (**Phase 20**) at the end of this file. It is NOT one of the
+Card Companion standing project at the end of this file. It is NOT one of the
 two daily articles.
 
 ### Phase 14 · 🔗 Chain sweep (LAST in Act B — covers the whole day)
@@ -522,8 +526,9 @@ point math. **Show Jill the FULL draft before sending — always.** On her appro
 send via Resend, **throttled to ≤4/sec** ([[feedback_resend_rate_limit]]). Receipt:
 what led, how many stories, recipient count.
 
-### Phase 20 (Phase 21 on Thursdays) · 📊 Analytics review — the daily wrap
-Runs **LAST every day** (after the Newsletter on Thursdays). Added 2026-08-28
+### Phase 20 (Phase 21 on Thursdays) · 📊 Analytics review — content/performance wrap
+Runs after the content phases (after the Newsletter on Thursdays); the three
+safety checks below (Deliverability, Security, Backup) then close the day. Added 2026-08-28
 (Jill). Review the numbers and pull **1-2 insights that should change tomorrow's
 priorities** — do not just recite metrics:
 - **Traffic:** top pages + search movement (Google Search Console / Vercel
@@ -541,7 +546,59 @@ name which metrics we CAN'T yet see (a gap to build). See [[project_newsletter_o
 
 ---
 
-## CLOSE (send after the last phase — Phase 20 Analytics, or Phase 21 on Thursdays)
+### Phase 21 (Phase 22 on Thursdays) · 📬 Deliverability & list health
+The newsletter is the crown jewel, so watch it like one (added 2026-08-31, Jill).
+Fast daily posture check; auto-skip with one line when all healthy:
+- **Deliverability:** recent Resend send stats — **bounce rate, spam-complaint
+  rate, delivery/open trend**. A rising bounce or complaint rate is an early warning
+  that a mailbox provider (Gmail especially) is starting to junk us; act before reach
+  craters. Confirm SPF/DKIM/DMARC for crazy4points.com still pass.
+- **List hygiene:** net subscriber change (added vs unsubscribed), and scan new
+  signups for **bot/junk patterns** (bursts, disposable domains, plus-address spam) —
+  suppress the obvious ones so the list stays real ([[project_subscriber_bot_audit]]).
+- **Unsub path works:** the personalized unsubscribe link resolves (CAN-SPAM +
+  reputation). Flag any spike in unsubs against what shipped.
+Same accuracy bar: **no number we haven't actually pulled**; name what we still
+can't see (open/click stats are a known gap — [[project_newsletter_open_click_stats]]).
+Deeper pass weekly. Auto-skip in one line when bounce/complaint/unsub are normal and
+no odd signups.
+
+### Phase 22 (Phase 23 on Thursdays) · 🔒 Security check — are we covered
+Confirm nothing opened a hole (added 2026-08-31, Jill). Fast green/red daily; the
+**deeper audit runs Mondays**. Buckets:
+- **Secrets:** no keys/env committed — `.env*` stays gitignored; scan today's diffs
+  for leaked tokens. Any exposure → rotate ([[project_secret_rotation_2026_04_21]]).
+- **Dependencies:** `npm audit` summary — patch any new HIGH/CRITICAL CVE
+  ([[project_dependency_cve_bump]]).
+- **Admin auth:** every admin route + server action calls `assertAdmin()`
+  ([[feedback_admin_auth_assert_admin]]); no admin endpoint left open. Spot-check
+  anything shipped today that touched `app/admin` or `actions.ts`.
+- **Supabase RLS / keys:** the service-role key stays server-only (never in the
+  client bundle); anon/public access is limited to what the site needs; subscriber
+  PII is not exposed through any public query or API route.
+- **Abuse surface:** newsletter signup + forms are rate-limited; no open write
+  endpoints; cron routes require the secret.
+Daily = fast pass, auto-skip in one line when clean and nothing shipped touched
+auth/secrets/deps. Mondays = the deep audit + apply one hardening.
+
+### Phase 23 (Phase 24 on Thursdays) · 💾 Backup & recovery — Supabase safety net
+Make sure a Supabase failure or a bad write can't wipe us out (added 2026-08-31,
+Jill). This is the one where "later" is how data gets lost:
+- **Supabase backups:** confirm the project's daily backups / Point-in-Time-Recovery
+  are enabled and current (plan-tier dependent) — note the last successful backup.
+- **Off-platform export of critical tables:** `subscribers` above all (losing the
+  list is unrecoverable), plus `alerts`, `programs`, `sweepstakes`, `experiences`.
+  Verify a recent dump exists OFF Supabase (a scheduled `pg_dump`/export to storage).
+  **If none exists yet, that is the #1 gap → build it** (a cron that dumps the
+  critical tables to storage, retained N days).
+- **Restore drill (monthly):** confirm we could actually restore — recovery steps
+  are written down and a test restore works.
+Daily = confirm backups current + last export date (flag any gap loudly); monthly =
+the restore drill.
+
+---
+
+## CLOSE (send after the last phase — Phase 23 Backup, or Phase 24 on Thursdays)
 A fixed recap:
 ```
 🌙 WRAP — Aug 12
@@ -555,8 +612,8 @@ Her outstanding actions ALWAYS last.
 
 ---
 
-## Phase 20 · 💳 Card Companion PDFs (STANDING PROJECT — not daily yet)
-A separate workstream, outside the daily 1-19 flow. **Do NOT run it every morning
+## 💳 Card Companion PDFs (STANDING PROJECT — not daily, no phase number)
+A separate workstream, outside the daily 1-23 flow. **Do NOT run it every morning
 or push it — Jill activates it when she is ready (she said so 2026-08-28).** The
 deliverable is a branded, fillable **interactive PDF Jill designs** (Royal Glow,
 "claim every credit + track your spend"), one per card — see the **Sapphire Reserve
