@@ -268,6 +268,10 @@ export interface Program {
   id: string
   slug: string
   name: string
+  /** Authored, verified Q&A rendered on the program page + emitted as FAQPage
+   *  JSON-LD for AI answer-extraction and search. Genuine program-specific
+   *  questions only. Null / empty = no FAQ section. */
+  faq: { q: string; a: string }[] | null
   type: ProgramType
   tier: string | null
   monitor_tier: MonitorTier | null
