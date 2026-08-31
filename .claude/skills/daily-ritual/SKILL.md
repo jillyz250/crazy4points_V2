@@ -352,6 +352,13 @@ the next-priority airline page — **cadence 1 airline/day**. Verify against the
 airline's OWN official change/cancel page (no blogs). Priority: United, Delta, AA,
 Alaska/Atmos, Aeroplan, Avios, ANA, Cathay, Emirates, Turkish, KrisFlyer, Virgin,
 LifeMiles… See [[project_award_change_cancel_section]].
+**Cross-check every airline against the stored fee scaffold**
+`plans/award-change-cancel-fees-reference.md` (Jill sourced it 2026-08-31): verify
+official FIRST, then reconcile against that list — agreement = high confidence, a
+mismatch means dig until you know which is right. The list is UNVERIFIED and
+already had a wrong AA entry, and its "~$USD" conversions must be stripped (native
+currency only in published prose). Author in the 4-bullet house format (How to
+change or cancel / Fees / If delayed or changed / How to reach the airline).
 
 ### Phase 12 · 🔎 Roadmap mining + reconcile (keep it CURRENT)
 Two halves — mine forward, and true up what shipped:
