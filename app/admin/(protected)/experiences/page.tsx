@@ -51,7 +51,7 @@ export default async function AdminExperiencesPage() {
   const cols =
     'id, title, category, location, program_slug, source_platform, points_required, current_bid, close_date, detail_url, image_url, first_seen_at, featured'
 
-  const [newRes, featuredRes] = await Promise.all([
+  const [newRes, olderRes, featuredRes] = await Promise.all([
     // New this week, not yet reviewed — the queue that feeds the dashboard card.
     supabase
       .from('experience_listings')
@@ -61,6 +61,20 @@ export default async function AdminExperiencesPage() {
       .gte('first_seen_at', expSince)
       .or(`close_date.is.null,close_date.gte.${nowIso}`)
       .order('first_seen_at', { ascending: false }),
+    // Older UNREVIEWED (first seen > 7 days ago, never cleared). Without this
+    // section an item that isn't reviewed within a week ages out of the "new"
+    // window and disappears from review forever (the Atmos guitar/helicopter
+    // listings, first seen Aug 6, sat unreviewed for 25 days). This keeps the
+    // review net closed.
+    supabase
+      .from('experience_listings')
+      .select(cols)
+      .eq('status', 'active')
+      .is('editorial_reviewed_at', null)
+      .lt('first_seen_at', expSince)
+      .or(`close_date.is.null,close_date.gte.${nowIso}`)
+      .order('first_seen_at', { ascending: false })
+      .limit(50),
     // Everything currently featured on the public page (so Jill can un-feature).
     supabase
       .from('experience_listings')
@@ -72,6 +86,7 @@ export default async function AdminExperiencesPage() {
   ])
 
   const toReview = ((newRes.data ?? []) as Row[]).filter(reviewable)
+  const olderUnreviewed = ((olderRes.data ?? []) as Row[]).filter(reviewable)
   const featured = (featuredRes.data ?? []) as Row[]
 
   return (
@@ -98,6 +113,23 @@ export default async function AdminExperiencesPage() {
             <ExperienceRow key={e.id} e={e} />
           ))}
         </div>
+      )}
+
+      {olderUnreviewed.length > 0 && (
+        <>
+          <h2 style={{ fontSize: '1rem', margin: '2rem 0 0.75rem' }}>
+            Older unreviewed{' '}
+            <span style={{ fontSize: '0.875rem', fontWeight: 400, opacity: 0.6 }}>({olderUnreviewed.length})</span>
+            <span style={{ fontSize: '0.8125rem', fontWeight: 400, opacity: 0.6, marginLeft: '0.5rem' }}>
+              seen &gt;7 days ago, never reviewed
+            </span>
+          </h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {olderUnreviewed.map((e) => (
+              <ExperienceRow key={e.id} e={e} />
+            ))}
+          </div>
+        </>
       )}
 
       {featured.length > 0 && (
