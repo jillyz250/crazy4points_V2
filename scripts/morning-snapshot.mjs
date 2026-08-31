@@ -96,7 +96,17 @@ const triageBacklogBad = (intelToTriage ?? 0) > 30 || triageOldestDays > 3
 
 const changeSignals = (await q('count change signals', db.from('change_signals').select('id', { count: 'exact', head: true }).eq('status', 'new').or(`snoozed_until.is.null,snoozed_until.lte.${nowIso}`))).count
 const bonusSignals = (await q('count bonus signals', db.from('card_bonus_signals').select('id', { count: 'exact', head: true }).eq('status', 'new'))).count
-const proseReview = (await q('count prose review', db.from('credit_cards').select('id', { count: 'exact', head: true }).not('good_to_know_review_at', 'is', null))).count
+// Prose re-check queue, split into DUE NOW (review date reached) vs future-dated
+// PENDING (a scheduled revert/watch that is correctly waiting) so the board says
+// what actually needs a human today, not just a count.
+const todayDate = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+const proseRowsRes = await q('prose review rows', db.from('credit_cards')
+  .select('slug, good_to_know_review_at').not('good_to_know_review_at', 'is', null)
+  .order('good_to_know_review_at', { ascending: true }))
+const proseRows = proseRowsRes.data || []
+const proseDue = proseRows.filter((r) => String(r.good_to_know_review_at).slice(0, 10) <= todayDate)
+const prosePending = proseRows.filter((r) => String(r.good_to_know_review_at).slice(0, 10) > todayDate)
+const proseReview = proseRows.length
 const refreshQueue = (await q('count refresh queue', db.from('admin_refresh_queue').select('*', { count: 'exact', head: true }))).count
 
 // ---- Brief status ---------------------------------------------------------
@@ -337,7 +347,8 @@ console.log(`  Pending drafts (needs_review) . ${n(pendingReview)}   -> /admin/d
 console.log(`  Intel to triage (open) ........ ${n(intelToTriage)}   -> /admin/triage`)
 console.log(`  Transfer-data changes ......... ${n(changeSignals)}   -> /admin/change-signals`)
 console.log(`  Welcome-bonus changes ......... ${n(bonusSignals)}   -> /admin/card-bonus-signals`)
-console.log(`  Prose to re-check ............. ${n(proseReview)}   -> /admin/card-bonus-signals`)
+console.log(`  Prose to re-check ............. ${n(proseReview)} (${proseDue.length} due now${proseDue.length ? ': ' + proseDue.map((r) => r.slug).join(', ') : ''} · ${prosePending.length} pending)   -> /admin/card-bonus-signals`)
+if (prosePending.length) console.log(`      pending: ${prosePending.map((r) => `${r.slug} ${String(r.good_to_know_review_at).slice(0, 10)}`).join(' · ')}`)
 console.log(`  Refresh queue ................. ${n(refreshQueue)}   -> /admin/refresh-queue`)
 console.log(`  New experiences (36h) ......... ${n(newExpCount)}   -> /experiences`)
 console.log(`  Sweepstakes to post ........... ${n(sweeps.length)}   -> /admin/sweepstakes`)
