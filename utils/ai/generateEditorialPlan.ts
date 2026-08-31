@@ -130,8 +130,15 @@ DECISION RULES
 ROUTE every intel item to exactly ONE of three destinations (the editor's rules):
 - ALERT (put it in 'approve') — anything worth publishing as a timely, actionable alert.
 - GUIDE (put it in 'blog_ideas', NOT approve) — recurring/evergreen/educational material
-  that belongs in a lasting guide or article, not a one-off alert.
+  that belongs in a lasting guide or article, not a one-off alert. When you route an item
+  to a GUIDE you MUST list its intel_id in that blog_idea's 'source_intel_ids' — that is the
+  ONLY way a guide-routed item gets recorded, so an omitted binding loses the item.
 - REJECT (put it in 'reject') — dupes and low-value noise.
+
+COVERAGE (mandatory): EVERY intel_id in TODAY'S INTEL must appear in exactly one of
+approve[], reject[], or some blog_idea's source_intel_ids[]. Do not silently drop an item.
+If you are unsure, REJECT it with reason_category='low_quality' rather than omitting it —
+an omitted item is invisible to the system and re-processed forever.
 There is NO "newsletter" destination: the weekly newsletter auto-fills its Live Offers
 section from published alerts, so a newsletter-worthy item is simply an ALERT.
 
@@ -487,6 +494,14 @@ export async function generateEditorialPlan(
   // (the route orders by confidence then created_at), so the top 35 are the ones
   // worth an editorial note; the full raw list still lives in /admin/triage.
   const MAX_INTEL_FOR_PLAN = 35
+  if (input.today_intel.length > MAX_INTEL_FOR_PLAN) {
+    // Callers must batch to <= MAX_INTEL_FOR_PLAN. A silent slice here is exactly
+    // how items got dropped and stranded the backlog — make it LOUD so a
+    // mis-sized batch is a visible bug, not an invisible leak.
+    console.error(
+      `[generateEditorialPlan] received ${input.today_intel.length} items but caps at ${MAX_INTEL_FOR_PLAN} — ${input.today_intel.length - MAX_INTEL_FOR_PLAN} DROPPED. Caller must batch smaller.`,
+    )
+  }
   const userContent = JSON.stringify(
     {
       today_intel: input.today_intel.slice(0, MAX_INTEL_FOR_PLAN),

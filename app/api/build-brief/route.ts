@@ -13,6 +13,8 @@ import type { ApproveMeta } from '@/utils/ai/briefEmail'
 import { lintPendingAlert, type PublishedForDupe } from '@/utils/alerts/lintPendingAlerts'
 import { logSystemError } from '@/utils/supabase/queries'
 import { selectAlertViewFromVariants } from '@/utils/content/alertView'
+import { persistPlanDecisions } from '@/utils/intel/persistPlanDecisions'
+import { drainUndecidedBacklog } from '@/utils/intel/drainUndecidedBacklog'
 // writeEditCheck / verifyAlertDraft / webVerifyClaims / reviseAlertDraft /
 // buildExtraContext / loadAllianceContextForPrograms etc. are no longer
 // imported here — the auto-write loop was removed in the May 2026 triage
@@ -34,6 +36,7 @@ export async function GET(req: NextRequest) {
   }
 
   const supabase = createAdminClient()
+  const routeStart = Date.now()
 
   try {
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
@@ -45,8 +48,14 @@ export async function GET(req: NextRequest) {
   // also re-feed a bounded batch of older UNDECIDED items (oldest first) each run,
   // capped alongside the fresh set so the planner's JSON never truncates. Orphans
   // drain a batch a day and nothing is stranded again.
-  const BACKLOG_BATCH = 25
-  const MAX_PLANNER_ITEMS = 60
+  // The planner only SEES its first ~35 items (generateEditorialPlan's internal
+  // cap). Feeding it 60 meant items 36-60 were silently dropped and never got a
+  // triage_decision — the exact bug that stranded the backlog. Keep the email
+  // batch at/under that cap so EVERY item fed is actually classified. The older
+  // undecided backlog drains separately below (drainUndecidedBacklog) instead of
+  // being crammmed past the cap here.
+  const BACKLOG_BATCH = 12
+  const MAX_PLANNER_ITEMS = 30
 
   const [intelRes, backlogRes, recentAlertsView, programsRes] = await Promise.all([
     supabase
@@ -313,31 +322,14 @@ export async function GET(req: NextRequest) {
 
   // Persist triage decisions to intel_items so the /admin/triage inbox can
   // show "what the planner approved, ready for you to write" + reasoning.
+  // Shared helper (persistPlanDecisions) marks approve/reject/newsletter AND
+  // blog_idea-routed items — the latter were previously dropped, leaving them
+  // undecided forever. Same helper is used by the backlog drain below and the
+  // manual drain script so the leak can't reopen in one path.
   let triage_decisions_persisted = 0
   if (plan) {
-    const triageUpdates: Array<{ intel_id: string; decision: string; reasoning: string }> = []
-    for (const a of plan.approve) {
-      triageUpdates.push({ intel_id: a.intel_id, decision: 'approved', reasoning: a.why_publish ?? '' })
-    }
-    for (const r of plan.reject) {
-      triageUpdates.push({ intel_id: r.intel_id, decision: 'rejected', reasoning: r.why_reject ?? '' })
-    }
-    for (const b of plan.newsletter_candidates ?? []) {
-      triageUpdates.push({ intel_id: b.intel_id, decision: 'newsletter_idea', reasoning: b.angle ?? '' })
-    }
-    // blog_ideas have no intel_id binding in the current schema; skip them.
-
-    for (const u of triageUpdates) {
-      const { error } = await supabase
-        .from('intel_items')
-        .update({
-          triage_decision: u.decision,
-          triage_reasoning: u.reasoning.slice(0, 1000),
-          triage_decided_at: new Date().toISOString(),
-        })
-        .eq('id', u.intel_id)
-      if (!error) triage_decisions_persisted++
-    }
+    const persisted = await persistPlanDecisions(supabase, plan)
+    triage_decisions_persisted = persisted.persisted
   }
 
   // Seed approveMetaByIntelId so the brief email still renders deadline /
@@ -528,6 +520,36 @@ export async function GET(req: NextRequest) {
     )
   }
 
+  // ──────────────────────────────────────────────────────────────────────
+  // BACKLOG DRAIN (2026-08-31) — classify the OLDEST undecided intel that the
+  // daily fresh feed keeps outranking past the planner's cap. Best-effort and
+  // fully isolated (try/catch) so a drain hiccup never touches the brief above,
+  // which is already built, persisted, and emailed. Time-gated so the function
+  // stays well under maxDuration=300s: we only START a batch while there's room
+  // for it to finish (~150s each). Remainder rolls to the next run / the sweep
+  // cron's drain / the manual script. Self-healing.
+  let drainStats = { batches: 0, itemsSeen: 0, decisionsPersisted: 0 }
+  try {
+    const DRAIN_START_DEADLINE_MS = 130_000 // don't start a ~150s batch past this; keeps us < 300s
+    const seededCovered = [
+      ...((recentAlertsView as Array<{ title?: string }>).map((a) => a.title ?? '').filter(Boolean)),
+      ...(plan?.approve.map((a) => a.headline).filter(Boolean) ?? []),
+    ]
+    const drain = await drainUndecidedBacklog(supabase, {
+      batchSize: 28,
+      maxBatches: 2,
+      excludeIds: seenIntelIds,
+      alreadyCovered: seededCovered,
+      shouldContinue: () => Date.now() - routeStart < DRAIN_START_DEADLINE_MS,
+    })
+    drainStats = { batches: drain.batches, itemsSeen: drain.itemsSeen, decisionsPersisted: drain.decisionsPersisted }
+    if (drain.itemsSeen > 0) {
+      console.log(`[build-brief] backlog drain — batches=${drain.batches} seen=${drain.itemsSeen} decided=${drain.decisionsPersisted} (approved=${drain.approved} rejected=${drain.rejected} blog=${drain.blogIdea} nl=${drain.newsletterIdea} nullPlans=${drain.nullPlans})`)
+    }
+  } catch (drainErr) {
+    console.error('[build-brief] backlog drain failed (non-fatal):', drainErr instanceof Error ? drainErr.message : drainErr)
+  }
+
   return NextResponse.json({
     findings_in_brief: findings.length,
     brief_id: briefId ?? null,
@@ -538,6 +560,7 @@ export async function GET(req: NextRequest) {
       newsletter_idea_count: plan?.newsletter_candidates?.length ?? 0,
       decisions_persisted: triage_decisions_persisted,
     },
+    backlog_drain: drainStats,
     content_ideas_inserted,
     email_sent: emailSent,
     date,

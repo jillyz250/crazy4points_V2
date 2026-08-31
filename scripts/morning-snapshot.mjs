@@ -89,6 +89,11 @@ const intelToTriage = (await q('count intel to triage', db.from('intel_items').s
 // sorted. Surface it in HEALTH so a pileup never hides behind "all clear" again.
 const oldestUndecided = (await q('oldest undecided intel', db.from('intel_items')
   .select('created_at').is('rejected_at', null).is('archived_at', null).is('alert_id', null).is('triage_decision', null)
+  // Exclude EXPIRED items: build-brief skips them before the planner (a dead deal
+  // isn't worth alerting), so they never get a decision. Counting them here made
+  // one stray expired row falsely age the metric to "oldest 28d". Match the
+  // intelToTriage filter above so the health signal reflects live, actionable intel.
+  .or(`expires_at.is.null,expires_at.gte.${nowIso}`)
   .or(`snoozed_until.is.null,snoozed_until.lte.${nowIso}`)
   .order('created_at', { ascending: true }).limit(1))).data[0]
 const triageOldestDays = oldestUndecided ? Math.floor((Date.now() - new Date(oldestUndecided.created_at).getTime()) / 86400000) : 0
@@ -317,7 +322,7 @@ const errFlag = sysErrors.length
 console.log('HEALTH (step 0):')
 console.log(`  Daily brief . ${briefFlag}`)
 console.log(`  Scout intel . ${scoutFlag}`)
-console.log(`  Triage classifier . ${triageBacklogBad ? `⚠️ BACKLOG ${intelToTriage} undecided, oldest ${triageOldestDays}d — planner likely stalled (check API budget)` : 'OK'}`)
+console.log(`  Triage classifier . ${triageBacklogBad ? `⚠️ BACKLOG ${intelToTriage} undecided, oldest ${triageOldestDays}d — drain lagging; run: npx tsx scripts/drain-triage-backlog.ts (build-brief + sweep auto-drain daily)` : 'OK'}`)
 console.log(`  Watchers (experiences) . ${watchFlag}`)
 console.log(`  Logged errors . ${errFlag}`)
 if (sysErrors.length) for (const e of sysErrors.slice(0, 5)) console.log(`      • [${e.source}] ${(e.message || '').slice(0, 90)}`)

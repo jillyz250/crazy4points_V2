@@ -60,14 +60,18 @@ export async function sweepTriagedIntel(supabase: SupabaseClient): Promise<Intel
     else rejectedCleared = data?.length ?? 0
   }
 
-  // 2. Archive open items whose expiry has passed.
+  // 2. Archive open items whose expiry has passed. Not gated on processed=false:
+  //    build-brief FILTERS expired items out before the planner, so they never
+  //    get a triage_decision and can sit undecided (found 62 such rows on
+  //    2026-08-31, aging the health-check "oldest undecided" metric). A dead deal
+  //    isn't worth triaging regardless of its processed flag — archive it.
   {
     const { data, error } = await supabase
       .from('intel_items')
       .update({ processed: true, archived_at: nowIso })
-      .eq('processed', false)
       .is('rejected_at', null)
       .is('archived_at', null)
+      .is('alert_id', null)
       .not('expires_at', 'is', null)
       .lt('expires_at', nowIso)
       .select('id')
@@ -75,7 +79,10 @@ export async function sweepTriagedIntel(supabase: SupabaseClient): Promise<Intel
     else expiredArchived = data?.length ?? 0
   }
 
-  // 3. Archive stale 'newsletter_idea' items (no consumer ever marks them done).
+  // 3. Archive stale 'newsletter_idea' AND 'blog_idea' items — both are "routed
+  //    elsewhere, not an alert" decisions whose content is already captured in
+  //    content_ideas; no consumer ever marks the intel row done, so it lingers.
+  //    Same 21-day grace (they carry content value, unlike a plain reject).
   {
     const { data, error } = await supabase
       .from('intel_items')
@@ -83,7 +90,7 @@ export async function sweepTriagedIntel(supabase: SupabaseClient): Promise<Intel
       .eq('processed', false)
       .is('rejected_at', null)
       .is('archived_at', null)
-      .eq('triage_decision', 'newsletter_idea')
+      .in('triage_decision', ['newsletter_idea', 'blog_idea'])
       .lt('triage_decided_at', newsletterCutoff)
       .select('id')
     if (error) errors++

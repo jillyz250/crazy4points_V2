@@ -13,6 +13,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/utils/supabase/server'
 import { sweepTriagedIntel } from '@/utils/intel/sweepTriagedIntel'
 import { draftApprovedIntel } from '@/utils/intel/draftFromIntel'
+import { drainUndecidedBacklog } from '@/utils/intel/drainUndecidedBacklog'
 import { assertCron } from '@/lib/auth/cron'
 
 export const dynamic = 'force-dynamic'
@@ -38,6 +39,7 @@ async function handle(request: Request) {
   if (denied) return denied
 
   const supabase = createAdminClient()
+  const start = Date.now()
 
   // 1) Clean up decided intel (rejected / expired / stale newsletter ideas).
   const result = await sweepTriagedIntel(supabase)
@@ -54,6 +56,27 @@ async function handle(request: Request) {
     autoDraft = { ...autoDraft, errors: autoDraft.errors + 1 }
   }
 
+  // 3) Second daily backlog-drain pass. build-brief runs one 15 min earlier;
+  //    this gives the undecided backlog a second bite each day (2 crons ≈ double
+  //    the daily throughput) without either function nearing its 300s limit.
+  //    Runs AFTER the slow auto-draft step, so it only starts a ~150s planner
+  //    batch while there's clear room left. Best-effort — never fails the sweep.
+  let drain = { batches: 0, itemsSeen: 0, decisionsPersisted: 0 }
+  try {
+    const DRAIN_START_DEADLINE_MS = 130_000
+    const d = await drainUndecidedBacklog(supabase, {
+      batchSize: 28,
+      maxBatches: 2,
+      shouldContinue: () => Date.now() - start < DRAIN_START_DEADLINE_MS,
+    })
+    drain = { batches: d.batches, itemsSeen: d.itemsSeen, decisionsPersisted: d.decisionsPersisted }
+    if (d.itemsSeen > 0) {
+      console.log(`[intel-triage-sweep] backlog drain — batches=${d.batches} seen=${d.itemsSeen} decided=${d.decisionsPersisted} (approved=${d.approved} rejected=${d.rejected} blog=${d.blogIdea} nl=${d.newsletterIdea} nullPlans=${d.nullPlans})`)
+    }
+  } catch (err) {
+    console.error('[intel-triage-sweep] backlog drain failed (non-fatal):', err instanceof Error ? err.message : err)
+  }
+
   const ok = result.ok && autoDraft.errors === 0
-  return NextResponse.json({ ...result, autoDraft }, { status: ok ? 200 : 500 })
+  return NextResponse.json({ ...result, autoDraft, drain }, { status: ok ? 200 : 500 })
 }
