@@ -670,6 +670,32 @@ cards first (Sapphire Reserve pilot, then Amex Platinum/Gold, Venture X…). See
 
 ---
 
+## 👤 User Accounts & Wallet Dashboard (STANDING PROJECT — not daily, no phase number)
+A separate workstream, outside the daily flow (Jill, 2026-08-31). The vision:
+let users **sign in** and get a personalized **dashboard** with their **points
+wallet** (balances they track across programs) and more over time. This is the
+leap from a content site to a logged-in product: it unlocks personalization,
+retention, and monetization, and it complements the AI-referral traction.
+**Do NOT build ahead of Jill — she activates each stage.**
+
+- **Stage 1 — PLANNING (starts ~2026-09-01). Planning only, no code.** Deliver a
+  written plan covering: (a) **auth approach** (Supabase Auth is the likely fit
+  since we already run Supabase; weigh email magic-link vs password vs social);
+  (b) **the wallet data model** (user ↔ program balance rows: program, balance,
+  last-updated, manual entry first, later maybe parsing/linking); (c) **dashboard
+  v1 scope** (wallet at a glance, saved/favorited alerts + experiences + guides,
+  maybe transfer-bonus alerts for the programs they hold); (d) **privacy &
+  security** — this adds PII + auth, a big new surface, so bake in RLS per-user
+  data isolation, session security, and tie it to the new Security + Backup phases
+  (subscribers/user data must be in the off-platform backup); (e) a **phased
+  roadmap** (auth → wallet CRUD → dashboard UI → personalization) with the MVP
+  that ships first. Show Jill the plan; she approves scope before any build.
+- **Later stages (each Jill-activated):** auth + account shell, wallet CRUD, the
+  dashboard UI, then personalization (alerts filtered to the user's programs).
+See [[project_user_accounts_wallet_dashboard]].
+
+---
+
 ## The daily prompt (what Jill says to start)
 Just **"morning"** fires the whole ritual. To also prime the discovery engine, she
 can add: **"and give me your single highest-leverage upgrade for the site today —
