@@ -23,6 +23,7 @@ import { perkChainsForProgram } from '@/lib/perkChains'
 import { getActivePromosForProgram, type PromoReward } from '@/utils/supabase/promoQueries'
 import { expandIntroTokens } from '@/utils/programs/expandIntroTokens'
 import { safeJsonLd } from '@/lib/jsonLd'
+import { GuideFaq } from '@/components/guides/GuideFaq'
 
 // Editorial content; rarely changes intra-day. Admin publish flow can call
 // revalidatePath() to bust this cache on demand, so 1 hour is safe.
@@ -443,6 +444,14 @@ export default async function ProgramPage({
               How to win →
             </span>
           </a>
+        )}
+
+        {/* Program FAQ — authored, verified Q&A + FAQPage JSON-LD for AI
+            answer-extraction and search rich results. Renders only when authored. */}
+        {program.faq && program.faq.length > 0 && (
+          <div id="faq" style={{ scrollMarginTop: '6rem', marginBottom: '2.5rem' }}>
+            <GuideFaq items={program.faq} heading="Frequently asked questions" />
+          </div>
         )}
 
         {/* Related guide callouts — programs with dedicated /guides deep-dives.
