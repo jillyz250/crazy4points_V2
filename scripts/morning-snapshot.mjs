@@ -547,11 +547,12 @@ if (toReview.length) {
 }
 
 // ---- Newsletter-bucket items EXPIRING SOON — promote to an alert? ----------
-// Items parked for the biweekly newsletter that carry a near deadline: surface
-// them so a time-sensitive one can become an alert before it goes stale in the
-// newsletter queue. Only those WITH an expires_at inside the next 10 days.
+// LEGACY drain: the 'newsletter_idea' bucket is retired (2026-08-31) — no new
+// items are parked there, but old ones with a near deadline still exist. Surface
+// them so each becomes a QUICK-TAKE/alert or gets rejected before going stale.
+// Empties out over time as the backlog drains; then this section disappears.
 const nlSoonIso = new Date(Date.now() + 10 * 86_400_000).toISOString()
-const nlExpiring = (await q('newsletter items expiring', db.from('intel_items')
+const nlExpiring = (await q('legacy newsletter-parked items expiring', db.from('intel_items')
   .select('headline, programs, expires_at, source_name')
   .eq('triage_decision', 'newsletter_idea')
   .is('archived_at', null).is('rejected_at', null)
@@ -559,8 +560,8 @@ const nlExpiring = (await q('newsletter items expiring', db.from('intel_items')
   .gte('expires_at', nowIso).lte('expires_at', nlSoonIso)
   .order('expires_at', { ascending: true }).limit(10))).data
 console.log('\n' + B)
-console.log(`NEWSLETTER ITEMS EXPIRING SOON — promote to an alert? (${nlExpiring.length}):`)
-if (!nlExpiring.length) console.log('  (none expiring in the next 10 days)')
+console.log(`LEGACY NEWSLETTER-PARKED ITEMS EXPIRING (drain to QUICK-TAKE/alert or REJECT) (${nlExpiring.length}):`)
+if (!nlExpiring.length) console.log('  (none — legacy bucket drained)')
 for (const it of nlExpiring) {
   console.log(`  [exp ${String(it.expires_at).slice(5, 10)}] ${(it.headline || '').slice(0, 62)}`)
 }
