@@ -44,9 +44,12 @@ publish, write, **and make the platform better than yesterday**.
    deferring a non-empty phase** (Jill, 2026-08-28: "don't suggest again to skip
    phases... we have plenty of time"). Go through them in order; she skips if she
    wants to. Empty phases still auto-skip with one line.
-6. **Verdict vocabulary** (use these exact words): `PUBLISH · PAGE-NOTE ·
-   NEWSLETTER · REJECT · HOLD · DISMISS`. Status marks: `Reverified ✅/⚠️` ·
-   Page status in plain words: **correct** / **needs fixing** / **n/a**.
+6. **Verdict vocabulary** (use these exact words): `PUBLISH · QUICK-TAKE ·
+   PAGE-NOTE · HOLD · REJECT · DISMISS`. There is **no "NEWSLETTER" verdict**
+   (Jill, 2026-08-31): a deal reaches the newsletter ONLY because it was published
+   as an alert (full or QUICK-TAKE) first — nothing is "parked for the newsletter."
+   Status marks: `Reverified ✅/⚠️` · Page status in plain words: **correct** /
+   **needs fixing** / **n/a**.
 7. **ALWAYS show Jill the full draft before publishing — every time, no
    exceptions.** She approves or edits first; nothing goes live unseen. Alerts,
    social posts, and page fixes alike.
@@ -176,8 +179,10 @@ items are shown. **Rules that shape this phase (Jill, 2026-08-28):**
   change, fee_change, program_change, policy_change) — those make real alerts —
   then the promo groups (limited_time_offer, signup_bonus, award_sale), deciding
   the genuinely-fresh few. Drill a group with `--type <alert_type>`.
-Per group, Jill calls PUBLISH / QUICK-TAKE / NEWSLETTER / REJECT on the 🆕 items;
-apply by ID via `triage-apply.mjs`. US-signal + new-program are never auto-collapsed.
+Per group, Jill calls PUBLISH / QUICK-TAKE / HOLD / REJECT on the 🆕 items (no
+"newsletter" verdict — a newsletter-worthy deal becomes at least a QUICK-TAKE
+alert, which the newsletter then pulls from); apply by ID via `triage-apply.mjs`.
+US-signal + new-program are never auto-collapsed.
 NOTE: going forward the classifier drains this automatically once the build-brief
 re-feed-undecided fix lands; this phase is the human layer over what's left.
 
@@ -202,9 +207,11 @@ Two extra feeds are walked here too, one at a time, verified against official fi
   ANY verdict (including skip) sets `editorial_reviewed_at=now` — that IS "looking
   at it," clearing it from the morning list AND the /admin "to review" count. Pure
   card-access presale tickets aren't surfaced; Marriott Moments are.
-- **Newsletter item expiring soon** (snapshot `NEWSLETTER ITEMS EXPIRING SOON`) →
-  **PUBLISH now** (promote to an alert before the deadline), **keep for
-  newsletter**, or **REJECT**.
+- **Legacy `newsletter_idea` item expiring soon** (snapshot `NEWSLETTER ITEMS
+  EXPIRING SOON`) → **PUBLISH now** (a QUICK-TAKE or full alert before the
+  deadline) or **REJECT**. There is no "keep for newsletter" anymore — the bucket
+  is retired (Jill, 2026-08-31); this feed just drains the legacy parked items.
+  Anything worth featuring becomes an alert the newsletter can pull.
 
 ---
 
@@ -503,11 +510,16 @@ alert published, page fixed, experience/sweepstakes picked, and article written
 not a parallel track. On any other weekday this phase does not exist; do not
 surface it (Analytics then becomes Phase 20).
 
-Build it from the day's material, newest-first:
-- **today's verified publishes** (Phase 5 alerts + Phase 13 article),
-- **newsletter items expiring soon** (snapshot `NEWSLETTER ITEMS EXPIRING SOON`)
-  and **parked `newsletter_idea` intel** (Phase 4 sent items here),
+Build it **entirely from PUBLISHED alerts** and the site's own content, newest-first
+(Jill, 2026-08-31: nothing is parked for the newsletter; it pulls from what we
+published):
+- **recent published alerts** (this week's Phase 5 alerts + quick-takes + the
+  Phase 13 articles) — the newsletter's stories,
+- **experiences / sweepstakes** picked in Phases 9-10, and the week's Sweet Spot,
 - **Jill's Takes** (the biweekly-anecdote inbox), and the week's best evergreen.
+Do NOT pull from a `newsletter_idea` bucket — it is retired. If a deal is
+newsletter-worthy and not yet published, publish it (QUICK-TAKE) first, then it
+is eligible.
 
 **SWEET SPOT — never repeat a recent one (Jill, 2026-08-28).** Before picking the
 week's Sweet Spot, pull the **last 10 sweet spots from SENT newsletters only**
@@ -661,8 +673,8 @@ imports `@/…` must live INSIDE the repo (copy to `scripts/_tmp-*.ts`, run, del
 for the alias + node_modules to resolve. Alert writes go through `writeAlertVariant`
 / the content_variants pipeline — the `alerts` mirror blocks direct writes (G6).
 
-**REJECT/NEWSLETTER/SNOOZE intel by ID, never by substring.** Use
-`node scripts/triage-apply.mjs --reject|--newsletter|--snooze <ids> [--reason … | --until …]`
+**REJECT/SNOOZE intel by ID, never by substring.** Use
+`node scripts/triage-apply.mjs --reject|--snooze <ids> [--reason … | --until …]`
 with the exact `id=` values the snapshot prints beside each item (the snapshot also
 prints a ready `REJECT ALL FLAGGED DUPES →` command). NEVER hand-write a throwaway
 script that matches on a headline substring — on 2026-08-14 a
@@ -688,8 +700,9 @@ unambiguous or the run aborts.
   foreign-currency valuations, no em/en-dashes) and set `content_updated_at`
   (SQL-authored pages 404 without it). This is also how a **📄 page-affecting**
   fix lands.
-- **NEWSLETTER** → `intel_items.triage_decision='newsletter_idea'` (stays in the
-  newsletter bucket, leaves the alert queue).
+- **QUICK-TAKE** → same as PUBLISH but a short, one-to-two-sentence alert
+  (`writeAlertVariant`, depth kept light). This is how a small-but-real deal earns
+  a spot the newsletter can pull; there is no separate "newsletter" bucket.
 - **REJECT** → `intel_items` set `rejected_at=now, processed=true,
   rejected_reason=…`.
 - **HOLD / SNOOZE** → `intel_items.snoozed_until=<date>` (re-surfaces later).
