@@ -63,6 +63,16 @@ export async function checkExperiencesCoverage(supabase: SupabaseClient, maxAgeH
         { stale, maxAgeHours },
       )
     }
+  } else {
+    // Full recovery: every program is back under the threshold, so auto-resolve
+    // any still-open coverage error. Without this the watchdog only ever WRITES
+    // errors and one could sit red for days after the programs recovered (it did:
+    // an Aug 27 error stayed unresolved through Aug 31 despite 8/9 recovering).
+    await supabase
+      .from('system_errors')
+      .update({ resolved_at: new Date().toISOString() })
+      .eq('source', 'experiences-coverage')
+      .is('resolved_at', null)
   }
   return stale
 }
