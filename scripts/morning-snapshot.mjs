@@ -299,13 +299,34 @@ const newExpCount = (await q('new experiences count', db.from('experience_listin
 // ---- Sweepstakes: post candidates, ranked by CONTENT + soonest end date ----
 // Content score favours pure points/miles giveaways (Jill's best-performing
 // social) and big prizes; ties break on soonest deadline (most urgent to post).
-const sweeps = (await q('sweepstakes post candidates', db.from('sweepstakes')
+const sweepsAll = (await q('sweepstakes post candidates', db.from('sweepstakes')
   .select('program, title, prize, ends_at').eq('status', 'running').eq('posted_social', false))).data
+// Timeshare / vacation-ownership lead-gen sweeps (Hilton Grand Vacations, Club
+// Wyndham, Westgate, etc.) are BAIT for a high-pressure sales presentation, so
+// they're kept off the public page + newsletter picker. They must ALSO be kept
+// out of this morning social-candidate ranking, or the huge "2M points" prize
+// floats to the top and gets re-recommended every day (Jill: "don't recommend
+// the timeshare one again", 2026-09-01). KEEP THIS REGEX IN SYNC with the
+// canonical isTimeshareSweep() in lib/sweepstakes/categories.ts.
+const TIMESHARE_SWEEP = /grand vacations|\bhgv\b|vacation club|vacation ownership|timeshare|club wyndham|wyndham destinations|westgate resorts|bluegreen|diamond resorts|holiday inn club|marriott vacation|vacation village|welk resorts|ownership|vistana|worldmark|capital vacations|festiva|sales presentation|\d{2,3}[\s-]?minute .{0,20}presentation|resort preview|resort tour/i
+const isTimeshareSweep = (s) => TIMESHARE_SWEEP.test(`${s.program ?? ''} ${s.prize ?? ''} ${s.title ?? ''}`)
+const sweeps = (sweepsAll || []).filter((s) => !isTimeshareSweep(s))
+const timeshareHidden = (sweepsAll || []).length - sweeps.length
+// Score by prize VALUE, not keyword presence — else a "1,000 bonus points/night"
+// earn-promo ties a "1,000,000 point" sweep (both match /point/) and floats junk
+// to the ⭐ top pick (2026-09-01). Mirrors sweepPrizeValue()+sweepScore() in
+// lib/sweepstakes/categories.ts — KEEP IN SYNC.
+const sweepPrizeValue = (s) => {
+  const t = `${s.prize ?? ''} ${s.title ?? ''}`.toLowerCase(); let best = 0
+  for (const m of t.matchAll(/([\d.]+)\s*million/g)) best = Math.max(best, Math.round(parseFloat(m[1]) * 1e6))
+  for (const m of t.matchAll(/(\d{1,3}(?:,\d{3})+)/g)) best = Math.max(best, parseInt(m[1].replace(/,/g, ''), 10))
+  for (const m of t.matchAll(/\b(\d{1,4})\s*k\b/g)) best = Math.max(best, parseInt(m[1], 10) * 1000)
+  return best
+}
 const scoreSweep = (s) => {
-  const p = (s.prize || s.title || '').toLowerCase(); let sc = 0
-  if (/\bmile|\bpoint/.test(p)) sc += 3                                   // pure points/miles = top social
-  if (/100,?000|250,?000|500,?000|1,?000,?000|million/.test(p)) sc += 2  // big number
-  if (/flight|flyaway|first class|trip|vacation|getaway/.test(p)) sc += 1
+  const v = sweepPrizeValue(s)
+  let sc = v >= 1_000_000 ? 4 : v >= 100_000 ? 3 : v >= 50_000 ? 2 : v > 0 ? 1 : 0
+  if (/\bmile|\bpoint/i.test(`${s.prize ?? ''} ${s.title ?? ''}`)) sc += 1  // currency nudge (audience favourite)
   return sc
 }
 const sweepRanked = sweeps.map((s) => ({ ...s, sc: scoreSweep(s) }))
@@ -616,7 +637,7 @@ if (usedHeads.length) console.log(`  newsletter headlines (${usedHeads.length}) 
 
 // ---- Sweepstakes post candidates (the daily social opportunity) ------------
 console.log('\n' + B)
-console.log(`SWEEPSTAKES — post candidates, ranked by content + soonest deadline (${sweeps.length} unposted):`)
+console.log(`SWEEPSTAKES — post candidates, ranked by content + soonest deadline (${sweeps.length} unposted${timeshareHidden ? `; ${timeshareHidden} timeshare lead-gen hidden` : ''}):`)
 if (!sweeps.length) console.log('  (none to post right now)')
 for (const [i, s] of sweepRanked.slice(0, 6).entries()) {
   console.log(`  ${i === 0 ? '⭐' : ' -'} [${s.program}] ${(s.title || '').slice(0, 40)} | ${(s.prize || '?').slice(0, 30)} | ends ${s.ends_at || '-'}`)
