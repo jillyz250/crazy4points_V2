@@ -115,6 +115,16 @@ const proseRows = proseRowsRes.data || []
 const proseDue = proseRows.filter((r) => String(r.good_to_know_review_at).slice(0, 10) <= todayDate)
 const prosePending = proseRows.filter((r) => String(r.good_to_know_review_at).slice(0, 10) > todayDate)
 const proseReview = proseRows.length
+// FAQ staleness guard: a program's faq is derived from its prose, so if
+// content_updated_at is NEWER than faq_reviewed_at, the FAQ may now be wrong.
+// (mig 646). Flags exactly the programs whose facts moved after the FAQ was last
+// verified — re-check + re-stamp faq_reviewed_at to clear.
+const faqRowsRes = await q('faq staleness', db.from('programs')
+  .select('slug, faq, content_updated_at, faq_reviewed_at')
+  .not('faq', 'is', null))
+const faqStale = (faqRowsRes.data || []).filter((r) =>
+  Array.isArray(r.faq) && r.faq.length > 0 && r.content_updated_at &&
+  (!r.faq_reviewed_at || new Date(r.content_updated_at) > new Date(r.faq_reviewed_at)))
 const refreshQueue = (await q('count refresh queue', db.from('admin_refresh_queue').select('*', { count: 'exact', head: true }))).count
 
 // ---- Brief status ---------------------------------------------------------
@@ -378,6 +388,7 @@ console.log(`  Transfer-data changes ......... ${n(changeSignals)}   -> /admin/c
 console.log(`  Welcome-bonus changes ......... ${n(bonusSignals)}   -> /admin/card-bonus-signals`)
 console.log(`  Prose to re-check ............. ${n(proseReview)} (${proseDue.length} due now${proseDue.length ? ': ' + proseDue.map((r) => r.slug).join(', ') : ''} · ${prosePending.length} pending)   -> /admin/card-bonus-signals`)
 if (prosePending.length) console.log(`      pending: ${prosePending.map((r) => `${r.slug} ${String(r.good_to_know_review_at).slice(0, 10)}`).join(' · ')}`)
+console.log(`  FAQ to re-check (stale) ....... ${n(faqStale.length)}${faqStale.length ? ': ' + faqStale.map((r) => r.slug).join(', ') + ' (content changed since FAQ verified -> re-check + re-stamp faq_reviewed_at)' : ''}`)
 console.log(`  Refresh queue ................. ${n(refreshQueue)}   -> /admin/refresh-queue`)
 console.log(`  New experiences (36h) ......... ${n(newExpCount)}   -> /experiences`)
 console.log(`  Sweepstakes to post ........... ${n(sweeps.length)}   -> /admin/sweepstakes`)
