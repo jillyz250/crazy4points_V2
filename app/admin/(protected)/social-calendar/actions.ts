@@ -90,6 +90,63 @@ export async function saveDraft(formData: FormData): Promise<void> {
   revalidatePath('/admin/social-calendar')
 }
 
+// --- Plain-arg actions for the drag-and-drop board (called from the client) ---
+
+/** Drop a triage card onto a day: schedule it (date + planned) or move a scheduled post. */
+export async function scheduleOnDate(id: string, post_date: string): Promise<void> {
+  await assertAdmin()
+  if (!id || !/^\d{4}-\d{2}-\d{2}$/.test(post_date)) return
+  const db = createAdminClient()
+  const { data: row } = await db.from('social_calendar').select('status').eq('id', id).single()
+  const patch: Record<string, unknown> = { post_date, ...touch() }
+  if (row?.status === 'suggested') patch.status = 'planned' // sliding from Recommended commits it
+  await db.from('social_calendar').update(patch).eq('id', id)
+  revalidatePath('/admin/social-calendar')
+}
+
+export async function setPlatformById(id: string, platform: string): Promise<void> {
+  await assertAdmin()
+  if (!id || !(PLATFORMS as readonly string[]).includes(platform)) return
+  const db = createAdminClient()
+  await db.from('social_calendar').update({ platform, ...touch() }).eq('id', id)
+  revalidatePath('/admin/social-calendar')
+}
+
+const CATEGORIES = ['experience', 'sweepstakes', 'sweet_spot', 'program_news', 'deal', 'guide', 'recurring', 'other'] as const
+export async function setCategoryById(id: string, category: string): Promise<void> {
+  await assertAdmin()
+  if (!id || !(CATEGORIES as readonly string[]).includes(category)) return
+  const db = createAdminClient()
+  await db.from('social_calendar').update({ category, ...touch() }).eq('id', id)
+  revalidatePath('/admin/social-calendar')
+}
+
+export async function setStatusById(id: string, status: string): Promise<void> {
+  await assertAdmin()
+  if (!id || !(STATUSES as readonly string[]).includes(status)) return
+  const db = createAdminClient()
+  const patch: Record<string, unknown> = { status, ...touch() }
+  patch.posted_at = status === 'posted' ? new Date().toISOString() : null
+  await db.from('social_calendar').update(patch).eq('id', id)
+  revalidatePath('/admin/social-calendar')
+}
+
+export async function skipById(id: string): Promise<void> {
+  await assertAdmin()
+  if (!id) return
+  const db = createAdminClient()
+  await db.from('social_calendar').update({ status: 'skipped', ...touch() }).eq('id', id)
+  revalidatePath('/admin/social-calendar')
+}
+
+export async function deleteById(id: string): Promise<void> {
+  await assertAdmin()
+  if (!id) return
+  const db = createAdminClient()
+  await db.from('social_calendar').delete().eq('id', id)
+  revalidatePath('/admin/social-calendar')
+}
+
 /** Permanently remove a slot (manual mistakes only). */
 export async function deleteSlot(formData: FormData): Promise<void> {
   await assertAdmin()

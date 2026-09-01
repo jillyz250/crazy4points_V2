@@ -9,13 +9,14 @@
 export type SocialPlatform = 'facebook' | 'instagram' | 'tiktok'
 
 export type SocialAnchor = {
-  key: string //  stable id, used as source_ref for idempotency (never reuse)
+  key: string //  stable id, used as source_ref + dedupe_key (never reuse)
   topic: string //  human-readable calendar label
+  category: 'deal' | 'recurring' | 'program_news' //  color theme
   cadence: 'monthly' | 'quarterly'
   dayOfMonth: number //  the event day (Bilt Rent Day = 1)
   months?: number[] //  quarterly only: 1-based months, e.g. [1,4,7,10]
   leadDays: number //  post this many calendar days BEFORE the event
-  platforms: SocialPlatform[]
+  defaultPlatform: SocialPlatform //  one card per idea; platform changeable on the card
   linkUrl?: string
   note?: string //  seeds the row's notes so the draft has context
 }
@@ -24,41 +25,46 @@ export const SOCIAL_ANCHORS: SocialAnchor[] = [
   {
     key: 'bilt-rent-day',
     topic: 'Bilt Rent Day',
+    category: 'deal',
     cadence: 'monthly',
     dayOfMonth: 1,
     leadDays: 2, //  heads-up a couple days before the 1st
-    platforms: ['facebook', 'instagram'],
+    defaultPlatform: 'facebook',
     note: 'Rent Day is the 1st: Bilt doubles non-rent points and often runs a transfer bonus. Post the heads-up so people use it.',
   },
   {
     key: 'chase-freedom-quarterly',
     topic: 'Chase Freedom 5% quarterly categories',
+    category: 'deal',
     cadence: 'quarterly',
     months: [1, 4, 7, 10],
     dayOfMonth: 1,
     leadDays: 0, //  activation reminder at quarter start
-    platforms: ['facebook', 'instagram'],
+    defaultPlatform: 'facebook',
     note: 'New 5% bonus categories are live this quarter on Chase Freedom / Freedom Flex. Remind cardholders to activate (verify the actual categories vs Chase before posting).',
   },
   {
     key: 'discover-quarterly',
     topic: 'Discover it 5% quarterly categories',
+    category: 'deal',
     cadence: 'quarterly',
     months: [1, 4, 7, 10],
     dayOfMonth: 1,
     leadDays: 0,
-    platforms: ['facebook', 'instagram'],
+    defaultPlatform: 'facebook',
     note: 'New Discover it 5% quarterly categories are live. Activation reminder (verify categories vs Discover before posting).',
   },
 ]
 
-/** A generated slot, ready to upsert into social_calendar. */
+/** A generated slot, ready to insert into social_calendar (one card per idea). */
 export type AnchorSlot = {
   post_date: string //  YYYY-MM-DD
   platform: SocialPlatform
   topic: string
+  category: string
   source_type: 'recurring'
   source_ref: string
+  dedupe_key: string
   status: 'suggested'
   link_url: string | null
   notes: string | null
@@ -96,18 +102,18 @@ export function generateAnchorSlots(fromISO: string, toISO: string): AnchorSlot[
       const eventDate = new Date(Date.UTC(m.getUTCFullYear(), m.getUTCMonth(), a.dayOfMonth))
       const postDate = addDays(eventDate, -a.leadDays)
       if (postDate < from || postDate > to) continue
-      for (const platform of a.platforms) {
-        slots.push({
-          post_date: ymd(postDate),
-          platform,
-          topic: a.topic,
-          source_type: 'recurring',
-          source_ref: a.key,
-          status: 'suggested',
-          link_url: a.linkUrl ?? null,
-          notes: a.note ?? null,
-        })
-      }
+      slots.push({
+        post_date: ymd(postDate),
+        platform: a.defaultPlatform,
+        topic: a.topic,
+        category: a.category,
+        source_type: 'recurring',
+        source_ref: `${a.key}:${ymd(postDate)}`, //  unique per occurrence
+        dedupe_key: a.key, //  same across occurrences + matches the reminder theme
+        status: 'suggested',
+        link_url: a.linkUrl ?? null,
+        notes: a.note ?? null,
+      })
     }
   }
   return slots
