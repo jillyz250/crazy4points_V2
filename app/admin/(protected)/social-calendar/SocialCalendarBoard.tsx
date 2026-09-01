@@ -25,6 +25,18 @@ function ymd(d: Date) {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
 }
 
+// Replace the default (huge) drag ghost with a small colored block, so a card is
+// easy to drop into a tiny calendar cell. The proxy must be in the DOM at the moment
+// setDragImage runs; we render it off-screen and remove it on the next tick.
+function smallDragImage(e: React.DragEvent, category: string, platform: keyof typeof PLAT) {
+  const el = document.createElement('div')
+  el.textContent = PLAT[platform]
+  el.style.cssText = `position:fixed;top:-1000px;left:-1000px;background:${CATEGORY_COLOR[category] ?? '#999'};color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:3px;`
+  document.body.appendChild(el)
+  e.dataTransfer.setDragImage(el, 14, 10)
+  setTimeout(() => { try { document.body.removeChild(el) } catch { /* already gone */ } }, 0)
+}
+
 export default function SocialCalendarBoard({
   year, month, todayISO, scheduled, triage,
 }: { year: number; month: number; todayISO: string; scheduled: Row[]; triage: Row[] }) {
@@ -56,7 +68,7 @@ export default function SocialCalendarBoard({
     <span
       key={p.id}
       draggable
-      onDragStart={(e) => { e.dataTransfer.setData('text/plain', p.id); setDragId(p.id) }}
+      onDragStart={(e) => { e.dataTransfer.setData('text/plain', p.id); smallDragImage(e, p.category, p.platform); setDragId(p.id) }}
       onDragEnd={() => setDragId(null)}
       onClick={() => setSelected(p.id === selected ? null : p.id)}
       title={`${p.topic} — ${p.platform} · ${STATUS_LABEL[p.status] ?? p.status} · ${CATEGORY_LABEL[p.category]}`}
@@ -176,7 +188,7 @@ export default function SocialCalendarBoard({
           <div
             key={p.id}
             draggable
-            onDragStart={(e) => { e.dataTransfer.setData('text/plain', p.id); setDragId(p.id) }}
+            onDragStart={(e) => { e.dataTransfer.setData('text/plain', p.id); smallDragImage(e, p.category, p.platform); setDragId(p.id) }}
             onDragEnd={() => setDragId(null)}
             style={{ border: '1px solid var(--color-border-soft)', borderLeft: `4px solid ${CATEGORY_COLOR[p.category] ?? '#999'}`, borderRadius: 8, padding: '.5rem .6rem', marginBottom: 8, background: '#fff', cursor: 'grab' }}
           >
