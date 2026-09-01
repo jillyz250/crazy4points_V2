@@ -399,6 +399,7 @@ export default async function ProgramPage({
             ...(perkChainsForProgram(slug).length > 0 ? [{ id: 'chain-reactions', label: 'Chains' }] : []),
             ...(properties.length > 0 ? [{ id: 'properties', label: 'Hotels' }] : []),
             ...(earnIntoCards.length > 0 ? [{ id: 'earn-into', label: 'Cards' }] : []),
+            ...(program.faq && program.faq.length > 0 ? [{ id: 'faq', label: 'FAQ' }] : []),
             ...(allAlerts.length > 0 ? [{ id: 'alerts', label: 'Alerts' }] : []),
           ]}
         />
@@ -444,14 +445,6 @@ export default async function ProgramPage({
               How to win →
             </span>
           </a>
-        )}
-
-        {/* Program FAQ — authored, verified Q&A + FAQPage JSON-LD for AI
-            answer-extraction and search rich results. Renders only when authored. */}
-        {program.faq && program.faq.length > 0 && (
-          <div id="faq" style={{ scrollMarginTop: '6rem', marginBottom: '2.5rem' }}>
-            <GuideFaq items={program.faq} heading="Frequently asked questions" />
-          </div>
         )}
 
         {/* Related guide callouts — programs with dedicated /guides deep-dives.
@@ -575,6 +568,16 @@ export default async function ProgramPage({
             </h2>
             <CardsThatEarnIntoProgram cards={earnIntoCards} programName={program.name} />
           </section>
+        )}
+
+        {/* Program FAQ — authored, verified Q&A + FAQPage JSON-LD for AI
+            answer-extraction and search rich results. Renders near the end (the
+            "still have questions?" wrap-up before the live Alerts feed), only when
+            authored. */}
+        {program.faq && program.faq.length > 0 && (
+          <div id="faq" style={{ scrollMarginTop: '6rem', marginBottom: '2.5rem' }}>
+            <GuideFaq items={program.faq} heading="Frequently asked questions" />
+          </div>
         )}
 
         {/* Alerts heading — only show when content above exists, to mark transition */}
