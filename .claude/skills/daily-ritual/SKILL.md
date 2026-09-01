@@ -37,7 +37,7 @@ publish, write, **and make the platform better than yesterday**.
    And genuinely evaluate for yourself: if you disagree with Jill's call on a
    phase (or anything else), say so with your reason — she wants a real advisor,
    not agreement.** See [[feedback_proactive_expert_guidance]].
-3. **Same layout every day.** Fixed card header (`PHASE N of 24 · TITLE`; `of 25`
+3. **Same layout every day.** Fixed card header (`PHASE N of 25 · TITLE`; `of 26`
    on Thursdays), fixed columns, fixed verdict words. Consistency is the feature.
 4. **Empty phases auto-skip** with one line (`Phase 9 · Experiences — none new ✅`).
 5. **Jill drives:** `next` / `skip` / `back` / `done`. **Never PROPOSE skipping or
@@ -60,18 +60,19 @@ links for anything to open; her outstanding actions go LAST; alert writes go
 through `content_variants`, never the `alerts` mirror.
 
 The phases fall in three acts: **A. Clear the overnight (1-5)** ·
-**B. Keep the site true & fed (6-14)** · **C. Improve & build every day (15-20)**,
+**B. Keep the site true & fed (6-14)** · **C. Improve & build every day (15-21)**,
 then the daily wrap. The chain check runs LAST in Act B (Phase 14, after the
 articles) so it sweeps **everything produced today** (publishes, page fixes, the
-articles, experiences). The **User Accounts build** (Phase 20) advances that
-product a little each day. **Analytics review is the content/performance wrap**
-(Phase 21), then the day closes with three standing "are we covered / is the core
-asset healthy" checks: **Deliverability & list health (Phase 22)**, **Security
-(Phase 23)**, and **Backup & recovery (Phase 24)** — fast posture checks daily,
-with a deeper pass on a cadence (Security deep on Mondays, a Backup restore-drill
-monthly). On **Thursdays only**, the **Newsletter build** runs as Phase 21,
-pushing Analytics→22, Deliverability→23, Security→24, Backup→25. Header the run as
-`PHASE N of 24`; on Thursdays, `N of 25`.
+articles, experiences). Two standing product builds advance a little each day: the
+**User Accounts build** (Phase 20) and the **AI visibility & trust build**
+(Phase 21). **Analytics review is the content/performance wrap** (Phase 22), then
+the day closes with three standing "are we covered / is the core asset healthy"
+checks: **Deliverability & list health (Phase 23)**, **Security (Phase 24)**, and
+**Backup & recovery (Phase 25)** — fast posture checks daily, with a deeper pass on
+a cadence (Security deep on Mondays, a Backup restore-drill monthly). On
+**Thursdays only**, the **Newsletter build** runs as Phase 22, pushing
+Analytics→23, Deliverability→24, Security→25, Backup→26. Header the run as
+`PHASE N of 25`; on Thursdays, `N of 26`.
 
 ---
 
@@ -580,13 +581,50 @@ shippable slice** and show Jill.
   and Backup checks below; anything it ships must satisfy both.
 Auto-skip in one line only if genuinely blocked (e.g. waiting on Jill's approval).
 
-### Phase 21 · 📰 Newsletter build (THURSDAYS ONLY — last content phase, before Analytics)
+### Phase 21 · 🔍 AI visibility & trust (a little every day)
+Make crazy4points a source AI answer engines (ChatGPT, Perplexity, Google AI
+Overviews) trust and **cite by name**. Standing build — **advance ONE concrete
+lever each day** and show Jill (Jill, 2026-09-01). The goal is NOT Google rich
+snippets (Google retired FAQ snippets in 2023); it is being an accurate,
+accountable source AI extracts and attributes. The FAQ work is one lever, not the
+whole game. Levers, in leverage order:
+1. **Unique + accurate + FRESH data at scale (the moat).** AI cites sources with
+   specific, correct, current facts it can't reliably get elsewhere — which is what
+   this whole ritual produces. Daily move: **extend the program/card FAQ backfill**
+   (yes/no-lead house style [[reference_program_faq_house_style]] + FAQPage JSON-LD)
+   and keep the freshness guards green (drift, `faq_reviewed_at`, prose-on-data-change).
+   **ALREADY SHIPPED — do NOT rebuild (see [[project_ai_visibility]]):** site-wide
+   Organization + WebSite entity `@graph` (#1149/#1151), `llms.txt` (auto-generated),
+   `/programs/[slug]/md` markdown exports, `robots.ts` allowing GPTBot/ClaudeBot/
+   PerplexityBot, per-page WebPage/Article JSON-LD, sitemap with lastModified. The
+   foundation is real; extend and use it, don't recreate it.
+2. **Trust signals AI still lacks (the real remaining lever).** The Organization
+   entity exists, but readers/AI can't yet see WHO verifies this and HOW. Build:
+   **author/byline signals** on guides + alerts, a **"How we verify our data" / about**
+   page stating the official-source-only + multi-source rule, and **surface each
+   page's last-verified date + official sources** (`plans/sources/[slug].md`). An
+   accountable, dated, sourced page gets cited; an anonymous one doesn't.
+3. **Per-program structured data (memory's #1 highest-impact gap).** Program pages
+   have WebPage + now FAQPage, but not the program's own facts as schema: transfer
+   partners as `ItemList`, tiers as `OfferCatalog`, the program as `LoyaltyProgram`.
+   AI ingests that with zero parsing. Plus auto-generated per-program **meta
+   descriptions** (name + alliance + top transfer partners + hub) AI grabs verbatim.
+4. **Off-site corroboration.** AI weights sources mentioned/linked elsewhere — feed
+   it through our social + Reddit-data presence and earned references (never spam).
+5. **Answer-shaped content.** Real AI-query phrasing, answers leading with
+   Yes/No/the fact (the FAQ house style), so extraction is clean.
+Each day pick the next concrete step (finish an FAQ batch, add author/verify signals,
+ship per-program LoyaltyProgram/ItemList schema, write the "how we verify" page), do
+it, show Jill. **DISCOVERY FIRST every time** — grep + check [[project_ai_visibility]]
+before building; most of the infra already exists. Auto-skip if genuinely blocked.
+
+### Phase 22 · 📰 Newsletter build (THURSDAYS ONLY — last content phase, before Analytics)
 Runs only on Thursdays (the snapshot header prints `WEEKLY: Newsletter day`), and
 **always the last content phase** (only the Analytics wrap follows it) so every
 alert published, page fixed, experience/sweepstakes picked, and article written
 *earlier today* is eligible for it — the newsletter is the day's content wrap-up,
 not a parallel track. On any other weekday this phase does not exist; do not
-surface it (Analytics then becomes Phase 21).
+surface it (Analytics then becomes Phase 22).
 
 Build it **entirely from PUBLISHED alerts** and the site's own content, newest-first
 (Jill, 2026-08-31: nothing is parked for the newsletter; it pulls from what we
@@ -616,7 +654,7 @@ point math. **Show Jill the FULL draft before sending — always.** On her appro
 send via Resend, **throttled to ≤4/sec** ([[feedback_resend_rate_limit]]). Receipt:
 what led, how many stories, recipient count.
 
-### Phase 21 (Phase 22 on Thursdays) · 📊 Analytics review — content/performance wrap
+### Phase 22 (Phase 23 on Thursdays) · 📊 Analytics review — content/performance wrap
 Runs after the content phases (after the Newsletter on Thursdays); the three
 safety checks below (Deliverability, Security, Backup) then close the day. Added 2026-08-28
 (Jill). Review the numbers and pull **1-2 insights that should change tomorrow's
@@ -636,7 +674,7 @@ name which metrics we CAN'T yet see (a gap to build). See [[project_newsletter_o
 
 ---
 
-### Phase 22 (Phase 23 on Thursdays) · 📬 Deliverability & list health
+### Phase 23 (Phase 24 on Thursdays) · 📬 Deliverability & list health
 The newsletter is the crown jewel, so watch it like one (added 2026-08-31, Jill).
 Fast daily posture check; auto-skip with one line when all healthy:
 - **Deliverability:** recent Resend send stats — **bounce rate, spam-complaint
@@ -653,7 +691,7 @@ can't see (open/click stats are a known gap — [[project_newsletter_open_click_
 Deeper pass weekly. Auto-skip in one line when bounce/complaint/unsub are normal and
 no odd signups.
 
-### Phase 23 (Phase 24 on Thursdays) · 🔒 Security check — are we covered
+### Phase 24 (Phase 25 on Thursdays) · 🔒 Security check — are we covered
 Confirm nothing opened a hole (added 2026-08-31, Jill). Fast green/red daily; the
 **deeper audit runs Mondays**. Buckets:
 - **Secrets:** no keys/env committed — `.env*` stays gitignored; scan today's diffs
@@ -671,7 +709,7 @@ Confirm nothing opened a hole (added 2026-08-31, Jill). Fast green/red daily; th
 Daily = fast pass, auto-skip in one line when clean and nothing shipped touched
 auth/secrets/deps. Mondays = the deep audit + apply one hardening.
 
-### Phase 24 (Phase 25 on Thursdays) · 💾 Backup & recovery — Supabase safety net
+### Phase 25 (Phase 26 on Thursdays) · 💾 Backup & recovery — Supabase safety net
 Make sure a Supabase failure or a bad write can't wipe us out (added 2026-08-31,
 Jill). This is the one where "later" is how data gets lost:
 - **Supabase backups:** confirm the project's daily backups / Point-in-Time-Recovery
@@ -688,7 +726,7 @@ the restore drill.
 
 ---
 
-## CLOSE (send after the last phase — Phase 24 Backup, or Phase 25 on Thursdays)
+## CLOSE (send after the last phase — Phase 25 Backup, or Phase 26 on Thursdays)
 A fixed recap:
 ```
 🌙 WRAP — Aug 12
