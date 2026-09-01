@@ -302,6 +302,16 @@ DROPPED bonus makes a card page stale. For each pending signal:
 - **Coverage guardrail:** if Jill flags a SUB change we did NOT catch (Delta,
   2026-08-28 — the monitor had nothing that day), treat it as a monitor gap:
   verify + publish manually, and note the miss so the monitor can be widened.
+- **SIBLING CHECK (free blast-radius sweep):** whenever you fix or verify one
+  card's welcome bonus on an issuer's official page, **check that card's family
+  siblings while you're on the same page** — they're listed right there at no extra
+  cost, and if one drifted the others often did too. (2026-09-01: Delta Reserve was
+  stale at 100k; the same delta.com page confirmed Gold 80k+$250 and Platinum
+  90k+$300 were already correct — 1 of 4 stale, caught in one visit.) A stale bonus
+  that reads HIGHER than reality is the dangerous kind (over-promising), and the
+  `card_bonus_signals` monitor is blind to hybrid cert+miles offers, so this manual
+  sibling pass is the real safety net for issuer families (Delta, Marriott, Hilton,
+  United, AA, Chase co-brands).
 Resolve each at `/admin/card-bonus-signals`.
 
 **Also report the "prose to re-check" queue** (same dashboard) — cards with
