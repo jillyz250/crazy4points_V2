@@ -400,8 +400,11 @@ fees (Jill, 2026-09-01 — readers book cash on the same carrier, so it's useful
 FAQPage JSON-LD via the shipped rendering, #1359) covering the change/cancel facts
 you just verified — so each airline ships human prose AND AI-browsable schema in one
 pass (Jill, 2026-09-01). Derive the FAQ answers from the SAME verified official
-source, never new unsourced claims. This is the per-section-FAQ backfill happening
-incrementally; see the standing FAQ-backfill project.
+source, never new unsourced claims. **Follow the FAQ house style
+([[reference_program_faq_house_style]]): lead every answer with Yes/No or the direct
+fact (AI extracts the first sentence), favor yes/no questions, phrase each as a real
+AI query, self-contained, no dashes, no valuations.** This is the per-section-FAQ
+backfill happening incrementally; see the standing FAQ-backfill project.
 
 ### Phase 12 · 🔎 Roadmap mining + reconcile (keep it CURRENT)
 Two halves — mine forward, and true up what shipped:
