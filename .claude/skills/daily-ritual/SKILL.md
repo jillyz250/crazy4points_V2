@@ -163,56 +163,80 @@ The snapshot's `[TODAY]` rows — today's dated actions. Flag any real time-boxe
 `completed_at=now` on the `reminders` row (mirrors admin `toggleReminderDone`).
 Never hard-delete unless it's junk. One bulk update when Jill says so.
 
-### Phase 4 · 🗂️ Triage the intel queue — BY TYPE (grouped, one type at a time)
+### Phase 4 · 🗂️ Triage the intel queue — BY TYPE, in TWO passes (4a → 4b)
 Source: `node scripts/morning-triage-by-type.mjs` — it groups the undecided queue
 by Scout's `alert_type`, collapses near-duplicate re-forwards, and flags every
 item **✓ COVERED** (matches a published/expired alert) vs **🆕 NEW**. Only 🆕
-items are shown. **Rules that shape this phase (Jill, 2026-08-28):**
+items are shown.
+
+**Walk it in TWO sub-passes, in this order (Jill's structure, 2026-09-01). Finish
+4a completely — including verifying and SHOWING any draft she approves — before you
+start 4b. Never jump ahead to 4b while a 4a draft is unshown.**
+
+- **Phase 4a · PROMOS** — the promo-type groups: `limited_time_offer`,
+  `signup_bonus`, `award_sale`, status/elite promos. List each group ("3 limited
+  offers — here they are") and Jill decides the group. Most are REJECT; the fresh,
+  genuinely-actionable few become a QUICK-TAKE or full alert.
+- **Phase 4b · PROGRAM CHANGES + EARN** — the change groups: `transfer_bonus`,
+  `devaluation`, `partner_change`, `fee_change`, `program_change`, `policy_change`,
+  `award_availability`, and **credit-card earn**. Same group-by-group decision.
+
+**Golden rule for BOTH passes: decide each type-group on its own — NEVER bulk-reject
+the whole phase blind.** Jill wants to see each group and call it. Present the group,
+your rec, and act on her word.
+
+**Credit-card "earn" items in 4b are PAGE-ACCURACY checks, not automatic alerts.**
+For each: verify the benefit against the **official issuer page**, then confirm the
+relevant **card/program page reflects it** — fix the prose/data if stale (with a
+PAGE-NOTE + `content_updated_at` bump on programs; note `credit_cards` has NO
+`content_updated_at` column — silent-column trap). Many "earn" items turn out to be
+**limited promos** (don't belong on a page → reject) or **not-ours** (e.g. an Uber
+One perk, a non-covered program → reject). Only a genuine standing benefit that's
+missing/stale drives a page edit. (Pattern proven 2026-09-01: of 3 "earn" items, one
+was already correct on the page, one a promo, one an Uber One perk — all rejected, no
+edit needed.)
+
+**Rules that shape both passes (Jill, 2026-08-28):**
 - **A sale / points-buy / bonus is an ALERT candidate, not "just newsletter
-  fodder."** Each type-group ("5 transfer bonuses — here they are") is the unit of
-  decision; they only reach the newsletter *because* an alert exists. So walk the
-  groups and decide which few become alerts (even a one-to-two-sentence quick take).
+  fodder."** Each type-group is the unit of decision; deals reach the newsletter
+  *because* an alert exists first.
 - **NEVER recommend an item as a fresh alert without the COVERED check.** The tool
   does it deterministically (program overlap + title-token match); trust the 🆕
-  flag, and when spot-checking use `--covered`. This is the guard against floating
-  something we've already published (the mistake caught 2026-08-28).
-- Walk the **change-type groups first** (transfer_bonus, devaluation, partner_
-  change, fee_change, program_change, policy_change) — those make real alerts —
-  then the promo groups (limited_time_offer, signup_bonus, award_sale), deciding
-  the genuinely-fresh few. Drill a group with `--type <alert_type>`.
-Per group, Jill calls PUBLISH / QUICK-TAKE / HOLD / REJECT on the 🆕 items (no
-"newsletter" verdict — a newsletter-worthy deal becomes at least a QUICK-TAKE
-alert, which the newsletter then pulls from); apply by ID via `triage-apply.mjs`.
-US-signal + new-program are never auto-collapsed.
-NOTE: going forward the classifier drains this automatically once the build-brief
-re-feed-undecided fix lands; this phase is the human layer over what's left.
+  flag, and when spot-checking use `--covered`. Guard against re-floating something
+  already published (mistake caught 2026-08-28).
+- Drill a group with `--type <alert_type>`. Apply verdicts by ID via
+  `triage-apply.mjs`. Verdicts: PUBLISH / QUICK-TAKE / PAGE-NOTE / HOLD / REJECT
+  (no "newsletter" verdict — retired). US-signal + new-program are never
+  auto-collapsed.
+NOTE: the classifier drains this automatically once the build-brief re-feed-undecided
+fix lands; this phase is the human layer over what's left.
 
-### Phase 5 · 🔥 Publish decisions (ONE at a time)
-The candidates that need her judgment + a draft. Verify each against its official
-source FIRST (see Verification), then present a **mini-block** (never a table):
-```
-1 of 3 · Choice Privileges Japan devaluation
-What/why: <ONE plain-English sentence — what it is, why it matters, the catch>
-Reverified: ✅ <source>   ·   Page: needs fixing: Choice (still shows old rates)
-My rec: PUBLISH  ("book Japan before it's gone")
-Publish, newsletter, or skip?
-```
-**If PUBLISH → draft it FIRST and SHOW HER THE FULL DRAFT before anything goes
-live. ALWAYS.** She approves or edits; only then publish via the content_variants
-pipeline (clean `short_slug`) and fix the **needs fixing** page as part of
-publishing. Receipt, then the NEXT candidate — never batch these.
+### Phase 5 · 🔥 The two NON-intel feeds (never "already done")
+**The publish-decision core lives in Phase 4 (4a/4b) now** — that's where verified
+intel becomes a shown-first draft and gets published. So Phase 5 is NOT "publish
+decisions" anymore; it is the **two feeds 4a/4b never touch**, and it must run
+every morning as its own two-item checklist. **Do NOT skip it on the reasoning
+"we already published today" — that's the exact miss caught 2026-09-01; those
+publishes were 4a/4b, and these two feeds are separate.** Walk each, one at a time,
+verified against official first:
+1. **Experiences to review** (snapshot `NEW EXPERIENCES TO REVIEW`, ⭐ alert-worthy
+   first) → **PUBLISH** (full alert), **QUICK-TAKE** (depth='quick'), or **SKIP**.
+   ANY verdict (including skip) sets `editorial_reviewed_at=now` on the
+   **`experience_listings`** row (NOT `experiences` — wrong table errors with a
+   schema-cache "column not found"; silent-table trap) — that IS "looking at it,"
+   clearing it from the morning list AND the /admin "to review" count. Pure
+   card-access presale tickets aren't surfaced; Marriott Moments are. Low-stakes
+   directory listings can be presented as one compact group with a SKIP-all rec.
+2. **Legacy `newsletter_idea` item expiring soon** (snapshot `NEWSLETTER ITEMS
+   EXPIRING SOON`) → **PUBLISH now** (a QUICK-TAKE or full alert before the
+   deadline) or **REJECT**. There is no "keep for newsletter" anymore — the bucket
+   is retired (Jill, 2026-08-31); this feed just drains the legacy parked items.
+   Anything worth featuring becomes an alert the newsletter can pull.
 
-Two extra feeds are walked here too, one at a time, verified against official first:
-- **Experience to review** (snapshot `NEW EXPERIENCES TO REVIEW`, ⭐ alert-worthy
-  first) → **PUBLISH** (full alert), **QUICK-TAKE** (depth='quick'), or **SKIP**.
-  ANY verdict (including skip) sets `editorial_reviewed_at=now` — that IS "looking
-  at it," clearing it from the morning list AND the /admin "to review" count. Pure
-  card-access presale tickets aren't surfaced; Marriott Moments are.
-- **Legacy `newsletter_idea` item expiring soon** (snapshot `NEWSLETTER ITEMS
-  EXPIRING SOON`) → **PUBLISH now** (a QUICK-TAKE or full alert before the
-  deadline) or **REJECT**. There is no "keep for newsletter" anymore — the bucket
-  is retired (Jill, 2026-08-31); this feed just drains the legacy parked items.
-  Anything worth featuring becomes an alert the newsletter can pull.
+If a genuinely alert-worthy publish candidate somehow *wasn't* caught in 4a/4b
+(e.g. it came from an experience above), draft it FIRST and **SHOW HER THE FULL
+DRAFT before anything goes live — ALWAYS** — then publish via the content_variants
+pipeline (clean `short_slug`) and fix any **needs-fixing** page as part of it.
 
 ---
 
