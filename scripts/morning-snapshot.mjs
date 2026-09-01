@@ -92,7 +92,15 @@ const oldestUndecided = (await q('oldest undecided intel', db.from('intel_items'
   .or(`snoozed_until.is.null,snoozed_until.lte.${nowIso}`)
   .order('created_at', { ascending: true }).limit(1))).data[0]
 const triageOldestDays = oldestUndecided ? Math.floor((Date.now() - new Date(oldestUndecided.created_at).getTime()) / 86400000) : 0
-const triageBacklogBad = (intelToTriage ?? 0) > 30 || triageOldestDays > 3
+// Is the classifier actually WORKING? Count auto-decisions in the last 24h. A
+// healthy-but-humming planner (many recent decisions) leaves old human-triage
+// stragglers behind, which alone should NOT read as "stalled" (2026-09-01: it
+// decided 562 items overnight yet the age check still cried ⚠️). Only flag
+// stalled when few recent decisions AND a real backlog/age.
+const triageDecided24h = (await q('intel decided 24h', db.from('intel_items').select('id', { count: 'exact', head: true })
+  .not('triage_decision', 'is', null)
+  .gte('triage_decided_at', new Date(Date.now() - 24 * 3600 * 1000).toISOString()))).count ?? 0
+const triageBacklogBad = triageDecided24h < 50 && ((intelToTriage ?? 0) > 30 || triageOldestDays > 3)
 
 const changeSignals = (await q('count change signals', db.from('change_signals').select('id', { count: 'exact', head: true }).eq('status', 'new').or(`snoozed_until.is.null,snoozed_until.lte.${nowIso}`))).count
 const bonusSignals = (await q('count bonus signals', db.from('card_bonus_signals').select('id', { count: 'exact', head: true }).eq('status', 'new'))).count
@@ -337,7 +345,7 @@ const errFlag = sysErrors.length
 console.log('HEALTH (step 0):')
 console.log(`  Daily brief . ${briefFlag}`)
 console.log(`  Scout intel . ${scoutFlag}`)
-console.log(`  Triage classifier . ${triageBacklogBad ? `⚠️ BACKLOG ${intelToTriage} undecided, oldest ${triageOldestDays}d — planner likely stalled (check API budget)` : 'OK'}`)
+console.log(`  Triage classifier . ${triageBacklogBad ? `⚠️ STALLED: ${triageDecided24h} decided in 24h, ${intelToTriage} undecided (oldest ${triageOldestDays}d) — check API budget` : `OK (${triageDecided24h} auto-decided/24h${(intelToTriage ?? 0) > 30 ? `, ${intelToTriage} awaiting human triage` : ''})`}`)
 console.log(`  Watchers (experiences) . ${watchFlag}`)
 console.log(`  Logged errors . ${errFlag}`)
 if (sysErrors.length) for (const e of sysErrors.slice(0, 5)) console.log(`      • [${e.source}] ${(e.message || '').slice(0, 90)}`)
