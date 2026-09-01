@@ -104,6 +104,15 @@ export async function scheduleOnDate(id: string, post_date: string): Promise<voi
   revalidatePath('/admin/social-calendar')
 }
 
+/** Send a scheduled post back to the Recommended lane (planned/drafted -> suggested). */
+export async function unscheduleById(id: string): Promise<void> {
+  await assertAdmin()
+  if (!id) return
+  const db = createAdminClient()
+  await db.from('social_calendar').update({ status: 'suggested', posted_at: null, ...touch() }).eq('id', id)
+  revalidatePath('/admin/social-calendar')
+}
+
 export async function setPlatformById(id: string, platform: string): Promise<void> {
   await assertAdmin()
   if (!id || !(PLATFORMS as readonly string[]).includes(platform)) return

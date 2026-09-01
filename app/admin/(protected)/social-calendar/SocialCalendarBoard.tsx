@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { CATEGORY_COLOR, CATEGORY_LABEL, SOCIAL_CATEGORIES, topicSignature, signaturesOverlap } from '@/lib/socialCategories'
-import { scheduleOnDate, setPlatformById, setCategoryById, setStatusById, skipById, deleteById, saveDraft } from './actions'
+import { scheduleOnDate, unscheduleById, setPlatformById, setCategoryById, setStatusById, skipById, deleteById, saveDraft } from './actions'
 
 export type Row = {
   id: string
@@ -32,10 +32,11 @@ export default function SocialCalendarBoard({
   const [pending, start] = useTransition()
   const [dragId, setDragId] = useState<string | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
+  const [dates, setDates] = useState<Record<string, string>>({})
 
   const run = (fn: () => Promise<void>) => start(async () => { await fn(); router.refresh() })
+  const scheduledIds = new Set(scheduled.map((s) => s.id))
 
-  // Build the month grid.
   const first = new Date(Date.UTC(year, month - 1, 1))
   const last = new Date(Date.UTC(year, month, 0))
   const cells: (string | null)[] = [
@@ -45,37 +46,34 @@ export default function SocialCalendarBoard({
   const byDay = new Map<string, Row[]>()
   for (const p of scheduled) byDay.set(p.post_date, [...(byDay.get(p.post_date) ?? []), p])
 
-  // Dedup awareness: flag a triage item whose topic overlaps a scheduled/posted one.
   const scheduledSigs = scheduled.map((s) => topicSignature(s.topic))
-  const isPossibleDupe = (r: Row) => {
-    const sig = topicSignature(r.topic)
-    return scheduledSigs.some((s) => signaturesOverlap(sig, s))
-  }
+  const isPossibleDupe = (r: Row) => { const sig = topicSignature(r.topic); return scheduledSigs.some((s) => signaturesOverlap(sig, s)) }
 
   const selectedRow = [...scheduled, ...triage].find((r) => r.id === selected) ?? null
 
-  const chip = (p: Row) => (
-    <div
+  // A scheduled post as a small colored dot (click to see words in the editor).
+  const dot = (p: Row) => (
+    <span
       key={p.id}
       draggable
       onDragStart={(e) => { e.dataTransfer.setData('text/plain', p.id); setDragId(p.id) }}
       onDragEnd={() => setDragId(null)}
       onClick={() => setSelected(p.id === selected ? null : p.id)}
-      title={`${p.platform} · ${STATUS_LABEL[p.status] ?? p.status} · ${CATEGORY_LABEL[p.category]}`}
+      title={`${p.topic} — ${p.platform} · ${STATUS_LABEL[p.status] ?? p.status} · ${CATEGORY_LABEL[p.category]}`}
       style={{
-        display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, marginTop: 3, cursor: 'grab',
-        borderLeft: `3px solid ${CATEGORY_COLOR[p.category] ?? '#999'}`, paddingLeft: 4, borderRadius: 2,
-        background: p.id === selected ? '#F1EAF8' : '#fff', opacity: p.status === 'posted' ? 0.6 : 1,
+        display: 'inline-flex', alignItems: 'center', gap: 2, cursor: 'grab',
+        background: CATEGORY_COLOR[p.category] ?? '#999', color: '#fff',
+        borderRadius: 3, padding: '1px 4px', fontSize: 9, fontWeight: 700,
+        outline: p.id === selected ? '2px solid var(--color-primary)' : 'none',
+        opacity: p.status === 'posted' ? 0.55 : 1,
       }}
     >
-      <span style={{ fontSize: 9, fontWeight: 700, color: '#666' }}>{PLAT[p.platform]}</span>
-      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.topic}</span>
-    </div>
+      {PLAT[p.platform]}
+    </span>
   )
 
   return (
     <div className="grid items-start gap-5 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_290px]">
-      {/* CALENDAR (drop targets) */}
       <div>
         {/* Legend */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 10, fontSize: 11 }}>
@@ -100,32 +98,34 @@ export default function SocialCalendarBoard({
                 onDragOver={date ? (e) => e.preventDefault() : undefined}
                 onDrop={date ? (e) => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); if (id) run(() => scheduleOnDate(id, date)) } : undefined}
                 style={{
-                  minHeight: 78, border: '1px solid var(--color-border-soft)', borderRadius: 6, padding: 4,
+                  height: 58, overflow: 'hidden', border: '1px solid var(--color-border-soft)', borderRadius: 6, padding: 4,
                   background: date === todayISO ? '#FBF7FF' : date ? '#fff' : 'transparent',
                   outline: dragId && date ? '1px dashed #C9B3DF' : 'none',
                 }}
               >
                 {date && (
-                  <div style={{ fontSize: 10, color: date === todayISO ? 'var(--color-primary)' : '#999', fontWeight: date === todayISO ? 700 : 400, display: 'flex', justifyContent: 'space-between' }}>
+                  <div style={{ fontSize: 10, color: date === todayISO ? 'var(--color-primary)' : '#999', fontWeight: date === todayISO ? 700 : 400, display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
                     <span>{Number(date.slice(-2))}</span>
-                    {over.length > 0 && <span title={`More than one ${over.map(([p]) => p).join(', ')} post`} style={{ color: '#C77700' }}>⚠</span>}
+                    {over.length > 0 && <span title={`More than one ${over.map(([p]) => p).join(', ')} post that day`} style={{ color: '#C77700' }}>⚠</span>}
                   </div>
                 )}
-                {dayPosts.map(chip)}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>{dayPosts.map(dot)}</div>
               </div>
             )
           })}
         </div>
+        <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 6 }}>Each dot is a post (colored by category). Click a dot to see the words and edit. Drag a dot to another day to move it, or onto Recommended to un-schedule.</p>
 
         {/* Editor for the selected post */}
         {selectedRow && (
-          <div style={{ marginTop: 14, border: '1px solid var(--color-border-soft)', borderRadius: 8, padding: '.75rem .9rem', background: '#FCFAFE' }}>
+          <div style={{ marginTop: 10, border: '1px solid var(--color-border-soft)', borderRadius: 8, padding: '.75rem .9rem', background: '#FCFAFE' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <strong style={{ fontSize: 14 }}>{selectedRow.topic}</strong>
               <button onClick={() => setSelected(null)} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#999' }}>close</button>
             </div>
             <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', margin: '.25rem 0' }}>
               {selectedRow.post_date} · {selectedRow.status} · from {selectedRow.source_type}
+              {selectedRow.link_url ? <> · <a href={selectedRow.link_url} target="_blank" rel="noreferrer" style={{ color: 'var(--color-primary)' }}>link</a></> : null}
             </div>
             {selectedRow.notes && <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 6 }}>{selectedRow.notes}</div>}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
@@ -139,6 +139,9 @@ export default function SocialCalendarBoard({
                   {SOCIAL_CATEGORIES.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
                 </select>
               </label>
+              <label style={{ fontSize: 11 }}>Date{' '}
+                <input type="date" defaultValue={selectedRow.post_date} onChange={(e) => e.target.value && run(() => scheduleOnDate(selectedRow.id, e.target.value))} style={{ fontSize: 11 }} />
+              </label>
             </div>
             <form action={saveDraft}>
               <input type="hidden" name="id" value={selectedRow.id} />
@@ -151,16 +154,23 @@ export default function SocialCalendarBoard({
                   {st === 'posted' ? 'Mark posted' : `Set ${st}`}
                 </button>
               ))}
+              {selectedRow.status !== 'suggested' && (
+                <button onClick={() => run(() => unscheduleById(selectedRow.id))} className="rg-btn-secondary" style={{ padding: '.2rem .55rem', fontSize: 11 }}>&larr; Back to Recommended</button>
+              )}
               <button onClick={() => run(() => deleteById(selectedRow.id))} className="rg-btn-secondary" style={{ padding: '.2rem .55rem', fontSize: 11, color: '#c00' }}>Delete</button>
             </div>
           </div>
         )}
       </div>
 
-      {/* TRIAGE (Recommended) — drag onto a day */}
-      <div>
+      {/* RECOMMENDED (triage) — drag onto a day, OR drag a scheduled post here to un-schedule */}
+      <div
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); if (id && scheduledIds.has(id)) run(() => unscheduleById(id)) }}
+        style={{ outline: dragId && scheduledIds.has(dragId) ? '2px dashed #C9B3DF' : 'none', borderRadius: 8, padding: 2 }}
+      >
         <h2 style={{ fontFamily: 'var(--font-display)', color: 'var(--color-primary)', fontSize: '1.1rem', marginTop: 0 }}>Recommended</h2>
-        <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: -6 }}>Drag a card onto a day to schedule it. Set its platform first if needed.</p>
+        <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: -6 }}>Set a date and hit Schedule, or drag a card onto a day. Drag a scheduled post here to un-schedule.</p>
         {triage.length === 0 && <p style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>Nothing recommended right now.</p>}
         {triage.map((p) => (
           <div
@@ -172,15 +182,15 @@ export default function SocialCalendarBoard({
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 10, fontWeight: 700, background: CATEGORY_COLOR[p.category] ?? '#999', color: '#fff', padding: '0 6px', borderRadius: 99 }}>{CATEGORY_LABEL[p.category]}</span>
-              <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>suggests {p.post_date.slice(5)}</span>
               {isPossibleDupe(p) && <span title="Similar topic already scheduled" style={{ fontSize: 10, color: '#C77700', fontWeight: 700 }}>possible dupe</span>}
             </div>
             <div style={{ fontSize: 13, fontWeight: 600, margin: '.25rem 0' }}>{p.topic}</div>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+              <input type="date" defaultValue={p.post_date} onChange={(e) => setDates((d) => ({ ...d, [p.id]: e.target.value }))} style={{ fontSize: 11 }} />
               <select defaultValue={p.platform} onChange={(e) => run(() => setPlatformById(p.id, e.target.value))} style={{ fontSize: 11 }}>
                 <option value="facebook">FB</option><option value="instagram">IG</option><option value="tiktok">TT</option>
               </select>
-              <button onClick={() => run(() => scheduleOnDate(p.id, p.post_date))} className="rg-btn-primary" style={{ padding: '.2rem .55rem', fontSize: 11 }}>Schedule</button>
+              <button onClick={() => run(() => scheduleOnDate(p.id, dates[p.id] || p.post_date))} className="rg-btn-primary" style={{ padding: '.2rem .55rem', fontSize: 11 }}>Schedule</button>
               <button onClick={() => run(() => skipById(p.id))} className="rg-btn-secondary" style={{ padding: '.2rem .55rem', fontSize: 11 }}>Skip</button>
             </div>
           </div>
