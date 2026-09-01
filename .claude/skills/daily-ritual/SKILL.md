@@ -393,7 +393,15 @@ official FIRST, then reconcile against that list — agreement = high confidence
 mismatch means dig until you know which is right. The list is UNVERIFIED and
 already had a wrong AA entry, and its "~$USD" conversions must be stripped (native
 currency only in published prose). Author in the 4-bullet house format (How to
-change or cancel / Fees / If delayed or changed / How to reach the airline).
+change or cancel / Fees / If delayed or changed / How to reach the airline), plus
+a **"Cash tickets, for reference"** bullet when the airline has dropped cash change
+fees (Jill, 2026-09-01 — readers book cash on the same carrier, so it's useful).
+**ALSO author 2-3 structured FAQ Q&As** into that program's `faq` jsonb (renders as
+FAQPage JSON-LD via the shipped rendering, #1359) covering the change/cancel facts
+you just verified — so each airline ships human prose AND AI-browsable schema in one
+pass (Jill, 2026-09-01). Derive the FAQ answers from the SAME verified official
+source, never new unsourced claims. This is the per-section-FAQ backfill happening
+incrementally; see the standing FAQ-backfill project.
 
 ### Phase 12 · 🔎 Roadmap mining + reconcile (keep it CURRENT)
 Two halves — mine forward, and true up what shipped:
