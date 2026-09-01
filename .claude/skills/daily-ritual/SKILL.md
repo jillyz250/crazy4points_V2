@@ -37,7 +37,7 @@ publish, write, **and make the platform better than yesterday**.
    And genuinely evaluate for yourself: if you disagree with Jill's call on a
    phase (or anything else), say so with your reason — she wants a real advisor,
    not agreement.** See [[feedback_proactive_expert_guidance]].
-3. **Same layout every day.** Fixed card header (`PHASE N of 23 · TITLE`; `of 24`
+3. **Same layout every day.** Fixed card header (`PHASE N of 24 · TITLE`; `of 25`
    on Thursdays), fixed columns, fixed verdict words. Consistency is the feature.
 4. **Empty phases auto-skip** with one line (`Phase 9 · Experiences — none new ✅`).
 5. **Jill drives:** `next` / `skip` / `back` / `done`. **Never PROPOSE skipping or
@@ -60,17 +60,18 @@ links for anything to open; her outstanding actions go LAST; alert writes go
 through `content_variants`, never the `alerts` mirror.
 
 The phases fall in three acts: **A. Clear the overnight (1-5)** ·
-**B. Keep the site true & fed (6-14)** · **C. Improve every day (15-18)**, then the
-daily wrap. The chain check runs LAST in Act B (Phase 14, after the articles) so it
-sweeps **everything produced today** (publishes, page fixes, the articles,
-experiences). **Analytics review is the content/performance wrap** (Phase 20),
-then the day closes with three standing "are we covered / is the core asset
-healthy" checks: **Deliverability & list health (Phase 21)**, **Security
-(Phase 22)**, and **Backup & recovery (Phase 23)** — fast posture checks daily,
+**B. Keep the site true & fed (6-14)** · **C. Improve & build every day (15-20)**,
+then the daily wrap. The chain check runs LAST in Act B (Phase 14, after the
+articles) so it sweeps **everything produced today** (publishes, page fixes, the
+articles, experiences). The **User Accounts build** (Phase 20) advances that
+product a little each day. **Analytics review is the content/performance wrap**
+(Phase 21), then the day closes with three standing "are we covered / is the core
+asset healthy" checks: **Deliverability & list health (Phase 22)**, **Security
+(Phase 23)**, and **Backup & recovery (Phase 24)** — fast posture checks daily,
 with a deeper pass on a cadence (Security deep on Mondays, a Backup restore-drill
-monthly). On **Thursdays only**, the **Newsletter build** runs as Phase 20,
-pushing Analytics→21, Deliverability→22, Security→23, Backup→24. Header the run as
-`PHASE N of 23`; on Thursdays, `N of 24`.
+monthly). On **Thursdays only**, the **Newsletter build** runs as Phase 21,
+pushing Analytics→22, Deliverability→23, Security→24, Backup→25. Header the run as
+`PHASE N of 24`; on Thursdays, `N of 25`.
 
 ---
 
@@ -513,13 +514,34 @@ No campaign-worthy candidate today → auto-skip in one line; never force a crea
 just to have one. The point is a growing library that's ready the moment a campaign
 is.
 
-### Phase 20 · 📰 Newsletter build (THURSDAYS ONLY — last content phase, before Analytics)
+### Phase 20 · 👤 User Accounts build (a little every day)
+The User Accounts & Wallet Dashboard product, built in **small daily increments**
+(Jill, 2026-09-01) instead of a big-bang. Each morning, **advance it by one
+shippable slice** and show Jill.
+- **Follow the staged roadmap** in [[project_user_accounts_wallet_dashboard]] + the
+  Stage 1 plan (`scratchpad/user-accounts-stage1-plan.md`): Stage 2 auth + account
+  shell → Stage 3 wallet → Stage 4 saved content → Stage 5 personalized alerts →
+  Stage 6 annual-fee/credit tracker. Pick up exactly where the project memory says
+  we left off; do the next small piece, not the whole stage.
+- **Locked decisions (do not re-litigate):** Supabase Auth, magic-link + optional
+  Google, NO stored passwords; manual wallet (balances only, never credentials);
+  RLS `auth.uid() = user_id` (with a `with check`) on every user table; free now
+  with a `profiles.tier` flag; new user tables go in the off-platform backup. The
+  Copilot-review refinements (SMTP via Resend, subscribers-merge consent, magic-link
+  hardening, account deletion/export) are captured in the project memory.
+- **Show Jill each increment** and get scope approval before anything that changes
+  the plan. Verify against Next.js 16 + `@supabase/ssr` docs at build time.
+- **Security is non-negotiable here** (PII + auth) — this phase feeds the Security
+  and Backup checks below; anything it ships must satisfy both.
+Auto-skip in one line only if genuinely blocked (e.g. waiting on Jill's approval).
+
+### Phase 21 · 📰 Newsletter build (THURSDAYS ONLY — last content phase, before Analytics)
 Runs only on Thursdays (the snapshot header prints `WEEKLY: Newsletter day`), and
 **always the last content phase** (only the Analytics wrap follows it) so every
 alert published, page fixed, experience/sweepstakes picked, and article written
 *earlier today* is eligible for it — the newsletter is the day's content wrap-up,
 not a parallel track. On any other weekday this phase does not exist; do not
-surface it (Analytics then becomes Phase 20).
+surface it (Analytics then becomes Phase 21).
 
 Build it **entirely from PUBLISHED alerts** and the site's own content, newest-first
 (Jill, 2026-08-31: nothing is parked for the newsletter; it pulls from what we
@@ -549,7 +571,7 @@ point math. **Show Jill the FULL draft before sending — always.** On her appro
 send via Resend, **throttled to ≤4/sec** ([[feedback_resend_rate_limit]]). Receipt:
 what led, how many stories, recipient count.
 
-### Phase 20 (Phase 21 on Thursdays) · 📊 Analytics review — content/performance wrap
+### Phase 21 (Phase 22 on Thursdays) · 📊 Analytics review — content/performance wrap
 Runs after the content phases (after the Newsletter on Thursdays); the three
 safety checks below (Deliverability, Security, Backup) then close the day. Added 2026-08-28
 (Jill). Review the numbers and pull **1-2 insights that should change tomorrow's
@@ -569,7 +591,7 @@ name which metrics we CAN'T yet see (a gap to build). See [[project_newsletter_o
 
 ---
 
-### Phase 21 (Phase 22 on Thursdays) · 📬 Deliverability & list health
+### Phase 22 (Phase 23 on Thursdays) · 📬 Deliverability & list health
 The newsletter is the crown jewel, so watch it like one (added 2026-08-31, Jill).
 Fast daily posture check; auto-skip with one line when all healthy:
 - **Deliverability:** recent Resend send stats — **bounce rate, spam-complaint
@@ -586,7 +608,7 @@ can't see (open/click stats are a known gap — [[project_newsletter_open_click_
 Deeper pass weekly. Auto-skip in one line when bounce/complaint/unsub are normal and
 no odd signups.
 
-### Phase 22 (Phase 23 on Thursdays) · 🔒 Security check — are we covered
+### Phase 23 (Phase 24 on Thursdays) · 🔒 Security check — are we covered
 Confirm nothing opened a hole (added 2026-08-31, Jill). Fast green/red daily; the
 **deeper audit runs Mondays**. Buckets:
 - **Secrets:** no keys/env committed — `.env*` stays gitignored; scan today's diffs
@@ -604,7 +626,7 @@ Confirm nothing opened a hole (added 2026-08-31, Jill). Fast green/red daily; th
 Daily = fast pass, auto-skip in one line when clean and nothing shipped touched
 auth/secrets/deps. Mondays = the deep audit + apply one hardening.
 
-### Phase 23 (Phase 24 on Thursdays) · 💾 Backup & recovery — Supabase safety net
+### Phase 24 (Phase 25 on Thursdays) · 💾 Backup & recovery — Supabase safety net
 Make sure a Supabase failure or a bad write can't wipe us out (added 2026-08-31,
 Jill). This is the one where "later" is how data gets lost:
 - **Supabase backups:** confirm the project's daily backups / Point-in-Time-Recovery
@@ -621,7 +643,7 @@ the restore drill.
 
 ---
 
-## CLOSE (send after the last phase — Phase 23 Backup, or Phase 24 on Thursdays)
+## CLOSE (send after the last phase — Phase 24 Backup, or Phase 25 on Thursdays)
 A fixed recap:
 ```
 🌙 WRAP — Aug 12
@@ -636,7 +658,7 @@ Her outstanding actions ALWAYS last.
 ---
 
 ## 💳 Card Companion PDFs (STANDING PROJECT — not daily, no phase number)
-A separate workstream, outside the daily 1-23 flow. **Do NOT run it every morning
+A separate workstream, outside the daily 1-24 flow. **Do NOT run it every morning
 or push it — Jill activates it when she is ready (she said so 2026-08-28).** The
 deliverable is a branded, fillable **interactive PDF Jill designs** (Royal Glow,
 "claim every credit + track your spend"), one per card — see the **Sapphire Reserve
@@ -670,29 +692,14 @@ cards first (Sapphire Reserve pilot, then Amex Platinum/Gold, Venture X…). See
 
 ---
 
-## 👤 User Accounts & Wallet Dashboard (STANDING PROJECT — not daily, no phase number)
-A separate workstream, outside the daily flow (Jill, 2026-08-31). The vision:
-let users **sign in** and get a personalized **dashboard** with their **points
-wallet** (balances they track across programs) and more over time. This is the
-leap from a content site to a logged-in product: it unlocks personalization,
-retention, and monetization, and it complements the AI-referral traction.
-**Do NOT build ahead of Jill — she activates each stage.**
-
-- **Stage 1 — PLANNING (starts ~2026-09-01). Planning only, no code.** Deliver a
-  written plan covering: (a) **auth approach** (Supabase Auth is the likely fit
-  since we already run Supabase; weigh email magic-link vs password vs social);
-  (b) **the wallet data model** (user ↔ program balance rows: program, balance,
-  last-updated, manual entry first, later maybe parsing/linking); (c) **dashboard
-  v1 scope** (wallet at a glance, saved/favorited alerts + experiences + guides,
-  maybe transfer-bonus alerts for the programs they hold); (d) **privacy &
-  security** — this adds PII + auth, a big new surface, so bake in RLS per-user
-  data isolation, session security, and tie it to the new Security + Backup phases
-  (subscribers/user data must be in the off-platform backup); (e) a **phased
-  roadmap** (auth → wallet CRUD → dashboard UI → personalization) with the MVP
-  that ships first. Show Jill the plan; she approves scope before any build.
-- **Later stages (each Jill-activated):** auth + account shell, wallet CRUD, the
-  dashboard UI, then personalization (alerts filtered to the user's programs).
-See [[project_user_accounts_wallet_dashboard]].
+## 👤 User Accounts & Wallet Dashboard (now a DAILY phase — Phase 20)
+Moved from a standing project to a **daily build phase** (Jill, 2026-09-01): we
+advance it a little every morning at **Phase 20** (see that phase for the cadence
+and the locked decisions). **Stage 1 (planning) is DONE** — the plan lives at
+`scratchpad/user-accounts-stage1-plan.md`, Copilot-reviewed, with all decisions +
+refinements captured in [[project_user_accounts_wallet_dashboard]]. **Stage 2
+(auth + account shell) is next.** Still show Jill each increment; she approves any
+scope change.
 
 ---
 
