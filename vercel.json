@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/cron/social-calendar",
+      "schedule": "40 9 * * *"
+    },
+    {
       "path": "/api/run-scout",
       "schedule": "0 10 * * *"
     },
