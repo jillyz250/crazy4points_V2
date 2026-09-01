@@ -9,6 +9,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/utils/supabase/server'
 import { runAnchorGeneration } from '@/utils/social/generateCalendar'
+import { runSignalIngest } from '@/utils/social/ingestSignals'
 import { assertCron } from '@/lib/auth/cron'
 
 export const dynamic = 'force-dynamic'
@@ -27,7 +28,11 @@ async function handle(request: Request) {
 
   const supabase = createAdminClient()
   const todayET = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
-  const result = await runAnchorGeneration(supabase, todayET, 8)
-  console.log(`[social-calendar] considered=${result.considered} inserted=${result.inserted}`)
-  return NextResponse.json({ ok: true, ...result })
+  const anchors = await runAnchorGeneration(supabase, todayET, 8)
+  const signals = await runSignalIngest(supabase, todayET, 8)
+  console.log(
+    `[social-calendar] anchors: considered=${anchors.considered} inserted=${anchors.inserted} · ` +
+      `signals: inserted=${signals.inserted} ${JSON.stringify(signals.bySource)}`,
+  )
+  return NextResponse.json({ ok: true, anchors, signals })
 }
