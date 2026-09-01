@@ -214,6 +214,16 @@ missing/stale drives a page edit. (Pattern proven 2026-09-01: of 3 "earn" items,
 was already correct on the page, one a promo, one an Uber One perk — all rejected, no
 edit needed.)
 
+**📅 SOCIAL-CALENDAR ASK (every time an alert publishes; Jill, 2026-09-01).** Right
+after you publish an alert, ASK: **"Add this to the social calendar?"** If yes, drop
+it into the calendar's Recommended lane so she can drag it to a day (or hit Schedule
+to take the suggested date):
+`node scripts/add-social-triage.mjs --topic "<short post topic>" --category <sweet_spot|deal|program_news|sweepstakes|experience|guide> --ref alert:<slug> --date <YYYY-MM-DD suggested> --link /alerts/<slug>`
+Pick the category by what the post is ABOUT (a sweet spot → sweet_spot, a bonus/sale
+→ deal, a devaluation/partner change → program_news). It dedups by topic + ref, so it
+won't double up with the auto-ingested reminder. If she says no, skip it. See
+[[project_social_media_dashboard]] (`/admin/social-calendar`).
+
 **Rules that shape both passes (Jill, 2026-08-28):**
 - **A sale / points-buy / bonus is an ALERT candidate, not "just newsletter
   fodder."** Each type-group is the unit of decision; deals reach the newsletter

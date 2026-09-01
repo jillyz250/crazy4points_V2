@@ -52,9 +52,17 @@ export function topicSignature(topic: string | null | undefined): string[] {
   )].sort()
 }
 
-export function signaturesOverlap(a: string[], b: string[], min = 2): boolean {
+/**
+ * Two topic signatures are the same idea when they share at least 2 distinctive
+ * tokens AND those shared tokens are a solid fraction (>=60%) of the smaller
+ * signature. The ratio guard stops common phrases ("first class", "sweet spot")
+ * from falsely matching unrelated posts, while still collapsing true repeats like
+ * "Chase Freedom quarterly categories" vs "Chase Freedom Q4 categories".
+ */
+export function signaturesOverlap(a: string[], b: string[]): boolean {
+  if (!a.length || !b.length) return false
   const set = new Set(a)
-  let n = 0
-  for (const t of b) if (set.has(t)) n++
-  return n >= min
+  let shared = 0
+  for (const t of b) if (set.has(t)) shared++
+  return shared >= 2 && shared / Math.min(a.length, b.length) >= 0.6
 }
