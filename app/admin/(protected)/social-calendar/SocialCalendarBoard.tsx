@@ -31,10 +31,14 @@ function ymd(d: Date) {
 function smallDragImage(e: React.DragEvent, category: string, platform: keyof typeof PLAT) {
   const el = document.createElement('div')
   el.textContent = PLAT[platform]
-  el.style.cssText = `position:fixed;top:-1000px;left:-1000px;background:${CATEGORY_COLOR[category] ?? '#999'};color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:3px;`
+  // Must be ON-SCREEN and painted for the browser to snapshot it (an off-screen
+  // element is silently ignored and the huge default ghost is used). Render it at
+  // the top-left for the single frame setDragImage needs, then remove it.
+  el.style.cssText = `position:fixed;top:0;left:0;z-index:99999;pointer-events:none;background:${CATEGORY_COLOR[category] ?? '#999'};color:#fff;font-size:11px;font-weight:700;padding:3px 7px;border-radius:4px;box-shadow:0 1px 4px rgba(0,0,0,.3);`
   document.body.appendChild(el)
-  e.dataTransfer.setDragImage(el, 14, 10)
-  setTimeout(() => { try { document.body.removeChild(el) } catch { /* already gone */ } }, 0)
+  void el.offsetWidth // force layout/paint so the browser can snapshot it
+  e.dataTransfer.setDragImage(el, 16, 12)
+  requestAnimationFrame(() => { try { document.body.removeChild(el) } catch { /* already gone */ } })
 }
 
 export default function SocialCalendarBoard({
