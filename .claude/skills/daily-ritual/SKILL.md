@@ -27,6 +27,8 @@ publish, write, **and make the platform better than yesterday**.
    - **🛡️ Guardrails** — monitors/rules/checks added
    - **⏲️ Auto-jobs set** — crons, reminders, auto-expiries with their date
    Skip empty buckets; list everything that changed, don't artificially cap it.
+   **After sending the receipt, save progress: `node scripts/ritual-progress.mjs
+   --complete N`** — so if the session ends here, the next one resumes at Phase N+1.
    Then, before `Next →`, add a one-line
    **`🔧 Phase N retro:`** — the single best idea to make THIS phase better (or
    "running well, no change") and ask if she wants it. Jill wants every phase to
@@ -81,6 +83,21 @@ Jill forwards her issuer/program promo emails to the intel inbox first. They lan
 as `source_type=email` in the fresh-intel list. Do NOT forward Google Alerts
 (one email = one item; multi-story digests lose stories). Issuer emails are gold;
 third-party affiliate blasts that hide the card name are noise → reject.
+
+## Phase 0a·resume — check where we left off (FIRST, before anything)
+```
+node scripts/ritual-progress.mjs         # is today's ritual already in progress?
+```
+The ritual is long and often stops mid-way (Jill: "I don't get past 11 sometimes").
+This persists progress across sessions (`ritual_progress`, mig 647). **If it says
+`IN PROGRESS — RESUME at Phase N`, OFFER THE RESUME**: "You reached Phase N-1 earlier
+today — resume at Phase N, or start fresh?" If she resumes, skip the board and jump
+straight to Phase N (the early data-pull still runs so the feed is current). If it
+says `not started` but a prior day was left incomplete, note it and **prioritize the
+back-half phases today** so articles/improvements/User-Accounts/AI-visibility stop
+getting starved. **After EACH phase's receipt, run
+`node scripts/ritual-progress.mjs --complete N`** so progress is always saved; run
+`--finish` at the CLOSE. `--reset` starts today over.
 
 ## Phase 0b — pull the data (read-only, before the board)
 ```
@@ -736,7 +753,9 @@ Social queued: Chase Sapphire Lounges (your post)
 Still owed by you: post the social · confirm the IHG deal terms
 Next-best move: <one line>
 ```
-Her outstanding actions ALWAYS last.
+Her outstanding actions ALWAYS last. **Then mark the ritual done:
+`node scripts/ritual-progress.mjs --finish`** (so tomorrow starts fresh, not as a
+half-finished resume).
 
 ---
 
