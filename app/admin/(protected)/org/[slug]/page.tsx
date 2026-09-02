@@ -4,6 +4,7 @@ import { createAdminClient } from '@/utils/supabase/server'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Card, CardHeader, CardBody } from '@/components/admin/ui/Card'
 import { Badge } from '@/components/admin/ui/Badge'
+import { computeMeters } from '@/lib/orgMeters'
 
 export const dynamic = 'force-dynamic'
 
@@ -119,6 +120,34 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
           {e.mission && <p style={{ margin: '.9rem 0 0', fontSize: '.92rem', lineHeight: 1.5 }}>{e.mission}</p>}
         </CardBody>
       </Card>
+
+      {e.kind === 'agent' && (() => {
+        const m = computeMeters(e as unknown as { slug: string; kind: 'agent'; status: string; responsibilities?: string[] | null }, logs)
+        const rows: [string, { value: number; label: string; emoji: string }, string][] = [
+          ['Morale', m.morale, 'var(--admin-success)'],
+          ['Workload', m.workload, m.workload.value >= 85 ? 'var(--admin-danger)' : m.workload.value >= 60 ? 'var(--admin-warning)' : 'var(--admin-success)'],
+          ['Momentum', m.momentum, 'var(--admin-info)'],
+          ['Performance', m.performance, 'var(--admin-accent)'],
+        ]
+        return (
+          <Card style={{ marginBottom: '1rem' }}>
+            <CardHeader><strong style={{ fontSize: '.95rem' }}>Meters</strong></CardHeader>
+            <CardBody>
+              <div style={{ display: 'grid', gap: '.7rem' }}>
+                {rows.map(([label, meter, color]) => (
+                  <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '.7rem' }}>
+                    <span style={{ width: 96, fontSize: '.82rem', color: 'var(--admin-text-muted)' }}>{meter.emoji} {label}</span>
+                    <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'var(--admin-surface-alt)', overflow: 'hidden' }}>
+                      <div style={{ width: `${meter.value}%`, height: '100%', background: color }} />
+                    </div>
+                    <span style={{ width: 84, fontSize: '.78rem', color: 'var(--admin-text-subtle)', textAlign: 'right' }}>{meter.label}</span>
+                  </div>
+                ))}
+              </div>
+            </CardBody>
+          </Card>
+        )
+      })()}
 
       {e.persona && <Section title="Persona">
         <p style={{ margin: 0, fontSize: '.9rem', lineHeight: 1.6 }}>{e.persona}</p>
