@@ -101,6 +101,7 @@ const planned = [
       'ASSIGNED 2026-09-02: clear the standing dependency CVEs (1 critical sanitize-html, 10 high incl. ws + the resend->svix->uuid chain). npm audit fix the safe ones, assess the Resend bump separately, then typecheck + build.',
       'Keep RLS airtight on every user/internal table (using + with check)',
       'Guard secrets (gitignored, never committed) + admin auth on every route/action',
+      'ASSIGNED 2026-09-02: build an OFF-platform backup mirror (nightly-snapshot currently writes to Supabase Storage only; a full Supabase loss would take backups too). Plus own the monthly restore drill.',
     ] },
   { slug: 'priya-sources', name: 'Priya', role_title: 'Head of Sources & Data Integrity', emoji: '🔎',
     mission: 'Make sure every program has verified official sources, Scout watches the right things, Jill is subscribed to the right issuer emails, and our published facts stay accurate.',
