@@ -42,7 +42,7 @@ Protect Jill and crazy4points: keep RLS airtight, secrets locked, dependencies p
 - backups + disaster recovery
 
 ## Recent performance log
-- (no entries yet)
+- [review] First delegation passed: sharp CVE assessment. Did reachability analysis (not just CVSS) — flagged sanitize-html as low real exposure (our authored content) and noted untrusted email uses a separate sanitizer; corrected the resend chain (not breaking); categorized safe-now vs schedule (Next bump) vs defer (Anthropic SDK); clear plain-terms rec; did NOT apply, asked for approval. (morgan)
 
 <!-- GENERATED FROM SUPABASE (employees table). Do NOT edit by hand — changes are
      overwritten. Edit via /admin/org, then run: node scripts/gen-agents.mjs -->
