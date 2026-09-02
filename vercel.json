@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/cron/content-ideas-autoclear",
+      "schedule": "52 9 * * *"
+    },
+    {
       "path": "/api/cron/intel-autoclear",
       "schedule": "50 9 * * *"
     },
