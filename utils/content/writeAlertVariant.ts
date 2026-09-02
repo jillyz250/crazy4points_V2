@@ -345,7 +345,10 @@ export async function writeAlertVariant(
     fact_check_run: input.fact_check_at !== null && input.fact_check_at !== undefined,
     fact_check_results: null,
     status: variantStatusFromAlert(input.status),
-    published_at: normString(input.published_at),
+    // Stamp published_at on first publish even when the caller didn't pass one,
+    // so a published alert always carries a real date (feed + newsletter sort by it).
+    published_at: normString(input.published_at)
+      ?? (variantStatusFromAlert(input.status) === 'published' ? new Date().toISOString() : null),
     publish_target_url: `/alerts/${slug}`,
     generated_by: 'editor' as const,
   }
@@ -407,6 +410,18 @@ export async function updateAlertVariantStatus(
     .update(variantUpdate)
     .eq('topic_id', topic.id)
     .eq('format', 'alert')
+
+  // On publish, stamp published_at if it's still missing (no explicit date passed and
+  // the row was never dated). The .is(null) guard preserves the ORIGINAL publish date
+  // on a re-publish after edits, so the feed + newsletter always have a real timestamp.
+  if (variantStatus === 'published' && !extra?.published_at) {
+    await supabase
+      .from('content_variants')
+      .update({ published_at: new Date().toISOString() })
+      .eq('topic_id', topic.id)
+      .eq('format', 'alert')
+      .is('published_at', null)
+  }
 }
 
 /**
