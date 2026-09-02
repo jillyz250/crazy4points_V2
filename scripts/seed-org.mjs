@@ -101,7 +101,7 @@ const planned = [
       'ASSIGNED 2026-09-02: clear the standing dependency CVEs (1 critical sanitize-html, 10 high incl. ws + the resend->svix->uuid chain). npm audit fix the safe ones, assess the Resend bump separately, then typecheck + build.',
       'Keep RLS airtight on every user/internal table (using + with check)',
       'Guard secrets (gitignored, never committed) + admin auth on every route/action',
-      'ASSIGNED 2026-09-02: build an OFF-platform backup mirror (nightly-snapshot currently writes to Supabase Storage only; a full Supabase loss would take backups too). Plus own the monthly restore drill.',
+      "ASSIGNED 2026-09-02 (PRIORITY): full disaster-recovery redundancy — EVERY critical asset in TWO UNRELATED places so no single breach (Jill's machine, GitHub, OR Supabase) can wipe us out. (1) DATABASE: nightly encrypted export to a provider unrelated to Supabase (e.g. Backblaze B2 / AWS S3), not just the current Supabase-Storage snapshot. (2) CODE: a second independent git mirror + local bundles so a GitHub compromise is survivable. (3) SECRETS: kept in a password manager independent of GitHub/Supabase, with a written rotation runbook if any provider is breached. (4) MEDIA/ASSETS included. (5) A recovery runbook + the monthly restore drill. The two locations must NOT share accounts, credentials, or blast radius.",
     ] },
   { slug: 'priya-sources', name: 'Priya', role_title: 'Head of Sources & Data Integrity', emoji: '🔎',
     mission: 'Make sure every program has verified official sources, Scout watches the right things, Jill is subscribed to the right issuer emails, and our published facts stay accurate.',
