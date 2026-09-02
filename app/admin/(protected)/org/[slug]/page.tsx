@@ -146,7 +146,7 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
             <div className="ep-card ep-vitals">
               {meters.map((c) => (
                 <div key={c.key} className="ep-vital">
-                  <Ring value={c.value} color={c.color} size={72} stroke={5} track="var(--admin-surface-alt)" valueColor="var(--admin-text)" />
+                  <Ring value={c.value} color={c.color} size={46} stroke={4} track="var(--admin-surface-alt)" valueColor="var(--admin-text)" />
                   <div className="ep-vital-meta">
                     <span className="ep-vital-label">{c.label}</span>
                     <span className="ep-vital-sub">{describeMeter(c.key, c.value)}</span>
@@ -336,11 +336,11 @@ const EP_CSS = `
 .admin .ep-card { background:var(--admin-surface); border:1px solid color-mix(in srgb, var(--color-primary) 9%, var(--admin-border)); border-radius:18px; box-shadow:0 1px 2px rgba(107,45,143,.035), 0 18px 40px -30px rgba(107,45,143,.26); }
 
 /* Vitals */
-.admin .ep-vitals { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:1rem 1.5rem; padding:1.6rem; }
-.admin .ep-vital { display:flex; align-items:center; gap:14px; }
+.admin .ep-vitals { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.75rem 1.25rem; padding:1rem 1.4rem; }
+.admin .ep-vital { display:flex; align-items:center; gap:10px; }
 .admin .ep-vital-meta { display:flex; flex-direction:column; }
-.admin .ep-vital-label { font-size:.95rem; font-weight:700; color:var(--admin-text); }
-.admin .ep-vital-sub { font-size:var(--admin-text-sm); color:var(--admin-text-muted); margin-top:1px; }
+.admin .ep-vital-label { font-size:.82rem; font-weight:700; color:var(--admin-text); line-height:1.15; }
+.admin .ep-vital-sub { font-size:.72rem; color:var(--admin-text-muted); margin-top:1px; }
 
 /* Persona */
 .admin .ep-persona { position:relative; padding:1.9rem 2.1rem 1.9rem 2.4rem; }
