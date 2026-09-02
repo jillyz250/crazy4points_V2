@@ -19,7 +19,7 @@ const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)))
 const arr = <T,>(v: T[] | null | undefined): T[] => (Array.isArray(v) ? v : [])
 
 // Small lore winks (fun, firewalled — never leaves the admin). Keyed by slug.
-const MORALE_WINK: Record<string, string> = { 'janet-growth': '😍' } // crush on Bill
+const MORALE_WINK: Record<string, string> = { 'janet-growth': '😍', 'devon-design': '😍' } // both crushing on Bill
 
 function faceFor(v: number, slug: string): string {
   if (MORALE_WINK[slug]) return MORALE_WINK[slug]
