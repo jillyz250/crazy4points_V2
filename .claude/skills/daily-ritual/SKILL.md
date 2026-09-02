@@ -400,11 +400,16 @@ Publish only the genuinely alert-worthy (most are directory listings, not alerts
 Auto-skip if nothing new AND nothing featureable is closing.
 
 ### Phase 10 · 🎁 Sweepstakes review
-Review the day's new sweepstakes (snapshot SWEEPSTAKES section). Points/miles
-giveaways lead. Flag the best as a Phase-18 social candidate; **Feature** the
-keepers (they lead the newsletter) and **Reviewed** the rest so the board shrinks;
-`⚠ Timeshare` rows are vacation-club lead-gen (hidden from the public page). Curate
-at `/admin/sweepstakes`. Auto-skip if none new.
+**JILL REVIEWS THESE HERSELF ON THE DASHBOARD (Jill, 2026-09-02) — same as
+experiences.** Send her to **`/admin/sweepstakes`** to Feature the keepers (they
+lead the newsletter + are Phase-18 social candidates) and mark the rest Reviewed.
+Reviewing/featuring stamps `reviewed_at`, which drops the sweep from the morning
+list (the snapshot now filters `reviewed_at IS NULL`, so past-reviewed ones no
+longer reappear). Give her a ONE-LINE curated heads-up of the genuine points/miles
+standouts (e.g. "Choice 1M, Charlotte FC 100k AAdvantage — the rest is Best Western
+regional noise") so she knows what's worth featuring, then hand her the dashboard
+and wait for `next`. `⚠ Timeshare` rows are vacation-club lead-gen (already hidden
+from the public page AND the morning board). Auto-skip if none new.
 
 **Scope = STRICT (Jill, 2026-08-28): loyalty-program points/miles sweeps ONLY** —
 run by an airline/hotel/card rewards program, OR whose prize IS that program's

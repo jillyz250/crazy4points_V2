@@ -319,8 +319,12 @@ const newExpCount = (await q('new experiences count', db.from('experience_listin
 // ---- Sweepstakes: post candidates, ranked by CONTENT + soonest end date ----
 // Content score favours pure points/miles giveaways (Jill's best-performing
 // social) and big prizes; ties break on soonest deadline (most urgent to post).
+// Only UNREVIEWED sweeps surface here (Jill, 2026-09-02: reviewed-in-the-past ones
+// kept reappearing). Jill curates on /admin/sweepstakes like experiences; reviewing
+// or featuring stamps reviewed_at, which drops it from this morning list.
 const sweepsAll = (await q('sweepstakes post candidates', db.from('sweepstakes')
-  .select('program, title, prize, ends_at').eq('status', 'running').eq('posted_social', false))).data
+  .select('program, title, prize, ends_at').eq('status', 'running').eq('posted_social', false)
+  .is('reviewed_at', null))).data
 // Timeshare / vacation-ownership lead-gen sweeps (Hilton Grand Vacations, Club
 // Wyndham, Westgate, etc.) are BAIT for a high-pressure sales presentation, so
 // they're kept off the public page + newsletter picker. They must ALSO be kept
