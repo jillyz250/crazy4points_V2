@@ -1,452 +1,231 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { createAdminClient } from '@/utils/supabase/server'
-import { countUnresolvedSystemErrors, getRefreshQueueCount, getRefreshQueue, listReminders } from '@/utils/supabase/queries'
-import { countHardcodedHits } from '@/utils/programs/auditHardcodedCounts'
-import RemindersWidget from '@/components/admin/reminders/RemindersWidget'
-import ContentRoadmapCard from '@/components/admin/ContentRoadmapCard'
-import JillsTakesCard from '@/components/admin/JillsTakesCard'
-import { isPresaleListing } from '@/lib/experiences/presale'
-import { PageHeader } from '@/components/admin/ui/PageHeader'
-import { Card } from '@/components/admin/ui/Card'
-import { LinkButton } from '@/components/admin/ui/Button'
-import { Badge } from '@/components/admin/ui/Badge'
+import { computeMeters } from '@/lib/orgMeters'
+import { buildQueue, meterCells, Icon, Ring, todayLong } from '@/components/admin/preview/kit'
+import Notepad from '@/components/admin/dashboard/Notepad'
+import type { DashboardNote } from '@/app/admin/(protected)/notes-actions'
 
 export const dynamic = 'force-dynamic'
 
-// A listing worth Jill's editorial review: marquee experiences, dropping boring
-// card-member presales (concerts/shows/games) — EXCEPT Marriott Moments, which
-// are points experiences (bid/redeem) despite their music/sports theming.
-type ReviewableExperience = { title: string; detail_url: string | null; category?: string | null; program_slug?: string | null }
-function reviewableExperience(e: ReviewableExperience): boolean {
-  return !isPresaleListing(e.category) || e.program_slug === 'marriott-bonvoy'
+const PURPLE = 'var(--color-primary)'
+const GOLD = 'var(--color-accent)'
+const DISPLAY = 'var(--font-display)'
+
+type Emp = {
+  id: string; slug: string; name: string; role_title: string | null
+  kind: 'owner' | 'chief' | 'agent'; emoji: string | null; image_url: string | null
+  status: string; responsibilities: string[] | null
 }
 
-type Tone = 'accent' | 'success' | 'warning' | 'danger' | 'neutral' | 'info'
-
-type Tile = {
-  title: string
-  description: string
-  href: string
-  cta?: string
+function overall(m: ReturnType<typeof computeMeters>): number {
+  return Math.round((m.morale.value + m.momentum.value + m.performance.value) / 3)
 }
+const healthColor = (v: number) => (v >= 85 ? GOLD : v >= 55 ? PURPLE : v >= 40 ? 'var(--admin-warning)' : 'var(--admin-danger)')
 
-const TILES: Tile[] = [
-  { title: 'Alerts', description: 'Draft, approve, and publish alerts. Review Scout-generated drafts.', href: '/admin/alerts', cta: 'Manage' },
-  { title: 'Sources', description: 'Intelligence sources scraped by Claude Scout.', href: '/admin/sources', cta: 'Manage' },
-  { title: 'Programs', description: 'Loyalty programs that alerts can be tagged against.', href: '/admin/programs', cta: 'Manage' },
-  { title: 'Content Ideas', description: 'Long-form ideas generated during the daily brief.', href: '/admin/content-ideas', cta: 'View' },
-  { title: 'Newsletter', description: 'Compose and send weekly newsletter.', href: '/admin/newsletter', cta: 'Open' },
-  { title: 'Subscribers', description: 'Newsletter subscribers. Active/inactive counts.', href: '/admin/subscribers', cta: 'Manage' },
-  { title: 'Daily Briefs', description: 'Preview past daily briefs in-app.', href: '/admin/briefs', cta: 'View' },
-  { title: 'Jobs', description: 'Manually trigger scout or brief runs.', href: '/admin/jobs', cta: 'Run' },
-  { title: 'Fact Checks', description: 'Claim-level drill-down and flag-rate stats.', href: '/admin/fact-checks', cta: 'View' },
-  { title: 'Errors', description: 'Background-job failures. Resolve after investigating.', href: '/admin/errors', cta: 'View' },
-  { title: 'Refresh Queue', description: 'Editorial content due for re-verification (cards, programs, properties).', href: '/admin/refresh-queue', cta: 'View' },
-  { title: 'Scrapes', description: 'Auto-refresh history from Firecrawl scrapes of program pages.', href: '/admin/scrapes', cta: 'View' },
-  { title: 'Data Integrity', description: 'Daily structural audit of the program/transfer graph — orphan/junk slugs, ratios, dupes.', href: '/admin/data-integrity', cta: 'View' },
-  { title: 'Change Signals', description: 'Daily newsroom/blog scan for transfer-partner & ratio changes affecting our data.', href: '/admin/change-signals', cta: 'Review' },
-  { title: 'Program-Fact Drift', description: 'Where fresh intel contradicts a program page (award charts, tiers, partners, fees). Surfaced in the Daily Digest.', href: '/admin/program-drift', cta: 'Review' },
-  { title: 'Welcome-Bonus Signals', description: "Daily scan of each card's welcome-bonus source page; flags live sign-up bonuses that differ from our data.", href: '/admin/card-bonus-signals', cta: 'Review' },
-  { title: 'Re-verification', description: 'Weekly sweep comparing our transfer ratios to current rosters; flags discrepancies.', href: '/admin/verification-findings', cta: 'Review' },
-  { title: 'AI Agents', description: 'Control center for the accuracy agents: fact-checker findings, the transfer-drift sweep, and the accuracy scorecard (found / fixed / precision).', href: '/admin/agents', cta: 'Open' },
-  { title: 'AI Usage', description: 'Anthropic API spend by day, caller, and model.', href: '/admin/ai-usage', cta: 'View' },
-  { title: 'Analytics', description: 'GA4 — active users, key events, top cities, top pages.', href: '/admin/analytics', cta: 'View' },
-]
-
-async function loadStats() {
-  const supabase = createAdminClient()
-  const nowIso = new Date().toISOString()
-  // "Today's slice" window — drafts/intel that arrived since ~yesterday, so the
-  // daily checklist shows what's NEW to act on, not the whole cumulative pile.
-  const since = new Date(Date.now() - 36 * 60 * 60 * 1000).toISOString()
-  // Experiences use a wider 7-day "recently new" window (survives a skipped day)
-  // so the card shows genuinely-new listings, not the lifetime unreviewed backlog.
-  const expSince = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-
-  const [
-    pendingReview,
-    unprocessedIntel,
-    openIdeas,
-    activeSubs,
-    unresolvedErrors,
-    lastBrief,
-    currentNewsletter,
-    refreshQueueCount,
-    refreshQueueTopFive,
-    tokenCandidates,
-    bonusSignals,
-    changeSignals,
-    proseReview,
-    newDrafts,
-    newIntel,
-    newExperiences,
-    sweepsRunning,
-    sweepsNeedPost,
-  ] = await Promise.all([
-    // Match the /admin/drafts "Needs review" chip exactly: needs_review variants
-    // that are NOT currently snoozed (snoozed-but-not-woken live under their own
-    // chip). Counting raw alerts.status='pending_review' here over-counted
-    // because it ignored snooze + the content_variants source of truth.
-    supabase
-      .from('content_variants')
-      .select('id', { count: 'exact', head: true })
-      .eq('status', 'needs_review')
-      .or(`snoozed_until.is.null,snoozed_until.lte.${nowIso}`),
-    // Intel that genuinely still needs a triage DECISION — triage_decision is
-    // null (the AI sweep hasn't ruled yet). The card is labelled "needing a
-    // decision", so already-decided items don't belong: approved and
-    // newsletter_idea have been decided and flow onward (drafting / the weekly
-    // newsletter), AI-rejected clears on its own, and expired/snoozed are out.
-    // (Counting approved+newsletter_idea here overstated the number badly — most
-    // days the AI decides everything, leaving a handful truly undecided.)
-    supabase
-      .from('intel_items')
-      .select('id', { count: 'exact', head: true })
-      .eq('processed', false)
-      .is('rejected_at', null)
-      .is('triage_decision', null)
-      .or(`expires_at.is.null,expires_at.gte.${nowIso}`)
-      .or(`snoozed_until.is.null,snoozed_until.lte.${nowIso}`),
-    supabase.from('content_ideas').select('id', { count: 'exact', head: true }).in('status', ['new', 'queued', 'drafted']),
-    supabase.from('subscribers').select('id', { count: 'exact', head: true }).eq('active', true),
-    countUnresolvedSystemErrors(supabase),
-    supabase.from('daily_briefs').select('brief_date, sent_at').order('brief_date', { ascending: false }).limit(1).maybeSingle(),
-    supabase.from('newsletters').select('week_of, status').order('week_of', { ascending: false }).limit(1).maybeSingle(),
-    getRefreshQueueCount(supabase),
-    getRefreshQueue(supabase, { limit: 5 }),
-    countHardcodedHits(supabase).catch(() => 0),
-    supabase.from('card_bonus_signals').select('id', { count: 'exact', head: true }).eq('status', 'new'),
-    supabase.from('change_signals').select('id', { count: 'exact', head: true }).eq('status', 'new'),
-    // Only count reviews that are actually DUE (review_at <= now). Future-dated
-    // reminders (e.g. "revert this elevated offer on Aug 27") shouldn't inflate
-    // the "to re-check" number until they come due.
-    supabase.from('credit_cards').select('id', { count: 'exact', head: true }).lte('good_to_know_review_at', nowIso),
-    // Today's slice: drafts that became needs_review in the last ~36h
-    supabase
-      .from('content_variants')
-      .select('id', { count: 'exact', head: true })
-      .eq('status', 'needs_review')
-      .gte('created_at', since),
-    // Today's slice: intel that arrived in the last ~36h still needing a decision
-    supabase
-      .from('intel_items')
-      .select('id', { count: 'exact', head: true })
-      .eq('processed', false)
-      .is('rejected_at', null)
-      .is('archived_at', null)
-      .is('triage_decision', null)
-      .gte('created_at', since),
-    // Experiences: genuinely-NEW listings to review. Fetch the rows, not just a
-    // count, so the card can name and link the listing instead of making Jill
-    // hunt for which one is new.
-    // "New to review" = active listings FIRST-SEEN in the last 7 days that Jill
-    // hasn't reviewed yet AND aren't boring card-member presales (concerts/shows/
-    // games). EXCEPTION: Marriott Bonvoy Moments are music/sports/entertainment
-    // themed but are real points experiences (you bid/redeem points), so Jill
-    // reviews them. Filtering happens in JS below (category values are messy).
-    // The 7-day first_seen window is the fix for the "stuck at 30-something" card:
-    // WITHOUT it, every never-reviewed listing counted forever (a 200-deep lifetime
-    // backlog), so the number never dropped. Now once Jill reviews a listing
-    // (editorial_reviewed_at set) it leaves the count, and stale unreviewed ones
-    // age out after a week instead of piling up. Only still-bookable ones count.
-    supabase
-      .from('experience_listings')
-      .select('title, detail_url, first_seen_at, category, program_slug, editorial_reviewed_at')
-      .eq('status', 'active')
-      .is('editorial_reviewed_at', null)
-      .gte('first_seen_at', expSince)
-      .or(`close_date.is.null,close_date.gte.${new Date().toISOString()}`)
-      .order('first_seen_at', { ascending: false }),
-    // Sweepstakes currently running (the daily sweepstakes-watch feeds this).
-    supabase.from('sweepstakes').select('id', { count: 'exact', head: true }).eq('status', 'running'),
-    // Sweepstakes Jill FEATURED but hasn't posted yet — the "do a post" nudge.
-    // She only posts the best (the featured ones), so the nudge counts those, not
-    // every un-posted sweep (which would nag her to post dozens she'll never touch).
-    supabase
-      .from('sweepstakes')
-      .select('id', { count: 'exact', head: true })
-      .eq('status', 'running')
-      .eq('featured', true)
-      .eq('posted_social', false),
-  ])
-
-  return {
-    pendingReview: pendingReview.count ?? 0,
-    unprocessedIntel: unprocessedIntel.count ?? 0,
-    openIdeas: openIdeas.count ?? 0,
-    activeSubs: activeSubs.count ?? 0,
-    unresolvedErrors,
-    lastBrief: lastBrief.data as { brief_date: string; sent_at: string | null } | null,
-    currentNewsletter: currentNewsletter.data as { week_of: string; status: string } | null,
-    refreshQueueCount,
-    refreshQueueTopFive,
-    tokenCandidates,
-    bonusSignals: bonusSignals.count ?? 0,
-    changeSignals: changeSignals.count ?? 0,
-    proseReview: proseReview.count ?? 0,
-    newDrafts: newDrafts.count ?? 0,
-    newIntel: newIntel.count ?? 0,
-    // Surface marquee experiences to review: drop card-member presales (concerts/
-    // shows/games) EXCEPT Marriott Moments, which are points experiences worth reviewing.
-    newExperiences: (newExperiences.data ?? []).filter((e) => reviewableExperience(e as ReviewableExperience)).length,
-    newExperienceItems: ((newExperiences.data ?? []) as Array<ReviewableExperience>).filter(reviewableExperience),
-    sweepsRunning: sweepsRunning.count ?? 0,
-    sweepsNeedPost: sweepsNeedPost.count ?? 0,
-  }
+async function tableCount(table: string, activeOnly = false): Promise<number | null> {
+  try {
+    const db = createAdminClient()
+    const base = db.from(table).select('*', { count: 'exact', head: true })
+    const { count } = await (activeOnly ? base.eq('active', true) : base)
+    return count ?? null
+  } catch { return null }
 }
-
-function relativeDay(iso: string | null | undefined): string {
-  if (!iso) return '—'
-  const ms = Date.now() - new Date(iso).getTime()
-  const hours = ms / (1000 * 60 * 60)
-  if (hours < 1) return 'just now'
-  if (hours < 24) return `${Math.round(hours)}h ago`
-  return `${Math.round(hours / 24)}d ago`
-}
-
 
 export default async function AdminDashboard() {
-  const stats = await loadStats()
-  const reminders = await listReminders(createAdminClient())
+  const db = createAdminClient()
+  const [{ data: empData }, { data: logData }, { data: notesData }, alertsCount, programsCount, subsCount] = await Promise.all([
+    db.from('employees').select('id, slug, name, role_title, kind, emoji, image_url, status, responsibilities'),
+    db.from('employee_logs').select('employee_id, type, created_at'),
+    db.from('dashboard_notes').select('id, body, sent_to_takes, created_at, updated_at').order('created_at', { ascending: false }).limit(50),
+    tableCount('alerts'),
+    tableCount('programs'),
+    tableCount('subscribers', true),
+  ])
+  const emps = (empData ?? []) as Emp[]
+  const notes = (notesData ?? []) as DashboardNote[]
+  const logsBy: Record<string, { type: string; created_at: string }[]> = {}
+  for (const l of (logData ?? []) as { employee_id: string; type: string; created_at: string }[]) (logsBy[l.employee_id] ||= []).push(l)
 
-  const statCards: { label: string; value: number | string; tone: Tone; href: string; hint?: string }[] = [
-    {
-      label: 'Pending review',
-      value: stats.pendingReview,
-      tone: stats.pendingReview > 0 ? 'warning' : 'neutral',
-      href: '/admin/drafts?view=needs_review',
-      hint: stats.pendingReview > 0 ? 'needs approve/reject' : 'all clear',
-    },
-    {
-      label: 'Welcome-bonus changes',
-      value: stats.bonusSignals,
-      tone: stats.bonusSignals > 0 ? 'warning' : 'neutral',
-      href: '/admin/card-bonus-signals',
-      hint: stats.bonusSignals > 0 ? "cards whose live SUB changed" : 'all current',
-    },
-    {
-      label: 'Transfer-data changes',
-      value: stats.changeSignals,
-      tone: stats.changeSignals > 0 ? 'warning' : 'neutral',
-      href: '/admin/change-signals',
-      hint: stats.changeSignals > 0 ? 'newsroom scan: verify vs our data' : 'all reviewed',
-    },
-    {
-      label: 'Intel to triage',
-      value: stats.unprocessedIntel,
-      tone: stats.unprocessedIntel > 0 ? 'warning' : 'neutral',
-      href: '/admin/triage',
-      hint: stats.unprocessedIntel > 0 ? 'open items needing a decision' : 'queue clear',
-    },
-    {
-      label: 'New experiences',
-      value: stats.newExperiences,
-      tone: stats.newExperiences > 0 ? 'warning' : 'neutral',
-      // Link straight to the newest listing (or the directory if several), and
-      // name it in the hint so there is nothing to hunt for. Reviewing a listing
-      // (editorial_reviewed_at) clears it; anything not reviewed ages out of the
-      // 7-day window on its own - no dismiss needed.
-      href: '/admin/experiences',
-      hint:
-        stats.newExperiences === 0
-          ? 'no new listings'
-          : stats.newExperiences === 1
-            ? stats.newExperienceItems[0]?.title ?? 'new listing to review'
-            : `${stats.newExperiences} new this week to review`,
-    },
-    {
-      label: 'Sweepstakes running',
-      value: stats.sweepsRunning,
-      // Accent when there are ones to post about, neutral when all posted/none.
-      tone: stats.sweepsNeedPost > 0 ? 'accent' : stats.sweepsRunning > 0 ? 'success' : 'neutral',
-      href: '/admin/sweepstakes',
-      hint:
-        stats.sweepsRunning === 0
-          ? 'none live right now'
-          : stats.sweepsNeedPost > 0
-            ? `${stats.sweepsNeedPost} featured to post`
-            : 'featured picks all posted',
-    },
-    {
-      label: 'Open content ideas',
-      value: stats.openIdeas,
-      tone: stats.openIdeas > 250 ? 'warning' : 'accent',
-      href: '/admin/content-ideas',
-      hint: stats.openIdeas > 250 ? 'backing up - sweep may be stalled' : 'fresh ideas (stale ones auto-bank after 30d)',
-    },
-    {
-      label: 'Active subscribers',
-      value: stats.activeSubs,
-      tone: 'success',
-      href: '/admin/subscribers',
-    },
-    {
-      label: 'Unresolved errors',
-      value: stats.unresolvedErrors,
-      tone: stats.unresolvedErrors > 0 ? 'danger' : 'success',
-      href: '/admin/errors',
-      hint: stats.unresolvedErrors > 0 ? 'investigate' : 'none open',
-    },
-    {
-      label: 'Token candidates',
-      value: stats.tokenCandidates,
-      tone: stats.tokenCandidates > 0 ? 'warning' : 'success',
-      href: '/admin/tokens',
-      hint: stats.tokenCandidates > 0 ? 'untokenized partner counts' : 'all tokenized',
-    },
-    {
-      label: 'Refresh queue',
-      value: stats.refreshQueueCount,
-      tone: stats.refreshQueueCount > 50 ? 'danger' : stats.refreshQueueCount > 0 ? 'warning' : 'success',
-      href: '/admin/refresh-queue',
-      hint: stats.refreshQueueCount > 0 ? 'cards / programs / properties' : 'all current',
-    },
+  const heads = emps
+    .filter((e) => e.kind === 'agent')
+    .sort((a, b) => (a.status === 'active' ? 0 : 1) - (b.status === 'active' ? 0 : 1) || a.name.localeCompare(b.name))
+
+  const queue = buildQueue()
+  const primary = queue.filter((q) => q.urgent)
+  const rest = queue.filter((q) => !q.urgent)
+
+  const pulse: { label: string; value: string; icon: Parameters<typeof Icon>[0]['name'] }[] = [
+    { label: 'Alerts live', value: alertsCount != null ? alertsCount.toLocaleString() : '—', icon: 'bell' },
+    { label: 'Programs tracked', value: programsCount != null ? programsCount.toLocaleString() : '—', icon: 'database' },
+    { label: 'Subscribers', value: subsCount != null ? subsCount.toLocaleString() : '—', icon: 'users' },
+    { label: 'Accuracy', value: 'Healthy', icon: 'shield' },
   ]
 
+  const queueRow = (q: (typeof queue)[number], dim = false) => (
+    <Link key={q.page.id} href={q.page.path} className={`dh-row${dim ? ' dh-row-quiet' : ''}`}>
+      <span className="dh-row-ic"><Icon name={q.icon} size={18} /></span>
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div className="dh-row-top">
+          <span className="dh-row-title">{q.page.title}</span>
+          <span className="dh-row-count">{q.count}</span>
+        </div>
+        <p className="dh-row-blurb">{q.blurb}</p>
+      </div>
+      <span className="dh-row-go"><Icon name="arrow" size={15} /></span>
+    </Link>
+  )
+
   return (
-    <div>
-      <PageHeader
-        title="Dashboard"
-        description="What needs attention right now, and quick access to everything else."
-      />
-
-      {/* Queues first — the actual "what needs attention right now". */}
-      <div style={{ marginBottom: '0.75rem', fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, color: 'var(--admin-text-muted)' }}>
-        Needs attention
-      </div>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-          gap: '0.625rem',
-          marginBottom: '1.5rem',
-        }}
-      >
-        {statCards.map((s) => (
-          <Link
-            key={s.label}
-            href={s.href}
-            style={{ textDecoration: 'none', color: 'inherit' }}
-          >
-            <Card style={{ padding: '0.875rem 1rem', height: '100%' }}>
-              <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, color: 'var(--admin-text-muted)' }}>
-                {s.label}
-              </div>
-              <div style={{ fontSize: '1.75rem', fontWeight: 600, color: `var(--admin-${s.tone === 'neutral' ? 'text' : s.tone})`, lineHeight: 1.1, marginTop: '0.375rem' }}>
-                {s.value}
-              </div>
-              {s.hint && (
-                <div style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)', marginTop: '0.25rem' }}>
-                  {s.hint}
-                </div>
-              )}
-            </Card>
-          </Link>
-        ))}
-      </div>
-
-      <JillsTakesCard />
-
-      <ContentRoadmapCard />
-
-      {/* Reminders — collapsed card (no longer dominating the top). */}
-      {reminders.length > 0 && (
-        <details style={{ marginBottom: '1.5rem', border: '1px solid var(--admin-border)', borderRadius: 'var(--admin-radius)', background: 'var(--admin-card-bg)' }}>
-          <summary style={{ cursor: 'pointer', padding: '0.875rem 1.25rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--admin-text)' }}>
-            Reminders ({reminders.length})
-          </summary>
-          <div style={{ padding: '0 1.25rem 1rem' }}>
-            <RemindersWidget reminders={reminders} />
-          </div>
-        </details>
-      )}
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.75rem', marginBottom: '1.5rem' }}>
-        <Card style={{ padding: '0.875rem 1rem' }}>
-          <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, color: 'var(--admin-text-muted)', marginBottom: '0.5rem' }}>
-            Latest daily brief
-          </div>
-          {stats.lastBrief ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <span style={{ fontWeight: 500 }}>{stats.lastBrief.brief_date}</span>
-              <Badge tone="neutral">built {relativeDay(stats.lastBrief.sent_at)}</Badge>
-              <Link href="/admin/briefs" style={{ fontSize: '0.8125rem', marginLeft: 'auto' }}>Open →</Link>
-            </div>
-          ) : (
-            <div style={{ fontSize: '0.875rem', color: 'var(--admin-text-muted)' }}>No briefs yet.</div>
-          )}
-        </Card>
-
-        <Card style={{ padding: '0.875rem 1rem' }}>
-          <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, color: 'var(--admin-text-muted)', marginBottom: '0.5rem' }}>
-            Current newsletter
-          </div>
-          {stats.currentNewsletter ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <span style={{ fontWeight: 500 }}>Week of {stats.currentNewsletter.week_of}</span>
-              <Badge tone={stats.currentNewsletter.status === 'sent' ? 'success' : stats.currentNewsletter.status === 'failed' ? 'danger' : 'accent'}>
-                {stats.currentNewsletter.status}
-              </Badge>
-              <Link href="/admin/newsletter" style={{ fontSize: '0.8125rem', marginLeft: 'auto' }}>Open →</Link>
-            </div>
-          ) : (
-            <div style={{ fontSize: '0.875rem', color: 'var(--admin-text-muted)' }}>No drafts yet.</div>
-          )}
-        </Card>
-      </div>
-
-      {stats.refreshQueueTopFive.length > 0 && (
-        <Card style={{ padding: '0.875rem 1rem', marginBottom: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.625rem' }}>
-            <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, color: 'var(--admin-text-muted)' }}>
-              Refresh queue — top 5 oldest
-            </div>
-            <Link href="/admin/refresh-queue" style={{ fontSize: '0.8125rem' }}>See all {stats.refreshQueueCount} →</Link>
-          </div>
-          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-            {stats.refreshQueueTopFive.map((item) => (
-              <li key={`${item.entity_type}-${item.entity_id}`} style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', fontSize: '0.875rem' }}>
-                <span style={{ color: 'var(--admin-text-muted)', fontSize: '0.75rem', minWidth: '5rem' }}>
-                  {item.entity_type.replace(/^program_/, '').replace(/_/g, ' ')}
-                </span>
-                <Link href={item.edit_url} style={{ flex: 1, fontWeight: 500 }}>
-                  {item.entity_name}
-                </Link>
-                <span style={{ color: 'var(--admin-text-muted)', fontSize: '0.75rem' }}>
-                  {item.last_verified ? `${item.age_days}d` : 'never'}
-                </span>
-              </li>
+    <div className="dh-root">
+      <style dangerouslySetInnerHTML={{ __html: DH_CSS }} />
+      <div className="dh-wrap">
+        {/* ── Global health band ── */}
+        <div className="dh-pulse">
+          <span className="dh-pulse-tag"><Icon name="pulse" size={15} /> Pulse</span>
+          <div className="dh-pulse-stats">
+            {pulse.map((p) => (
+              <span key={p.label} className="dh-stat">
+                <span className="dh-stat-ic"><Icon name={p.icon} size={14} /></span>
+                <span className="dh-stat-val">{p.value}</span>
+                <span className="dh-stat-label">{p.label}</span>
+              </span>
             ))}
-          </ul>
-        </Card>
-      )}
+          </div>
+        </div>
 
-      <div style={{ marginBottom: '0.75rem', fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, color: 'var(--admin-text-muted)' }}>
-        All sections
-      </div>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-          gap: '0.75rem',
-        }}
-      >
-        {TILES.map((tile) => (
-          <Card key={tile.href}>
-            <div style={{ padding: '0.875rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.375rem', height: '100%' }}>
-              <h2 style={{ margin: 0, fontSize: '0.9375rem' }}>{tile.title}</h2>
-              <p style={{ margin: 0, fontSize: '0.8125rem', lineHeight: 1.5, color: 'var(--admin-text-muted)', flex: 1 }}>
-                {tile.description}
-              </p>
-              <div style={{ marginTop: '0.25rem' }}>
-                <LinkButton href={tile.href} variant="ghost" size="sm">
-                  {tile.cta ?? 'Open'} →
-                </LinkButton>
-              </div>
+        {/* ── Jill hero ── */}
+        <header className="dh-hero">
+          <div className="dh-jill-frame">
+            <span className="dh-jill">
+              <Image src="/images/jill_photo.jpg" alt="Jill" fill sizes="96px" style={{ objectFit: 'cover' }} priority />
+            </span>
+          </div>
+          <div className="dh-hero-body">
+            <div className="dh-date">{todayLong()}</div>
+            <h1 className="dh-hello">Good morning, Jill</h1>
+            <div className="dh-whoami">Jill &middot; Founder &amp; CEO</div>
+          </div>
+        </header>
+
+        {/* ── What needs me + Notepad ── */}
+        <div className="dh-cols">
+          <section>
+            <div className="dh-sec-head"><h2 className="dh-sec-title">What needs me</h2><span className="dh-sec-meta">{primary.length} today</span></div>
+            <div className="dh-card dh-queue">
+              {primary.map((q) => queueRow(q))}
+              {rest.length > 0 && (
+                <details className="dh-more">
+                  <summary><span>{rest.length} more in the queue</span><Icon name="arrow" size={14} className="dh-more-chev" /></summary>
+                  <div>{rest.map((q) => queueRow(q, true))}</div>
+                </details>
+              )}
             </div>
-          </Card>
-        ))}
+          </section>
+
+          <section>
+            <div className="dh-sec-head"><h2 className="dh-sec-title">Notepad</h2><Link href="/admin/notepad" className="dh-sec-link">Open <Icon name="arrow" size={13} /></Link></div>
+            <div className="dh-card dh-notepad">
+              <Notepad initialNotes={notes} compact />
+            </div>
+          </section>
+        </div>
+
+        {/* ── The team ── */}
+        <section className="dh-section">
+          <div className="dh-sec-head"><h2 className="dh-sec-title">The team</h2><Link href="/admin/org" className="dh-sec-link">Org chart <Icon name="arrow" size={13} /></Link></div>
+          <div className="dh-card dh-team">
+            {heads.map((e) => {
+              const score = overall(computeMeters(e as unknown as { slug: string; kind: 'agent'; status: string; responsibilities?: string[] | null }, logsBy[e.id] || []))
+              return (
+                <Link key={e.id} href={`/admin/org/${e.slug}`} className="dh-member" title={`${e.name} — ${e.role_title || ''} · health ${score}`} style={{ opacity: e.status === 'planned' ? 0.6 : 1 }}>
+                  <Ring value={score} color={healthColor(score)} size={64} stroke={3} track="var(--admin-surface-alt)" showValue={false}>
+                    {e.image_url ? (
+                      <span className="dh-member-av"><Image src={e.image_url} alt={e.name} fill sizes="52px" style={{ objectFit: 'cover' }} /></span>
+                    ) : (
+                      <span className="dh-member-av dh-member-av-fallback">{e.emoji || '👤'}</span>
+                    )}
+                  </Ring>
+                  <span className="dh-member-name">{e.name}</span>
+                  <span className="dh-member-role">{e.role_title || ''}</span>
+                </Link>
+              )
+            })}
+          </div>
+        </section>
       </div>
     </div>
   )
 }
+
+const DH_CSS = `
+.admin .dh-wrap { max-width:1040px; margin:0 auto; padding:0 4px; }
+
+/* Pulse band */
+.admin .dh-pulse { display:flex; align-items:center; gap:1.4rem; flex-wrap:wrap; padding:14px 20px; margin-bottom:2.2rem;
+  border-radius:14px; border:1px solid color-mix(in srgb, var(--color-primary) 10%, var(--admin-border));
+  background:linear-gradient(90deg, color-mix(in srgb, var(--color-primary) 6%, #fff), #fff 60%);
+  box-shadow:0 1px 2px rgba(107,45,143,.04); }
+.admin .dh-pulse-tag { display:inline-flex; align-items:center; gap:7px; font-size:var(--admin-text-xs); font-weight:800; text-transform:uppercase; letter-spacing:.1em; color:var(--color-primary); flex-shrink:0; }
+.admin .dh-pulse-stats { display:flex; align-items:center; gap:1.6rem; flex-wrap:wrap; }
+.admin .dh-stat { display:inline-flex; align-items:baseline; gap:7px; }
+.admin .dh-stat-ic { color:var(--admin-text-subtle); position:relative; top:2px; }
+.admin .dh-stat-val { font-size:1.05rem; font-weight:800; color:var(--admin-text); font-variant-numeric:tabular-nums; letter-spacing:-.01em; }
+.admin .dh-stat-label { font-size:var(--admin-text-xs); color:var(--admin-text-muted); text-transform:uppercase; letter-spacing:.05em; font-weight:600; }
+
+/* Jill hero */
+.admin .dh-hero { display:flex; align-items:center; gap:1.4rem; margin-bottom:2.6rem; }
+.admin .dh-jill-frame { flex-shrink:0; padding:3px; border-radius:50%; background:linear-gradient(150deg, ${GOLD}, color-mix(in srgb, ${GOLD} 30%, #fff)); box-shadow:0 10px 26px -10px rgba(107,45,143,.4); }
+.admin .dh-jill { position:relative; display:block; width:88px; height:88px; border-radius:50%; overflow:hidden; background:var(--admin-accent-soft); border:2px solid #fff; }
+.admin .dh-date { font-size:var(--admin-text-xs); text-transform:uppercase; letter-spacing:.14em; color:var(--admin-text-subtle); font-weight:700; }
+.admin .dh-hello { font-family:${DISPLAY}; font-size:2.6rem; font-weight:800; letter-spacing:-.02em; color:var(--color-primary); margin:.35rem 0 0; line-height:1.02; }
+.admin .dh-whoami { font-size:1rem; color:var(--admin-text-secondary); margin-top:.3rem; font-weight:500; }
+
+/* Sections */
+.admin .dh-section { margin-bottom:3rem; }
+.admin .dh-cols { display:grid; grid-template-columns:1.15fr .85fr; gap:1.5rem; margin-bottom:3rem; align-items:start; }
+.admin .dh-sec-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:1rem; padding:0 2px; }
+.admin .dh-sec-title { font-family:${DISPLAY}; font-size:1.4rem; font-weight:700; letter-spacing:-.01em; color:var(--admin-text); margin:0; }
+.admin .dh-sec-meta { font-size:var(--admin-text-xs); text-transform:uppercase; letter-spacing:.08em; color:var(--admin-text-subtle); font-weight:700; }
+.admin .dh-sec-link { display:inline-flex; align-items:center; gap:5px; font-size:var(--admin-text-xs); font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--color-primary); text-decoration:none; }
+.admin .dh-sec-link:hover { gap:8px; text-decoration:none; }
+
+/* Card */
+.admin .dh-card { background:var(--admin-surface); border:1px solid color-mix(in srgb, var(--color-primary) 9%, var(--admin-border)); border-radius:18px; box-shadow:0 1px 2px rgba(107,45,143,.035), 0 18px 40px -30px rgba(107,45,143,.26); }
+
+/* Queue */
+.admin .dh-queue { padding:6px; }
+.admin .dh-row { display:flex; align-items:center; gap:15px; padding:15px 16px; border-radius:13px; text-decoration:none; transition:background .14s ease; }
+.admin .dh-row + .dh-row { border-top:1px solid var(--admin-border); border-radius:0; }
+.admin .dh-row:hover { background:color-mix(in srgb, var(--color-primary) 4%, #fff); text-decoration:none; }
+.admin .dh-row-ic { display:flex; align-items:center; justify-content:center; width:38px; height:38px; border-radius:11px; flex-shrink:0; color:var(--color-primary); background:color-mix(in srgb, var(--color-primary) 8%, #fff); border:1px solid color-mix(in srgb, var(--color-primary) 12%, var(--admin-border)); }
+.admin .dh-row-top { display:flex; align-items:baseline; gap:10px; }
+.admin .dh-row-title { font-size:1rem; font-weight:700; color:var(--admin-text); }
+.admin .dh-row-count { font-size:var(--admin-text-xs); font-weight:700; color:var(--admin-text-subtle); font-variant-numeric:tabular-nums; }
+.admin .dh-row-blurb { margin:3px 0 0; font-size:var(--admin-text-sm); color:var(--admin-text-muted); line-height:1.5; }
+.admin .dh-row-go { color:var(--admin-text-subtle); opacity:0; transform:translateX(-5px); transition:opacity .14s ease, transform .14s ease; flex-shrink:0; }
+.admin .dh-row:hover .dh-row-go { opacity:1; transform:translateX(0); color:var(--color-primary); }
+.admin .dh-row-quiet .dh-row-title { font-weight:600; color:var(--admin-text-secondary); }
+.admin .dh-more { border-top:1px solid var(--admin-border); }
+.admin .dh-more > summary { list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:7px; padding:13px; font-size:var(--admin-text-sm); font-weight:600; color:var(--admin-text-muted); }
+.admin .dh-more > summary::-webkit-details-marker { display:none; }
+.admin .dh-more > summary:hover { color:var(--color-primary); }
+.admin .dh-more-chev { transition:transform .2s ease; }
+.admin .dh-more[open] .dh-more-chev { transform:rotate(90deg); }
+.admin .dh-more[open] > summary { color:var(--color-primary); }
+.admin .dh-more .dh-row:first-child { border-top:1px solid var(--admin-border); border-radius:0; }
+
+/* Notepad host */
+.admin .dh-notepad { padding:1.25rem; }
+
+/* Team */
+.admin .dh-team { display:flex; flex-wrap:wrap; gap:1.6rem 1.4rem; justify-content:flex-start; padding:2rem 1.8rem; }
+.admin .dh-member { display:flex; flex-direction:column; align-items:center; gap:8px; width:96px; text-decoration:none; transition:transform .16s ease; }
+.admin .dh-member:hover { transform:translateY(-3px); text-decoration:none; }
+.admin .dh-member-av { position:relative; width:52px; height:52px; border-radius:50%; overflow:hidden; display:block; }
+.admin .dh-member-av-fallback { display:flex; align-items:center; justify-content:center; font-size:1.5rem; background:radial-gradient(circle at 30% 25%, #fff, var(--admin-accent-soft)); }
+.admin .dh-member-name { font-size:var(--admin-text-sm); font-weight:700; color:var(--admin-text); text-align:center; line-height:1.15; }
+.admin .dh-member-role { font-size:var(--admin-text-xs); color:var(--admin-text-muted); text-align:center; line-height:1.2; }
+
+@media (max-width:820px) { .admin .dh-cols { grid-template-columns:1fr; } }
+`

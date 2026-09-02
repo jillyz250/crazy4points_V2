@@ -1,20 +1,29 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import AdminNav from '@/components/admin/AdminNav'
+import AdminNav, { type NavPerson } from '@/components/admin/AdminNav'
 import ErrorsBanner from '@/components/admin/ErrorsBanner'
 import SidebarShell from '@/components/admin/SidebarShell'
 import { createAdminClient } from '@/utils/supabase/server'
-import { getRefreshQueueCount } from '@/utils/supabase/queries'
 import { isAdminRequest } from '@/lib/auth/admin'
 
-async function loadNavBadges() {
+// The nav is people-only: load the team, ordered owner → chief → heads
+// (active first). Every tool stays reachable via each person's workspace page.
+async function loadPeople(): Promise<NavPerson[]> {
   try {
     const supabase = createAdminClient()
-    const refreshQueue = await getRefreshQueueCount(supabase)
-    return { refreshQueue }
+    const { data } = await supabase
+      .from('employees')
+      .select('slug, name, role_title, emoji, image_url, kind, status')
+    const emps = (data ?? []) as NavPerson[]
+    const kindRank = { owner: 0, chief: 1, agent: 2 } as const
+    const statusRank: Record<string, number> = { active: 0, paused: 1, planned: 2, retired: 3 }
+    return emps.sort((a, b) =>
+      (kindRank[a.kind] - kindRank[b.kind]) ||
+      ((statusRank[a.status] ?? 9) - (statusRank[b.status] ?? 9)) ||
+      a.name.localeCompare(b.name),
+    )
   } catch {
-    // Don't block the whole admin layout on a stale view; just hide the badge.
-    return {}
+    return []
   }
 }
 
@@ -26,7 +35,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     redirect('/admin/login')
   }
 
-  const badges = await loadNavBadges()
+  const people = await loadPeople()
 
   const sidebar = (
     <>
@@ -35,7 +44,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <span className="admin-brand-name">crazy4points</span>
         <span className="admin-brand-sub">admin</span>
       </Link>
-      <AdminNav badges={badges} />
+      <AdminNav people={people} />
       <form action="/api/admin-logout" method="post" className="admin-sidebar-footer">
         <button type="submit" className="admin-btn admin-btn-ghost admin-btn-sm admin-sidebar-logout">
           <span className="admin-sidebar-label">Log out</span>

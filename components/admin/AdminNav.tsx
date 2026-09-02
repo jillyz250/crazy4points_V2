@@ -1,92 +1,75 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useSearchParams } from 'next/navigation'
-import { getNavOwnerGroups, type AdminPage } from '@/lib/admin/registry'
+import Image from 'next/image'
+import { usePathname } from 'next/navigation'
+import { Icon, type IconName } from '@/components/admin/preview/icons'
 
-export type AdminNavBadges = {
-  refreshQueue?: number
+export type NavPerson = {
+  slug: string
+  name: string
+  role_title: string | null
+  emoji: string | null
+  image_url: string | null
+  kind: 'owner' | 'chief' | 'agent'
+  status: string
 }
 
-// Built once at module load — the registry is static.
-const OWNER_GROUPS = getNavOwnerGroups()
+// Kept for API compatibility with the layout; tool badges are gone now that the
+// nav is people-only, but the prop stays so the layout doesn't need changing.
+export type AdminNavBadges = { refreshQueue?: number }
 
-function isActive(page: AdminPage, pathname: string, search: string): boolean {
-  if (page.match) return page.match(pathname, search)
-  const [justPath, hrefQuery] = page.path.split('?')
-  if (justPath === '/admin') return pathname === '/admin'
-  const pathMatches = pathname === justPath || pathname.startsWith(justPath + '/')
-  if (!pathMatches) return false
-  // When the href carries a query (e.g. ?type=hotel), require it to be active.
-  // When it doesn't, only highlight when no recognized filter is active — so
-  // /admin/programs doesn't co-light with /admin/programs?type=hotel.
-  if (hrefQuery) return search.includes(hrefQuery)
-  return !search.includes('type=')
+function Avatar({ p }: { p: NavPerson }) {
+  return p.image_url ? (
+    <span className="admin-nav-avatar">
+      <Image src={p.image_url} alt={p.name} fill sizes="32px" style={{ objectFit: 'cover' }} />
+    </span>
+  ) : (
+    <span className="admin-nav-avatar admin-nav-avatar-fallback">{p.emoji || '👤'}</span>
+  )
 }
 
-export default function AdminNav({ badges = {} }: { badges?: AdminNavBadges }) {
+function StaticLink({ href, icon, label, active }: { href: string; icon: IconName; label: string; active: boolean }) {
+  return (
+    <Link href={href} className={`admin-nav-link admin-nav-static${active ? ' is-active' : ''}`} title={label}>
+      <span className="admin-nav-glyph"><Icon name={icon} size={18} /></span>
+      <span className="admin-nav-label">{label}</span>
+    </Link>
+  )
+}
+
+export default function AdminNav({ people = [] }: { badges?: AdminNavBadges; people?: NavPerson[] }) {
   const pathname = usePathname() ?? '/admin'
-  const searchParams = useSearchParams()
-  const search = searchParams?.toString() ?? ''
 
   return (
-    <nav className="admin-nav">
-      {OWNER_GROUPS.map(({ owner, sections }) => (
-        <div key={owner.slug} className="admin-nav-owner">
-          {/* Owner header: who owns this stretch of the panel. */}
-          <div className="admin-nav-owner-header" title={`${owner.name} — ${owner.role}`}>
-            <span className="admin-nav-owner-emoji" aria-hidden="true">{owner.emoji}</span>
-            <span className="admin-nav-owner-meta">
-              <span className="admin-nav-owner-name">{owner.name}</span>
-              <span className="admin-nav-owner-role">{owner.role}</span>
-            </span>
-          </div>
+    <nav className="admin-nav admin-nav-people">
+      <StaticLink href="/admin" icon="compass" label="Dashboard" active={pathname === '/admin'} />
+      <StaticLink href="/admin/notepad" icon="note" label="Notepad" active={pathname.startsWith('/admin/notepad')} />
 
-          {sections.map((section) => (
-            <div key={section.taskCategory} className="admin-nav-group">
-              {/* Light task sub-label so the panel still reads task-first. */}
-              <div className="admin-nav-group-label">{section.taskCategory}</div>
-              {section.pages.map((page) => {
-                const active = isActive(page, pathname, search)
-                const badgeCount = page.badgeKey ? badges[page.badgeKey] ?? 0 : 0
-                return (
-                  <Link
-                    key={page.id}
-                    href={page.path}
-                    className={`admin-nav-link${active ? ' is-active' : ''}`}
-                    title={page.description || page.title}
-                  >
-                    <span className="admin-nav-icon" aria-hidden="true">{page.icon}</span>
-                    <span className="admin-nav-label">
-                      {page.title}
-                      {badgeCount > 0 && (
-                        <span
-                          style={{
-                            marginLeft: '0.5rem',
-                            display: 'inline-block',
-                            minWidth: '1.25rem',
-                            padding: '0.0625rem 0.375rem',
-                            borderRadius: '9999px',
-                            background: 'var(--admin-warning, #d97706)',
-                            color: '#fff',
-                            fontSize: '0.6875rem',
-                            fontWeight: 700,
-                            textAlign: 'center',
-                            lineHeight: '1.1',
-                          }}
-                        >
-                          {badgeCount > 99 ? '99+' : badgeCount}
-                        </span>
-                      )}
-                    </span>
-                    <span className="admin-nav-abbr" aria-hidden="true">{page.abbr}</span>
-                  </Link>
-                )
-              })}
-            </div>
-          ))}
-        </div>
-      ))}
+      <div className="admin-nav-divider" />
+      <div className="admin-nav-section-label">The team</div>
+
+      {people.map((p) => {
+        const active = pathname === `/admin/org/${p.slug}`
+        return (
+          <Link
+            key={p.slug}
+            href={`/admin/org/${p.slug}`}
+            className={`admin-nav-link admin-nav-person${active ? ' is-active' : ''}`}
+            title={`${p.name} — ${p.role_title || ''}`}
+            style={{ opacity: p.status === 'planned' ? 0.6 : 1 }}
+          >
+            <Avatar p={p} />
+            <span className="admin-nav-person-meta">
+              <span className="admin-nav-person-name">{p.name}</span>
+              <span className="admin-nav-person-role">{p.role_title || ''}</span>
+            </span>
+          </Link>
+        )
+      })}
+
+      <div className="admin-nav-divider" />
+      <StaticLink href="/admin/settings" icon="settings" label="Settings" active={pathname.startsWith('/admin/settings')} />
     </nav>
   )
 }

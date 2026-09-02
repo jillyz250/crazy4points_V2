@@ -181,7 +181,7 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
                   <div className="ep-wsgroup-head"><Icon name={CAT_ICON[g.cat]} size={15} /> {g.cat}</div>
                   <div className="ep-wsgrid">
                     {g.pages.map((p) => (
-                      <Link key={p.id} href={p.path} className="ep-card ep-tool">
+                      <Link key={p.id} href={p.path} className="ep-card ep-tool" title={`Owned by ${e.name} — ${p.description}`}>
                         <span className="ep-tool-ic"><Icon name={pageIcon(p)} size={19} /></span>
                         <div style={{ minWidth: 0, flex: 1 }}>
                           <div className="ep-tool-title">{p.title}</div>
