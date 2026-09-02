@@ -1,9 +1,14 @@
 #!/usr/bin/env node
 /**
- * seed-org — seed / refresh the AI-team org (Jill, 2026-09-02). Idempotent: upserts by
- * slug, so re-running updates content without duplicating. Sets reports_to to build the
- * org chart (Jill = root). Rich content for Kesha (first hire); the other heads are
- * `planned` placeholders so the chart is populated. Run: node scripts/seed-org.mjs
+ * seed-org — the ONE-TIME BOOTSTRAP of the AI-team org (Jill, 2026-09-02).
+ *
+ * ⚠️ DO NOT RE-RUN THIS. The Supabase `employees` table is now the SOURCE OF TRUTH.
+ * Several employees were hired/activated + fleshed out with DIRECT DB writes AFTER this
+ * bootstrap (e.g. Janet + Priya activated + spiced, Bill/Devon/John full content). Re-running
+ * this would REVERT those live edits back to these stale `planned` placeholders.
+ * To change the org: edit the DB directly (or the future /admin/org UI), then run
+ * `node scripts/gen-agents.mjs` to regenerate the .claude/agents/*.md files.
+ * This file is kept only as the historical bootstrap record.
  */
 import { createClient } from '@supabase/supabase-js'
 import fs from 'fs'
