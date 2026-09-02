@@ -112,6 +112,33 @@ const planned = [
       'Keep Jill subscribed to the right issuer/program emails so intel intake stays complete',
       'Run the drift + reverify + fact-check accuracy systems so published facts do not go stale',
     ] },
+  { slug: 'charlie-legal', name: 'Charlie', role_title: 'Head of Legal & Compliance', emoji: '⚖️',
+    mission: 'Keep crazy4points on the right side of the law: terms, privacy, disclosures, email + sweepstakes compliance, and brand/trademark use.',
+    allowed_scopes: ['legal pages (terms/privacy/cookie/do-not-sell/accessibility)', 'affiliate disclosures', 'CAN-SPAM + email compliance', 'sweepstakes rules', 'trademark/brand usage', 'contract review'],
+    responsibilities: [
+      'Keep terms, privacy, and disclosure pages accurate + current',
+      'Ensure CAN-SPAM (unsubscribe, sender identity) + affiliate-disclosure compliance',
+      'Review sweepstakes rules + how we reference brands (nominative use, no logos)',
+      'Flag legal risk before it ships (new features, data collection, partnerships)',
+    ] },
+  { slug: 'erica-finance', name: 'Erica', role_title: 'Head of Finance & Accounting', emoji: '🧾',
+    mission: 'Watch the money going OUT: track expenses, costs, and runway so the business stays healthy (Janet owns the money coming in).',
+    allowed_scopes: ['expense tracking', 'hosting/Vercel + Supabase + API/LLM + Resend costs', 'ad spend', 'runway + P&L', 'budget'],
+    responsibilities: [
+      'Track all recurring costs (hosting, Supabase, API/LLM, email, ad spend) + flag spikes',
+      'Maintain a simple P&L + runway view (paired with Janet\'s revenue)',
+      'Keep receipts/records organized for taxes',
+      'Recommend where to cut or reallocate spend',
+    ] },
+  { slug: 'megan-partnerships', name: 'Megan', role_title: 'Head of Partnerships', emoji: '🤝',
+    mission: 'Land new affiliate + partnership deals (Janet MANAGES affiliate revenue; Megan ACQUIRES the programs).',
+    allowed_scopes: ['affiliate program acquisition', 'partner outreach', 'deal negotiation', 'credit-card affiliate programs', 'business development'],
+    responsibilities: [
+      'Find + apply to new affiliate programs (cards, travel, tools) that fit the audience',
+      'Own outreach + relationships with partners and networks',
+      'Negotiate terms; hand the live programs to Janet to track + optimize',
+      'Track a pipeline of prospective partnerships',
+    ] },
 ]
 for (const p of planned) await upsert({ ...p, kind: 'agent', status: 'planned', reports_to_id: morganId })
 
