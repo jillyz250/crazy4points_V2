@@ -689,6 +689,24 @@ ship per-program LoyaltyProgram/ItemList schema, write the "how we verify" page)
 it, show Jill. **DISCOVERY FIRST every time** — grep + check [[project_ai_visibility]]
 before building; most of the infra already exists. Auto-skip if genuinely blocked.
 
+### Phase 21b · 👥 Org / Team build (a little every day)
+Standing build — the **team of AI employees** (Jill, 2026-09-02, [[project_ai_employee_team]]).
+Advance ONE step/day and show Jill. Two kinds of step:
+- **Hire / expand a head** — flip a `planned` employee to `active`, fill in their
+  persona/rules/responsibilities/skills/allowed_scopes/platforms, then regenerate.
+  (Next up: Janet, Head of Growth & Revenue — owns analytics + Google Ads + affiliate.)
+- **Performance review** — for an active employee, write an `employee_logs` entry
+  (improvement / shortcoming / review) reflecting what actually happened today, then
+  regenerate. This is how the team measurably improves.
+Mechanics: edit via `/admin/org` (or `scripts/seed-org.mjs`), then
+`node scripts/gen-agents.mjs` to regenerate the `.claude/agents/<slug>.md` (Supabase
+is truth; never hand-edit the generated files). **Also keep the productization idea in
+mind** ([[project_ai_team_productization.md]]) — note anything a future "sell this"
+product would need. Claude runs the ritual AS Morgan (Chief of Staff), delegating each
+phase to the relevant head. Auto-skip in one line if nothing to advance today.
+(NOTE: formal phase renumbering across the closing checks is a small follow-up; for
+now this sits in the Act C standing-build rotation with Phases 20 + 21.)
+
 ### Phase 22 · 📰 Newsletter build (THURSDAYS ONLY — last content phase, before Analytics)
 Runs only on Thursdays (the snapshot header prints `WEEKLY: Newsletter day`), and
 **always the last content phase** (only the Analytics wrap follows it) so every
