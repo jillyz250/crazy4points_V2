@@ -467,8 +467,7 @@ Two halves — mine forward, and true up what shipped:
   `suggested_pillar`; NOTE the column is `roadmap_pillar`, not `pillar` — the
   silent-column trap), dedup, surface the best per bucket, retire stale ones
   (261 are >90 days old). Walk ONE pillar-bucket at a time: promote the valuable
-  to the roadmap, dismiss dupes/stale. (A `content-ideas-by-bucket` tool mirroring
-  `morning-triage-by-type` is the intended rail — build when there's time.)
+  to the roadmap, dismiss dupes/stale. Use `node scripts/content-ideas-by-bucket.mjs` (overview -> `--pillar <name>` -> `--promote`/`--dismiss <ids>`), the way morning-triage-by-type drains intel. The nightly content-ideas-autoclear cron keeps covered/stale/dupes cleared.
 Show Jill the candidates + any status flips; apply on her nod.
 
 ### Phase 13 · ✍️ Write & publish TWO articles a day
