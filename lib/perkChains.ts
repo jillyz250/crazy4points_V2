@@ -197,6 +197,21 @@ export const PERK_CHAINS: PerkChain[] = [
     programSlugs: ['radisson'],
   },
   {
+    id: 'caesars-wyndham-status-match',
+    title: 'Caesars casino status, matched into free hotel elite status',
+    card: 'Caesars Rewards status (from casino play or a Caesars match)',
+    steps: [
+      'Hold Caesars Rewards Diamond or Seven Stars, the tiers you earn from casino play',
+      'Status-match it to Wyndham Rewards Diamond for free, Wyndham\'s top hotel tier, with a quick request that clears in about three weeks',
+      'Wyndham Diamond then carries complimentary suite upgrades, early check-in and late checkout, preferred room choice, a welcome amenity, and 20 percent more points, across thousands of hotels',
+    ],
+    payoff: 'A casino status you may already hold becomes top-tier hotel elite status, for free.',
+    source: 'Wyndham Rewards / Caesars Rewards',
+    verifiedAt: '2026-09-02',
+    caveat: 'Going the other way, matching Wyndham status into Caesars, changed on February 1, 2025: only Wyndham status you EARNED by nights matches now, so a free status from the co-brand card or the paid Insider membership no longer counts. Re-apply each year on February 1, and confirm the match is live before you count on it.',
+    programSlugs: ['wyndham'],
+  },
+  {
     id: 'finnair-radisson-partnership',
     title: 'Finnair Plus status and points, matched and converted into Radisson',
     card: 'Any Finnair Plus status (Avios can feed it)',
