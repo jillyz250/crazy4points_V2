@@ -716,7 +716,12 @@ Advance ONE step/day and show Jill. Two kinds of step:
   regenerate. This is how the team measurably improves.
 Mechanics: edit via `/admin/org` (or `scripts/seed-org.mjs`), then
 `node scripts/gen-agents.mjs` to regenerate the `.claude/agents/<slug>.md` (Supabase
-is truth; never hand-edit the generated files). **Also keep the productization idea in
+is truth; never hand-edit the generated files). Run `node scripts/org-oversight.mjs`
+for Morgan's team read (active vs planned, open ASSIGNED work, idle heads).
+**Also drop ONE line of office LORE for the day (Jill loves this)** — a fun, tasteful,
+FIREWALLED relationship/character beat tied to the day's real events when possible
+(canon + Sims-meter idea in [[project_ai_employee_team]]). Lore NEVER leaks into
+published content; keep it HR-fine. **Also keep the productization idea in
 mind** ([[project_ai_team_productization.md]]) — note anything a future "sell this"
 product would need. Claude runs the ritual AS Morgan (Chief of Staff), delegating each
 phase to the relevant head. Auto-skip in one line if nothing to advance today.
