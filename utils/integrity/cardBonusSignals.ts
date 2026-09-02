@@ -121,5 +121,21 @@ export async function persistCardBonusSignals(
     })),
     { onConflict: 'content_hash', ignoreDuplicates: false },
   )
+
+  // Self-heal (Jill, 2026-09-02): a signal stores the bonus at detection time, so
+  // after we FIX the card page (stored now matches what was detected live) the
+  // open signal lingers as a ghost. Auto-dismiss any open signal whose card's
+  // current stored bonus now equals the detected amount — the change is applied.
+  const { data: openSigs } = await supabase
+    .from('card_bonus_signals').select('id, card_id, detected_amount').eq('status', 'new')
+  const healed: string[] = []
+  for (const o of (openSigs ?? []) as Array<{ id: string; card_id: string; detected_amount: number | null }>) {
+    if (o.detected_amount == null) continue
+    const { data: wb } = await supabase
+      .from('credit_card_welcome_bonuses').select('bonus_amount').eq('card_id', o.card_id).eq('is_current', true).limit(1)
+    if (wb?.[0] && wb[0].bonus_amount === o.detected_amount) healed.push(o.id)
+  }
+  if (healed.length) await supabase.from('card_bonus_signals').update({ status: 'dismissed' }).in('id', healed)
+
   return fresh
 }
