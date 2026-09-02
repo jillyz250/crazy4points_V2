@@ -11,6 +11,7 @@ export const dynamic = 'force-dynamic'
 const PURPLE = 'var(--color-primary)'
 const GOLD = 'var(--color-accent)'
 const DISPLAY = 'var(--font-display)'
+const UP = 'var(--admin-success)'
 
 type Emp = {
   id: string; slug: string; name: string; role_title: string | null
@@ -32,15 +33,78 @@ async function tableCount(table: string, activeOnly = false): Promise<number | n
   } catch { return null }
 }
 
+/**
+ * Filtered "needs action" count — same try/catch-returns-null shape as
+ * tableCount, but the caller supplies the WHERE clauses. Used for the New
+ * experiences / New sweepstakes queue counts (these are filtered queues, not
+ * totals, so tableCount's active/total switch doesn't fit).
+ */
+async function filteredCount(
+  build: (db: ReturnType<typeof createAdminClient>) => PromiseLike<{ count: number | null }>,
+): Promise<number | null> {
+  try {
+    const { count } = await build(createAdminClient())
+    return count ?? null
+  } catch { return null }
+}
+
+// ── Real subscriber trend from subscribed_at (reused from the Pulse mockup) ──
+// Only the delta is needed for Direction #1 (Stat + Delta); it stays honest —
+// if signups slowed, the chip goes down/red. No faked "up".
+type Trend = { last7: number; prev7: number; delta: number }
+
+async function subscriberTrend(): Promise<Trend | null> {
+  try {
+    const db = createAdminClient()
+    const { data } = await db.from('subscribers').select('subscribed_at').not('subscribed_at', 'is', null)
+    const times = ((data ?? []) as { subscribed_at: string }[])
+      .map((r) => Date.parse(r.subscribed_at))
+      .filter((n) => !Number.isNaN(n))
+    const wk = (from: number, to: number) => times.filter((t) => t > from && t <= to).length
+    const nowMs = Date.now()
+    const last7 = wk(nowMs - 7 * 864e5, nowMs)
+    const prev7 = wk(nowMs - 14 * 864e5, nowMs - 7 * 864e5)
+    return { last7, prev7, delta: last7 - prev7 }
+  } catch { return null }
+}
+
+function DeltaChip({ delta, unit = '' }: { delta: number; unit?: string }) {
+  if (delta === 0) return <span className="dh-delta dh-delta-flat">&plusmn;0{unit}</span>
+  const up = delta > 0
+  return (
+    <span className={`dh-delta ${up ? 'dh-delta-up' : 'dh-delta-down'}`}>
+      <Icon name="trending" size={11} style={up ? undefined : { transform: 'scaleY(-1)' }} />
+      {up ? '+' : ''}{delta}{unit}
+    </span>
+  )
+}
+
 export default async function AdminDashboard() {
   const db = createAdminClient()
-  const [{ data: empData }, { data: logData }, { data: notesData }, alertsCount, programsCount, subsCount] = await Promise.all([
+  const nowIso = new Date().toISOString()
+  const [
+    { data: empData }, { data: logData }, { data: notesData },
+    alertsCount, programsCount, subsCount, subsTrend, newExperiences, newSweepstakes,
+  ] = await Promise.all([
     db.from('employees').select('id, slug, name, role_title, kind, emoji, image_url, status, responsibilities'),
     db.from('employee_logs').select('employee_id, type, created_at'),
     db.from('dashboard_notes').select('id, body, sent_to_takes, created_at, updated_at').order('created_at', { ascending: false }).limit(50),
     tableCount('alerts'),
     tableCount('programs'),
     tableCount('subscribers', true),
+    subscriberTrend(),
+    // New experiences = unreviewed AND still actionable (active + not closed) —
+    // matches the /admin/experiences review queue this badge links to.
+    filteredCount((c) =>
+      c.from('experience_listings').select('*', { count: 'exact', head: true })
+        .is('editorial_reviewed_at', null)
+        .eq('status', 'active')
+        .or(`close_date.is.null,close_date.gte.${nowIso}`)),
+    // New sweepstakes = running AND not yet reviewed (matches /admin/sweepstakes).
+    filteredCount((c) =>
+      c.from('sweepstakes').select('*', { count: 'exact', head: true })
+        .eq('status', 'running')
+        .is('reviewed_at', null)),
   ])
   const emps = (empData ?? []) as Emp[]
   const notes = (notesData ?? []) as DashboardNote[]
@@ -55,11 +119,16 @@ export default async function AdminDashboard() {
   const primary = queue.filter((q) => q.urgent)
   const rest = queue.filter((q) => !q.urgent)
 
-  const pulse: { label: string; value: string; icon: Parameters<typeof Icon>[0]['name'] }[] = [
-    { label: 'Alerts live', value: alertsCount != null ? alertsCount.toLocaleString() : '—', icon: 'bell' },
-    { label: 'Programs tracked', value: programsCount != null ? programsCount.toLocaleString() : '—', icon: 'database' },
-    { label: 'Subscribers', value: subsCount != null ? subsCount.toLocaleString() : '—', icon: 'users' },
-    { label: 'Accuracy', value: 'Healthy', icon: 'shield' },
+  const fmt = (n: number | null) => (n != null ? n.toLocaleString() : '—')
+  type PulseStat = { label: string; value: string; icon: Parameters<typeof Icon>[0]['name']; delta?: number; hot?: boolean }
+  // Totals + Subscribers (with a real up/down delta), then the two new-only
+  // "needs action" queue counts (count + label only — no faked delta/chart).
+  const pulse: PulseStat[] = [
+    { label: 'Alerts live', value: fmt(alertsCount), icon: 'bell' },
+    { label: 'Programs tracked', value: fmt(programsCount), icon: 'database' },
+    { label: 'Subscribers', value: fmt(subsCount), icon: 'users', delta: subsTrend?.delta },
+    { label: 'New experiences', value: fmt(newExperiences), icon: 'spark', hot: (newExperiences ?? 0) > 0 },
+    { label: 'New sweepstakes', value: fmt(newSweepstakes), icon: 'award', hot: (newSweepstakes ?? 0) > 0 },
   ]
 
   const queueRow = (q: (typeof queue)[number], dim = false) => (
@@ -80,17 +149,23 @@ export default async function AdminDashboard() {
     <div className="dh-root">
       <style dangerouslySetInnerHTML={{ __html: DH_CSS }} />
       <div className="dh-wrap">
-        {/* ── Global health band ── */}
+        {/* ── Global health band (Pulse — Direction #1: Stat + Delta) ── */}
         <div className="dh-pulse">
           <span className="dh-pulse-tag"><Icon name="pulse" size={15} /> Pulse</span>
           <div className="dh-pulse-stats">
             {pulse.map((p) => (
               <span key={p.label} className="dh-stat">
                 <span className="dh-stat-ic"><Icon name={p.icon} size={14} /></span>
-                <span className="dh-stat-val">{p.value}</span>
+                <span className="dh-stat-val" style={p.hot ? { color: PURPLE } : undefined}>{p.value}</span>
                 <span className="dh-stat-label">{p.label}</span>
+                {p.delta != null && <DeltaChip delta={p.delta} />}
               </span>
             ))}
+            <span className="dh-stat">
+              <span className="dh-stat-ic"><Icon name="shield" size={14} /></span>
+              <span className="dh-status-dot" style={{ background: UP }} />
+              <span className="dh-stat-label">Accuracy healthy</span>
+            </span>
           </div>
         </div>
 
@@ -167,11 +242,18 @@ const DH_CSS = `
   background:linear-gradient(90deg, color-mix(in srgb, var(--color-primary) 6%, #fff), #fff 60%);
   box-shadow:0 1px 2px rgba(107,45,143,.04); }
 .admin .dh-pulse-tag { display:inline-flex; align-items:center; gap:7px; font-size:var(--admin-text-xs); font-weight:800; text-transform:uppercase; letter-spacing:.1em; color:var(--color-primary); flex-shrink:0; }
-.admin .dh-pulse-stats { display:flex; align-items:center; gap:1.6rem; flex-wrap:wrap; }
-.admin .dh-stat { display:inline-flex; align-items:baseline; gap:7px; }
-.admin .dh-stat-ic { color:var(--admin-text-subtle); position:relative; top:2px; }
+.admin .dh-pulse-stats { display:flex; align-items:center; gap:1.5rem; flex-wrap:wrap; }
+.admin .dh-stat { display:inline-flex; align-items:center; gap:7px; }
+.admin .dh-stat-ic { color:var(--admin-text-subtle); display:flex; }
 .admin .dh-stat-val { font-size:1.05rem; font-weight:800; color:var(--admin-text); font-variant-numeric:tabular-nums; letter-spacing:-.01em; }
 .admin .dh-stat-label { font-size:var(--admin-text-xs); color:var(--admin-text-muted); text-transform:uppercase; letter-spacing:.05em; font-weight:600; }
+.admin .dh-status-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+
+/* Delta chip (Subscribers trend — real data, honest up/down) */
+.admin .dh-delta { display:inline-flex; align-items:center; gap:3px; font-size:var(--admin-text-xs); font-weight:800; padding:2px 7px; border-radius:9999px; font-variant-numeric:tabular-nums; }
+.admin .dh-delta-up { color:var(--admin-success); background:var(--admin-success-soft); }
+.admin .dh-delta-down { color:var(--admin-danger); background:var(--admin-danger-soft); }
+.admin .dh-delta-flat { color:var(--admin-text-muted); background:var(--admin-surface-alt); }
 
 /* Jill hero */
 .admin .dh-hero { display:flex; align-items:center; gap:1.4rem; margin-bottom:2.6rem; }
