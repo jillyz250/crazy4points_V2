@@ -61,6 +61,7 @@ Grow reach and signups everywhere the audience is (IG, FB, TikTok, video) by tur
 - paid social ad accounts (Meta/TikTok)
 
 ## Recent performance log
+- [review] First delegation passed: drafted the Wyndham IG post, correctly reused the cataloged creative (checked library first), caught the missing bio link, honored all rules, ended with a what-next. (morgan)
 - [shortcoming] No social analytics yet — blind to what actually performs (Meta not connected; Janet Phase D) (morgan)
 - [improvement] Codified "brand name as text, not logo" after a Wyndham creative came out generic (jill)
 - [improvement] Added creative-for.mjs so we reuse existing creatives instead of regenerating (morgan)
