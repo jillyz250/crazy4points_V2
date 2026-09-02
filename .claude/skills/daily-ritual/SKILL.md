@@ -503,7 +503,21 @@ two daily articles.
 Runs last in Act B so it sweeps **everything produced today** — publishes (Phase 5),
 page fixes (Phase 6), the article (Phase 13), experiences/sweepstakes reviewed — not
 just the morning intel. Look for **perk chains**: one benefit unlocks another, which
-unlocks another. Canonical: Amex Platinum → free Walmart+ → free Paramount+; a card's
+unlocks another.
+
+**Run the sweep deterministically, don't eyeball it (built 2026-09-02):**
+```
+node scripts/chain-sweep.mjs          # programs TOUCHED TODAY whose prose describes a chain but has NO perkChains.ts entry
+node scripts/chain-sweep.mjs --all    # full standing backlog of prose-only chains (verify each vs official before adding)
+```
+It parses `lib/perkChains.ts` for already-covered slugs and scans each touched
+program's `quirks`/`sweet_spots`/`intro` for status-match / cross-program-transfer /
+"unlocks" language (with a negation guard so "no transfer partners" doesn't trip it).
+A flag means a chain lives only as prose — promote the real ones into `lib/perkChains.ts`
+(qualitative, verified vs official). `programs.good_to_know` does NOT exist (silent-column
+trap); the prose columns are `quirks`/`sweet_spots`/`intro`. Example find (2026-09-02):
+the Wyndham->Caesars status match existed only as a quirk; promoted to a chain +
+corrected the page's caveat. Canonical: Amex Platinum → free Walmart+ → free Paramount+; a card's
 elite status → free Club Avolta status match → Radisson VIP + Avis President's Club +
 Plaza Premium lounge discount. Best candidates cluster in the `card_credit` /
 `partner_change` / `status_promo` intel type-groups (`morning-triage-by-type`).
