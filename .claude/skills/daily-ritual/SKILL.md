@@ -601,6 +601,17 @@ Build ONE reusable ad creative for the library (`/admin/creatives` +
 `campaign_creatives`, mirrored in `plans/campaign-creative-library.md`). Pick the
 day's best campaign-worthy candidate — a marquee experience/Moment, a big transfer
 bonus, a sweet spot, a flash drop — and produce a scroll-stopping creative for it:
+
+- **⭐ CHECK THE LIBRARY FIRST, before generating anything (Jill, 2026-09-02: "how
+  will you recommend when we already have an image").** A cataloged creative is
+  useless if nothing checks the catalog. Run
+  `node scripts/creative-for.mjs <brand/topic>` (or `--alert <slug>`). If a match
+  exists, **RECOMMEND REUSE** instead of generating from scratch — two tiers:
+  (1) **EXACT-reuse** the existing PNG when it's the SAME deal or an evergreen brand
+  creative; (2) **PROMPT-reuse** when it's the same brand but a different deal — take
+  the cataloged prompt, swap the numbers/date, regenerate (seconds, not from zero).
+  Only write a brand-new prompt when the tool says "No existing creative." This same
+  check applies in Phase 18 whenever a social post wants an image.
 - **Write a tailored Copilot prompt** from the reusable template
   ([[reference_campaign_landing_pages]]), swapping the **color scheme to the event's
   team/brand colors** (brand-safe — colors aren't trademarks, only logos are; NEVER
