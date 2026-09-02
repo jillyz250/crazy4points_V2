@@ -75,15 +75,17 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
   const e = data as Emp | null
   if (!e) notFound()
 
-  const [{ data: logsData }, { data: mgr }, { data: loreData }] = await Promise.all([
+  const [{ data: logsData }, { data: mgr }, { data: teamData }, { data: loreData }] = await Promise.all([
     db.from('employee_logs').select('id, type, note, actor, created_at').eq('employee_id', e.id).order('created_at', { ascending: false }).limit(12),
     e.reports_to_id
       ? db.from('employees').select('name, slug, role_title, emoji').eq('id', e.reports_to_id).maybeSingle()
       : Promise.resolve({ data: null }),
+    db.from('employees').select('id, slug, name, role_title, emoji, status').eq('reports_to_id', e.id).order('name', { ascending: true }),
     db.from('org_lore').select('id, lore_date, headline, body, involves').order('lore_date', { ascending: false }).order('created_at', { ascending: false }).limit(40),
   ])
   const logs = (logsData ?? []) as Log[]
   const manager = mgr as { name: string; slug: string; role_title: string | null; emoji: string | null } | null
+  const team = (teamData ?? []) as { id: string; slug: string; name: string; role_title: string | null; emoji: string | null; status: string }[]
   const lore = ((loreData ?? []) as Lore[]).filter((l) => arr(l.involves).includes(slug)).slice(0, 3)
 
   const isAgent = e.kind === 'agent'
@@ -164,6 +166,28 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
             <div className="ep-card ep-persona">
               <span className="ep-persona-mark" aria-hidden="true">&ldquo;</span>
               <p className="ep-persona-text">{e.persona}</p>
+            </div>
+          </section>
+        )}
+
+        {/* ── Team: this person's direct reports (specialists / heads) ── */}
+        {team.length > 0 && (
+          <section className="ep-section">
+            <div className="ep-sec-head">
+              <h2 className="ep-sec-title">{e.name.split(' ')[0]}&rsquo;s team</h2>
+              <span className="ep-sec-meta">{team.length} direct report{team.length === 1 ? '' : 's'}</span>
+            </div>
+            <div className="ep-team">
+              {team.map((m) => (
+                <Link key={m.id} href={`/admin/org/${m.slug}`} className="ep-card ep-teammate" title={m.role_title || m.name}>
+                  <span className="ep-teammate-av">{m.emoji || m.name.charAt(0).toUpperCase()}</span>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div className="ep-teammate-name">{m.name}</div>
+                    <div className="ep-teammate-role">{m.role_title || ''}</div>
+                  </div>
+                  <span className="ep-teammate-go"><Icon name="arrow" size={14} /></span>
+                </Link>
+              ))}
             </div>
           </section>
         )}
@@ -359,6 +383,16 @@ const EP_CSS = `
 .admin .ep-tool-desc { font-size:var(--admin-text-sm); color:var(--admin-text-muted); margin-top:2px; line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
 .admin .ep-tool-go { color:var(--admin-text-subtle); opacity:0; transform:translateX(-4px); transition:opacity .14s ease, transform .14s ease; flex-shrink:0; }
 .admin .ep-tool:hover .ep-tool-go { opacity:1; transform:translateX(0); color:var(--color-primary); }
+
+/* Team — light person-badges (no big portraits) */
+.admin .ep-team { display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:.7rem; }
+.admin .ep-teammate { display:flex; align-items:center; gap:12px; padding:12px 14px; text-decoration:none; transition:transform .14s ease, box-shadow .14s ease, border-color .14s ease; }
+.admin .ep-teammate:hover { transform:translateY(-2px); box-shadow:0 14px 32px -18px rgba(107,45,143,.4); border-color:color-mix(in srgb, var(--color-primary) 30%, var(--admin-border)); text-decoration:none; }
+.admin .ep-teammate-av { display:flex; align-items:center; justify-content:center; width:38px; height:38px; border-radius:50%; flex-shrink:0; font-size:1.15rem; line-height:1; background:var(--admin-accent-soft); border:1px solid color-mix(in srgb, var(--color-accent) 30%, var(--admin-border)); }
+.admin .ep-teammate-name { font-size:.92rem; font-weight:700; color:var(--admin-text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.admin .ep-teammate-role { font-size:var(--admin-text-xs); color:var(--admin-text-muted); margin-top:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.admin .ep-teammate-go { color:var(--admin-text-subtle); flex-shrink:0; opacity:0; transform:translateX(-4px); transition:opacity .14s ease, transform .14s ease; }
+.admin .ep-teammate:hover .ep-teammate-go { opacity:1; transform:translateX(0); color:var(--color-primary); }
 
 /* Two-column: recent work + charter */
 .admin .ep-cols { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:2.6rem; align-items:start; }

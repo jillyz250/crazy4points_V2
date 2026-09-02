@@ -71,6 +71,54 @@ function Node({ e }: { e: Emp }) {
 
 const Connector = () => <div style={{ width: 2, height: 26, background: 'var(--admin-border-strong)' }} />
 
+// A specialist (3rd tier): compact person-badge, visually subordinate to a head.
+function SubNode({ e }: { e: Emp }) {
+  const planned = e.status === 'planned'
+  return (
+    <Link href={`/admin/org/${e.slug}`} style={{ textDecoration: 'none' }}>
+      <div
+        className="admin-card"
+        style={{
+          display: 'flex', alignItems: 'center', gap: '.5rem', padding: '.4rem .5rem',
+          border: '1px solid var(--admin-border)', opacity: planned ? 0.65 : 1,
+        }}
+      >
+        <span
+          style={{
+            width: 26, height: 26, borderRadius: '50%', flexShrink: 0, display: 'flex',
+            alignItems: 'center', justifyContent: 'center', fontSize: '.85rem', lineHeight: 1,
+            background: 'var(--admin-surface-alt)', border: '1px solid var(--admin-border)',
+            color: 'var(--admin-text-muted)', fontWeight: 700,
+          }}
+        >
+          {e.emoji || e.name.charAt(0).toUpperCase()}
+        </span>
+        <span style={{ minWidth: 0, textAlign: 'left' }}>
+          <span style={{ display: 'block', fontSize: '.76rem', fontWeight: 700, color: 'var(--admin-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.name}</span>
+          <span style={{ display: 'block', fontSize: '.66rem', color: 'var(--admin-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.role_title || ''}</span>
+        </span>
+      </div>
+    </Link>
+  )
+}
+
+// A head plus its specialist sub-tier, as one vertical column (wraps as a unit).
+function HeadColumn({ head, specialists }: { head: Emp; specialists: Emp[] }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 190 }}>
+      <Node e={head} />
+      {specialists.length > 0 && (
+        <>
+          <div style={{ width: 2, height: 16, background: 'var(--admin-border-strong)' }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '.35rem', width: '100%' }}>
+            {specialists.map((s) => <SubNode key={s.id} e={s} />)}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 export default async function OrgPage() {
   const db = createAdminClient()
   const [{ data: empData }, { data: logData }, { data: loreData }] = await Promise.all([
@@ -87,8 +135,17 @@ export default async function OrgPage() {
   const owner = emps.find((e) => e.kind === 'owner')
   const chief = emps.find((e) => e.kind === 'chief')
   const rank = { active: 0, paused: 1, planned: 2, retired: 3 }
-  const heads = emps.filter((e) => e.kind === 'agent').sort((a, b) => rank[a.status] - rank[b.status])
-  const activeCount = emps.filter((e) => e.status === 'active' && e.kind === 'agent').length
+  // Heads report to the chief; specialists (the 3rd tier) report to a head.
+  const heads = emps
+    .filter((e) => e.kind === 'agent' && e.reports_to_id === chief?.id)
+    .sort((a, b) => rank[a.status] - rank[b.status])
+  const specialistsByHead: Record<string, Emp[]> = {}
+  for (const e of emps.filter((e) => e.kind === 'agent' && e.reports_to_id && e.reports_to_id !== chief?.id)) {
+    ;(specialistsByHead[e.reports_to_id as string] ||= []).push(e)
+  }
+  for (const id in specialistsByHead) specialistsByHead[id].sort((a, b) => a.name.localeCompare(b.name))
+  const specialistIds = new Set(Object.values(specialistsByHead).flat().map((e) => e.id))
+  const activeCount = heads.filter((e) => e.status === 'active').length
 
   return (
     <div>
@@ -107,8 +164,8 @@ export default async function OrgPage() {
           {heads.length > 0 && (
             <>
               <div style={{ height: 2, background: 'var(--admin-border-strong)', width: 'min(100%, 620px)' }} />
-              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center', marginTop: '.9rem' }}>
-                {heads.map((h) => <Node key={h.id} e={h} />)}
+              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'flex-start', marginTop: '.9rem' }}>
+                {heads.map((h) => <HeadColumn key={h.id} head={h} specialists={specialistsByHead[h.id] || []} />)}
               </div>
             </>
           )}
@@ -119,6 +176,7 @@ export default async function OrgPage() {
       <h2 style={{ fontSize: '1rem', marginBottom: '.75rem', color: 'var(--admin-text)' }}>Roster</h2>
       <div style={{ display: 'grid', gap: '.75rem', marginBottom: '2rem' }}>
         {emps
+          .filter((e) => !specialistIds.has(e.id))
           .sort((a, b) => ({ owner: 0, chief: 1, agent: 2 }[a.kind] - { owner: 0, chief: 1, agent: 2 }[b.kind]))
           .map((e) => (
             <Link key={e.id} href={`/admin/org/${e.slug}`} style={{ textDecoration: 'none' }}>
