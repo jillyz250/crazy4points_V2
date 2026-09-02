@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
-    maxAge: SESSION_TTL_MS / 1000, // 8 hours
+    maxAge: SESSION_TTL_MS / 1000, // 30 days
   })
 
   return response

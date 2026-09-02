@@ -13,8 +13,9 @@
 
 export const ADMIN_SESSION_COOKIE = 'admin_session'
 
-// 8 hours, matching the previous cookie maxAge.
-export const SESSION_TTL_MS = 8 * 60 * 60 * 1000
+// 30 days — solo admin on her own devices; long-lived so she isn't re-prompted
+// constantly (Jill, 2026-09-02). The cookie maxAge is derived from this same value.
+export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000
 
 export interface AdminSessionPayload {
   /** Expiry, ms since epoch. */
