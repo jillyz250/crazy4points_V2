@@ -4,7 +4,7 @@ import { Card, CardBody } from '@/components/admin/ui/Card'
 import { Badge } from '@/components/admin/ui/Badge'
 import { EmptyState } from '@/components/admin/ui/EmptyState'
 import { isTimeshareSweep } from '@/lib/sweepstakes/categories'
-import { togglePosted, endSweep, draftSweepstakesPostAction, clearSweepstakesDraftAction, toggleSweepFeatured, toggleSweepReviewed } from './actions'
+import { togglePosted, endSweep, draftSweepstakesPostAction, clearSweepstakesDraftAction, toggleSweepFeatured, toggleSweepReviewed, addSweepToSocialCalendar } from './actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -54,6 +54,11 @@ export default async function SweepstakesPage() {
     .order('ends_at', { ascending: true, nullsFirst: false })
     .order('first_seen', { ascending: false })
   const sweeps = (data ?? []) as Sweep[]
+  // Which sweeps are already on the social calendar (either the now/last slot).
+  const { data: onCal } = sweeps.length
+    ? await supabase.from('social_calendar').select('source_ref').like('source_ref', 'sweep:%')
+    : { data: [] as { source_ref: string }[] }
+  const onCalSet = new Set((onCal ?? []).map((r) => (r.source_ref || '').split(':')[1]))
   // Jill only posts the ones she FEATURED, so the "to post" count is featured-but-
   // not-posted, not every un-posted sweep (that nagged her to post dozens she'd skip).
   const toPost = sweeps.filter((s) => s.featured && !s.posted_social).length
@@ -135,6 +140,18 @@ export default async function SweepstakesPage() {
                           {s.featured ? '★ Unfeature' : '⭐ Feature'}
                         </button>
                       </form>
+                      {onCalSet.has(s.id) ? (
+                        <span className="admin-btn admin-btn-ghost" style={{ fontSize: '0.8125rem', opacity: 0.7, cursor: 'default' }} title="On the social calendar (awareness + last-chance posts)">
+                          ✓ On calendar
+                        </span>
+                      ) : (
+                        <form action={addSweepToSocialCalendar}>
+                          <input type="hidden" name="id" value={s.id} />
+                          <button type="submit" className="admin-btn admin-btn-ghost" style={{ fontSize: '0.8125rem' }} title="Schedules an awareness post now + a last-chance post before the deadline">
+                            + Social calendar
+                          </button>
+                        </form>
+                      )}
                       <form action={draftSweepstakesPostAction}>
                         <input type="hidden" name="id" value={s.id} />
                         <button type="submit" className="admin-btn admin-btn-primary" style={{ fontSize: '0.8125rem' }}>

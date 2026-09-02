@@ -7,6 +7,56 @@ import { generateFacebook } from '@/utils/ai/variants/generateFacebook'
 
 const SWEEPS_PAGE_URL = 'https://www.crazy4points.com/sweepstakes'
 
+/**
+ * Add a sweepstakes to the social calendar (Jill, 2026-09-02), mirroring the
+ * experiences button. Creates TWO posts per sweep: an **awareness** post right away
+ * (tomorrow — a giveaway has no sell-out/bidding, so max runway = max entries) AND
+ * a **last-chance-to-enter** post ~3 days before the deadline. Distinct source_refs
+ * (`:now` / `:last`) so both survive dedup; the last-chance one is skipped if there's
+ * no future deadline or it would fall on/before the awareness post. Adding also marks
+ * the sweep reviewed.
+ */
+export async function addSweepToSocialCalendar(formData: FormData): Promise<void> {
+  await assertAdmin()
+  const id = String(formData.get('id') ?? '').trim()
+  if (!id) return
+  const supabase = createAdminClient()
+  const { data: s } = await supabase.from('sweepstakes').select('id, title, ends_at').eq('id', id).single()
+  if (!s) return
+
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+  const addDays = (iso: string, n: number) => { const d = new Date(`${iso.slice(0, 10)}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10) }
+  const nowDate = addDays(today, 1) // awareness: tomorrow
+  const title = String(s.title).slice(0, 110)
+  const ends = s.ends_at ? String(s.ends_at).slice(0, 10) : null
+
+  const rows: Record<string, unknown>[] = [{
+    post_date: nowDate, platform: 'facebook', topic: title, category: 'sweepstakes',
+    source_type: 'sweepstakes', source_ref: `sweep:${id}:now`, status: 'planned', link_url: '/sweepstakes',
+    notes: ends ? `Enter-to-win awareness post. Ends ${ends}. Honest points-giveaway framing.` : 'Enter-to-win awareness post. Honest framing.',
+  }]
+  // Last-chance post ~3 days before the deadline, only if it lands after the awareness post.
+  if (ends) {
+    const lastDate = addDays(ends, -3)
+    if (lastDate > nowDate) {
+      rows.push({
+        post_date: lastDate, platform: 'facebook', topic: `Last chance to enter: ${title}`, category: 'sweepstakes',
+        source_type: 'sweepstakes', source_ref: `sweep:${id}:last`, status: 'planned', link_url: '/sweepstakes',
+        notes: `Last-chance-to-enter post before it closes ${ends}. Honest framing.`,
+      })
+    }
+  }
+
+  const { data: existing } = await supabase.from('social_calendar').select('source_ref').like('source_ref', `sweep:${id}%`)
+  const have = new Set((existing ?? []).map((r) => r.source_ref))
+  const fresh = rows.filter((r) => !have.has(r.source_ref as string))
+  if (fresh.length) await supabase.from('social_calendar').insert(fresh)
+
+  await supabase.from('sweepstakes').update({ reviewed_at: new Date().toISOString() }).eq('id', id)
+  revalidatePath('/admin/sweepstakes')
+  revalidatePath('/admin/social-calendar')
+}
+
 /** Toggle whether a sweepstakes is ⭐ Featured on the public /sweepstakes page. */
 export async function toggleSweepFeatured(formData: FormData): Promise<void> {
   await assertAdmin()
