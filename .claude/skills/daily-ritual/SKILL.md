@@ -436,7 +436,7 @@ mismatch means dig until you know which is right. The list is UNVERIFIED and
 already had a wrong AA entry, and its "~$USD" conversions must be stripped (native
 currency only in published prose). Author in the 4-bullet house format (How to
 change or cancel / Fees / If delayed or changed / How to reach the airline), plus
-a **"Cash tickets, for reference"** bullet when the airline has dropped cash change
+a plain **"Cash tickets:"** bullet (never "for reference" — Jill, 2026-09-02) when the airline has dropped cash change
 fees (Jill, 2026-09-01 — readers book cash on the same carrier, so it's useful).
 **ALSO author 2-3 structured FAQ Q&As** into that program's `faq` jsonb (renders as
 FAQPage JSON-LD via the shipped rendering, #1359) covering the change/cancel facts
