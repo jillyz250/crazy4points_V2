@@ -605,7 +605,13 @@ bonus, a sweet spot, a flash drop — and produce a scroll-stopping creative for
   ([[reference_campaign_landing_pages]]), swapping the **color scheme to the event's
   team/brand colors** (brand-safe — colors aren't trademarks, only logos are; NEVER
   a real team logo) and the hero words/banner/date to the offer. Hand it to Jill to
-  generate in Copilot.
+  generate in Copilot. **INCLUDE THE BRAND NAME AS ON-IMAGE TEXT when it's needed to
+  identify whose offer it is (2026-09-02, Jill).** The no-logo rule bars the *logo
+  mark*, NOT the *name* — a graphic for a Wyndham deal should say "Wyndham" in the
+  copy so viewers know the program. Always write the prompt as: render the word
+  "&lt;Brand&gt;" as plain text exactly as written, but do NOT draw any
+  &lt;Brand&gt; logo/emblem/trademark. Leaving the name off makes the creative
+  generic (the mistake caught 2026-09-02).
 - When she has the image, **catalog it** (insert a `campaign_creatives` row: name,
   event, category, color_scheme, prompt, image_url in `public/campaigns/`, used_on)
   so it appears in the gallery and is one-click reusable next time.
