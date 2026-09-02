@@ -148,8 +148,11 @@ const weeklyTask = monthStart ? '1st of month ==> run the monthly "This Month\'s
 const remindersOpen = (await q('reminders', db.from('reminders')
   .select('title, due_date, status, link, kind').eq('status', 'open')
   .order('due_date', { ascending: true }))).data
-// Bid-to-win "Bidding closes" reminders are auto-generated auction noise (10+/day)
-// and we don't push auctions socially — keep them out of the actionable list.
+// "Bidding closes" reminders fire the day an auction is about to close — which is
+// PRIME last-chance social time, not noise (Jill, 2026-09-02: "this is the exciting
+// part when users can actually win"). Keep them out of the reminders-to-dismiss
+// list (they die naturally via the sweep only AFTER close), and route the closings
+// to Phase 9 for last-chance featuring. NEVER dismiss one before its auction closes.
 const isAuctionRem = (r) => r.kind === 'experience' || /bidding closes/i.test(r.title || '') || /auction/i.test(r.link || '')
 const remActionable = remindersOpen.filter((r) => !isAuctionRem(r))
 const remExpired = remActionable.filter((r) => r.due_date && r.due_date < todayET)
@@ -400,7 +403,7 @@ if (!remToday.length && !remExpired.length) console.log('  (none — nothing dat
 for (const r of remToday) console.log(`  [TODAY  ] ${(r.title || '').slice(0, 74)}${r.link ? '  -> ' + r.link : ''}`)
 for (const r of remExpired) console.log(`  [${r.due_date} ] ${(r.title || '').slice(0, 66)}${r.link ? '  -> ' + r.link : ''}`)
 if (remExpired.length) console.log('  -> overdue: act if still live, else DISMISS (set status=done). Ended deals = dismiss.')
-if (remAuctionDue.length) console.log(`  (+ ${remAuctionDue.length} bid-to-win auction reminders closing — low priority, not social; dismiss in bulk)`)
+if (remAuctionDue.length) console.log(`  (+ ${remAuctionDue.length} auctions closing soon — PRIME last-chance social moments; feature the best US-attainable ones in Phase 9, do NOT dismiss until closed)`)
 
 console.log('\n' + B)
 console.log(`DEALS EXPIRING WITHIN 48h — last-chance social candidates (${expiringDeals.length}):`)
