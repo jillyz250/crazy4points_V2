@@ -215,10 +215,17 @@ if (dupes.length) {
 
 // ---- Alert UPDATES — Haiku found facts our published alert is missing ------
 // This is the payoff of Layer 2: a "dupe" that actually improves an alert.
+// Drop STALE updates so old promos don't pile up here (Jill, 2026-09-02): an
+// item whose own expires_at is past can't be a live "update," and an undated one
+// parked >30 days is stale too. Keeps future-dated + recent-undated only.
+const staleUpdCut = new Date(Date.now() - 30 * 864e5).toISOString()
 const updates = (await q('alert updates', db.from('intel_items')
   .select('headline, source_name, haiku_diff_summary, haiku_diff_categories, update_to_alert_id, created_at')
   .not('update_to_alert_id', 'is', null).is('rejected_at', null).is('archived_at', null)
-  .eq('processed', false).order('created_at', { ascending: false }).limit(8))).data
+  .eq('processed', false)
+  .or(`expires_at.is.null,expires_at.gte.${nowIso}`)          // drop expired-dated
+  .or(`expires_at.not.is.null,created_at.gte.${staleUpdCut}`) // drop undated + old
+  .order('created_at', { ascending: false }).limit(8))).data
 let updateAlert = new Map()
 if (updates.length) {
   const ids = [...new Set(updates.map((u) => u.update_to_alert_id))]
