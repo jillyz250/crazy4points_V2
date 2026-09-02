@@ -15,10 +15,10 @@ export const revalidate = 86400
 // Recent social-post articles, newest first. Add each new IG/FB post's article
 // to the TOP and keep the last ~4 so every recent "link in bio" still resolves.
 const LATEST: { title: string; href: string }[] = [
+  { title: "Wyndham's last-chance 15,000-point bonus (register by Sept 3)", href: '/alerts/wyndham-summer-of-rewards-15k' },
   { title: 'An NFL ticket for 100 United miles (Chiefs vs. Seahawks)', href: '/alerts/united-100-mile-nfl-ticket' },
   { title: 'Southwest just opened its booking window to April 2027', href: '/programs/southwest' },
   { title: 'Hyatt and Air Canada are now trading points', href: '/alerts/hyatt-aeroplan-partnership' },
-  { title: 'Turn Rakuten cash back into Amex points', href: '/blog/convert-rakuten-cash-back-to-amex-points-with-the-right-card' },
 ]
 
 // The permanent button stack. The first item renders as the primary (filled)
