@@ -66,7 +66,7 @@ async function main() {
     db.from('reminders').select('id,title,due_date').eq('status', 'open'),
   )
 
-  // ---- DATA-INTEGRITY gaps (Phase 14) ----
+  // ---- DATA-INTEGRITY gaps (Phase 16) ----
   const needReverify = programs.filter((p) => len(p.transfer_partners_outbound) > 0 && !p.reverify_source_url)
   const authored = (p) => (p.intro && p.intro.trim()) || len(p.sweet_spots) > 0 || (typeof p.sweet_spots === 'string' && p.sweet_spots.trim())
   const stale90 = programs
@@ -80,7 +80,7 @@ async function main() {
   // ---- CONTENT gaps (feeds Phase 12 + the sweet-spot agent) ----
   const noSweet = programs.filter((p) => !(typeof p.sweet_spots === 'string' && p.sweet_spots.trim()))
 
-  // ---- PROCESS hygiene (Phase 13) ----
+  // ---- PROCESS hygiene (Phase 15) ----
   const staleReminders = reminders.filter((r) => daysSince(r.due_date) > 14)
   const tmpScripts = fs.existsSync('scripts')
     ? fs.readdirSync('scripts').filter((f) => f.startsWith('_tmp'))
@@ -92,7 +92,7 @@ async function main() {
   console.log('\n════════ IMPROVEMENT RADAR ' + new Date().toISOString().slice(0, 10) + ' ════════')
   console.log(`(scanned ${programs.length} active programs, ${cards.length} cards — read-only, zero-API)`)
 
-  console.log('\n🛡️  DATA-INTEGRITY (Phase 14) — ranked by blast radius')
+  console.log('\n🛡️  DATA-INTEGRITY (Phase 16) — ranked by blast radius')
   const di = [
     stale90.length && (() => { const t = stale90.filter((p) => TOP.has(p.slug)).length; return { n: stale90.length, msg: `program pages stale >90d${t ? ` (${t} TOP program${t === 1 ? '' : 's'})` : ''}`, ex: P(stale90) } })(),
     cardsNoOfficial.length && { n: cardsNoOfficial.length, msg: 'cards missing official_url (accuracy + dead-link risk)', ex: P(cardsNoOfficial) },
@@ -105,12 +105,12 @@ async function main() {
   console.log('\n📝  CONTENT (Phase 12 / sweet-spot agent)')
   console.log(`   • ${noSweet.length} active programs with no sweet_spots authored → ${P(noSweet)}`)
 
-  console.log('\n⚙️  PROCESS hygiene (Phase 13)')
+  console.log('\n⚙️  PROCESS hygiene (Phase 15)')
   if (staleReminders.length) console.log(`   • ${staleReminders.length} reminders open >14d (triage or dismiss): ${staleReminders.slice(0, 5).map((r) => r.title.slice(0, 40)).join(' · ')}`)
   if (tmpScripts.length) console.log(`   • ${tmpScripts.length} leftover _tmp scripts in scripts/ (clean up): ${tmpScripts.join(', ')}`)
   if (!staleReminders.length && !tmpScripts.length) console.log('   • clean ✅')
 
-  console.log('\n🎨  VISUAL/UX (Phase 15) — not DB-scannable; run the 375px overflow + tap-target sweep in the preview browser.')
+  console.log('\n🎨  VISUAL/UX (Phase 17) — not DB-scannable; run the 375px overflow + tap-target sweep in the preview browser.')
 
   // Suggested single picks for the ritual to grab.
   console.log('\n⭐ TODAY’S TOP PICKS')
