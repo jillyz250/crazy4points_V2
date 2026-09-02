@@ -445,7 +445,7 @@ backfill happening incrementally; see the standing FAQ-backfill project.
 Two halves — mine forward, and true up what shipped:
 - **Mine:** review everything done today (quick takes, page fixes, intel rejected,
   things verified) and pull out NEW article topics. Each → a `content_ideas` row
-  tagged to a pillar (`roadmap_reviewed=true`), or enrich an existing idea.
+  tagged to a pillar (`roadmap_reviewed=true`), or enrich an existing idea. Use `node scripts/add-content-idea.mjs --title .. --pitch .. --pillar .. --program .. --alert ..` (handles the type/source constraints).
 - **Reconcile (added 2026-08-28, Jill):** the roadmap must reflect reality — if we
   shipped something, mark it done. Check `lib/contentRoadmap.ts` `PLATFORM_TRACK`
   (statuses `done`/`next`/`planned`) against what actually shipped and flip stale
