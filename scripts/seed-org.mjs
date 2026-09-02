@@ -96,7 +96,21 @@ const planned = [
     allowed_scopes: ['programs/cards authoring', 'content roadmap', 'add-airline skill', 'editorial rules'] },
   { slug: 'bill-security', name: 'Bill', role_title: 'Head of Security', emoji: '🔒',
     mission: 'Own RLS, secrets, auth, dependency CVEs, and backups.',
-    allowed_scopes: ['RLS policies', 'secrets/.env', 'auth', 'dependency updates', 'backups'] },
+    allowed_scopes: ['RLS policies', 'secrets/.env', 'auth', 'dependency updates', 'backups'],
+    responsibilities: [
+      'ASSIGNED 2026-09-02: clear the standing dependency CVEs (1 critical sanitize-html, 10 high incl. ws + the resend->svix->uuid chain). npm audit fix the safe ones, assess the Resend bump separately, then typecheck + build.',
+      'Keep RLS airtight on every user/internal table (using + with check)',
+      'Guard secrets (gitignored, never committed) + admin auth on every route/action',
+    ] },
+  { slug: 'priya-sources', name: 'Priya', role_title: 'Head of Sources & Data Integrity', emoji: '🔎',
+    mission: 'Make sure every program has verified official sources, Scout watches the right things, Jill is subscribed to the right issuer emails, and our published facts stay accurate.',
+    allowed_scopes: ['official_sources table', 'sources table + Scout config', 'reverify_source_url + program-drift', 'fact-checking', 'intel intake / issuer-email subscriptions', 'plans/sources/[slug].md'],
+    responsibilities: [
+      'Ensure every program has verified OFFICIAL sources (official_sources + reverify_source_url); close coverage gaps',
+      'Own the Scout sources and make sure Scout runs and checks the PROPER things',
+      'Keep Jill subscribed to the right issuer/program emails so intel intake stays complete',
+      'Run the drift + reverify + fact-check accuracy systems so published facts do not go stale',
+    ] },
 ]
 for (const p of planned) await upsert({ ...p, kind: 'agent', status: 'planned', reports_to_id: morganId })
 
