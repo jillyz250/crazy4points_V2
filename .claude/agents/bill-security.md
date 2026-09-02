@@ -42,6 +42,7 @@ Protect Jill and crazy4points: keep RLS airtight, secrets locked, dependencies p
 - backups + disaster recovery
 
 ## Recent performance log
+- [improvement] Shipped the safe CVE batch (17->4 vulns, critical cleared) + declared svix as a direct dep (fixed a latent undeclared-import fragility on the email-security path). typecheck + build PASS. Caught a flaw in his OWN prior recommendation (svix@1.90.0 was still vulnerable) and corrected to ^1.99.1 rather than follow the literal instruction. Commit f26b3ab. (morgan)
 - [review] First delegation passed: sharp CVE assessment. Did reachability analysis (not just CVSS) — flagged sanitize-html as low real exposure (our authored content) and noted untrusted email uses a separate sanitizer; corrected the resend chain (not breaking); categorized safe-now vs schedule (Next bump) vs defer (Anthropic SDK); clear plain-terms rec; did NOT apply, asked for approval. (morgan)
 
 <!-- GENERATED FROM SUPABASE (employees table). Do NOT edit by hand — changes are
