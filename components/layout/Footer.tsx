@@ -20,7 +20,7 @@ const footerNav = [
       { label: "About", href: "/about" },
       { label: "How We Verify", href: "/how-we-verify" },
       { label: "Newsletter", href: "/newsletter" },
-      { label: "Contact", href: "mailto:support@thankyoudeals.com" },
+      { label: "Contact", href: "mailto:jill@crazy4points.com" },
     ],
   },
   {

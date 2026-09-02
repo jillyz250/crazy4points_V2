@@ -54,7 +54,7 @@ export default function PrivacyPolicyPage() {
           content: [
             'California residents have the right to:',
             { type: 'list', items: ['Know what personal information we collect', 'Request deletion', 'Correct inaccurate information', 'Opt out of sharing for cross-context behavioral advertising', "Limit use of sensitive personal information (we do not collect any)"] },
-            'You may exercise these rights by visiting our Do Not Sell or Share My Personal Information page or emailing support@thankyoudeals.com. We do not sell personal information.',
+            'You may exercise these rights by visiting our Do Not Sell or Share My Personal Information page or emailing jill@crazy4points.com. We do not sell personal information.',
           ],
         },
         {

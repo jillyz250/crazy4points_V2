@@ -34,7 +34,7 @@ export default function AccessibilityPage() {
         {
           heading: '4. Feedback & Assistance',
           content: [
-            'If you encounter accessibility barriers or need assistance accessing content, please contact us at support@thankyoudeals.com. Please include:',
+            'If you encounter accessibility barriers or need assistance accessing content, please contact us at jill@crazy4points.com. Please include:',
             { type: 'list', items: ['A description of the issue', 'The page or feature where it occurred', "Any assistive technology you were using (optional)"] },
             'We aim to respond to accessibility inquiries within 5–10 business days.',
           ],

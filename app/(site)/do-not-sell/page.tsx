@@ -35,7 +35,7 @@ export default function DoNotSellPage() {
         {
           heading: '3. How to Opt Out of Sale or Sharing',
           content: [
-            'If you are a California resident, you may opt out of the sale or sharing of your personal information by contacting us at support@thankyoudeals.com. Please include your request to opt out, your state of residence, and any relevant details to help us process your request.',
+            'If you are a California resident, you may opt out of the sale or sharing of your personal information by contacting us at jill@crazy4points.com. Please include your request to opt out, your state of residence, and any relevant details to help us process your request.',
             'We will respond to verifiable consumer requests within the timeframes required by applicable law (generally within 45 days). We may need to verify your identity before completing your request.',
           ],
         },

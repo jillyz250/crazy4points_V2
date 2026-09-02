@@ -105,8 +105,8 @@ export default function LegalPage({ title, effectiveDate, lastUpdated, intro, se
           <div className="mt-16 pt-8 border-t border-[var(--color-border-soft)]">
             <p className="font-body text-xs text-[var(--color-text-secondary)]">
               ThankYouDeals Inc. · New York, USA ·{" "}
-              <a href="mailto:support@thankyoudeals.com" className="text-[var(--color-primary)] hover:underline">
-                support@thankyoudeals.com
+              <a href="mailto:jill@crazy4points.com" className="text-[var(--color-primary)] hover:underline">
+                jill@crazy4points.com
               </a>
             </p>
           </div>
