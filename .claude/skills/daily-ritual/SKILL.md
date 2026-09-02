@@ -236,8 +236,15 @@ won't double up with the auto-ingested reminder. If she says no, skip it. See
   `triage-apply.mjs`. Verdicts: PUBLISH / QUICK-TAKE / PAGE-NOTE / HOLD / REJECT
   (no "newsletter" verdict — retired). US-signal + new-program are never
   auto-collapsed.
-NOTE: the classifier drains this automatically once the build-brief re-feed-undecided
-fix lands; this phase is the human layer over what's left.
+NOTE: the nightly **`intel-autoclear` cron** (mig-free, `utils/intel/autoclear.ts`,
+09:50 UTC) now pre-drains the queue of items that need no human — **already-covered**
+(matches a published/expired alert), **expired** (past their own `expires_at`), and
+**aged-out email forwards** (>30d) — all reversible, and it NEVER touches
+`update_to_alert_id` alert-updates. So Phase 4 should open SMALL (built 2026-09-02
+after a month of forwards piled to 143 undecided → 2 genuinely-new after one run). If
+the queue is still large, the cron likely did not run — hit `/api/cron/intel-autoclear`
+or check its logs; a truly large NEW pile is rare. This phase is the human layer over
+what the autoclear leaves.
 
 ### Phase 5 · 🔥 The two NON-intel feeds (never "already done")
 **The publish-decision core lives in Phase 4 (4a/4b) now** — that's where verified
