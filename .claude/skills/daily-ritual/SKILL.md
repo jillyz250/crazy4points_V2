@@ -254,14 +254,16 @@ every morning as its own two-item checklist. **Do NOT skip it on the reasoning
 "we already published today" — that's the exact miss caught 2026-09-01; those
 publishes were 4a/4b, and these two feeds are separate.** Walk each, one at a time,
 verified against official first:
-1. **Experiences to review** (snapshot `NEW EXPERIENCES TO REVIEW`, ⭐ alert-worthy
-   first) → **PUBLISH** (full alert), **QUICK-TAKE** (depth='quick'), or **SKIP**.
-   ANY verdict (including skip) sets `editorial_reviewed_at=now` on the
-   **`experience_listings`** row (NOT `experiences` — wrong table errors with a
-   schema-cache "column not found"; silent-table trap) — that IS "looking at it,"
-   clearing it from the morning list AND the /admin "to review" count. Pure
-   card-access presale tickets aren't surfaced; Marriott Moments are. Low-stakes
-   directory listings can be presented as one compact group with a SKIP-all rec.
+1. **Experiences to review — JILL REVIEWS THESE HERSELF ON THE DASHBOARD (Jill,
+   2026-09-02). Do NOT present them or recommend SKIP-all.** Send her to
+   **`/admin/experiences`** ("there are N new to review") — she has the judgment on
+   what's genuinely good + US-worthy, and the UI lets her ⭐ Feature and use the
+   **"+ Social calendar"** button. That button auto-times the post
+   (`addToSocialCalendar`): **fixed-price posts RIGHT AWAY** (limited packages can
+   sell out before the close date), **auctions ~5 days before close** (bid lead
+   time). Reviewing/featuring/adding each stamps `editorial_reviewed_at`, clearing
+   the /admin count. Your job here is just to hand her the dashboard and wait for
+   `next` — she owns the curation.
 2. **Legacy `newsletter_idea` item expiring soon** (snapshot `NEWSLETTER ITEMS
    EXPIRING SOON`) → **PUBLISH now** (a QUICK-TAKE or full alert before the
    deadline) or **REJECT**. There is no "keep for newsletter" anymore — the bucket
