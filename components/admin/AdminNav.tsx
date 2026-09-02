@@ -82,6 +82,10 @@ const NAV_GROUPS: NavGroup[] = [
     items: [{ href: '/admin/subscribers', label: 'Subscribers', abbr: 'Su' }],
   },
   {
+    label: 'Team',
+    items: [{ href: '/admin/org', label: 'Org Chart', abbr: 'Or' }],
+  },
+  {
     label: 'Ops',
     items: [
       { href: '/admin/extractions', label: 'Extractions', abbr: 'Ex', badgeKey: 'refreshQueue' },
