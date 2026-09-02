@@ -743,6 +743,15 @@ Same accuracy bar as everything else: **no number we haven't actually pulled**, 
 name which metrics we CAN'T yet see (a gap to build). See [[project_newsletter_open_click_stats]],
 [[project_gsc_pickup_2026_05_07]], [[project_social_media_dashboard]].
 
+**⭐ ALSO each day, INGEST one more real source/tile toward the analytics dashboard
+(Jill, 2026-09-02) — [[project_analytics_dashboard]].** Don't just review what we can
+already see; grow what we can see. Build order: GSC (top queries + pages) → GA4
+(traffic + sources incl. AI referrals) → Meta → stitch into `/admin/analytics`.
+Credentials in `.env.local` only, NEVER committed. If we're blocked waiting on Jill for
+an API key, say so and pick the next buildable tile. The goal is a dashboard that
+compounds one real tile at a time. First real insight (2026-09-02): signups stalled
+(0 in 7d); giveaways are the proven signup magnet (7 of 13 signups from one sweeps page).
+
 ---
 
 ### Phase 23 (Phase 24 on Thursdays) · 📬 Deliverability & list health
