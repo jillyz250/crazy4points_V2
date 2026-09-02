@@ -425,7 +425,7 @@ Advantage (airlines+hotels), already enrolled. See [[reference_sweepstakes_sourc
 
 ### Phase 11 · ✈️ Changes/Cancellations — next airline (1/day)
 Add the "Changes, Cancellations & Delays" section (`programs.changes_policy`) to
-the next-priority airline page — **cadence 1 airline/day**. Verify against the
+the next-priority airline page — **cadence 1 airline/day**. Run `node scripts/changes-policy-checklist.mjs` to see the running list and the NEXT UP (self-updating from the DB; author that one). Verify against the
 airline's OWN official change/cancel page (no blogs). Priority: United, Delta, AA,
 Alaska/Atmos, Aeroplan, Avios, ANA, Cathay, Emirates, Turkish, KrisFlyer, Virgin,
 LifeMiles… See [[project_award_change_cancel_section]].
