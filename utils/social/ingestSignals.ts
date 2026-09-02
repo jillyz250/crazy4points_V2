@@ -72,23 +72,10 @@ export async function runSignalIngest(
     }))
   }
 
-  // 3) Featured experiences with a future close_date.
-  const { data: exps } = await db
-    .from('experience_listings')
-    .select('id, title, close_date, program_slug')
-    .eq('status', 'active').eq('featured', true)
-    .not('close_date', 'is', null).gte('close_date', todayISO).lte('close_date', toISO)
-    .limit(40)
-  for (const e of exps ?? []) {
-    cand.push(base({
-      post_date: clampToday(shiftDays(e.close_date, -2), todayISO),
-      topic: String(e.title).slice(0, 120),
-      category: 'experience',
-      source_type: 'experience',
-      source_ref: `exp:${e.id}`,
-      notes: `Experience closes ${String(e.close_date).slice(0, 10)} (${e.program_slug}). Last-chance angle.`,
-    }))
-  }
+  // NOTE: experiences are NOT auto-ingested — Jill adds them deliberately via the
+  // "+ Social calendar" button on /admin/experiences (auto-timing: fixed-price posts
+  // right away for sell-out risk, auctions ~5 days before close). See
+  // app/admin/(protected)/experiences/actions.ts addToSocialCalendar (2026-09-02).
 
   const { inserted, skipped } = await insertDeduped(db, cand)
   const bySource: Record<string, number> = {}

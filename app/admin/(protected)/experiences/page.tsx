@@ -4,7 +4,7 @@ import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Card, CardBody } from '@/components/admin/ui/Card'
 import { EmptyState } from '@/components/admin/ui/EmptyState'
 import { isPresaleListing } from '@/lib/experiences/presale'
-import { markReviewed, toggleFeatured } from './actions'
+import { markReviewed, toggleFeatured, addToSocialCalendar } from './actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -89,6 +89,13 @@ export default async function AdminExperiencesPage() {
   const olderUnreviewed = ((olderRes.data ?? []) as Row[]).filter(reviewable)
   const featured = (featuredRes.data ?? []) as Row[]
 
+  // Which of these are already on the social calendar (so the button shows state).
+  const refs = [...toReview, ...olderUnreviewed, ...featured].map((e) => `exp:${e.id}`)
+  const { data: onCal } = refs.length
+    ? await supabase.from('social_calendar').select('source_ref').in('source_ref', refs)
+    : { data: [] as { source_ref: string }[] }
+  const onCalSet = new Set((onCal ?? []).map((r) => r.source_ref))
+
   return (
     <div>
       <PageHeader
@@ -110,7 +117,7 @@ export default async function AdminExperiencesPage() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {toReview.map((e) => (
-            <ExperienceRow key={e.id} e={e} />
+            <ExperienceRow key={e.id} e={e} onCalendar={onCalSet.has(`exp:${e.id}`)} />
           ))}
         </div>
       )}
@@ -126,7 +133,7 @@ export default async function AdminExperiencesPage() {
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {olderUnreviewed.map((e) => (
-              <ExperienceRow key={e.id} e={e} />
+              <ExperienceRow key={e.id} e={e} onCalendar={onCalSet.has(`exp:${e.id}`)} />
             ))}
           </div>
         </>
@@ -140,7 +147,7 @@ export default async function AdminExperiencesPage() {
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {featured.map((e) => (
-              <ExperienceRow key={e.id} e={e} featuredSection />
+              <ExperienceRow key={e.id} e={e} featuredSection onCalendar={onCalSet.has(`exp:${e.id}`)} />
             ))}
           </div>
         </>
@@ -149,7 +156,7 @@ export default async function AdminExperiencesPage() {
   )
 }
 
-function ExperienceRow({ e, featuredSection = false }: { e: Row; featuredSection?: boolean }) {
+function ExperienceRow({ e, featuredSection = false, onCalendar = false }: { e: Row; featuredSection?: boolean; onCalendar?: boolean }) {
   const price = priceLabel(e)
   const program = e.program_slug ?? e.source_platform ?? '—'
   return (
@@ -189,6 +196,18 @@ function ExperienceRow({ e, featuredSection = false }: { e: Row; featuredSection
                 {e.featured ? '★ Unfeature' : '⭐ Feature'}
               </button>
             </form>
+            {onCalendar ? (
+              <span className="admin-btn admin-btn-ghost" style={{ fontSize: '0.8125rem', opacity: 0.7, cursor: 'default' }} title="Already on the social calendar">
+                ✓ On calendar
+              </span>
+            ) : (
+              <form action={addToSocialCalendar}>
+                <input type="hidden" name="id" value={e.id} />
+                <button type="submit" className="admin-btn admin-btn-ghost" style={{ fontSize: '0.8125rem' }} title={e.current_bid != null ? 'Schedules a post ~5 days before the auction closes' : 'Schedules a post right away (fixed-price can sell out)'}>
+                  + Social calendar
+                </button>
+              </form>
+            )}
             {!featuredSection && (
               <form action={markReviewed}>
                 <input type="hidden" name="id" value={e.id} />
