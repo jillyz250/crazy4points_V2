@@ -85,7 +85,12 @@ await upsert({
 const planned = [
   { slug: 'janet-growth', name: 'Janet', role_title: 'Head of Growth & Revenue', emoji: '💰',
     mission: 'Own performance + revenue: the analytics dashboard, Google Ads, affiliate networks, and conversion.',
-    allowed_scopes: ['analytics (GSC/GA4)', 'Google Ads', 'affiliate networks', 'conversion tracking', 'monetization'] },
+    allowed_scopes: ['analytics (GSC/GA4)', 'Google Ads', 'affiliate networks', 'conversion tracking', 'monetization'],
+    responsibilities: [
+      'Build out the analytics dashboard (GSC live; GA4 + Meta + signups next)',
+      'ASSIGNED 2026-09-02: build a Resend deliverability-stats tile (bounce / complaint / open / delivery rates) so we can finally see email health',
+      'Own Google Ads + affiliate networks + conversion tracking (the non-social paid + revenue side)',
+    ] },
   { slug: 'john-content', name: 'John', role_title: 'Head of Content', emoji: '✍️',
     mission: 'Own program/card pages, articles, the FAQ backfill, and editorial accuracy.',
     allowed_scopes: ['programs/cards authoring', 'content roadmap', 'add-airline skill', 'editorial rules'] },
