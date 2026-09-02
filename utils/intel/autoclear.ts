@@ -34,9 +34,13 @@ export async function runAutoclear(
   const ageDays = opts.ageDays ?? 30
   const now = new Date().toISOString()
 
+  // Sweep both truly-undecided intel AND the RETIRED `newsletter_idea` bucket (Jill,
+  // 2026-09-02: it had silently grown to 303 legacy parks). Future-dated, uncovered
+  // items still survive — only expired/covered/aged are cleared.
   const { data: intel } = await db.from('intel_items')
     .select('id, headline, programs, source_type, created_at, expires_at')
-    .is('rejected_at', null).is('archived_at', null).is('alert_id', null).is('triage_decision', null)
+    .is('rejected_at', null).is('archived_at', null).is('alert_id', null)
+    .or('triage_decision.is.null,triage_decision.eq.newsletter_idea')
     .is('update_to_alert_id', null).limit(5000)
 
   const { data: pubRaw } = await db.from('content_variants')
