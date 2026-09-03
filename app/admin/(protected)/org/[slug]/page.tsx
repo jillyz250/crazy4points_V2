@@ -538,7 +538,7 @@ const EP_CSS = `
 .admin .ep-hero::before { content:''; position:absolute; top:0; left:1.6rem; right:1.6rem; height:2px; border-radius:2px; background:linear-gradient(90deg, transparent, ${GOLD}, transparent); opacity:.85; }
 .admin .ep-hero-top { display:flex; gap:1.25rem; align-items:center; }
 .admin .ep-portrait-wrap { flex-shrink:0; padding:3px; border-radius:16px; background:linear-gradient(150deg, ${GOLD}, color-mix(in srgb, ${GOLD} 25%, #fff)); box-shadow:0 8px 20px -12px rgba(107,45,143,.4); }
-.admin .ep-portrait { position:relative; width:96px; height:96px; border-radius:13px; overflow:hidden; background:var(--admin-accent-soft); }
+.admin .ep-portrait { position:relative; width:128px; height:128px; border-radius:14px; overflow:hidden; background:var(--admin-accent-soft); }
 .admin .ep-portrait-fallback { display:flex; align-items:center; justify-content:center; font-size:3rem; background:radial-gradient(circle at 30% 25%, #fff, var(--admin-accent-soft)); }
 .admin .ep-hero-id { min-width:0; flex:1; }
 .admin .ep-status { display:inline-flex; align-items:center; gap:6px; font-size:var(--admin-text-xs); font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--admin-text-muted); }
@@ -773,7 +773,7 @@ const EP_CSS = `
 @media (max-width:560px) {
   .admin .ep-hero-top { align-items:flex-start; gap:1rem; }
   .admin .ep-name { font-size:1.75rem; }
-  .admin .ep-portrait { width:76px; height:76px; }
+  .admin .ep-portrait { width:100px; height:100px; }
   .admin .ep-papers { gap:1.4rem 1.1rem; padding:1.5rem 1.1rem 1.6rem; justify-content:center; }
 }
 `
