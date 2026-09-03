@@ -42,6 +42,7 @@ const arr = <T,>(v: T[] | null | undefined): T[] => (Array.isArray(v) ? v : [])
 const CAT_ICON: Record<TaskCategory, IconName> = {
   Ops: 'compass', Content: 'pencil', Social: 'megaphone', Growth: 'trending',
   Sources: 'globe', Accuracy: 'shield', Reference: 'database', Reliability: 'activity', Design: 'palette',
+  Finance: 'briefcase',
 }
 // Per-page icon where a distinct one reads clearer; else the category icon.
 const PAGE_ICON: Record<string, IconName> = {
@@ -54,6 +55,7 @@ const PAGE_ICON: Record<string, IconName> = {
   issuers: 'briefcase', cards: 'creditCard', 'partner-redemptions': 'award', tokens: 'tag',
   extractions: 'database', 'card-extractions': 'creditCard', 'refresh-queue': 'activity', 'manual-overrides': 'pencil',
   glossary: 'book', dashboard: 'compass', org: 'users', 'ai-usage': 'gauge', decisions: 'flag',
+  expenses: 'creditCard',
 }
 const pageIcon = (p: AdminPage): IconName => PAGE_ICON[p.id] ?? CAT_ICON[p.taskCategory]
 

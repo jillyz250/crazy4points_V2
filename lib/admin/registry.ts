@@ -28,6 +28,7 @@ export type OwnerSlug =
   | 'priya-sources'
   | 'bill-security'
   | 'devon-design'
+  | 'erica-finance'
 
 export type Owner = {
   slug: OwnerSlug
@@ -53,6 +54,7 @@ export const OWNERS: Record<OwnerSlug, Owner> = {
   'priya-sources': { slug: 'priya-sources', name: 'Priya', role: 'Sources & Data Integrity', emoji: '🔍', order: 5 },
   'bill-security': { slug: 'bill-security', name: 'Bill', role: 'Head of Security', emoji: '🔒', order: 6 },
   'devon-design': { slug: 'devon-design', name: 'Devon', role: 'Head of Design & UX', emoji: '🎨', order: 7 },
+  'erica-finance': { slug: 'erica-finance', name: 'Erica', role: 'Finance & Accounting', emoji: '🧾', order: 8 },
 }
 
 // ── Task categories (the "what does this do" sub-label) ─────────────────────
@@ -67,6 +69,7 @@ export type TaskCategory =
   | 'Reference'
   | 'Reliability'
   | 'Design'
+  | 'Finance'
 
 export type PageStatus = 'active' | 'planned' | 'deprecated'
 
@@ -683,6 +686,20 @@ export const ADMIN_PAGES: AdminPage[] = [
     icon: '🎨',
     dashboardPriority: 16,
     abbr: 'Gl',
+  },
+
+  // ── Erica · Finance ───────────────────────────────────────────────────────
+  {
+    id: 'expenses',
+    title: 'Expenses',
+    description: 'The money going out — log expenses, running + monthly totals, and a quick calculator.',
+    owner: 'erica-finance',
+    taskCategory: 'Finance',
+    path: '/admin/expenses',
+    status: 'active',
+    icon: '🧾',
+    dashboardPriority: 45,
+    abbr: 'Ep',
   },
 
   // ── Deprecated ghosts (kept reachable for old bookmarks; NOT in the nav) ──
