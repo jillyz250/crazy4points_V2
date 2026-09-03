@@ -519,7 +519,7 @@ const DH_CSS = `
 
 /* Sections */
 .admin .dh-section { margin-bottom:3rem; }
-.admin .dh-cols { display:grid; grid-template-columns:1.15fr .85fr; gap:1.5rem; margin-bottom:3rem; align-items:start; }
+.admin .dh-cols { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:3rem; align-items:start; }
 /* Grid tracks default to min-width:auto, so nowrap titles inside push the track
    wider than the viewport (148px overflow at 375px). Let tracks shrink. */
 .admin .dh-cols > * { min-width:0; }
@@ -583,11 +583,6 @@ const DH_CSS = `
 .admin .dh-attn-go { flex-shrink:0; color:var(--admin-text-subtle); opacity:0; transform:translateX(-4px); transition:opacity .14s ease, transform .14s ease; }
 .admin .dh-attn-row:hover .dh-attn-go { opacity:1; transform:translateX(0); color:var(--admin-warning); }
 .admin .dh-attn-foot { margin:2px 6px 4px; padding-top:9px; border-top:1px dashed color-mix(in srgb, var(--admin-warning) 16%, var(--admin-border)); font-size:var(--admin-text-xs); color:var(--admin-text-subtle); font-weight:600; }
-/* All-clear — one calm line, quiet by design when nothing is aging */
-.admin .dh-attn-clear { display:flex; align-items:center; gap:10px; padding:14px 18px; border-radius:14px; border:1px solid var(--admin-border); background:var(--admin-surface); }
-.admin .dh-attn-clear-ic { display:flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:8px; flex-shrink:0; color:var(--admin-success); background:var(--admin-success-soft); }
-.admin .dh-attn-clear-txt { font-size:var(--admin-text-sm); font-weight:600; color:var(--admin-text-secondary); }
-.admin .dh-attn-clear-foot { margin-left:auto; font-size:var(--admin-text-xs); color:var(--admin-text-subtle); font-weight:600; }
 /* Compact all-clear strip — replaces the full "nothing wrong" section so it costs
    one quiet line, not prime dashboard real estate. */
 .admin .dh-attn-strip { display:flex; align-items:center; gap:8px; margin:0 0 2.25rem; padding:9px 14px; border-radius:10px; background:var(--admin-surface); border:1px solid var(--admin-border); color:var(--admin-success); }
@@ -622,7 +617,6 @@ const DH_CSS = `
 .admin .dh-notepad { padding:1.25rem; }
 
 /* My Tasks host */
-.admin .dh-mytasks-sec { margin-top:-.6rem; }
 .admin .dh-mytasks { padding:1.25rem 1.4rem; }
 
 /* Team */
@@ -664,8 +658,6 @@ const DH_CSS = `
   .admin .dh-attn-label { flex-basis:auto; }
   .admin .dh-attn-meta { flex-basis:100%; order:3; padding-left:47px; }
   .admin .dh-attn-go { display:none; }
-  .admin .dh-attn-clear { flex-wrap:wrap; }
-  .admin .dh-attn-clear-foot { margin-left:36px; flex-basis:100%; }
   /* Activity rows: let the summary wrap to its own line, badge+who up top */
   .admin .dh-act-row { flex-wrap:wrap; gap:7px 10px; }
   .admin .dh-act-summary { flex-basis:100%; order:4; white-space:normal; }
