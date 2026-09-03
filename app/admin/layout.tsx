@@ -6,22 +6,16 @@ import SidebarShell from '@/components/admin/SidebarShell'
 import { createAdminClient } from '@/utils/supabase/server'
 import { isAdminRequest } from '@/lib/auth/admin'
 
-// The nav is people-only: load the team, ordered owner → chief → heads
-// (active first). Every tool stays reachable via each person's workspace page.
+// The nav renders the team as an org chart grouped by department, so it needs
+// the reporting edges (id + reports_to_id) to know who heads what and who
+// reports to whom. Ordering/grouping happens in AdminNav; here we just load.
 async function loadPeople(): Promise<NavPerson[]> {
   try {
     const supabase = createAdminClient()
     const { data } = await supabase
       .from('employees')
-      .select('slug, name, role_title, emoji, image_url, kind, status')
-    const emps = (data ?? []) as NavPerson[]
-    const kindRank = { owner: 0, chief: 1, agent: 2 } as const
-    const statusRank: Record<string, number> = { active: 0, paused: 1, planned: 2, retired: 3 }
-    return emps.sort((a, b) =>
-      (kindRank[a.kind] - kindRank[b.kind]) ||
-      ((statusRank[a.status] ?? 9) - (statusRank[b.status] ?? 9)) ||
-      a.name.localeCompare(b.name),
-    )
+      .select('id, slug, name, role_title, emoji, image_url, kind, status, reports_to_id')
+    return (data ?? []) as NavPerson[]
   } catch {
     return []
   }

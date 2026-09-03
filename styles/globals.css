@@ -905,9 +905,21 @@ body:has([data-primary-newsletter-signup]) .footer-newsletter-band {
 .admin-nav-person.is-active { background: var(--admin-accent-soft); }
 .admin-nav-person.is-active .admin-nav-person-name { color: var(--admin-accent); }
 .admin-nav-person.is-active .admin-nav-avatar { box-shadow: 0 0 0 2px var(--color-accent); }
+/* Org-chart groups: a department header (colour dot + name), its head, then
+   the head's specialists tucked under a matching colour rail. */
+.admin-nav-dept { display: flex; flex-direction: column; gap: 2px; margin-top: 0.4rem; }
+.admin-nav-dept-label { display: flex; align-items: center; gap: 0.4rem; }
+.admin-nav-dept-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.admin-nav-dept-specialists {
+  display: flex; flex-direction: column; gap: 2px;
+  margin-left: 0.9rem; padding-left: 0.35rem;
+  border-left: 2px solid var(--admin-border);
+}
 /* Collapsed rail: avatars + glyphs only */
 .admin-shell.is-collapsed .admin-nav-divider { margin: 0.5rem 0.5rem; }
 .admin-shell.is-collapsed .admin-nav-section-label { display: none; }
+.admin-shell.is-collapsed .admin-nav-dept { margin-top: 0; gap: 2px; }
+.admin-shell.is-collapsed .admin-nav-dept-specialists { margin-left: 0; padding-left: 0; border-left: none; }
 .admin-shell.is-collapsed .admin-nav-person-meta { display: none; }
 .admin-shell.is-collapsed .admin-nav-person { justify-content: center; padding: 0.375rem; }
 .admin-shell.is-collapsed .admin-nav-static { justify-content: center; }
