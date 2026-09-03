@@ -104,7 +104,7 @@ export default async function AdminDashboard() {
     { data: empData }, { data: logData }, { data: notesData }, { data: tasksData }, { data: p1Data },
     { data: activityData },
     alertsCount, programsCount, subsCount, subsTrend, newExperiences, newSweepstakes, pendingDecisions,
-    triageCount, draftCount, errorCount,
+    triageCount, draftCount, errorCount, dataIntegrityCount,
   ] = await Promise.all([
     db.from('employees').select('id, slug, name, role_title, kind, emoji, image_url, status, responsibilities'),
     db.from('employee_logs').select('employee_id, type, created_at'),
@@ -142,6 +142,9 @@ export default async function AdminDashboard() {
       .eq('status', 'needs_review')),
     filteredCount((c) => c.from('system_errors').select('*', { count: 'exact', head: true })
       .is('resolved_at', null)),
+    // Data integrity = unresolved program-fact drift (matches programDriftCount()).
+    filteredCount((c) => c.from('intel_items').select('*', { count: 'exact', head: true })
+      .not('conflicts_program_id', 'is', null).is('conflict_resolution', null).is('archived_at', null)),
   ])
   const emps = (empData ?? []) as Emp[]
   const notes = (notesData ?? []) as DashboardNote[]
@@ -186,6 +189,7 @@ export default async function AdminDashboard() {
     triage: { n: triageCount ?? 0, label: 'new' },
     drafts: { n: draftCount ?? 0, label: 'ready' },
     errors: { n: errorCount ?? 0, label: 'today' },
+    'data-integrity': { n: dataIntegrityCount ?? 0, label: 'to check' },
   }
   const liveQueue = queue
     .filter((q) => LIVE[q.page.id] && LIVE[q.page.id].n > 0)
