@@ -82,6 +82,27 @@ export async function setTaskStatus(
     })
     .eq('id', id)
 
+  // Close the idea loop: if this task came from an approved idea, finishing it
+  // auto-ships the idea (approved -> shipped), so nothing dangles. Non-fatal.
+  if (status === 'done') {
+    try {
+      const { data: t } = await db
+        .from('employee_tasks')
+        .select('source_idea_id')
+        .eq('id', id)
+        .maybeSingle()
+      const ideaId = t?.source_idea_id as string | null
+      if (ideaId) {
+        await db
+          .from('employee_ideas')
+          .update({ status: 'shipped', shipped_at: now })
+          .eq('id', ideaId)
+      }
+    } catch {
+      /* loop-close is a convenience; never block the status change */
+    }
+  }
+
   if (employeeSlug) revalidatePath(`/admin/org/${employeeSlug}`)
   revalidatePath('/admin')
 }
@@ -188,11 +209,12 @@ export async function decideIdea(
         await db.from('employee_tasks').insert({
           employee_slug: ownerSlug,
           title: (idea!.idea as string).slice(0, 500),
-          detail: `Approved idea${idea?.area ? ` (${idea.area})` : ''} — build it, then mark the idea shipped.`,
+          detail: `Approved idea${idea?.area ? ` (${idea.area})` : ''} — marking this task done auto-ships the idea.`,
           priority: 'P2',
           status: 'todo',
           assigned_by: 'jill',
           link: `/admin/org/${ownerSlug}#ideas`,
+          source_idea_id: id, // closes the loop: task done -> idea shipped (setTaskStatus)
         })
         revalidatePath('/admin')
       } catch {
