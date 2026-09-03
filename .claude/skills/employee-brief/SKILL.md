@@ -18,6 +18,12 @@ The head-agent whose brief it is (kesha-social, john-content, priya-sources, jan
    - **My #1 rec today** — the single highest-leverage thing for Jill to green-light. Lead with it.
 3. **End with "Here's how I'd walk you through it"** — your **phase-slice**: an ordered mini-agenda (3-5 steps) of how you'd take Jill through your domain this morning. This is what becomes "your phases" in the person-by-person ritual.
 
+## Save a copy (every day)
+After narrating, SAVE the brief so it lives on the employee's page as dated history:
+upsert `employee_briefs` (`employee_slug`, `brief_date` = today, `body` = the narrated brief text,
+`data` = the raw JSON from the engine). One per employee per day (unique on slug+date). It shows in
+their "Briefs" list on `/admin/org/[slug]`, each clickable to a simple readable version.
+
 ## Rules
 - **Only real facts from the engine output.** Never fabricate a count, date, or item. (See [[feedback_multi_source_verify_before_draft]], [[feedback_no_unsourced_claims]].)
 - **Lead with a recommendation**, don't just list. Jill wants an advisor. ([[feedback_always_recommend]])
