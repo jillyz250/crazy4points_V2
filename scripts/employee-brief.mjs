@@ -162,6 +162,23 @@ async function main() {
     .eq('employee_slug', slug).eq('status', 'new')
     .order('created_at', { ascending: false }).limit(6))
   data.ideas = ideas
+  // Roll up this head's TEAM: each specialist briefs their head daily (their open
+  // ideas + status), and that flows INTO the head's brief. The head presents the
+  // aggregated brief to Jill (subs -> head -> Jill).
+  const me = (await safe('me', db.from('employees').select('id').eq('slug', slug).single()))?.data
+  if (me?.id) {
+    const reports = await rows('reports', db.from('employees')
+      .select('slug, name, role_title').eq('reports_to_id', me.id).eq('kind', 'agent').order('name'))
+    if (reports.length) {
+      data.team = []
+      for (const r of reports) {
+        const subIdeas = await rows('sub ideas', db.from('employee_ideas')
+          .select('idea, area').eq('employee_slug', r.slug).eq('status', 'new')
+          .order('created_at', { ascending: false }).limit(3))
+        data.team.push({ name: r.name, role: r.role_title, slug: r.slug, ideas: subIdeas })
+      }
+    }
+  }
   console.log(JSON.stringify({ employee: slug, as_of: today, ...data }, null, 2))
 }
 main()
