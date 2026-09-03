@@ -133,8 +133,10 @@ you to review them now."* Then she presents the full list (every new item, scann
 flagged, directory-noise flagged) and **walks Jill through reviewing them — Jill lays eyes on every
 new one when it first appears; nothing is skipped unseen.** Jill decides each (or approves the skip of
 the flagged noise / pulls any to keep); ANY verdict stamps `editorial_reviewed_at`. · **[10]**
-sweepstakes review (same cue: state the count, "review them now", show them all) · **[18]** the ONE
-social post (pulls from today's publishes) · **[19]** campaign creative (Reese/Devon). Kesha owns the
+sweepstakes review (same cue: state the count, "review them now", show them all) · **[18]** the day's
+social post — **Kesha SHOWS Jill the TOP candidates (pulled from today's publishes) and JILL PICKS
+which to post** (propose mode, until Jill trusts Kesha to choose one herself); Kesha then drafts the
+winner, shows the full draft, Jill posts (Kesha never posts) · **[19]** campaign creative (Reese/Devon). Kesha owns the
 **Social Calendar** too. Publishing/posting = show the draft.
 
 ### Block 5 · 🧭 Morgan — Sweep & build  *(covers the whole day)*
