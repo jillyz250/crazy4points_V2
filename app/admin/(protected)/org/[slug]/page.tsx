@@ -6,6 +6,8 @@ import { computeMeters } from '@/lib/orgMeters'
 import { Icon, Ring, meterCells, type IconName } from '@/components/admin/preview/kit'
 import { ADMIN_PAGES, type TaskCategory, type AdminPage } from '@/lib/admin/registry'
 import type { DecisionRow, DecisionStatus } from '@/lib/admin/logDecision'
+import AssignedTasks from '@/components/admin/dashboard/AssignedTasks'
+import type { EmployeeTask } from './tasks'
 
 export const dynamic = 'force-dynamic'
 
@@ -99,7 +101,7 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
   const e = data as Emp | null
   if (!e) notFound()
 
-  const [{ data: logsData }, { data: mgr }, { data: teamData }, { data: loreData }, { data: decisionsData }] = await Promise.all([
+  const [{ data: logsData }, { data: mgr }, { data: teamData }, { data: loreData }, { data: decisionsData }, { data: tasksData }] = await Promise.all([
     db.from('employee_logs').select('id, type, note, actor, created_at').eq('employee_id', e.id).order('created_at', { ascending: false }).limit(12),
     e.reports_to_id
       ? db.from('employees').select('name, slug, role_title, emoji').eq('id', e.reports_to_id).maybeSingle()
@@ -107,9 +109,12 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
     db.from('employees').select('id, slug, name, role_title, emoji, status').eq('reports_to_id', e.id).order('name', { ascending: true }),
     db.from('org_lore').select('id, lore_date, headline, body, involves').order('lore_date', { ascending: false }).order('created_at', { ascending: false }).limit(40),
     db.from('decision_log').select('*').eq('employee_slug', slug).order('created_at', { ascending: false }).limit(8),
+    db.from('employee_tasks').select('*').eq('employee_slug', slug).order('created_at', { ascending: false }).limit(100),
   ])
   const logs = (logsData ?? []) as Log[]
   const decisions = (decisionsData ?? []) as DecisionRow[]
+  const tasks = (tasksData ?? []) as EmployeeTask[]
+  const openTaskCount = tasks.filter((t) => t.status !== 'done').length
   const manager = mgr as { name: string; slug: string; role_title: string | null; emoji: string | null } | null
   const team = (teamData ?? []) as { id: string; slug: string; name: string; role_title: string | null; emoji: string | null; status: string }[]
   const lore = ((loreData ?? []) as Lore[]).filter((l) => arr(l.involves).includes(slug)).slice(0, 3)
@@ -166,6 +171,17 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
             </div>
           </div>
         </header>
+
+        {/* ── Assigned Tasks: this head's open work items (most action-relevant) ── */}
+        <section className="ep-section">
+          <div className="ep-sec-head">
+            <h2 className="ep-sec-title">Assigned tasks</h2>
+            <span className="ep-sec-meta">{openTaskCount} open</span>
+          </div>
+          <div className="ep-card ep-tasks">
+            <AssignedTasks employeeSlug={slug} employeeName={e.name} initialTasks={tasks} />
+          </div>
+        </section>
 
         {/* ── Vitals: ring gauges ── */}
         {meters && (
@@ -409,6 +425,9 @@ const EP_CSS = `
 
 /* Card base */
 .admin .ep-card { background:var(--admin-surface); border:1px solid color-mix(in srgb, var(--color-primary) 9%, var(--admin-border)); border-radius:18px; box-shadow:0 1px 2px rgba(107,45,143,.035), 0 18px 40px -30px rgba(107,45,143,.26); }
+
+/* Assigned tasks */
+.admin .ep-tasks { padding:1.25rem 1.4rem; }
 
 /* Vitals */
 .admin .ep-vitals { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.75rem 1.25rem; padding:1rem 1.4rem; }

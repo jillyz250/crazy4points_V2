@@ -85,13 +85,15 @@ export default async function AdminDashboard() {
   const db = createAdminClient()
   const nowIso = new Date().toISOString()
   const [
-    { data: empData }, { data: logData }, { data: notesData }, { data: tasksData },
+    { data: empData }, { data: logData }, { data: notesData }, { data: tasksData }, { data: p1Data },
     alertsCount, programsCount, subsCount, subsTrend, newExperiences, newSweepstakes, pendingDecisions,
   ] = await Promise.all([
     db.from('employees').select('id, slug, name, role_title, kind, emoji, image_url, status, responsibilities'),
     db.from('employee_logs').select('employee_id, type, created_at'),
     db.from('dashboard_notes').select('id, body, sent_to_takes, created_at, updated_at').order('created_at', { ascending: false }).limit(50),
     db.from('jill_tasks').select('id, title, done, source, link, created_at, done_at').order('created_at', { ascending: false }).limit(100),
+    // Open P1s across the team — the small "everyone's on-fire items" glance.
+    db.from('employee_tasks').select('id, employee_slug, title, status, priority').eq('priority', 'P1').neq('status', 'done').order('created_at', { ascending: true }),
     tableCount('alerts'),
     tableCount('programs'),
     tableCount('subscribers', true),
@@ -117,6 +119,11 @@ export default async function AdminDashboard() {
   const emps = (empData ?? []) as Emp[]
   const notes = (notesData ?? []) as DashboardNote[]
   const tasks = (tasksData ?? []) as JillTask[]
+  // Open P1s across the team, paired with each owner's name for the glance.
+  const empName: Record<string, string> = {}
+  for (const e of emps) empName[e.slug] = e.name
+  const teamP1s = ((p1Data ?? []) as { id: string; employee_slug: string; title: string; status: string; priority: string }[])
+    .map((t) => ({ ...t, owner: empName[t.employee_slug] ?? t.employee_slug }))
   const logsBy: Record<string, { type: string; created_at: string }[]> = {}
   for (const l of (logData ?? []) as { employee_id: string; type: string; created_at: string }[]) (logsBy[l.employee_id] ||= []).push(l)
 
@@ -228,6 +235,24 @@ export default async function AdminDashboard() {
                 <span className="dh-decisions-go"><Icon name="arrow" size={15} /></span>
               </Link>
             )}
+            {/* Open P1s across the team — small glance, links to the owner's page. */}
+            {teamP1s.length > 0 && (
+              <div className="dh-p1s">
+                <span className="dh-p1s-tag"><span className="dh-p1s-chip">P1</span> Across the team</span>
+                <ul className="dh-p1s-list">
+                  {teamP1s.map((t) => (
+                    <li key={t.id}>
+                      <Link href={`/admin/org/${t.employee_slug}`} className="dh-p1-row">
+                        <span className="dh-p1-owner">{t.owner.split(' ')[0]}</span>
+                        <span className="dh-p1-title">{t.title}</span>
+                        {t.status === 'blocked' && <span className="dh-p1-blocked">Blocked</span>}
+                        <span className="dh-p1-go"><Icon name="arrow" size={13} /></span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div className="dh-card dh-queue">
               {primary.map((q) => queueRow(q))}
               {rest.length > 0 && (
@@ -333,6 +358,22 @@ const DH_CSS = `
 .admin .dh-decisions-count { font-family:${DISPLAY}; font-size:1.7rem; font-weight:800; color:var(--color-primary); line-height:1; flex-shrink:0; font-variant-numeric:tabular-nums; }
 .admin .dh-decisions-go { color:var(--admin-text-subtle); flex-shrink:0; transition:transform .14s ease, color .14s ease; }
 .admin .dh-decisions:hover .dh-decisions-go { transform:translateX(3px); color:var(--color-primary); }
+
+/* Open P1s across the team (small glance) */
+.admin .dh-p1s { margin-bottom:.9rem; padding:12px 14px 8px; border-radius:14px;
+  border:1px solid color-mix(in srgb, var(--admin-danger) 22%, var(--admin-border));
+  background:linear-gradient(90deg, color-mix(in srgb, var(--admin-danger) 6%, #fff), #fff 65%); }
+.admin .dh-p1s-tag { display:inline-flex; align-items:center; gap:8px; font-size:var(--admin-text-xs); font-weight:800; text-transform:uppercase; letter-spacing:.08em; color:var(--admin-text-muted); }
+.admin .dh-p1s-chip { display:inline-flex; align-items:center; justify-content:center; min-width:26px; height:20px; padding:0 6px; border-radius:6px; font-weight:800; font-size:var(--admin-text-xs); color:var(--admin-danger); background:var(--admin-danger-soft); border:1px solid color-mix(in srgb, var(--admin-danger) 30%, var(--admin-border)); }
+.admin .dh-p1s-list { list-style:none; margin:.5rem 0 0; padding:0; display:flex; flex-direction:column; }
+.admin .dh-p1-row { display:flex; align-items:center; gap:10px; padding:8px 6px; border-radius:9px; text-decoration:none; transition:background .14s ease; }
+.admin .dh-p1-row:hover { background:color-mix(in srgb, var(--admin-danger) 5%, #fff); text-decoration:none; }
+.admin .dh-p1s-list li + li .dh-p1-row { border-top:1px solid color-mix(in srgb, var(--admin-danger) 12%, var(--admin-border)); border-radius:0; }
+.admin .dh-p1-owner { flex-shrink:0; font-size:var(--admin-text-xs); font-weight:800; color:var(--color-primary); text-transform:uppercase; letter-spacing:.04em; min-width:56px; }
+.admin .dh-p1-title { flex:1; min-width:0; font-size:var(--admin-text-sm); font-weight:600; color:var(--admin-text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.admin .dh-p1-blocked { flex-shrink:0; font-size:var(--admin-text-xs); font-weight:800; text-transform:uppercase; letter-spacing:.04em; color:var(--admin-warning); background:var(--admin-warning-soft); padding:2px 7px; border-radius:9999px; }
+.admin .dh-p1-go { flex-shrink:0; color:var(--admin-text-subtle); transition:transform .14s ease, color .14s ease; }
+.admin .dh-p1-row:hover .dh-p1-go { transform:translateX(2px); color:var(--admin-danger); }
 
 /* Queue */
 .admin .dh-queue { padding:6px; }
