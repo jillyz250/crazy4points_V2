@@ -264,6 +264,20 @@ export default function CardFinder({
 
       {/* Explore bar — the primary surface. Sort + quick filters apply live. */}
       <div style={exploreBar}>
+        {/* Prominent search — surfaced up from the old hidden "All filters" panel so a
+            specific card (e.g. "Delta") is findable at a glance. Filters live as you type. */}
+        <div>
+          <label htmlFor="card-search" style={{ ...labelStyle, marginBottom: '0.375rem' }}>Search cards</label>
+          <input
+            id="card-search"
+            type="search"
+            value={applied.q}
+            onChange={(e) => applyLive({ q: e.target.value })}
+            placeholder="Search by card or issuer — e.g. Delta, Chase Sapphire, Amex"
+            style={{ ...inputStyle, fontSize: '1.0625rem', padding: '0.75rem 0.875rem' }}
+            className="rg-tap-target"
+          />
+        </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <label htmlFor="card-sort" style={{ ...labelStyle, margin: 0 }}>Sort by</label>
