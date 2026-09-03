@@ -651,9 +651,11 @@ export async function publishAlertVariant(
     console.error('[publishAlertVariant] social reminder auto-create failed (non-fatal):', err)
   }
 
-  // Activity chain: post the finished alert onto the teammates' pages (Jill's
-  // "what I shipped" feed). Alerts are John's content, fact-checked by Priya, so
-  // both get an entry linking to the alert. Best-effort — never blocks a publish.
+  // Activity chain + TWO-EYES record: post the finished alert onto the teammates'
+  // pages (Jill's "what I shipped" feed). Two independent functions touch every
+  // published fact — John (Content) MAKES it, Vera (Fact-Check, under Priya) is the
+  // independent CHECKER — so both get a linked entry and the two-eyes is auditable.
+  // Best-effort — never blocks a publish. See plans/two-eyes-policy.md.
   try {
     const { data: t2 } = await supabase.from('topics').select('slug').eq('id', refs.topic_id).single()
     const aslug = shortSlug ?? (t2?.slug as string | undefined)
@@ -661,7 +663,7 @@ export async function publishAlertVariant(
     const atitle = (v?.title as string) ?? 'an alert'
     const { logEmployeeActivities } = await import('@/utils/org/logEmployeeActivity')
     await logEmployeeActivities(supabase, [
-      { employee_slug: 'priya-sources', action: 'verified', summary: atitle, ref_type: 'alert', ref_id: alertId, link: alink },
+      { employee_slug: 'vera-factcheck', action: 'verified', summary: atitle, ref_type: 'alert', ref_id: alertId, link: alink },
       { employee_slug: 'john-content', action: 'published', summary: atitle, ref_type: 'alert', ref_id: alertId, link: alink },
     ])
   } catch (err) {
