@@ -301,7 +301,9 @@ export async function POST(req: NextRequest) {
           disposition: assessment.disposition,
           suggested_owner: assessment.suggested_owner,
           source_email: senderEmail,
-          raw_excerpt: bodyText.slice(0, 2000),
+          // We do NOT hoard the email — whats_new + could_help IS the record. Keep
+          // only a tiny context snippet; the original stays in Jill's inbox if ever needed.
+          raw_excerpt: bodyText.slice(0, 200),
         })
         .select('id')
         .single()
