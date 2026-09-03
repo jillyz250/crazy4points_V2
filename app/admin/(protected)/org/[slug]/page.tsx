@@ -442,42 +442,48 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
           </section>
 
           <section className="ep-section" style={{ margin: 0 }}>
-            <div className="ep-sec-head"><h2 className="ep-sec-title">Charter</h2></div>
-            <div className="ep-card ep-charter">
-              {arr(e.responsibilities).length > 0 && (
-                <div className="ep-charter-block">
-                  <div className="ep-charter-label"><Icon name="briefcase" size={13} /> Responsibilities</div>
-                  <ul className="ep-list">{arr(e.responsibilities).map((x, i) => <li key={i}>{x}</li>)}</ul>
-                </div>
-              )}
-              {arr(e.rules).length > 0 && (
-                <div className="ep-charter-block">
-                  <div className="ep-charter-label"><Icon name="shield" size={13} /> Rules</div>
-                  <ul className="ep-list">{arr(e.rules).map((x, i) => <li key={i}>{x}</li>)}</ul>
-                </div>
-              )}
-              {arr(e.skills).length > 0 && (
-                <div className="ep-charter-block">
-                  <div className="ep-charter-label"><Icon name="star" size={13} /> Skills</div>
-                  <div className="ep-chips">{arr(e.skills).map((s) => <span key={s} className="ep-chip">{s}</span>)}</div>
-                </div>
-              )}
-              {arr(e.allowed_scopes).length > 0 && (
-                <div className="ep-charter-block">
-                  <div className="ep-charter-label"><Icon name="link" size={13} /> Allowed scopes</div>
-                  <div className="ep-chips">{arr(e.allowed_scopes).map((s) => <span key={s} className="ep-chip ep-chip-quiet">{s}</span>)}</div>
-                </div>
-              )}
-              {arr(e.platforms).length > 0 && (
-                <div className="ep-charter-block">
-                  <div className="ep-charter-label"><Icon name="globe" size={13} /> Platforms</div>
-                  <div className="ep-chips">{arr<Platform>(e.platforms).map((p, i) => <span key={i} className="ep-chip ep-chip-quiet">{p.platform}</span>)}</div>
-                </div>
-              )}
-              {arr(e.responsibilities).length === 0 && arr(e.rules).length === 0 && arr(e.skills).length === 0 && (
-                <p className="ep-empty">Charter not specified yet.</p>
-              )}
-            </div>
+            <details className="ep-dossier">
+              <summary className="ep-dossier-toggle">
+                <Icon name="fileText" size={14} />
+                <span>Dossier</span>
+                <Icon name="arrow" size={13} />
+              </summary>
+              <div className="ep-card ep-charter ep-dossier-body">
+                {arr(e.responsibilities).length > 0 && (
+                  <div className="ep-charter-block">
+                    <div className="ep-charter-label"><Icon name="briefcase" size={13} /> Responsibilities</div>
+                    <ul className="ep-list">{arr(e.responsibilities).map((x, i) => <li key={i}>{x}</li>)}</ul>
+                  </div>
+                )}
+                {arr(e.rules).length > 0 && (
+                  <div className="ep-charter-block">
+                    <div className="ep-charter-label"><Icon name="shield" size={13} /> Rules</div>
+                    <ul className="ep-list">{arr(e.rules).map((x, i) => <li key={i}>{x}</li>)}</ul>
+                  </div>
+                )}
+                {arr(e.skills).length > 0 && (
+                  <div className="ep-charter-block">
+                    <div className="ep-charter-label"><Icon name="star" size={13} /> Skills</div>
+                    <div className="ep-chips">{arr(e.skills).map((s) => <span key={s} className="ep-chip">{s}</span>)}</div>
+                  </div>
+                )}
+                {arr(e.allowed_scopes).length > 0 && (
+                  <div className="ep-charter-block">
+                    <div className="ep-charter-label"><Icon name="link" size={13} /> Allowed scopes</div>
+                    <div className="ep-chips">{arr(e.allowed_scopes).map((s) => <span key={s} className="ep-chip ep-chip-quiet">{s}</span>)}</div>
+                  </div>
+                )}
+                {arr(e.platforms).length > 0 && (
+                  <div className="ep-charter-block">
+                    <div className="ep-charter-label"><Icon name="globe" size={13} /> Platforms</div>
+                    <div className="ep-chips">{arr<Platform>(e.platforms).map((p, i) => <span key={i} className="ep-chip ep-chip-quiet">{p.platform}</span>)}</div>
+                  </div>
+                )}
+                {arr(e.responsibilities).length === 0 && arr(e.rules).length === 0 && arr(e.skills).length === 0 && (
+                  <p className="ep-empty">Dossier not specified yet.</p>
+                )}
+              </div>
+            </details>
           </section>
         </div>
 
@@ -575,6 +581,14 @@ const EP_CSS = `
 .admin .ep-about-body { margin-top:.9rem; max-width:70ch; padding-left:2px; }
 .admin .ep-about-mission { margin:0; font-size:1rem; line-height:1.6; color:var(--admin-text); font-weight:600; }
 .admin .ep-about-persona { margin:.75rem 0 0; font-size:var(--admin-text-sm); line-height:1.65; color:var(--admin-text-secondary); }
+
+/* Dossier toggle — sibling of the About toggle: collapsed "Dossier" pill, chevron rotates open */
+.admin .ep-dossier-toggle { display:inline-flex; align-items:center; gap:7px; cursor:pointer; list-style:none; font-size:var(--admin-text-sm); font-weight:700; color:var(--color-primary); padding:5px 12px; border-radius:9999px; background:color-mix(in srgb, var(--color-primary) 7%, #fff); border:1px solid color-mix(in srgb, var(--color-primary) 15%, var(--admin-border)); width:max-content; transition:background .14s ease; }
+.admin .ep-dossier-toggle::-webkit-details-marker { display:none; }
+.admin .ep-dossier-toggle:hover { background:color-mix(in srgb, var(--color-primary) 12%, #fff); }
+.admin .ep-dossier-toggle > svg:last-child { transition:transform .18s ease; }
+.admin .ep-dossier[open] .ep-dossier-toggle > svg:last-child { transform:rotate(90deg); }
+.admin .ep-dossier-body { margin-top:.9rem; }
 
 /* Sections */
 .admin .ep-section { margin-bottom:2.6rem; }
