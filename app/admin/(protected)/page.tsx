@@ -4,7 +4,9 @@ import { createAdminClient } from '@/utils/supabase/server'
 import { computeMeters } from '@/lib/orgMeters'
 import { buildQueue, meterCells, Icon, Ring, todayLong } from '@/components/admin/preview/kit'
 import Notepad from '@/components/admin/dashboard/Notepad'
+import MyTasks from '@/components/admin/dashboard/MyTasks'
 import type { DashboardNote } from '@/app/admin/(protected)/notes-actions'
+import type { JillTask } from '@/app/admin/(protected)/tasks-actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -83,12 +85,13 @@ export default async function AdminDashboard() {
   const db = createAdminClient()
   const nowIso = new Date().toISOString()
   const [
-    { data: empData }, { data: logData }, { data: notesData },
+    { data: empData }, { data: logData }, { data: notesData }, { data: tasksData },
     alertsCount, programsCount, subsCount, subsTrend, newExperiences, newSweepstakes, pendingDecisions,
   ] = await Promise.all([
     db.from('employees').select('id, slug, name, role_title, kind, emoji, image_url, status, responsibilities'),
     db.from('employee_logs').select('employee_id, type, created_at'),
     db.from('dashboard_notes').select('id, body, sent_to_takes, created_at, updated_at').order('created_at', { ascending: false }).limit(50),
+    db.from('jill_tasks').select('id, title, done, source, link, created_at, done_at').order('created_at', { ascending: false }).limit(100),
     tableCount('alerts'),
     tableCount('programs'),
     tableCount('subscribers', true),
@@ -113,6 +116,7 @@ export default async function AdminDashboard() {
   ])
   const emps = (empData ?? []) as Emp[]
   const notes = (notesData ?? []) as DashboardNote[]
+  const tasks = (tasksData ?? []) as JillTask[]
   const logsBy: Record<string, { type: string; created_at: string }[]> = {}
   for (const l of (logData ?? []) as { employee_id: string; type: string; created_at: string }[]) (logsBy[l.employee_id] ||= []).push(l)
 
@@ -187,6 +191,17 @@ export default async function AdminDashboard() {
             <div className="dh-whoami">Jill &middot; Founder &amp; CEO</div>
           </div>
         </header>
+
+        {/* ── My Tasks — Jill's personal checklist (persists until she checks off) ── */}
+        <section className="dh-section dh-mytasks-sec">
+          <div className="dh-sec-head">
+            <h2 className="dh-sec-title">My tasks</h2>
+            <span className="dh-sec-meta">{tasks.filter((t) => !t.done).length} open</span>
+          </div>
+          <div className="dh-card dh-mytasks">
+            <MyTasks initialTasks={tasks} />
+          </div>
+        </section>
 
         {/* ── What needs me + Notepad ── */}
         <div className="dh-cols">
@@ -343,6 +358,10 @@ const DH_CSS = `
 
 /* Notepad host */
 .admin .dh-notepad { padding:1.25rem; }
+
+/* My Tasks host */
+.admin .dh-mytasks-sec { margin-top:-.6rem; }
+.admin .dh-mytasks { padding:1.25rem 1.4rem; }
 
 /* Team */
 .admin .dh-team { display:flex; flex-wrap:wrap; gap:1.6rem 1.4rem; justify-content:flex-start; padding:2rem 1.8rem; }
