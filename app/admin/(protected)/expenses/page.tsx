@@ -6,10 +6,61 @@ import { Icon, type IconName } from '@/components/admin/preview/kit'
 import { addExpense, deleteExpense } from './actions'
 import { EXPENSE_CATEGORIES, type ExpenseRow } from './shared'
 import { Calculator } from './Calculator'
+import { VENDORS, type Vendor, type VendorRec } from '@/lib/vendors'
 
 export const dynamic = 'force-dynamic'
 
 const DISPLAY = 'var(--font-display)'
+
+// ── Vendor rollup helpers ────────────────────────────────────────────────────
+// Anthropic is metered pay-as-you-go, so its monthly figure is read LIVE from
+// ai_usage_log. That table has >10k rows and a single select caps at 1000, so
+// we PAGINATE with .range() until a page comes back short, summing cost_usd for
+// rows inside the last 30 days.
+async function sumAnthropic30d(
+  db: ReturnType<typeof createAdminClient>,
+): Promise<{ dollars: number; ok: boolean }> {
+  const sinceIso = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+  let total = 0
+  let from = 0
+  const PAGE = 1000
+  try {
+    for (;;) {
+      const { data, error } = await db
+        .from('ai_usage_log')
+        .select('created_at, cost_usd')
+        .gte('created_at', sinceIso)
+        .order('created_at', { ascending: false })
+        .range(from, from + PAGE - 1)
+      if (error) return { dollars: 0, ok: false }
+      const rows = data ?? []
+      for (const r of rows) total += Number((r as { cost_usd: number | string }).cost_usd) || 0
+      if (rows.length < PAGE) break
+      from += PAGE
+    }
+  } catch {
+    return { dollars: 0, ok: false }
+  }
+  return { dollars: total, ok: true }
+}
+
+const REC_META: Record<VendorRec, { label: string; cls: string }> = {
+  hold: { label: 'Hold', cls: 'vs-chip-hold' },
+  watch: { label: 'Watch', cls: 'vs-chip-watch' },
+  action: { label: 'Action', cls: 'vs-chip-action' },
+}
+
+// Total monthly cost for a vendor (Anthropic's comes from the live figure).
+function vendorTotal(v: Vendor, liveAnthropic: number): number {
+  return v.flatMonthly + (v.usageMonthly ?? 0) + (v.live ? liveAnthropic : 0)
+}
+
+// The scannable "$20 + ~$65 usage" / "~$47 (live)" / "$0" money string.
+function vendorMoney(v: Vendor, liveAnthropic: number): string {
+  if (v.live) return `~$${Math.round(liveAnthropic)} (live)`
+  if (v.usageMonthly != null) return `$${v.flatMonthly} + ~$${v.usageMonthly} usage`
+  return `$${v.flatMonthly}`
+}
 
 // ── Money helpers — reconcile in integer CENTS, never float dollars ──────────
 // numeric(12,2) comes back as a string like "12.34". Parse to exact cents so
@@ -85,6 +136,16 @@ export default async function ExpensesPage() {
   const recent = expenses.slice(0, 25)
   const today = new Date().toISOString().slice(0, 10)
 
+  // ── Vendor rollup: read the LIVE Anthropic 30-day spend, then rank vendors ──
+  const anthropic = await sumAnthropic30d(db)
+  const liveAnthropic = anthropic.dollars
+  const vendorsRanked = [...VENDORS].sort(
+    (a, b) => vendorTotal(b, liveAnthropic) - vendorTotal(a, liveAnthropic),
+  )
+  const vendorGrandTotal = Math.round(
+    VENDORS.reduce((s, v) => s + vendorTotal(v, liveAnthropic), 0),
+  )
+
   return (
     <div className="ex-root">
       <style dangerouslySetInnerHTML={{ __html: EX_CSS }} />
@@ -122,6 +183,73 @@ export default async function ExpensesPage() {
             <span className="ex-total-meta">
               {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
             </span>
+          </div>
+        </section>
+
+        {/* ── Vendor subscriptions & spend (the single source of truth) ── */}
+        <section className="ex-section vs-section">
+          <div className="ex-sec-head">
+            <div>
+              <h2 className="ex-sec-title">Vendor subscriptions &amp; spend</h2>
+              <p className="vs-sub">What we pay every month, and whether to change it.</p>
+            </div>
+            <span className="ex-sec-meta">{VENDORS.length} vendors</span>
+          </div>
+
+          {/* Biggest-lever callout */}
+          <div className="vs-callout">
+            <span className="vs-callout-ic"><Icon name="bolt" size={18} /></span>
+            <div className="vs-callout-body">
+              <span className="vs-callout-label">Biggest lever</span>
+              <span className="vs-callout-text">
+                <strong>Vercel</strong> — 97% of its bill is build-CPU from frequent deploys.
+                Guard shipped; enable it in <em>Vercel Settings &gt; Git &gt; Ignored Build Step</em>.
+              </span>
+            </div>
+          </div>
+
+          <div className="ex-card vs-card">
+            {/* Total line */}
+            <div className="vs-total">
+              <span className="vs-total-value">~${vendorGrandTotal.toLocaleString('en-US')}</span>
+              <span className="vs-total-unit">/mo across {VENDORS.length} vendors</span>
+              {!anthropic.ok && (
+                <span className="vs-total-warn">· Anthropic live figure unavailable</span>
+              )}
+            </div>
+
+            {/* Rows, biggest total first */}
+            <div className="vs-rows">
+              {vendorsRanked.map((v) => {
+                const rec = REC_META[v.rec]
+                return (
+                  <div key={v.key} className="vs-row">
+                    <div className="vs-cell vs-cell-name">
+                      <span className="vs-name">{v.name}</span>
+                      <span className="vs-plan">{v.plan}</span>
+                    </div>
+                    <div className="vs-cell vs-cell-cost">
+                      <span className="vs-cost">{vendorMoney(v, liveAnthropic)}</span>
+                    </div>
+                    <div className="vs-cell vs-cell-limit">
+                      <span className="vs-meta-lbl">Limit</span>
+                      <span className="vs-meta-val">{v.limit}</span>
+                    </div>
+                    <div className="vs-cell vs-cell-next">
+                      <span className="vs-meta-lbl">Next tier</span>
+                      <span className="vs-meta-val">{v.nextTier}</span>
+                    </div>
+                    <div className="vs-cell vs-cell-rec">
+                      <span className={`vs-chip ${rec.cls}`}>{rec.label}</span>
+                    </div>
+                    <p className="vs-note">
+                      {v.note}
+                      {v.renewal && <span className="vs-renewal"> · Renews {v.renewal}</span>}
+                    </p>
+                  </div>
+                )
+              })}
+            </div>
           </div>
         </section>
 
@@ -369,8 +497,53 @@ const EX_CSS = `
 .admin .calc-eq:hover { background:var(--color-primary-hover); }
 .admin .calc-hint { font-size:var(--admin-text-xs); color:var(--admin-text-subtle); margin:12px 2px 0; line-height:1.4; }
 
+/* ── Vendor subscriptions & spend ── */
+.admin .vs-section { margin-bottom:2.8rem; }
+.admin .vs-sub { margin:2px 0 0; font-size:var(--admin-text-sm); color:var(--admin-text-muted); }
+
+/* Biggest-lever callout */
+.admin .vs-callout { display:flex; align-items:flex-start; gap:12px; padding:14px 16px; border-radius:14px; margin-bottom:14px; background:color-mix(in srgb, var(--color-accent) 12%, var(--admin-surface)); border:1px solid color-mix(in srgb, var(--color-accent) 40%, var(--admin-border)); }
+.admin .vs-callout-ic { display:flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:10px; flex-shrink:0; color:#8a6d12; background:color-mix(in srgb, var(--color-accent) 24%, #fff); border:1px solid color-mix(in srgb, var(--color-accent) 42%, var(--admin-border)); }
+.admin .vs-callout-body { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.admin .vs-callout-label { font-size:var(--admin-text-xs); text-transform:uppercase; letter-spacing:.08em; font-weight:800; color:#8a6d12; }
+.admin .vs-callout-text { font-size:.95rem; line-height:1.5; color:var(--admin-text); }
+.admin .vs-callout-text strong { font-weight:800; }
+.admin .vs-callout-text em { font-style:normal; font-weight:700; color:var(--color-primary); }
+
+/* Card + total */
+.admin .vs-card { padding:6px 6px 10px; }
+.admin .vs-total { display:flex; align-items:baseline; flex-wrap:wrap; gap:6px; padding:16px 16px 12px; border-bottom:1px solid var(--admin-border); }
+.admin .vs-total-value { font-family:${DISPLAY}; font-size:1.9rem; font-weight:800; letter-spacing:-.02em; color:var(--color-primary); font-variant-numeric:tabular-nums; line-height:1; }
+.admin .vs-total-unit { font-size:1rem; font-weight:600; color:var(--admin-text-muted); }
+.admin .vs-total-warn { font-size:var(--admin-text-sm); color:var(--admin-warning); font-weight:600; }
+
+/* Rows */
+.admin .vs-rows { display:flex; flex-direction:column; }
+.admin .vs-row { display:grid; grid-template-columns:minmax(150px, 1.1fr) minmax(120px, 0.9fr) minmax(190px, 1.6fr) minmax(130px, 1fr) auto; grid-template-areas:"name cost limit next rec" "note note note note note"; align-items:center; gap:8px 14px; padding:14px 12px; }
+.admin .vs-row + .vs-row { border-top:1px solid var(--admin-border); }
+.admin .vs-cell { min-width:0; }
+.admin .vs-cell-name { grid-area:name; display:flex; flex-direction:column; gap:2px; }
+.admin .vs-name { font-size:1rem; font-weight:800; color:var(--admin-text); }
+.admin .vs-plan { font-size:var(--admin-text-sm); color:var(--admin-text-muted); }
+.admin .vs-cell-cost { grid-area:cost; }
+.admin .vs-cost { font-size:.95rem; font-weight:700; color:var(--admin-text); font-variant-numeric:tabular-nums; }
+.admin .vs-cell-limit { grid-area:limit; display:flex; flex-direction:column; gap:1px; }
+.admin .vs-cell-next { grid-area:next; display:flex; flex-direction:column; gap:1px; }
+.admin .vs-meta-lbl { font-size:var(--admin-text-xs); text-transform:uppercase; letter-spacing:.06em; font-weight:700; color:var(--admin-text-subtle); }
+.admin .vs-meta-val { font-size:var(--admin-text-sm); color:var(--admin-text-secondary); line-height:1.35; }
+.admin .vs-cell-rec { grid-area:rec; justify-self:end; }
+.admin .vs-chip { display:inline-flex; align-items:center; font-size:var(--admin-text-xs); font-weight:800; text-transform:uppercase; letter-spacing:.05em; padding:4px 12px; border-radius:9999px; white-space:nowrap; border:1px solid transparent; }
+.admin .vs-chip-hold { color:var(--admin-success); background:var(--admin-success-soft); border-color:color-mix(in srgb, var(--admin-success) 30%, transparent); }
+.admin .vs-chip-watch { color:var(--admin-warning); background:var(--admin-warning-soft); border-color:color-mix(in srgb, var(--admin-warning) 32%, transparent); }
+.admin .vs-chip-action { color:var(--color-primary); background:color-mix(in srgb, var(--color-primary) 10%, #fff); border-color:color-mix(in srgb, var(--color-primary) 30%, var(--admin-border)); }
+.admin .vs-note { grid-area:note; margin:2px 0 0; font-size:var(--admin-text-sm); line-height:1.5; color:var(--admin-text-muted); }
+.admin .vs-renewal { color:var(--admin-text-subtle); font-weight:600; }
+
 @media (max-width:760px) {
   .admin .ex-cols { grid-template-columns:1fr; }
+  .admin .vs-row { grid-template-columns:1fr auto; grid-template-areas:"name rec" "cost cost" "limit limit" "next next" "note note"; gap:6px 12px; }
+  .admin .vs-cell-cost { margin-top:2px; }
+  .admin .vs-cell-rec { align-self:start; }
 }
 @media (max-width:600px) {
   .admin .ex-form { grid-template-columns:1fr; }
