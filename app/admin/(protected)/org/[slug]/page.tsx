@@ -37,10 +37,58 @@ type Emp = {
 }
 type Log = { id: string; type: string; note: string; actor: string | null; created_at: string }
 // lib/field-feeds.json — trade sources each head reads to stay current.
-type FieldFeed = { beat: string; sources: { name: string; url: string }[] }
+// Each source is a little front page: name = masthead, tagline = subhead.
+type FieldSource = { name: string; tagline?: string; url: string }
+type FieldFeed = { beat: string; sources: FieldSource[] }
 const FIELD_FEEDS = fieldFeedsJson as Record<string, FieldFeed>
 
+// Stable pseudo "Vol. / Issue / Page" numbers per publication name — derived,
+// never randomized, so a masthead reads the same on every render.
+function pubNumbers(name: string): { vol: number; issue: number; p1: number; p2: number } {
+  let h = 0
+  for (let i = 0; i < name.length; i++) h = (Math.imul(h, 31) + name.charCodeAt(i)) >>> 0
+  return { vol: (h % 40) + 1, issue: (h % 900) + 100, p1: (h % 8) + 2, p2: ((h >>> 3) % 8) + 2 }
+}
+
 const arr = <T,>(v: T[] | null | undefined): T[] => (Array.isArray(v) ? v : [])
+
+// Program-catalog filter views (/admin/programs?type=…) are the SAME page behind
+// a filter — collapse the four into ONE "Program pages" entry so a head's tools
+// read as one tool, not four near-duplicates. Every filtered view stays reachable.
+const PROGRAM_FILTER_IDS = ['programs', 'programs-currencies', 'programs-hotels', 'programs-otas']
+const PROGRAM_VIEW_LABEL: Record<string, string> = {
+  programs: 'All', 'programs-currencies': 'Currencies', 'programs-hotels': 'Hotels', 'programs-otas': 'OTAs',
+}
+type OwnedItem =
+  | { kind: 'page'; page: AdminPage }
+  | { kind: 'programs'; base: AdminPage; views: AdminPage[] }
+const itemCat = (it: OwnedItem): TaskCategory => (it.kind === 'programs' ? it.base.taskCategory : it.page.taskCategory)
+
+// Active, owned pages → items grouped by task category, with the program-filter
+// views folded into one entry. Used by BOTH the hero quick-list and the workspace.
+function buildOwned(slug: string): { count: number; groups: { cat: TaskCategory; items: OwnedItem[] }[] } {
+  const pages = ADMIN_PAGES.filter((p) => p.owner === slug && p.status === 'active' && !p.mergedInto)
+  const items: OwnedItem[] = []
+  let programsDone = false
+  for (const p of pages) {
+    if (PROGRAM_FILTER_IDS.includes(p.id)) {
+      if (programsDone) continue
+      programsDone = true
+      const views = PROGRAM_FILTER_IDS.map((id) => pages.find((x) => x.id === id)).filter((x): x is AdminPage => !!x)
+      items.push({ kind: 'programs', base: views.find((v) => v.id === 'programs') ?? views[0], views })
+    } else {
+      items.push({ kind: 'page', page: p })
+    }
+  }
+  const groups: { cat: TaskCategory; items: OwnedItem[] }[] = []
+  for (const it of items) {
+    const cat = itemCat(it)
+    const g = groups.find((x) => x.cat === cat)
+    if (g) g.items.push(it)
+    else groups.push({ cat, items: [it] })
+  }
+  return { count: items.length, groups }
+}
 
 // Category → Lucide-style icon (workspace grouping).
 const CAT_ICON: Record<TaskCategory, IconName> = {
@@ -124,16 +172,10 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
   const isAgent = e.kind === 'agent'
   const meters = isAgent ? meterCells(computeMeters(e as unknown as { slug: string; kind: 'agent'; status: string; responsibilities?: string[] | null }, logs)) : null
 
-  // Owned pages from the registry, grouped by task category (registry order).
-  // Pages merged into a hub (e.g. the Accuracy hub tabs) collapse into the ONE
-  // hub entry, so they are not listed separately in the workspace.
-  const owned = ADMIN_PAGES.filter((p) => p.owner === slug && p.status === 'active' && !p.mergedInto)
-  const ownedGroups: { cat: TaskCategory; pages: AdminPage[] }[] = []
-  for (const p of owned) {
-    const last = ownedGroups[ownedGroups.length - 1]
-    if (last && last.cat === p.taskCategory) last.pages.push(p)
-    else ownedGroups.push({ cat: p.taskCategory, pages: [p] })
-  }
+  // Owned pages from the registry, grouped by task category, with the four
+  // Programs filter-views folded into one "Program pages" entry. Pages merged
+  // into a hub (Accuracy tabs) already collapse into the ONE hub entry.
+  const { count: ownedCount, groups: ownedGroups } = buildOwned(slug)
 
   return (
     <div className="ep-root">
@@ -171,16 +213,31 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
                 )}
               </div>
             </div>
-            {owned.length > 0 && (
+            {ownedCount > 0 && (
               <div className="ep-tools" aria-label={`Tools ${e.name.split(' ')[0]} owns`}>
-                <div className="ep-tools-label"><Icon name="briefcase" size={12} /> Owns {owned.length} {owned.length === 1 ? 'tool' : 'tools'}</div>
-                <div className="ep-tools-list">
-                  {owned.map((p) => (
-                    <Link key={p.id} href={p.path} className="ep-tool-link" title={p.description}>
-                      <span className="ep-tool-link-ic"><Icon name={pageIcon(p)} size={15} /></span>
-                      <span className="ep-tool-link-name">{p.title}</span>
-                      <Icon name="arrow" size={13} />
-                    </Link>
+                <div className="ep-tools-label"><Icon name="briefcase" size={12} /> Owns {ownedCount} {ownedCount === 1 ? 'tool' : 'tools'}</div>
+                <div className="ep-tools-groups">
+                  {ownedGroups.map((g) => (
+                    <div key={g.cat} className="ep-tools-group">
+                      <div className="ep-tools-cat">{g.cat}</div>
+                      <div className="ep-tools-list">
+                        {g.items.map((it) =>
+                          it.kind === 'programs' ? (
+                            <Link key="program-pages" href={it.base.path} className="ep-tool-link" title="The loyalty program catalog — airlines, hotels, currencies, OTAs (one filtered page)">
+                              <span className="ep-tool-link-ic"><Icon name="award" size={15} /></span>
+                              <span className="ep-tool-link-name">Program pages</span>
+                              <Icon name="arrow" size={13} />
+                            </Link>
+                          ) : (
+                            <Link key={it.page.id} href={it.page.path} className="ep-tool-link" title={it.page.description}>
+                              <span className="ep-tool-link-ic"><Icon name={pageIcon(it.page)} size={15} /></span>
+                              <span className="ep-tool-link-name">{it.page.title}</span>
+                              <Icon name="arrow" size={13} />
+                            </Link>
+                          ),
+                        )}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -238,45 +295,60 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
               <span className="ep-sec-meta">Stays current on the beat</span>
             </div>
             <div className="ep-card ep-papers">
-              {feeds.sources.map((s) => (
-                <a
-                  key={s.url}
-                  href={s.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="ep-paper"
-                  aria-label={`${s.name} (opens in new tab)`}
-                >
-                  <span className="ep-paper-face">
-                    <span className="ep-paper-kicker" aria-hidden="true">
-                      <span className="ep-paper-kicker-line" />
-                      <span className="ep-paper-kicker-star">&#9733;</span>
-                      <span className="ep-paper-kicker-line" />
-                    </span>
-                    <span className="ep-paper-masthead">{s.name}</span>
-                    <span className="ep-paper-rule" aria-hidden="true" />
-                    <span className="ep-paper-cols" aria-hidden="true">
-                      <span className="ep-paper-col">
-                        <span className="ep-paper-hl" />
-                        <span className="ep-paper-ln" />
-                        <span className="ep-paper-ln" />
-                        <span className="ep-paper-ln short" />
+              {feeds.sources.map((s) => {
+                const n = pubNumbers(s.name)
+                return (
+                  <a
+                    key={s.url}
+                    href={s.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ep-paper"
+                    aria-label={`${s.name}${s.tagline ? ` — ${s.tagline}` : ''} (opens in new tab)`}
+                  >
+                    <span className="ep-paper-face">
+                      <span className="ep-paper-kicker" aria-hidden="true">
+                        <span className="ep-paper-kicker-line" />
+                        <span className="ep-paper-kicker-star">&#9733;</span>
+                        <span className="ep-paper-kicker-line" />
                       </span>
-                      <span className="ep-paper-colrule" />
-                      <span className="ep-paper-col">
-                        <span className="ep-paper-hl" />
-                        <span className="ep-paper-ln" />
-                        <span className="ep-paper-ln short" />
-                        <span className="ep-paper-ln" />
+                      <span className="ep-paper-masthead">{s.name}</span>
+                      <span className="ep-paper-rule-gold" aria-hidden="true" />
+                      {s.tagline && <span className="ep-paper-subhead">{s.tagline}</span>}
+                      <span className="ep-paper-rule-bar" aria-hidden="true" />
+                      <span className="ep-paper-meta" aria-hidden="true">
+                        <span>Morning Edition</span>
+                        <span>Vol.&nbsp;{n.vol} · No.&nbsp;{n.issue}</span>
                       </span>
+                      <span className="ep-paper-hr" aria-hidden="true" />
+                      <span className="ep-paper-cols" aria-hidden="true">
+                        <span className="ep-paper-col">
+                          <span className="ep-paper-hl" />
+                          <span className="ep-paper-hl short" />
+                          <span className="ep-paper-ln" />
+                          <span className="ep-paper-ln" />
+                          <span className="ep-paper-ln short" />
+                          <span className="ep-paper-page">Page&nbsp;{n.p1}</span>
+                        </span>
+                        <span className="ep-paper-colrule" />
+                        <span className="ep-paper-col">
+                          <span className="ep-paper-hl" />
+                          <span className="ep-paper-hl short" />
+                          <span className="ep-paper-ln" />
+                          <span className="ep-paper-ln short" />
+                          <span className="ep-paper-ln" />
+                          <span className="ep-paper-page">Page&nbsp;{n.p2}</span>
+                        </span>
+                      </span>
+                      <span className="ep-paper-fold" aria-hidden="true" />
+                      <span className="ep-paper-read">
+                        <Icon name="arrow" size={13} /> READ
+                      </span>
+                      <span className="ep-paper-corner" aria-hidden="true" />
                     </span>
-                    <span className="ep-paper-corner" aria-hidden="true" />
-                  </span>
-                  <span className="ep-paper-open" aria-hidden="true">
-                    <Icon name="arrow" size={12} /> Read
-                  </span>
-                </a>
-              ))}
+                  </a>
+                )
+              })}
             </div>
           </section>
         )}
@@ -313,18 +385,35 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
             <div className="ep-workspace">
               {ownedGroups.map((g) => (
                 <div key={g.cat} className="ep-wsgroup">
-                  <div className="ep-wsgroup-head"><Icon name={CAT_ICON[g.cat]} size={15} /> {g.cat}</div>
+                  <div className="ep-wsgroup-head"><Icon name={CAT_ICON[g.cat]} size={15} /> {g.cat} <span className="ep-wsgroup-count">{g.items.length}</span></div>
                   <div className="ep-wsgrid">
-                    {g.pages.map((p) => (
-                      <Link key={p.id} href={p.path} className="ep-card ep-tool" title={`Owned by ${e.name} — ${p.description}`}>
-                        <span className="ep-tool-ic"><Icon name={pageIcon(p)} size={19} /></span>
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          <div className="ep-tool-title">{p.title}</div>
-                          <div className="ep-tool-desc">{p.description}</div>
+                    {g.items.map((it) =>
+                      it.kind === 'programs' ? (
+                        <div key="program-pages" className="ep-card ep-tool ep-tool-prog">
+                          <span className="ep-tool-ic"><Icon name="award" size={19} /></span>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div className="ep-tool-title">Program pages</div>
+                            <div className="ep-tool-desc">The loyalty program catalog — one page, filtered by type.</div>
+                            <div className="ep-prog-views">
+                              {it.views.map((v) => (
+                                <Link key={v.id} href={v.path} className="ep-prog-view" title={v.description}>
+                                  {PROGRAM_VIEW_LABEL[v.id] ?? v.title}
+                                </Link>
+                              ))}
+                            </div>
+                          </div>
                         </div>
-                        <span className="ep-tool-go"><Icon name="arrow" size={15} /></span>
-                      </Link>
-                    ))}
+                      ) : (
+                        <Link key={it.page.id} href={it.page.path} className="ep-card ep-tool" title={`Owned by ${e.name} — ${it.page.description}`}>
+                          <span className="ep-tool-ic"><Icon name={pageIcon(it.page)} size={19} /></span>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div className="ep-tool-title">{it.page.title}</div>
+                            <div className="ep-tool-desc">{it.page.description}</div>
+                          </div>
+                          <span className="ep-tool-go"><Icon name="arrow" size={15} /></span>
+                        </Link>
+                      ),
+                    )}
                   </div>
                 </div>
               ))}
@@ -464,6 +553,9 @@ const EP_CSS = `
 /* Hero: clickable owned tools (top-right) */
 .admin .ep-tools { flex-shrink:0; align-self:flex-start; min-width:190px; max-width:230px; }
 .admin .ep-tools-label { display:flex; align-items:center; gap:6px; font-size:var(--admin-text-xs); text-transform:uppercase; letter-spacing:.08em; font-weight:700; color:var(--admin-text-subtle); margin-bottom:.5rem; justify-content:flex-end; }
+.admin .ep-tools-groups { display:flex; flex-direction:column; gap:.7rem; }
+.admin .ep-tools-group { display:flex; flex-direction:column; gap:5px; }
+.admin .ep-tools-cat { font-size:var(--admin-text-xs); text-transform:uppercase; letter-spacing:.08em; font-weight:700; color:var(--admin-text-subtle); text-align:right; }
 .admin .ep-tools-list { display:flex; flex-direction:column; gap:6px; }
 .admin .ep-tool-link { display:flex; align-items:center; gap:9px; padding:8px 11px; border-radius:11px; text-decoration:none; font-size:var(--admin-text-sm); font-weight:600; color:var(--admin-text); background:var(--admin-surface); border:1px solid color-mix(in srgb, var(--color-primary) 11%, var(--admin-border)); transition:transform .14s ease, box-shadow .14s ease, border-color .14s ease; }
 .admin .ep-tool-link:hover { transform:translateX(-2px); border-color:color-mix(in srgb, var(--color-primary) 32%, var(--admin-border)); box-shadow:0 10px 22px -16px rgba(107,45,143,.5); text-decoration:none; color:var(--color-primary); }
@@ -504,89 +596,121 @@ const EP_CSS = `
 .admin .ep-vital-label { font-size:.82rem; font-weight:700; color:var(--admin-text); line-height:1.15; }
 .admin .ep-vital-sub { font-size:.72rem; color:var(--admin-text-muted); margin-top:1px; }
 
-/* Reads every morning — 3D "Pixar newspaper" trade sources */
-.admin .ep-papers { display:flex; flex-wrap:wrap; align-items:flex-start; gap:1.6rem 1.35rem; padding:1.8rem 1.5rem 1.9rem; perspective:1000px; }
+/* Reads every morning — folded 3D "newsroom" trade papers */
+.admin .ep-papers { display:flex; flex-wrap:wrap; align-items:flex-start; gap:1.9rem 1.6rem; padding:2rem 1.6rem 2.2rem; perspective:1200px; }
 
-/* Each source = a little folded newspaper with real depth */
+/* Each source = a folded cream front page with real stacked depth */
 .admin .ep-paper {
-  position:relative; display:block; width:172px; flex:0 0 auto;
-  text-decoration:none; color:inherit; border-radius:9px;
+  position:relative; display:block; width:190px; flex:0 0 auto;
+  text-decoration:none; color:inherit; border-radius:8px;
   transform-style:preserve-3d;
-  transform:rotateY(-9deg) rotateX(4deg) rotate(-1.4deg);
-  filter:drop-shadow(0 20px 24px rgba(70,48,104,.20)) drop-shadow(0 4px 7px rgba(70,48,104,.13));
-  transition:transform .3s cubic-bezier(.2,.75,.3,1), filter .3s ease;
+  transform:rotateY(-9deg) rotateX(3.5deg) rotate(-1.3deg);
+  filter:drop-shadow(0 22px 26px rgba(70,48,104,.20)) drop-shadow(0 5px 8px rgba(70,48,104,.14));
+  transition:transform .32s cubic-bezier(.2,.75,.3,1), filter .32s ease;
 }
-.admin .ep-paper:nth-child(even) { transform:rotateY(9deg) rotateX(4deg) rotate(1.4deg); }
+.admin .ep-paper:nth-child(even) { transform:rotateY(9deg) rotateX(3.5deg) rotate(1.3deg); }
 .admin .ep-paper:hover, .admin .ep-paper:focus-visible {
-  transform:rotateY(0) rotateX(0) rotate(0) translateY(-7px) scale(1.035);
-  filter:drop-shadow(0 30px 34px rgba(70,48,104,.26)) drop-shadow(0 8px 12px rgba(70,48,104,.17));
+  transform:rotateY(0) rotateX(0) rotate(0) translateY(-9px) scale(1.04);
+  filter:drop-shadow(0 34px 40px rgba(70,48,104,.28)) drop-shadow(0 10px 16px rgba(70,48,104,.18));
 }
 .admin .ep-paper:focus-visible { outline:none; }
 .admin .ep-paper:focus-visible .ep-paper-face { box-shadow:0 0 0 3px color-mix(in srgb, var(--color-primary) 55%, transparent), inset 0 1px 0 rgba(255,255,255,.7); }
 
 /* the stack of sheets underneath (a few pages thick, offset down/right) */
 .admin .ep-paper::before, .admin .ep-paper::after {
-  content:''; position:absolute; inset:0; border-radius:9px; z-index:0;
-  border:1px solid rgba(150,120,80,.28);
+  content:''; position:absolute; inset:0; border-radius:8px; z-index:0;
+  border:1px solid rgba(150,120,80,.26);
 }
-.admin .ep-paper::before { transform:translate(4.5px,5px); background:linear-gradient(#f2e8d2, #e7d9bc); }
-.admin .ep-paper::after { transform:translate(2px,2.5px); background:linear-gradient(#f7efdf, #eee0c7); }
+.admin .ep-paper::before { transform:translate(5px,6px); background:linear-gradient(#efe4cb, #e2d2b2); }
+.admin .ep-paper::after { transform:translate(2.5px,3px); background:linear-gradient(#f6eeda, #ebdcc1); }
 
-/* the front page */
+/* the front page — layered cream paper texture */
 .admin .ep-paper-face {
-  position:relative; z-index:1; display:flex; flex-direction:column; gap:7px;
-  padding:12px 12px 14px; border-radius:9px; min-height:152px; overflow:hidden;
-  background:linear-gradient(158deg, #fffdf7 0%, #faf4e6 58%, #f3ebd6 100%);
+  position:relative; z-index:1; display:flex; flex-direction:column; gap:6px;
+  padding:13px 13px 12px; border-radius:8px; min-height:242px; overflow:hidden; color:#2a2320;
+  background:
+    radial-gradient(120% 80% at 50% -12%, rgba(255,255,255,.72), transparent 60%),
+    repeating-linear-gradient(0deg, rgba(150,120,80,.045) 0 2px, transparent 2px 4px),
+    linear-gradient(158deg, #fffdf6 0%, #f8f1df 55%, #efe6cf 100%);
   border:1px solid rgba(150,120,80,.34);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.75), inset 0 -16px 24px -16px rgba(150,120,80,.20);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.8), inset 0 -20px 30px -18px rgba(150,120,80,.24);
 }
 
-.admin .ep-paper-kicker { display:flex; align-items:center; gap:5px; padding:0 2px; }
-.admin .ep-paper-kicker-line { flex:1; height:1px; background:rgba(120,90,60,.36); }
-.admin .ep-paper-kicker-star { color:var(--color-accent); font-size:8px; line-height:1; }
+/* kicker: gold rule — star — gold rule */
+.admin .ep-paper-kicker { display:flex; align-items:center; gap:6px; padding:1px 3px 0; }
+.admin .ep-paper-kicker-line { flex:1; height:1.5px; background:linear-gradient(90deg, transparent, var(--color-accent) 55%); }
+.admin .ep-paper-kicker-line:last-child { background:linear-gradient(90deg, var(--color-accent) 45%, transparent); }
+.admin .ep-paper-kicker-star { color:var(--color-accent); font-size:11px; line-height:1; }
 
-/* masthead — real, readable publication name in the display serif */
+/* masthead — readable publication name in the display serif, purple */
 .admin .ep-paper-masthead {
   font-family:${DISPLAY}; font-weight:800; color:var(--color-primary);
-  font-size:1rem; line-height:1.08; letter-spacing:-.01em; text-align:center;
-  text-shadow:0 1px 0 rgba(255,255,255,.6);
+  font-size:1.16rem; line-height:1.02; letter-spacing:-.015em; text-align:center;
+  text-shadow:0 1px 0 rgba(255,255,255,.65); margin-top:1px;
 }
-.admin .ep-paper-rule { height:2px; border-radius:2px; background:linear-gradient(90deg, transparent, var(--color-accent), transparent); }
+.admin .ep-paper-rule-gold { height:1.5px; margin:1px 0; background:linear-gradient(90deg, transparent, var(--color-accent), transparent); }
 
-/* faux front-page columns so it reads as a tiny newspaper */
-.admin .ep-paper-cols { display:flex; gap:9px; margin-top:3px; }
-.admin .ep-paper-col { flex:1; display:flex; flex-direction:column; gap:4px; }
-.admin .ep-paper-colrule { width:1px; background:rgba(120,90,60,.22); }
-.admin .ep-paper-hl { height:5px; width:88%; border-radius:2px; background:color-mix(in srgb, var(--color-primary) 42%, #cbb894); }
-.admin .ep-paper-ln { height:2.5px; border-radius:2px; background:rgba(120,90,60,.30); }
-.admin .ep-paper-ln.short { width:58%; }
+/* subhead / tagline — small caps */
+.admin .ep-paper-subhead {
+  font-family:${DISPLAY}; text-align:center; color:color-mix(in srgb, var(--color-primary) 78%, #4a4a4a);
+  font-size:.56rem; letter-spacing:.11em; text-transform:uppercase; font-weight:700; line-height:1.25;
+}
+/* thick primary bar under the subhead */
+.admin .ep-paper-rule-bar { height:2.5px; margin-top:2px; border-radius:1px; background:var(--color-primary); opacity:.82; }
+
+/* meta line: edition · vol/issue */
+.admin .ep-paper-meta { display:flex; align-items:center; justify-content:space-between; gap:6px;
+  font-size:.48rem; letter-spacing:.06em; text-transform:uppercase; font-weight:700; color:rgba(90,70,50,.85); }
+.admin .ep-paper-hr { height:1px; background:rgba(120,90,60,.4); }
+
+/* two columns of faux headlines, split by a real column rule */
+.admin .ep-paper-cols { display:flex; gap:9px; margin-top:2px; }
+.admin .ep-paper-col { flex:1; display:flex; flex-direction:column; gap:3.5px; }
+.admin .ep-paper-colrule { width:1px; align-self:stretch; background:rgba(120,90,60,.28); }
+.admin .ep-paper-hl { height:4px; border-radius:1.5px; background:color-mix(in srgb, var(--color-primary) 52%, #b7a07c); }
+.admin .ep-paper-hl.short { width:66%; }
+.admin .ep-paper-ln { height:2px; border-radius:1.5px; background:rgba(90,70,50,.32); }
+.admin .ep-paper-ln.short { width:56%; }
+.admin .ep-paper-page { margin-top:3px; font-size:.44rem; letter-spacing:.06em; text-transform:uppercase; font-weight:700; color:var(--color-primary); opacity:.72; }
+
+/* fold crease across the middle */
+.admin .ep-paper-fold { position:absolute; left:0; right:0; top:57%; height:10px; pointer-events:none;
+  background:linear-gradient(180deg, transparent, rgba(120,90,60,.10) 45%, rgba(120,90,60,.15) 50%, rgba(255,255,255,.5) 52%, transparent); }
+
+/* → READ footer, pinned to the bottom */
+.admin .ep-paper-read {
+  position:relative; z-index:1; margin-top:auto; display:flex; align-items:center; justify-content:center; gap:5px;
+  padding-top:7px; border-top:1.5px solid color-mix(in srgb, var(--color-accent) 55%, transparent);
+  font-family:${DISPLAY}; font-weight:800; font-size:.82rem; letter-spacing:.04em; color:var(--color-primary);
+  transition:gap .2s ease;
+}
+.admin .ep-paper:hover .ep-paper-read, .admin .ep-paper:focus-visible .ep-paper-read { gap:9px; }
+.admin .ep-paper-read > svg { transition:transform .2s ease; }
+.admin .ep-paper:hover .ep-paper-read > svg { transform:translateX(3px); }
 
 /* folded / curled top-right corner */
 .admin .ep-paper-corner {
-  position:absolute; top:0; right:0; width:22px; height:22px;
-  background:linear-gradient(225deg, #e9dcbf 0%, #f7f0e0 52%, transparent 52%);
-  border-left:1px solid rgba(150,120,80,.30); border-bottom:1px solid rgba(150,120,80,.30);
-  border-bottom-left-radius:7px;
-  box-shadow:-1px 1px 3px rgba(120,90,60,.18);
+  position:absolute; top:0; right:0; width:24px; height:24px; z-index:2;
+  background:linear-gradient(225deg, #e7d9bb 0%, #f7f0e0 50%, transparent 50%);
+  border-left:1px solid rgba(150,120,80,.3); border-bottom:1px solid rgba(150,120,80,.3);
+  border-bottom-left-radius:8px; box-shadow:-1px 1px 3px rgba(120,90,60,.2);
 }
-
-/* read affordance, revealed on hover/focus */
-.admin .ep-paper-open {
-  position:relative; z-index:1; display:flex; align-items:center; justify-content:center; gap:4px;
-  margin-top:9px; font-size:var(--admin-text-xs); font-weight:800; text-transform:uppercase; letter-spacing:.08em;
-  color:var(--color-primary); opacity:0; transform:translateY(4px);
-  transition:opacity .22s ease, transform .22s ease;
-}
-.admin .ep-paper:hover .ep-paper-open, .admin .ep-paper:focus-visible .ep-paper-open { opacity:1; transform:translateY(0); }
 
 @media (prefers-reduced-motion: reduce) {
-  .admin .ep-paper, .admin .ep-paper-open { transition:none; }
+  .admin .ep-paper, .admin .ep-paper-read, .admin .ep-paper-read > svg { transition:none; }
 }
 
 /* Workspace */
 .admin .ep-workspace { display:flex; flex-direction:column; gap:1.6rem; }
 .admin .ep-wsgroup-head { display:flex; align-items:center; gap:8px; font-size:var(--admin-text-xs); text-transform:uppercase; letter-spacing:.09em; font-weight:700; color:var(--color-primary); margin-bottom:.7rem; padding:0 2px; }
+.admin .ep-wsgroup-count { display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px; padding:0 5px; border-radius:9999px; font-size:.65rem; color:var(--admin-text-muted); background:var(--admin-surface-alt); border:1px solid var(--admin-border); letter-spacing:0; }
 .admin .ep-wsgrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:.8rem; }
+/* Collapsed "Program pages" card — one tool, four filter views as sub-links */
+.admin .ep-tool-prog { align-items:flex-start; cursor:default; }
+.admin .ep-tool-prog:hover { transform:none; box-shadow:0 1px 2px rgba(107,45,143,.035), 0 18px 40px -30px rgba(107,45,143,.26); border-color:color-mix(in srgb, var(--color-primary) 9%, var(--admin-border)); }
+.admin .ep-prog-views { display:flex; flex-wrap:wrap; gap:5px; margin-top:9px; }
+.admin .ep-prog-view { font-size:var(--admin-text-xs); font-weight:600; padding:3px 10px; border-radius:9999px; text-decoration:none; color:var(--color-primary); background:color-mix(in srgb, var(--color-primary) 8%, #fff); border:1px solid color-mix(in srgb, var(--color-primary) 15%, var(--admin-border)); transition:background .14s ease, border-color .14s ease; }
+.admin .ep-prog-view:hover { background:color-mix(in srgb, var(--color-primary) 14%, #fff); border-color:color-mix(in srgb, var(--color-primary) 30%, var(--admin-border)); text-decoration:none; }
 .admin .ep-tool { display:flex; align-items:center; gap:14px; padding:15px 16px; text-decoration:none; transition:transform .14s ease, box-shadow .14s ease, border-color .14s ease; }
 .admin .ep-tool:hover { transform:translateY(-2px); box-shadow:0 14px 32px -18px rgba(107,45,143,.4); border-color:color-mix(in srgb, var(--color-primary) 30%, var(--admin-border)); text-decoration:none; }
 .admin .ep-tool-ic { display:flex; align-items:center; justify-content:center; width:40px; height:40px; border-radius:11px; flex-shrink:0; color:var(--color-primary); background:color-mix(in srgb, var(--color-primary) 8%, #fff); border:1px solid color-mix(in srgb, var(--color-primary) 12%, var(--admin-border)); }
@@ -642,6 +766,7 @@ const EP_CSS = `
   .admin .ep-hero-top { flex-wrap:wrap; }
   .admin .ep-tools { min-width:0; max-width:none; width:100%; order:3; margin-top:.4rem; }
   .admin .ep-tools-label { justify-content:flex-start; }
+  .admin .ep-tools-cat { text-align:left; }
   .admin .ep-tools-list { flex-direction:row; flex-wrap:wrap; }
   .admin .ep-tool-link { flex:1 1 180px; }
 }

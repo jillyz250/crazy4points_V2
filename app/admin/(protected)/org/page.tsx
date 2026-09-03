@@ -24,6 +24,34 @@ type Lore = { id: string; lore_date: string; headline: string; body: string | nu
 const statusTone = (s: Emp['status']) =>
   s === 'active' ? 'success' : s === 'paused' ? 'warning' : s === 'retired' ? 'danger' : 'neutral'
 
+// ── Department colour families ──────────────────────────────────────────────
+// Each head owns a soft, low-saturation hue from the Royal Glow world; ALL of
+// that head's specialists wear it, so a column reads as one family at a glance
+// (Jill's ask: John's people green, Kesha's another colour, etc.). Hues are
+// mixed into the theme surface/border tokens so the tints stay subtle and adapt
+// to light/dark rather than hardcoding backgrounds.
+type HeadTint = { soft: string; headBg: string; border: string; avatarBg: string; ink: string }
+const mkTint = (hue: string): HeadTint => ({
+  soft: `color-mix(in srgb, ${hue} 12%, var(--admin-surface))`,
+  headBg: `color-mix(in srgb, ${hue} 7%, var(--admin-surface))`,
+  border: `color-mix(in srgb, ${hue} 42%, var(--admin-border))`,
+  avatarBg: `color-mix(in srgb, ${hue} 20%, var(--admin-surface))`,
+  ink: hue,
+})
+const HEAD_HUE: Record<string, string> = {
+  'john-content': '#3E9B57',    // green (Jill's example)
+  'kesha-social': '#C6457A',    // rose
+  'janet-growth': '#C58A22',    // amber
+  'priya-sources': '#2E9C9C',   // teal
+  'bill-security': '#3F63C4',   // blue
+  'devon-design': '#7A3FB0',    // violet (on-brand)
+  'erica-finance': '#5B6B8C',   // slate
+}
+// Distinct spares for any future head not in the map above (stable by index).
+const FALLBACK_HUES = ['#4F8A8B', '#B5652A', '#6D6BC4', '#4E8C5A', '#B04A86', '#2F7DA6']
+const tintForHead = (slug: string, idx: number): HeadTint =>
+  mkTint(HEAD_HUE[slug] ?? FALLBACK_HUES[idx % FALLBACK_HUES.length])
+
 function MiniBar({ value, color }: { value: number; color: string }) {
   return (
     <div style={{ height: 5, borderRadius: 3, background: 'var(--admin-surface-alt)', overflow: 'hidden', width: 46 }}>
@@ -49,15 +77,17 @@ function MeterStrip({ m }: { m: Meters }) {
   )
 }
 
-function Node({ e }: { e: Emp }) {
+function Node({ e, tint }: { e: Emp; tint?: HeadTint }) {
   const planned = e.status === 'planned'
+  const gold = e.status === 'active' || e.kind === 'owner'
   return (
     <Link href={`/admin/org/${e.slug}`} style={{ textDecoration: 'none' }}>
       <div
         className="admin-card"
         style={{
           width: 190, padding: '1rem', textAlign: 'center', opacity: planned ? 0.65 : 1,
-          border: `1px solid ${e.status === 'active' || e.kind === 'owner' ? 'var(--admin-accent)' : 'var(--admin-border)'}`,
+          background: tint ? tint.headBg : undefined,
+          border: `1px solid ${gold ? 'var(--admin-accent)' : tint ? tint.border : 'var(--admin-border)'}`,
         }}
       >
         <div style={{ fontSize: '1.75rem', lineHeight: 1 }}>{e.emoji || '👤'}</div>
@@ -72,7 +102,8 @@ function Node({ e }: { e: Emp }) {
 const Connector = () => <div style={{ width: 2, height: 26, background: 'var(--admin-border-strong)' }} />
 
 // A specialist (3rd tier): compact person-badge, visually subordinate to a head.
-function SubNode({ e }: { e: Emp }) {
+// Wears the head's colour family (tint) so it reads as part of that column.
+function SubNode({ e, tint }: { e: Emp; tint?: HeadTint }) {
   const planned = e.status === 'planned'
   return (
     <Link href={`/admin/org/${e.slug}`} style={{ textDecoration: 'none' }}>
@@ -80,15 +111,17 @@ function SubNode({ e }: { e: Emp }) {
         className="admin-card"
         style={{
           display: 'flex', alignItems: 'center', gap: '.5rem', padding: '.4rem .5rem',
-          border: '1px solid var(--admin-border)', opacity: planned ? 0.65 : 1,
+          background: tint ? tint.soft : undefined,
+          border: `1px solid ${tint ? tint.border : 'var(--admin-border)'}`, opacity: planned ? 0.65 : 1,
         }}
       >
         <span
           style={{
             width: 26, height: 26, borderRadius: '50%', flexShrink: 0, display: 'flex',
             alignItems: 'center', justifyContent: 'center', fontSize: '.85rem', lineHeight: 1,
-            background: 'var(--admin-surface-alt)', border: '1px solid var(--admin-border)',
-            color: 'var(--admin-text-muted)', fontWeight: 700,
+            background: tint ? tint.avatarBg : 'var(--admin-surface-alt)',
+            border: `1px solid ${tint ? tint.border : 'var(--admin-border)'}`,
+            color: tint ? tint.ink : 'var(--admin-text-muted)', fontWeight: 700,
           }}
         >
           {e.emoji || e.name.charAt(0).toUpperCase()}
@@ -103,15 +136,17 @@ function SubNode({ e }: { e: Emp }) {
 }
 
 // A head plus its specialist sub-tier, as one vertical column (wraps as a unit).
-function HeadColumn({ head, specialists }: { head: Emp; specialists: Emp[] }) {
+// Heads WITH specialists get a colour family; heads without are left untinted.
+function HeadColumn({ head, specialists, idx }: { head: Emp; specialists: Emp[]; idx: number }) {
+  const tint = specialists.length > 0 ? tintForHead(head.slug, idx) : undefined
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 190 }}>
-      <Node e={head} />
+      <Node e={head} tint={tint} />
       {specialists.length > 0 && (
         <>
-          <div style={{ width: 2, height: 16, background: 'var(--admin-border-strong)' }} />
+          <div style={{ width: 2, height: 16, background: tint ? tint.border : 'var(--admin-border-strong)' }} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: '.35rem', width: '100%' }}>
-            {specialists.map((s) => <SubNode key={s.id} e={s} />)}
+            {specialists.map((s) => <SubNode key={s.id} e={s} tint={tint} />)}
           </div>
         </>
       )}
@@ -165,7 +200,7 @@ export default async function OrgPage() {
             <>
               <div style={{ height: 2, background: 'var(--admin-border-strong)', width: 'min(100%, 620px)' }} />
               <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'flex-start', marginTop: '.9rem' }}>
-                {heads.map((h) => <HeadColumn key={h.id} head={h} specialists={specialistsByHead[h.id] || []} />)}
+                {heads.map((h, i) => <HeadColumn key={h.id} head={h} specialists={specialistsByHead[h.id] || []} idx={i} />)}
               </div>
             </>
           )}
