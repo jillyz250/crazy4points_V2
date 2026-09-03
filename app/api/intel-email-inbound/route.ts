@@ -157,12 +157,14 @@ export async function POST(req: NextRequest) {
   // Strip invisible preheader padding and normalize whitespace BEFORE any
   // truncation, so real content (footnotes, later stories) survives the cap
   // instead of being crowded out by zero-width junk.
-  const bodyText = cleanEmailBody((payload.text ?? '').trim() || stripHtmlForText(html))
+  // let (not const): the Google-Alert branch below rewrites these in place to
+  // unwrap Google's redirect links into real article URLs before segmentation.
+  let bodyText = cleanEmailBody((payload.text ?? '').trim() || stripHtmlForText(html))
   const allUrls = html ? extractSafeUrls(html) : []
   // For source_url we want a meaningful destination — drop mailto: links
   // (they show up from "unsubscribe by email" or "contact us"); they're
   // safe and stay in the body, just not the canonical source.
-  const urls = allUrls.filter((u) => !u.toLowerCase().startsWith('mailto:'))
+  let urls = allUrls.filter((u) => !u.toLowerCase().startsWith('mailto:'))
   // payload.attachments — intentionally never read further. They aren't stored.
 
   // --- 6. Extract +tag from To: address ------------------------------------
@@ -173,38 +175,23 @@ export async function POST(req: NextRequest) {
   const senderDomain = (payload.from.split('@')[1] ?? '').toLowerCase()
   const senderEmail = payload.from.toLowerCase()
 
-  // --- 6b. Google Alerts → quarantine, don't ingest. You forward these from an
-  // allowlisted address, so they'd otherwise pass. They are aggregator digests
-  // (one-email-one-item, not citable, redundant with Scout's Google News feeds)
-  // that in practice only produced garbled/false items. Route them to the same
-  // quarantine review UI so nothing is lost — a genuinely good story stays
-  // recoverable there (and Scout's real sources almost always catch it too).
-  if (isGoogleAlert(payload.from, payload.subject, urls, bodyText)) {
-    const { data: q, error: qErr } = await supabase
-      .from('intel_email_quarantine')
-      .insert({
-        sender_email: senderEmail,
-        sender_domain: senderDomain,
-        subject: payload.subject ?? null,
-        reason: 'google_alert',
-        raw_payload: {
-          from: payload.from,
-          to: payload.to,
-          subject: payload.subject,
-          html_sanitized: html,
-          text: bodyText.slice(0, RAW_TEXT_CAP),
-          urls,
-          source_tag,
-          email_id: emailId,
-        },
-      })
-      .select('id')
-      .single()
-    if (qErr) await logIngestError('email', 'insert', qErr, { stage: 'quarantine-google-alert' })
+  // --- 6b. Google Alerts → summarize + triage (Jill, 2026-09-03) ------------
+  // We used to quarantine Google Alerts wholesale (aggregator digests, redundant
+  // with Scout). Jill wants them WORKED instead: each article in the digest should
+  // become a one-line triage item. Google wraps every article link in a
+  // `google.com/url?...&url=<REAL>` redirect and adds its own alerts/share/feedback
+  // tracking links — so before the normal path runs we UNWRAP the redirects to the
+  // real destination and DROP the tracking links, then fall through to segmentation.
+  // The downstream covered-check dedups each story against what Scout already has.
+  const isGA = isGoogleAlert(payload.from, payload.subject, urls, bodyText)
+  if (isGA) {
+    const beforeCount = urls.length
+    urls = dropGoogleTrackingLinks(urls.map(unwrapGoogleRedirect))
+    bodyText = unwrapGoogleRedirectsInText(bodyText)
     console.log(
-      `[email-inbound] google-alert quarantined (q=${q?.id ?? 'failed'}): from=${senderEmail} subject=${payload.subject?.slice(0, 60)}`,
+      `[email-inbound] google-alert -> summarize+triage (links ${beforeCount} -> ${urls.length} real article URLs)`,
     )
-    return NextResponse.json({ ok: true, quarantined: q?.id ?? null, reason: 'google_alert' })
+    // Intentionally NO early return — continue into the segmentation path below.
   }
 
   const { data: senderRow } = await supabase
@@ -267,7 +254,9 @@ export async function POST(req: NextRequest) {
   const vendorSignal =
     /\b(vercel|supabase|anthropic|claude|openai|chatgpt|resend|firecrawl|hostinger|workspace|github)\b/i.test(vendorProbe) ||
     /\b(invoice|receipt|amount due|payment (?:confirmation|receipt)|your (?:bill|invoice)|changelog|release notes|what'?s new|now available|introducing)\b/i.test(vendorProbe)
-  if (vendorSignal) {
+  // Skip the vendor branch for Google Alerts — they're news digests, not vendor
+  // mail, and article snippets can trip the keyword probe on a wasted Haiku call.
+  if (!isGA && vendorSignal) {
     const assessment = await assessVendorEmail({
       subject: payload.subject ?? '',
       body_text: bodyText,
@@ -547,6 +536,46 @@ function isGoogleAlert(
   if ((subject || '').toLowerCase().startsWith('google alert')) return true
   const hay = `${urls.join(' ')} ${bodyText.slice(0, 3000)}`.toLowerCase()
   return /google\.com\/alerts/.test(hay)
+}
+
+/**
+ * Google Alert links are redirect wrappers: `google.com/url?...&url=<ENCODED>`.
+ * Unwrap one to its real destination so the segmenter records the real article
+ * URL as source_url (not a google.com tracking link). Non-Google URLs pass through.
+ */
+function unwrapGoogleRedirect(u: string): string {
+  const s = u.replace(/&amp;/g, '&')
+  if (!/google\.com\/url/i.test(s)) return u
+  const m = s.match(/[?&](?:url|q)=([^&]+)/i)
+  if (!m) return u
+  try {
+    return decodeURIComponent(m[1])
+  } catch {
+    return m[1]
+  }
+}
+
+/** Same, but rewrites every google.com/url redirect found inline in body text. */
+function unwrapGoogleRedirectsInText(text: string): string {
+  return text.replace(/https?:\/\/(?:www\.)?google\.com\/url\?[^\s"'<>)\]]+/gi, (m) =>
+    unwrapGoogleRedirect(m),
+  )
+}
+
+/**
+ * After unwrapping, drop any remaining google.com tracking links (alerts/share/
+ * feedback and un-unwrappable url wrappers) and de-dupe — they aren't articles.
+ */
+function dropGoogleTrackingLinks(us: string[]): string[] {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const u of us) {
+    if (/google\.com\/(?:alerts|url)\b/i.test(u)) continue
+    if (seen.has(u)) continue
+    seen.add(u)
+    out.push(u)
+  }
+  return out
 }
 
 /**
