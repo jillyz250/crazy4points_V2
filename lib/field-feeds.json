@@ -2,37 +2,37 @@
   "kesha-social": {
     "beat": "a social-media manager for a points/travel brand (algorithm + format changes, what is trending)",
     "sources": [
-      { "name": "Social Media Today", "url": "https://www.socialmediatoday.com/feeds/news/" },
-      { "name": "Buffer", "url": "https://buffer.com/resources/feed" }
+      { "name": "Social Media Today", "tagline": "Social Media News & Trends", "url": "https://www.socialmediatoday.com/feeds/news/" },
+      { "name": "Buffer", "tagline": "The Social Marketing Playbook", "url": "https://buffer.com/resources/feed" }
     ]
   },
   "john-content": {
     "beat": "a content lead (article writing, publishing, SEO, content strategy)",
     "sources": [
-      { "name": "Search Engine Land", "url": "https://searchengineland.com/feed" },
-      { "name": "Search Engine Journal", "url": "https://www.searchenginejournal.com/feed/" }
+      { "name": "Search Engine Land", "tagline": "SEO & Search Marketing News", "url": "https://searchengineland.com/feed" },
+      { "name": "Search Engine Journal", "tagline": "Search Marketing Insights", "url": "https://www.searchenginejournal.com/feed/" }
     ]
   },
   "bill-security": {
     "beat": "a security lead (advisories, CVEs, web/app security)",
     "sources": [
-      { "name": "The Hacker News", "url": "https://feeds.feedburner.com/TheHackersNews" },
-      { "name": "Krebs on Security", "url": "https://krebsonsecurity.com/feed/" }
+      { "name": "The Hacker News", "tagline": "Cybersecurity News & Analysis", "url": "https://feeds.feedburner.com/TheHackersNews" },
+      { "name": "Krebs on Security", "tagline": "In-Depth Security Investigations", "url": "https://krebsonsecurity.com/feed/" }
     ]
   },
   "devon-design": {
     "beat": "a design/UX lead (UI/UX, accessibility, design systems)",
     "sources": [
-      { "name": "Nielsen Norman Group", "url": "https://www.nngroup.com/feed/rss/" },
-      { "name": "Smashing Magazine", "url": "https://www.smashingmagazine.com/feed/" },
-      { "name": "A List Apart", "url": "https://alistapart.com/main/feed/" }
+      { "name": "Nielsen Norman Group", "tagline": "UX Research & Guidelines", "url": "https://www.nngroup.com/feed/rss/" },
+      { "name": "Smashing Magazine", "tagline": "Web Design & Development", "url": "https://www.smashingmagazine.com/feed/" },
+      { "name": "A List Apart", "tagline": "Web Standards & Craft", "url": "https://alistapart.com/main/feed/" }
     ]
   },
   "charlie-legal": {
     "beat": "a legal/compliance lead (FTC disclosure, sweepstakes/promo law, email compliance)",
     "sources": [
-      { "name": "FTC Business Guidance", "url": "https://www.ftc.gov/business-guidance/blog/rss" },
-      { "name": "Ad Law Access", "url": "https://www.kelleydrye.com/viewpoints/blogs/ad-law-access/rss" }
+      { "name": "FTC Business Guidance", "tagline": "Compliance & Advertising Law", "url": "https://www.ftc.gov/business-guidance/blog/rss" },
+      { "name": "Ad Law Access", "tagline": "Advertising & Marketing Law", "url": "https://www.kelleydrye.com/viewpoints/blogs/ad-law-access/rss" }
     ]
   }
 }
