@@ -43,6 +43,22 @@ type Emp = {
   quick_note: string | null
 }
 type Log = { id: string; type: string; note: string; actor: string | null; created_at: string }
+// Vendor radar (mig — vendor_radar) — product updates from our vendors, routed to
+// the head most likely to care (suggested_owner = first name lowercased). This page
+// shows a READ-ONLY awareness strip; triage/actions live on /admin/expenses.
+type VendorUpdate = {
+  id: string
+  received_at: string
+  vendor: string
+  subject: string | null
+  whats_new: string | null
+  could_help: string | null
+  disposition: 'discuss' | 'fyi' | string
+  status: 'new' | 'reviewed' | 'acted' | 'dismissed' | string
+  decided_note: string | null
+  decided_at: string | null
+}
+const VR_STATUS_LABEL: Record<string, string> = { reviewed: 'Reviewed', acted: 'Acted', dismissed: 'Dismissed' }
 // Hero "Top task" card — one shape for both sources (employee_tasks / jill_tasks).
 type HeroTask = { title: string; href: string; priority: TaskPriority | null; status: TaskStatus | null; due_at: string | null }
 // lib/field-feeds.json — trade sources each head reads to stay current.
@@ -171,7 +187,10 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
   if (!e) notFound()
 
   const isOwner = e.kind === 'owner'
-  const [{ data: logsData }, { data: mgr }, { data: teamData }, { data: decisionsData }, { data: tasksData }, { data: ideasData }, { data: jillTasksData }, { data: briefsData }] = await Promise.all([
+  // vendor_radar routes each update to a SHORT owner key = the person's first name
+  // lowercased (bill, devon, priya…); this page's slug is the full 'bill-security'.
+  const ownerKey = slug.split('-')[0]
+  const [{ data: logsData }, { data: mgr }, { data: teamData }, { data: decisionsData }, { data: tasksData }, { data: ideasData }, { data: jillTasksData }, { data: briefsData }, { data: vendorData }] = await Promise.all([
     db.from('employee_logs').select('id, type, note, actor, created_at').eq('employee_id', e.id).order('created_at', { ascending: false }).limit(12),
     e.reports_to_id
       ? db.from('employees').select('name, slug, role_title, emoji').eq('id', e.reports_to_id).maybeSingle()
@@ -187,6 +206,12 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
       : Promise.resolve({ data: null }),
     // Dated history of this head's morning briefs (mig 664) — one per day, newest first.
     db.from('employee_briefs').select('brief_date').eq('employee_slug', slug).order('brief_date', { ascending: false }).limit(60),
+    // Vendor product-updates routed to this person (suggested_owner = ownerKey).
+    db.from('vendor_radar')
+      .select('id, received_at, vendor, subject, whats_new, could_help, disposition, status, decided_note, decided_at')
+      .eq('suggested_owner', ownerKey)
+      .order('received_at', { ascending: false })
+      .limit(30),
   ])
   const logs = (logsData ?? []) as Log[]
   const decisions = (decisionsData ?? []) as DecisionRow[]
@@ -217,6 +242,17 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
   const team = (teamData ?? []) as { id: string; slug: string; name: string; role_title: string | null; emoji: string | null; image_url: string | null; status: string }[]
   const briefs = (briefsData ?? []) as { brief_date: string }[]
   const feeds = FIELD_FEEDS[slug] ?? null
+
+  // Vendor updates: un-triaged ('new') float to the top, then newest-received; cap 8.
+  const vendorUpdates = ([...((vendorData ?? []) as VendorUpdate[])]
+    .sort((a, b) => {
+      const an = a.status === 'new' ? 0 : 1
+      const bn = b.status === 'new' ? 0 : 1
+      if (an !== bn) return an - bn
+      return new Date(b.received_at).getTime() - new Date(a.received_at).getTime()
+    }))
+    .slice(0, 8)
+  const vendorNewCount = vendorUpdates.filter((v) => v.status === 'new').length
 
   const isAgent = e.kind === 'agent'
   const meters = isAgent ? meterCells(computeMeters(e as unknown as { slug: string; kind: 'agent'; status: string; responsibilities?: string[] | null }, logs)) : null
@@ -396,6 +432,45 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
                   </a>
                 )
               })}
+            </div>
+          </section>
+        )}
+
+        {/* ── Vendor updates: product-updates from our vendors routed to this head.
+            Read-only awareness strip — triage/actions live on /admin/expenses.
+            Renders NOTHING when this person has no routed updates. ── */}
+        {vendorUpdates.length > 0 && (
+          <section className="ep-section">
+            <div className="ep-sec-head">
+              <h2 className="ep-sec-title">Vendor updates</h2>
+              <span className="ep-sec-meta">{vendorNewCount > 0 ? `${vendorNewCount} new` : 'All triaged'}</span>
+            </div>
+            <div className="ep-card ep-vr">
+              {vendorUpdates.map((v) => {
+                const handled = v.status !== 'new'
+                return (
+                  <div key={v.id} className="ep-vr-item">
+                    <div className="ep-vr-top">
+                      <span className="ep-vr-vendor">{v.vendor}</span>
+                      <span className="ep-vr-date">{fmtDate(v.received_at)}</span>
+                      <span className={`ep-vr-disp ${v.disposition === 'discuss' ? 'ep-vr-disp-discuss' : 'ep-vr-disp-fyi'}`}>
+                        {v.disposition === 'discuss' ? 'Discuss' : 'FYI'}
+                      </span>
+                      {handled && (
+                        <span className="ep-vr-status">{VR_STATUS_LABEL[v.status] ?? statusLabel(v.status)}</span>
+                      )}
+                    </div>
+                    {v.whats_new && <p className="ep-vr-new">{v.whats_new}</p>}
+                    {v.could_help && <p className="ep-vr-help">{v.could_help}</p>}
+                    {handled && v.decided_note && (
+                      <p className="ep-vr-note"><Icon name="check" size={12} /> {v.decided_note}</p>
+                    )}
+                  </div>
+                )
+              })}
+              <Link href="/admin/expenses" className="ep-vr-all">
+                Triage all in Vendor radar <Icon name="arrow" size={13} />
+              </Link>
             </div>
           </section>
         )}
@@ -940,6 +1015,24 @@ const EP_CSS = `
 .admin .ep-briefs-empty { padding:2px; }
 
 .admin .ep-empty { display:flex; align-items:center; gap:8px; padding:16px; margin:0; color:var(--admin-text-muted); font-size:var(--admin-text-sm); }
+
+/* Vendor updates — read-only awareness strip (triage lives on /admin/expenses) */
+.admin .ep-vr { padding:6px; }
+.admin .ep-vr-item { padding:14px 14px 15px; }
+.admin .ep-vr-item + .ep-vr-item { border-top:1px solid var(--admin-border); }
+.admin .ep-vr-top { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+.admin .ep-vr-vendor { font-size:.95rem; font-weight:800; color:var(--admin-text); }
+.admin .ep-vr-date { font-size:var(--admin-text-xs); color:var(--admin-text-subtle); font-variant-numeric:tabular-nums; }
+.admin .ep-vr-disp { font-size:var(--admin-text-xs); font-weight:800; padding:2px 9px; border-radius:9999px; text-transform:uppercase; letter-spacing:.04em; }
+.admin .ep-vr-disp-discuss { color:color-mix(in srgb, var(--color-accent) 45%, var(--admin-text)); background:color-mix(in srgb, var(--color-accent) 20%, var(--admin-surface)); border:1px solid color-mix(in srgb, var(--color-accent) 45%, var(--admin-border)); }
+.admin .ep-vr-disp-fyi { color:var(--admin-text-muted); background:var(--admin-surface-alt); border:1px solid var(--admin-border); }
+.admin .ep-vr-status { font-size:var(--admin-text-xs); font-weight:700; padding:2px 9px; border-radius:9999px; text-transform:uppercase; letter-spacing:.04em; color:var(--admin-text-muted); background:var(--admin-surface-alt); border:1px solid var(--admin-border); }
+.admin .ep-vr-new { margin:8px 0 0; font-size:var(--admin-text-sm); line-height:1.5; color:var(--admin-text-secondary); }
+.admin .ep-vr-help { margin:5px 0 0; font-size:var(--admin-text-sm); line-height:1.5; color:var(--admin-text-muted); font-style:italic; }
+.admin .ep-vr-note { display:flex; align-items:flex-start; gap:6px; margin:9px 0 0; padding:8px 11px; border-radius:10px; font-size:var(--admin-text-xs); line-height:1.5; color:var(--admin-text-muted); background:var(--admin-surface-alt); border:1px solid var(--admin-border); }
+.admin .ep-vr-note svg { flex-shrink:0; margin-top:2px; color:var(--admin-success); }
+.admin .ep-vr-all { display:inline-flex; align-items:center; gap:5px; margin:6px 8px 8px; font-size:var(--admin-text-xs); font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--color-primary); text-decoration:none; transition:gap .14s ease; }
+.admin .ep-vr-all:hover { gap:8px; text-decoration:none; }
 
 @media (max-width:820px) {
   .admin .ep-cols { grid-template-columns:1fr; }
