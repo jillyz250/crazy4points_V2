@@ -71,31 +71,33 @@ export async function loadOrgGame(loreLimit = 4): Promise<OrgGame> {
 }
 
 // ── "Today" queue — representative counts, real registry destinations ────────
-type QueueSample = { id: string; icon: IconName; count: string; blurb: string; action: string; urgent?: boolean }
+// lane splits the owner's command center: 'decision' = only Jill can do this
+// (approve/publish/send); 'team' = a delegable work queue the heads run down.
+type QueueSample = { id: string; icon: IconName; count: string; blurb: string; action: string; urgent?: boolean; lane: 'decision' | 'team' }
 
 const QUEUE_SAMPLE: QueueSample[] = [
-  { id: 'triage', icon: 'inbox', count: '12 new', urgent: true,
-    blurb: 'Fresh intel landed overnight — a few look like real, coverable stories.', action: 'Triage' },
-  { id: 'drafts', icon: 'pencil', count: '3 ready', urgent: true,
+  { id: 'drafts', icon: 'pencil', count: '3 ready', urgent: true, lane: 'decision',
     blurb: 'Three alerts are written and fact-checked, waiting on your read-through to go live.', action: 'Review' },
-  { id: 'data-integrity', icon: 'shield', count: '1 high', urgent: true,
-    blurb: 'A published fact may have drifted from its official source. One is high-severity.', action: 'Check it' },
-  { id: 'errors', icon: 'alert', count: '2 today',
-    blurb: 'Two runtime errors in the last 24h. Bill has eyes on them; nothing is down.', action: 'Look' },
-  { id: 'fact-checks', icon: 'check', count: '4 queued',
-    blurb: 'Four items to confirm against the issuer before they can reach the newsletter.', action: 'Confirm' },
-  { id: 'newsletter', icon: 'mail', count: 'Fri',
+  { id: 'newsletter', icon: 'mail', count: 'Fri', lane: 'decision',
     blurb: "This week's newsletter is drafting itself — 6 offers queued in date order.", action: 'Open' },
+  { id: 'triage', icon: 'inbox', count: '12 new', urgent: true, lane: 'team',
+    blurb: 'Fresh intel landed overnight — a few look like real, coverable stories.', action: 'Triage' },
+  { id: 'data-integrity', icon: 'shield', count: '1 high', urgent: true, lane: 'team',
+    blurb: 'A published fact may have drifted from its official source. One is high-severity.', action: 'Check it' },
+  { id: 'fact-checks', icon: 'check', count: '4 queued', lane: 'team',
+    blurb: 'Four items to confirm against the issuer before they can reach the newsletter.', action: 'Confirm' },
+  { id: 'errors', icon: 'alert', count: '2 today', lane: 'team',
+    blurb: 'Two runtime errors in the last 24h. Bill has eyes on them; nothing is down.', action: 'Look' },
 ]
 
-export type QueueItem = { page: AdminPage; icon: IconName; count: string; blurb: string; action: string; urgent: boolean }
+export type QueueItem = { page: AdminPage; icon: IconName; count: string; blurb: string; action: string; urgent: boolean; lane: 'decision' | 'team' }
 
 export function buildQueue(): QueueItem[] {
   const byId = new Map<string, AdminPage>(getPagesByPriority().map((p) => [p.id, p]))
   return QUEUE_SAMPLE
     .map((s) => {
       const page = byId.get(s.id)
-      return page ? { page, icon: s.icon, count: s.count, blurb: s.blurb, action: s.action, urgent: !!s.urgent } : null
+      return page ? { page, icon: s.icon, count: s.count, blurb: s.blurb, action: s.action, urgent: !!s.urgent, lane: s.lane } : null
     })
     .filter((q): q is QueueItem => q !== null)
     .sort((a, b) => b.page.dashboardPriority - a.page.dashboardPriority)

@@ -168,8 +168,11 @@ export default async function AdminDashboard() {
   const overdue = overdueOnly(aging)
 
   const queue = buildQueue()
-  const primary = queue.filter((q) => q.urgent)
-  const rest = queue.filter((q) => !q.urgent)
+  // Scope the command center: 'decision' = only Jill can do it (approve/publish/
+  // send); 'team' = a delegable queue the heads work down. Keeps "what needs me"
+  // meaning "only I can do this", not "here's all the work". (Jill, 2026-09-03)
+  const decisionQ = queue.filter((q) => q.lane === 'decision')
+  const teamQ = queue.filter((q) => q.lane === 'team')
 
   // Welcome banner art — the HQ-lounge illustration at public/team/dashboard-hero.png.
   // Sets an "arriving" tone above the person-first content; if the file is absent
@@ -310,7 +313,7 @@ export default async function AdminDashboard() {
         {/* ── What needs me + Notepad ── */}
         <div className="dh-cols">
           <section>
-            <div className="dh-sec-head"><h2 className="dh-sec-title">What needs me</h2><span className="dh-sec-meta">{primary.length} today</span></div>
+            <div className="dh-sec-head"><h2 className="dh-sec-title">What needs me</h2><span className="dh-sec-meta">{decisionQ.length} for you</span></div>
             {/* Decision Log — proposals from the team awaiting a yes/no. */}
             {(pendingDecisions ?? 0) > 0 ? (
               <Link href="/admin/decisions" className="dh-decisions dh-decisions-hot">
@@ -351,11 +354,18 @@ export default async function AdminDashboard() {
               </div>
             )}
             <div className="dh-card dh-queue">
-              {primary.map((q) => queueRow(q))}
-              {rest.length > 0 && (
-                <details className="dh-more">
-                  <summary><span>{rest.length} more in the queue</span><Icon name="arrow" size={14} className="dh-more-chev" /></summary>
-                  <div>{rest.map((q) => queueRow(q, true))}</div>
+              {/* Needs your decision — owner-only calls (approve/publish/send). */}
+              {decisionQ.length > 0 && (
+                <>
+                  <div className="dh-queue-lane">Needs your decision</div>
+                  {decisionQ.map((q) => queueRow(q))}
+                </>
+              )}
+              {/* Team queues — delegable work the heads run down; informational. */}
+              {teamQ.length > 0 && (
+                <details className="dh-more" open>
+                  <summary><span>Team queues ({teamQ.length})</span><Icon name="arrow" size={14} className="dh-more-chev" /></summary>
+                  <div>{teamQ.map((q) => queueRow(q, true))}</div>
                 </details>
               )}
             </div>
@@ -551,6 +561,7 @@ const DH_CSS = `
 
 /* Queue */
 .admin .dh-queue { padding:6px; }
+.admin .dh-queue-lane { padding:10px 16px 6px; font-size:var(--admin-text-xs); font-weight:800; text-transform:uppercase; letter-spacing:.08em; color:var(--admin-text-muted); }
 .admin .dh-row { display:flex; align-items:center; gap:15px; padding:15px 16px; border-radius:13px; text-decoration:none; transition:background .14s ease; }
 .admin .dh-row + .dh-row { border-top:1px solid var(--admin-border); border-radius:0; }
 .admin .dh-row:hover { background:color-mix(in srgb, var(--color-primary) 4%, #fff); text-decoration:none; }
