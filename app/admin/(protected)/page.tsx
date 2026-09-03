@@ -104,6 +104,7 @@ export default async function AdminDashboard() {
     { data: empData }, { data: logData }, { data: notesData }, { data: tasksData }, { data: p1Data },
     { data: activityData },
     alertsCount, programsCount, subsCount, subsTrend, newExperiences, newSweepstakes, pendingDecisions,
+    triageCount, draftCount, errorCount,
   ] = await Promise.all([
     db.from('employees').select('id, slug, name, role_title, kind, emoji, image_url, status, responsibilities'),
     db.from('employee_logs').select('employee_id, type, created_at'),
@@ -134,6 +135,13 @@ export default async function AdminDashboard() {
       c.from('decision_log').select('*', { count: 'exact', head: true })
         .eq('status', 'pending')
         .eq('mode', 'proposed')),
+    // Live command-center queue counts (replace the old hardcoded sample numbers).
+    filteredCount((c) => c.from('intel_items').select('*', { count: 'exact', head: true })
+      .eq('processed', false).is('rejected_at', null).is('archived_at', null)),
+    filteredCount((c) => c.from('content_variants').select('*', { count: 'exact', head: true })
+      .eq('status', 'needs_review')),
+    filteredCount((c) => c.from('system_errors').select('*', { count: 'exact', head: true })
+      .is('resolved_at', null)),
   ])
   const emps = (empData ?? []) as Emp[]
   const notes = (notesData ?? []) as DashboardNote[]
@@ -171,8 +179,19 @@ export default async function AdminDashboard() {
   // Scope the command center: 'decision' = only Jill can do it (approve/publish/
   // send); 'team' = a delegable queue the heads work down. Keeps "what needs me"
   // meaning "only I can do this", not "here's all the work". (Jill, 2026-09-03)
-  const decisionQ = queue.filter((q) => q.lane === 'decision')
-  const teamQ = queue.filter((q) => q.lane === 'team')
+  // LIVE counts only — no more hardcoded sample numbers. Items appear only when
+  // wired to a real count AND currently non-zero. (data-integrity/fact-checks/
+  // newsletter are derived queues — added back when their counts are wired.)
+  const LIVE: Record<string, { n: number; label: string }> = {
+    triage: { n: triageCount ?? 0, label: 'new' },
+    drafts: { n: draftCount ?? 0, label: 'ready' },
+    errors: { n: errorCount ?? 0, label: 'today' },
+  }
+  const liveQueue = queue
+    .filter((q) => LIVE[q.page.id] && LIVE[q.page.id].n > 0)
+    .map((q) => ({ ...q, count: `${LIVE[q.page.id].n} ${LIVE[q.page.id].label}` }))
+  const decisionQ = liveQueue.filter((q) => q.lane === 'decision')
+  const teamQ = liveQueue.filter((q) => q.lane === 'team')
 
   // Welcome banner art — the HQ-lounge illustration at public/team/dashboard-hero.png.
   // Sets an "arriving" tone above the person-first content; if the file is absent
@@ -355,12 +374,10 @@ export default async function AdminDashboard() {
             )}
             <div className="dh-card dh-queue">
               {/* Needs your decision — owner-only calls (approve/publish/send). */}
-              {decisionQ.length > 0 && (
-                <>
-                  <div className="dh-queue-lane">Needs your decision</div>
-                  {decisionQ.map((q) => queueRow(q))}
-                </>
-              )}
+              <div className="dh-queue-lane">Needs your decision</div>
+              {decisionQ.length > 0
+                ? decisionQ.map((q) => queueRow(q))
+                : <div className="dh-queue-clear"><Icon name="check" size={15} /> Nothing needs your decision right now.</div>}
               {/* Team queues — delegable work the heads run down; informational. */}
               {teamQ.length > 0 && (
                 <details className="dh-more" open>
@@ -562,6 +579,7 @@ const DH_CSS = `
 /* Queue */
 .admin .dh-queue { padding:6px; }
 .admin .dh-queue-lane { padding:10px 16px 6px; font-size:var(--admin-text-xs); font-weight:800; text-transform:uppercase; letter-spacing:.08em; color:var(--admin-text-muted); }
+.admin .dh-queue-clear { display:flex; align-items:center; gap:8px; padding:12px 16px 15px; font-size:var(--admin-text-sm); color:var(--admin-text-muted); }
 .admin .dh-row { display:flex; align-items:center; gap:15px; padding:15px 16px; border-radius:13px; text-decoration:none; transition:background .14s ease; }
 .admin .dh-row + .dh-row { border-top:1px solid var(--admin-border); border-radius:0; }
 .admin .dh-row:hover { background:color-mix(in srgb, var(--color-primary) 4%, #fff); text-decoration:none; }
