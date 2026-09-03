@@ -80,8 +80,9 @@ export type AdminPage = {
   title: string
   /** One-line "what this is" — feeds tooltips + the future page directory. */
   description: string
-  /** Employee who owns this page. */
-  owner: OwnerSlug
+  /** Employee who owns this page — or null for shared/top-level destinations
+   *  that no single person owns (e.g. the Breakroom). */
+  owner: OwnerSlug | null
   /** What kind of work this page is — the nav sub-label. */
   taskCategory: TaskCategory
   /** Route (may carry a query string for filtered views). */
@@ -160,7 +161,7 @@ export const ADMIN_PAGES: AdminPage[] = [
     id: 'breakroom',
     title: 'Breakroom',
     description: 'The office soap opera — every character\'s arc + the shared office feed. Flavor only, internal.',
-    owner: 'morgan-chief',
+    owner: null, // no one owns the Breakroom — it's a shared, top-level destination (Jill, 2026-09-03)
     taskCategory: 'Ops',
     path: '/admin/breakroom',
     status: 'active',
