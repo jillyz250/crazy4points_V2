@@ -131,6 +131,11 @@ const LOG_KIND: Record<string, LogKind> = {
   review: { icon: 'check', label: 'Review', fg: 'var(--admin-info)', bg: 'var(--admin-info-soft)' },
 }
 const fmtDate = (s: string) => new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+// Date-only 'YYYY-MM-DD' → readable, parsed as LOCAL so it never slips a day.
+const fmtBriefDate = (ymd: string) => {
+  const [y, m, d] = ymd.split('-').map(Number)
+  return new Date(y, (m || 1) - 1, d || 1).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
 
 // Top Task card presenters (hero) — priority chip class + human status label.
 const TASK_PRI_CLASS: Record<string, string> = { P1: 'ep-tt-p1', P2: 'ep-tt-p2', P3: 'ep-tt-p3' }
@@ -165,12 +170,12 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
   if (!e) notFound()
 
   const isOwner = e.kind === 'owner'
-  const [{ data: logsData }, { data: mgr }, { data: teamData }, { data: decisionsData }, { data: tasksData }, { data: ideasData }, { data: jillTasksData }] = await Promise.all([
+  const [{ data: logsData }, { data: mgr }, { data: teamData }, { data: decisionsData }, { data: tasksData }, { data: ideasData }, { data: jillTasksData }, { data: briefsData }] = await Promise.all([
     db.from('employee_logs').select('id, type, note, actor, created_at').eq('employee_id', e.id).order('created_at', { ascending: false }).limit(12),
     e.reports_to_id
       ? db.from('employees').select('name, slug, role_title, emoji').eq('id', e.reports_to_id).maybeSingle()
       : Promise.resolve({ data: null }),
-    db.from('employees').select('id, slug, name, role_title, emoji, status').eq('reports_to_id', e.id).order('name', { ascending: true }),
+    db.from('employees').select('id, slug, name, role_title, emoji, image_url, status').eq('reports_to_id', e.id).order('name', { ascending: true }),
     db.from('decision_log').select('*').eq('employee_slug', slug).order('created_at', { ascending: false }).limit(8),
     db.from('employee_tasks').select('*').eq('employee_slug', slug).order('created_at', { ascending: false }).limit(100),
     db.from('employee_ideas').select(IDEA_SELECT).eq('employee_slug', slug).order('created_at', { ascending: false }).limit(100),
@@ -179,6 +184,8 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
     isOwner
       ? db.from('jill_tasks').select('id, title, link, created_at').eq('done', false).order('created_at', { ascending: false }).limit(100)
       : Promise.resolve({ data: null }),
+    // Dated history of this head's morning briefs (mig 664) — one per day, newest first.
+    db.from('employee_briefs').select('brief_date').eq('employee_slug', slug).order('brief_date', { ascending: false }).limit(60),
   ])
   const logs = (logsData ?? []) as Log[]
   const decisions = (decisionsData ?? []) as DecisionRow[]
@@ -206,7 +213,8 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
         : null)
   const heroOpenCount = isOwner ? jillTasks.length : openTaskCount
   const manager = mgr as { name: string; slug: string; role_title: string | null; emoji: string | null } | null
-  const team = (teamData ?? []) as { id: string; slug: string; name: string; role_title: string | null; emoji: string | null; status: string }[]
+  const team = (teamData ?? []) as { id: string; slug: string; name: string; role_title: string | null; emoji: string | null; image_url: string | null; status: string }[]
+  const briefs = (briefsData ?? []) as { brief_date: string }[]
   const feeds = FIELD_FEEDS[slug] ?? null
 
   const isAgent = e.kind === 'agent'
@@ -401,7 +409,13 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
             <div className="ep-team">
               {team.map((m) => (
                 <Link key={m.id} href={`/admin/org/${m.slug}`} className="ep-card ep-teammate" title={m.role_title || m.name}>
-                  <span className="ep-teammate-av">{m.emoji || m.name.charAt(0).toUpperCase()}</span>
+                  {m.image_url ? (
+                    <span className="ep-teammate-av ep-teammate-av-img">
+                      <Image src={m.image_url} alt={m.name} fill sizes="44px" style={{ objectFit: 'cover' }} />
+                    </span>
+                  ) : (
+                    <span className="ep-teammate-av">{m.emoji || m.name.charAt(0).toUpperCase()}</span>
+                  )}
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div className="ep-teammate-name">{m.name}</div>
                     <div className="ep-teammate-role">{m.role_title || ''}</div>
@@ -480,6 +494,31 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
           <div className="ep-card ep-ideas-card">
             <IdeasBox employeeSlug={slug} employeeName={e.name} initialIdeas={ideas} />
           </div>
+        </section>
+
+        {/* ── Briefs: dated history of this head's morning briefs (mig 664) ── */}
+        <section className="ep-section">
+          <div className="ep-sec-head">
+            <h2 className="ep-sec-title">Briefs</h2>
+            {briefs.length > 0 && <span className="ep-sec-meta">{briefs.length} brief{briefs.length === 1 ? '' : 's'}</span>}
+          </div>
+          {briefs.length === 0 ? (
+            <div className="ep-card ep-briefs-empty">
+              <p className="ep-empty"><Icon name="fileText" size={16} /> No briefs yet.</p>
+            </div>
+          ) : (
+            <div className="ep-briefs">
+              {briefs.map((b) => (
+                <Link key={b.brief_date} href={`/admin/org/${slug}/briefs/${b.brief_date}`} className="ep-brief-pill">
+                  <span className="ep-brief-ic"><Icon name="fileText" size={15} /></span>
+                  <span className="ep-brief-label">Brief</span>
+                  <span className="ep-brief-sep" aria-hidden>·</span>
+                  <span className="ep-brief-date">{fmtBriefDate(b.brief_date)}</span>
+                  <span className="ep-brief-go"><Icon name="arrow" size={13} /></span>
+                </Link>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* ── Recent tasks + Charter (two columns) ── */}
@@ -846,6 +885,8 @@ const EP_CSS = `
 .admin .ep-teammate { display:flex; align-items:center; gap:12px; padding:12px 14px; text-decoration:none; transition:transform .14s ease, box-shadow .14s ease, border-color .14s ease; }
 .admin .ep-teammate:hover { transform:translateY(-2px); box-shadow:0 14px 32px -18px rgba(107,45,143,.4); border-color:color-mix(in srgb, var(--color-primary) 30%, var(--admin-border)); text-decoration:none; }
 .admin .ep-teammate-av { display:flex; align-items:center; justify-content:center; width:38px; height:38px; border-radius:50%; flex-shrink:0; font-size:1.15rem; line-height:1; background:var(--admin-accent-soft); border:1px solid color-mix(in srgb, var(--color-accent) 30%, var(--admin-border)); }
+.admin .ep-teammate-av-img { position:relative; overflow:hidden; background:var(--admin-accent-soft); }
+.admin .ep-teammate-av-img img { border-radius:50%; }
 .admin .ep-teammate-name { font-size:.92rem; font-weight:700; color:var(--admin-text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .admin .ep-teammate-role { font-size:var(--admin-text-xs); color:var(--admin-text-muted); margin-top:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .admin .ep-teammate-go { color:var(--admin-text-subtle); flex-shrink:0; opacity:0; transform:translateX(-4px); transition:opacity .14s ease, transform .14s ease; }
@@ -879,6 +920,23 @@ const EP_CSS = `
 .admin .ep-dl-target { font-size:var(--admin-text-sm); color:var(--admin-text-secondary); min-width:0; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .admin .ep-dl-pill { font-size:var(--admin-text-xs); font-weight:800; padding:2px 9px; border-radius:9999px; text-transform:uppercase; letter-spacing:.04em; flex-shrink:0; }
 .admin .ep-dl-time { font-size:var(--admin-text-xs); color:var(--admin-text-subtle); flex-shrink:0; font-variant-numeric:tabular-nums; margin-left:auto; }
+
+/* Briefs — compact dated history, each pill links to a simple readable brief */
+.admin .ep-briefs { display:flex; flex-wrap:wrap; gap:.6rem; }
+.admin .ep-brief-pill {
+  display:inline-flex; align-items:center; gap:8px; padding:9px 14px; border-radius:12px; text-decoration:none;
+  background:var(--admin-surface); border:1px solid color-mix(in srgb, var(--color-primary) 9%, var(--admin-border));
+  box-shadow:0 1px 2px rgba(107,45,143,.03), 0 12px 26px -24px rgba(107,45,143,.3);
+  transition:transform .14s ease, box-shadow .14s ease, border-color .14s ease;
+}
+.admin .ep-brief-pill:hover { transform:translateY(-2px); box-shadow:0 14px 30px -18px rgba(107,45,143,.4); border-color:color-mix(in srgb, var(--color-primary) 30%, var(--admin-border)); text-decoration:none; }
+.admin .ep-brief-ic { display:flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:8px; flex-shrink:0; color:var(--color-primary); background:color-mix(in srgb, var(--color-primary) 8%, #fff); border:1px solid color-mix(in srgb, var(--color-primary) 12%, var(--admin-border)); }
+.admin .ep-brief-label { font-size:var(--admin-text-sm); font-weight:800; color:var(--admin-text); letter-spacing:.01em; }
+.admin .ep-brief-sep { color:var(--admin-text-subtle); }
+.admin .ep-brief-date { font-size:var(--admin-text-sm); font-weight:600; color:var(--admin-text-secondary); font-variant-numeric:tabular-nums; }
+.admin .ep-brief-go { color:var(--admin-text-subtle); opacity:0; transform:translateX(-4px); transition:opacity .14s ease, transform .14s ease; }
+.admin .ep-brief-pill:hover .ep-brief-go { opacity:1; transform:translateX(0); color:var(--color-primary); }
+.admin .ep-briefs-empty { padding:2px; }
 
 .admin .ep-empty { display:flex; align-items:center; gap:8px; padding:16px; margin:0; color:var(--admin-text-muted); font-size:var(--admin-text-sm); }
 
