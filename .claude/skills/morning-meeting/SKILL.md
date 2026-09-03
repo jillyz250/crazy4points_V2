@@ -60,6 +60,20 @@ node scripts/employee-brief.mjs <slug>            # kesha-social · john-content
 ```
 If `!! QUERY PROBLEM` prints anywhere, STOP and fix it — a failed query looks like an empty queue.
 
+## ☕ BREAKROOM OPENER (before the board — unless Jill said "no lore today")
+When Jill opens with "good morning" (and NOT "good morning, no lore today"), START with the office
+soap-opera, THEN the board. Read the latest `org_lore` beat (the day's Breakroom story — company-wide
+and/or per-character) and present it warmly (PG-17, spicy-but-tasteful; a real office — love, gossip,
+breakups, wins, heartbreak; fade-to-black on anything explicit). Then, if the current beat has a
+pending **choose-your-own-adventure decision** (`choice_a`/`choice_b`, `chosen` still null), offer Jill
+the two choices; when she picks, write her pick to `chosen` and that seeds the NEXT beat (tomorrow's
+story follows from it). ONE decision per morning. ⛔ FIREWALL: lore + morale NEVER touch the work
+(quality/priority/accuracy) and NEVER reach a customer — pure office flavor, this segment only. Then
+proceed to the board. ("good morning, no lore today" → skip this entire opener.)
+(Structure note: Jill's undecided between this Breakroom OPENER vs lore MIXED into each head's block —
+default to the opener for now; the per-block lore beat is still described in each block, so we can try
+mixed-in on a future day and see which she likes.)
+
 ## THE BOARD (send first, every morning) — three tiers
 Build from the snapshot HEALTH block + the pending decision count + each head's brief headline:
 ```
