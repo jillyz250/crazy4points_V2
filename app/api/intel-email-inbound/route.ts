@@ -50,7 +50,11 @@ const RAW_TEXT_CAP = 8_000 // per-item raw_text stored on intel_items
 // (20+ stories) and the tail is exactly where stories would otherwise be lost.
 // ~40k chars is ~10k tokens — comfortable for Haiku, negligible cost per email.
 const CLASSIFY_CAP = 40_000
-const SOURCE_BODY_CAP = 40_000 // verbatim body kept for grouping / re-segmentation
+// We no longer hoard the full forwarded email: nothing reads cleaned_body (triage
+// uses only the source-email METADATA — subject/source/segment_count). Keep a tiny
+// 500-char snippet for provenance; the per-story lead lives on intel_items.raw_text,
+// and the original stays in Jill's inbox. (Jill's directive, 2026-09-03.)
+const SOURCE_BODY_CAP = 500
 
 export async function POST(req: NextRequest) {
   // --- 1. Size cap (cheap header check before reading the body) --------------
