@@ -51,7 +51,7 @@ export async function computeAging(db: SupabaseClient): Promise<AgingRow[]> {
       try {
         let query = db.from(q.table).select(q.dateCol, { count: 'exact' }).order(q.dateCol, { ascending: true }).limit(1)
         for (const [col, op, val] of q.filters) {
-          query = (query as Record<string, (c: string, v: unknown) => typeof query>)[op](col, val)
+          query = (query as unknown as Record<string, (c: string, v: unknown) => typeof query>)[op](col, val)
         }
         const { data, count, error } = await query
         if (error) return { key: q.key, label: q.label, open: 0, oldestDays: null, threshold: q.threshold, overdue: false, link: q.link }
