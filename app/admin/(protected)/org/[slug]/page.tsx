@@ -5,6 +5,7 @@ import { createAdminClient } from '@/utils/supabase/server'
 import { computeMeters } from '@/lib/orgMeters'
 import { Icon, Ring, meterCells, type IconName } from '@/components/admin/preview/kit'
 import { ADMIN_PAGES, type TaskCategory, type AdminPage } from '@/lib/admin/registry'
+import type { DecisionRow, DecisionStatus } from '@/lib/admin/logDecision'
 
 export const dynamic = 'force-dynamic'
 
@@ -52,7 +53,7 @@ const PAGE_ICON: Record<string, IconName> = {
   programs: 'award', 'programs-currencies': 'database', 'programs-hotels': 'database', 'programs-otas': 'database',
   issuers: 'briefcase', cards: 'creditCard', 'partner-redemptions': 'award', tokens: 'tag',
   extractions: 'database', 'card-extractions': 'creditCard', 'refresh-queue': 'activity', 'manual-overrides': 'pencil',
-  glossary: 'book', dashboard: 'compass', org: 'users', 'ai-usage': 'gauge',
+  glossary: 'book', dashboard: 'compass', org: 'users', 'ai-usage': 'gauge', decisions: 'flag',
 }
 const pageIcon = (p: AdminPage): IconName => PAGE_ICON[p.id] ?? CAT_ICON[p.taskCategory]
 
@@ -68,6 +69,27 @@ const LOG_KIND: Record<string, LogKind> = {
 }
 const fmtDate = (s: string) => new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
+// Decision Log presenters (per-head "Recent decisions" section).
+const DECISION_STATUS: Record<DecisionStatus, { label: string; fg: string; bg: string }> = {
+  pending: { label: 'Pending', fg: 'var(--admin-warning)', bg: 'var(--admin-warning-soft)' },
+  approved: { label: 'Approved', fg: 'var(--admin-success)', bg: 'var(--admin-success-soft)' },
+  rejected: { label: 'Rejected', fg: 'var(--admin-danger)', bg: 'var(--admin-danger-soft)' },
+  executed: { label: 'Executed', fg: 'var(--admin-info)', bg: 'var(--admin-info-soft)' },
+  undone: { label: 'Undone', fg: 'var(--admin-text-muted)', bg: 'var(--admin-surface-alt)' },
+}
+const decisionActionLabel = (a: string) =>
+  ({ dismiss: 'Dismiss', skip: 'Skip', bulk_skip: 'Bulk skip', resolve: 'Resolve', snooze: 'Snooze', publish: 'Publish', edit: 'Edit', feature: 'Feature', send: 'Send', feedback: 'Feedback', other: 'Action' } as Record<string, string>)[a] ?? a.replace(/_/g, ' ')
+function timeAgo(iso: string): string {
+  const secs = Math.round((Date.now() - new Date(iso).getTime()) / 1000)
+  if (secs < 60) return 'just now'
+  const mins = Math.round(secs / 60)
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.round(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.round(hrs / 24)
+  return days < 30 ? `${days}d ago` : new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
 export default async function EmployeePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
   const db = createAdminClient()
@@ -75,15 +97,17 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
   const e = data as Emp | null
   if (!e) notFound()
 
-  const [{ data: logsData }, { data: mgr }, { data: teamData }, { data: loreData }] = await Promise.all([
+  const [{ data: logsData }, { data: mgr }, { data: teamData }, { data: loreData }, { data: decisionsData }] = await Promise.all([
     db.from('employee_logs').select('id, type, note, actor, created_at').eq('employee_id', e.id).order('created_at', { ascending: false }).limit(12),
     e.reports_to_id
       ? db.from('employees').select('name, slug, role_title, emoji').eq('id', e.reports_to_id).maybeSingle()
       : Promise.resolve({ data: null }),
     db.from('employees').select('id, slug, name, role_title, emoji, status').eq('reports_to_id', e.id).order('name', { ascending: true }),
     db.from('org_lore').select('id, lore_date, headline, body, involves').order('lore_date', { ascending: false }).order('created_at', { ascending: false }).limit(40),
+    db.from('decision_log').select('*').eq('employee_slug', slug).order('created_at', { ascending: false }).limit(8),
   ])
   const logs = (logsData ?? []) as Log[]
+  const decisions = (decisionsData ?? []) as DecisionRow[]
   const manager = mgr as { name: string; slug: string; role_title: string | null; emoji: string | null } | null
   const team = (teamData ?? []) as { id: string; slug: string; name: string; role_title: string | null; emoji: string | null; status: string }[]
   const lore = ((loreData ?? []) as Lore[]).filter((l) => arr(l.involves).includes(slug)).slice(0, 3)
@@ -286,6 +310,31 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
           </section>
         </div>
 
+        {/* ── Recent decisions (Decision Log) ── */}
+        {decisions.length > 0 && (
+          <section className="ep-section">
+            <div className="ep-sec-head">
+              <h2 className="ep-sec-title">Recent decisions</h2>
+              <Link href="/admin/decisions" className="ep-sec-link">All decisions <Icon name="arrow" size={13} /></Link>
+            </div>
+            <div className="ep-card ep-dl">
+              {decisions.map((d) => {
+                const st = DECISION_STATUS[d.status]
+                return (
+                  <div key={d.id} className="ep-dl-item">
+                    <span className="ep-dl-action">
+                      {decisionActionLabel(d.action)}{d.item_count > 1 ? ` ×${d.item_count}` : ''}
+                    </span>
+                    {d.target_label && <span className="ep-dl-target">{d.target_label}</span>}
+                    <span className="ep-dl-pill" style={{ color: st.fg, background: st.bg }}>{st.label}</span>
+                    <span className="ep-dl-time">{timeAgo(d.created_at)}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+        )}
+
         {/* ── Breakroom beats ── */}
         {lore.length > 0 && (
           <section className="ep-section ep-section-last">
@@ -413,6 +462,15 @@ const EP_CSS = `
 .admin .ep-chips { display:flex; flex-wrap:wrap; gap:6px; }
 .admin .ep-chip { font-size:var(--admin-text-xs); font-weight:600; padding:4px 11px; border-radius:9999px; color:var(--color-primary); background:color-mix(in srgb, var(--color-primary) 8%, #fff); border:1px solid color-mix(in srgb, var(--color-primary) 15%, var(--admin-border)); }
 .admin .ep-chip-quiet { color:var(--admin-text-muted); background:var(--admin-surface-alt); border-color:var(--admin-border); }
+
+/* Recent decisions (Decision Log) */
+.admin .ep-dl { padding:6px; }
+.admin .ep-dl-item { display:flex; align-items:center; gap:10px; padding:11px 13px; flex-wrap:wrap; }
+.admin .ep-dl-item + .ep-dl-item { border-top:1px solid var(--admin-border); }
+.admin .ep-dl-action { font-size:.88rem; font-weight:700; color:var(--admin-text); flex-shrink:0; }
+.admin .ep-dl-target { font-size:var(--admin-text-sm); color:var(--admin-text-secondary); min-width:0; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.admin .ep-dl-pill { font-size:var(--admin-text-xs); font-weight:800; padding:2px 9px; border-radius:9999px; text-transform:uppercase; letter-spacing:.04em; flex-shrink:0; }
+.admin .ep-dl-time { font-size:var(--admin-text-xs); color:var(--admin-text-subtle); flex-shrink:0; font-variant-numeric:tabular-nums; margin-left:auto; }
 
 /* Breakroom */
 .admin .ep-break { padding:8px; }

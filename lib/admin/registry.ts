@@ -146,6 +146,18 @@ export const ADMIN_PAGES: AdminPage[] = [
     abbr: 'Or',
   },
   {
+    id: 'decisions',
+    title: 'Decisions',
+    description: 'The Decision Log — proposals from the team awaiting your approve/reject.',
+    owner: 'morgan-chief',
+    taskCategory: 'Ops',
+    path: '/admin/decisions',
+    status: 'active',
+    icon: '⚖️',
+    dashboardPriority: 90,
+    abbr: 'De',
+  },
+  {
     id: 'ai-usage',
     title: 'AI Usage',
     description: 'Model spend + token usage across the platform.',

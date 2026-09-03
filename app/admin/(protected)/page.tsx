@@ -84,7 +84,7 @@ export default async function AdminDashboard() {
   const nowIso = new Date().toISOString()
   const [
     { data: empData }, { data: logData }, { data: notesData },
-    alertsCount, programsCount, subsCount, subsTrend, newExperiences, newSweepstakes,
+    alertsCount, programsCount, subsCount, subsTrend, newExperiences, newSweepstakes, pendingDecisions,
   ] = await Promise.all([
     db.from('employees').select('id, slug, name, role_title, kind, emoji, image_url, status, responsibilities'),
     db.from('employee_logs').select('employee_id, type, created_at'),
@@ -105,6 +105,11 @@ export default async function AdminDashboard() {
       c.from('sweepstakes').select('*', { count: 'exact', head: true })
         .eq('status', 'running')
         .is('reviewed_at', null)),
+    // Pending proposed decisions — the Decision Log queue awaiting Jill's yes/no.
+    filteredCount((c) =>
+      c.from('decision_log').select('*', { count: 'exact', head: true })
+        .eq('status', 'pending')
+        .eq('mode', 'proposed')),
   ])
   const emps = (empData ?? []) as Emp[]
   const notes = (notesData ?? []) as DashboardNote[]
@@ -187,6 +192,27 @@ export default async function AdminDashboard() {
         <div className="dh-cols">
           <section>
             <div className="dh-sec-head"><h2 className="dh-sec-title">What needs me</h2><span className="dh-sec-meta">{primary.length} today</span></div>
+            {/* Decision Log — proposals from the team awaiting a yes/no. */}
+            {(pendingDecisions ?? 0) > 0 ? (
+              <Link href="/admin/decisions" className="dh-decisions dh-decisions-hot">
+                <span className="dh-decisions-ic"><Icon name="bolt" size={18} /></span>
+                <span className="dh-decisions-body">
+                  <span className="dh-decisions-title">Needs you today</span>
+                  <span className="dh-decisions-sub">{pendingDecisions} decision{pendingDecisions === 1 ? '' : 's'} the team is waiting on you to approve</span>
+                </span>
+                <span className="dh-decisions-count">{pendingDecisions}</span>
+                <span className="dh-decisions-go"><Icon name="arrow" size={15} /></span>
+              </Link>
+            ) : (
+              <Link href="/admin/decisions" className="dh-decisions dh-decisions-clear">
+                <span className="dh-decisions-ic"><Icon name="check" size={16} /></span>
+                <span className="dh-decisions-body">
+                  <span className="dh-decisions-title">No decisions waiting</span>
+                  <span className="dh-decisions-sub">The team is caught up on approvals</span>
+                </span>
+                <span className="dh-decisions-go"><Icon name="arrow" size={15} /></span>
+              </Link>
+            )}
             <div className="dh-card dh-queue">
               {primary.map((q) => queueRow(q))}
               {rest.length > 0 && (
@@ -274,6 +300,24 @@ const DH_CSS = `
 
 /* Card */
 .admin .dh-card { background:var(--admin-surface); border:1px solid color-mix(in srgb, var(--color-primary) 9%, var(--admin-border)); border-radius:18px; box-shadow:0 1px 2px rgba(107,45,143,.035), 0 18px 40px -30px rgba(107,45,143,.26); }
+
+/* Decision Log callout (⚡ Needs you today) */
+.admin .dh-decisions { display:flex; align-items:center; gap:14px; padding:14px 16px; margin-bottom:.9rem; border-radius:14px; text-decoration:none; transition:transform .14s ease, box-shadow .14s ease, border-color .14s ease; }
+.admin .dh-decisions:hover { transform:translateY(-1px); text-decoration:none; }
+.admin .dh-decisions-hot { border:1px solid color-mix(in srgb, var(--color-accent) 45%, var(--admin-border)); background:linear-gradient(90deg, color-mix(in srgb, var(--color-accent) 14%, #fff), #fff 70%); box-shadow:0 1px 2px rgba(107,45,143,.05), 0 16px 34px -26px rgba(212,175,55,.6); }
+.admin .dh-decisions-hot:hover { box-shadow:0 1px 2px rgba(107,45,143,.05), 0 20px 40px -24px rgba(212,175,55,.7); border-color:var(--color-accent); }
+.admin .dh-decisions-clear { border:1px solid var(--admin-border); background:var(--admin-surface); }
+.admin .dh-decisions-clear:hover { border-color:color-mix(in srgb, var(--color-primary) 24%, var(--admin-border)); }
+.admin .dh-decisions-ic { display:flex; align-items:center; justify-content:center; width:38px; height:38px; border-radius:11px; flex-shrink:0; }
+.admin .dh-decisions-hot .dh-decisions-ic { color:#9a7b1e; background:rgba(212,175,55,.18); border:1px solid color-mix(in srgb, var(--color-accent) 40%, var(--admin-border)); }
+.admin .dh-decisions-clear .dh-decisions-ic { color:var(--admin-success); background:var(--admin-success-soft); border:1px solid var(--admin-border); }
+.admin .dh-decisions-body { min-width:0; flex:1; display:flex; flex-direction:column; }
+.admin .dh-decisions-title { font-size:1rem; font-weight:800; color:var(--admin-text); letter-spacing:-.01em; }
+.admin .dh-decisions-clear .dh-decisions-title { font-weight:700; color:var(--admin-text-secondary); }
+.admin .dh-decisions-sub { font-size:var(--admin-text-sm); color:var(--admin-text-muted); margin-top:2px; line-height:1.4; }
+.admin .dh-decisions-count { font-family:${DISPLAY}; font-size:1.7rem; font-weight:800; color:var(--color-primary); line-height:1; flex-shrink:0; font-variant-numeric:tabular-nums; }
+.admin .dh-decisions-go { color:var(--admin-text-subtle); flex-shrink:0; transition:transform .14s ease, color .14s ease; }
+.admin .dh-decisions:hover .dh-decisions-go { transform:translateX(3px); color:var(--color-primary); }
 
 /* Queue */
 .admin .dh-queue { padding:6px; }
