@@ -1,59 +1,57 @@
 #!/usr/bin/env bash
 # Vercel "Ignored Build Step" script.
 #
-# Vercel runs this before every build. Exit codes:
-#   0  → skip the build (no deploy)
-#   1  → proceed with the build
+# Vercel runs this before every build. Exit codes (Vercel's convention):
+#   1  → BUILD  (proceed with the deployment)
+#   0  → SKIP   (cancel the build — no build-CPU minutes charged)
 #
-# We skip the build when the commit ONLY touches paths that can't affect
-# the deployed Next.js output:
-#   - *.md files anywhere (docs)
-#   - plans/**           (editorial planning notes)
-#   - .claude/**         (Claude skills/agents)
-#   - supabase/migrations/**  (applied manually to Supabase, not by deploy)
-#   - .github/**         (GH Actions configs)
-#   - README*, LICENSE*, .gitignore, .gitattributes
+# WHY THIS MATTERS: ~97% of the Vercel bill is "Build CPU Minutes" — every push
+# rebuilds the whole Next.js app, including pushes that only touch scripts, skill
+# files, planning docs, or DB migrations (none of which change the deployed site).
+# This guard SKIPS those. Real app changes still deploy normally.
 #
-# Wire-up: Vercel Dashboard → Project → Settings → Git → Ignored Build Step:
-#   bash scripts/vercel-ignore-build.sh
+# HISTORY (2026-09-03): the original version of this script did `always build main`
+# and only skipped PREVIEW branches. But we commit straight to main, so the guard
+# never actually skipped anything for our workflow — every push rebuilt. That
+# main-exemption is removed below: we now decide purely by WHICH PATHS changed,
+# on any branch. (Skipping a doc/script-only commit on main is safe — nothing it
+# changed is part of the deployed output, so production correctly stays put.)
 #
-# Always build the production branch (main) to be safe — preview deploys
-# are where we save the most spend anyway.
+# Wire-up (already set): Vercel → Project → Settings → Git → Ignored Build Step →
+#   Behavior: "Run my Bash script"   Command: bash scripts/vercel-ignore-build.sh
+#
+# SAFETY: this DEFAULTS TO BUILD. It skips only when EVERY changed file matches the
+# known-non-deployed list. Anything unexpected (a new top-level dir, a config file,
+# no git history) falls through to a build — we never risk skipping a real change.
 
-set -euo pipefail
+set -uo pipefail
 
-# Always build production. Preview deploys are where the spend lives.
-if [[ "${VERCEL_GIT_COMMIT_REF:-}" == "main" ]]; then
-  echo "→ main branch, always build"
+# No parent commit (first deploy / shallow clone) -> build.
+if ! git rev-parse HEAD^ >/dev/null 2>&1; then
+  echo "-> no parent commit available: BUILD"
   exit 1
 fi
 
-# git diff returns 0 when there are NO changes matching the path filter.
-# We invert: if the only diffs are in the excluded paths, exit 0 (skip).
-#
-# Strategy: ask git "are there any changes OUTSIDE the ignored paths?"
-# If yes → build. If no → skip.
-
-# shellcheck disable=SC2016
-CHANGED_RUNTIME_FILES=$(
-  git diff --name-only HEAD^ HEAD 2>/dev/null \
-    | grep -v -E '\.md$' \
-    | grep -v -E '^plans/' \
-    | grep -v -E '^\.claude/' \
-    | grep -v -E '^supabase/migrations/' \
-    | grep -v -E '^\.github/' \
-    | grep -v -E '^README' \
-    | grep -v -E '^LICENSE' \
-    | grep -v -E '^\.gitignore$' \
-    | grep -v -E '^\.gitattributes$' \
-    || true
-)
-
-if [[ -z "$CHANGED_RUNTIME_FILES" ]]; then
-  echo "→ only docs/plans/migrations changed, skipping build"
-  exit 0
+CHANGED="$(git diff --name-only HEAD^ HEAD 2>/dev/null)"
+if [ -z "$CHANGED" ]; then
+  echo "-> no file changes detected: BUILD (safe default)"
+  exit 1
 fi
 
-echo "→ runtime files changed, proceeding with build:"
-echo "$CHANGED_RUNTIME_FILES"
-exit 1
+# Paths that can NEVER affect the deployed Next.js output. A commit touching only
+# these is safe to skip. Deployed dirs (app/ components/ lib/ utils/ styles/
+# public/ data/ sanity/) and root config files are deliberately absent, so any
+# change to them triggers a build.
+SKIP_RE='^(scripts/|\.claude/|plans/|docs/|tools/|design-assets/|secrets/|supabase/migrations/|\.github/|\.firecrawl/|scratch[-_]|README|LICENSE|\.gitignore$|\.gitattributes$)|\.md$'
+
+while IFS= read -r f; do
+  [ -z "$f" ] && continue
+  if ! [[ "$f" =~ $SKIP_RE ]]; then
+    echo "-> deployed path changed ($f): BUILD"
+    exit 1
+  fi
+done <<< "$CHANGED"
+
+echo "-> only non-deployed paths changed: SKIP (saving build-CPU minutes)"
+echo "$CHANGED" | sed 's/^/   skipped: /'
+exit 0
