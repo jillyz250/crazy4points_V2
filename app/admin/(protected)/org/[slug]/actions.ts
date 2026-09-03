@@ -159,6 +159,16 @@ export async function decideIdea(
   if (!id || (decision !== 'approved' && decision !== 'rejected')) return
   const trimmed = (note ?? '').trim()
   const db = createAdminClient()
+
+  // Read the idea first: its text/area feed the task, and its current status lets
+  // us create the task only on the FIRST approval (re-approving won't duplicate).
+  const { data: idea } = await db
+    .from('employee_ideas')
+    .select('idea, area, status, employee_slug')
+    .eq('id', id)
+    .maybeSingle()
+  const wasApproved = (idea?.status as string) === 'approved'
+
   await db
     .from('employee_ideas')
     .update({
@@ -167,6 +177,30 @@ export async function decideIdea(
       decided_note: trimmed ? trimmed.slice(0, 2000) : null,
     })
     .eq('id', id)
+
+  // Close the loop: approving an idea spins it into a tracked task for its owner,
+  // so "yes, do this" becomes real work (approve -> task -> shipped) instead of
+  // sitting in an "approved" limbo. First approval only; non-fatal.
+  if (decision === 'approved' && !wasApproved && (idea?.idea as string | undefined)?.trim()) {
+    const ownerSlug = ((idea?.employee_slug as string) || employeeSlug || '').trim()
+    if (ownerSlug) {
+      try {
+        await db.from('employee_tasks').insert({
+          employee_slug: ownerSlug,
+          title: (idea!.idea as string).slice(0, 500),
+          detail: `Approved idea${idea?.area ? ` (${idea.area})` : ''} — build it, then mark the idea shipped.`,
+          priority: 'P2',
+          status: 'todo',
+          assigned_by: 'jill',
+          link: `/admin/org/${ownerSlug}#ideas`,
+        })
+        revalidatePath('/admin')
+      } catch {
+        /* task creation is a convenience; never block the approval */
+      }
+    }
+  }
+
   if (employeeSlug) revalidatePath(`/admin/org/${employeeSlug}`)
 }
 
