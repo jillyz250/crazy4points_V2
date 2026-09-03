@@ -186,13 +186,26 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
         {/* ── Hero: compact identity + clickable owned tools; long copy folds into About ── */}
         <header className="ep-hero">
           <div className="ep-hero-top">
-            <div className="ep-portrait-wrap">
-              {e.image_url ? (
-                <div className="ep-portrait">
-                  <Image src={e.image_url} alt={e.name} fill sizes="112px" style={{ objectFit: 'cover' }} priority />
+            <div className="ep-hero-figure">
+              <div className="ep-portrait-wrap">
+                {e.image_url ? (
+                  <div className="ep-portrait">
+                    <Image src={e.image_url} alt={e.name} fill sizes="128px" style={{ objectFit: 'cover' }} priority />
+                  </div>
+                ) : (
+                  <div className="ep-portrait ep-portrait-fallback">{e.emoji || '👤'}</div>
+                )}
+              </div>
+              {/* Compact vitals — sit directly under the portrait as one status card */}
+              {meters && (
+                <div className="ep-vitals-mini" aria-label={`${e.name.split(' ')[0]}'s vitals`}>
+                  {meters.map((c) => (
+                    <div key={c.key} className="ep-vmini" title={`${c.label}: ${c.value} — ${describeMeter(c.key, c.value)}`}>
+                      <Ring value={c.value} color={c.color} size={38} stroke={4} track="var(--admin-surface-alt)" valueColor="var(--admin-text)" />
+                      <span className="ep-vmini-label">{c.label}</span>
+                    </div>
+                  ))}
                 </div>
-              ) : (
-                <div className="ep-portrait ep-portrait-fallback">{e.emoji || '👤'}</div>
               )}
             </div>
             <div className="ep-hero-id">
@@ -268,24 +281,6 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
             <AssignedTasks employeeSlug={slug} employeeName={e.name} initialTasks={tasks} />
           </div>
         </section>
-
-        {/* ── Vitals: ring gauges ── */}
-        {meters && (
-          <section className="ep-section">
-            <div className="ep-sec-head"><h2 className="ep-sec-title">Vitals</h2><span className="ep-sec-meta">Live from activity</span></div>
-            <div className="ep-card ep-vitals">
-              {meters.map((c) => (
-                <div key={c.key} className="ep-vital">
-                  <Ring value={c.value} color={c.color} size={46} stroke={4} track="var(--admin-surface-alt)" valueColor="var(--admin-text)" />
-                  <div className="ep-vital-meta">
-                    <span className="ep-vital-label">{c.label}</span>
-                    <span className="ep-vital-sub">{describeMeter(c.key, c.value)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
 
         {/* ── Reads every morning: this head's trade sources (lib/field-feeds.json) ── */}
         {feeds && feeds.sources.length > 0 && (
@@ -536,8 +531,14 @@ const EP_CSS = `
   box-shadow:0 1px 2px rgba(107,45,143,.04), 0 22px 50px -32px rgba(107,45,143,.26);
 }
 .admin .ep-hero::before { content:''; position:absolute; top:0; left:1.6rem; right:1.6rem; height:2px; border-radius:2px; background:linear-gradient(90deg, transparent, ${GOLD}, transparent); opacity:.85; }
-.admin .ep-hero-top { display:flex; gap:1.25rem; align-items:center; }
+.admin .ep-hero-top { display:flex; gap:1.25rem; align-items:flex-start; }
+/* Left column status card — portrait on top, compact vitals right beneath */
+.admin .ep-hero-figure { flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:.7rem; }
 .admin .ep-portrait-wrap { flex-shrink:0; padding:3px; border-radius:16px; background:linear-gradient(150deg, ${GOLD}, color-mix(in srgb, ${GOLD} 25%, #fff)); box-shadow:0 8px 20px -12px rgba(107,45,143,.4); }
+/* Compact 2×2 vitals under the 128px portrait — a glance, not the focus */
+.admin .ep-vitals-mini { display:grid; grid-template-columns:repeat(2, 1fr); gap:9px 6px; width:100%; padding:2px 0; }
+.admin .ep-vmini { display:flex; flex-direction:column; align-items:center; gap:4px; min-width:0; }
+.admin .ep-vmini-label { font-size:.58rem; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:var(--admin-text-muted); line-height:1; text-align:center; max-width:100%; overflow:hidden; text-overflow:ellipsis; }
 .admin .ep-portrait { position:relative; width:128px; height:128px; border-radius:14px; overflow:hidden; background:var(--admin-accent-soft); }
 .admin .ep-portrait-fallback { display:flex; align-items:center; justify-content:center; font-size:3rem; background:radial-gradient(circle at 30% 25%, #fff, var(--admin-accent-soft)); }
 .admin .ep-hero-id { min-width:0; flex:1; }
@@ -588,13 +589,6 @@ const EP_CSS = `
 
 /* Assigned tasks */
 .admin .ep-tasks { padding:1.25rem 1.4rem; }
-
-/* Vitals */
-.admin .ep-vitals { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.75rem 1.25rem; padding:1rem 1.4rem; }
-.admin .ep-vital { display:flex; align-items:center; gap:10px; }
-.admin .ep-vital-meta { display:flex; flex-direction:column; }
-.admin .ep-vital-label { font-size:.82rem; font-weight:700; color:var(--admin-text); line-height:1.15; }
-.admin .ep-vital-sub { font-size:.72rem; color:var(--admin-text-muted); margin-top:1px; }
 
 /* Reads every morning — folded 3D "newsroom" trade papers */
 .admin .ep-papers { display:flex; flex-wrap:wrap; align-items:flex-start; gap:1.9rem 1.6rem; padding:2rem 1.6rem 2.2rem; perspective:1200px; }
