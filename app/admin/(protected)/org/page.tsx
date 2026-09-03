@@ -1,4 +1,7 @@
 import Link from 'next/link'
+import Image from 'next/image'
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import { createAdminClient } from '@/utils/supabase/server'
 import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Badge } from '@/components/admin/ui/Badge'
@@ -182,6 +185,11 @@ export default async function OrgPage() {
   const specialistIds = new Set(Object.values(specialistsByHead).flat().map((e) => e.id))
   const activeCount = heads.filter((e) => e.status === 'active').length
 
+  // The chart "starts" with the company: a royal HQ illustration crowns the top,
+  // above Jill. Lights up when public/team/hq.png exists; omits gracefully if
+  // the file's ever absent (same existsSync-fallback pattern as the Ideas box).
+  const hasHqArt = existsSync(join(process.cwd(), 'public', 'team', 'hq.png'))
+
   return (
     <div>
       <PageHeader
@@ -192,6 +200,26 @@ export default async function OrgPage() {
       {/* Visual org chart */}
       <div className="admin-card" style={{ padding: '2rem 1rem', marginBottom: '2rem', overflowX: 'auto' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 'min-content' }}>
+          {hasHqArt && (
+            <>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '.5rem' }}>
+                <div
+                  style={{
+                    position: 'relative', width: 128, height: 128, borderRadius: 24, overflow: 'hidden', flexShrink: 0,
+                    background: 'radial-gradient(circle at 30% 25%, var(--admin-surface), color-mix(in srgb, var(--color-accent) 18%, var(--admin-surface)))',
+                    border: '1px solid color-mix(in srgb, var(--color-accent) 40%, var(--admin-border))',
+                    boxShadow: '0 14px 34px -18px rgba(212,175,55,.6)',
+                  }}
+                >
+                  <Image src="/team/hq.png" alt="" fill sizes="128px" style={{ objectFit: 'cover' }} priority />
+                </div>
+                <span style={{ fontSize: '.7rem', fontWeight: 700, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--admin-text-subtle)' }}>
+                  crazy4points HQ
+                </span>
+              </div>
+              {owner && <Connector />}
+            </>
+          )}
           {owner && <Node e={owner} />}
           {owner && chief && <Connector />}
           {chief && <Node e={chief} />}

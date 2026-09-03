@@ -1,3 +1,6 @@
+import Image from 'next/image'
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import { createAdminClient } from '@/utils/supabase/server'
 import { Icon, type IconName } from '@/components/admin/preview/kit'
 import { addExpense, deleteExpense } from './actions'
@@ -44,6 +47,11 @@ function fmtDate(iso: string): string {
 
 export default async function ExpensesPage() {
   const db = createAdminClient()
+
+  // Header illustration (royal piggy bank). Lights up when the file exists; falls
+  // back to the credit-card glyph otherwise — same pattern as the org Ideas box.
+  const hasExpArt = existsSync(join(process.cwd(), 'public', 'team', 'expenses.png'))
+
   const { data } = await db
     .from('expenses')
     .select('id, spent_on, amount, vendor, category, note, created_at')
@@ -83,11 +91,22 @@ export default async function ExpensesPage() {
       <div className="ex-wrap">
         {/* ── Header ── */}
         <header className="ex-header">
-          <h1 className="ex-title">Expenses</h1>
-          <p className="ex-sub">
-            The money going out — every dollar logged to the penny. Hosting, Supabase, API/LLM,
-            email, ads, tools. Log it here and nothing gets lost at tax time.
-          </p>
+          <div className="ex-head-row">
+            {hasExpArt ? (
+              <span className="ex-hero-art">
+                <Image src="/team/expenses.png" alt="" fill sizes="64px" style={{ objectFit: 'cover' }} />
+              </span>
+            ) : (
+              <span className="ex-hero-ic"><Icon name="creditCard" size={26} /></span>
+            )}
+            <div className="ex-head-id">
+              <h1 className="ex-title">Expenses</h1>
+              <p className="ex-sub">
+                The money going out — every dollar logged to the penny. Hosting, Supabase, API/LLM,
+                email, ads, tools. Log it here and nothing gets lost at tax time.
+              </p>
+            </div>
+          </div>
         </header>
 
         {/* ── Totals (the hero) ── */}
@@ -248,6 +267,10 @@ const EX_CSS = `
 
 /* Header */
 .admin .ex-header { margin-bottom:2rem; }
+.admin .ex-head-row { display:flex; align-items:center; gap:1.1rem; }
+.admin .ex-head-id { min-width:0; }
+.admin .ex-hero-art { position:relative; width:64px; height:64px; border-radius:16px; flex-shrink:0; overflow:hidden; background:radial-gradient(circle at 30% 25%, var(--admin-surface), color-mix(in srgb, var(--color-accent) 20%, var(--admin-surface))); border:1px solid color-mix(in srgb, var(--color-accent) 38%, var(--admin-border)); box-shadow:0 10px 24px -14px rgba(212,175,55,.7); }
+.admin .ex-hero-ic { display:flex; align-items:center; justify-content:center; width:64px; height:64px; border-radius:16px; flex-shrink:0; color:#8a6d12; background:radial-gradient(circle at 30% 25%, var(--admin-surface), color-mix(in srgb, var(--color-accent) 26%, var(--admin-surface))); border:1px solid color-mix(in srgb, var(--color-accent) 38%, var(--admin-border)); box-shadow:0 8px 20px -12px rgba(212,175,55,.7); }
 .admin .ex-title { font-family:${DISPLAY}; font-size:2.4rem; font-weight:800; letter-spacing:-.02em; color:var(--color-primary); margin:0; line-height:1.03; }
 .admin .ex-sub { margin:.6rem 0 0; font-size:1rem; line-height:1.55; color:var(--admin-text-secondary); max-width:62ch; }
 

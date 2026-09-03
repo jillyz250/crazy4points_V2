@@ -1,4 +1,8 @@
 import Link from 'next/link'
+import Image from 'next/image'
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
+import { Icon } from '@/components/admin/preview/kit'
 import ChangeSignalsPanel, { changeSignalsCount } from '../change-signals/ChangeSignalsPanel'
 import CardBonusSignalsPanel, { cardBonusSignalsCount } from '../card-bonus-signals/CardBonusSignalsPanel'
 import ProgramDriftPanel, { programDriftCount } from '../program-drift/ProgramDriftPanel'
@@ -34,6 +38,9 @@ export default async function AccuracyHubPage({
   searchParams: Promise<{ tab?: string; type?: string }>
 }) {
   const sp = await searchParams
+  // Header illustration (accuracy shield). Lights up when the file exists; falls
+  // back to the shield glyph otherwise — same pattern as the org Ideas box.
+  const hasAccArt = existsSync(join(process.cwd(), 'public', 'team', 'accuracy.png'))
   const requested = typeof sp.tab === 'string' ? sp.tab : undefined
   const active: TabKey = (TABS.find((t) => t.key === requested)?.key ?? 'change-signals') as TabKey
   const type = typeof sp.type === 'string' ? sp.type : undefined
@@ -60,11 +67,20 @@ export default async function AccuracyHubPage({
       <style dangerouslySetInnerHTML={{ __html: ACC_CSS }} />
 
       <header className="acc-head">
-        <h1 className="acc-title">Accuracy</h1>
-        <p className="acc-sub">
-          Priya&rsquo;s truth layer — one home for every &ldquo;is our published data still true?&rdquo; check.
-          Detection only: verify against the issuer&rsquo;s own page, fix, then clear.
-        </p>
+        {hasAccArt ? (
+          <span className="acc-hero-art">
+            <Image src="/team/accuracy.png" alt="" fill sizes="64px" style={{ objectFit: 'cover' }} />
+          </span>
+        ) : (
+          <span className="acc-hero-ic"><Icon name="shield" size={26} /></span>
+        )}
+        <div className="acc-head-id">
+          <h1 className="acc-title">Accuracy</h1>
+          <p className="acc-sub">
+            Priya&rsquo;s truth layer — one home for every &ldquo;is our published data still true?&rdquo; check.
+            Detection only: verify against the issuer&rsquo;s own page, fix, then clear.
+          </p>
+        </div>
       </header>
 
       {/* ── Tab bar: name + live count + next-action, deep-linked via ?tab= ── */}
@@ -105,7 +121,10 @@ export default async function AccuracyHubPage({
 
 const ACC_CSS = `
 .admin .acc-hub { max-width: 1000px; }
-.admin .acc-head { margin-bottom: 1.25rem; }
+.admin .acc-head { display: flex; align-items: center; gap: 1.1rem; margin-bottom: 1.25rem; }
+.admin .acc-head-id { min-width: 0; }
+.admin .acc-hero-art { position: relative; width: 64px; height: 64px; border-radius: 16px; flex-shrink: 0; overflow: hidden; background: radial-gradient(circle at 30% 25%, var(--admin-surface), color-mix(in srgb, var(--color-accent) 20%, var(--admin-surface))); border: 1px solid color-mix(in srgb, var(--color-accent) 38%, var(--admin-border)); box-shadow: 0 10px 24px -14px rgba(212,175,55,.7); }
+.admin .acc-hero-ic { display: flex; align-items: center; justify-content: center; width: 64px; height: 64px; border-radius: 16px; flex-shrink: 0; color: #8a6d12; background: radial-gradient(circle at 30% 25%, var(--admin-surface), color-mix(in srgb, var(--color-accent) 26%, var(--admin-surface))); border: 1px solid color-mix(in srgb, var(--color-accent) 38%, var(--admin-border)); box-shadow: 0 8px 20px -12px rgba(212,175,55,.7); }
 .admin .acc-title { margin: 0; font-family: var(--font-display); font-size: 2rem; font-weight: 800; letter-spacing: -.02em; color: var(--color-primary); }
 .admin .acc-sub { margin: .35rem 0 0; max-width: 68ch; font-size: var(--admin-text-sm); color: var(--admin-text-secondary); line-height: 1.55; }
 

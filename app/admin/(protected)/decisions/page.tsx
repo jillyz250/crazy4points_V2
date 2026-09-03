@@ -1,3 +1,6 @@
+import Image from 'next/image'
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import { createAdminClient } from '@/utils/supabase/server'
 import { Icon, type IconName } from '@/components/admin/preview/kit'
 import type { DecisionRow, DecisionStatus } from '@/lib/admin/logDecision'
@@ -77,6 +80,10 @@ export default async function DecisionsPage({
   const { head: headFilter = '', date: dateFilter = '' } = await searchParams
   const db = createAdminClient()
 
+  // Header illustration (approvals tray). Lights up when the file exists; falls
+  // back to the inbox glyph otherwise — same pattern as the org Ideas box.
+  const hasDecArt = existsSync(join(process.cwd(), 'public', 'team', 'decisions.png'))
+
   // Employees for slug → {name, emoji}, and the head filter dropdown.
   const { data: empData } = await db
     .from('employees')
@@ -123,11 +130,22 @@ export default async function DecisionsPage({
       <div className="dl-wrap">
         {/* ── Header ── */}
         <header className="dl-header">
-          <h1 className="dl-title">Decisions</h1>
-          <p className="dl-sub">
-            The team proposes; you decide. Every call a head makes on your behalf lands here first —
-            approve it, or reject it and the head learns.
-          </p>
+          <div className="dl-head-row">
+            {hasDecArt ? (
+              <span className="dl-hero-art">
+                <Image src="/team/decisions.png" alt="" fill sizes="64px" style={{ objectFit: 'cover' }} />
+              </span>
+            ) : (
+              <span className="dl-hero-ic"><Icon name="inbox" size={26} /></span>
+            )}
+            <div className="dl-head-id">
+              <h1 className="dl-title">Decisions</h1>
+              <p className="dl-sub">
+                The team proposes; you decide. Every call a head makes on your behalf lands here first —
+                approve it, or reject it and the head learns.
+              </p>
+            </div>
+          </div>
         </header>
 
         {/* ── Pending your approval (the hero) ── */}
@@ -250,6 +268,10 @@ const DL_CSS = `
 
 /* Header */
 .admin .dl-header { margin-bottom:2.2rem; }
+.admin .dl-head-row { display:flex; align-items:center; gap:1.1rem; }
+.admin .dl-head-id { min-width:0; }
+.admin .dl-hero-art { position:relative; width:64px; height:64px; border-radius:16px; flex-shrink:0; overflow:hidden; background:radial-gradient(circle at 30% 25%, var(--admin-surface), color-mix(in srgb, var(--color-accent) 20%, var(--admin-surface))); border:1px solid color-mix(in srgb, var(--color-accent) 38%, var(--admin-border)); box-shadow:0 10px 24px -14px rgba(212,175,55,.7); }
+.admin .dl-hero-ic { display:flex; align-items:center; justify-content:center; width:64px; height:64px; border-radius:16px; flex-shrink:0; color:#8a6d12; background:radial-gradient(circle at 30% 25%, var(--admin-surface), color-mix(in srgb, var(--color-accent) 26%, var(--admin-surface))); border:1px solid color-mix(in srgb, var(--color-accent) 38%, var(--admin-border)); box-shadow:0 8px 20px -12px rgba(212,175,55,.7); }
 .admin .dl-title { font-family:${DISPLAY}; font-size:2.4rem; font-weight:800; letter-spacing:-.02em; color:var(--color-primary); margin:0; line-height:1.03; }
 .admin .dl-sub { margin:.6rem 0 0; font-size:1rem; line-height:1.55; color:var(--admin-text-secondary); max-width:62ch; }
 
