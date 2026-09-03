@@ -8,7 +8,7 @@ import { ADMIN_PAGES, type TaskCategory, type AdminPage } from '@/lib/admin/regi
 import type { DecisionRow, DecisionStatus } from '@/lib/admin/logDecision'
 import AssignedTasks from '@/components/admin/dashboard/AssignedTasks'
 import QuickNote from '@/components/admin/dashboard/QuickNote'
-import { sortOpenTasks, type EmployeeTask } from './tasks'
+import { sortOpenTasks, type EmployeeTask, type TaskPriority, type TaskStatus } from './tasks'
 import fieldFeedsJson from '@/lib/field-feeds.json'
 
 export const dynamic = 'force-dynamic'
@@ -38,6 +38,8 @@ type Emp = {
   quick_note: string | null
 }
 type Log = { id: string; type: string; note: string; actor: string | null; created_at: string }
+// Hero "Top task" card — one shape for both sources (employee_tasks / jill_tasks).
+type HeroTask = { title: string; href: string; priority: TaskPriority | null; status: TaskStatus | null; due_at: string | null }
 // lib/field-feeds.json — trade sources each head reads to stay current.
 // Each source is a little front page: name = masthead, tagline = subhead.
 type FieldSource = { name: string; tagline?: string; url: string }
@@ -158,7 +160,8 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
   const e = data as Emp | null
   if (!e) notFound()
 
-  const [{ data: logsData }, { data: mgr }, { data: teamData }, { data: decisionsData }, { data: tasksData }] = await Promise.all([
+  const isOwner = e.kind === 'owner'
+  const [{ data: logsData }, { data: mgr }, { data: teamData }, { data: decisionsData }, { data: tasksData }, { data: jillTasksData }] = await Promise.all([
     db.from('employee_logs').select('id, type, note, actor, created_at').eq('employee_id', e.id).order('created_at', { ascending: false }).limit(12),
     e.reports_to_id
       ? db.from('employees').select('name, slug, role_title, emoji').eq('id', e.reports_to_id).maybeSingle()
@@ -166,6 +169,11 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
     db.from('employees').select('id, slug, name, role_title, emoji, status').eq('reports_to_id', e.id).order('name', { ascending: true }),
     db.from('decision_log').select('*').eq('employee_slug', slug).order('created_at', { ascending: false }).limit(8),
     db.from('employee_tasks').select('*').eq('employee_slug', slug).order('created_at', { ascending: false }).limit(100),
+    // The OWNER (Jill) keeps her real to-dos in jill_tasks (her "My Tasks" on
+    // /admin), not employee_tasks — so the Top-Task card reads that list for her.
+    isOwner
+      ? db.from('jill_tasks').select('id, title, link, created_at').eq('done', false).order('created_at', { ascending: false }).limit(100)
+      : Promise.resolve({ data: null }),
   ])
   const logs = (logsData ?? []) as Log[]
   const decisions = (decisionsData ?? []) as DecisionRow[]
@@ -174,6 +182,19 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
   const openTaskCount = openTasks.length
   // The one thing to look at first: highest-priority open task (P1→P2→P3→oldest).
   const topTask = sortOpenTasks(openTasks)[0] ?? null
+
+  // Unified hero "Top task" view model. Heads/specialists read employee_tasks
+  // (with priority/status/due). The owner reads jill_tasks — no priority/status,
+  // links to /admin where My Tasks lives (or the task's own link).
+  const jillTasks = (jillTasksData ?? []) as { id: string; title: string; link: string | null; created_at: string }[]
+  const heroTask: HeroTask | null = isOwner
+    ? (jillTasks[0]
+        ? { title: jillTasks[0].title, href: jillTasks[0].link || '/admin', priority: null, status: null, due_at: null }
+        : null)
+    : (topTask
+        ? { title: topTask.title, href: `/admin/org/${slug}#tasks`, priority: topTask.priority, status: topTask.status, due_at: topTask.due_at }
+        : null)
+  const heroOpenCount = isOwner ? jillTasks.length : openTaskCount
   const manager = mgr as { name: string; slug: string; role_title: string | null; emoji: string | null } | null
   const team = (teamData ?? []) as { id: string; slug: string; name: string; role_title: string | null; emoji: string | null; status: string }[]
   const feeds = FIELD_FEEDS[slug] ?? null
@@ -184,7 +205,7 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
   // Owned pages from the registry, grouped by task category, with the four
   // Programs filter-views folded into one "Program pages" entry. Pages merged
   // into a hub (Accuracy tabs) already collapse into the ONE hub entry.
-  const { count: ownedCount, groups: ownedGroups } = buildOwned(slug)
+  const { groups: ownedGroups } = buildOwned(slug)
 
   return (
     <div className="ep-root">
@@ -242,20 +263,22 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
                 )}
               </div>
 
-              {/* Task-forward row: the head's #1 open task + Jill's private note */}
+              {/* Task-forward row: the #1 open task + Jill's private note. Full width
+                  of the identity column now that the owned-tools list lives only in
+                  the workspace section below (one home per tool). */}
               <div className="ep-focus">
-                <div className={`ep-toptask${topTask ? ` ${TASK_PRI_CLASS[topTask.priority] ?? 'ep-tt-p2'}` : ' ep-toptask-empty'}`}>
+                <div className={`ep-toptask${heroTask ? ` ${heroTask.priority ? (TASK_PRI_CLASS[heroTask.priority] ?? 'ep-tt-p2') : 'ep-tt-p2'}` : ' ep-toptask-empty'}`}>
                   <div className="ep-tt-head">
                     <span className="ep-tt-kicker"><Icon name="flag" size={12} /> Top task</span>
-                    {topTask && <span className={`ep-tt-pri ${TASK_PRI_CLASS[topTask.priority] ?? 'ep-tt-p2'}`}>{topTask.priority}</span>}
+                    {heroTask?.priority && <span className={`ep-tt-pri ${TASK_PRI_CLASS[heroTask.priority] ?? 'ep-tt-p2'}`}>{heroTask.priority}</span>}
                   </div>
-                  {topTask ? (
+                  {heroTask ? (
                     <>
-                      <Link href={`/admin/org/${slug}#tasks`} className="ep-tt-title">{topTask.title}</Link>
+                      <Link href={heroTask.href} className="ep-tt-title">{heroTask.title}</Link>
                       <div className="ep-tt-meta">
-                        <span className={`ep-tt-status ep-tt-status-${topTask.status}`}>{TASK_STATUS_LABEL[topTask.status] ?? topTask.status}</span>
-                        {topTask.due_at && <span className="ep-tt-due"><Icon name="clock" size={12} /> Due {fmtDate(topTask.due_at)}</span>}
-                        {openTaskCount > 1 && <span className="ep-tt-more">+{openTaskCount - 1} more open</span>}
+                        {heroTask.status && <span className={`ep-tt-status ep-tt-status-${heroTask.status}`}>{TASK_STATUS_LABEL[heroTask.status] ?? heroTask.status}</span>}
+                        {heroTask.due_at && <span className="ep-tt-due"><Icon name="clock" size={12} /> Due {fmtDate(heroTask.due_at)}</span>}
+                        {heroOpenCount > 1 && <span className="ep-tt-more">+{heroOpenCount - 1} more open</span>}
                       </div>
                     </>
                   ) : (
@@ -265,35 +288,6 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
                 <QuickNote slug={slug} employeeName={e.name} initialNote={e.quick_note} />
               </div>
             </div>
-            {ownedCount > 0 && (
-              <div className="ep-tools" aria-label={`Tools ${e.name.split(' ')[0]} owns`}>
-                <div className="ep-tools-label"><Icon name="briefcase" size={12} /> Owns {ownedCount} {ownedCount === 1 ? 'tool' : 'tools'}</div>
-                <div className="ep-tools-groups">
-                  {ownedGroups.map((g) => (
-                    <div key={g.cat} className="ep-tools-group">
-                      <div className="ep-tools-cat">{g.cat}</div>
-                      <div className="ep-tools-list">
-                        {g.items.map((it) =>
-                          it.kind === 'programs' ? (
-                            <Link key="program-pages" href={it.base.path} className="ep-tool-link" title="The loyalty program catalog — airlines, hotels, currencies, OTAs (one filtered page)">
-                              <span className="ep-tool-link-ic"><Icon name="award" size={15} /></span>
-                              <span className="ep-tool-link-name">Program pages</span>
-                              <Icon name="arrow" size={13} />
-                            </Link>
-                          ) : (
-                            <Link key={it.page.id} href={it.page.path} className="ep-tool-link" title={it.page.description}>
-                              <span className="ep-tool-link-ic"><Icon name={pageIcon(it.page)} size={15} /></span>
-                              <span className="ep-tool-link-name">{it.page.title}</span>
-                              <Icon name="arrow" size={13} />
-                            </Link>
-                          ),
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
           {(e.mission || e.persona) && (
             <details className="ep-about">
@@ -596,8 +590,9 @@ const EP_CSS = `
 .admin a.ep-meta-chip:hover { border-color:var(--color-primary); color:var(--color-primary); text-decoration:none; }
 .admin .ep-meta-chip-static { cursor:default; }
 
-/* Slim one-line mission — small, muted, two lines max */
-.admin .ep-mission { margin:.6rem 0 0; font-size:var(--admin-text-sm); line-height:1.5; color:var(--admin-text-muted); max-width:60ch; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+/* Mission line — small, muted; up to 3 lines so it never clips mid-word
+   (full copy always available in the "About" toggle below) */
+.admin .ep-mission { margin:.6rem 0 0; font-size:var(--admin-text-sm); line-height:1.5; color:var(--admin-text-muted); max-width:78ch; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
 
 /* Vitals mini — clickable ring links to the "why" detail page */
 .admin a.ep-vmini { text-decoration:none; border-radius:12px; padding:4px 2px; transition:background .14s ease, transform .14s ease; }
@@ -634,20 +629,6 @@ const EP_CSS = `
 .admin .ep-tt-more { font-size:var(--admin-text-xs); font-weight:600; color:var(--admin-text-subtle); }
 .admin .ep-tt-none { display:flex; align-items:center; gap:8px; padding:6px 0 2px; font-size:var(--admin-text-sm); font-weight:600; color:var(--admin-text-muted); }
 .admin .ep-tt-none svg { color:var(--admin-success); }
-
-/* Hero: clickable owned tools (top-right) */
-.admin .ep-tools { flex-shrink:0; align-self:flex-start; min-width:190px; max-width:230px; }
-.admin .ep-tools-label { display:flex; align-items:center; gap:6px; font-size:var(--admin-text-xs); text-transform:uppercase; letter-spacing:.08em; font-weight:700; color:var(--admin-text-subtle); margin-bottom:.5rem; justify-content:flex-end; }
-.admin .ep-tools-groups { display:flex; flex-direction:column; gap:.7rem; }
-.admin .ep-tools-group { display:flex; flex-direction:column; gap:5px; }
-.admin .ep-tools-cat { font-size:var(--admin-text-xs); text-transform:uppercase; letter-spacing:.08em; font-weight:700; color:var(--admin-text-subtle); text-align:right; }
-.admin .ep-tools-list { display:flex; flex-direction:column; gap:6px; }
-.admin .ep-tool-link { display:flex; align-items:center; gap:9px; padding:8px 11px; border-radius:11px; text-decoration:none; font-size:var(--admin-text-sm); font-weight:600; color:var(--admin-text); background:var(--admin-surface); border:1px solid color-mix(in srgb, var(--color-primary) 11%, var(--admin-border)); transition:transform .14s ease, box-shadow .14s ease, border-color .14s ease; }
-.admin .ep-tool-link:hover { transform:translateX(-2px); border-color:color-mix(in srgb, var(--color-primary) 32%, var(--admin-border)); box-shadow:0 10px 22px -16px rgba(107,45,143,.5); text-decoration:none; color:var(--color-primary); }
-.admin .ep-tool-link-ic { display:flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:8px; flex-shrink:0; color:var(--color-primary); background:color-mix(in srgb, var(--color-primary) 8%, #fff); border:1px solid color-mix(in srgb, var(--color-primary) 12%, var(--admin-border)); }
-.admin .ep-tool-link-name { min-width:0; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.admin .ep-tool-link > svg:last-child { color:var(--admin-text-subtle); flex-shrink:0; }
-.admin .ep-tool-link:hover > svg:last-child { color:var(--color-primary); }
 
 /* Hero: About toggle (native details, folds the long copy out of view) */
 .admin .ep-about { margin-top:1.1rem; border-top:1px dashed color-mix(in srgb, var(--color-primary) 14%, var(--admin-border)); padding-top:.9rem; }
@@ -848,13 +829,7 @@ const EP_CSS = `
 
 @media (max-width:820px) {
   .admin .ep-cols { grid-template-columns:1fr; }
-  /* Tools drop below identity, full width */
   .admin .ep-hero-top { flex-wrap:wrap; }
-  .admin .ep-tools { min-width:0; max-width:none; width:100%; order:3; margin-top:.4rem; }
-  .admin .ep-tools-label { justify-content:flex-start; }
-  .admin .ep-tools-cat { text-align:left; }
-  .admin .ep-tools-list { flex-direction:row; flex-wrap:wrap; }
-  .admin .ep-tool-link { flex:1 1 180px; }
 }
 @media (max-width:640px) {
   /* Stack the Top task + Notes row so neither card gets crushed */
