@@ -131,7 +131,7 @@ const CONFIGS = {
       .is('resolved_at', null).order('created_at', { ascending: false }).limit(5))
     return {
       unresolved_errors: { count: errCount, standouts: errTop },
-      posture_note: 'Daily posture check: RLS airtight, secrets locked, deps patched, backups mirrored in two places. Deep security pass Mondays; backup restore-drill monthly.',
+      posture_note: 'Daily posture check: RLS airtight, secrets locked, deps patched. BACKUPS: nightly DB snapshot to Supabase Storage (db-backups bucket) — but that is ONE place, same provider as the live data. A second INDEPENDENT off-site copy is still TODO; the manual download is the only 2nd copy today. Deep security pass Mondays; backup restore-drill monthly.',
     }
   },
 }
