@@ -29,5 +29,5 @@ export async function resolveDrift(formData: FormData): Promise<void> {
   if (resolution === 'intel_dismissed') updates.rejected_at = new Date().toISOString()
 
   await supabase.from('intel_items').update(updates).eq('id', id)
-  revalidatePath('/admin/program-drift')
+  revalidatePath('/admin/accuracy')
 }

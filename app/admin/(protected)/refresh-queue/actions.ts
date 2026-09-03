@@ -45,7 +45,7 @@ export async function markVerifiedAction(formData: FormData): Promise<void> {
           .update({ transfer_partners_verified_at: new Date().toISOString() })
           .eq('id', entityId)
         if (error) throw error
-        revalidatePath('/admin/refresh-queue')
+        revalidatePath('/admin/accuracy')
         revalidatePath('/admin')
         return
       }
@@ -57,7 +57,7 @@ export async function markVerifiedAction(formData: FormData): Promise<void> {
       {
         const { updateAlertVariantMetadata } = await import('@/utils/content/writeAlertVariant')
         await updateAlertVariantMetadata(supabase, entityId, { last_verified: today })
-        revalidatePath('/admin/refresh-queue')
+        revalidatePath('/admin/accuracy')
         revalidatePath('/admin')
         return
       }
@@ -72,7 +72,7 @@ export async function markVerifiedAction(formData: FormData): Promise<void> {
           .update({ last_verified: today })
           .eq('program_id', entityId)
         if (error) throw error
-        revalidatePath('/admin/refresh-queue')
+        revalidatePath('/admin/accuracy')
         revalidatePath('/admin')
         return
       }
@@ -94,6 +94,6 @@ export async function markVerifiedAction(formData: FormData): Promise<void> {
 
   if (error) throw error
 
-  revalidatePath('/admin/refresh-queue')
+  revalidatePath('/admin/accuracy')
   revalidatePath('/admin')
 }

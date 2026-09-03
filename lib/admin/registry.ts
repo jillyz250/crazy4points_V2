@@ -102,6 +102,14 @@ export type AdminPage = {
   match?: (pathname: string, search: string) => boolean
   /** Nav badge key, wired to a live count by the admin layout. */
   badgeKey?: 'refreshQueue'
+  /**
+   * If set, this page has been folded into a hub page (by id) as a tab. It keeps
+   * its registry entry (its route still resolves — redirecting to the hub tab —
+   * and other code may reference its id + dashboardPriority), but the nav and
+   * the org workspace collapse it into the ONE hub entry instead of listing it
+   * separately. Its `path` points at its hub tab.
+   */
+  mergedInto?: string
 }
 
 // Small helper so the Programs filter tabs match on their `?type=` only.
@@ -413,29 +421,47 @@ export const ADMIN_PAGES: AdminPage[] = [
   {
     id: 'change-signals',
     title: 'Change signals',
-    description: 'Detected program/page changes awaiting review.',
+    description: 'Detected program/page changes awaiting review. Now a tab in the Accuracy hub.',
     owner: 'priya-sources',
-    taskCategory: 'Sources',
-    path: '/admin/change-signals',
+    taskCategory: 'Accuracy',
+    path: '/admin/accuracy?tab=change-signals',
     status: 'active',
     icon: '📶',
     dashboardPriority: 72,
     abbr: 'Cs',
+    mergedInto: 'accuracy',
   },
   {
     id: 'card-bonus-signals',
     title: 'Welcome-bonus signals',
-    description: 'Detected card welcome-bonus changes to verify + cover.',
+    description: 'Detected card welcome-bonus changes to verify + cover. Now a tab in the Accuracy hub.',
     owner: 'priya-sources',
-    taskCategory: 'Sources',
-    path: '/admin/card-bonus-signals',
+    taskCategory: 'Accuracy',
+    path: '/admin/accuracy?tab=card-bonus-signals',
     status: 'active',
     icon: '🎉',
     dashboardPriority: 68,
     abbr: 'Wb',
+    mergedInto: 'accuracy',
   },
 
   // ── Priya · Accuracy ──────────────────────────────────────────────────────
+  {
+    id: 'accuracy',
+    title: 'Accuracy hub',
+    description: 'The truth layer in one place — change signals, welcome-bonus signals, program-fact drift, data integrity, and the refresh queue, each on its own tab.',
+    owner: 'priya-sources',
+    taskCategory: 'Accuracy',
+    path: '/admin/accuracy',
+    status: 'active',
+    icon: '🛡️',
+    dashboardPriority: 82,
+    abbr: 'Ac',
+    // Light up for the hub and every merged tool's old route.
+    match: (p) =>
+      p === '/admin/accuracy' ||
+      ['/admin/change-signals', '/admin/card-bonus-signals', '/admin/program-drift', '/admin/data-integrity', '/admin/refresh-queue'].includes(p),
+  },
   {
     id: 'agents',
     title: 'Accuracy Agents',
@@ -475,26 +501,28 @@ export const ADMIN_PAGES: AdminPage[] = [
   {
     id: 'data-integrity',
     title: 'Data integrity',
-    description: 'Data-integrity issues ranked by severity.',
+    description: 'Data-integrity issues ranked by severity. Now a tab in the Accuracy hub.',
     owner: 'priya-sources',
     taskCategory: 'Accuracy',
-    path: '/admin/data-integrity',
+    path: '/admin/accuracy?tab=data-integrity',
     status: 'active',
     icon: '🛡️',
     dashboardPriority: 82,
     abbr: 'Di',
+    mergedInto: 'accuracy',
   },
   {
     id: 'program-drift',
     title: 'Program-fact drift',
-    description: 'Detected drift between program data + prose.',
+    description: 'Detected drift between program data + prose. Now a tab in the Accuracy hub.',
     owner: 'priya-sources',
     taskCategory: 'Accuracy',
-    path: '/admin/program-drift',
+    path: '/admin/accuracy?tab=program-drift',
     status: 'active',
     icon: '🌀',
     dashboardPriority: 74,
     abbr: 'Pd',
+    mergedInto: 'accuracy',
   },
 
   // ── Priya · Reference (the data catalog) ─────────────────────────────────
@@ -626,14 +654,15 @@ export const ADMIN_PAGES: AdminPage[] = [
   {
     id: 'refresh-queue',
     title: 'Refresh Queue',
-    description: 'Programs/cards queued for a content refresh.',
+    description: 'Programs/cards queued for a content refresh. Now a tab in the Accuracy hub.',
     owner: 'priya-sources',
-    taskCategory: 'Reference',
-    path: '/admin/refresh-queue',
+    taskCategory: 'Accuracy',
+    path: '/admin/accuracy?tab=refresh-queue',
     status: 'active',
     icon: '♻️',
     dashboardPriority: 28,
     abbr: 'Rq',
+    mergedInto: 'accuracy',
   },
   {
     id: 'manual-overrides',
@@ -754,7 +783,8 @@ export type NavOwnerGroup = { owner: Owner; sections: NavSubSection[] }
  * planned pages are excluded — they never appear in the sidebar.
  */
 export function getNavOwnerGroups(): NavOwnerGroup[] {
-  const active = ADMIN_PAGES.filter((p) => p.status === 'active')
+  // Merged pages are collapsed into their hub's single entry, not listed on their own.
+  const active = ADMIN_PAGES.filter((p) => p.status === 'active' && !p.mergedInto)
 
   return (Object.values(OWNERS) as Owner[])
     .sort((a, b) => a.order - b.order)

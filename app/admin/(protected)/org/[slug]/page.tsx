@@ -54,6 +54,7 @@ const PAGE_ICON: Record<string, IconName> = {
   'question-radar': 'activity', roadmap: 'compass', experiences: 'star', sweepstakes: 'award', takes: 'bell',
   creatives: 'image', 'social-calendar': 'calendar', subscribers: 'users', analytics: 'trending', 'short-links': 'link',
   sources: 'globe', scrapes: 'globe', 'change-signals': 'activity', 'card-bonus-signals': 'creditCard',
+  accuracy: 'shield',
   agents: 'shield', 'fact-checks': 'check', 'verification-findings': 'check', 'data-integrity': 'shield', 'program-drift': 'activity',
   programs: 'award', 'programs-currencies': 'database', 'programs-hotels': 'database', 'programs-otas': 'database',
   issuers: 'briefcase', cards: 'creditCard', 'partner-redemptions': 'award', tokens: 'tag',
@@ -124,7 +125,9 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
   const meters = isAgent ? meterCells(computeMeters(e as unknown as { slug: string; kind: 'agent'; status: string; responsibilities?: string[] | null }, logs)) : null
 
   // Owned pages from the registry, grouped by task category (registry order).
-  const owned = ADMIN_PAGES.filter((p) => p.owner === slug && p.status === 'active')
+  // Pages merged into a hub (e.g. the Accuracy hub tabs) collapse into the ONE
+  // hub entry, so they are not listed separately in the workspace.
+  const owned = ADMIN_PAGES.filter((p) => p.owner === slug && p.status === 'active' && !p.mergedInto)
   const ownedGroups: { cat: TaskCategory; pages: AdminPage[] }[] = []
   for (const p of owned) {
     const last = ownedGroups[ownedGroups.length - 1]

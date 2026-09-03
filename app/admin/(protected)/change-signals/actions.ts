@@ -18,7 +18,7 @@ export async function dismissSignal(formData: FormData): Promise<void> {
   if (!id) return
   const supabase = createAdminClient()
   await supabase.from('change_signals').update({ status: 'dismissed' }).eq('id', id)
-  revalidatePath('/admin/change-signals')
+  revalidatePath('/admin/accuracy')
 }
 
 /**
@@ -35,5 +35,5 @@ export async function snoozeSignal(formData: FormData): Promise<void> {
   const until = new Date(Date.now() + (Number.isFinite(days) ? days : 30) * 86_400_000).toISOString()
   const supabase = createAdminClient()
   await supabase.from('change_signals').update({ status: 'new', snoozed_until: until }).eq('id', id)
-  revalidatePath('/admin/change-signals')
+  revalidatePath('/admin/accuracy')
 }

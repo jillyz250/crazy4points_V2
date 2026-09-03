@@ -38,7 +38,7 @@ export async function applySignal(formData: FormData): Promise<void> {
   const tiers = cur?.tiered_bonuses
   if (Array.isArray(tiers) && tiers.length > 0) {
     await supabase.from('card_bonus_signals').update({ status: 'needs_reextract' }).eq('id', id)
-    revalidatePath('/admin/card-bonus-signals')
+    revalidatePath('/admin/accuracy')
     throw new Error(
       'This card has a tiered welcome bonus. A one-click apply would only write the flat headline number and break the "Up to X" total. Re-extract the card instead to update the full tiered offer.',
     )
@@ -69,8 +69,7 @@ export async function applySignal(formData: FormData): Promise<void> {
   })
 
   await supabase.from('card_bonus_signals').update({ status: 'applied' }).eq('id', id)
-  revalidatePath('/admin/card-bonus-signals')
-  revalidatePath('/admin/data-integrity')
+  revalidatePath('/admin/accuracy')
 }
 
 export async function dismissSignal(formData: FormData): Promise<void> {
@@ -79,7 +78,7 @@ export async function dismissSignal(formData: FormData): Promise<void> {
   if (!id) return
   const supabase = createAdminClient()
   await supabase.from('card_bonus_signals').update({ status: 'dismissed' }).eq('id', id)
-  revalidatePath('/admin/card-bonus-signals')
+  revalidatePath('/admin/accuracy')
 }
 
 /**
@@ -93,6 +92,5 @@ export async function clearReview(formData: FormData): Promise<void> {
   if (!cardId) return
   const supabase = createAdminClient()
   await clearGoodToKnowReview(supabase, cardId)
-  revalidatePath('/admin/card-bonus-signals')
-  revalidatePath('/admin/data-integrity')
+  revalidatePath('/admin/accuracy')
 }
