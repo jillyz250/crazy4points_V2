@@ -370,6 +370,38 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
           )}
         </header>
 
+        {/* ── Activity: the chain of finished work this person shipped (mig 666).
+            Placed ABOVE Assigned tasks (Jill's call). Newest first, cap 15.
+            Renders NOTHING when empty so most pages stay clean. ── */}
+        {activity.length > 0 && (
+          <section className="ep-section">
+            <div className="ep-sec-head">
+              <h2 className="ep-sec-title">Activity</h2>
+              <span className="ep-sec-meta">{activity.length} item{activity.length === 1 ? '' : 's'}</span>
+            </div>
+            <div className="ep-card ep-act">
+              {activity.map((a) => {
+                const s = activityStyle(a.action)
+                const inner = (
+                  <>
+                    <span className="ep-act-badge" style={{ color: s.fg, background: s.bg, borderColor: s.border }}>
+                      <Icon name={s.icon} size={12} /> {s.label}
+                    </span>
+                    <span className="ep-act-summary">{a.summary}</span>
+                    <span className="ep-act-time">{timeAgo(a.created_at)}</span>
+                    {a.link && <span className="ep-act-go"><Icon name="arrow" size={14} /></span>}
+                  </>
+                )
+                return a.link ? (
+                  <Link key={a.id} href={a.link} className="ep-act-item ep-act-item-link">{inner}</Link>
+                ) : (
+                  <div key={a.id} className="ep-act-item">{inner}</div>
+                )
+              })}
+            </div>
+          </section>
+        )}
+
         {/* ── Assigned Tasks: this head's open work items (most action-relevant) ── */}
         <section className="ep-section" id="tasks">
           <div className="ep-sec-head">
@@ -482,38 +514,6 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
               <Link href="/admin/expenses" className="ep-vr-all">
                 Triage all in Vendor radar <Icon name="arrow" size={13} />
               </Link>
-            </div>
-          </section>
-        )}
-
-        {/* ── Activity: the chain of finished work this person shipped (mig 666).
-            Newest first, cap 15. Renders NOTHING when empty (same pattern as the
-            Vendor-updates strip) so most pages stay clean. ── */}
-        {activity.length > 0 && (
-          <section className="ep-section">
-            <div className="ep-sec-head">
-              <h2 className="ep-sec-title">Activity</h2>
-              <span className="ep-sec-meta">{activity.length} item{activity.length === 1 ? '' : 's'}</span>
-            </div>
-            <div className="ep-card ep-act">
-              {activity.map((a) => {
-                const s = activityStyle(a.action)
-                const inner = (
-                  <>
-                    <span className="ep-act-badge" style={{ color: s.fg, background: s.bg, borderColor: s.border }}>
-                      <Icon name={s.icon} size={12} /> {s.label}
-                    </span>
-                    <span className="ep-act-summary">{a.summary}</span>
-                    <span className="ep-act-time">{timeAgo(a.created_at)}</span>
-                    {a.link && <span className="ep-act-go"><Icon name="arrow" size={14} /></span>}
-                  </>
-                )
-                return a.link ? (
-                  <Link key={a.id} href={a.link} className="ep-act-item ep-act-item-link">{inner}</Link>
-                ) : (
-                  <div key={a.id} className="ep-act-item">{inner}</div>
-                )
-              })}
             </div>
           </section>
         )}
