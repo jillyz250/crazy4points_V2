@@ -160,8 +160,12 @@ Phases: **[24]** security posture (deep on Mondays) · **[25]** backup & recover
 (her outstanding actions LAST), and give the prod URL for anything changed. Then a warm sign-off.
 
 ## Cadence (what's daily vs not)
-- **Improvements rotate:** Mon = process (Morgan) · Wed = data-integrity (Priya) · Fri = visual/UX
-  (Devon). Off-days: that improvement auto-skips.
+- **Improvements are CONTINUOUS (Jill, 2026-09-03 — replaced the old rotated Mon/Wed/Fri phases):**
+  EVERY head floats ≥1 fresh idea/day (cut costs / work better / try something new) into their
+  **Ideas box** (`employee_ideas`), surfaced in their brief (`data.ideas` — see the employee-brief
+  skill). Jill reviews + actions them (approve → ship, via `/admin/org/[slug]`) WHEN SHE HAS TIME —
+  no scheduled improvement phase, no forced daily approval. The old phases [15]/[16]/[17] are now
+  just "here's my idea today" inside each head's block.
 - **Standing builds (User-Accounts, AI-visibility):** weekly progress, not daily.
 - **Analytics:** deep-dive 2-3×/week; daily = the Pulse trend.
 - **Field digests:** refresh weekly (Mondays) via `field-digest.mjs`.

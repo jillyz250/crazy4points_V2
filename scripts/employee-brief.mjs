@@ -155,6 +155,13 @@ async function main() {
     .eq('employee_slug', slug).eq('read', false)
     .order('published_at', { ascending: false }).limit(6))
   data.field_this_week = fu
+  // Universal: this employee's OPEN ideas (their Ideas box). Every head floats
+  // >=1 fresh idea/day (cost-cut / improve / try-new) — surfaced here for Jill.
+  const ideas = await rows('ideas', db.from('employee_ideas')
+    .select('idea, area, status, created_at')
+    .eq('employee_slug', slug).eq('status', 'new')
+    .order('created_at', { ascending: false }).limit(6))
+  data.ideas = ideas
   console.log(JSON.stringify({ employee: slug, as_of: today, ...data }, null, 2))
 }
 main()
