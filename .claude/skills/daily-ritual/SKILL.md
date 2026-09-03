@@ -139,12 +139,16 @@ a failed query looks exactly like an empty queue.
 ---
 
 ## THE GREETING + BOARD (send this first, every morning)
-Open with a warm **"Good morning, Jill"** then a one-screen board — shape of the
-day only, no decisions yet. Build it from the snapshot's HEALTH block + queue
-counts + reminders + deals-expiring:
+Open with a warm **"Good morning, Jill"**, then the **forward nudge as the very
+first actionable line** (so morning-only forwards are never missed — they process
+in real-time, ~1 min, and land in TODAY's live triage even though the nightly brief
+ran before them), then a one-screen board — shape of the day only, no decisions
+yet. Build the board from the snapshot's HEALTH block + queue counts + reminders +
+deals-expiring:
 
 ```
 ☀️ Good morning, Jill — Wed, Aug 12
+📨 FIRST: forward your Google Alerts + issuer/newsletter emails now — they auto-split into one-line triage items (~1 min) and join today's pile.
 🩺 Health:   brief ⚠️ 2d stale · Scout ✅ · watchers ✅ · errors 🔴 1    ← flag anything red
 🔴 Urgent:   1 deal ends in 48h · 2 reminders due today
 📋 Decisions: ~4 real · 12 auto-handled · 7 page-affecting facts
