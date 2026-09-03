@@ -160,6 +160,10 @@ export default function AdminNav({ people = [] }: { badges?: AdminNavBadges; peo
       <StaticLink href="/admin" icon="compass" label="Dashboard" active={pathname === '/admin'} />
       <StaticLink href="/admin/notepad" icon="note" label="Notepad" active={pathname.startsWith('/admin/notepad')} />
 
+      {/* Breakroom rides up top as its own destination — above the people, not
+          tucked under Morgan or down by Settings. */}
+      <StaticLink href="/admin/breakroom" icon="coffee" label="Breakroom" active={pathname.startsWith('/admin/breakroom')} />
+
       <div className="admin-nav-divider" />
 
       {/* Leadership sits above every department. */}
@@ -193,7 +197,6 @@ export default function AdminNav({ people = [] }: { badges?: AdminNavBadges; peo
       })}
 
       <div className="admin-nav-divider" />
-      <StaticLink href="/admin/breakroom" icon="coffee" label="Breakroom" active={pathname.startsWith('/admin/breakroom')} />
       <StaticLink href="/admin/settings" icon="settings" label="Settings" active={pathname.startsWith('/admin/settings')} />
     </nav>
   )

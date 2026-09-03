@@ -1,5 +1,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import { createAdminClient } from '@/utils/supabase/server'
 import { Icon } from '@/components/admin/preview/kit'
 
@@ -86,6 +88,11 @@ export default async function BreakroomPage() {
   const facesOf = (involves: string[] | null): Cast[] =>
     arr(involves).map(resolve).map((s) => bySlug.get(s)).filter((c): c is Cast => !!c)
 
+  // If Jill has dropped a breakroom illustration at public/team/breakroom.png the
+  // hero shows it; otherwise it falls back to the coffee glyph. Swapping is just
+  // adding the file — same pattern the org Ideas box uses for ideas-box.png.
+  const hasHeroArt = existsSync(join(process.cwd(), 'public', 'team', 'breakroom.png'))
+
   return (
     <div className="br-root">
       <style dangerouslySetInnerHTML={{ __html: BR_CSS }} />
@@ -94,7 +101,13 @@ export default async function BreakroomPage() {
 
         {/* ── Hero ── */}
         <header className="br-hero">
-          <span className="br-hero-ic"><Icon name="coffee" size={26} /></span>
+          {hasHeroArt ? (
+            <span className="br-hero-art">
+              <Image src="/team/breakroom.png" alt="" fill sizes="88px" style={{ objectFit: 'cover' }} />
+            </span>
+          ) : (
+            <span className="br-hero-ic"><Icon name="coffee" size={26} /></span>
+          )}
           <div className="br-hero-id">
             <h1 className="br-title">The Breakroom</h1>
             <p className="br-sub">Where the office soap opera lives — crushes, rivalries, wins and wobbles, one beat at a time.</p>
@@ -241,6 +254,9 @@ const BR_CSS = `
 }
 .admin .br-hero::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg, ${GOLD}, color-mix(in srgb, ${GOLD} 30%, #fff), ${GOLD}); }
 .admin .br-hero-ic { display:flex; align-items:center; justify-content:center; width:56px; height:56px; border-radius:15px; flex-shrink:0; color:#8a6d12; background:radial-gradient(circle at 30% 25%, #fff, color-mix(in srgb, ${GOLD} 26%, #fff)); border:1px solid color-mix(in srgb, ${GOLD} 38%, var(--admin-border)); box-shadow:0 8px 20px -12px rgba(212,175,55,.7); }
+/* Header illustration — the coffee glyph's bigger sibling. Lights up the moment
+   public/team/breakroom.png exists; falls back to .br-hero-ic until then. */
+.admin .br-hero-art { position:relative; width:88px; height:88px; border-radius:18px; flex-shrink:0; overflow:hidden; background:radial-gradient(circle at 30% 25%, #fff, color-mix(in srgb, ${GOLD} 20%, #fff)); border:1px solid color-mix(in srgb, ${GOLD} 38%, var(--admin-border)); box-shadow:0 10px 24px -14px rgba(212,175,55,.7); }
 .admin .br-hero-id { min-width:0; flex:1; }
 .admin .br-title { font-family:${DISPLAY}; font-size:2.1rem; font-weight:800; letter-spacing:-.02em; color:var(--color-primary); margin:0; line-height:1.05; }
 .admin .br-sub { margin:.4rem 0 0; font-size:1.02rem; line-height:1.55; color:var(--admin-text-muted); max-width:56ch; }
@@ -317,6 +333,7 @@ const BR_CSS = `
 
 @media (max-width:560px) {
   .admin .br-hero { padding:1.3rem 1.3rem; gap:.9rem; }
+  .admin .br-hero-art { width:64px; height:64px; border-radius:14px; }
   .admin .br-title { font-size:1.75rem; }
   .admin .br-feed, .admin .br-people { grid-template-columns:1fr; }
   .admin .br-sec-title { font-size:1.3rem; }
