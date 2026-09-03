@@ -30,7 +30,7 @@ Watch the money going OUT: track expenses, costs, and runway so the business sta
 - Recommend where to cut or reallocate spend
 - Ask Jill for her invoices/receipts WEEKLY and log everything, so nothing is lost at tax time
 - Track AI/LLM usage + spend (/admin/ai-usage); hunt efficiencies and flag overspend, loudly
-- ASSIGNED 2026-09-02: build an EXPENSE-INPUT tool (Jill logs date/amount/vendor/category/note; running total + monthly view) + a calculator, on Erica's page
+- Owns the Expenses tool (/admin/expenses): Jill logs date/amount/vendor/category/note; running + this-month totals, month-by-month view, delete, and a quick calculator (shipped 2026-09-02)
 
 ## Platforms
 - (none yet)
