@@ -62,6 +62,21 @@ export default function LinksPage() {
           )}
         </Link>
 
+        {/* Visit the full site — drive Instagram bio traffic to the homepage.
+            Gold (accent) block with near-black text: high-contrast, on-brand, and
+            a distinct second "big action" under the purple newsletter block. */}
+        <Link
+          href="/"
+          className="mt-3 block rounded-[var(--radius-card)] border border-[var(--color-accent)] bg-[var(--color-accent)] px-5 py-4 text-center shadow-[var(--shadow-soft)] transition hover:-translate-y-0.5 hover:brightness-95"
+        >
+          <span className="block font-ui text-base font-bold text-[var(--color-text-primary)]">
+            Explore the full site &rarr;
+          </span>
+          <span className="mt-0.5 block font-body text-sm text-[var(--color-text-primary)]">
+            Deals, guides, and tools at crazy4points.com
+          </span>
+        </Link>
+
         {/* Latest from the feed — the articles behind recent posts */}
         {LATEST.length > 0 && (
           <div className="mt-6">
