@@ -119,9 +119,15 @@ const CONFIGS = {
     const nowMs = Date.now()
     const wk = (from, to) => times.filter((t) => t > from && t <= to).length
     const last7 = wk(nowMs - 7 * 864e5, nowMs), prev7 = wk(nowMs - 14 * 864e5, nowMs - 7 * 864e5)
+    // WHAT'S DRIVING SUBS — source mix + monthly trend, so Ana narrates insight (not raw numbers)
+    const subRows = await rows('sub sources', db.from('subscribers').select('signup_source, subscribed_at'))
+    const bySource = {}; for (const r of subRows) { const k = r.signup_source || 'friends & family / direct'; bySource[k] = (bySource[k] || 0) + 1 }
+    const byMonth = {}; for (const r of subRows) { if (r.subscribed_at) { const m = String(r.subscribed_at).slice(0, 7); byMonth[m] = (byMonth[m] || 0) + 1 } }
     return {
       subscribers: { active: subsActive, total: subsTotal, signups_last_7d: last7, signups_prev_7d: prev7, delta: last7 - prev7 },
-      analytics_note: 'GSC dashboard is live (Ana owns it). GA4 + Meta are next. Check /admin for top queries/pages.',
+      signup_sources: bySource,       // footer/hero/newsletter_page/(null=F&F) — the acquisition channels
+      signups_by_month: byMonth,      // the trend — spikes = campaigns/giveaways, flat = anemic organic
+      analytics_note: 'Ana: turn this into INSIGHT + a recommendation, not raw numbers (e.g. "footer drives 40%, growth is campaign-driven, run a giveaway"). GSC/GA4/Meta live on /admin.',
     }
   },
 
