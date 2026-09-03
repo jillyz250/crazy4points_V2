@@ -96,9 +96,13 @@ Analytics→23, Deliverability→24, Security→25, Backup→26. Header the run 
 
 ## Phase 0a (Jill's job, before "morning")
 Jill forwards her issuer/program promo emails to the intel inbox first. They land
-as `source_type=email` in the fresh-intel list. Do NOT forward Google Alerts
-(one email = one item; multi-story digests lose stories). Issuer emails are gold;
-third-party affiliate blasts that hide the card name are noise → reject.
+as `source_type=email` in the fresh-intel list. **Google Alerts now summarize →
+triage too (2026-09-03):** forward them freely — the route unwraps each digest
+article to its real link, Haiku splits the digest into one-line stories, and each
+fans out to Triage deduped vs Scout. (This reverses the old "don't forward" rule,
+which existed only because multi-story segmentation didn't exist yet — it does now.)
+Issuer emails are still gold; third-party affiliate blasts that hide the card name
+are noise → reject.
 
 ## Phase 0a·resume — check where we left off (FIRST, before anything)
 ```
@@ -318,8 +322,10 @@ never discussed" (the disconnect flagged 2026-08-14). Fast patterns: most drift 
 but promos never go on program pages — they're alerts) → resolve `false_positive`
 in bulk; **already-on-page** facts (detector is fuzzy) resolve too; verify only the
 genuinely-distinct few vs the issuer. "Coming soon / not live yet" change_signal →
-**Snooze 30d**. Google Alerts auto-quarantined at ingest (mig 625) but skim the
-backlog + quarantine — GA occasionally surfaces a real gem (verify vs official).
+**Snooze 30d**. Google Alerts now summarize → triage (2026-09-03, no longer
+quarantined): each digest article becomes a one-line Triage item deduped vs Scout,
+worked in Phase 4 like any email (still verify vs official before publishing). A few
+old `google_alert` quarantine rows may linger from before the switch — skim once.
 Also fold in **source-gap coverage** here (programs in intel with no active Scout
 source): propose adding + live-test Firecrawl→Haiku before adding. Usually 0.
 
