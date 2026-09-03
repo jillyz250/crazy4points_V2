@@ -30,6 +30,7 @@ import { ingestItem } from '@/utils/intel/ingestItem'
 import { sanitizeInboundHtml, extractSafeUrls } from '@/utils/intel/email-inbound/sanitizeHtml'
 import { cleanEmailBody } from '@/utils/intel/email-inbound/cleanEmailBody'
 import { segmentEmail } from '@/utils/intel/email-inbound/segmentEmail'
+import { assessVendorEmail } from '@/utils/intel/email-inbound/assessVendorEmail'
 import { fetchResendInboundEmail } from '@/utils/intel/email-inbound/fetchResendInboundEmail'
 import { getAllPrograms } from '@/utils/supabase/queries'
 import type { AlertType } from '@/utils/supabase/queries'
@@ -250,6 +251,67 @@ export async function POST(req: NextRequest) {
       .single()
     if (qErr) await logIngestError('email', 'insert', qErr, { stage: 'quarantine' })
     return NextResponse.json({ ok: true, quarantined: q?.id ?? null })
+  }
+
+  // --- 7b. Vendor-mail fast-path: peel off SaaS invoices + product-updates ---
+  // Jill forwards vendor billing + "what's new" mail to this SAME inbox. A cheap
+  // keyword pre-gate avoids an extra Haiku call on ordinary points news; only
+  // plausible vendor mail is assessed. assessVendorEmail FAILS SAFE to 'neither',
+  // so anything uncertain simply continues down the loyalty path below — an email
+  // is never lost. Only allowlisted senders reach here (quarantine gate is above).
+  const vendorProbe = `${payload.subject ?? ''} ${bodyText.slice(0, 4000)}`
+  const vendorSignal =
+    /\b(vercel|supabase|anthropic|claude|openai|chatgpt|resend|firecrawl|hostinger|workspace|github)\b/i.test(vendorProbe) ||
+    /\b(invoice|receipt|amount due|payment (?:confirmation|receipt)|your (?:bill|invoice)|changelog|release notes|what'?s new|now available|introducing)\b/i.test(vendorProbe)
+  if (vendorSignal) {
+    const assessment = await assessVendorEmail({
+      subject: payload.subject ?? '',
+      body_text: bodyText,
+      sender_email: senderEmail,
+      sender_domain: senderDomain,
+    })
+    if (assessment.kind === 'invoice') {
+      const { data: exp, error: expErr } = await supabase
+        .from('expenses')
+        .insert({
+          spent_on: assessment.spent_on ?? new Date().toISOString().slice(0, 10),
+          amount: assessment.amount ?? 0,
+          vendor: assessment.vendor,
+          category: 'tools',
+          note:
+            `Auto-filed from forwarded invoice${assessment.note ? ` — ${assessment.note}` : ''}` +
+            `${assessment.amount == null ? ' (AMOUNT NOT PARSED — verify)' : ''}`,
+        })
+        .select('id')
+        .single()
+      if (expErr) await logIngestError('email', 'insert', expErr, { stage: 'vendor-invoice' })
+      console.log(
+        `[email-inbound] routed INVOICE -> expenses: vendor=${assessment.vendor} amount=${assessment.amount} id=${exp?.id ?? 'null'}`,
+      )
+      return NextResponse.json({ ok: true, routed: 'invoice', expense_id: exp?.id ?? null, amount: assessment.amount })
+    }
+    if (assessment.kind === 'vendor_update') {
+      const { data: vr, error: vrErr } = await supabase
+        .from('vendor_radar')
+        .insert({
+          vendor: assessment.vendor,
+          subject: payload.subject ?? null,
+          whats_new: assessment.whats_new,
+          could_help: assessment.could_help,
+          disposition: assessment.disposition,
+          suggested_owner: assessment.suggested_owner,
+          source_email: senderEmail,
+          raw_excerpt: bodyText.slice(0, 2000),
+        })
+        .select('id')
+        .single()
+      if (vrErr) await logIngestError('email', 'insert', vrErr, { stage: 'vendor-update' })
+      console.log(
+        `[email-inbound] routed VENDOR UPDATE -> radar: vendor=${assessment.vendor} disposition=${assessment.disposition} owner=${assessment.suggested_owner} id=${vr?.id ?? 'null'}`,
+      )
+      return NextResponse.json({ ok: true, routed: 'vendor_update', radar_id: vr?.id ?? null })
+    }
+    // assessment.kind === 'neither' -> fall through to the normal loyalty pipeline.
   }
 
   // --- 8. Segment into distinct loyalty stories ----------------------------
