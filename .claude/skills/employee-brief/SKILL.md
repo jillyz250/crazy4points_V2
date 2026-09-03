@@ -12,6 +12,7 @@ The head-agent whose brief it is (kesha-social, john-content, priya-sources, jan
    - **One-line vibe** — how your domain looks today.
    - **What's queued / needs her** — your key counts with your 2-3 standouts worth her time. Be honest when a big count is mostly low-stakes noise you'll bulk-handle (don't dump the whole pile on her).
    - **Time-sensitive** — anything closing/expiring that changes the priority.
+   - **📚 In your field this week** — if `field_this_week` has items, add a short line or two on the notable trade-news in your specialty (lead with the `relevance: 'high'` ones). This is AWARENESS that sharpens HOW you work — a trend, an algorithm change, a new best practice. **NEVER present it as a citable fact for published content** (trade press is not an official source). Skip the section if empty.
    - **My #1 rec today** — the single highest-leverage thing for Jill to green-light. Lead with it.
 3. **End with "Here's how I'd walk you through it"** — your **phase-slice**: an ordered mini-agenda (3-5 steps) of how you'd take Jill through your domain this morning. This is what becomes "your phases" in the person-by-person ritual.
 
@@ -23,7 +24,8 @@ The head-agent whose brief it is (kesha-social, john-content, priya-sources, jan
 - **Audience is NY-heavy**; priority weighting 50% points value / 25% timing / 25% cabin where relevant. ([[feedback_audience_new_york_heavy]], [[feedback_audience_priority]])
 
 ## The rail
-- Data engine: `scripts/employee-brief.mjs <slug>` — per-head queue configs copied from `scripts/morning-snapshot.mjs`. To add/adjust a head's queues, edit that file's `CONFIGS` map.
+- Data engine: `scripts/employee-brief.mjs <slug>` — per-head queue configs copied from `scripts/morning-snapshot.mjs`. To add/adjust a head's queues, edit that file's `CONFIGS` map. It also appends `field_this_week` (unread trade-news) universally.
+- Trade-news digest: `scripts/field-digest.mjs <slug>` pulls a head's verified feeds → Haiku summarizes the genuinely-new → stores in `field_updates` (mig 657). Run it weekly (productionize as a Vercel cron later). Feeds live in that file's `FEEDS` map (verified 2026-09-02: Kesha=Social Media Today/Buffer, John=Search Engine Land/Journal, Bill=Hacker News/Krebs, Devon=NN·g/Smashing/A List Apart, Charlie=FTC/Ad Law Access). **Field updates are awareness only, NEVER a citable source.**
 - Thin heads (charlie/erica/megan) return a `quiet` brief until their tools/queues exist (e.g. Erica's `/admin/expenses`).
 
 ## Related

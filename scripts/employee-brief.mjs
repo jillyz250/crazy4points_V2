@@ -148,6 +148,13 @@ async function main() {
   if (CONFIGS[slug]) data = await CONFIGS[slug]()
   else if (THIN[slug]) data = { quiet: true, watch: THIN[slug] }
   else { console.error(`no brief config for "${slug}" (known: ${[...Object.keys(CONFIGS), ...Object.keys(THIN)].join(', ')})`); process.exit(1) }
+  // Universal: this head's unread trade-news digest (populated by scripts/field-digest.mjs).
+  // Awareness only — informs HOW they work, NEVER a citable source for a published fact.
+  const fu = await rows('field updates', db.from('field_updates')
+    .select('headline, summary, relevance, source_name, source_url')
+    .eq('employee_slug', slug).eq('read', false)
+    .order('published_at', { ascending: false }).limit(6))
+  data.field_this_week = fu
   console.log(JSON.stringify({ employee: slug, as_of: today, ...data }, null, 2))
 }
 main()
