@@ -8,6 +8,7 @@ import { buildQueue, meterCells, Icon, Ring, todayLong } from '@/components/admi
 import Notepad from '@/components/admin/dashboard/Notepad'
 import MyTasks from '@/components/admin/dashboard/MyTasks'
 import AllClearArt from '@/components/admin/AllClearArt'
+import { activityStyle, type ActivityRow } from '@/lib/admin/activityStyle'
 import type { DashboardNote } from '@/app/admin/(protected)/notes-actions'
 import type { JillTask } from '@/app/admin/(protected)/tasks-actions'
 
@@ -28,6 +29,17 @@ function overall(m: ReturnType<typeof computeMeters>): number {
   return Math.round((m.morale.value + m.momentum.value + m.performance.value) / 3)
 }
 const healthColor = (v: number) => (v >= 85 ? GOLD : v >= 55 ? PURPLE : v >= 40 ? 'var(--admin-warning)' : 'var(--admin-danger)')
+
+function timeAgo(iso: string): string {
+  const secs = Math.round((Date.now() - new Date(iso).getTime()) / 1000)
+  if (secs < 60) return 'just now'
+  const mins = Math.round(secs / 60)
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.round(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.round(hrs / 24)
+  return days < 30 ? `${days}d ago` : new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
 
 async function tableCount(table: string, activeOnly = false): Promise<number | null> {
   try {
@@ -89,6 +101,7 @@ export default async function AdminDashboard() {
   const nowIso = new Date().toISOString()
   const [
     { data: empData }, { data: logData }, { data: notesData }, { data: tasksData }, { data: p1Data },
+    { data: activityData },
     alertsCount, programsCount, subsCount, subsTrend, newExperiences, newSweepstakes, pendingDecisions,
   ] = await Promise.all([
     db.from('employees').select('id, slug, name, role_title, kind, emoji, image_url, status, responsibilities'),
@@ -97,6 +110,8 @@ export default async function AdminDashboard() {
     db.from('jill_tasks').select('id, title, done, source, link, created_at, done_at').order('created_at', { ascending: false }).limit(100),
     // Open P1s across the team — the small "everyone's on-fire items" glance.
     db.from('employee_tasks').select('id, employee_slug, title, status, priority').eq('priority', 'P1').neq('status', 'done').order('created_at', { ascending: true }),
+    // Team-wide activity chain (mig 666) — what the team shipped, newest first.
+    db.from('employee_activity').select('id, employee_slug, action, summary, ref_type, ref_id, link, created_at').order('created_at', { ascending: false }).limit(12),
     tableCount('alerts'),
     tableCount('programs'),
     tableCount('subscribers', true),
@@ -124,9 +139,18 @@ export default async function AdminDashboard() {
   const tasks = (tasksData ?? []) as JillTask[]
   // Open P1s across the team, paired with each owner's name for the glance.
   const empName: Record<string, string> = {}
-  for (const e of emps) empName[e.slug] = e.name
+  const empEmoji: Record<string, string> = {}
+  for (const e of emps) { empName[e.slug] = e.name; if (e.emoji) empEmoji[e.slug] = e.emoji }
   const teamP1s = ((p1Data ?? []) as { id: string; employee_slug: string; title: string; status: string; priority: string }[])
     .map((t) => ({ ...t, owner: empName[t.employee_slug] ?? t.employee_slug }))
+  // Team-wide activity chain, each row joined to its person (name + emoji). Falls
+  // back to a prettified slug so a row never blanks out if the join misses.
+  const prettySlug = (s: string) => s.split('-')[0].replace(/^\w/, (c) => c.toUpperCase())
+  const activity = ((activityData ?? []) as ActivityRow[]).map((a) => ({
+    ...a,
+    name: empName[a.employee_slug] ?? prettySlug(a.employee_slug),
+    emoji: empEmoji[a.employee_slug] ?? null,
+  }))
   const logsBy: Record<string, { type: string; created_at: string }[]> = {}
   for (const l of (logData ?? []) as { employee_id: string; type: string; created_at: string }[]) (logsBy[l.employee_id] ||= []).push(l)
 
@@ -303,6 +327,44 @@ export default async function AdminDashboard() {
           </section>
         </div>
 
+        {/* ── Latest activity — the team-wide chain of finished work (mig 666).
+             At-a-glance "here's what everyone shipped", newest first, cap 12. ── */}
+        <section className="dh-section">
+          <div className="dh-sec-head">
+            <h2 className="dh-sec-title">Latest activity</h2>
+            <span className="dh-sec-meta">{activity.length > 0 ? 'What the team shipped' : 'The chain'}</span>
+          </div>
+          <div className="dh-card dh-activity">
+            {activity.length === 0 ? (
+              <p className="dh-act-empty"><Icon name="activity" size={16} /> No activity logged yet — finished work will chain in here as the team ships.</p>
+            ) : (
+              activity.map((a) => {
+                const s = activityStyle(a.action)
+                return (
+                  <div key={a.id} className="dh-act-row">
+                    <Link href={`/admin/org/${a.employee_slug}`} className="dh-act-who" title={a.name}>
+                      <span className="dh-act-emoji">{a.emoji || a.name.charAt(0).toUpperCase()}</span>
+                      <span className="dh-act-name">{a.name.split(' ')[0]}</span>
+                    </Link>
+                    <span className="dh-act-badge" style={{ color: s.fg, background: s.bg, borderColor: s.border }}>
+                      <Icon name={s.icon} size={11} /> {s.label}
+                    </span>
+                    {a.link ? (
+                      <Link href={a.link} className="dh-act-summary dh-act-summary-link">
+                        {a.summary}
+                        <span className="dh-act-go"><Icon name="arrow" size={14} /></span>
+                      </Link>
+                    ) : (
+                      <span className="dh-act-summary">{a.summary}</span>
+                    )}
+                    <span className="dh-act-time">{timeAgo(a.created_at)}</span>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </section>
+
         {/* ── The team ── */}
         <section className="dh-section">
           <div className="dh-sec-head"><h2 className="dh-sec-title">The team</h2><Link href="/admin/org" className="dh-sec-link">Org chart <Icon name="arrow" size={13} /></Link></div>
@@ -460,10 +522,34 @@ const DH_CSS = `
 .admin .dh-member-name { font-size:var(--admin-text-sm); font-weight:700; color:var(--admin-text); text-align:center; line-height:1.15; }
 .admin .dh-member-role { font-size:var(--admin-text-xs); color:var(--admin-text-muted); text-align:center; line-height:1.2; }
 
+/* Latest activity — team-wide chain of finished work (compact timeline) */
+.admin .dh-activity { padding:6px; }
+.admin .dh-act-empty { display:flex; align-items:center; gap:9px; padding:20px 18px; margin:0; font-size:var(--admin-text-sm); color:var(--admin-text-muted); line-height:1.5; }
+.admin .dh-act-empty svg { flex-shrink:0; color:var(--admin-text-subtle); }
+.admin .dh-act-row { display:flex; align-items:center; gap:12px; padding:12px 13px; border-radius:11px; }
+.admin .dh-act-row + .dh-act-row { border-top:1px solid var(--admin-border); border-radius:0; }
+.admin .dh-act-who { flex-shrink:0; display:inline-flex; align-items:center; gap:8px; min-width:104px; text-decoration:none; border-radius:9px; padding:3px 6px 3px 3px; transition:background .14s ease; }
+.admin .dh-act-who:hover { background:color-mix(in srgb, var(--color-primary) 6%, var(--admin-surface)); text-decoration:none; }
+.admin .dh-act-emoji { display:flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:50%; flex-shrink:0; font-size:1rem; line-height:1; background:var(--admin-accent-soft); border:1px solid color-mix(in srgb, var(--color-accent) 28%, var(--admin-border)); }
+.admin .dh-act-name { font-size:var(--admin-text-sm); font-weight:800; color:var(--admin-text); letter-spacing:-.01em; }
+.admin .dh-act-who:hover .dh-act-name { color:var(--color-primary); }
+.admin .dh-act-badge { flex-shrink:0; display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:9999px; font-size:var(--admin-text-xs); font-weight:800; text-transform:uppercase; letter-spacing:.04em; border:1px solid var(--admin-border); }
+.admin .dh-act-badge svg { flex-shrink:0; }
+.admin .dh-act-summary { flex:1; min-width:0; font-size:var(--admin-text-sm); font-weight:600; color:var(--admin-text); line-height:1.4; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.admin a.dh-act-summary-link { display:inline-flex; align-items:center; gap:6px; text-decoration:none; transition:color .14s ease; }
+.admin a.dh-act-summary-link:hover { color:var(--color-primary); text-decoration:none; }
+.admin .dh-act-go { flex-shrink:0; color:var(--admin-text-subtle); opacity:0; transform:translateX(-4px); transition:opacity .14s ease, transform .14s ease; }
+.admin a.dh-act-summary-link:hover .dh-act-go { opacity:1; transform:translateX(0); color:var(--color-primary); }
+.admin .dh-act-time { flex-shrink:0; font-size:var(--admin-text-xs); color:var(--admin-text-subtle); font-variant-numeric:tabular-nums; }
+
 @media (max-width:820px) { .admin .dh-cols { grid-template-columns:1fr; } }
 @media (max-width:560px) {
   .admin .dh-welcome { height:118px; }
   .admin .dh-welcome-body { left:18px; bottom:16px; }
   .admin .dh-welcome-title { font-size:1.6rem; }
+  /* Activity rows: let the summary wrap to its own line, badge+who up top */
+  .admin .dh-act-row { flex-wrap:wrap; gap:7px 10px; }
+  .admin .dh-act-summary { flex-basis:100%; order:4; white-space:normal; }
+  .admin .dh-act-time { margin-left:auto; }
 }
 `

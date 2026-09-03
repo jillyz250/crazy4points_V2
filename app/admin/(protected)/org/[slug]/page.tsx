@@ -14,6 +14,7 @@ import IdeasBox from '@/components/admin/dashboard/IdeasBox'
 import AllClearArt from '@/components/admin/AllClearArt'
 import { sortOpenTasks, type EmployeeTask, type TaskPriority, type TaskStatus } from './tasks'
 import { IDEA_SELECT, type EmployeeIdea } from './ideas'
+import { activityStyle, type ActivityRow } from '@/lib/admin/activityStyle'
 import fieldFeedsJson from '@/lib/field-feeds.json'
 
 export const dynamic = 'force-dynamic'
@@ -190,7 +191,7 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
   // vendor_radar routes each update to a SHORT owner key = the person's first name
   // lowercased (bill, devon, priya…); this page's slug is the full 'bill-security'.
   const ownerKey = slug.split('-')[0]
-  const [{ data: logsData }, { data: mgr }, { data: teamData }, { data: decisionsData }, { data: tasksData }, { data: ideasData }, { data: jillTasksData }, { data: briefsData }, { data: vendorData }] = await Promise.all([
+  const [{ data: logsData }, { data: mgr }, { data: teamData }, { data: decisionsData }, { data: tasksData }, { data: ideasData }, { data: jillTasksData }, { data: briefsData }, { data: vendorData }, { data: activityData }] = await Promise.all([
     db.from('employee_logs').select('id, type, note, actor, created_at').eq('employee_id', e.id).order('created_at', { ascending: false }).limit(12),
     e.reports_to_id
       ? db.from('employees').select('name, slug, role_title, emoji').eq('id', e.reports_to_id).maybeSingle()
@@ -212,6 +213,13 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
       .eq('suggested_owner', ownerKey)
       .order('received_at', { ascending: false })
       .limit(30),
+    // Activity chain (mig 666) — finished work this person shipped, newest first.
+    // Renders NOTHING when empty (most pages), same as the Vendor-updates strip.
+    db.from('employee_activity')
+      .select('id, employee_slug, action, summary, ref_type, ref_id, link, created_at')
+      .eq('employee_slug', slug)
+      .order('created_at', { ascending: false })
+      .limit(15),
   ])
   const logs = (logsData ?? []) as Log[]
   const decisions = (decisionsData ?? []) as DecisionRow[]
@@ -253,6 +261,9 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
     }))
     .slice(0, 8)
   const vendorNewCount = vendorUpdates.filter((v) => v.status === 'new').length
+
+  // Activity chain — this person's finished work (newest first). Empty → no section.
+  const activity = (activityData ?? []) as ActivityRow[]
 
   const isAgent = e.kind === 'agent'
   const meters = isAgent ? meterCells(computeMeters(e as unknown as { slug: string; kind: 'agent'; status: string; responsibilities?: string[] | null }, logs)) : null
@@ -471,6 +482,38 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
               <Link href="/admin/expenses" className="ep-vr-all">
                 Triage all in Vendor radar <Icon name="arrow" size={13} />
               </Link>
+            </div>
+          </section>
+        )}
+
+        {/* ── Activity: the chain of finished work this person shipped (mig 666).
+            Newest first, cap 15. Renders NOTHING when empty (same pattern as the
+            Vendor-updates strip) so most pages stay clean. ── */}
+        {activity.length > 0 && (
+          <section className="ep-section">
+            <div className="ep-sec-head">
+              <h2 className="ep-sec-title">Activity</h2>
+              <span className="ep-sec-meta">{activity.length} item{activity.length === 1 ? '' : 's'}</span>
+            </div>
+            <div className="ep-card ep-act">
+              {activity.map((a) => {
+                const s = activityStyle(a.action)
+                const inner = (
+                  <>
+                    <span className="ep-act-badge" style={{ color: s.fg, background: s.bg, borderColor: s.border }}>
+                      <Icon name={s.icon} size={12} /> {s.label}
+                    </span>
+                    <span className="ep-act-summary">{a.summary}</span>
+                    <span className="ep-act-time">{timeAgo(a.created_at)}</span>
+                    {a.link && <span className="ep-act-go"><Icon name="arrow" size={14} /></span>}
+                  </>
+                )
+                return a.link ? (
+                  <Link key={a.id} href={a.link} className="ep-act-item ep-act-item-link">{inner}</Link>
+                ) : (
+                  <div key={a.id} className="ep-act-item">{inner}</div>
+                )
+              })}
             </div>
           </section>
         )}
@@ -1034,9 +1077,32 @@ const EP_CSS = `
 .admin .ep-vr-all { display:inline-flex; align-items:center; gap:5px; margin:6px 8px 8px; font-size:var(--admin-text-xs); font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--color-primary); text-decoration:none; transition:gap .14s ease; }
 .admin .ep-vr-all:hover { gap:8px; text-decoration:none; }
 
+/* Activity chain — the feed of finished work ("what I shipped"). One calm badge
+   per verb (colors from lib/admin/activityStyle), summary, relative time; the
+   whole row links to the artifact when there's a link. */
+.admin .ep-act { padding:6px; }
+.admin .ep-act-item { display:flex; align-items:center; gap:12px; padding:12px 13px; border-radius:11px; text-decoration:none; }
+.admin .ep-act-item + .ep-act-item { border-top:1px solid var(--admin-border); border-radius:0; }
+.admin a.ep-act-item-link { transition:background .14s ease; }
+.admin a.ep-act-item-link:hover { background:color-mix(in srgb, var(--color-primary) 4%, var(--admin-surface)); text-decoration:none; }
+.admin .ep-act-badge { flex-shrink:0; display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:9999px; font-size:var(--admin-text-xs); font-weight:800; text-transform:uppercase; letter-spacing:.04em; border:1px solid var(--admin-border); }
+.admin .ep-act-badge svg { flex-shrink:0; }
+.admin .ep-act-summary { flex:1; min-width:0; font-size:var(--admin-text-sm); font-weight:600; color:var(--admin-text); line-height:1.4; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.admin .ep-act-time { flex-shrink:0; font-size:var(--admin-text-xs); color:var(--admin-text-subtle); font-variant-numeric:tabular-nums; }
+.admin .ep-act-go { flex-shrink:0; color:var(--admin-text-subtle); opacity:0; transform:translateX(-4px); transition:opacity .14s ease, transform .14s ease; }
+.admin a.ep-act-item-link:hover .ep-act-go { opacity:1; transform:translateX(0); color:var(--color-primary); }
+
 @media (max-width:820px) {
   .admin .ep-cols { grid-template-columns:1fr; }
   .admin .ep-hero-top { flex-wrap:wrap; }
+}
+/* Activity rows stack on narrow screens so the summary can wrap instead of
+   being crushed between the badge and the time (375px overflow guard). */
+@media (max-width:560px) {
+  .admin .ep-act-item { flex-wrap:wrap; gap:7px 10px; }
+  .admin .ep-act-summary { flex-basis:100%; order:3; white-space:normal; }
+  .admin .ep-act-time { margin-left:auto; }
+  .admin .ep-act-go { display:none; }
 }
 @media (max-width:640px) {
   /* Stack the Top task + Notes row so neither card gets crushed */
