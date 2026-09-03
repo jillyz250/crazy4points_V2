@@ -11,6 +11,7 @@ import {
   type TaskPriority,
   type TaskStatus,
 } from './tasks'
+import { IDEA_SELECT, IDEA_AREAS, type EmployeeIdea, type IdeaArea } from './ideas'
 
 /**
  * Assigned Tasks — server actions (Devon, 2026-09-03).
@@ -111,4 +112,72 @@ export async function deleteEmployeeTask(id: string, employeeSlug: string): Prom
   await db.from('employee_tasks').delete().eq('id', id)
   if (employeeSlug) revalidatePath(`/admin/org/${employeeSlug}`)
   revalidatePath('/admin')
+}
+
+/* ── Ideas box — employee_ideas (migration 663) ──────────────────────────────
+ * Each employee suggests improvements to THEIR area; Jill acts on them here.
+ * Admin-gated, service-role (RLS on, no public policies). Types + the sort
+ * helper live in ./ideas so this 'use server' module only exports async fns. */
+
+/** Add an idea for this employee (Jill can jot one for them). Returns the row. */
+export async function addIdea(
+  employeeSlug: string,
+  idea: string,
+  area: IdeaArea = 'other',
+): Promise<EmployeeIdea | null> {
+  await assertAdmin()
+  const slug = (employeeSlug || '').trim()
+  const text = (idea || '').trim()
+  if (!slug || !text) return null
+  const a: IdeaArea = IDEA_AREAS.includes(area) ? area : 'other'
+
+  const db = createAdminClient()
+  const { data } = await db
+    .from('employee_ideas')
+    .insert({
+      employee_slug: slug,
+      idea: text.slice(0, 2000),
+      area: a,
+      status: 'new',
+      created_by: 'jill',
+    })
+    .select(IDEA_SELECT)
+    .maybeSingle()
+
+  revalidatePath(`/admin/org/${slug}`)
+  return (data as EmployeeIdea) ?? null
+}
+
+/** Approve or reject an idea (stamps decided_at; optional note). */
+export async function decideIdea(
+  id: string,
+  decision: 'approved' | 'rejected',
+  employeeSlug: string,
+  note?: string,
+): Promise<void> {
+  await assertAdmin()
+  if (!id || (decision !== 'approved' && decision !== 'rejected')) return
+  const trimmed = (note ?? '').trim()
+  const db = createAdminClient()
+  await db
+    .from('employee_ideas')
+    .update({
+      status: decision,
+      decided_at: new Date().toISOString(),
+      decided_note: trimmed ? trimmed.slice(0, 2000) : null,
+    })
+    .eq('id', id)
+  if (employeeSlug) revalidatePath(`/admin/org/${employeeSlug}`)
+}
+
+/** Mark an idea shipped (status='shipped', shipped_at=now). */
+export async function shipIdea(id: string, employeeSlug: string): Promise<void> {
+  await assertAdmin()
+  if (!id) return
+  const db = createAdminClient()
+  await db
+    .from('employee_ideas')
+    .update({ status: 'shipped', shipped_at: new Date().toISOString() })
+    .eq('id', id)
+  if (employeeSlug) revalidatePath(`/admin/org/${employeeSlug}`)
 }

@@ -1,5 +1,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import { notFound } from 'next/navigation'
 import { createAdminClient } from '@/utils/supabase/server'
 import { computeMeters } from '@/lib/orgMeters'
@@ -8,7 +10,9 @@ import { ADMIN_PAGES, type TaskCategory, type AdminPage } from '@/lib/admin/regi
 import type { DecisionRow, DecisionStatus } from '@/lib/admin/logDecision'
 import AssignedTasks from '@/components/admin/dashboard/AssignedTasks'
 import QuickNote from '@/components/admin/dashboard/QuickNote'
+import IdeasBox from '@/components/admin/dashboard/IdeasBox'
 import { sortOpenTasks, type EmployeeTask, type TaskPriority, type TaskStatus } from './tasks'
+import { IDEA_SELECT, type EmployeeIdea } from './ideas'
 import fieldFeedsJson from '@/lib/field-feeds.json'
 
 export const dynamic = 'force-dynamic'
@@ -161,7 +165,7 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
   if (!e) notFound()
 
   const isOwner = e.kind === 'owner'
-  const [{ data: logsData }, { data: mgr }, { data: teamData }, { data: decisionsData }, { data: tasksData }, { data: jillTasksData }] = await Promise.all([
+  const [{ data: logsData }, { data: mgr }, { data: teamData }, { data: decisionsData }, { data: tasksData }, { data: ideasData }, { data: jillTasksData }] = await Promise.all([
     db.from('employee_logs').select('id, type, note, actor, created_at').eq('employee_id', e.id).order('created_at', { ascending: false }).limit(12),
     e.reports_to_id
       ? db.from('employees').select('name, slug, role_title, emoji').eq('id', e.reports_to_id).maybeSingle()
@@ -169,6 +173,7 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
     db.from('employees').select('id, slug, name, role_title, emoji, status').eq('reports_to_id', e.id).order('name', { ascending: true }),
     db.from('decision_log').select('*').eq('employee_slug', slug).order('created_at', { ascending: false }).limit(8),
     db.from('employee_tasks').select('*').eq('employee_slug', slug).order('created_at', { ascending: false }).limit(100),
+    db.from('employee_ideas').select(IDEA_SELECT).eq('employee_slug', slug).order('created_at', { ascending: false }).limit(100),
     // The OWNER (Jill) keeps her real to-dos in jill_tasks (her "My Tasks" on
     // /admin), not employee_tasks — so the Top-Task card reads that list for her.
     isOwner
@@ -178,6 +183,11 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
   const logs = (logsData ?? []) as Log[]
   const decisions = (decisionsData ?? []) as DecisionRow[]
   const tasks = (tasksData ?? []) as EmployeeTask[]
+  const ideas = (ideasData ?? []) as EmployeeIdea[]
+  const newIdeaCount = ideas.filter((i) => i.status === 'new').length
+  // Illustration slot: Jill's cute 3D "ideas box" render, if it's been dropped in
+  // at public/team/ideas-box.png — else the header falls back to the lightbulb.
+  const hasIdeaArt = existsSync(join(process.cwd(), 'public', 'team', 'ideas-box.png'))
   const openTasks = tasks.filter((t) => t.status !== 'done')
   const openTaskCount = openTasks.length
   // The one thing to look at first: highest-priority open task (P1→P2→P3→oldest).
@@ -449,6 +459,29 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
           </section>
         )}
 
+        {/* ── Ideas box: this person's proactive suggestions for their own area ── */}
+        <section className="ep-section" id="ideas">
+          <div className="ep-sec-head ep-ideas-head">
+            <div className="ep-ideas-title">
+              {hasIdeaArt ? (
+                <span className="ep-ideas-art">
+                  <Image src="/team/ideas-box.png" alt="" width={52} height={52} style={{ objectFit: 'cover' }} />
+                </span>
+              ) : (
+                <span className="ep-ideas-ic"><Icon name="lightbulb" size={22} /></span>
+              )}
+              <div className="ep-ideas-heading">
+                <h2 className="ep-sec-title">Ideas box</h2>
+                <span className="ep-ideas-sub">{e.name.split(' ')[0]}&rsquo;s ideas to make {isOwner ? 'the product' : 'their area'} better</span>
+              </div>
+            </div>
+            {newIdeaCount > 0 && <span className="ep-sec-meta">{newIdeaCount} new</span>}
+          </div>
+          <div className="ep-card ep-ideas-card">
+            <IdeasBox employeeSlug={slug} employeeName={e.name} initialIdeas={ideas} />
+          </div>
+        </section>
+
         {/* ── Recent tasks + Charter (two columns) ── */}
         <div className="ep-cols">
           <section className="ep-section" style={{ margin: 0 }}>
@@ -660,8 +693,30 @@ const EP_CSS = `
 /* Card base */
 .admin .ep-card { background:var(--admin-surface); border:1px solid color-mix(in srgb, var(--color-primary) 9%, var(--admin-border)); border-radius:18px; box-shadow:0 1px 2px rgba(107,45,143,.035), 0 18px 40px -30px rgba(107,45,143,.26); }
 
+/* Ideas box — charming header with an illustration slot (falls back to the bulb) */
+.admin .ep-ideas-head { align-items:center; }
+.admin .ep-ideas-title { display:flex; align-items:center; gap:12px; min-width:0; }
+.admin .ep-ideas-ic {
+  display:flex; align-items:center; justify-content:center; width:44px; height:44px; flex-shrink:0;
+  border-radius:13px; color:var(--color-accent);
+  background:radial-gradient(120% 120% at 30% 20%, color-mix(in srgb, var(--color-accent) 22%, #fff), color-mix(in srgb, var(--color-accent) 10%, #fff));
+  border:1px solid color-mix(in srgb, var(--color-accent) 40%, var(--admin-border));
+  box-shadow:0 6px 16px -10px color-mix(in srgb, var(--color-accent) 60%, transparent);
+}
+.admin .ep-ideas-art {
+  display:flex; align-items:center; justify-content:center; width:52px; height:52px; flex-shrink:0;
+  border-radius:13px; overflow:hidden; border:1px solid color-mix(in srgb, var(--color-accent) 35%, var(--admin-border));
+  box-shadow:0 6px 16px -10px color-mix(in srgb, var(--color-primary) 45%, transparent);
+}
+.admin .ep-ideas-art img { width:52px; height:52px; object-fit:cover; }
+.admin .ep-ideas-heading { min-width:0; }
+.admin .ep-ideas-sub { display:block; font-size:var(--admin-text-sm); color:var(--admin-text-muted); margin-top:2px; line-height:1.35; }
+
 /* Assigned tasks */
 .admin .ep-tasks { padding:1.25rem 1.4rem; }
+
+/* Ideas box card */
+.admin .ep-ideas-card { padding:1.25rem 1.4rem; }
 
 /* Reads every morning — folded 3D "newsroom" trade papers */
 .admin .ep-papers { display:flex; flex-wrap:wrap; align-items:flex-start; gap:1.9rem 1.6rem; padding:2rem 1.6rem 2.2rem; perspective:1200px; }

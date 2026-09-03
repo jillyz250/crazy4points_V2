@@ -15,7 +15,7 @@ export type IconName =
   | 'fileText' | 'tag' | 'activity' | 'compass' | 'award' | 'image' | 'calendar'
   | 'trending' | 'link' | 'globe' | 'creditCard' | 'database' | 'briefcase'
   | 'megaphone' | 'palette' | 'book' | 'clock' | 'arrowLeft' | 'bell'
-  | 'settings' | 'plus' | 'trash' | 'send' | 'note' | 'heart' | 'pulse'
+  | 'settings' | 'plus' | 'trash' | 'send' | 'note' | 'heart' | 'pulse' | 'lightbulb'
 
 const PATHS: Record<IconName, React.ReactNode> = {
   inbox: <><path d="M22 12h-6l-2 3h-4l-2-3H2" /><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" /></>,
@@ -59,6 +59,7 @@ const PATHS: Record<IconName, React.ReactNode> = {
   note: <><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z" /><path d="M15 2v5h5" /></>,
   heart: <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z" />,
   pulse: <path d="M22 12h-4l-3 9L9 3l-3 9H2" />,
+  lightbulb: <><path d="M9 18h6" /><path d="M10 22h4" /><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5.76.76 1.23 1.52 1.41 2.5" /></>,
 }
 
 export function Icon({ name, size = 20, stroke = 1.75, className, style }: {
