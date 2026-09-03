@@ -234,12 +234,44 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
               <h2 className="ep-sec-title">Reads every morning</h2>
               <span className="ep-sec-meta">Stays current on the beat</span>
             </div>
-            <div className="ep-card ep-feeds">
+            <div className="ep-card ep-papers">
               {feeds.sources.map((s) => (
-                <a key={s.url} href={s.url} target="_blank" rel="noopener noreferrer" className="ep-feed" title={s.name}>
-                  <span className="ep-feed-ic"><Icon name="globe" size={15} /></span>
-                  <span className="ep-feed-name">{s.name}</span>
-                  <Icon name="arrow" size={13} />
+                <a
+                  key={s.url}
+                  href={s.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ep-paper"
+                  aria-label={`${s.name} (opens in new tab)`}
+                >
+                  <span className="ep-paper-face">
+                    <span className="ep-paper-kicker" aria-hidden="true">
+                      <span className="ep-paper-kicker-line" />
+                      <span className="ep-paper-kicker-star">&#9733;</span>
+                      <span className="ep-paper-kicker-line" />
+                    </span>
+                    <span className="ep-paper-masthead">{s.name}</span>
+                    <span className="ep-paper-rule" aria-hidden="true" />
+                    <span className="ep-paper-cols" aria-hidden="true">
+                      <span className="ep-paper-col">
+                        <span className="ep-paper-hl" />
+                        <span className="ep-paper-ln" />
+                        <span className="ep-paper-ln" />
+                        <span className="ep-paper-ln short" />
+                      </span>
+                      <span className="ep-paper-colrule" />
+                      <span className="ep-paper-col">
+                        <span className="ep-paper-hl" />
+                        <span className="ep-paper-ln" />
+                        <span className="ep-paper-ln short" />
+                        <span className="ep-paper-ln" />
+                      </span>
+                    </span>
+                    <span className="ep-paper-corner" aria-hidden="true" />
+                  </span>
+                  <span className="ep-paper-open" aria-hidden="true">
+                    <Icon name="arrow" size={12} /> Read
+                  </span>
                 </a>
               ))}
             </div>
@@ -469,13 +501,84 @@ const EP_CSS = `
 .admin .ep-vital-label { font-size:.82rem; font-weight:700; color:var(--admin-text); line-height:1.15; }
 .admin .ep-vital-sub { font-size:.72rem; color:var(--admin-text-muted); margin-top:1px; }
 
-/* Reads every morning — trade sources */
-.admin .ep-feeds { display:flex; flex-wrap:wrap; gap:.6rem; padding:1rem 1.1rem; }
-.admin .ep-feed { display:inline-flex; align-items:center; gap:9px; padding:9px 13px; border-radius:11px; text-decoration:none; font-size:var(--admin-text-sm); font-weight:600; color:var(--admin-text); background:var(--admin-surface-alt); border:1px solid var(--admin-border); transition:transform .14s ease, box-shadow .14s ease, border-color .14s ease, color .14s ease; }
-.admin .ep-feed:hover { transform:translateY(-2px); color:var(--color-primary); border-color:color-mix(in srgb, var(--color-primary) 30%, var(--admin-border)); box-shadow:0 12px 26px -18px rgba(107,45,143,.45); text-decoration:none; }
-.admin .ep-feed-ic { display:flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:8px; flex-shrink:0; color:var(--color-primary); background:color-mix(in srgb, var(--color-primary) 8%, #fff); border:1px solid color-mix(in srgb, var(--color-primary) 12%, var(--admin-border)); }
-.admin .ep-feed > svg:last-child { color:var(--admin-text-subtle); flex-shrink:0; }
-.admin .ep-feed:hover > svg:last-child { color:var(--color-primary); }
+/* Reads every morning — 3D "Pixar newspaper" trade sources */
+.admin .ep-papers { display:flex; flex-wrap:wrap; align-items:flex-start; gap:1.6rem 1.35rem; padding:1.8rem 1.5rem 1.9rem; perspective:1000px; }
+
+/* Each source = a little folded newspaper with real depth */
+.admin .ep-paper {
+  position:relative; display:block; width:172px; flex:0 0 auto;
+  text-decoration:none; color:inherit; border-radius:9px;
+  transform-style:preserve-3d;
+  transform:rotateY(-9deg) rotateX(4deg) rotate(-1.4deg);
+  filter:drop-shadow(0 20px 24px rgba(70,48,104,.20)) drop-shadow(0 4px 7px rgba(70,48,104,.13));
+  transition:transform .3s cubic-bezier(.2,.75,.3,1), filter .3s ease;
+}
+.admin .ep-paper:nth-child(even) { transform:rotateY(9deg) rotateX(4deg) rotate(1.4deg); }
+.admin .ep-paper:hover, .admin .ep-paper:focus-visible {
+  transform:rotateY(0) rotateX(0) rotate(0) translateY(-7px) scale(1.035);
+  filter:drop-shadow(0 30px 34px rgba(70,48,104,.26)) drop-shadow(0 8px 12px rgba(70,48,104,.17));
+}
+.admin .ep-paper:focus-visible { outline:none; }
+.admin .ep-paper:focus-visible .ep-paper-face { box-shadow:0 0 0 3px color-mix(in srgb, var(--color-primary) 55%, transparent), inset 0 1px 0 rgba(255,255,255,.7); }
+
+/* the stack of sheets underneath (a few pages thick, offset down/right) */
+.admin .ep-paper::before, .admin .ep-paper::after {
+  content:''; position:absolute; inset:0; border-radius:9px; z-index:0;
+  border:1px solid rgba(150,120,80,.28);
+}
+.admin .ep-paper::before { transform:translate(4.5px,5px); background:linear-gradient(#f2e8d2, #e7d9bc); }
+.admin .ep-paper::after { transform:translate(2px,2.5px); background:linear-gradient(#f7efdf, #eee0c7); }
+
+/* the front page */
+.admin .ep-paper-face {
+  position:relative; z-index:1; display:flex; flex-direction:column; gap:7px;
+  padding:12px 12px 14px; border-radius:9px; min-height:152px; overflow:hidden;
+  background:linear-gradient(158deg, #fffdf7 0%, #faf4e6 58%, #f3ebd6 100%);
+  border:1px solid rgba(150,120,80,.34);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.75), inset 0 -16px 24px -16px rgba(150,120,80,.20);
+}
+
+.admin .ep-paper-kicker { display:flex; align-items:center; gap:5px; padding:0 2px; }
+.admin .ep-paper-kicker-line { flex:1; height:1px; background:rgba(120,90,60,.36); }
+.admin .ep-paper-kicker-star { color:var(--color-accent); font-size:8px; line-height:1; }
+
+/* masthead — real, readable publication name in the display serif */
+.admin .ep-paper-masthead {
+  font-family:${DISPLAY}; font-weight:800; color:var(--color-primary);
+  font-size:1rem; line-height:1.08; letter-spacing:-.01em; text-align:center;
+  text-shadow:0 1px 0 rgba(255,255,255,.6);
+}
+.admin .ep-paper-rule { height:2px; border-radius:2px; background:linear-gradient(90deg, transparent, var(--color-accent), transparent); }
+
+/* faux front-page columns so it reads as a tiny newspaper */
+.admin .ep-paper-cols { display:flex; gap:9px; margin-top:3px; }
+.admin .ep-paper-col { flex:1; display:flex; flex-direction:column; gap:4px; }
+.admin .ep-paper-colrule { width:1px; background:rgba(120,90,60,.22); }
+.admin .ep-paper-hl { height:5px; width:88%; border-radius:2px; background:color-mix(in srgb, var(--color-primary) 42%, #cbb894); }
+.admin .ep-paper-ln { height:2.5px; border-radius:2px; background:rgba(120,90,60,.30); }
+.admin .ep-paper-ln.short { width:58%; }
+
+/* folded / curled top-right corner */
+.admin .ep-paper-corner {
+  position:absolute; top:0; right:0; width:22px; height:22px;
+  background:linear-gradient(225deg, #e9dcbf 0%, #f7f0e0 52%, transparent 52%);
+  border-left:1px solid rgba(150,120,80,.30); border-bottom:1px solid rgba(150,120,80,.30);
+  border-bottom-left-radius:7px;
+  box-shadow:-1px 1px 3px rgba(120,90,60,.18);
+}
+
+/* read affordance, revealed on hover/focus */
+.admin .ep-paper-open {
+  position:relative; z-index:1; display:flex; align-items:center; justify-content:center; gap:4px;
+  margin-top:9px; font-size:var(--admin-text-xs); font-weight:800; text-transform:uppercase; letter-spacing:.08em;
+  color:var(--color-primary); opacity:0; transform:translateY(4px);
+  transition:opacity .22s ease, transform .22s ease;
+}
+.admin .ep-paper:hover .ep-paper-open, .admin .ep-paper:focus-visible .ep-paper-open { opacity:1; transform:translateY(0); }
+
+@media (prefers-reduced-motion: reduce) {
+  .admin .ep-paper, .admin .ep-paper-open { transition:none; }
+}
 
 /* Workspace */
 .admin .ep-workspace { display:flex; flex-direction:column; gap:1.6rem; }
@@ -543,7 +646,6 @@ const EP_CSS = `
   .admin .ep-hero-top { align-items:flex-start; gap:1rem; }
   .admin .ep-name { font-size:1.75rem; }
   .admin .ep-portrait { width:76px; height:76px; }
-  .admin .ep-feeds { gap:.5rem; }
-  .admin .ep-feed { flex:1 1 100%; }
+  .admin .ep-papers { gap:1.4rem 1.1rem; padding:1.5rem 1.1rem 1.6rem; justify-content:center; }
 }
 `
