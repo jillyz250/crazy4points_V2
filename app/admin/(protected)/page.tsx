@@ -289,21 +289,10 @@ export default async function AdminDashboard() {
           </div>
         </header>
 
-        {/* ── My Tasks — Jill's personal checklist (persists until she checks off) ── */}
-        <section className="dh-section dh-mytasks-sec">
-          <div className="dh-sec-head">
-            <h2 className="dh-sec-title">My tasks</h2>
-            <span className="dh-sec-meta">{tasks.filter((t) => !t.done).length} open</span>
-          </div>
-          <div className="dh-card dh-mytasks">
-            <MyTasks initialTasks={tasks} emptyArt={<AllClearArt size={72} />} />
-          </div>
-        </section>
-
         {/* ── Needs attention — the aging/escalation monitor (Morgan owns it).
-             Only the OVERDUE queues surface here (worst-overshoot first). When
-             nothing is overdue — the common, healthy case — this collapses to a
-             single calm all-clear line so the dashboard stays quiet. ── */}
+             Sits above "Your desk" as a health check. Only the OVERDUE queues
+             surface (worst-overshoot first); when nothing is overdue — the common,
+             healthy case — it collapses to a single calm strip. ── */}
         {overdue.length > 0 ? (
           // Something's overdue → full section that demands the eye.
           <section className="dh-section dh-attn-sec">
@@ -336,10 +325,22 @@ export default async function AdminDashboard() {
           </div>
         )}
 
-        {/* ── What needs me + Notepad ── */}
-        <div className="dh-cols">
-          <section>
-            <div className="dh-sec-head"><h2 className="dh-sec-title">What needs me</h2><span className="dh-sec-meta">{decisionQ.length} for you</span></div>
+        {/* ── Your desk — your two to-do surfaces side by side: My tasks (personal
+             checklist) + What needs me (decisions/approvals). One zone, not three. ── */}
+        <section className="dh-section">
+          <div className="dh-sec-head">
+            <h2 className="dh-sec-title">Your desk</h2>
+            <span className="dh-sec-meta">{tasks.filter((t) => !t.done).length + decisionQ.length} to do</span>
+          </div>
+          <div className="dh-cols">
+            <div>
+              <div className="dh-desk-label">My tasks <span className="dh-desk-num">{tasks.filter((t) => !t.done).length} open</span></div>
+              <div className="dh-card dh-mytasks">
+                <MyTasks initialTasks={tasks} emptyArt={<AllClearArt size={72} />} />
+              </div>
+            </div>
+            <div>
+            <div className="dh-desk-label">What needs me <span className="dh-desk-num">{decisionQ.length} for you</span></div>
             {/* Decision Log — proposals from the team awaiting a yes/no. */}
             {(pendingDecisions ?? 0) > 0 ? (
               <Link href="/admin/decisions" className="dh-decisions dh-decisions-hot">
@@ -393,15 +394,17 @@ export default async function AdminDashboard() {
                 </details>
               )}
             </div>
-          </section>
-
-          <section>
-            <div className="dh-sec-head"><h2 className="dh-sec-title">Notepad</h2><Link href="/admin/notepad" className="dh-sec-link">Open <Icon name="arrow" size={13} /></Link></div>
-            <div className="dh-card dh-notepad">
-              <Notepad initialNotes={notes} compact />
             </div>
-          </section>
-        </div>
+          </div>
+        </section>
+
+        {/* ── Notepad — quick scratch, full width below the desk ── */}
+        <section className="dh-section">
+          <div className="dh-sec-head"><h2 className="dh-sec-title">Notepad</h2><Link href="/admin/notepad" className="dh-sec-link">Open <Icon name="arrow" size={13} /></Link></div>
+          <div className="dh-card dh-notepad">
+            <Notepad initialNotes={notes} compact />
+          </div>
+        </section>
 
         {/* ── Latest activity — the team-wide chain of finished work (mig 666).
              At-a-glance "here's what everyone shipped", newest first, cap 12. ── */}
@@ -520,6 +523,9 @@ const DH_CSS = `
 /* Grid tracks default to min-width:auto, so nowrap titles inside push the track
    wider than the viewport (148px overflow at 375px). Let tracks shrink. */
 .admin .dh-cols > * { min-width:0; }
+/* Per-column sub-header inside "Your desk" (lighter than a section h2). */
+.admin .dh-desk-label { display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin:0 2px .7rem; font-family:${DISPLAY}; font-size:1.1rem; font-weight:700; letter-spacing:-.01em; color:var(--admin-text); }
+.admin .dh-desk-num { font-size:var(--admin-text-xs); text-transform:uppercase; letter-spacing:.07em; color:var(--admin-text-subtle); font-weight:700; }
 .admin .dh-sec-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:1rem; padding:0 2px; }
 .admin .dh-sec-title { font-family:${DISPLAY}; font-size:1.4rem; font-weight:700; letter-spacing:-.01em; color:var(--admin-text); margin:0; }
 .admin .dh-sec-meta { font-size:var(--admin-text-xs); text-transform:uppercase; letter-spacing:.08em; color:var(--admin-text-subtle); font-weight:700; }
