@@ -95,7 +95,8 @@ Old phase numbers in [brackets] map to `daily-ritual` for the deep mechanics.
   PG-17, spicy but tasteful; a REAL office (love, breakups, marriage, kids, sports, gossip, happy + sad;
   fade-to-black on anything explicit). Then give Jill TWO choices for where their story goes; she picks
   one. Write it to `org_lore` (`character_slug`, `headline`, `body`, `choice_a`, `choice_b`, `chosen`;
-  the pick drives tomorrow's beat). ONE decision per character per day; the arc lives on their page.
+  the pick drives tomorrow's beat). ONE decision per character per day. The arc lives in the
+  **Breakroom** (`/admin/breakroom`) — employee PAGES are work-only; all lore/soap-opera is in the Breakroom.
   ⛔ Lore + morale NEVER affect the work (quality/priority/accuracy) and NEVER reach a customer — flavor only.
 
 ### Block 1 · 🔒 Bill — System health  *(baseline first)*
@@ -119,8 +120,10 @@ approved in Block 2 (Artie/writers draft via `content_variants`; Jill approves E
 short_slug; then "add to social calendar?" via `add-social-triage.mjs`) · **[8]** refresh queue ·
 **[11]** program-page changes / next airline (Paige) · **[12]** roadmap mining + reconcile · **[13]**
 write the day's article + guide (Artie/Gwen) · **[5b]** drain any legacy newsletter-parked item ·
-**[22 — Thu]** newsletter build (Nora). Show every draft before publish. (Auto-drafting is OFF as of
-2026-09-03 — John's team writes deliberately now, not from an auto-queue.)
+**[22 — ~2x/month, ON-DEMAND]** newsletter build (Nora) — NOT weekly/Thursday anymore (Jill 2026-09-03).
+The weekly auto-build cron is paused; a biweekly cadence reminder nudges it, and Nora builds it fresh
+from published alerts only when Jill's ready to send. Show every draft before publish. (Auto-drafting is
+OFF as of 2026-09-03 — John's team writes deliberately now, not from an auto-queue.)
 
 ### Block 4 · 📣 Kesha — Experiences, sweeps & social  *(after John: social pulls the day's publishes)*
 Brief: `employee-brief.mjs kesha-social`. Phases: **[5a/9]** experiences to review + closings →
