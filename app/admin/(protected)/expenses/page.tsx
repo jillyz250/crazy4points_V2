@@ -203,7 +203,8 @@ export default async function ExpensesPage() {
               <span className="vs-callout-label">Biggest lever</span>
               <span className="vs-callout-text">
                 <strong>Vercel</strong> — 97% of its bill is build-CPU from frequent deploys.
-                Guard shipped; enable it in <em>Vercel Settings &gt; Git &gt; Ignored Build Step</em>.
+                The Ignored Build Step guard was fixed 2026-09-03 (it had exempted the
+                main branch); now watching this line drop. Check ~2026-09-10.
               </span>
             </div>
           </div>

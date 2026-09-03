@@ -45,11 +45,12 @@ export const VENDORS: Vendor[] = [
     live: false,
     limit: 'Build CPU minutes — 97% of the bill ($82 this month)',
     nextTier: 'Enterprise (custom)',
-    rec: 'action',
+    rec: 'watch',
     note:
-      'Overage is build-CPU from frequent deploys. Ignored Build Step guard shipped ' +
-      '(scripts/vercel-should-build.sh) — enable in Vercel Settings > Git. Then check ' +
-      'Elastic build-machine size.',
+      'Overage is build-CPU from frequent deploys. The Ignored Build Step guard had ' +
+      'exempted the main branch (where we commit), so every push still rebuilt — fixed ' +
+      '2026-09-03 (scripts/vercel-ignore-build.sh). Now skips DB/script/docs pushes; ' +
+      'watching this line drop (check ~2026-09-10). Next lever: Elastic build-machine size.',
   },
   {
     key: 'anthropic',
@@ -120,5 +121,20 @@ export const VENDORS: Vendor[] = [
     nextTier: 'Standard $14/user',
     rec: 'hold',
     note: 'Cheapest tier — fine.',
+  },
+  {
+    key: 'hostinger',
+    name: 'Hostinger (domain)',
+    plan: 'crazy4points.com — annual, prepaid',
+    flatMonthly: 1,
+    live: false,
+    limit: 'Domain registration, ~1yr prepaid (paid mid-2026)',
+    nextTier: 'n/a',
+    rec: 'hold',
+    note:
+      'Est. ~$1/mo (~$12/yr for a .com) — amount NOT yet verified. Forward the ' +
+      'Hostinger receipt via the invoice email-forward to capture the exact figure ' +
+      'and renewal date. Renews ~1 year from a mid-2026 purchase.',
+    renewal: '2027',
   },
 ]
