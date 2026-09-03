@@ -1,10 +1,13 @@
 import Link from 'next/link'
 import Image from 'next/image'
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import { createAdminClient } from '@/utils/supabase/server'
 import { computeMeters } from '@/lib/orgMeters'
 import { buildQueue, meterCells, Icon, Ring, todayLong } from '@/components/admin/preview/kit'
 import Notepad from '@/components/admin/dashboard/Notepad'
 import MyTasks from '@/components/admin/dashboard/MyTasks'
+import AllClearArt from '@/components/admin/AllClearArt'
 import type { DashboardNote } from '@/app/admin/(protected)/notes-actions'
 import type { JillTask } from '@/app/admin/(protected)/tasks-actions'
 
@@ -135,6 +138,12 @@ export default async function AdminDashboard() {
   const primary = queue.filter((q) => q.urgent)
   const rest = queue.filter((q) => !q.urgent)
 
+  // Welcome banner art — the HQ-lounge illustration at public/team/dashboard-hero.png.
+  // Sets an "arriving" tone above the person-first content; if the file is absent
+  // the banner falls back to a soft gradient band with the same greeting text
+  // (same graceful-fallback pattern as the Breakroom hero / Ideas box art).
+  const hasHeroArt = existsSync(join(process.cwd(), 'public', 'team', 'dashboard-hero.png'))
+
   const fmt = (n: number | null) => (n != null ? n.toLocaleString() : '—')
   type PulseStat = { label: string; value: string; icon: Parameters<typeof Icon>[0]['name']; delta?: number; hot?: boolean }
   // Totals + Subscribers (with a real up/down delta), then the two new-only
@@ -165,6 +174,28 @@ export default async function AdminDashboard() {
     <div className="dh-root">
       <style dangerouslySetInnerHTML={{ __html: DH_CSS }} />
       <div className="dh-wrap">
+        {/* ── Welcome banner — the HQ lounge at morning; sets an "arriving" tone.
+             Additive above the person-first content below; the greeting is real
+             DOM text over a scrim (not baked into the image) for contrast + a11y. ── */}
+        <div className={`dh-welcome${hasHeroArt ? '' : ' dh-welcome-plain'}`}>
+          {hasHeroArt && (
+            <span className="dh-welcome-art">
+              <Image
+                src="/team/dashboard-hero.png"
+                alt="The crazy4points HQ lounge in the morning light"
+                fill
+                sizes="1040px"
+                style={{ objectFit: 'cover', objectPosition: 'center 35%' }}
+                priority
+              />
+            </span>
+          )}
+          <div className="dh-welcome-body">
+            <span className="dh-welcome-eyebrow">crazy4points HQ</span>
+            <span className="dh-welcome-title">Welcome back</span>
+          </div>
+        </div>
+
         {/* ── Global health band (Pulse — Direction #1: Stat + Delta) ── */}
         <div className="dh-pulse">
           <span className="dh-pulse-tag"><Icon name="pulse" size={15} /> Pulse</span>
@@ -206,7 +237,7 @@ export default async function AdminDashboard() {
             <span className="dh-sec-meta">{tasks.filter((t) => !t.done).length} open</span>
           </div>
           <div className="dh-card dh-mytasks">
-            <MyTasks initialTasks={tasks} />
+            <MyTasks initialTasks={tasks} emptyArt={<AllClearArt size={72} />} />
           </div>
         </section>
 
@@ -301,6 +332,22 @@ export default async function AdminDashboard() {
 
 const DH_CSS = `
 .admin .dh-wrap { max-width:1040px; margin:0 auto; padding:0 4px; }
+
+/* Welcome banner — slim HQ-lounge cover strip; arrival moment above the content */
+.admin .dh-welcome { position:relative; height:150px; border-radius:18px; overflow:hidden; margin-bottom:2.2rem;
+  border:1px solid color-mix(in srgb, var(--color-primary) 12%, var(--admin-border));
+  background:linear-gradient(120deg, color-mix(in srgb, var(--color-primary) 16%, #fff), color-mix(in srgb, var(--color-accent) 12%, #fff));
+  box-shadow:0 1px 2px rgba(107,45,143,.05), 0 20px 44px -34px rgba(107,45,143,.4); }
+.admin .dh-welcome-art { position:absolute; inset:0; display:block; z-index:0; }
+/* Scrim so the greeting stays legible over any part of the illustration */
+.admin .dh-welcome::after { content:''; position:absolute; inset:0; z-index:1;
+  background:linear-gradient(90deg, rgba(38,12,54,.62) 0%, rgba(38,12,54,.34) 34%, rgba(38,12,54,0) 62%); }
+.admin .dh-welcome-plain::after { background:linear-gradient(90deg, rgba(107,45,143,.14), rgba(107,45,143,0) 60%); }
+.admin .dh-welcome-body { position:absolute; z-index:2; left:26px; bottom:22px; display:flex; flex-direction:column; gap:5px; }
+.admin .dh-welcome-eyebrow { font-size:var(--admin-text-xs); font-weight:800; text-transform:uppercase; letter-spacing:.16em; color:rgba(255,255,255,.9); }
+.admin .dh-welcome-title { font-family:${DISPLAY}; font-size:2rem; font-weight:800; letter-spacing:-.01em; color:#fff; line-height:1; text-shadow:0 1px 12px rgba(38,12,54,.4); }
+.admin .dh-welcome-plain .dh-welcome-eyebrow { color:var(--color-primary); }
+.admin .dh-welcome-plain .dh-welcome-title { color:var(--color-primary); text-shadow:none; }
 
 /* Pulse band */
 .admin .dh-pulse { display:flex; align-items:center; gap:1.4rem; flex-wrap:wrap; padding:14px 20px; margin-bottom:2.2rem;
@@ -414,4 +461,9 @@ const DH_CSS = `
 .admin .dh-member-role { font-size:var(--admin-text-xs); color:var(--admin-text-muted); text-align:center; line-height:1.2; }
 
 @media (max-width:820px) { .admin .dh-cols { grid-template-columns:1fr; } }
+@media (max-width:560px) {
+  .admin .dh-welcome { height:118px; }
+  .admin .dh-welcome-body { left:18px; bottom:16px; }
+  .admin .dh-welcome-title { font-size:1.6rem; }
+}
 `

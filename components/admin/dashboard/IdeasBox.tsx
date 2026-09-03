@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, useTransition } from 'react'
+import { useRef, useState, useTransition, type ReactNode } from 'react'
 import { Icon } from '@/components/admin/preview/icons'
 import { addIdea, decideIdea, shipIdea } from '@/app/admin/(protected)/org/[slug]/actions'
 import {
@@ -26,10 +26,14 @@ export default function IdeasBox({
   employeeSlug,
   employeeName,
   initialIdeas,
+  emptyArt,
 }: {
   employeeSlug: string
   employeeName: string
   initialIdeas: EmployeeIdea[]
+  /** Optional "all caught up" illustration (server-rendered) shown above the
+   *  empty-state text when there are no ideas yet. */
+  emptyArt?: ReactNode
 }) {
   const [ideas, setIdeas] = useState<EmployeeIdea[]>(initialIdeas)
   const [area, setArea] = useState<IdeaArea>('other')
@@ -149,7 +153,10 @@ export default function IdeasBox({
 
       {/* List */}
       {ordered.length === 0 ? (
-        <p className="ib-empty"><Icon name="lightbulb" size={16} /> No ideas yet.</p>
+        <div className="ib-empty-wrap">
+          {emptyArt}
+          <p className="ib-empty"><Icon name="lightbulb" size={16} /> No ideas yet.</p>
+        </div>
       ) : (
         <div className="ib-list">{ordered.map(card)}</div>
       )}
@@ -245,6 +252,8 @@ const IB_CSS = `
 .admin .ib-done { display:inline-flex; align-items:center; gap:6px; font-size:var(--admin-text-xs); font-weight:800; text-transform:uppercase; letter-spacing:.04em; color:var(--color-primary); padding:6px 2px; }
 
 /* Empty */
+.admin .ib-empty-wrap { display:flex; flex-direction:column; align-items:center; gap:6px; padding:22px 4px 24px; text-align:center; }
+.admin .ib-empty-wrap .ib-empty { justify-content:center; padding:0; }
 .admin .ib-empty { display:flex; align-items:center; gap:8px; margin:0; padding:18px 4px; color:var(--admin-text-subtle); font-size:var(--admin-text-sm); }
 .admin .ib-empty svg { color:var(--color-accent); }
 

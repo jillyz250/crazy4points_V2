@@ -11,6 +11,7 @@ import type { DecisionRow, DecisionStatus } from '@/lib/admin/logDecision'
 import AssignedTasks from '@/components/admin/dashboard/AssignedTasks'
 import QuickNote from '@/components/admin/dashboard/QuickNote'
 import IdeasBox from '@/components/admin/dashboard/IdeasBox'
+import AllClearArt from '@/components/admin/AllClearArt'
 import { sortOpenTasks, type EmployeeTask, type TaskPriority, type TaskStatus } from './tasks'
 import { IDEA_SELECT, type EmployeeIdea } from './ideas'
 import fieldFeedsJson from '@/lib/field-feeds.json'
@@ -492,7 +493,7 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
             {newIdeaCount > 0 && <span className="ep-sec-meta">{newIdeaCount} new</span>}
           </div>
           <div className="ep-card ep-ideas-card">
-            <IdeasBox employeeSlug={slug} employeeName={e.name} initialIdeas={ideas} />
+            <IdeasBox employeeSlug={slug} employeeName={e.name} initialIdeas={ideas} emptyArt={<AllClearArt size={72} />} />
           </div>
         </section>
 

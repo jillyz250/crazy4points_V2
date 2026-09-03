@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useTransition } from 'react'
+import { useState, useRef, useTransition, type ReactNode } from 'react'
 import { Icon } from '@/components/admin/preview/icons'
 import { addTask, toggleTask, deleteTask, type JillTask } from '@/app/admin/(protected)/tasks-actions'
 
@@ -12,7 +12,15 @@ import { addTask, toggleTask, deleteTask, type JillTask } from '@/app/admin/(pro
  * Optimistic local state keeps it instant; the server actions are the source of
  * truth on next load.
  */
-export default function MyTasks({ initialTasks }: { initialTasks: JillTask[] }) {
+export default function MyTasks({
+  initialTasks,
+  emptyArt,
+}: {
+  initialTasks: JillTask[]
+  /** Optional "all caught up" illustration (server-rendered) shown above the
+   *  empty-state text when there's nothing on the list. */
+  emptyArt?: ReactNode
+}) {
   const [tasks, setTasks] = useState<JillTask[]>(initialTasks)
   const [, startTransition] = useTransition()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -91,7 +99,10 @@ export default function MyTasks({ initialTasks }: { initialTasks: JillTask[] }) 
 
       <div className="mt-list">
         {open.length === 0 ? (
-          <p className="mt-empty"><Icon name="check" size={16} /> Nothing on your list &#x2705;</p>
+          <div className="mt-empty-wrap">
+            {emptyArt}
+            <p className="mt-empty"><Icon name="check" size={16} /> Nothing on your list &#x2705;</p>
+          </div>
         ) : open.map(row)}
       </div>
 
@@ -169,6 +180,8 @@ const MT_CSS = `
 .admin .mt-task-done .mt-check { color:var(--admin-success); }
 
 /* Empty state */
+.admin .mt-empty-wrap { display:flex; flex-direction:column; align-items:center; gap:6px; padding:20px 4px 22px; text-align:center; }
+.admin .mt-empty-wrap .mt-empty { justify-content:center; padding:0; }
 .admin .mt-empty { display:flex; align-items:center; gap:8px; margin:0; padding:16px 4px; color:var(--admin-text-subtle); font-size:var(--admin-text-sm); }
 .admin .mt-empty svg { color:var(--admin-success); }
 

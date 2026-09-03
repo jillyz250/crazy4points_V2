@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { createAdminClient } from '@/utils/supabase/server'
 import { Icon, type IconName } from '@/components/admin/preview/kit'
+import AllClearArt from '@/components/admin/AllClearArt'
 import type { DecisionRow, DecisionStatus } from '@/lib/admin/logDecision'
 import { approveDecision, rejectDecision } from './actions'
 
@@ -156,8 +157,8 @@ export default async function DecisionsPage({
           </div>
 
           {pending.length === 0 ? (
-            <div className="dl-card dl-empty">
-              <span className="dl-empty-ic"><Icon name="check" size={22} /></span>
+            <div className="dl-card dl-empty dl-empty-clear">
+              <AllClearArt size={84} />
               <div>
                 <div className="dl-empty-title">Nothing waiting on you</div>
                 <div className="dl-empty-sub">The team is caught up. New proposals will show up here.</div>
@@ -288,6 +289,7 @@ const DL_CSS = `
 
 /* Empty state */
 .admin .dl-empty { display:flex; align-items:center; gap:14px; padding:1.6rem 1.7rem; }
+.admin .dl-empty-clear { flex-direction:column; text-align:center; gap:12px; padding:2.2rem 1.7rem; }
 .admin .dl-empty-ic { display:flex; align-items:center; justify-content:center; width:44px; height:44px; border-radius:12px; flex-shrink:0; color:var(--admin-success); background:var(--admin-success-soft); }
 .admin .dl-empty-title { font-size:1rem; font-weight:700; color:var(--admin-text); }
 .admin .dl-empty-sub { font-size:var(--admin-text-sm); color:var(--admin-text-muted); margin-top:2px; }
