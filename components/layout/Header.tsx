@@ -100,6 +100,7 @@ const RESOURCE_ITEMS: {
   // Program directories (live via their counts) + the Points Hub (coming soon).
   // The hub finders (Best Way to Book, Where Can I Go, FNC Fit) now live INSIDE
   // the Points Hub, so they're off the nav.
+  { label: "Cards & Points", key: "credit_card", href: "/programs?type=credit_card" },
   { label: "Airlines", key: "airline", href: "/programs?type=airline" },
   { label: "Hotels", key: "hotel", href: "/programs?type=hotel" },
   { label: "Alliances", key: "alliance", href: "/programs?type=alliance" },
