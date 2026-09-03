@@ -483,6 +483,9 @@ const DH_CSS = `
 /* Sections */
 .admin .dh-section { margin-bottom:3rem; }
 .admin .dh-cols { display:grid; grid-template-columns:1.15fr .85fr; gap:1.5rem; margin-bottom:3rem; align-items:start; }
+/* Grid tracks default to min-width:auto, so nowrap titles inside push the track
+   wider than the viewport (148px overflow at 375px). Let tracks shrink. */
+.admin .dh-cols > * { min-width:0; }
 .admin .dh-sec-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:1rem; padding:0 2px; }
 .admin .dh-sec-title { font-family:${DISPLAY}; font-size:1.4rem; font-weight:700; letter-spacing:-.01em; color:var(--admin-text); margin:0; }
 .admin .dh-sec-meta { font-size:var(--admin-text-xs); text-transform:uppercase; letter-spacing:.08em; color:var(--admin-text-subtle); font-weight:700; }
