@@ -214,7 +214,9 @@ export default function CardFinder({
     if (f.issuers.length && !f.issuers.includes(c.issuerName)) return false
     if (selected.length && !selected.every((b) => cardHas(c, b))) return false
     if (f.earns.length && !f.earns.every((k) => cardEarnsOn(c, k))) return false
-    if (ql && !`${c.name} ${c.issuerName}`.toLowerCase().includes(ql)) return false
+    // Search matches name + issuer + the program it earns (co-brand/currency) +
+    // network, so "SkyMiles", "Aeroplan", or "Visa" all find the right cards.
+    if (ql && !`${c.name} ${c.issuerName} ${c.coBrand?.name ?? ''} ${c.currency?.name ?? ''} ${c.network ?? ''}`.toLowerCase().includes(ql)) return false
     return true
   }
 
