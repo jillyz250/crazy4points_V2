@@ -1,0 +1,145 @@
+# morning-meeting — Jill's daily standup, run by her AI team
+
+## What this is
+The reboot of the daily ritual (Jill + Copilot, 2026-09-02). Instead of a flat 1→25
+list, the morning runs as a **standup**: Morgan (you) opens with a synthesized board,
+then hands the baton to each **department head** for their block — the head briefs Jill,
+walks their phases, Jill makes the judgment calls, next head. The team absorbs the
+volume; **Jill only touches the decisions.**
+
+- Full design + rationale: `plans/morning-meeting-reboot.md`.
+- **The `daily-ritual` skill is the FALLBACK and the phase-mechanics reference.** This skill
+  is the *orchestration/presentation* layer; the deep "how to actually do phase X" detail
+  still lives in `daily-ritual`. Nothing is dropped — every phase's work survives, re-clustered
+  under its owner. If this flow ever breaks, run `daily-ritual` instead.
+- Triggers: "morning meeting", "let's do the standup", "/morning-meeting", "start the meeting".
+
+## The golden rules of presentation (unchanged — Jill loves these)
+1. **Greet → board → ONE block at a time.** Open "Good morning, Jill" + the board. Present
+   one head's block, wait for her call, act, send the receipt, then the next. Never paste
+   multiple blocks at once. (See [[feedback_ritual_phase_setup_loved]].)
+2. **Exception-first.** The board leads with **⚡ Needs you today** (the real decisions). Jill
+   chooses: **"just do what needs me"** (jump only to the pending decisions + judgment calls,
+   across all heads, in dependency order) or **"full walk"** (all 9 blocks) or **"walk <head>"**.
+3. **Categorized receipt + retro after every block** (same buckets as daily-ritual: 🔍 Verified ·
+   📣 Published · 💾 Data changed · 💻 Code shipped · 🛡️ Guardrails · ⏲️ Auto-jobs). Then one-line
+   **🔧 retro** (best idea to sharpen THIS block, or "running well"). Save progress:
+   `node scripts/ritual-progress.mjs --complete N`.
+4. **Empty blocks auto-skip** in one line ("🔒 Bill — all green ✅"). Thin heads
+   (Charlie/Erica/Megan) appear only if they have something.
+5. **Jill drives:** next / skip / back / done. Never propose skipping a non-empty block.
+6. **ALWAYS show the full draft before publishing — every time.** (High-stakes stays manual.)
+7. Obey the always-on rules: lead with a recommendation; only verified facts (official source);
+   clickable links; her outstanding actions LAST; alert writes via `content_variants`.
+
+## Propose mode (how decisions work — start here)
+We start in **PROPOSE MODE** (probation): heads *recommend*, Jill *approves*, nothing
+auto-executes. See `plans/morning-meeting-reboot.md` + the Decision Log.
+- When a head would dismiss/skip/resolve/bulk-handle something, RECORD it as a proposal:
+  `logDecision({ employeeSlug, action, reason, stakes:'low', targetType, targetLabel, itemCount })`
+  (`lib/admin/logDecision.ts`) → it lands `pending` in `/admin/decisions`.
+- Surface pending proposals for Jill to **Approve / Reject** (`approveDecision` / `rejectDecision`
+  in `app/admin/(protected)/decisions/actions.ts`). Reject writes an `employee_logs` shortcoming →
+  the head learns. Execute only what she approves.
+- **Stakes rule:** LOW-stakes (dedup, false-positive resolves, directory-noise skips, dead-reminder
+  dismiss) can later graduate to auto-with-log per head. **HIGH-stakes (publish, program/card data
+  change, feature, send email, page prose edit) ALWAYS manual — Jill sees the draft first, forever.**
+
+## Pre-flight (before the board)
+```
+node scripts/ritual-progress.mjs                 # resume? if IN PROGRESS, offer to jump to the block left off
+node scripts/morning-dedup.mjs                    # (then --apply after a glance) suppress reworded re-forwards
+node scripts/morning-reminders-sweep.mjs          # (then --apply) auto-complete dead reminders
+node scripts/morning-snapshot.mjs                 # the full structured feed (your data source)
+node scripts/morning-triage-by-type.mjs           # undecided intel grouped by type (Priya's block)
+node scripts/improvement-radar.mjs                # ranked gaps (feeds the improvement rotation)
+# WEEKLY (Mondays, or if stale): refresh each head's trade digest before briefs
+node scripts/field-digest.mjs kesha-social        # (+ john-content bill-security devon-design charlie-legal)
+# Then pull each head's brief — this is what you present per block:
+node scripts/employee-brief.mjs <slug>            # kesha-social · john-content · priya-sources · janet-growth · bill-security (+ thin heads)
+```
+If `!! QUERY PROBLEM` prints anywhere, STOP and fix it — a failed query looks like an empty queue.
+
+## THE BOARD (send first, every morning) — three tiers
+Build from the snapshot HEALTH block + the pending decision count + each head's brief headline:
+```
+☀️ Good morning, Jill — <day, date>
+🩺 Health:  brief ✅ · Scout ✅ · watchers ✅ · errors 🟢 0          ← flag anything red (hard-stop)
+⚡ Needs you today:  <N decisions> — e.g. 3 to approve · 2 drafts to review · 1 publish call
+👥 The team:
+   🔒 Bill — system green, 0 errors
+   🔎 Priya — 4 intel to triage, 1 page fix
+   ✍️ John — 25 drafts, 1 stale FAQ · 📚 SEO: Google sitemap change
+   📣 Kesha — 214 exp (2 worth it), 14 sweeps · 📚 TikTok NFL deal
+   💰 Janet — 42 subs (−1 this week)
+→ "just do what needs me"  ·  "full walk"  ·  "walk <head>"
+```
+Wait for her choice. `🩺 Health` MUST include the logged-errors state; any 🔴 is a hard-stop
+(resolve/escalate in Bill's block, never open "all green" over an unresolved error).
+
+---
+
+# THE BLOCKS (dependency-ordered; hand the baton head to head)
+
+Each block: **the head gives their brief** (from `employee-brief.mjs <slug>` — includes their
+"📚 field this week"), then walks their phases, logging proposals + surfacing judgment calls.
+Old phase numbers in [brackets] map to `daily-ritual` for the deep mechanics.
+
+### Block 1 · 🔒 Bill — System health  *(baseline first)*
+Brief: `employee-brief.mjs bill-security`. Phases: **[1]** cron health + logged errors
+(`system_errors` unresolved). Any red = call it out + resolve/escalate here. Auto-skip line if green.
+
+### Block 2 · 🔎 Priya — Facts in & accurate
+Brief: `employee-brief.mjs priya-sources`. Phases: **[4]** triage intel (4a promos → 4b program
+changes+earn, group by type, never bulk-blind) → publishes · **[6]** page accuracy (drift +
+change_signals; most drift = transient-promo false-positive → propose bulk-resolve) · **[7]**
+welcome-bonus card moves (scraper + `signup_bonus` group) · **[16 — Wed only]** data-integrity
+improvement. Publishing an alert = HIGH stakes → show Jill the full draft first; after publish,
+ask "add to the social calendar?" (`add-social-triage.mjs`).
+
+### Block 3 · ✍️ John — Content authored & fresh  *(after Priya: clean facts before content)*
+Brief: `employee-brief.mjs john-content`. Phases: **[8]** refresh queue · **[11]** program-page
+changes / next airline (Paige) · **[12]** roadmap mining + reconcile · **[13]** write the day's
+article + guide (Artie/Gwen) · **[5b]** drain any legacy newsletter-parked item · **[22 — Thu]**
+newsletter build (Nora). Show every draft before publish.
+
+### Block 4 · 📣 Kesha — Experiences, sweeps & social  *(after John: social pulls the day's publishes)*
+Brief: `employee-brief.mjs kesha-social`. Phases: **[5a/9]** experiences to review + closings →
+alert/quick-take/skip (ANY verdict stamps `editorial_reviewed_at`; be honest ~most are directory
+noise → propose bulk-skip) · **[10]** sweepstakes review · **[18]** the ONE social post (pulls from
+today's publishes) · **[19]** campaign creative (Reese/Devon). Publishing/posting = show the draft.
+
+### Block 5 · 🧭 Morgan — Sweep & build  *(covers the whole day)*
+Phases: **[14]** chain-sweep (runs AFTER all publishes incl. Kesha's — `chain-sweep.mjs`) ·
+**[15 — Mon only]** process improvement · **[20 / 21 — weekly]** advance User-Accounts + AI-visibility
+builds a little, report progress (not daily ceremony) · **[21b]** org/team build (one lore beat +
+any org sharpening).
+
+### Block 6 · 🎨 Devon — Design  *(Fri only; else skip)*
+Phases: **[17]** visual/UX improvement of the day.
+
+### Block 7 · 💰 Janet — Growth wrap
+Brief: `employee-brief.mjs janet-growth`. Phases: **[22/23]** analytics (Ana; deep-dive ~2-3×/week,
+else the dashboard Pulse trend is enough) · **[23]** deliverability & list health.
+
+### Block 8 · 🔒 Bill — Safety close
+Phases: **[24]** security posture (deep on Mondays) · **[25]** backup & recovery (restore-drill monthly).
+
+---
+
+## Close
+`node scripts/ritual-progress.mjs --finish`. One-line wrap: what shipped, what's still pending
+(her outstanding actions LAST), and give the prod URL for anything changed. Then a warm sign-off.
+
+## Cadence (what's daily vs not)
+- **Improvements rotate:** Mon = process (Morgan) · Wed = data-integrity (Priya) · Fri = visual/UX
+  (Devon). Off-days: that improvement auto-skips.
+- **Standing builds (User-Accounts, AI-visibility):** weekly progress, not daily.
+- **Analytics:** deep-dive 2-3×/week; daily = the Pulse trend.
+- **Field digests:** refresh weekly (Mondays) via `field-digest.mjs`.
+- **Thin heads:** appear only when they have something.
+
+## Related
+`plans/morning-meeting-reboot.md`, the `employee-brief` skill, `daily-ritual` (fallback +
+phase mechanics), the Decision Log (`/admin/decisions`), [[project_ai_employee_team]],
+[[feedback_ritual_phase_setup_loved]], [[feedback_always_show_draft_before_publish]].
