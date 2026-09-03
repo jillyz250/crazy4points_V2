@@ -127,9 +127,13 @@ OFF as of 2026-09-03 — John's team writes deliberately now, not from an auto-q
 
 ### Block 4 · 📣 Kesha — Experiences, sweeps & social  *(after John: social pulls the day's publishes)*
 Brief: `employee-brief.mjs kesha-social`. Phases: **[5a/9]** experiences to review + closings →
-alert/quick-take/skip (ANY verdict stamps `editorial_reviewed_at`; be honest ~most are directory
-noise → propose bulk-skip) · **[10]** sweepstakes review · **[18]** the ONE social post (pulls from
-today's publishes) · **[19]** campaign creative (Reese/Devon). Publishing/posting = show the draft.
+alert/quick-take/skip. **⭐ Jill lays eyes on EVERY new one (her standing rule 2026-09-03): Kesha
+SHOWS the full new-experiences AND new-sweepstakes list — scannable, every item — before ANY
+bulk-skip. Nothing is skipped unseen.** Kesha flags the standouts + which are directory noise, but
+Jill glances the whole list and approves the skip of the noise or pulls any to keep (ANY verdict
+stamps `editorial_reviewed_at`). · **[10]** sweepstakes review (same show-them-all rule) · **[18]**
+the ONE social post (pulls from today's publishes) · **[19]** campaign creative (Reese/Devon). Kesha
+owns the **Social Calendar** too. Publishing/posting = show the draft.
 
 ### Block 5 · 🧭 Morgan — Sweep & build  *(covers the whole day)*
 Phases: **[14]** chain-sweep (runs AFTER all publishes incl. Kesha's — `chain-sweep.mjs`) ·
