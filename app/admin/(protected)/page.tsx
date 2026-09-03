@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { createAdminClient } from '@/utils/supabase/server'
 import { computeMeters } from '@/lib/orgMeters'
+import { computeAging, overdueOnly } from '@/lib/orgAging'
 import { buildQueue, meterCells, Icon, Ring, todayLong } from '@/components/admin/preview/kit'
 import Notepad from '@/components/admin/dashboard/Notepad'
 import MyTasks from '@/components/admin/dashboard/MyTasks'
@@ -158,6 +159,14 @@ export default async function AdminDashboard() {
     .filter((e) => e.kind === 'agent')
     .sort((a, b) => (a.status === 'active' ? 0 : 1) - (b.status === 'active' ? 0 : 1) || a.name.localeCompare(b.name))
 
+  // ── Aging / escalation (Morgan owns this) — the "nothing falls off" monitor.
+  // computeAging scans every queue for its oldest OPEN item; overdueOnly keeps
+  // only the queues that have blown their threshold, worst-overshoot first. When
+  // that list is empty (the healthy case) we show a calm one-line all-clear, not
+  // the full per-queue table. ──
+  const aging = await computeAging(db)
+  const overdue = overdueOnly(aging)
+
   const queue = buildQueue()
   const primary = queue.filter((q) => q.urgent)
   const rest = queue.filter((q) => !q.urgent)
@@ -263,6 +272,39 @@ export default async function AdminDashboard() {
           <div className="dh-card dh-mytasks">
             <MyTasks initialTasks={tasks} emptyArt={<AllClearArt size={72} />} />
           </div>
+        </section>
+
+        {/* ── Needs attention — the aging/escalation monitor (Morgan owns it).
+             Only the OVERDUE queues surface here (worst-overshoot first). When
+             nothing is overdue — the common, healthy case — this collapses to a
+             single calm all-clear line so the dashboard stays quiet. ── */}
+        <section className="dh-section dh-attn-sec">
+          <div className="dh-sec-head">
+            <h2 className="dh-sec-title">Needs attention</h2>
+            <span className="dh-sec-meta">{overdue.length > 0 ? `${overdue.length} aging` : 'Queue health'}</span>
+          </div>
+          {overdue.length > 0 ? (
+            <div className="dh-card dh-attn">
+              {overdue.map((r) => (
+                <Link key={r.key} href={r.link} className="dh-attn-row">
+                  <span className="dh-attn-ic"><Icon name="alert" size={17} /></span>
+                  <span className="dh-attn-label">{r.label}</span>
+                  <span className="dh-attn-meta">
+                    {r.open} open <span className="dh-attn-sep">&middot;</span> oldest {r.oldestDays}d
+                    <span className="dh-attn-limit"> (limit {r.threshold}d)</span>
+                  </span>
+                  <span className="dh-attn-go"><Icon name="arrow" size={14} /></span>
+                </Link>
+              ))}
+              <p className="dh-attn-foot">Morgan watches this.</p>
+            </div>
+          ) : (
+            <div className="dh-attn-clear">
+              <span className="dh-attn-clear-ic"><Icon name="check" size={15} /></span>
+              <span className="dh-attn-clear-txt">All queues current &mdash; nothing aging</span>
+              <span className="dh-attn-clear-foot">Morgan watches this.</span>
+            </div>
+          )}
         </section>
 
         {/* ── What needs me + Notepad ── */}
@@ -484,6 +526,26 @@ const DH_CSS = `
 .admin .dh-p1-go { flex-shrink:0; color:var(--admin-text-subtle); transition:transform .14s ease, color .14s ease; }
 .admin .dh-p1-row:hover .dh-p1-go { transform:translateX(2px); color:var(--admin-danger); }
 
+/* Needs attention — aging/escalation monitor (warning-toned, calm when clear) */
+.admin .dh-attn-sec { margin-top:-.4rem; }
+.admin .dh-attn { padding:6px; border-color:color-mix(in srgb, var(--admin-warning) 22%, var(--admin-border)); }
+.admin .dh-attn-row { display:flex; align-items:center; gap:13px; padding:13px 15px; border-radius:12px; text-decoration:none; transition:background .14s ease; }
+.admin .dh-attn-row + .dh-attn-row { border-top:1px solid color-mix(in srgb, var(--admin-warning) 12%, var(--admin-border)); border-radius:0; }
+.admin .dh-attn-row:hover { background:color-mix(in srgb, var(--admin-warning) 6%, #fff); text-decoration:none; }
+.admin .dh-attn-ic { display:flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:10px; flex-shrink:0; color:var(--admin-warning); background:var(--admin-warning-soft); border:1px solid color-mix(in srgb, var(--admin-warning) 26%, var(--admin-border)); }
+.admin .dh-attn-label { flex:1; min-width:0; font-size:var(--admin-text-sm); font-weight:700; color:var(--admin-text); line-height:1.35; }
+.admin .dh-attn-meta { flex-shrink:0; font-size:var(--admin-text-xs); font-weight:700; color:var(--admin-warning); font-variant-numeric:tabular-nums; letter-spacing:.01em; }
+.admin .dh-attn-sep { color:color-mix(in srgb, var(--admin-warning) 45%, transparent); margin:0 1px; }
+.admin .dh-attn-limit { color:var(--admin-text-subtle); font-weight:600; }
+.admin .dh-attn-go { flex-shrink:0; color:var(--admin-text-subtle); opacity:0; transform:translateX(-4px); transition:opacity .14s ease, transform .14s ease; }
+.admin .dh-attn-row:hover .dh-attn-go { opacity:1; transform:translateX(0); color:var(--admin-warning); }
+.admin .dh-attn-foot { margin:2px 6px 4px; padding-top:9px; border-top:1px dashed color-mix(in srgb, var(--admin-warning) 16%, var(--admin-border)); font-size:var(--admin-text-xs); color:var(--admin-text-subtle); font-weight:600; }
+/* All-clear — one calm line, quiet by design when nothing is aging */
+.admin .dh-attn-clear { display:flex; align-items:center; gap:10px; padding:14px 18px; border-radius:14px; border:1px solid var(--admin-border); background:var(--admin-surface); }
+.admin .dh-attn-clear-ic { display:flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:8px; flex-shrink:0; color:var(--admin-success); background:var(--admin-success-soft); }
+.admin .dh-attn-clear-txt { font-size:var(--admin-text-sm); font-weight:600; color:var(--admin-text-secondary); }
+.admin .dh-attn-clear-foot { margin-left:auto; font-size:var(--admin-text-xs); color:var(--admin-text-subtle); font-weight:600; }
+
 /* Queue */
 .admin .dh-queue { padding:6px; }
 .admin .dh-row { display:flex; align-items:center; gap:15px; padding:15px 16px; border-radius:13px; text-decoration:none; transition:background .14s ease; }
@@ -547,6 +609,13 @@ const DH_CSS = `
   .admin .dh-welcome { height:118px; }
   .admin .dh-welcome-body { left:18px; bottom:16px; }
   .admin .dh-welcome-title { font-size:1.6rem; }
+  /* Needs-attention rows: let the count drop under the label; nothing clips */
+  .admin .dh-attn-row { flex-wrap:wrap; gap:5px 11px; }
+  .admin .dh-attn-label { flex-basis:auto; }
+  .admin .dh-attn-meta { flex-basis:100%; order:3; padding-left:47px; }
+  .admin .dh-attn-go { display:none; }
+  .admin .dh-attn-clear { flex-wrap:wrap; }
+  .admin .dh-attn-clear-foot { margin-left:36px; flex-basis:100%; }
   /* Activity rows: let the summary wrap to its own line, badge+who up top */
   .admin .dh-act-row { flex-wrap:wrap; gap:7px 10px; }
   .admin .dh-act-summary { flex-basis:100%; order:4; white-space:normal; }
