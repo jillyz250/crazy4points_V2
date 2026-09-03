@@ -69,6 +69,7 @@ export default function AdminNav({ people = [] }: { badges?: AdminNavBadges; peo
       })}
 
       <div className="admin-nav-divider" />
+      <StaticLink href="/admin/breakroom" icon="coffee" label="Breakroom" active={pathname.startsWith('/admin/breakroom')} />
       <StaticLink href="/admin/settings" icon="settings" label="Settings" active={pathname.startsWith('/admin/settings')} />
     </nav>
   )

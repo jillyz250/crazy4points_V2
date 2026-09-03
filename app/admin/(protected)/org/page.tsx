@@ -197,8 +197,13 @@ export default async function OrgPage() {
           ))}
       </div>
 
-      {/* The Breakroom — office lore feed */}
-      <h2 style={{ fontSize: '1rem', marginBottom: '.25rem', color: 'var(--admin-text)' }}>☕ The Breakroom</h2>
+      {/* The Breakroom — office lore feed (full hub lives at /admin/breakroom) */}
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginBottom: '.25rem', flexWrap: 'wrap' }}>
+        <h2 style={{ fontSize: '1rem', margin: 0, color: 'var(--admin-text)' }}>☕ The Breakroom</h2>
+        <Link href="/admin/breakroom" style={{ fontSize: '.78rem', fontWeight: 700, color: 'var(--color-primary)', textDecoration: 'none' }}>
+          Open the Breakroom →
+        </Link>
+      </div>
       <p style={{ fontSize: '.8rem', color: 'var(--admin-text-subtle)', marginTop: 0, marginBottom: '.75rem' }}>
         Office lore. Internal only, never leaves the building.
       </p>

@@ -36,9 +36,6 @@ type Emp = {
   last_regenerated_at: string | null
 }
 type Log = { id: string; type: string; note: string; actor: string | null; created_at: string }
-type Lore = { id: string; lore_date: string; headline: string; body: string | null; involves: string[] | null }
-// Character-specific arc (migration 660): daily beat + the two-way choice Jill picks.
-type LoreBeat = { id: string; lore_date: string; headline: string; body: string | null; choice_a: string | null; choice_b: string | null; chosen: string | null }
 // lib/field-feeds.json — trade sources each head reads to stay current.
 type FieldFeed = { beat: string; sources: { name: string; url: string }[] }
 const FIELD_FEEDS = fieldFeedsJson as Record<string, FieldFeed>
@@ -62,7 +59,7 @@ const PAGE_ICON: Record<string, IconName> = {
   issuers: 'briefcase', cards: 'creditCard', 'partner-redemptions': 'award', tokens: 'tag',
   extractions: 'database', 'card-extractions': 'creditCard', 'refresh-queue': 'activity', 'manual-overrides': 'pencil',
   glossary: 'book', dashboard: 'compass', org: 'users', 'ai-usage': 'gauge', decisions: 'flag',
-  expenses: 'creditCard',
+  expenses: 'creditCard', breakroom: 'coffee',
 }
 const pageIcon = (p: AdminPage): IconName => PAGE_ICON[p.id] ?? CAT_ICON[p.taskCategory]
 
@@ -106,15 +103,12 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
   const e = data as Emp | null
   if (!e) notFound()
 
-  const [{ data: logsData }, { data: mgr }, { data: teamData }, { data: loreData }, { data: arcData }, { data: decisionsData }, { data: tasksData }] = await Promise.all([
+  const [{ data: logsData }, { data: mgr }, { data: teamData }, { data: decisionsData }, { data: tasksData }] = await Promise.all([
     db.from('employee_logs').select('id, type, note, actor, created_at').eq('employee_id', e.id).order('created_at', { ascending: false }).limit(12),
     e.reports_to_id
       ? db.from('employees').select('name, slug, role_title, emoji').eq('id', e.reports_to_id).maybeSingle()
       : Promise.resolve({ data: null }),
     db.from('employees').select('id, slug, name, role_title, emoji, status').eq('reports_to_id', e.id).order('name', { ascending: true }),
-    db.from('org_lore').select('id, lore_date, headline, body, involves').order('lore_date', { ascending: false }).order('created_at', { ascending: false }).limit(40),
-    // This character's own arc (oldest → newest, reads like a story).
-    db.from('org_lore').select('id, lore_date, headline, body, choice_a, choice_b, chosen').eq('character_slug', slug).order('lore_date', { ascending: true }).order('created_at', { ascending: true }).limit(60),
     db.from('decision_log').select('*').eq('employee_slug', slug).order('created_at', { ascending: false }).limit(8),
     db.from('employee_tasks').select('*').eq('employee_slug', slug).order('created_at', { ascending: false }).limit(100),
   ])
@@ -124,8 +118,6 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
   const openTaskCount = tasks.filter((t) => t.status !== 'done').length
   const manager = mgr as { name: string; slug: string; role_title: string | null; emoji: string | null } | null
   const team = (teamData ?? []) as { id: string; slug: string; name: string; role_title: string | null; emoji: string | null; status: string }[]
-  const lore = ((loreData ?? []) as Lore[]).filter((l) => arr(l.involves).includes(slug)).slice(0, 3)
-  const arc = (arcData ?? []) as LoreBeat[]
   const feeds = FIELD_FEEDS[slug] ?? null
 
   const isAgent = e.kind === 'agent'
@@ -394,76 +386,6 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
             </div>
           </section>
         )}
-
-        {/* ── Office lore: this character's arc (flavor only, never touches the work) ── */}
-        <section className="ep-section">
-          <div className="ep-sec-head">
-            <h2 className="ep-sec-title">Office lore</h2>
-            <span className="ep-sec-meta">{e.name.split(' ')[0]}&rsquo;s story</span>
-          </div>
-          {arc.length === 0 ? (
-            <div className="ep-card ep-lore-empty">
-              <span className="ep-lore-empty-ic"><Icon name="coffee" size={18} /></span>
-              <div>
-                <div className="ep-lore-empty-head">No lore yet</div>
-                <p className="ep-lore-empty-sub">It starts at the next morning meeting.</p>
-              </div>
-            </div>
-          ) : (
-            <div className="ep-card ep-lore">
-              {arc.map((b) => (
-                <div key={b.id} className="ep-lore-beat">
-                  <div className="ep-lore-rail"><span className="ep-lore-dot" /></div>
-                  <div className="ep-lore-content">
-                    <div className="ep-lore-top">
-                      <span className="ep-lore-head">{b.headline}</span>
-                      <span className="ep-lore-date">{fmtDate(b.lore_date)}</span>
-                    </div>
-                    {b.body && <p className="ep-lore-body">{b.body}</p>}
-                    {(b.choice_a || b.choice_b) && (
-                      <div className="ep-lore-choices">
-                        {b.choice_a && (
-                          <div className={`ep-lore-choice${b.chosen === 'a' ? ' ep-lore-choice-on' : ''}`}>
-                            <span className="ep-lore-choice-mark">{b.chosen === 'a' ? <Icon name="check" size={13} /> : 'A'}</span>
-                            <span>{b.choice_a}</span>
-                          </div>
-                        )}
-                        {b.choice_b && (
-                          <div className={`ep-lore-choice${b.chosen === 'b' ? ' ep-lore-choice-on' : ''}`}>
-                            <span className="ep-lore-choice-mark">{b.chosen === 'b' ? <Icon name="check" size={13} /> : 'B'}</span>
-                            <span>{b.choice_b}</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* ── Breakroom beats ── */}
-        {lore.length > 0 && (
-          <section className="ep-section ep-section-last">
-            <div className="ep-sec-head">
-              <h2 className="ep-sec-title">From the Breakroom</h2>
-              <Link href="/admin/org" className="ep-sec-link">All lore <Icon name="arrow" size={13} /></Link>
-            </div>
-            <div className="ep-card ep-break">
-              {lore.map((l, i) => (
-                <div key={l.id} className={`ep-break-item${i > 0 ? ' ep-break-b' : ''}`}>
-                  <span className="ep-break-ic"><Icon name="coffee" size={15} /></span>
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <div className="ep-break-head">{l.headline}</div>
-                    {l.body && <p className="ep-break-body">{l.body}</p>}
-                  </div>
-                  <span className="ep-break-date">{l.lore_date}</span>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
       </div>
     </div>
   )
@@ -528,7 +450,6 @@ const EP_CSS = `
 
 /* Sections */
 .admin .ep-section { margin-bottom:2.6rem; }
-.admin .ep-section-last { margin-bottom:3.5rem; }
 .admin .ep-sec-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:1rem; padding:0 2px; }
 .admin .ep-sec-title { font-family:${DISPLAY}; font-size:1.4rem; font-weight:700; letter-spacing:-.01em; color:var(--admin-text); margin:0; }
 .admin .ep-sec-meta { font-size:var(--admin-text-xs); text-transform:uppercase; letter-spacing:.08em; color:var(--admin-text-subtle); font-weight:700; }
@@ -555,30 +476,6 @@ const EP_CSS = `
 .admin .ep-feed-ic { display:flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:8px; flex-shrink:0; color:var(--color-primary); background:color-mix(in srgb, var(--color-primary) 8%, #fff); border:1px solid color-mix(in srgb, var(--color-primary) 12%, var(--admin-border)); }
 .admin .ep-feed > svg:last-child { color:var(--admin-text-subtle); flex-shrink:0; }
 .admin .ep-feed:hover > svg:last-child { color:var(--color-primary); }
-
-/* Office lore — character arc timeline */
-.admin .ep-lore { padding:1.3rem 1.5rem; }
-.admin .ep-lore-beat { display:flex; gap:14px; }
-.admin .ep-lore-rail { position:relative; flex-shrink:0; width:14px; display:flex; justify-content:center; }
-.admin .ep-lore-rail::before { content:''; position:absolute; top:0; bottom:0; width:2px; background:color-mix(in srgb, var(--color-primary) 16%, var(--admin-border)); }
-.admin .ep-lore-beat:first-child .ep-lore-rail::before { top:7px; }
-.admin .ep-lore-beat:last-child .ep-lore-rail::before { bottom:calc(100% - 7px); }
-.admin .ep-lore-dot { position:relative; z-index:1; margin-top:5px; width:10px; height:10px; border-radius:50%; background:${GOLD}; box-shadow:0 0 0 3px color-mix(in srgb, ${GOLD} 22%, #fff); }
-.admin .ep-lore-content { min-width:0; flex:1; padding-bottom:1.4rem; }
-.admin .ep-lore-beat:last-child .ep-lore-content { padding-bottom:0; }
-.admin .ep-lore-top { display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
-.admin .ep-lore-head { font-family:${DISPLAY}; font-size:1.08rem; font-weight:600; color:var(--color-primary); line-height:1.25; }
-.admin .ep-lore-date { font-size:var(--admin-text-xs); color:var(--admin-text-subtle); flex-shrink:0; font-variant-numeric:tabular-nums; }
-.admin .ep-lore-body { margin:.35rem 0 0; font-size:var(--admin-text-sm); color:var(--admin-text-secondary); line-height:1.6; }
-.admin .ep-lore-choices { display:flex; flex-wrap:wrap; gap:8px; margin-top:.7rem; }
-.admin .ep-lore-choice { display:inline-flex; align-items:center; gap:8px; font-size:var(--admin-text-sm); color:var(--admin-text-muted); padding:6px 11px 6px 8px; border-radius:9999px; background:var(--admin-surface-alt); border:1px solid var(--admin-border); }
-.admin .ep-lore-choice-mark { display:flex; align-items:center; justify-content:center; width:19px; height:19px; border-radius:50%; flex-shrink:0; font-size:.7rem; font-weight:800; color:var(--admin-text-subtle); background:var(--admin-surface); border:1px solid var(--admin-border); }
-.admin .ep-lore-choice-on { color:var(--admin-text); font-weight:600; background:var(--admin-success-soft); border-color:color-mix(in srgb, var(--admin-success) 35%, var(--admin-border)); }
-.admin .ep-lore-choice-on .ep-lore-choice-mark { color:#fff; background:var(--admin-success); border-color:var(--admin-success); }
-.admin .ep-lore-empty { display:flex; align-items:center; gap:14px; padding:1.4rem 1.5rem; }
-.admin .ep-lore-empty-ic { display:flex; align-items:center; justify-content:center; width:40px; height:40px; border-radius:11px; flex-shrink:0; color:#9a7b1e; background:rgba(212,175,55,.14); }
-.admin .ep-lore-empty-head { font-family:${DISPLAY}; font-size:1.05rem; font-weight:600; color:var(--admin-text); }
-.admin .ep-lore-empty-sub { margin:2px 0 0; font-size:var(--admin-text-sm); color:var(--admin-text-muted); }
 
 /* Workspace */
 .admin .ep-workspace { display:flex; flex-direction:column; gap:1.6rem; }
@@ -631,14 +528,6 @@ const EP_CSS = `
 .admin .ep-dl-pill { font-size:var(--admin-text-xs); font-weight:800; padding:2px 9px; border-radius:9999px; text-transform:uppercase; letter-spacing:.04em; flex-shrink:0; }
 .admin .ep-dl-time { font-size:var(--admin-text-xs); color:var(--admin-text-subtle); flex-shrink:0; font-variant-numeric:tabular-nums; margin-left:auto; }
 
-/* Breakroom */
-.admin .ep-break { padding:8px; }
-.admin .ep-break-item { display:flex; gap:14px; align-items:flex-start; padding:15px 14px; }
-.admin .ep-break-b { border-top:1px solid var(--admin-border); }
-.admin .ep-break-ic { display:flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:9px; flex-shrink:0; color:#9a7b1e; background:rgba(212,175,55,.14); }
-.admin .ep-break-head { font-family:${DISPLAY}; font-size:1.05rem; font-weight:600; color:var(--color-primary); line-height:1.25; }
-.admin .ep-break-body { margin:3px 0 0; font-size:var(--admin-text-sm); color:var(--admin-text-muted); line-height:1.5; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
-.admin .ep-break-date { font-size:var(--admin-text-xs); color:var(--admin-text-subtle); flex-shrink:0; }
 .admin .ep-empty { display:flex; align-items:center; gap:8px; padding:16px; margin:0; color:var(--admin-text-muted); font-size:var(--admin-text-sm); }
 
 @media (max-width:820px) {

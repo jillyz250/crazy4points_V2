@@ -149,6 +149,18 @@ export const ADMIN_PAGES: AdminPage[] = [
     abbr: 'Or',
   },
   {
+    id: 'breakroom',
+    title: 'Breakroom',
+    description: 'The office soap opera — every character\'s arc + the shared office feed. Flavor only, internal.',
+    owner: 'morgan-chief',
+    taskCategory: 'Ops',
+    path: '/admin/breakroom',
+    status: 'active',
+    icon: '☕',
+    dashboardPriority: 12,
+    abbr: 'Bo',
+  },
+  {
     id: 'decisions',
     title: 'Decisions',
     description: 'The Decision Log — proposals from the team awaiting your approve/reject.',
