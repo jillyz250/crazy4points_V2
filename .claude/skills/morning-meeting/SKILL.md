@@ -67,7 +67,9 @@ and/or per-character) and present it warmly (PG-17, spicy-but-tasteful; a real o
 breakups, wins, heartbreak; fade-to-black on anything explicit). Then, if the current beat has a
 pending **choose-your-own-adventure decision** (`choice_a`/`choice_b`, `chosen` still null), offer Jill
 the two choices; when she picks, write her pick to `chosen` and that seeds the NEXT beat (tomorrow's
-story follows from it). ONE decision per morning. ⛔ FIREWALL: lore + morale NEVER touch the work
+story follows from it). ONE decision per morning. **SAVE DAILY:** every day's beat is a DATED row in
+`org_lore` (that IS the save) — the Breakroom (`/admin/breakroom`) shows the full dated history, so Jill
+can always scroll back through the whole story. Never overwrite a past beat; each morning is a new row. ⛔ FIREWALL: lore + morale NEVER touch the work
 (quality/priority/accuracy) and NEVER reach a customer — pure office flavor, this segment only. Then
 proceed to the board. ("good morning, no lore today" → skip this entire opener.)
 (Structure note: Jill's undecided between this Breakroom OPENER vs lore MIXED into each head's block —
