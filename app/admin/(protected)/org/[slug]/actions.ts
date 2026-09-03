@@ -85,6 +85,24 @@ export async function setTaskStatus(
   revalidatePath('/admin')
 }
 
+/**
+ * Save the hero "Notes" sticky (employees.quick_note, migration 662) — Jill's
+ * private jot about a head / their current work. Saves on blur; empty clears it.
+ * Same admin-gated, service-role model as the note/task actions above.
+ */
+export async function setQuickNote(slug: string, text: string): Promise<void> {
+  await assertAdmin()
+  const s = (slug || '').trim()
+  if (!s) return
+  const db = createAdminClient()
+  const body = (text || '').trim()
+  await db
+    .from('employees')
+    .update({ quick_note: body ? body.slice(0, 4000) : null })
+    .eq('slug', s)
+  revalidatePath(`/admin/org/${s}`)
+}
+
 /** Delete a task (cleanup only — status changes are the normal path). */
 export async function deleteEmployeeTask(id: string, employeeSlug: string): Promise<void> {
   await assertAdmin()

@@ -7,7 +7,8 @@ import { Icon, Ring, meterCells, type IconName } from '@/components/admin/previe
 import { ADMIN_PAGES, type TaskCategory, type AdminPage } from '@/lib/admin/registry'
 import type { DecisionRow, DecisionStatus } from '@/lib/admin/logDecision'
 import AssignedTasks from '@/components/admin/dashboard/AssignedTasks'
-import type { EmployeeTask } from './tasks'
+import QuickNote from '@/components/admin/dashboard/QuickNote'
+import { sortOpenTasks, type EmployeeTask } from './tasks'
 import fieldFeedsJson from '@/lib/field-feeds.json'
 
 export const dynamic = 'force-dynamic'
@@ -34,6 +35,7 @@ type Emp = {
   platforms: Platform[] | null
   reports_to_id: string | null
   last_regenerated_at: string | null
+  quick_note: string | null
 }
 type Log = { id: string; type: string; note: string; actor: string | null; created_at: string }
 // lib/field-feeds.json — trade sources each head reads to stay current.
@@ -124,6 +126,10 @@ const LOG_KIND: Record<string, LogKind> = {
 }
 const fmtDate = (s: string) => new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
+// Top Task card presenters (hero) — priority chip class + human status label.
+const TASK_PRI_CLASS: Record<string, string> = { P1: 'ep-tt-p1', P2: 'ep-tt-p2', P3: 'ep-tt-p3' }
+const TASK_STATUS_LABEL: Record<string, string> = { todo: 'To do', in_progress: 'In progress', blocked: 'Blocked', done: 'Done' }
+
 // Decision Log presenters (per-head "Recent decisions" section).
 const DECISION_STATUS: Record<DecisionStatus, { label: string; fg: string; bg: string }> = {
   pending: { label: 'Pending', fg: 'var(--admin-warning)', bg: 'var(--admin-warning-soft)' },
@@ -164,7 +170,10 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
   const logs = (logsData ?? []) as Log[]
   const decisions = (decisionsData ?? []) as DecisionRow[]
   const tasks = (tasksData ?? []) as EmployeeTask[]
-  const openTaskCount = tasks.filter((t) => t.status !== 'done').length
+  const openTasks = tasks.filter((t) => t.status !== 'done')
+  const openTaskCount = openTasks.length
+  // The one thing to look at first: highest-priority open task (P1→P2→P3→oldest).
+  const topTask = sortOpenTasks(openTasks)[0] ?? null
   const manager = mgr as { name: string; slug: string; role_title: string | null; emoji: string | null } | null
   const team = (teamData ?? []) as { id: string; slug: string; name: string; role_title: string | null; emoji: string | null; status: string }[]
   const feeds = FIELD_FEEDS[slug] ?? null
@@ -200,10 +209,16 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
               {meters && (
                 <div className="ep-vitals-mini" aria-label={`${e.name.split(' ')[0]}'s vitals`}>
                   {meters.map((c) => (
-                    <div key={c.key} className="ep-vmini" title={`${c.label}: ${c.value} — ${describeMeter(c.key, c.value)}`}>
+                    <Link
+                      key={c.key}
+                      href={`/admin/org/${slug}/vitals/${c.key}`}
+                      className="ep-vmini"
+                      title={`${c.label}: ${c.value} — ${describeMeter(c.key, c.value)}. See why →`}
+                      aria-label={`${c.label} ${c.value} — see why`}
+                    >
                       <Ring value={c.value} color={c.color} size={38} stroke={4} track="var(--admin-surface-alt)" valueColor="var(--admin-text)" />
                       <span className="ep-vmini-label">{c.label}</span>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               )}
@@ -212,6 +227,7 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
               <div className="ep-status"><span className="ep-status-dot" style={{ background: statusColor(e.status) }} /> {statusLabel(e.status)}</div>
               <h1 className="ep-name">{e.name}</h1>
               <div className="ep-role">{e.role_title || ''}</div>
+              {e.mission && <p className="ep-mission">{e.mission}</p>}
               <div className="ep-meta">
                 {manager && (
                   <Link href={`/admin/org/${manager.slug}`} className="ep-meta-chip">
@@ -224,6 +240,29 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
                     {e.last_regenerated_at ? `Agent file · ${fmtDate(e.last_regenerated_at)}` : 'Agent file · not generated'}
                   </span>
                 )}
+              </div>
+
+              {/* Task-forward row: the head's #1 open task + Jill's private note */}
+              <div className="ep-focus">
+                <div className={`ep-toptask${topTask ? ` ${TASK_PRI_CLASS[topTask.priority] ?? 'ep-tt-p2'}` : ' ep-toptask-empty'}`}>
+                  <div className="ep-tt-head">
+                    <span className="ep-tt-kicker"><Icon name="flag" size={12} /> Top task</span>
+                    {topTask && <span className={`ep-tt-pri ${TASK_PRI_CLASS[topTask.priority] ?? 'ep-tt-p2'}`}>{topTask.priority}</span>}
+                  </div>
+                  {topTask ? (
+                    <>
+                      <Link href={`/admin/org/${slug}#tasks`} className="ep-tt-title">{topTask.title}</Link>
+                      <div className="ep-tt-meta">
+                        <span className={`ep-tt-status ep-tt-status-${topTask.status}`}>{TASK_STATUS_LABEL[topTask.status] ?? topTask.status}</span>
+                        {topTask.due_at && <span className="ep-tt-due"><Icon name="clock" size={12} /> Due {fmtDate(topTask.due_at)}</span>}
+                        {openTaskCount > 1 && <span className="ep-tt-more">+{openTaskCount - 1} more open</span>}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="ep-tt-none"><Icon name="check" size={15} /> No open tasks</div>
+                  )}
+                </div>
+                <QuickNote slug={slug} employeeName={e.name} initialNote={e.quick_note} />
               </div>
             </div>
             {ownedCount > 0 && (
@@ -272,7 +311,7 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
         </header>
 
         {/* ── Assigned Tasks: this head's open work items (most action-relevant) ── */}
-        <section className="ep-section">
+        <section className="ep-section" id="tasks">
           <div className="ep-sec-head">
             <h2 className="ep-sec-title">Assigned tasks</h2>
             <span className="ep-sec-meta">{openTaskCount} open</span>
@@ -557,6 +596,45 @@ const EP_CSS = `
 .admin a.ep-meta-chip:hover { border-color:var(--color-primary); color:var(--color-primary); text-decoration:none; }
 .admin .ep-meta-chip-static { cursor:default; }
 
+/* Slim one-line mission — small, muted, two lines max */
+.admin .ep-mission { margin:.6rem 0 0; font-size:var(--admin-text-sm); line-height:1.5; color:var(--admin-text-muted); max-width:60ch; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+
+/* Vitals mini — clickable ring links to the "why" detail page */
+.admin a.ep-vmini { text-decoration:none; border-radius:12px; padding:4px 2px; transition:background .14s ease, transform .14s ease; }
+.admin a.ep-vmini:hover { background:color-mix(in srgb, var(--color-primary) 6%, #fff); transform:translateY(-1px); text-decoration:none; }
+.admin a.ep-vmini:hover .ep-vmini-label { color:var(--color-primary); }
+.admin a.ep-vmini:focus-visible { outline:2px solid var(--color-primary); outline-offset:2px; }
+
+/* Task-forward focus row: Top task card (1.4fr) + Notes sticky (1fr) */
+.admin .ep-focus { display:grid; grid-template-columns:1.4fr 1fr; gap:12px; margin-top:1.1rem; align-items:stretch; }
+.admin .ep-toptask {
+  min-width:0; display:flex; flex-direction:column; gap:7px;
+  padding:12px 14px; border-radius:14px; border:1px solid var(--admin-border);
+  border-left:4px solid var(--admin-text-subtle); background:var(--admin-surface);
+  box-shadow:0 1px 2px rgba(107,45,143,.03), 0 12px 26px -22px rgba(107,45,143,.35);
+}
+.admin .ep-toptask.ep-tt-p1 { border-left-color:var(--admin-danger); }
+.admin .ep-toptask.ep-tt-p2 { border-left-color:var(--color-primary); }
+.admin .ep-toptask.ep-tt-p3 { border-left-color:var(--admin-text-subtle); }
+.admin .ep-toptask-empty { border-left-color:var(--admin-success); }
+.admin .ep-tt-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.admin .ep-tt-kicker { display:inline-flex; align-items:center; gap:6px; font-size:var(--admin-text-xs); font-weight:800; text-transform:uppercase; letter-spacing:.07em; color:var(--admin-text-subtle); }
+.admin .ep-tt-kicker svg { color:var(--admin-text-muted); }
+.admin .ep-tt-pri { flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; min-width:28px; height:22px; padding:0 8px; border-radius:7px; font-size:var(--admin-text-xs); font-weight:800; letter-spacing:.03em; font-variant-numeric:tabular-nums; }
+.admin .ep-tt-pri.ep-tt-p1 { color:var(--admin-danger); background:var(--admin-danger-soft); border:1px solid color-mix(in srgb, var(--admin-danger) 30%, var(--admin-border)); }
+.admin .ep-tt-pri.ep-tt-p2 { color:var(--color-primary); background:color-mix(in srgb, var(--color-primary) 8%, #fff); border:1px solid color-mix(in srgb, var(--color-primary) 18%, var(--admin-border)); }
+.admin .ep-tt-pri.ep-tt-p3 { color:var(--admin-text-muted); background:var(--admin-surface-alt); border:1px solid var(--admin-border); }
+.admin .ep-tt-title { font-size:.98rem; font-weight:700; color:var(--admin-text); line-height:1.35; text-decoration:none; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.admin a.ep-tt-title:hover { color:var(--color-primary); text-decoration:none; }
+.admin .ep-tt-meta { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-top:1px; }
+.admin .ep-tt-status { font-size:var(--admin-text-xs); font-weight:800; padding:2px 9px; border-radius:9999px; text-transform:uppercase; letter-spacing:.04em; color:var(--admin-text-muted); background:var(--admin-surface-alt); border:1px solid var(--admin-border); }
+.admin .ep-tt-status-in_progress { color:var(--admin-info); background:var(--admin-info-soft); border-color:transparent; }
+.admin .ep-tt-status-blocked { color:var(--admin-warning); background:var(--admin-warning-soft); border-color:transparent; }
+.admin .ep-tt-due { display:inline-flex; align-items:center; gap:5px; font-size:var(--admin-text-xs); font-weight:600; color:var(--admin-text-muted); }
+.admin .ep-tt-more { font-size:var(--admin-text-xs); font-weight:600; color:var(--admin-text-subtle); }
+.admin .ep-tt-none { display:flex; align-items:center; gap:8px; padding:6px 0 2px; font-size:var(--admin-text-sm); font-weight:600; color:var(--admin-text-muted); }
+.admin .ep-tt-none svg { color:var(--admin-success); }
+
 /* Hero: clickable owned tools (top-right) */
 .admin .ep-tools { flex-shrink:0; align-self:flex-start; min-width:190px; max-width:230px; }
 .admin .ep-tools-label { display:flex; align-items:center; gap:6px; font-size:var(--admin-text-xs); text-transform:uppercase; letter-spacing:.08em; font-weight:700; color:var(--admin-text-subtle); margin-bottom:.5rem; justify-content:flex-end; }
@@ -777,6 +855,10 @@ const EP_CSS = `
   .admin .ep-tools-cat { text-align:left; }
   .admin .ep-tools-list { flex-direction:row; flex-wrap:wrap; }
   .admin .ep-tool-link { flex:1 1 180px; }
+}
+@media (max-width:640px) {
+  /* Stack the Top task + Notes row so neither card gets crushed */
+  .admin .ep-focus { grid-template-columns:1fr; }
 }
 @media (max-width:560px) {
   .admin .ep-hero-top { align-items:flex-start; gap:1rem; }
