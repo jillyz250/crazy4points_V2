@@ -1,0 +1,38 @@
+{
+  "kesha-social": {
+    "beat": "a social-media manager for a points/travel brand (algorithm + format changes, what is trending)",
+    "sources": [
+      { "name": "Social Media Today", "url": "https://www.socialmediatoday.com/feeds/news/" },
+      { "name": "Buffer", "url": "https://buffer.com/resources/feed" }
+    ]
+  },
+  "john-content": {
+    "beat": "a content lead (article writing, publishing, SEO, content strategy)",
+    "sources": [
+      { "name": "Search Engine Land", "url": "https://searchengineland.com/feed" },
+      { "name": "Search Engine Journal", "url": "https://www.searchenginejournal.com/feed/" }
+    ]
+  },
+  "bill-security": {
+    "beat": "a security lead (advisories, CVEs, web/app security)",
+    "sources": [
+      { "name": "The Hacker News", "url": "https://feeds.feedburner.com/TheHackersNews" },
+      { "name": "Krebs on Security", "url": "https://krebsonsecurity.com/feed/" }
+    ]
+  },
+  "devon-design": {
+    "beat": "a design/UX lead (UI/UX, accessibility, design systems)",
+    "sources": [
+      { "name": "Nielsen Norman Group", "url": "https://www.nngroup.com/feed/rss/" },
+      { "name": "Smashing Magazine", "url": "https://www.smashingmagazine.com/feed/" },
+      { "name": "A List Apart", "url": "https://alistapart.com/main/feed/" }
+    ]
+  },
+  "charlie-legal": {
+    "beat": "a legal/compliance lead (FTC disclosure, sweepstakes/promo law, email compliance)",
+    "sources": [
+      { "name": "FTC Business Guidance", "url": "https://www.ftc.gov/business-guidance/blog/rss" },
+      { "name": "Ad Law Access", "url": "https://www.kelleydrye.com/viewpoints/blogs/ad-law-access/rss" }
+    ]
+  }
+}

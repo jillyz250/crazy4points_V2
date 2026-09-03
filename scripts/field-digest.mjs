@@ -25,30 +25,9 @@ const env = Object.fromEntries(
 )
 const db = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
 
-// ── verified trade feeds per head (live-tested 2026-09-02) ───────────────────
-const FEEDS = {
-  'kesha-social': { beat: 'a social-media manager for a points/travel brand (algorithm + format changes, what is trending)', sources: [
-    { name: 'Social Media Today', url: 'https://www.socialmediatoday.com/feeds/news/' },
-    { name: 'Buffer', url: 'https://buffer.com/resources/feed' },
-  ]},
-  'john-content': { beat: 'a content lead (article writing, publishing, SEO, content strategy)', sources: [
-    { name: 'Search Engine Land', url: 'https://searchengineland.com/feed' },
-    { name: 'Search Engine Journal', url: 'https://www.searchenginejournal.com/feed/' },
-  ]},
-  'bill-security': { beat: 'a security lead (advisories, CVEs, web/app security)', sources: [
-    { name: 'The Hacker News', url: 'https://feeds.feedburner.com/TheHackersNews' },
-    { name: 'Krebs on Security', url: 'https://krebsonsecurity.com/feed/' },
-  ]},
-  'devon-design': { beat: 'a design/UX lead (UI/UX, accessibility, design systems)', sources: [
-    { name: 'Nielsen Norman Group', url: 'https://www.nngroup.com/feed/rss/' },
-    { name: 'Smashing Magazine', url: 'https://www.smashingmagazine.com/feed/' },
-    { name: 'A List Apart', url: 'https://alistapart.com/main/feed/' },
-  ]},
-  'charlie-legal': { beat: 'a legal/compliance lead (FTC disclosure, sweepstakes/promo law, email compliance)', sources: [
-    { name: 'FTC Business Guidance', url: 'https://www.ftc.gov/business-guidance/blog/rss' },
-    { name: 'Ad Law Access', url: 'https://www.kelleydrye.com/viewpoints/blogs/ad-law-access/rss' },
-  ]},
-}
+// ── verified trade feeds per head — shared with the app (lib/field-feeds.json) ──
+// Single source of truth so each head's page can LIST the trades they read.
+const FEEDS = JSON.parse(fs.readFileSync('lib/field-feeds.json', 'utf8'))
 
 const DAYS = 10                       // only items published within this window
 const PER_SOURCE = 8                  // cap items pulled per feed
