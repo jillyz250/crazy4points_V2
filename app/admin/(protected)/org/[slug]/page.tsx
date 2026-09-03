@@ -8,10 +8,10 @@ import { ADMIN_PAGES, type TaskCategory, type AdminPage } from '@/lib/admin/regi
 import type { DecisionRow, DecisionStatus } from '@/lib/admin/logDecision'
 import AssignedTasks from '@/components/admin/dashboard/AssignedTasks'
 import type { EmployeeTask } from './tasks'
+import fieldFeedsJson from '@/lib/field-feeds.json'
 
 export const dynamic = 'force-dynamic'
 
-const PURPLE = 'var(--color-primary)'
 const GOLD = 'var(--color-accent)'
 const DISPLAY = 'var(--font-display)'
 
@@ -37,6 +37,11 @@ type Emp = {
 }
 type Log = { id: string; type: string; note: string; actor: string | null; created_at: string }
 type Lore = { id: string; lore_date: string; headline: string; body: string | null; involves: string[] | null }
+// Character-specific arc (migration 660): daily beat + the two-way choice Jill picks.
+type LoreBeat = { id: string; lore_date: string; headline: string; body: string | null; choice_a: string | null; choice_b: string | null; chosen: string | null }
+// lib/field-feeds.json — trade sources each head reads to stay current.
+type FieldFeed = { beat: string; sources: { name: string; url: string }[] }
+const FIELD_FEEDS = fieldFeedsJson as Record<string, FieldFeed>
 
 const arr = <T,>(v: T[] | null | undefined): T[] => (Array.isArray(v) ? v : [])
 
@@ -101,13 +106,15 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
   const e = data as Emp | null
   if (!e) notFound()
 
-  const [{ data: logsData }, { data: mgr }, { data: teamData }, { data: loreData }, { data: decisionsData }, { data: tasksData }] = await Promise.all([
+  const [{ data: logsData }, { data: mgr }, { data: teamData }, { data: loreData }, { data: arcData }, { data: decisionsData }, { data: tasksData }] = await Promise.all([
     db.from('employee_logs').select('id, type, note, actor, created_at').eq('employee_id', e.id).order('created_at', { ascending: false }).limit(12),
     e.reports_to_id
       ? db.from('employees').select('name, slug, role_title, emoji').eq('id', e.reports_to_id).maybeSingle()
       : Promise.resolve({ data: null }),
     db.from('employees').select('id, slug, name, role_title, emoji, status').eq('reports_to_id', e.id).order('name', { ascending: true }),
     db.from('org_lore').select('id, lore_date, headline, body, involves').order('lore_date', { ascending: false }).order('created_at', { ascending: false }).limit(40),
+    // This character's own arc (oldest → newest, reads like a story).
+    db.from('org_lore').select('id, lore_date, headline, body, choice_a, choice_b, chosen').eq('character_slug', slug).order('lore_date', { ascending: true }).order('created_at', { ascending: true }).limit(60),
     db.from('decision_log').select('*').eq('employee_slug', slug).order('created_at', { ascending: false }).limit(8),
     db.from('employee_tasks').select('*').eq('employee_slug', slug).order('created_at', { ascending: false }).limit(100),
   ])
@@ -118,6 +125,8 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
   const manager = mgr as { name: string; slug: string; role_title: string | null; emoji: string | null } | null
   const team = (teamData ?? []) as { id: string; slug: string; name: string; role_title: string | null; emoji: string | null; status: string }[]
   const lore = ((loreData ?? []) as Lore[]).filter((l) => arr(l.involves).includes(slug)).slice(0, 3)
+  const arc = (arcData ?? []) as LoreBeat[]
+  const feeds = FIELD_FEEDS[slug] ?? null
 
   const isAgent = e.kind === 'agent'
   const meters = isAgent ? meterCells(computeMeters(e as unknown as { slug: string; kind: 'agent'; status: string; responsibilities?: string[] | null }, logs)) : null
@@ -137,39 +146,64 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
       <div className="ep-wrap">
         <Link href="/admin/org" className="ep-back"><Icon name="arrowLeft" size={15} /> The team</Link>
 
-        {/* ── Hero ── */}
+        {/* ── Hero: compact identity + clickable owned tools; long copy folds into About ── */}
         <header className="ep-hero">
-          <div className="ep-portrait-wrap">
-            {e.image_url ? (
-              <div className="ep-portrait">
-                <Image src={e.image_url} alt={e.name} fill sizes="220px" style={{ objectFit: 'cover' }} priority />
-              </div>
-            ) : (
-              <div className="ep-portrait ep-portrait-fallback">{e.emoji || '👤'}</div>
-            )}
-          </div>
-          <div className="ep-hero-body">
-            <div className="ep-status"><span className="ep-status-dot" style={{ background: statusColor(e.status) }} /> {statusLabel(e.status)}</div>
-            <h1 className="ep-name">{e.name}</h1>
-            <div className="ep-role">{e.role_title || ''}</div>
-            {e.mission && <p className="ep-mission">{e.mission}</p>}
-            <div className="ep-meta">
-              {manager && (
-                <Link href={`/admin/org/${manager.slug}`} className="ep-meta-chip">
-                  <Icon name="users" size={13} /> Reports to {manager.name}
-                </Link>
-              )}
-              {isAgent && (
-                <span className="ep-meta-chip ep-meta-chip-static">
-                  <Icon name="clock" size={13} />
-                  {e.last_regenerated_at ? `Agent file · ${fmtDate(e.last_regenerated_at)}` : 'Agent file · not generated'}
-                </span>
-              )}
-              {owned.length > 0 && (
-                <span className="ep-meta-chip ep-meta-chip-static"><Icon name="briefcase" size={13} /> Owns {owned.length} {owned.length === 1 ? 'tool' : 'tools'}</span>
+          <div className="ep-hero-top">
+            <div className="ep-portrait-wrap">
+              {e.image_url ? (
+                <div className="ep-portrait">
+                  <Image src={e.image_url} alt={e.name} fill sizes="112px" style={{ objectFit: 'cover' }} priority />
+                </div>
+              ) : (
+                <div className="ep-portrait ep-portrait-fallback">{e.emoji || '👤'}</div>
               )}
             </div>
+            <div className="ep-hero-id">
+              <div className="ep-status"><span className="ep-status-dot" style={{ background: statusColor(e.status) }} /> {statusLabel(e.status)}</div>
+              <h1 className="ep-name">{e.name}</h1>
+              <div className="ep-role">{e.role_title || ''}</div>
+              <div className="ep-meta">
+                {manager && (
+                  <Link href={`/admin/org/${manager.slug}`} className="ep-meta-chip">
+                    <Icon name="users" size={13} /> Reports to {manager.name}
+                  </Link>
+                )}
+                {isAgent && (
+                  <span className="ep-meta-chip ep-meta-chip-static">
+                    <Icon name="clock" size={13} />
+                    {e.last_regenerated_at ? `Agent file · ${fmtDate(e.last_regenerated_at)}` : 'Agent file · not generated'}
+                  </span>
+                )}
+              </div>
+            </div>
+            {owned.length > 0 && (
+              <div className="ep-tools" aria-label={`Tools ${e.name.split(' ')[0]} owns`}>
+                <div className="ep-tools-label"><Icon name="briefcase" size={12} /> Owns {owned.length} {owned.length === 1 ? 'tool' : 'tools'}</div>
+                <div className="ep-tools-list">
+                  {owned.map((p) => (
+                    <Link key={p.id} href={p.path} className="ep-tool-link" title={p.description}>
+                      <span className="ep-tool-link-ic"><Icon name={pageIcon(p)} size={15} /></span>
+                      <span className="ep-tool-link-name">{p.title}</span>
+                      <Icon name="arrow" size={13} />
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
+          {(e.mission || e.persona) && (
+            <details className="ep-about">
+              <summary className="ep-about-toggle">
+                <Icon name="book" size={14} />
+                <span>About {e.name.split(' ')[0]}</span>
+                <Icon name="arrow" size={13} />
+              </summary>
+              <div className="ep-about-body">
+                {e.mission && <p className="ep-about-mission">{e.mission}</p>}
+                {e.persona && <p className="ep-about-persona">{e.persona}</p>}
+              </div>
+            </details>
+          )}
         </header>
 
         {/* ── Assigned Tasks: this head's open work items (most action-relevant) ── */}
@@ -201,13 +235,21 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
           </section>
         )}
 
-        {/* ── Persona / lore ── */}
-        {e.persona && (
+        {/* ── Reads every morning: this head's trade sources (lib/field-feeds.json) ── */}
+        {feeds && feeds.sources.length > 0 && (
           <section className="ep-section">
-            <div className="ep-sec-head"><h2 className="ep-sec-title">Who {e.name} is</h2></div>
-            <div className="ep-card ep-persona">
-              <span className="ep-persona-mark" aria-hidden="true">&ldquo;</span>
-              <p className="ep-persona-text">{e.persona}</p>
+            <div className="ep-sec-head">
+              <h2 className="ep-sec-title">Reads every morning</h2>
+              <span className="ep-sec-meta">Stays current on the beat</span>
+            </div>
+            <div className="ep-card ep-feeds">
+              {feeds.sources.map((s) => (
+                <a key={s.url} href={s.url} target="_blank" rel="noopener noreferrer" className="ep-feed" title={s.name}>
+                  <span className="ep-feed-ic"><Icon name="globe" size={15} /></span>
+                  <span className="ep-feed-name">{s.name}</span>
+                  <Icon name="arrow" size={13} />
+                </a>
+              ))}
             </div>
           </section>
         )}
@@ -353,6 +395,54 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
           </section>
         )}
 
+        {/* ── Office lore: this character's arc (flavor only, never touches the work) ── */}
+        <section className="ep-section">
+          <div className="ep-sec-head">
+            <h2 className="ep-sec-title">Office lore</h2>
+            <span className="ep-sec-meta">{e.name.split(' ')[0]}&rsquo;s story</span>
+          </div>
+          {arc.length === 0 ? (
+            <div className="ep-card ep-lore-empty">
+              <span className="ep-lore-empty-ic"><Icon name="coffee" size={18} /></span>
+              <div>
+                <div className="ep-lore-empty-head">No lore yet</div>
+                <p className="ep-lore-empty-sub">It starts at the next morning meeting.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="ep-card ep-lore">
+              {arc.map((b) => (
+                <div key={b.id} className="ep-lore-beat">
+                  <div className="ep-lore-rail"><span className="ep-lore-dot" /></div>
+                  <div className="ep-lore-content">
+                    <div className="ep-lore-top">
+                      <span className="ep-lore-head">{b.headline}</span>
+                      <span className="ep-lore-date">{fmtDate(b.lore_date)}</span>
+                    </div>
+                    {b.body && <p className="ep-lore-body">{b.body}</p>}
+                    {(b.choice_a || b.choice_b) && (
+                      <div className="ep-lore-choices">
+                        {b.choice_a && (
+                          <div className={`ep-lore-choice${b.chosen === 'a' ? ' ep-lore-choice-on' : ''}`}>
+                            <span className="ep-lore-choice-mark">{b.chosen === 'a' ? <Icon name="check" size={13} /> : 'A'}</span>
+                            <span>{b.choice_a}</span>
+                          </div>
+                        )}
+                        {b.choice_b && (
+                          <div className={`ep-lore-choice${b.chosen === 'b' ? ' ep-lore-choice-on' : ''}`}>
+                            <span className="ep-lore-choice-mark">{b.chosen === 'b' ? <Icon name="check" size={13} /> : 'B'}</span>
+                            <span>{b.choice_b}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
         {/* ── Breakroom beats ── */}
         {lore.length > 0 && (
           <section className="ep-section ep-section-last">
@@ -391,28 +481,50 @@ const EP_CSS = `
 .admin .ep-back { display:inline-flex; align-items:center; gap:6px; font-size:var(--admin-text-sm); font-weight:600; color:var(--admin-text-muted); text-decoration:none; margin-bottom:1.6rem; transition:gap .14s ease, color .14s ease; }
 .admin .ep-back:hover { gap:9px; color:var(--color-primary); text-decoration:none; }
 
-/* Hero */
+/* Hero — compact identity band */
 .admin .ep-hero {
-  display:flex; gap:2rem; align-items:center; padding:2rem; margin-bottom:2.6rem;
-  border-radius:24px; position:relative; overflow:hidden;
+  display:flex; flex-direction:column; padding:1.5rem 1.6rem; margin-bottom:2.6rem;
+  border-radius:20px; position:relative; overflow:hidden;
   border:1px solid color-mix(in srgb, var(--color-primary) 12%, var(--admin-border));
-  background:radial-gradient(80% 130% at 100% 0%, color-mix(in srgb, var(--color-primary) 8%, #fff), #fff 70%);
-  box-shadow:0 1px 2px rgba(107,45,143,.04), 0 26px 60px -30px rgba(107,45,143,.28);
+  background:radial-gradient(90% 130% at 100% 0%, color-mix(in srgb, var(--color-primary) 7%, #fff), #fff 68%);
+  box-shadow:0 1px 2px rgba(107,45,143,.04), 0 22px 50px -32px rgba(107,45,143,.26);
 }
-.admin .ep-hero::before { content:''; position:absolute; top:0; left:2rem; right:2rem; height:2px; border-radius:2px; background:linear-gradient(90deg, transparent, ${GOLD}, transparent); opacity:.85; }
-.admin .ep-portrait-wrap { flex-shrink:0; padding:5px; border-radius:24px; background:linear-gradient(150deg, ${GOLD}, color-mix(in srgb, ${GOLD} 25%, #fff)); box-shadow:0 12px 30px -12px rgba(107,45,143,.4); }
-.admin .ep-portrait { position:relative; width:172px; height:172px; border-radius:20px; overflow:hidden; background:var(--admin-accent-soft); }
-.admin .ep-portrait-fallback { display:flex; align-items:center; justify-content:center; font-size:5rem; background:radial-gradient(circle at 30% 25%, #fff, var(--admin-accent-soft)); }
-.admin .ep-hero-body { min-width:0; flex:1; }
-.admin .ep-status { display:inline-flex; align-items:center; gap:7px; font-size:var(--admin-text-xs); font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--admin-text-muted); }
+.admin .ep-hero::before { content:''; position:absolute; top:0; left:1.6rem; right:1.6rem; height:2px; border-radius:2px; background:linear-gradient(90deg, transparent, ${GOLD}, transparent); opacity:.85; }
+.admin .ep-hero-top { display:flex; gap:1.25rem; align-items:center; }
+.admin .ep-portrait-wrap { flex-shrink:0; padding:3px; border-radius:16px; background:linear-gradient(150deg, ${GOLD}, color-mix(in srgb, ${GOLD} 25%, #fff)); box-shadow:0 8px 20px -12px rgba(107,45,143,.4); }
+.admin .ep-portrait { position:relative; width:96px; height:96px; border-radius:13px; overflow:hidden; background:var(--admin-accent-soft); }
+.admin .ep-portrait-fallback { display:flex; align-items:center; justify-content:center; font-size:3rem; background:radial-gradient(circle at 30% 25%, #fff, var(--admin-accent-soft)); }
+.admin .ep-hero-id { min-width:0; flex:1; }
+.admin .ep-status { display:inline-flex; align-items:center; gap:6px; font-size:var(--admin-text-xs); font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--admin-text-muted); }
 .admin .ep-status-dot { width:8px; height:8px; border-radius:50%; }
-.admin .ep-name { font-family:${DISPLAY}; font-size:2.9rem; font-weight:800; letter-spacing:-.02em; color:var(--color-primary); margin:.5rem 0 0; line-height:1.02; }
-.admin .ep-role { font-size:1.05rem; color:var(--admin-text-secondary); margin-top:.25rem; font-weight:500; }
-.admin .ep-mission { margin:1rem 0 0; font-size:.98rem; line-height:1.55; color:var(--admin-text-secondary); max-width:56ch; }
-.admin .ep-meta { display:flex; flex-wrap:wrap; gap:8px; margin-top:1.2rem; }
-.admin .ep-meta-chip { display:inline-flex; align-items:center; gap:6px; font-size:var(--admin-text-xs); font-weight:600; color:var(--admin-text-muted); text-decoration:none; padding:6px 12px; border-radius:9999px; background:var(--admin-surface); border:1px solid var(--admin-border); transition:border-color .14s ease, color .14s ease; }
+.admin .ep-name { font-family:${DISPLAY}; font-size:2.05rem; font-weight:800; letter-spacing:-.02em; color:var(--color-primary); margin:.25rem 0 0; line-height:1.05; }
+.admin .ep-role { font-size:1rem; color:var(--admin-text-secondary); margin-top:.15rem; font-weight:500; }
+.admin .ep-meta { display:flex; flex-wrap:wrap; gap:8px; margin-top:.7rem; }
+.admin .ep-meta-chip { display:inline-flex; align-items:center; gap:6px; font-size:var(--admin-text-xs); font-weight:600; color:var(--admin-text-muted); text-decoration:none; padding:5px 11px; border-radius:9999px; background:var(--admin-surface); border:1px solid var(--admin-border); transition:border-color .14s ease, color .14s ease; }
 .admin a.ep-meta-chip:hover { border-color:var(--color-primary); color:var(--color-primary); text-decoration:none; }
 .admin .ep-meta-chip-static { cursor:default; }
+
+/* Hero: clickable owned tools (top-right) */
+.admin .ep-tools { flex-shrink:0; align-self:flex-start; min-width:190px; max-width:230px; }
+.admin .ep-tools-label { display:flex; align-items:center; gap:6px; font-size:var(--admin-text-xs); text-transform:uppercase; letter-spacing:.08em; font-weight:700; color:var(--admin-text-subtle); margin-bottom:.5rem; justify-content:flex-end; }
+.admin .ep-tools-list { display:flex; flex-direction:column; gap:6px; }
+.admin .ep-tool-link { display:flex; align-items:center; gap:9px; padding:8px 11px; border-radius:11px; text-decoration:none; font-size:var(--admin-text-sm); font-weight:600; color:var(--admin-text); background:var(--admin-surface); border:1px solid color-mix(in srgb, var(--color-primary) 11%, var(--admin-border)); transition:transform .14s ease, box-shadow .14s ease, border-color .14s ease; }
+.admin .ep-tool-link:hover { transform:translateX(-2px); border-color:color-mix(in srgb, var(--color-primary) 32%, var(--admin-border)); box-shadow:0 10px 22px -16px rgba(107,45,143,.5); text-decoration:none; color:var(--color-primary); }
+.admin .ep-tool-link-ic { display:flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:8px; flex-shrink:0; color:var(--color-primary); background:color-mix(in srgb, var(--color-primary) 8%, #fff); border:1px solid color-mix(in srgb, var(--color-primary) 12%, var(--admin-border)); }
+.admin .ep-tool-link-name { min-width:0; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.admin .ep-tool-link > svg:last-child { color:var(--admin-text-subtle); flex-shrink:0; }
+.admin .ep-tool-link:hover > svg:last-child { color:var(--color-primary); }
+
+/* Hero: About toggle (native details, folds the long copy out of view) */
+.admin .ep-about { margin-top:1.1rem; border-top:1px dashed color-mix(in srgb, var(--color-primary) 14%, var(--admin-border)); padding-top:.9rem; }
+.admin .ep-about-toggle { display:inline-flex; align-items:center; gap:7px; cursor:pointer; list-style:none; font-size:var(--admin-text-sm); font-weight:700; color:var(--color-primary); padding:5px 12px; border-radius:9999px; background:color-mix(in srgb, var(--color-primary) 7%, #fff); border:1px solid color-mix(in srgb, var(--color-primary) 15%, var(--admin-border)); width:max-content; transition:background .14s ease; }
+.admin .ep-about-toggle::-webkit-details-marker { display:none; }
+.admin .ep-about-toggle:hover { background:color-mix(in srgb, var(--color-primary) 12%, #fff); }
+.admin .ep-about-toggle > svg:last-child { transition:transform .18s ease; }
+.admin .ep-about[open] .ep-about-toggle > svg:last-child { transform:rotate(90deg); }
+.admin .ep-about-body { margin-top:.9rem; max-width:70ch; padding-left:2px; }
+.admin .ep-about-mission { margin:0; font-size:1rem; line-height:1.6; color:var(--admin-text); font-weight:600; }
+.admin .ep-about-persona { margin:.75rem 0 0; font-size:var(--admin-text-sm); line-height:1.65; color:var(--admin-text-secondary); }
 
 /* Sections */
 .admin .ep-section { margin-bottom:2.6rem; }
@@ -436,11 +548,37 @@ const EP_CSS = `
 .admin .ep-vital-label { font-size:.82rem; font-weight:700; color:var(--admin-text); line-height:1.15; }
 .admin .ep-vital-sub { font-size:.72rem; color:var(--admin-text-muted); margin-top:1px; }
 
-/* Persona */
-.admin .ep-persona { position:relative; padding:1.9rem 2.1rem 1.9rem 2.4rem; }
-.admin .ep-persona::before { content:''; position:absolute; left:0; top:1.9rem; bottom:1.9rem; width:3px; border-radius:3px; background:linear-gradient(${PURPLE}, ${GOLD}); }
-.admin .ep-persona-mark { position:absolute; top:.4rem; left:1.4rem; font-family:${DISPLAY}; font-size:3rem; color:color-mix(in srgb, var(--color-primary) 22%, #fff); line-height:1; }
-.admin .ep-persona-text { margin:0; font-size:1.05rem; line-height:1.7; color:var(--admin-text-secondary); }
+/* Reads every morning — trade sources */
+.admin .ep-feeds { display:flex; flex-wrap:wrap; gap:.6rem; padding:1rem 1.1rem; }
+.admin .ep-feed { display:inline-flex; align-items:center; gap:9px; padding:9px 13px; border-radius:11px; text-decoration:none; font-size:var(--admin-text-sm); font-weight:600; color:var(--admin-text); background:var(--admin-surface-alt); border:1px solid var(--admin-border); transition:transform .14s ease, box-shadow .14s ease, border-color .14s ease, color .14s ease; }
+.admin .ep-feed:hover { transform:translateY(-2px); color:var(--color-primary); border-color:color-mix(in srgb, var(--color-primary) 30%, var(--admin-border)); box-shadow:0 12px 26px -18px rgba(107,45,143,.45); text-decoration:none; }
+.admin .ep-feed-ic { display:flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:8px; flex-shrink:0; color:var(--color-primary); background:color-mix(in srgb, var(--color-primary) 8%, #fff); border:1px solid color-mix(in srgb, var(--color-primary) 12%, var(--admin-border)); }
+.admin .ep-feed > svg:last-child { color:var(--admin-text-subtle); flex-shrink:0; }
+.admin .ep-feed:hover > svg:last-child { color:var(--color-primary); }
+
+/* Office lore — character arc timeline */
+.admin .ep-lore { padding:1.3rem 1.5rem; }
+.admin .ep-lore-beat { display:flex; gap:14px; }
+.admin .ep-lore-rail { position:relative; flex-shrink:0; width:14px; display:flex; justify-content:center; }
+.admin .ep-lore-rail::before { content:''; position:absolute; top:0; bottom:0; width:2px; background:color-mix(in srgb, var(--color-primary) 16%, var(--admin-border)); }
+.admin .ep-lore-beat:first-child .ep-lore-rail::before { top:7px; }
+.admin .ep-lore-beat:last-child .ep-lore-rail::before { bottom:calc(100% - 7px); }
+.admin .ep-lore-dot { position:relative; z-index:1; margin-top:5px; width:10px; height:10px; border-radius:50%; background:${GOLD}; box-shadow:0 0 0 3px color-mix(in srgb, ${GOLD} 22%, #fff); }
+.admin .ep-lore-content { min-width:0; flex:1; padding-bottom:1.4rem; }
+.admin .ep-lore-beat:last-child .ep-lore-content { padding-bottom:0; }
+.admin .ep-lore-top { display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
+.admin .ep-lore-head { font-family:${DISPLAY}; font-size:1.08rem; font-weight:600; color:var(--color-primary); line-height:1.25; }
+.admin .ep-lore-date { font-size:var(--admin-text-xs); color:var(--admin-text-subtle); flex-shrink:0; font-variant-numeric:tabular-nums; }
+.admin .ep-lore-body { margin:.35rem 0 0; font-size:var(--admin-text-sm); color:var(--admin-text-secondary); line-height:1.6; }
+.admin .ep-lore-choices { display:flex; flex-wrap:wrap; gap:8px; margin-top:.7rem; }
+.admin .ep-lore-choice { display:inline-flex; align-items:center; gap:8px; font-size:var(--admin-text-sm); color:var(--admin-text-muted); padding:6px 11px 6px 8px; border-radius:9999px; background:var(--admin-surface-alt); border:1px solid var(--admin-border); }
+.admin .ep-lore-choice-mark { display:flex; align-items:center; justify-content:center; width:19px; height:19px; border-radius:50%; flex-shrink:0; font-size:.7rem; font-weight:800; color:var(--admin-text-subtle); background:var(--admin-surface); border:1px solid var(--admin-border); }
+.admin .ep-lore-choice-on { color:var(--admin-text); font-weight:600; background:var(--admin-success-soft); border-color:color-mix(in srgb, var(--admin-success) 35%, var(--admin-border)); }
+.admin .ep-lore-choice-on .ep-lore-choice-mark { color:#fff; background:var(--admin-success); border-color:var(--admin-success); }
+.admin .ep-lore-empty { display:flex; align-items:center; gap:14px; padding:1.4rem 1.5rem; }
+.admin .ep-lore-empty-ic { display:flex; align-items:center; justify-content:center; width:40px; height:40px; border-radius:11px; flex-shrink:0; color:#9a7b1e; background:rgba(212,175,55,.14); }
+.admin .ep-lore-empty-head { font-family:${DISPLAY}; font-size:1.05rem; font-weight:600; color:var(--admin-text); }
+.admin .ep-lore-empty-sub { margin:2px 0 0; font-size:var(--admin-text-sm); color:var(--admin-text-muted); }
 
 /* Workspace */
 .admin .ep-workspace { display:flex; flex-direction:column; gap:1.6rem; }
@@ -505,11 +643,18 @@ const EP_CSS = `
 
 @media (max-width:820px) {
   .admin .ep-cols { grid-template-columns:1fr; }
+  /* Tools drop below identity, full width */
+  .admin .ep-hero-top { flex-wrap:wrap; }
+  .admin .ep-tools { min-width:0; max-width:none; width:100%; order:3; margin-top:.4rem; }
+  .admin .ep-tools-label { justify-content:flex-start; }
+  .admin .ep-tools-list { flex-direction:row; flex-wrap:wrap; }
+  .admin .ep-tool-link { flex:1 1 180px; }
 }
-@media (max-width:600px) {
-  .admin .ep-hero { flex-direction:column; text-align:center; align-items:center; }
-  .admin .ep-name { font-size:2.2rem; }
-  .admin .ep-meta { justify-content:center; }
-  .admin .ep-persona-mark { display:none; }
+@media (max-width:560px) {
+  .admin .ep-hero-top { align-items:flex-start; gap:1rem; }
+  .admin .ep-name { font-size:1.75rem; }
+  .admin .ep-portrait { width:76px; height:76px; }
+  .admin .ep-feeds { gap:.5rem; }
+  .admin .ep-feed { flex:1 1 100%; }
 }
 `
