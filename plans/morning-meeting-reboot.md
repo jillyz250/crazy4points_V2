@@ -44,9 +44,8 @@ publishes; chain-sweep (block 5) runs after Kesha so it covers everything; Bill 
 (health opens, security/backup closes).
 
 ## Cadence trims (not everything is daily — cuts ~⅓ of the daily path)
-- **Improvements (process/data/visual):** rotate ONE dimension per day (proposed: Mon
-  process, Wed data, Fri visual) instead of all three daily. *(Jill to confirm rotate vs
-  a weekly batch round.)*
+- **Improvements (process/data/visual):** ✅ DECIDED — rotate ONE dimension per day
+  (Mon process, Wed data, Fri visual) instead of all three daily.
 - **Standing builds (user-accounts, AI-visibility):** Morgan advances them in the
   background, reports progress **weekly**, not as daily ceremony.
 - **Analytics:** daily = the subscriber trend already on the dashboard Pulse; a real
@@ -88,6 +87,9 @@ target, reason, count, correlation_id=morning date, reviewed_by_jill, timestamps
    mode) instead of acting silently.
 6. **Graduation controls (later)** — a per-head/category auto toggle once trust is earned.
 
-## Open questions for Jill
-- Improvements: rotate one/day (Mon/Wed/Fri) or a weekly batch round?
-- Board: keep current format (health/urgent/counts) built from briefs, or "one line per head"?
+## Decided
+- Improvements: rotate one/day (Mon process / Wed data / Fri visual).
+- **Opening board = three tiers** (Morgan's pick, Jill deferred): (1) Health line (as today) ·
+  (2) **⚡ Needs you today** — the pending-approval decisions, the hero · (3) a compact
+  **one line per head** (emoji · name · their brief headline / queue count). Familiar +
+  exception-first + per-head glance.
