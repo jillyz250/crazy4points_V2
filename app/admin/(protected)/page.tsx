@@ -304,12 +304,13 @@ export default async function AdminDashboard() {
              Only the OVERDUE queues surface here (worst-overshoot first). When
              nothing is overdue — the common, healthy case — this collapses to a
              single calm all-clear line so the dashboard stays quiet. ── */}
-        <section className="dh-section dh-attn-sec">
-          <div className="dh-sec-head">
-            <h2 className="dh-sec-title">Needs attention</h2>
-            <span className="dh-sec-meta">{overdue.length > 0 ? `${overdue.length} aging` : 'Queue health'}</span>
-          </div>
-          {overdue.length > 0 ? (
+        {overdue.length > 0 ? (
+          // Something's overdue → full section that demands the eye.
+          <section className="dh-section dh-attn-sec">
+            <div className="dh-sec-head">
+              <h2 className="dh-sec-title">Needs attention</h2>
+              <span className="dh-sec-meta">{overdue.length} aging</span>
+            </div>
             <div className="dh-card dh-attn">
               {overdue.map((r) => (
                 <Link key={r.key} href={r.link} className="dh-attn-row">
@@ -324,14 +325,16 @@ export default async function AdminDashboard() {
               ))}
               <p className="dh-attn-foot">Morgan watches this.</p>
             </div>
-          ) : (
-            <div className="dh-attn-clear">
-              <span className="dh-attn-clear-ic"><Icon name="check" size={15} /></span>
-              <span className="dh-attn-clear-txt">All queues current &mdash; nothing aging</span>
-              <span className="dh-attn-clear-foot">Morgan watches this.</span>
-            </div>
-          )}
-        </section>
+          </section>
+        ) : (
+          // Healthy (the common case) → a compact one-line strip, NOT a whole
+          // section, so the dashboard doesn't spend prime space on "nothing wrong".
+          <div className="dh-attn-strip">
+            <Icon name="check" size={14} />
+            <span className="dh-attn-strip-txt">All queues current &mdash; nothing aging</span>
+            <span className="dh-attn-strip-foot">Morgan watches this</span>
+          </div>
+        )}
 
         {/* ── What needs me + Notepad ── */}
         <div className="dh-cols">
@@ -579,6 +582,11 @@ const DH_CSS = `
 .admin .dh-attn-clear-ic { display:flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:8px; flex-shrink:0; color:var(--admin-success); background:var(--admin-success-soft); }
 .admin .dh-attn-clear-txt { font-size:var(--admin-text-sm); font-weight:600; color:var(--admin-text-secondary); }
 .admin .dh-attn-clear-foot { margin-left:auto; font-size:var(--admin-text-xs); color:var(--admin-text-subtle); font-weight:600; }
+/* Compact all-clear strip — replaces the full "nothing wrong" section so it costs
+   one quiet line, not prime dashboard real estate. */
+.admin .dh-attn-strip { display:flex; align-items:center; gap:8px; margin:0 0 2.25rem; padding:9px 14px; border-radius:10px; background:var(--admin-surface); border:1px solid var(--admin-border); color:var(--admin-success); }
+.admin .dh-attn-strip-txt { font-size:var(--admin-text-sm); font-weight:600; color:var(--admin-text-secondary); }
+.admin .dh-attn-strip-foot { margin-left:auto; font-size:var(--admin-text-xs); color:var(--admin-text-subtle); font-weight:600; }
 
 /* Queue */
 .admin .dh-queue { padding:6px; }
