@@ -25,10 +25,6 @@
       "schedule": "15 9 * * *"
     },
     {
-      "path": "/api/build-brief",
-      "schedule": "30 10 * * *"
-    },
-    {
       "path": "/api/cron/intel-triage-sweep",
       "schedule": "45 10 * * *"
     },

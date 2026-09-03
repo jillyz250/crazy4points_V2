@@ -85,23 +85,42 @@ Each block: **the head gives their brief** (from `employee-brief.mjs <slug>` —
 "📚 field this week"), then walks their phases, logging proposals + surfacing judgment calls.
 Old phase numbers in [brackets] map to `daily-ritual` for the deep mechanics.
 
+**Two extra beats in every head's block:**
+- **Field-learn decision.** If the brief has `field_this_week` items, the head reports the notable
+  one(s) and Jill decides PER ITEM: **ADD** (permanently useful → save to the head's knowledge / a
+  rule), **ACT** (worth doing → create an `employee_tasks` row or a decision), or **IGNORE**. Record
+  an ADD/ACT so it's not lost. (Trade press is awareness only — NEVER a citable source for a published fact.)
+- **Daily lore (choose-your-own-adventure).** Unless Jill opened with "good morning, no lore today":
+  narrate ONE beat of that character's story — what happened to them in the office yesterday. Tone =
+  PG-17, spicy but tasteful; a REAL office (love, breakups, marriage, kids, sports, gossip, happy + sad;
+  fade-to-black on anything explicit). Then give Jill TWO choices for where their story goes; she picks
+  one. Write it to `org_lore` (`character_slug`, `headline`, `body`, `choice_a`, `choice_b`, `chosen`;
+  the pick drives tomorrow's beat). ONE decision per character per day; the arc lives on their page.
+  ⛔ Lore + morale NEVER affect the work (quality/priority/accuracy) and NEVER reach a customer — flavor only.
+
 ### Block 1 · 🔒 Bill — System health  *(baseline first)*
 Brief: `employee-brief.mjs bill-security`. Phases: **[1]** cron health + logged errors
 (`system_errors` unresolved). Any red = call it out + resolve/escalate here. Auto-skip line if green.
 
 ### Block 2 · 🔎 Priya — Facts in & accurate
 Brief: `employee-brief.mjs priya-sources`. Phases: **[4]** triage intel (4a promos → 4b program
-changes+earn, group by type, never bulk-blind) → publishes · **[6]** page accuracy (drift +
+changes+earn, group by type, never bulk-blind) — **Priya decides what's true + worth it; approved
+items HAND OFF to John's block (Block 3) to draft + publish. Priya does NOT publish herself** (Jill's
+model 2026-09-03: triage and drafting are separate jobs) · **[6]** page accuracy (drift +
 change_signals; most drift = transient-promo false-positive → propose bulk-resolve) · **[7]**
 welcome-bonus card moves (scraper + `signup_bonus` group) · **[16 — Wed only]** data-integrity
-improvement. Publishing an alert = HIGH stakes → show Jill the full draft first; after publish,
-ask "add to the social calendar?" (`add-social-triage.mjs`).
+improvement. Priya also = the **accuracy backstop** on the other heads' claims. (Note: the old
+`build-brief` auto-triage cron is PAUSED 2026-09-03 — revisit Oct 3 — so the triage queue no longer
+auto-drains; Priya triages it live here.)
 
 ### Block 3 · ✍️ John — Content authored & fresh  *(after Priya: clean facts before content)*
-Brief: `employee-brief.mjs john-content`. Phases: **[8]** refresh queue · **[11]** program-page
-changes / next airline (Paige) · **[12]** roadmap mining + reconcile · **[13]** write the day's
-article + guide (Artie/Gwen) · **[5b]** drain any legacy newsletter-parked item · **[22 — Thu]**
-newsletter build (Nora). Show every draft before publish.
+Brief: `employee-brief.mjs john-content`. Phases: **[4→ handoff]** draft + publish the alerts PRIYA
+approved in Block 2 (Artie/writers draft via `content_variants`; Jill approves EVERY draft; clean
+short_slug; then "add to social calendar?" via `add-social-triage.mjs`) · **[8]** refresh queue ·
+**[11]** program-page changes / next airline (Paige) · **[12]** roadmap mining + reconcile · **[13]**
+write the day's article + guide (Artie/Gwen) · **[5b]** drain any legacy newsletter-parked item ·
+**[22 — Thu]** newsletter build (Nora). Show every draft before publish. (Auto-drafting is OFF as of
+2026-09-03 — John's team writes deliberately now, not from an auto-queue.)
 
 ### Block 4 · 📣 Kesha — Experiences, sweeps & social  *(after John: social pulls the day's publishes)*
 Brief: `employee-brief.mjs kesha-social`. Phases: **[5a/9]** experiences to review + closings →
