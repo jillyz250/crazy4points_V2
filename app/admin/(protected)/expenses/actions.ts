@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { assertAdmin } from '@/lib/auth/admin'
 import { createAdminClient } from '@/utils/supabase/server'
+import { VENDOR_RADAR_STATUSES, type VendorRadarStatus } from './shared'
 
 /**
  * Expenses actions (Erica, Head of Finance). Jill logs the money going OUT here.
@@ -49,5 +50,25 @@ export async function deleteExpense(id: string): Promise<void> {
   if (!id) return
   const db = createAdminClient()
   await db.from('expenses').delete().eq('id', id)
+  revalidatePath('/admin/expenses')
+}
+
+/**
+ * Triage one vendor-radar item: set its status (reviewed | acted | dismissed |
+ * new) and stamp decided_at. Re-verifies admin — this is a standalone POST.
+ * revalidatePath so the row restyles/reorders (handled rows recede).
+ */
+export async function setVendorRadarStatus(id: string, status: VendorRadarStatus): Promise<void> {
+  await assertAdmin()
+  if (!id || !VENDOR_RADAR_STATUSES.includes(status)) return
+  const db = createAdminClient()
+  await db
+    .from('vendor_radar')
+    .update({
+      status,
+      // 'new' means "back to the triage queue" — clear the decision stamp.
+      decided_at: status === 'new' ? null : new Date().toISOString(),
+    })
+    .eq('id', id)
   revalidatePath('/admin/expenses')
 }

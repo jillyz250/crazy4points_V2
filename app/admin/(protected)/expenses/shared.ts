@@ -25,3 +25,26 @@ export type ExpenseRow = {
   note: string | null
   created_at: string
 }
+
+// ── Vendor radar ─────────────────────────────────────────────────────────────
+// Forwarded vendor "what's new" emails, assessed by Claude and filed for triage.
+// Lives on the expenses hub because that page is vendor-central.
+export const VENDOR_RADAR_STATUSES = ['new', 'reviewed', 'acted', 'dismissed'] as const
+export type VendorRadarStatus = (typeof VENDOR_RADAR_STATUSES)[number]
+
+export type VendorRadarRow = {
+  id: string
+  received_at: string
+  vendor: string | null
+  subject: string | null
+  whats_new: string | null
+  could_help: string | null
+  disposition: 'discuss' | 'fyi'
+  suggested_owner: string | null
+  status: VendorRadarStatus
+  source_email: string | null
+  raw_excerpt: string | null
+  decided_note: string | null
+  decided_at: string | null
+  created_at: string
+}

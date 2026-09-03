@@ -3,8 +3,9 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { createAdminClient } from '@/utils/supabase/server'
 import { Icon, type IconName } from '@/components/admin/preview/kit'
-import { addExpense, deleteExpense } from './actions'
-import { EXPENSE_CATEGORIES, type ExpenseRow } from './shared'
+import AllClearArt from '@/components/admin/AllClearArt'
+import { addExpense, deleteExpense, setVendorRadarStatus } from './actions'
+import { EXPENSE_CATEGORIES, type ExpenseRow, type VendorRadarRow } from './shared'
 import { Calculator } from './Calculator'
 import { VENDORS, type Vendor, type VendorRec } from '@/lib/vendors'
 
@@ -50,6 +51,13 @@ const REC_META: Record<VendorRec, { label: string; cls: string }> = {
   action: { label: 'Action', cls: 'vs-chip-action' },
 }
 
+// Vendor-radar handled-status label (shown as a small pill on receded rows).
+const RADAR_STATUS_LABEL: Record<string, string> = {
+  reviewed: 'Reviewed',
+  acted: 'Acted',
+  dismissed: 'Dismissed',
+}
+
 // Total monthly cost for a vendor (Anthropic's comes from the live figure).
 function vendorTotal(v: Vendor, liveAnthropic: number): number {
   return v.flatMonthly + (v.usageMonthly ?? 0) + (v.live ? liveAnthropic : 0)
@@ -92,6 +100,13 @@ function fmtDate(iso: string): string {
   // iso is a bare date (YYYY-MM-DD) — parse as UTC to avoid TZ off-by-one.
   const [y, m, d] = iso.split('-').map(Number)
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+}
+
+// vendor_radar.received_at is a full timestamptz — show a short "Sep 3" stamp.
+function fmtStamp(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
 // ── Page ─────────────────────────────────────────────────────────────────────
@@ -145,6 +160,27 @@ export default async function ExpensesPage() {
   const vendorGrandTotal = Math.round(
     VENDORS.reduce((s, v) => s + vendorTotal(v, liveAnthropic), 0),
   )
+
+  // ── Vendor radar: forwarded "what's new" emails, assessed + filed for triage ──
+  // Cap ~40. DB can't easily sort "new first", so pull newest-received and
+  // stable-partition in JS: un-triaged (status='new') rise to the top, handled
+  // rows recede below, each block still newest-first.
+  const { data: radarData } = await db
+    .from('vendor_radar')
+    .select(
+      'id, received_at, vendor, subject, whats_new, could_help, disposition, suggested_owner, status, source_email, raw_excerpt, decided_note, decided_at, created_at',
+    )
+    .order('received_at', { ascending: false })
+    .limit(40)
+  const radarAll = (radarData ?? []) as VendorRadarRow[]
+  const radarRows = [
+    ...radarAll.filter((r) => r.status === 'new'),
+    ...radarAll.filter((r) => r.status !== 'new'),
+  ]
+  const radarNew = radarAll.filter((r) => r.status === 'new')
+  const radarNewCount = radarNew.length
+  const radarDiscussCount = radarNew.filter((r) => r.disposition === 'discuss').length
+  const radarHandledCount = radarAll.filter((r) => r.status !== 'new').length
 
   return (
     <div className="ex-root">
@@ -252,6 +288,83 @@ export default async function ExpensesPage() {
               })}
             </div>
           </div>
+        </section>
+
+        {/* ── Vendor radar (forwarded "what's new" emails, triaged) ── */}
+        <section className="ex-section vr-section">
+          <div className="ex-sec-head">
+            <div>
+              <h2 className="ex-sec-title">Vendor radar</h2>
+              <p className="vs-sub">
+                Forwarded vendor updates, read &amp; assessed by Claude — triage what's worth acting on.
+              </p>
+            </div>
+            <span className="ex-sec-meta">
+              {radarNewCount} new
+              {radarDiscussCount > 0 && <span className="vr-meta-discuss"> · {radarDiscussCount} to discuss</span>}
+            </span>
+          </div>
+
+          {radarRows.length === 0 ? (
+            <div className="ex-card vr-empty">
+              <AllClearArt size={64} />
+              <div className="vr-empty-body">
+                <div className="ex-empty-title">No vendor updates yet</div>
+                <div className="ex-empty-sub">
+                  Forward any vendor "what's new" email (Supabase, Vercel, Firecrawl…) to your intel
+                  inbox and it'll land here for triage.
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="ex-card vr-card">
+              <div className="vr-rows">
+                {radarRows.map((r) => {
+                  const handled = r.status !== 'new'
+                  const owner = (r.suggested_owner || '').trim().toLowerCase()
+                  return (
+                    <div key={r.id} className={`vr-row${handled ? ' vr-row-handled' : ''}`}>
+                      <div className="vr-main">
+                        <div className="vr-top">
+                          <span className="vr-vendor">{r.vendor || 'Vendor'}</span>
+                          <span className="vr-recv">{fmtStamp(r.received_at)}</span>
+                          <span className={`vr-disp vr-disp-${r.disposition}`}>
+                            {r.disposition === 'discuss' ? 'Discuss' : 'FYI'}
+                          </span>
+                          {owner && <span className="vr-owner">&rarr; {owner}</span>}
+                          {handled && (
+                            <span className="vr-handled-pill">{RADAR_STATUS_LABEL[r.status] ?? r.status}</span>
+                          )}
+                        </div>
+                        {r.subject && <div className="vr-subject">{r.subject}</div>}
+                        {r.whats_new && <p className="vr-whats">{r.whats_new}</p>}
+                        {r.could_help && <p className="vr-help">{r.could_help}</p>}
+                      </div>
+                      <div className="vr-actions">
+                        <form action={async () => { 'use server'; await setVendorRadarStatus(r.id, 'reviewed') }}>
+                          <button type="submit" className="vr-btn"
+                            disabled={r.status === 'reviewed'}>Reviewed</button>
+                        </form>
+                        <form action={async () => { 'use server'; await setVendorRadarStatus(r.id, 'acted') }}>
+                          <button type="submit" className="vr-btn vr-btn-acted"
+                            disabled={r.status === 'acted'}>Acted</button>
+                        </form>
+                        <form action={async () => { 'use server'; await setVendorRadarStatus(r.id, 'dismissed') }}>
+                          <button type="submit" className="vr-btn vr-btn-dismiss"
+                            disabled={r.status === 'dismissed'}>Dismissed</button>
+                        </form>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              {radarHandledCount > 0 && (
+                <div className="vr-foot">
+                  Showing {radarNewCount} new · {radarHandledCount} handled below
+                </div>
+              )}
+            </div>
+          )}
         </section>
 
         {/* ── Two-column: add form + calculator ── */}
@@ -540,11 +653,54 @@ const EX_CSS = `
 .admin .vs-note { grid-area:note; margin:2px 0 0; font-size:var(--admin-text-sm); line-height:1.5; color:var(--admin-text-muted); }
 .admin .vs-renewal { color:var(--admin-text-subtle); font-weight:600; }
 
+/* ── Vendor radar ── */
+.admin .vr-section { margin-bottom:2.8rem; }
+.admin .vr-meta-discuss { color:var(--color-primary); }
+
+/* Empty */
+.admin .vr-empty { display:flex; align-items:center; gap:16px; padding:1.5rem 1.6rem; }
+.admin .vr-empty-body { min-width:0; }
+
+/* Card + rows */
+.admin .vr-card { padding:6px; }
+.admin .vr-rows { display:flex; flex-direction:column; }
+.admin .vr-row { display:grid; grid-template-columns:minmax(0, 1fr) auto; align-items:start; gap:12px 16px; padding:14px 12px; }
+.admin .vr-row + .vr-row { border-top:1px solid var(--admin-border); }
+.admin .vr-row-handled { opacity:.6; }
+.admin .vr-main { min-width:0; }
+.admin .vr-top { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+.admin .vr-vendor { font-size:1rem; font-weight:800; color:var(--admin-text); }
+.admin .vr-recv { font-size:var(--admin-text-sm); color:var(--admin-text-muted); font-variant-numeric:tabular-nums; }
+.admin .vr-disp { display:inline-flex; align-items:center; font-size:var(--admin-text-xs); font-weight:800; text-transform:uppercase; letter-spacing:.05em; padding:3px 10px; border-radius:9999px; white-space:nowrap; border:1px solid transparent; }
+.admin .vr-disp-discuss { color:#8a6d12; background:color-mix(in srgb, var(--color-accent) 18%, var(--admin-surface)); border-color:color-mix(in srgb, var(--color-accent) 42%, var(--admin-border)); }
+.admin .vr-disp-fyi { color:var(--admin-text-subtle); background:var(--admin-surface-alt); border-color:var(--admin-border); }
+.admin .vr-owner { font-size:var(--admin-text-xs); font-weight:700; color:var(--color-primary); background:color-mix(in srgb, var(--color-primary) 8%, #fff); border:1px solid color-mix(in srgb, var(--color-primary) 20%, var(--admin-border)); padding:2px 9px; border-radius:9999px; white-space:nowrap; }
+.admin .vr-handled-pill { font-size:var(--admin-text-xs); font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--admin-text-subtle); background:var(--admin-surface-alt); border:1px solid var(--admin-border); padding:2px 9px; border-radius:9999px; white-space:nowrap; }
+.admin .vr-subject { margin-top:6px; font-size:.95rem; font-weight:700; color:var(--admin-text); line-height:1.4; }
+.admin .vr-whats { margin:4px 0 0; font-size:var(--admin-text-sm); line-height:1.5; color:var(--admin-text-secondary); }
+.admin .vr-help { margin:4px 0 0; font-size:var(--admin-text-sm); line-height:1.5; color:var(--admin-text-muted); font-style:italic; }
+
+/* Triage buttons */
+.admin .vr-actions { display:flex; flex-direction:column; gap:6px; flex-shrink:0; align-items:stretch; }
+.admin .vr-btn { font-family:var(--font-ui); font-size:var(--admin-text-xs); font-weight:700; letter-spacing:.02em; padding:7px 14px; border-radius:9999px; cursor:pointer; white-space:nowrap; color:var(--admin-text-secondary); background:var(--admin-surface); border:1px solid var(--admin-border); transition:color .14s, background .14s, border-color .14s; min-height:32px; width:100%; }
+.admin .vr-btn:hover:not(:disabled) { color:var(--color-primary); background:color-mix(in srgb, var(--color-primary) 8%, #fff); border-color:color-mix(in srgb, var(--color-primary) 30%, var(--admin-border)); }
+.admin .vr-btn:focus-visible { outline:2px solid var(--color-primary); outline-offset:1px; }
+.admin .vr-btn-acted:hover:not(:disabled) { color:var(--admin-success); background:var(--admin-success-soft); border-color:color-mix(in srgb, var(--admin-success) 34%, transparent); }
+.admin .vr-btn-dismiss:hover:not(:disabled) { color:var(--admin-text-muted); background:var(--admin-surface-alt); border-color:var(--admin-border); }
+.admin .vr-btn:disabled { cursor:default; opacity:.5; }
+
+/* Foot */
+.admin .vr-foot { padding:12px 12px 6px; font-size:var(--admin-text-xs); text-transform:uppercase; letter-spacing:.06em; font-weight:700; color:var(--admin-text-subtle); border-top:1px solid var(--admin-border); margin-top:2px; }
+
 @media (max-width:760px) {
   .admin .ex-cols { grid-template-columns:1fr; }
   .admin .vs-row { grid-template-columns:1fr auto; grid-template-areas:"name rec" "cost cost" "limit limit" "next next" "note note"; gap:6px 12px; }
   .admin .vs-cell-cost { margin-top:2px; }
   .admin .vs-cell-rec { align-self:start; }
+  /* Radar: stack the triage buttons below the content, side by side */
+  .admin .vr-row { grid-template-columns:1fr; }
+  .admin .vr-actions { flex-direction:row; flex-wrap:wrap; }
+  .admin .vr-btn { width:auto; flex:1 1 auto; }
 }
 @media (max-width:600px) {
   .admin .ex-form { grid-template-columns:1fr; }
