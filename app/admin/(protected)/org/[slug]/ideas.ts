@@ -8,7 +8,7 @@
  */
 
 export type IdeaArea = 'efficiency' | 'visual' | 'data' | 'process' | 'accuracy' | 'growth' | 'other'
-export type IdeaStatus = 'new' | 'approved' | 'rejected' | 'shipped'
+export type IdeaStatus = 'new' | 'approved' | 'rejected' | 'shipped' | 'parked'
 
 export interface EmployeeIdea {
   id: string
@@ -21,13 +21,15 @@ export interface EmployeeIdea {
   created_at: string
   decided_at: string | null
   shipped_at: string | null
+  /** Only meaningful when status='parked': the date the idea resurfaces for a fresh call. */
+  revisit_on: string | null
 }
 
 export const IDEA_SELECT =
-  'id, employee_slug, idea, area, status, created_by, decided_note, created_at, decided_at, shipped_at'
+  'id, employee_slug, idea, area, status, created_by, decided_note, created_at, decided_at, shipped_at, revisit_on'
 
 export const IDEA_AREAS: IdeaArea[] = ['efficiency', 'visual', 'data', 'process', 'accuracy', 'growth', 'other']
-export const IDEA_STATUSES: IdeaStatus[] = ['new', 'approved', 'rejected', 'shipped']
+export const IDEA_STATUSES: IdeaStatus[] = ['new', 'approved', 'rejected', 'shipped', 'parked']
 
 export const AREA_LABEL: Record<IdeaArea, string> = {
   efficiency: 'Efficiency',
@@ -44,6 +46,7 @@ export const STATUS_LABEL: Record<IdeaStatus, string> = {
   approved: 'Approved',
   rejected: 'Rejected',
   shipped: 'Shipped',
+  parked: 'Parked',
 }
 
 /**
@@ -52,7 +55,7 @@ export const STATUS_LABEL: Record<IdeaStatus, string> = {
  * within each bucket. Used identically after an optimistic flip (client) and on
  * the next server load.
  */
-const STATUS_RANK: Record<IdeaStatus, number> = { new: 0, approved: 1, shipped: 2, rejected: 3 }
+const STATUS_RANK: Record<IdeaStatus, number> = { new: 0, approved: 1, parked: 2, shipped: 3, rejected: 4 }
 export function sortIdeas(list: EmployeeIdea[]): EmployeeIdea[] {
   return [...list].sort(
     (a, b) =>

@@ -130,10 +130,13 @@ Old phase numbers in [brackets] map to `daily-ritual` for the deep mechanics.
 - **Ideas decision (STANDING — present daily, Jill 2026-09-04).** Every block PRESENTS that
   head's **new ideas** (`employee_ideas` where status='new', from `data.ideas` in the brief) and
   Jill decides EACH one: **ACT** (`decideIdea(id,'approved')` — auto-creates an `employee_tasks`
-  row and closes the loop when done), **REJECT** (`decideIdea(id,'rejected')`), or **HOLD** (leave
-  status='new' — revisit another day). Show the idea + its area + a one-line Morgan take, act on her
-  word. If the head has no new ideas, say "no new ideas today" in one line (heads should float ≥1/day,
-  so this should be rare). This replaces "review when she has time" — ideas are now a daily decision.
+  row and closes the loop when done), **REJECT** (`decideIdea(id,'rejected')`), **PARK** (good but
+  not now → `parkIdea(id, slug, 'YYYY-MM-DD')` with a revisit date, e.g. 6 months out — it resurfaces
+  on that date via the aging monitor `ideas_revisit` queue for a fresh call; NEVER lost), or **HOLD**
+  (leave status='new' — revisit tomorrow). Show the idea + its area + a one-line Morgan take, act on her
+  word. **Also surface any PARKED ideas now DUE** (aging `ideas_revisit`) at the top of the block — a
+  parked idea's revisit date arriving is a decision waiting. If the head has no new ideas, say "no new
+  ideas today" in one line (heads should float ≥1/day, so this should be rare).
 - **Field-learn decision (STANDING — ask at the END of EVERY head's block, Jill 2026-09-04).** Every
   block closes with the same one-line question: **"Field → ADD / ACT / IGNORE?"** If the brief has
   `field_this_week` items, the head reports the notable one(s) and Jill decides PER ITEM: **ADD**

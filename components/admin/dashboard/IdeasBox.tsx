@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition, type ReactNode } from 'react'
 import { Icon } from '@/components/admin/preview/icons'
-import { addIdea, decideIdea, shipIdea } from '@/app/admin/(protected)/org/[slug]/actions'
+import { addIdea, decideIdea, shipIdea, parkIdea } from '@/app/admin/(protected)/org/[slug]/actions'
 import {
   sortIdeas,
   AREA_LABEL,
@@ -61,6 +61,7 @@ export default function IdeasBox({
       created_at: now,
       decided_at: null,
       shipped_at: null,
+      revisit_on: null,
     }
     setIdeas((list) => [temp, ...list])
     startTransition(async () => {
@@ -82,6 +83,18 @@ export default function IdeasBox({
     if (!id.startsWith('temp-')) startTransition(() => { shipIdea(id, employeeSlug) })
   }
 
+  // Park for later: a good idea that isn't for NOW. Default the revisit date to
+  // ~6 months out; it resurfaces (aging monitor + brief) when that date arrives.
+  const park = (id: string) => {
+    const d = new Date(); d.setMonth(d.getMonth() + 6)
+    const def = d.toISOString().slice(0, 10)
+    const when = window.prompt('Revisit this idea on (YYYY-MM-DD):', def)
+    if (!when || !/^\d{4}-\d{2}-\d{2}$/.test(when.trim())) return
+    const iso = when.trim()
+    setIdeas((list) => list.map((x) => (x.id === id ? { ...x, status: 'parked', revisit_on: iso, decided_at: new Date().toISOString() } : x)))
+    if (!id.startsWith('temp-')) startTransition(() => { parkIdea(id, employeeSlug, iso) })
+  }
+
   const card = (idea: EmployeeIdea) => (
     <div key={idea.id} className={`ib-idea ib-idea-${idea.status}`}>
       <div className="ib-idea-main">
@@ -89,6 +102,9 @@ export default function IdeasBox({
         <div className="ib-idea-tags">
           <span className={`ib-area ib-area-${idea.area}`}>{AREA_LABEL[idea.area]}</span>
           <span className={`ib-status ib-status-${idea.status}`}>{STATUS_LABEL[idea.status]}</span>
+          {idea.status === 'parked' && idea.revisit_on && (
+            <span className="ib-revisit"><Icon name="clock" size={11} /> revisit {idea.revisit_on}</span>
+          )}
           {idea.created_by !== 'jill' && <span className="ib-by">Suggested by {first}</span>}
         </div>
         {idea.decided_note && <p className="ib-idea-note"><Icon name="note" size={12} /> {idea.decided_note}</p>}
@@ -101,6 +117,22 @@ export default function IdeasBox({
             </button>
             <button type="button" className="ib-btn ib-btn-reject" onClick={() => decide(idea.id, 'rejected')}>
               Reject
+            </button>
+            <button type="button" className="ib-btn ib-btn-quiet" onClick={() => park(idea.id)} title="Good, but not now — revisit on a date">
+              <Icon name="clock" size={13} /> Later
+            </button>
+          </>
+        )}
+        {idea.status === 'parked' && (
+          <>
+            <button type="button" className="ib-btn ib-btn-approve" onClick={() => decide(idea.id, 'approved')}>
+              <Icon name="check" size={14} /> Approve
+            </button>
+            <button type="button" className="ib-btn ib-btn-quiet" onClick={() => park(idea.id)} title="Change the revisit date">
+              Reschedule
+            </button>
+            <button type="button" className="ib-btn ib-btn-reject" onClick={() => decide(idea.id, 'rejected')}>
+              Drop
             </button>
           </>
         )}
@@ -205,6 +237,7 @@ const IB_CSS = `
 .admin .ib-idea-shipped { border-left-color:var(--color-primary); background:color-mix(in srgb, var(--color-primary) 3%, var(--admin-surface)); }
 .admin .ib-idea-rejected { border-left-color:var(--admin-border); opacity:.72; }
 .admin .ib-idea-rejected .ib-idea-text { color:var(--admin-text-muted); }
+.admin .ib-idea-parked { border-left-color:var(--color-accent); background:color-mix(in srgb, var(--color-accent) 4%, var(--admin-surface)); }
 
 .admin .ib-idea-main { min-width:0; flex:1; }
 .admin .ib-idea-text { margin:0; font-size:.96rem; font-weight:600; color:var(--admin-text); line-height:1.45; word-break:break-word; }
@@ -229,6 +262,9 @@ const IB_CSS = `
 .admin .ib-status-approved { color:var(--admin-success); background:var(--admin-success-soft); }
 .admin .ib-status-rejected { color:var(--admin-danger); background:var(--admin-danger-soft); }
 .admin .ib-status-shipped { color:var(--color-primary); background:color-mix(in srgb,var(--color-primary) 12%,#fff); }
+.admin .ib-status-parked { color:#92600e; background:color-mix(in srgb,var(--color-accent) 20%,#fff); }
+.admin .ib-revisit { display:inline-flex; align-items:center; gap:4px; font-size:.66rem; font-weight:700; color:#92600e; background:color-mix(in srgb,var(--color-accent) 12%,#fff); border:1px solid color-mix(in srgb,var(--color-accent) 30%,var(--admin-border)); padding:2px 8px; border-radius:9999px; }
+.admin .ib-revisit svg { flex-shrink:0; }
 
 .admin .ib-by { font-size:var(--admin-text-xs); color:var(--admin-text-subtle); font-weight:600; }
 .admin .ib-idea-note { display:flex; align-items:flex-start; gap:6px; margin:8px 0 0; font-size:var(--admin-text-xs); color:var(--admin-text-muted); line-height:1.45; font-style:italic; }

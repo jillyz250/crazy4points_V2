@@ -226,6 +226,36 @@ export async function decideIdea(
   if (employeeSlug) revalidatePath(`/admin/org/${employeeSlug}`)
 }
 
+/**
+ * Park an idea for later (Jill, 2026-09-04). A good idea that isn't for NOW —
+ * "revisit in 6 months" — instead of rejecting it (loses it) or approving it
+ * (spins a task too early). Sets status='parked' + a revisit_on date so it can't
+ * rot: when that date arrives the aging monitor + the owner's brief resurface it
+ * for a fresh act/hold/reject. Closed loop by construction.
+ */
+export async function parkIdea(
+  id: string,
+  employeeSlug: string,
+  revisitOn: string, // YYYY-MM-DD
+  note?: string,
+): Promise<void> {
+  await assertAdmin()
+  if (!id || !/^\d{4}-\d{2}-\d{2}$/.test(revisitOn || '')) return
+  const trimmed = (note ?? '').trim()
+  const db = createAdminClient()
+  await db
+    .from('employee_ideas')
+    .update({
+      status: 'parked',
+      revisit_on: revisitOn,
+      decided_at: new Date().toISOString(),
+      decided_note: trimmed ? trimmed.slice(0, 2000) : null,
+    })
+    .eq('id', id)
+  if (employeeSlug) revalidatePath(`/admin/org/${employeeSlug}`)
+  revalidatePath('/admin')
+}
+
 /** Mark an idea shipped (status='shipped', shipped_at=now). */
 export async function shipIdea(id: string, employeeSlug: string): Promise<void> {
   await assertAdmin()

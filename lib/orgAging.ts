@@ -58,11 +58,17 @@ type DueSpec = {
   dueType: 'date' | 'ts' // date column vs timestamptz — changes the "past" boundary
   link: string
   notDone: [string, 'eq' | 'neq', unknown]
+  /** true = due-ON-the-date counts (<=); default false = only PAST the date (<). */
+  inclusive?: boolean
 }
 const DUE_QUEUES: DueSpec[] = [
   { key: 'tasks_due', label: 'Assigned tasks past their due date', table: 'employee_tasks', dueCol: 'due_at', dueType: 'ts', link: '/admin', notDone: ['status', 'neq', 'done'] },
   { key: 'jill_tasks_due', label: 'Your tasks past their due date', table: 'jill_tasks', dueCol: 'due_date', dueType: 'date', link: '/admin', notDone: ['done', 'eq', false] },
   { key: 'reminders_due', label: 'Reminders past their due date', table: 'reminders', dueCol: 'due_date', dueType: 'date', link: '/admin', notDone: ['status', 'neq', 'done'] },
+  // Parked ideas resurface ON their revisit date — a "good, but in 6 months" idea
+  // can't rot: when revisit_on arrives it escalates here for a fresh act/hold/reject.
+  // inclusive so a revisit set for TODAY surfaces today, not the day after.
+  { key: 'ideas_revisit', label: 'Parked ideas due to revisit', table: 'employee_ideas', dueCol: 'revisit_on', dueType: 'date', link: '/admin', notDone: ['status', 'eq', 'parked'], inclusive: true },
 ]
 
 /** Scan every queue; return one row per queue (with open count + oldest age + overdue flag). */
@@ -95,7 +101,9 @@ export async function computeAging(db: SupabaseClient): Promise<AgingRow[]> {
     DUE_QUEUES.map(async (q): Promise<AgingRow | null> => {
       try {
         const boundary = q.dueType === 'ts' ? nowIso : todayStr
-        let query = db.from(q.table).select(q.dueCol, { count: 'exact' }).not(q.dueCol, 'is', null).lt(q.dueCol, boundary).order(q.dueCol, { ascending: true }).limit(1)
+        let query = db.from(q.table).select(q.dueCol, { count: 'exact' }).not(q.dueCol, 'is', null)
+        query = q.inclusive ? query.lte(q.dueCol, boundary) : query.lt(q.dueCol, boundary)
+        query = query.order(q.dueCol, { ascending: true }).limit(1)
         const [col, op, val] = q.notDone
         query = (query as unknown as Record<string, (c: string, v: unknown) => typeof query>)[op](col, val)
         const { data, count, error } = await query
