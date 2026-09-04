@@ -8,7 +8,9 @@ import { computeAging, overdueOnly } from '@/lib/orgAging'
 import { buildQueue, meterCells, Icon, Ring, todayLong } from '@/components/admin/preview/kit'
 import Notepad from '@/components/admin/dashboard/Notepad'
 import MyTasks from '@/components/admin/dashboard/MyTasks'
+import OpenAcrossOrg from '@/components/admin/dashboard/OpenAcrossOrg'
 import AllClearArt from '@/components/admin/AllClearArt'
+import { getOpenCounts } from '@/lib/admin/openCounts'
 import { activityStyle, type ActivityRow } from '@/lib/admin/activityStyle'
 import type { DashboardNote } from '@/app/admin/(protected)/notes-actions'
 import type { JillTask } from '@/app/admin/(protected)/tasks-actions'
@@ -106,6 +108,7 @@ export default async function AdminDashboard() {
     { data: activityData }, { data: remindersData },
     alertsCount, programsCount, subsCount, subsTrend, newExperiences, newSweepstakes, pendingDecisions,
     triageCount, draftCount, errorCount, dataIntegrityCount,
+    openCounts,
   ] = await Promise.all([
     db.from('employees').select('id, slug, name, role_title, kind, emoji, image_url, status, responsibilities'),
     db.from('employee_logs').select('employee_id, type, created_at'),
@@ -149,6 +152,10 @@ export default async function AdminDashboard() {
     // Data integrity = unresolved program-fact drift (matches programDriftCount()).
     filteredCount((c) => c.from('intel_items').select('*', { count: 'exact', head: true })
       .not('conflicts_program_id', 'is', null).is('conflict_resolution', null).is('archived_at', null)),
+    // Live open-work counts for every countable queue — the "Open across the org"
+    // board (registry-driven, grouped by owner). One shared source of truth also
+    // reused on each head's org page. (lib/admin/openCounts.ts)
+    getOpenCounts(),
   ])
   const emps = (empData ?? []) as Emp[]
   const notes = (notesData ?? []) as DashboardNote[]
@@ -434,6 +441,12 @@ export default async function AdminDashboard() {
             </div>
           </div>
         </section>
+
+        {/* ── Open across the org — the "nothing gets lost" layer. Every countable
+             queue in the registry, grouped by the head who owns it, so open work
+             can't pile up invisibly. Actionable queues read prominently; backlogs
+             are muted; a fully-clear org collapses to one calm strip. ── */}
+        <OpenAcrossOrg counts={openCounts} />
 
         {/* ── Notepad — quick scratch, full width below the desk ── */}
         <section className="dh-section">

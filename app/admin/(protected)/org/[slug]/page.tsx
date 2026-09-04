@@ -6,7 +6,9 @@ import { notFound } from 'next/navigation'
 import { createAdminClient } from '@/utils/supabase/server'
 import { computeMeters } from '@/lib/orgMeters'
 import { Icon, Ring, meterCells, type IconName } from '@/components/admin/preview/kit'
-import { ADMIN_PAGES, type TaskCategory, type AdminPage } from '@/lib/admin/registry'
+import { ADMIN_PAGES, type TaskCategory, type AdminPage, type OwnerSlug } from '@/lib/admin/registry'
+import { getOpenCounts, OPEN_COUNT_SPECS } from '@/lib/admin/openCounts'
+import OpenAcrossOrg from '@/components/admin/dashboard/OpenAcrossOrg'
 import type { DecisionRow, DecisionStatus } from '@/lib/admin/logDecision'
 import AssignedTasks from '@/components/admin/dashboard/AssignedTasks'
 import QuickNote from '@/components/admin/dashboard/QuickNote'
@@ -283,6 +285,16 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
   // into a hub (Accuracy tabs) already collapse into the ONE hub entry.
   const { groups: ownedGroups } = buildOwned(slug)
 
+  // Open queues this head owns — the SAME live counts as the dashboard board,
+  // filtered to their surfaces (fixes Priya's real queues being invisible on her
+  // own page). Only worth the count queries when this person owns a countable
+  // queue; specialists who own none skip the work entirely.
+  const ownsCountable = OPEN_COUNT_SPECS.some((s) => {
+    const p = ADMIN_PAGES.find((x) => x.id === s.id)
+    return p?.owner === slug
+  })
+  const openCounts = ownsCountable ? await getOpenCounts() : {}
+
   return (
     <div className="ep-root">
       <style dangerouslySetInnerHTML={{ __html: EP_CSS }} />
@@ -411,6 +423,11 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
             </div>
           </section>
         )}
+
+        {/* ── Open queues: this head's live open-work counts (registry-driven,
+            shared with the dashboard board). Renders nothing when their desk is
+            clear or they own no countable queue. ── */}
+        <OpenAcrossOrg counts={openCounts} only={slug as OwnerSlug} />
 
         {/* ── Assigned Tasks: this head's open work items (most action-relevant) ── */}
         <section className="ep-section" id="tasks">

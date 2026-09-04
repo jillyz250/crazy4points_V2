@@ -154,6 +154,12 @@ welcome-bonus card moves (scraper + `signup_bonus` group) · **[16 — Wed only]
 improvement. Priya also = the **accuracy backstop** on the other heads' claims. (Note: the old
 `build-brief` auto-triage cron is PAUSED 2026-09-03 — revisit Oct 3 — so the triage queue no longer
 auto-drains; Priya triages it live here.)
+**⭐ VERIFY-FIRST for welcome-bonus + transfer-bonus (Jill, 2026-09-04):** for these two categories
+the NUMBER is the whole decision and they're almost always worth pursuing if real, so Priya
+multi-source-verifies the figure (official issuer page + ≥1 independent current source; issuer pages
+that 403 → in-app browser) BEFORE presenting them, and shows Jill the CONFIRMED fact to act/discuss on
+— never a raw scraper number. High-reject categories (targeted promos, dupes, non-US) stay raw-first:
+verify only AFTER Jill says "pursue," to avoid wasted verification on rejects.
 
 ### Block 3 · ✍️ John — Content authored & fresh  *(after Priya: clean facts before content)*
 Brief: `employee-brief.mjs john-content`. Phases: **[4→ handoff]** draft + publish the alerts PRIYA
