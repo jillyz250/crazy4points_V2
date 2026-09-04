@@ -61,7 +61,7 @@ this wording) / RED** → Jill approves the final → publish. Compliance-by-tem
 a light gate = safe *and* fast. Charlie's review clears WORDING + DISCLOSURE only;
 Priya/Vera still clear the FACTS (two separate checks). Proven 2026-09-04 on the
 Hyatt bonus alert: Charlie caught an unsubstantiated "the offer will come back"
-prediction (FTC) and set the editorial disclosure. See `plans/card-bonus-alert-template.md`.
+prediction (FTC) and set the editorial disclosure. See `plans/alert-templates/card-bonus-increase.md`.
 
 ## Next (unbuilt) — surface "major items awaiting a second look"
 A small dashboard count of outward-facing items that shipped WITHOUT a logged checker,

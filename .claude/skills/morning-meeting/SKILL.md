@@ -186,7 +186,7 @@ not drafted from scratch in front of her. Auto-DRAFT only (needs_review); Jill s
 draft before it PUBLISHES (draft != publish). Clean `short_slug`; then "add to social calendar?" via
 `add-social-triage.mjs`.
 **⭐ CARD-BONUS TEMPLATE + LEGAL GATE (Jill, 2026-09-04):** any "welcome bonus went up / elevated"
-alert uses the 7-section template `plans/card-bonus-alert-template.md` (Lead / Offer / real verified
+alert uses the 7-section template `plans/alert-templates/card-bonus-increase.md` (Lead / Offer / real verified
 Sweet spot / Best-ever anchored on the verified baseline / Catch / Bottom line / Disclosure). Only
 call it an INCREASE when this offer > the card's verified `baseline_bonus_amount`; else fix the page
 only or write "elevated offer ended." **RISK-TIERED LEGAL GATE:** card content, sweepstakes/giveaways,

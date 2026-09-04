@@ -1,0 +1,44 @@
+# Alert Template Library
+
+The reusable section-templates for our recurring alert types. Each turns a
+recurring alert into a fill-in-the-blanks job that's consistent, honest, and
+pre-compliant. **Owner: John (Head of Content).** Within each template, **Charlie**
+owns the legal/disclosure sections and **Priya** owns the accuracy standards
+(verified figures, real sweet spots). Approved by Jill 2026-09-04.
+
+## How templates work
+- A template = an ordered set of **bold-labelled bullet sections** (they render as the
+  alert's scannable bullets) + **hard standards** + a **legal tier** + a **disclosure**
+  slot where needed.
+- Global rules apply to every template: no em/en dashes; no foreign-currency valuations;
+  no derived point math; every figure multi-source verified (Priya) before the draft
+  reaches Jill; and the ⭐ **sweet spot is always a SPECIFIC verified redemption**, never
+  generic filler.
+- **Legal tier** per template says whether it must pass Charlie before publish (see
+  `plans/two-eyes-policy.md` Rule 4): card content, sweepstakes, and anything with an
+  affiliate link / disclosure / advice-claim = REQUIRED; everyday points news = skip.
+- Templates are **guidance docs** (versioned here), not code — John's team + the drafting
+  agents follow them. If the library matures we can make them structured.
+
+## The library (by our real published alert types)
+| Template | Covers alert types | Legal gate | Status |
+|---|---|---|---|
+| [card-bonus-increase](card-bonus-increase.md) | signup_bonus, card_credit | ✅ required | ✅ done |
+| [transfer-bonus](transfer-bonus.md) | transfer_bonus | ⛔ skip (unless card) | ✅ done |
+| devaluation | devaluation, earn_rate_change, category_change | ⛔ skip | ▫️ planned |
+| award-sale / buy-points | award_sale, point_purchase | ⛔ skip | ▫️ planned |
+| partner-change | partner_change | ⛔ skip | ▫️ planned |
+| program / policy change | program_change, policy_change, status_change | ⛔ skip | ▫️ planned |
+| status promo | status_promo | ⛔ skip | ▫️ planned |
+| sweepstakes / giveaway | (sweepstakes) | ✅ required | ▫️ planned |
+| award availability | award_availability | ⛔ skip | ▫️ planned |
+| experience / Moment | experience | ⛔ skip | ▫️ planned |
+| limited-time offer (generic) | limited_time_offer (the catch-all) | depends | ▫️ planned |
+
+Build order follows volume + value: transfer-bonus done next after cards; then the
+big buckets (limited_time_offer 19, program_change 15, partner_change 12).
+
+## Related
+`plans/two-eyes-policy.md` (legal gate), `reference_program_faq_house_style`,
+`reference_sweet_spots_system`, memory `reference_card_bonus_template_and_legal_gate`,
+`feedback_never_an_open_loop` (published alerts must expire or recheck).

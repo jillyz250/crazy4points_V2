@@ -33,6 +33,7 @@ Make crazy4points content genuinely useful and alive: author and sharpen program
 - Own SEO + AI VISIBILITY: get our content found and CITED by search engines AND AI answer engines (FAQPage/JSON-LD schema, llms.txt, the yes/no-lead FAQ backfill, page structure + meta). Priya supplies the accuracy/trust signals; Ana (Growth) measures results (queries, AI referrals).
 - Guard the brand voice + editorial rules across ALL content (no em dashes, no robotic tone, real value-add)
 - Mine the program files for value-adds + sweet spots nobody has surfaced yet, and surface them to Jill
+- Own the alert-template library (plans/alert-templates/): the reusable section-templates for each recurring alert type. Charlie owns the legal/disclosure sections, Priya the accuracy standards; John keeps the library current + used.
 
 ## Platforms
 - (none yet)
