@@ -68,11 +68,12 @@ export default function MyTasks({
       >
         {t.done ? <Icon name="check" size={18} /> : <span className="mt-check-box" />}
       </button>
-      <span className="mt-title">{t.title}</span>
-      {t.link && (
-        <a href={t.link} target="_blank" rel="noopener noreferrer" className="mt-link" title="Open link" aria-label="Open link">
-          <Icon name="link" size={14} />
+      {t.link ? (
+        <a href={t.link} target={t.link.startsWith('/') ? undefined : '_blank'} rel="noopener noreferrer" className="mt-title mt-title-link" title={t.title}>
+          {t.title}
         </a>
+      ) : (
+        <span className="mt-title" title={t.title}>{t.title}</span>
       )}
       <button type="button" className="mt-del" onClick={() => remove(t.id)} title="Delete task" aria-label={`Delete: ${t.title}`}>
         <Icon name="trash" size={14} />
@@ -161,7 +162,9 @@ const MT_CSS = `
 .admin .mt-check:hover .mt-check-box { border-color:var(--color-primary); background:var(--admin-accent-soft); }
 .admin .mt-check:focus-visible { outline:2px solid var(--color-primary); outline-offset:2px; }
 
-.admin .mt-title { flex:1; min-width:0; font-size:var(--admin-text-sm); line-height:1.45; color:var(--admin-text); word-break:break-word; }
+.admin .mt-title { flex:1; min-width:0; font-size:var(--admin-text-sm); font-weight:600; line-height:1.45; color:var(--admin-text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.admin a.mt-title-link { text-decoration:none; }
+.admin a.mt-title-link:hover { color:var(--color-primary); text-decoration:underline; }
 
 .admin .mt-link, .admin .mt-del {
   display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;

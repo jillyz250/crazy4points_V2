@@ -216,14 +216,11 @@ export default async function AdminDashboard() {
   ]
 
   const queueRow = (q: (typeof queue)[number], dim = false) => (
-    <Link key={q.page.id} href={q.page.path} className={`dh-row${dim ? ' dh-row-quiet' : ''}`}>
+    <Link key={q.page.id} href={q.page.path} className={`dh-row${dim ? ' dh-row-quiet' : ''}`} title={q.blurb}>
       <span className="dh-row-ic"><Icon name={q.icon} size={18} /></span>
-      <div style={{ minWidth: 0, flex: 1 }}>
-        <div className="dh-row-top">
-          <span className="dh-row-title">{q.page.title}</span>
-          <span className="dh-row-count">{q.count}</span>
-        </div>
-        <p className="dh-row-blurb">{q.blurb}</p>
+      <div className="dh-row-top" style={{ minWidth: 0, flex: 1 }}>
+        <span className="dh-row-title">{q.page.title}</span>
+        <span className="dh-row-count">{q.count}</span>
       </div>
       <span className="dh-row-go"><Icon name="arrow" size={15} /></span>
     </Link>
@@ -388,7 +385,7 @@ export default async function AdminDashboard() {
                 : <div className="dh-queue-clear"><Icon name="check" size={15} /> Nothing needs your decision right now.</div>}
               {/* Team queues — delegable work the heads run down; informational. */}
               {teamQ.length > 0 && (
-                <details className="dh-more" open>
+                <details className="dh-more">
                   <summary><span>Team queues ({teamQ.length})</span><Icon name="arrow" size={14} className="dh-more-chev" /></summary>
                   <div>{teamQ.map((q) => queueRow(q, true))}</div>
                 </details>
@@ -598,8 +595,8 @@ const DH_CSS = `
 .admin .dh-row:hover { background:color-mix(in srgb, var(--color-primary) 4%, #fff); text-decoration:none; }
 .admin .dh-row-ic { display:flex; align-items:center; justify-content:center; width:38px; height:38px; border-radius:11px; flex-shrink:0; color:var(--color-primary); background:color-mix(in srgb, var(--color-primary) 8%, #fff); border:1px solid color-mix(in srgb, var(--color-primary) 12%, var(--admin-border)); }
 .admin .dh-row-top { display:flex; align-items:baseline; gap:10px; }
-.admin .dh-row-title { font-size:1rem; font-weight:700; color:var(--admin-text); }
-.admin .dh-row-count { font-size:var(--admin-text-xs); font-weight:700; color:var(--admin-text-subtle); font-variant-numeric:tabular-nums; }
+.admin .dh-row-title { font-size:1rem; font-weight:700; color:var(--admin-text); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.admin .dh-row-count { font-size:var(--admin-text-xs); font-weight:700; color:var(--admin-text-subtle); font-variant-numeric:tabular-nums; flex-shrink:0; margin-left:auto; }
 .admin .dh-row-blurb { margin:3px 0 0; font-size:var(--admin-text-sm); color:var(--admin-text-muted); line-height:1.5; }
 .admin .dh-row-go { color:var(--admin-text-subtle); opacity:0; transform:translateX(-5px); transition:opacity .14s ease, transform .14s ease; flex-shrink:0; }
 .admin .dh-row:hover .dh-row-go { opacity:1; transform:translateX(0); color:var(--color-primary); }
