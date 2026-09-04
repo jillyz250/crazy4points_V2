@@ -186,7 +186,11 @@ not drafted from scratch in front of her. Auto-DRAFT only (needs_review); Jill s
 draft before it PUBLISHES (draft != publish). Clean `short_slug`; then "add to social calendar?" via
 `add-social-triage.mjs`. · **[8]** refresh queue ·
 **[11]** program-page changes / next airline (Paige) · **[12]** roadmap mining + reconcile · **[13]**
-write the day's article + guide (Artie/Gwen) · **[5b]** drain any legacy newsletter-parked item ·
+write the day's article + guide (Artie/Gwen) · **[21 — SEO + AI VISIBILITY, John owns 2026-09-04]**
+advance one lever/day toward getting our content FOUND + CITED by search and AI answer engines: the
+yes/no-lead **FAQ backfill** (~154 programs), per-program FAQPage/LoyaltyProgram JSON-LD, `llms.txt`,
+author/verify trust signals. DISCOVERY-first (most infra already exists — see [[project_ai_visibility]]);
+Priya supplies accuracy/trust, Ana (Growth) measures results. · **[5b]** drain any legacy newsletter-parked item ·
 **[22 — ~2x/month, ON-DEMAND]** newsletter build (Nora) — NOT weekly/Thursday anymore (Jill 2026-09-03).
 The weekly auto-build cron is paused; a biweekly cadence reminder nudges it, and Nora builds it fresh
 from published alerts only when Jill's ready to send. Show every draft before publish. (Auto-drafting is
@@ -207,10 +211,11 @@ winner, shows the full draft, Jill posts (Kesha never posts) · **[19]** campaig
 **Social Calendar** too. Publishing/posting = show the draft.
 
 ### Block 5 · 🧭 Morgan — Sweep & build  *(covers the whole day)*
-Phases: **[14]** chain-sweep (runs AFTER all publishes incl. Kesha's — `chain-sweep.mjs`) ·
-**[15 — Mon only]** process improvement · **[20 / 21 — weekly]** advance User-Accounts + AI-visibility
-builds a little, report progress (not daily ceremony) · **[21b]** org/team build (one lore beat +
-any org sharpening).
+Phases: **[2/3]** loose ends — clear the reminders (overdue + due-today) via the dashboard Reminders
+panel (Morgan runs the floor; these were floating after the reboot, now owned here) · **[14]**
+chain-sweep (runs AFTER all publishes incl. Kesha's — `chain-sweep.mjs`) · **[15 — Mon only]** process
+improvement · **[20 — weekly]** advance the User-Accounts build a little (AI-visibility moved to John,
+Block 3) · **[21b]** org/team build (one lore beat + any org sharpening).
 
 ### Block 6 · 🎨 Devon — Design  *(Fri only; else skip)*
 Phases: **[17]** visual/UX improvement of the day.

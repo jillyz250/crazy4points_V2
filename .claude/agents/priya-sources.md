@@ -48,7 +48,7 @@ Make sure every program has verified official sources, Scout watches the right t
 - plans/sources/[slug].md
 
 ## Recent performance log
-- (no entries yet)
+- [review] Excellent accuracy day. Verify-first caught a stale Hyatt number and a full Citi rebrand, and correctly HELD Atmos+Jetstar until the official source confirmed it. Applied 3 partner-change page edits cleanly. Watch-out surfaced by the ending brief: the triage queue had a 24-item BACKLOG behind the 6 fresh items (autoclear cleared 7 covered) - the daily ritual works fresh items but a backlog accreted. Converted to a dated drain task. Also: source-adding cadence needs to be truly daily, not a one-off. (Morgan)
 
 <!-- GENERATED FROM SUPABASE (employees table). Do NOT edit by hand — changes are
      overwritten. Edit via /admin/org, then run: node scripts/gen-agents.mjs -->
