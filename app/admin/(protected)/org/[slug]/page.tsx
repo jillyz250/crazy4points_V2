@@ -44,9 +44,10 @@ type Emp = {
   quick_note: string | null
 }
 type Log = { id: string; type: string; note: string; actor: string | null; created_at: string }
-// Vendor radar (mig — vendor_radar) — product updates from our vendors, routed to
-// the head most likely to care (suggested_owner = first name lowercased). This page
-// shows a READ-ONLY awareness strip; triage/actions live on /admin/expenses.
+// Vendor radar (mig — vendor_radar) — product updates from our vendors. CONSOLIDATED
+// under Erica (Finance owns every vendor relationship + spend; Jill, 2026-09-04): ALL
+// vendor updates surface on Erica's page only, each TAGGED with the head who should
+// weigh in (suggested_owner). Read-only awareness strip; triage lives on /admin/expenses.
 type VendorUpdate = {
   id: string
   received_at: string
@@ -58,6 +59,12 @@ type VendorUpdate = {
   status: 'new' | 'reviewed' | 'acted' | 'dismissed' | string
   decided_note: string | null
   decided_at: string | null
+  suggested_owner: string | null
+}
+// The head each vendor update should loop in — shown as a tag on Erica's desk.
+const OWNER_TAG: Record<string, string> = {
+  bill: 'Bill', devon: 'Devon', priya: 'Priya', erica: 'Erica',
+  john: 'John', kesha: 'Kesha', janet: 'Janet', morgan: 'Morgan',
 }
 const VR_STATUS_LABEL: Record<string, string> = { reviewed: 'Reviewed', acted: 'Acted', dismissed: 'Dismissed' }
 // Hero "Top task" card — one shape for both sources (employee_tasks / jill_tasks).
@@ -190,7 +197,9 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
   const isOwner = e.kind === 'owner'
   // vendor_radar routes each update to a SHORT owner key = the person's first name
   // lowercased (bill, devon, priya…); this page's slug is the full 'bill-security'.
-  const ownerKey = slug.split('-')[0]
+  // Vendor radar now lives on ONE desk — Erica's (Finance owns vendors). Every
+  // other head's page shows no vendor strip; Erica sees them all, head-tagged.
+  const isVendorDesk = slug === 'erica-finance'
   const [{ data: logsData }, { data: mgr }, { data: teamData }, { data: decisionsData }, { data: tasksData }, { data: ideasData }, { data: jillTasksData }, { data: briefsData }, { data: vendorData }, { data: activityData }] = await Promise.all([
     db.from('employee_logs').select('id, type, note, actor, created_at').eq('employee_id', e.id).order('created_at', { ascending: false }).limit(12),
     e.reports_to_id
@@ -207,12 +216,13 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
       : Promise.resolve({ data: null }),
     // Dated history of this head's morning briefs (mig 664) — one per day, newest first.
     db.from('employee_briefs').select('brief_date').eq('employee_slug', slug).order('brief_date', { ascending: false }).limit(60),
-    // Vendor product-updates routed to this person (suggested_owner = ownerKey).
-    db.from('vendor_radar')
-      .select('id, received_at, vendor, subject, whats_new, could_help, disposition, status, decided_note, decided_at')
-      .eq('suggested_owner', ownerKey)
-      .order('received_at', { ascending: false })
-      .limit(30),
+    // Vendor product-updates — ALL of them, on Erica's desk only (consolidated).
+    isVendorDesk
+      ? db.from('vendor_radar')
+          .select('id, received_at, vendor, subject, whats_new, could_help, disposition, status, decided_note, decided_at, suggested_owner')
+          .order('received_at', { ascending: false })
+          .limit(30)
+      : Promise.resolve({ data: [] as VendorUpdate[] }),
     // Activity chain (mig 666) — finished work this person shipped, newest first.
     // Renders NOTHING when empty (most pages), same as the Vendor-updates strip.
     db.from('employee_activity')
@@ -479,9 +489,10 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
           </section>
         )}
 
-        {/* ── Vendor updates: product-updates from our vendors routed to this head.
+        {/* ── Vendor updates: ALL product-updates from our vendors, consolidated on
+            Erica's desk (Finance owns vendors), each tagged with the head to loop in.
             Read-only awareness strip — triage/actions live on /admin/expenses.
-            Renders NOTHING when this person has no routed updates. ── */}
+            Renders only on Erica's page (empty everywhere else). ── */}
         {vendorUpdates.length > 0 && (
           <section className="ep-section">
             <div className="ep-sec-head">
@@ -495,6 +506,9 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
                   <div key={v.id} className="ep-vr-item">
                     <div className="ep-vr-top">
                       <span className="ep-vr-vendor">{v.vendor}</span>
+                      {v.suggested_owner && v.suggested_owner !== 'erica' && OWNER_TAG[v.suggested_owner] && (
+                        <span className="ep-vr-loop">loop in {OWNER_TAG[v.suggested_owner]}</span>
+                      )}
                       <span className="ep-vr-date">{fmtDate(v.received_at)}</span>
                       <span className={`ep-vr-disp ${v.disposition === 'discuss' ? 'ep-vr-disp-discuss' : 'ep-vr-disp-fyi'}`}>
                         {v.disposition === 'discuss' ? 'Discuss' : 'FYI'}
@@ -1065,6 +1079,7 @@ const EP_CSS = `
 .admin .ep-vr-item + .ep-vr-item { border-top:1px solid var(--admin-border); }
 .admin .ep-vr-top { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
 .admin .ep-vr-vendor { font-size:.95rem; font-weight:800; color:var(--admin-text); }
+.admin .ep-vr-loop { font-size:var(--admin-text-xs); font-weight:700; color:var(--color-primary); background:var(--admin-accent-soft); border:1px solid color-mix(in srgb, var(--color-primary) 18%, var(--admin-border)); padding:1px 8px; border-radius:9999px; }
 .admin .ep-vr-date { font-size:var(--admin-text-xs); color:var(--admin-text-subtle); font-variant-numeric:tabular-nums; }
 .admin .ep-vr-disp { font-size:var(--admin-text-xs); font-weight:800; padding:2px 9px; border-radius:9999px; text-transform:uppercase; letter-spacing:.04em; }
 .admin .ep-vr-disp-discuss { color:color-mix(in srgb, var(--color-accent) 45%, var(--admin-text)); background:color-mix(in srgb, var(--color-accent) 20%, var(--admin-surface)); border:1px solid color-mix(in srgb, var(--color-accent) 45%, var(--admin-border)); }
