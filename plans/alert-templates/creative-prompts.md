@@ -69,10 +69,15 @@ Copilot can make **many images in ONE run**, auto-name them, and hand back a **s
 don't generate one at a time. The efficient flow the image owner (Kesha social / Devon page-art)
 should always use:
 
-1. **Batch the prompts.** Send them numbered, one per line (1., 2., 3., …). Copilot returns one
-   image per prompt in a single run. Prepend the Shared Style Base to each (or tell Copilot "use my
-   Crazy4Points brand kit — Royal Glow purple/gold, Playfair" once for the whole batch; say
-   "let each prompt have its own style" only when you deliberately want variety).
+1. **Batch the prompts.** Send them numbered, one per line (1., 2., 3., …). Prepend the Shared Style
+   Base to each (or tell Copilot "use my Crazy4Points brand kit — Royal Glow purple/gold, Playfair"
+   once for the whole batch; say "let each prompt have its own style" only when you deliberately want
+   variety).
+   - ⚠️ **ALWAYS tell Copilot: "generate each as a SEPARATE full-size 1080x1080 image — do NOT combine
+     them into one sheet, grid, or strip."** Left to itself Copilot returns a single wide "contact
+     sheet" (all three side-by-side in one ~2172x724 file), which is low-res and unusable as-is
+     (learned 2026-09-04). If it still hands back a combined strip, that's fine — see the workflow
+     below; Morgan splits it — but ask for separates first so you keep full resolution.
 2. **Give Copilot the naming convention up front** so every output is named correctly, no renaming
    after. Hand it the token pattern and it fills the descriptor per prompt:
    - Social: `social-{YYYY-MM-DD}-{slug}-{ig|fb|sq}`
@@ -80,13 +85,17 @@ should always use:
    - (matches our folder convention — see the image-library task on Devon)
 3. **Ask for ONE bulk download** — "package them into a single ZIP." One click, everything together.
    (Copilot also offers PPTX or individual-but-together; ZIP is what we want.)
-4. **File + back up (close the loop).** Unzip into the right subfolder in Desktop `Crazy4Points
-   Graphics/` (`social/`, `brand/`, `page-images/`), then **commit the keepers into the repo** (site
-   assets → `public/team|programs|cards`; social one-offs → `public/social-archive/`) so GitHub is a
-   2nd copy beside iCloud. Catalog each in `campaign_creatives` with its usable-for tag so
+4. **⭐ NAMING WORKFLOW (Jill, 2026-09-04): Jill just SAVES; Morgan names + extracts.** Jill saves
+   whatever Copilot gives (a ZIP, individual files, or even a combined strip) into the right subfolder
+   of Desktop `Crazy4Points Graphics/` (`social/`, `brand/`, `page-images/`) — she does NOT rename.
+   Then Morgan **checks the folder, splits any combined sheet into individual squares (PIL/Python),
+   and renames each to the convention.** She never fusses with filenames.
+5. **Back up (close the loop).** Morgan copies keepers into the repo (site assets →
+   `public/team|programs|cards`; social one-offs → `public/social-archive/`) so GitHub is a 2nd copy
+   beside iCloud, and catalogs each in `campaign_creatives` (category + prompt + image_url) so
    `creative-for.mjs` can reuse + rotate it.
-5. **Always pair the prompt with its target filename** when handing prompts to Jill — she should
-   never have to guess what to save it as.
+6. **Always pair the prompt with its target filename** when handing prompts to Jill (so she knows what
+   each one is), even though Morgan does the actual renaming after.
 
 ## Rules baked in
 Brand NAME as text, never the logo (`feedback_brand_name_as_text_in_creatives`); no icons
