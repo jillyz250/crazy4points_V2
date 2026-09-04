@@ -44,6 +44,27 @@ const QUEUES: QueueSpec[] = [
   { key: 'tasks', label: 'Open assigned tasks', table: 'employee_tasks', dateCol: 'created_at', threshold: 21, link: '/admin', filters: [['status', 'neq', 'done']] },
 ]
 
+// Due-date escalation (Jill, 2026-09-04: "there should never be an open loop").
+// The generic QUEUES above escalate by AGE (how long an item has sat). But a
+// task/reminder with an explicit DUE DATE must escalate the moment that date
+// passes — regardless of how recently it was created. Any past-due open item is
+// overdue, full stop (threshold 0). This is what makes a dated task a truly
+// closed loop: owned + dated + auto-escalating.
+type DueSpec = {
+  key: string
+  label: string
+  table: string
+  dueCol: string
+  dueType: 'date' | 'ts' // date column vs timestamptz — changes the "past" boundary
+  link: string
+  notDone: [string, 'eq' | 'neq', unknown]
+}
+const DUE_QUEUES: DueSpec[] = [
+  { key: 'tasks_due', label: 'Assigned tasks past their due date', table: 'employee_tasks', dueCol: 'due_at', dueType: 'ts', link: '/admin', notDone: ['status', 'neq', 'done'] },
+  { key: 'jill_tasks_due', label: 'Your tasks past their due date', table: 'jill_tasks', dueCol: 'due_date', dueType: 'date', link: '/admin', notDone: ['done', 'eq', false] },
+  { key: 'reminders_due', label: 'Reminders past their due date', table: 'reminders', dueCol: 'due_date', dueType: 'date', link: '/admin', notDone: ['status', 'neq', 'done'] },
+]
+
 /** Scan every queue; return one row per queue (with open count + oldest age + overdue flag). */
 export async function computeAging(db: SupabaseClient): Promise<AgingRow[]> {
   const rows = await Promise.all(
@@ -65,7 +86,31 @@ export async function computeAging(db: SupabaseClient): Promise<AgingRow[]> {
       }
     }),
   )
-  return rows
+
+  // Due-date escalation: any open item whose own due date has passed is overdue now.
+  const now = new Date()
+  const nowIso = now.toISOString()
+  const todayStr = nowIso.slice(0, 10)
+  const dueRows = await Promise.all(
+    DUE_QUEUES.map(async (q): Promise<AgingRow | null> => {
+      try {
+        const boundary = q.dueType === 'ts' ? nowIso : todayStr
+        let query = db.from(q.table).select(q.dueCol, { count: 'exact' }).not(q.dueCol, 'is', null).lt(q.dueCol, boundary).order(q.dueCol, { ascending: true }).limit(1)
+        const [col, op, val] = q.notDone
+        query = (query as unknown as Record<string, (c: string, v: unknown) => typeof query>)[op](col, val)
+        const { data, count, error } = await query
+        if (error || !count) return null
+        const oldestIso = (data?.[0] as unknown as Record<string, string> | undefined)?.[q.dueCol]
+        const oldestDays = oldestIso ? Math.max(0, Math.floor((Date.now() - Date.parse(oldestIso)) / 86_400_000)) : 0
+        // threshold 0 → any past-due item is overdue immediately.
+        return { key: q.key, label: q.label, open: count, oldestDays, threshold: 0, overdue: true, link: q.link }
+      } catch {
+        return null
+      }
+    }),
+  )
+
+  return [...rows, ...dueRows.filter((r): r is AgingRow => r !== null)]
 }
 
 /** Just the overdue queues (the escalation list), worst-overshoot first. */
