@@ -42,6 +42,28 @@ catch it" is visible on the dashboard, never a separate chore.
 Priya (with Vera) is the accuracy backstop. See [[reference_morgan_chief_of_staff]],
 [[reference_accuracy_agent_system]], [[project_ai_employee_team]].
 
+## Rule 4 — Legal gate on high-risk content (Charlie, added 2026-09-04)
+Charlie (Legal) is the second set of eyes on outward-facing content that carries real
+legal risk — but **risk-tiered, so it never bottlenecks the daily pipeline.**
+
+**Legal review REQUIRED (must pass Charlie before publish):**
+- **Credit-card content** (FTC financial-product / deception rules).
+- **Sweepstakes / giveaways** (promo law, official rules).
+- **Anything with an affiliate/referral link, a disclosure, or advice-like claims.**
+
+**No legal gate (publish on Jill's approval as usual):** everyday points news —
+transfer bonuses, devaluations, award sales, experiences, program-fact updates.
+
+**How it runs (maker → checker → approver):** John drafts on the relevant template
+(disclosure baked in, so most card content is compliant by construction) → the draft
+auto-routes to Charlie for the required tiers → **Charlie returns GREEN / YELLOW (fix
+this wording) / RED** → Jill approves the final → publish. Compliance-by-template +
+a light gate = safe *and* fast. Charlie's review clears WORDING + DISCLOSURE only;
+Priya/Vera still clear the FACTS (two separate checks). Proven 2026-09-04 on the
+Hyatt bonus alert: Charlie caught an unsubstantiated "the offer will come back"
+prediction (FTC) and set the editorial disclosure. See `plans/card-bonus-alert-template.md`.
+
 ## Next (unbuilt) — surface "major items awaiting a second look"
 A small dashboard count of outward-facing items that shipped WITHOUT a logged checker,
-so a missing second-look is visible. Build when more flows log activity.
+so a missing second-look is visible. Build when more flows log activity. (Also unbuilt:
+auto-routing card/sweepstakes drafts to Charlie — today it's run in John's block.)

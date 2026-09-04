@@ -184,7 +184,15 @@ John's team DRAFTS it immediately into `content_variants` at `status='needs_revi
 verified facts + sources — so the finished draft is READY and waiting when Jill reaches John's block,
 not drafted from scratch in front of her. Auto-DRAFT only (needs_review); Jill still approves EVERY
 draft before it PUBLISHES (draft != publish). Clean `short_slug`; then "add to social calendar?" via
-`add-social-triage.mjs`. · **[8]** refresh queue ·
+`add-social-triage.mjs`.
+**⭐ CARD-BONUS TEMPLATE + LEGAL GATE (Jill, 2026-09-04):** any "welcome bonus went up / elevated"
+alert uses the 7-section template `plans/card-bonus-alert-template.md` (Lead / Offer / real verified
+Sweet spot / Best-ever anchored on the verified baseline / Catch / Bottom line / Disclosure). Only
+call it an INCREASE when this offer > the card's verified `baseline_bonus_amount`; else fix the page
+only or write "elevated offer ended." **RISK-TIERED LEGAL GATE:** card content, sweepstakes/giveaways,
+and anything with an affiliate link / disclosure / advice-claim route to **Charlie** for a
+GREEN/YELLOW/RED legal check BEFORE publish (everyday points news skips it). See two-eyes-policy Rule 4.
+· **[8]** refresh queue ·
 **[11]** program-page changes / next airline (Paige) · **[12]** roadmap mining + reconcile · **[13]**
 write the day's article + guide (Artie/Gwen) · **[21 — SEO + AI VISIBILITY, John owns 2026-09-04]**
 advance one lever/day toward getting our content FOUND + CITED by search and AI answer engines: the
