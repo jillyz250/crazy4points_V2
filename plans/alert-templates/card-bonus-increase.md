@@ -45,6 +45,25 @@ an increase; 75k was the elevation that ended.)
 - **House rules:** no em/en dashes; no foreign-currency valuations; no derived point math;
   every figure Priya-verified (multi-source) before the draft reaches Jill.
 
+## ⭐ Apply here (the monetization rail) — Jill, 2026-09-04
+**Every card-bonus alert gets an "Apply here" button. Do NOT hand-type a URL in the body.**
+Instead set **`apply_card_slug`** on the variant to the `credit_cards.slug` this alert is
+about. The `<ApplyHere>` component (`components/alerts/ApplyHere.tsx`) then resolves ONE
+call-to-action from the card itself and renders it below the body automatically:
+- Card has **`affiliate_url`** → **monetized** "Apply here: <card>" button, `rel="nofollow
+  sponsored"` + the inline affiliate disclosure (both handled by the component).
+- Else **`official_url`** → issuer "Apply on the issuer's site: <card>" button, plain
+  `rel="nofollow"`, no disclosure.
+- Neither → nothing renders (never a dead button).
+
+**Why the rail, not a body link:** the affiliate `rel` is set correctly once; the day a
+card gains an `affiliate_url`, every alert about it monetizes with zero re-editing; and a
+markdown link in the body can't carry `rel="nofollow sponsored"` (a compliance miss).
+**Always monetize when relevant** (Jill's standing rule): prefer our affiliate/referral
+link; fall back to the issuer page; only ever one card per alert (pick the headline card).
+For a coverage gap (a card with no `affiliate_url` we could sign up for), flag Megan
+(partnerships) — that's unrealized revenue.
+
 ## §7 Disclosure (Charlie, 2026-09-04)
 When the alert links to the **issuer's own page** (no affiliate/referral comp), the
 site-wide Affiliate Disclosure page suffices — do NOT add an affiliate line (we earn

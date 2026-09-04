@@ -6,6 +6,7 @@ import { getAlertBySlug } from '@/utils/supabase/queries'
 import { daysUntilEndOfDay, futureStartLabel } from '@/lib/alertExpiry'
 import { normalizeAlertDescription } from '@/utils/alerts/normalizeDescription'
 import { renderProseMarkdown } from '@/lib/blog/sanitize'
+import ApplyHere from '@/components/alerts/ApplyHere'
 import { safeJsonLd } from '@/lib/jsonLd'
 
 // Published alert content; stable after publish.
@@ -305,6 +306,11 @@ export default async function AlertDetailPage({ params }: Props) {
             </div>
           </div>
         )}
+
+        {/* Apply-here rail — card-bonus alerts only. Resolves a monetized
+            affiliate link (with disclosure) or the issuer page from the linked
+            card; renders nothing when the alert isn't card-linked. */}
+        <ApplyHere cardSlug={alert.apply_card_slug} />
 
         {/* Sweepstakes / registration disclaimer. Shown for any alert the
             reader has to sign up for (registration_required) so we never imply

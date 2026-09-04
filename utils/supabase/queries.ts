@@ -134,6 +134,16 @@ export interface Alert {
    * block. Reader-invisible; lives only on the alert row.
    */
   verified_terms: string | null
+  /**
+   * Slug of the credit card this alert is ABOUT (card-bonus alerts only).
+   * Drives the public "Apply here" rail: the ApplyHere component resolves
+   * the card's affiliate_url (monetized, rel="nofollow sponsored") or, if
+   * none, its official_url (issuer page). Stored in variant metadata, so it
+   * populates only on reads that go through the AlertView adapter (the public
+   * /alerts/[slug] page); mirror-only reads leave it undefined. Optional by
+   * design — never a real column on the alerts table.
+   */
+  apply_card_slug?: string | null
   registration_required: boolean
   created_by: string | null
   approved_by: string | null

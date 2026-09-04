@@ -91,6 +91,7 @@ export interface WriteAlertVariantInput {
    */
   editorial_value_add?: unknown[] | null
   verified_terms?: string | null
+  apply_card_slug?: string | null
   terms_waived_reason?: string | null
   last_verified?: string | null
 
@@ -257,6 +258,7 @@ export async function writeAlertVariant(
     original_alert_type: input.type,
     last_verified: normString(input.last_verified),
     verified_terms: normString(input.verified_terms),
+    apply_card_slug: normString(input.apply_card_slug),
     gaps: input.gaps ?? null,
     editorial_value_add: normArray(input.editorial_value_add),
     revision_log: normArray(input.revision_log),
