@@ -19,6 +19,7 @@ import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createAdminClient } from '@/utils/supabase/server'
 import { createSnapshot } from '@/utils/backups/createSnapshot'
+import { verifySnapshot } from '@/utils/backups/verifySnapshot'
 import { logEmployeeActivity } from '@/utils/org/logEmployeeActivity'
 import { assertCron } from '@/lib/auth/cron'
 
@@ -99,6 +100,17 @@ async function handle(request: Request) {
         ref_type: 'other',
         link: '/admin/backups',
       })
+      // Remy's weekly reliability check: prove the copy is actually restorable
+      // (unzip + parse + row sanity vs live), not just that a file exists.
+      const verdict = await verifySnapshot(result.gzBuffer, supabase)
+      await logEmployeeActivity(supabase, {
+        employee_slug: 'remy-reliability',
+        action: 'reviewed',
+        summary: verdict.summary,
+        ref_type: 'other',
+        link: '/admin/backups',
+      })
+      if (!verdict.ok) console.error('[nightly-snapshot] RELIABILITY CHECK FAILED:', verdict.summary)
     }
   }
 
