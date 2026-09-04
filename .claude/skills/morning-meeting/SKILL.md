@@ -21,10 +21,20 @@ volume; **Jill only touches the decisions.**
 2. **Exception-first.** The board leads with **⚡ Needs you today** (the real decisions). Jill
    chooses: **"just do what needs me"** (jump only to the pending decisions + judgment calls,
    across all heads, in dependency order) or **"full walk"** (all 9 blocks) or **"walk <head>"**.
-3. **Categorized receipt + retro after every block** (same buckets as daily-ritual: 🔍 Verified ·
-   📣 Published · 💾 Data changed · 💻 Code shipped · 🛡️ Guardrails · ⏲️ Auto-jobs). Then one-line
-   **🔧 retro** (best idea to sharpen THIS block, or "running well"). Save progress:
-   `node scripts/ritual-progress.mjs --complete N`.
+3. **Categorized receipt + FOUR-PART retro after every block** (Jill, 2026-09-04). First the
+   receipt (same buckets as daily-ritual: 🔍 Verified · 📣 Published · 💾 Data changed · 💻 Code
+   shipped · 🛡️ Guardrails · ⏲️ Auto-jobs). Then the **🔧 block retro — cover all four, honestly
+   (Morgan tells it straight, never flatters):**
+   (a) **How the block went** — an honest read (what worked, what dragged; "sprawled," "thin,"
+       "running well" are all valid).
+   (b) **Improvement suggestions** — the single best way to sharpen THIS block (or "no change").
+   (c) **Open loops** — check the head's open tasks / approved-but-unshipped ideas / unverified or
+       blocked items; name anything that could rot, and whose court it's in. Nothing dropped.
+   (d) **Delegation / sub-employees** — does this head need another report to delegate to, or are
+       they right-sized? Be honest that a new report adds cost + overhead and only earns a seat for
+       SPECIALIZATION, not capacity (an AI head can't be "overloaded"); name the future TRIGGER that
+       would change the answer. Default answer is usually "right-sized."
+   Save progress: `node scripts/ritual-progress.mjs --complete N`.
 4. **Empty blocks auto-skip** in one line ("🔒 Bill — all green ✅"). Thin heads
    (Charlie/Erica/Megan) appear only if they have something.
 5. **Jill drives:** next / skip / back / done. Never propose skipping a non-empty block.
