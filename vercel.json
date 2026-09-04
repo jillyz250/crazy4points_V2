@@ -57,6 +57,10 @@
       "schedule": "0 13 * * 5"
     },
     {
+      "path": "/api/cron/sweet-spot-recheck-guard",
+      "schedule": "0 8 * * *"
+    },
+    {
       "path": "/api/cron/reminders-sweep",
       "schedule": "30 9 * * *"
     },
