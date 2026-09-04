@@ -29,11 +29,11 @@ owns the legal/disclosure sections and **Priya** owns the accuracy standards
 | [card-bonus-increase](card-bonus-increase.md) | signup_bonus, card_credit | ✅ required | ✅ done |
 | [transfer-bonus](transfer-bonus.md) | transfer_bonus | ⛔ skip (unless card) | ✅ done |
 | [devaluation](devaluation.md) | devaluation, earn_rate_change, category_change, fee_change | ⛔ skip | ✅ done |
-| award-sale / buy-points | award_sale, point_purchase | ⛔ skip | ▫️ planned |
+| [award-sale / buy-points](award-sale-buy-points.md) | award_sale, point_purchase | ⛔ skip | ✅ done |
 | [partner-change](partner-change.md) | partner_change, new_partner, ended_partner | ⛔ skip (page-affecting) | ✅ done |
-| program / policy change | program_change, policy_change, status_change | ⛔ skip | ▫️ planned |
-| status promo | status_promo | ⛔ skip | ▫️ planned |
-| sweepstakes / giveaway | (sweepstakes) | ✅ required | ▫️ planned |
+| [program / policy change](program-policy-change.md) | program_change, policy_change, status_change | ⛔ skip | ✅ done |
+| [status promo](status-promo.md) | status_promo | ⛔ skip | ✅ done |
+| [sweepstakes / giveaway](sweepstakes.md) | (sweepstakes) | ✅ required | ✅ done |
 | award availability | award_availability | ⛔ skip | ▫️ planned |
 | experience / Moment | experience | ⛔ skip | ▫️ planned |
 | [limited-time-offer](limited-time-offer.md) | limited_time_offer (catch-all) | depends | ✅ done |
