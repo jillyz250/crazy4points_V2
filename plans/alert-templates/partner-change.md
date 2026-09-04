@@ -45,6 +45,10 @@ the change-signal.
 ## Disclosure
 None required (no affiliate/card).
 
+## Visual
+- **Check first:** `creative-for.mjs` and reuse before generating.
+- **Social:** a "now connected" Split graphic (X + Y). Both program colors, brand NAMES as text, no logos. New partner = what it unlocks; ended partner = the deadline.
+
 ## Related
 `transfer-bonus.md` (temporary %, vs this permanent change), the change-signal
 **Apply to page** flow (`app/admin/(protected)/change-signals/`), `reference_sweet_spots_system`,

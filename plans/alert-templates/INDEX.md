@@ -36,7 +36,7 @@ owns the legal/disclosure sections and **Priya** owns the accuracy standards
 | sweepstakes / giveaway | (sweepstakes) | ✅ required | ▫️ planned |
 | award availability | award_availability | ⛔ skip | ▫️ planned |
 | experience / Moment | experience | ⛔ skip | ▫️ planned |
-| limited-time offer (generic) | limited_time_offer (the catch-all) | depends | ▫️ planned |
+| [limited-time-offer](limited-time-offer.md) | limited_time_offer (catch-all) | depends | ✅ done |
 
 Build order follows volume + value: transfer-bonus done next after cards; then the
 big buckets (limited_time_offer 19, program_change 15, partner_change 12).

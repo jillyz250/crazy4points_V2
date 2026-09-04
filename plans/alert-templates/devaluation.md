@@ -41,6 +41,10 @@ but our job is to lead with **what the reader can still DO.**
 None required (no affiliate/card). If a card benefit is being cut, escalate to card
 rules + Charlie.
 
+## Visual
+- **Check first:** `node scripts/creative-for.mjs` and reuse before generating.
+- **Social:** a Countdown / beat-the-clock graphic anchored to the effective date. Program colors, brand NAME as text, no logo. Frame the opportunity (book before), not doom.
+
 ## Related
 `card-bonus-increase.md`, `transfer-bonus.md`, `feedback_facebook_happy_news`,
 `feedback_never_transfer_without_redemption`, `feedback_never_an_open_loop` (end_date

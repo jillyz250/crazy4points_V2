@@ -61,6 +61,11 @@ render `rel="nofollow sponsored"` (see `lib/referrals.ts`):
 
 > *Affiliate link. We may earn a commission if you're approved, at no cost to you.*
 
+## Visual
+- **Check first:** `node scripts/creative-for.mjs <card>` (or `--alert <slug>`) and REUSE before generating (Jill's rule).
+- **Social:** Stat Hero graphic with the bonus figure as the hero (a card SUB number is fine as the hero, that IS the news). Card issuer colors, brand NAME as on-image text, NEVER the logo mark.
+- **Alert page:** use the card art we already have.
+
 ## The publish loop (risk-tiered legal gate)
 **John drafts on this template (disclosure baked in) → auto-routes to Charlie for the
 required tiers → Charlie returns GREEN or a specific wording fix → Jill approves the

@@ -30,6 +30,10 @@ None required (no affiliate link, no card). If a card is mentioned or an affilia
 link is added, it becomes card-tier: append the editorial disclosure and route to Charlie
 (see `card-bonus-increase.md` §7 + two-eyes-policy Rule 4).
 
+## Visual
+- **Check first:** `node scripts/creative-for.mjs` and reuse before generating.
+- **Social:** a Split "X to Y" graphic (from-program to to-program) with the bonus %. Program/brand colors, brand NAMES as text, no logos. Do NOT make a raw point count the hero (invites value-math); lead with the qualitative win.
+
 ## Related
 `card-bonus-increase.md`, `reference_sweet_spots_system`, `feedback_never_transfer_without_redemption`,
 `feedback_capture_transfer_fees` (note any transfer fee), `feedback_avios_family_transfer_partner_check`.
