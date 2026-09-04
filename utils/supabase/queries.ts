@@ -2629,6 +2629,61 @@ export async function getInboundTransferSources(
   return rows
 }
 
+// --- Structured sweet spots (table = source of truth) ----------------------
+/**
+ * One row of the structured `sweet_spots` table — the source of truth for how a
+ * program page renders its sweet spots. When ANY active rows exist for a
+ * program, the page renders these instead of the free-text `programs.sweet_spots`
+ * prose (which stays as the migration-era fallback). See getStructuredSweetSpots.
+ *
+ * A row is keyed to a program by `program_slug` (the currency you pay with)
+ * and/or `operating_partner` (the carrier you actually fly), so a spot like
+ * "Cathay First via Atmos" surfaces on BOTH /programs/atmos and /programs/cathay.
+ */
+export interface StructuredSweetSpot {
+  id: string
+  title: string
+  /** stopover | first_class | business | value | lounge (free-form; used as a small tag). */
+  value_type: string | null
+  program_slug: string | null
+  operating_partner: string | null
+  cabin: string | null
+  /** Award cost in the program's own currency (miles/points). Never a dollar value. */
+  points: number | null
+  route: string | null
+  value_angle: string | null
+  detail: string | null
+  lead_source_url: string | null
+  official_source_url: string | null
+  verified: string | null
+  status: string | null
+}
+
+/**
+ * Active sweet-spot rows for a program, matched by the program the redemption
+ * runs through (program_slug OR operating_partner) — the same match the
+ * sweet-spot-recheck-guard cron uses. Returns [] on error or when none exist,
+ * which the program page reads as "fall back to the prose column."
+ */
+export async function getStructuredSweetSpots(
+  supabase: SupabaseClient,
+  slug: string,
+): Promise<StructuredSweetSpot[]> {
+  const { data, error } = await supabase
+    .from('sweet_spots')
+    .select(
+      'id, title, value_type, program_slug, operating_partner, cabin, points, route, value_angle, detail, lead_source_url, official_source_url, verified, status',
+    )
+    .eq('status', 'active')
+    .or(`program_slug.eq.${slug},operating_partner.eq.${slug}`)
+    .order('points', { ascending: true, nullsFirst: false })
+  if (error) {
+    console.error('[getStructuredSweetSpots] failed:', error)
+    return []
+  }
+  return (data ?? []) as StructuredSweetSpot[]
+}
+
 // --- Card Finder -----------------------------------------------------------
 export interface FinderCard {
   id: string

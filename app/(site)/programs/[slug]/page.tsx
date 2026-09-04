@@ -2,8 +2,8 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { createAdminClient } from '@/utils/supabase/server'
-import { getAlertsByProgramSlug, getAllPrograms, getPropertiesForProgram, getCardsThatEarnIntoProgram, getPartnerRedemptionsByCurrency, getInboundTransferSources, getExperiencesForProgram } from '@/utils/supabase/queries'
-import type { AlertWithPrograms, HotelProperty, CardThatEarnsIn, PartnerRedemptionWithPrograms, TransferPartnerRow } from '@/utils/supabase/queries'
+import { getAlertsByProgramSlug, getAllPrograms, getPropertiesForProgram, getCardsThatEarnIntoProgram, getPartnerRedemptionsByCurrency, getInboundTransferSources, getExperiencesForProgram, getStructuredSweetSpots } from '@/utils/supabase/queries'
+import type { AlertWithPrograms, HotelProperty, CardThatEarnsIn, PartnerRedemptionWithPrograms, TransferPartnerRow, StructuredSweetSpot } from '@/utils/supabase/queries'
 import AlertsGridSB from '@/components/alerts/AlertsGridSB'
 import ExpiredAlertsList from '@/components/alerts/ExpiredAlertsList'
 import { isAlertActive, isAlertFresh } from '@/lib/alertExpiry'
@@ -217,6 +217,17 @@ export default async function ProgramPage({
     console.error('[programs/[slug]] getActivePromosForProgram failed:', err)
   }
 
+  // Structured sweet spots (the `sweet_spots` table = source of truth). When any
+  // active rows exist, they render instead of the program.sweet_spots prose; when
+  // empty, the prose is the migration-era fallback. See getStructuredSweetSpots.
+  let structuredSweetSpots: StructuredSweetSpot[] = []
+  try {
+    structuredSweetSpots = await getStructuredSweetSpots(supabase, slug)
+  } catch (err) {
+    console.error('[programs/[slug]] getStructuredSweetSpots failed:', err)
+  }
+  const hasSweetSpots = structuredSweetSpots.length > 0 || !!program.sweet_spots
+
   const nowMs = Date.now()
 
   // Split active vs expired. Treats end_date as inclusive end-of-day
@@ -390,7 +401,7 @@ export default async function ProgramPage({
             ...(inboundRows.filter(isPublishableTransferRow).length > 0 && program.type !== 'alliance' ? [{ id: 'ways-to-earn', label: 'Transfer in' }] : []),
             ...(program.type === 'alliance' && (program.member_programs?.length ?? 0) > 0 ? [{ id: 'member-airlines', label: 'Member airlines' }] : []),
             ...(program.how_to_spend ? [{ id: 'how-to-spend', label: 'How to spend' }] : []),
-            ...(program.sweet_spots ? [{ id: 'sweet-spots', label: 'Sweet spots' }] : []),
+            ...(hasSweetSpots ? [{ id: 'sweet-spots', label: 'Sweet spots' }] : []),
             ...((program.tier_benefits?.length ?? 0) > 0 ? [{ id: 'tiers', label: 'Tiers' }] : []),
             ...((program.free_night_certs?.length ?? 0) > 0 && program.type !== 'alliance' ? [{ id: 'free-night-certs', label: 'Free nights' }] : []),
             ...(program.lounge_access ? [{ id: 'lounge-access', label: 'Lounges' }] : []),
@@ -510,7 +521,7 @@ export default async function ProgramPage({
 
         {/* Simple uniform-grid tile cards for reference sections.
             Each tile click expands inline (server-rendered <details>). */}
-        <SimpleTileGrid program={program} programNameBySlug={programNameBySlug} logoBySlug={logoBySlug} inboundRows={inboundRows} />
+        <SimpleTileGrid program={program} programNameBySlug={programNameBySlug} logoBySlug={logoBySlug} inboundRows={inboundRows} structuredSweetSpots={structuredSweetSpots} />
 
         {/* Per-property table — hotels only. */}
         {properties.length > 0 && (
@@ -583,7 +594,7 @@ export default async function ProgramPage({
         {/* Alerts heading — only show when content above exists, to mark transition */}
         <ProgramPerkChains chains={perkChainsForProgram(slug)} />
 
-        {(program.intro || inboundRows.length > 0 || (program.transfer_partners_outbound?.length ?? 0) > 0 || program.sweet_spots || program.quirks || properties.length > 0) && (
+        {(program.intro || inboundRows.length > 0 || (program.transfer_partners_outbound?.length ?? 0) > 0 || hasSweetSpots || program.quirks || properties.length > 0) && (
           <h2
             id="alerts"
             style={{

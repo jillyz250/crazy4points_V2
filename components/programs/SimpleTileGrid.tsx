@@ -1,6 +1,7 @@
 import { renderProseMarkdown } from '@/lib/blog/sanitize'
-import type { Program, TransferPartnerRow } from '@/utils/supabase/queries'
+import type { Program, TransferPartnerRow, StructuredSweetSpot } from '@/utils/supabase/queries'
 import SimpleTile from './SimpleTile'
+import SweetSpotsList from './SweetSpotsList'
 import TransferPartnersTable, { isPublishableTransferRow } from './TransferPartnersTable'
 import TierBenefitsTable from './TierBenefitsTable'
 import MemberProgramsTable from './MemberProgramsTable'
@@ -53,6 +54,7 @@ export default async function SimpleTileGrid({
   programNameBySlug,
   logoBySlug,
   inboundRows,
+  structuredSweetSpots = [],
 }: {
   program: Program
   programNameBySlug: Map<string, string>
@@ -61,6 +63,11 @@ export default async function SimpleTileGrid({
    *  (the source of truth). When provided, replaces the legacy
    *  program.transfer_partners column so the section can never drift. */
   inboundRows?: TransferPartnerRow[]
+  /** Active rows from the structured `sweet_spots` table. When any exist, the
+   *  Sweet spots tile renders THESE (source of truth) and the free-text
+   *  program.sweet_spots prose is ignored. When empty, the prose renders as the
+   *  migration-era fallback. The two never show together for one program. */
+  structuredSweetSpots?: StructuredSweetSpot[]
 }) {
   const isAlliance = program.type === 'alliance'
   const isHotel = program.type === 'hotel'
@@ -80,7 +87,11 @@ export default async function SimpleTileGrid({
   const hasPartners = inboundCount > 0 && !isAlliance
   const hasOutboundPartners = outboundCount > 0 && !isAlliance
   const hasMembers = isAlliance && (program.member_programs?.length ?? 0) > 0
-  const hasSweetSpots = !!program.sweet_spots?.trim()
+  // Structured table is the source of truth. When it has active rows, they win
+  // and the prose column is ignored; otherwise the prose is the fallback. Either
+  // way, the tile shows when there's something to show.
+  const hasStructuredSweetSpots = structuredSweetSpots.length > 0
+  const hasSweetSpots = hasStructuredSweetSpots || !!program.sweet_spots?.trim()
   const hasQuirks = !!program.quirks?.trim()
   const hasHowToSpend = !!program.how_to_spend?.trim() && !isAlliance
   const hasChanges = !!program.changes_policy?.trim() && !isAlliance
@@ -104,7 +115,12 @@ export default async function SimpleTileGrid({
 
   // Pre-parse markdown server-side
   const awardChartHtml = hasAwardChart ? await renderProseMarkdown(program.award_chart) : null
-  const sweetSpotsHtml = hasSweetSpots ? await renderProseMarkdown(program.sweet_spots) : null
+  // Prose is the FALLBACK only — parse it just when the structured table is empty
+  // for this program, so table and prose never render together.
+  const sweetSpotsHtml =
+    !hasStructuredSweetSpots && !!program.sweet_spots?.trim()
+      ? await renderProseMarkdown(program.sweet_spots)
+      : null
   const quirkGroups = hasQuirks
     ? await Promise.all(
         splitQuirkGroups(program.quirks!).map(async (g) => ({
@@ -148,15 +164,25 @@ export default async function SimpleTileGrid({
         </SimpleTile>
       )}
 
-      {sweetSpotsHtml && (
+      {(hasStructuredSweetSpots || sweetSpotsHtml) && (
         <SimpleTile
           id="sweet-spots"
           title="Sweet spots"
           description="Where your points punch above their weight."
           cta="Show me the picks"
-          preview="Where this currency genuinely shines."
+          preview={
+            hasStructuredSweetSpots
+              ? `${structuredSweetSpots.length} pick${structuredSweetSpots.length === 1 ? '' : 's'} where this currency genuinely shines.`
+              : 'Where this currency genuinely shines.'
+          }
         >
-          <div className="rg-prose" dangerouslySetInnerHTML={{ __html: sweetSpotsHtml }} />
+          {hasStructuredSweetSpots ? (
+            // Structured table wins — source of truth.
+            <SweetSpotsList spots={structuredSweetSpots} />
+          ) : (
+            // Migration-era fallback: free-text prose.
+            <div className="rg-prose" dangerouslySetInnerHTML={{ __html: sweetSpotsHtml! }} />
+          )}
         </SimpleTile>
       )}
 
