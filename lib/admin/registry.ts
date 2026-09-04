@@ -743,6 +743,18 @@ export const ADMIN_PAGES: AdminPage[] = [
     dashboardPriority: 45,
     abbr: 'Ep',
   },
+  {
+    id: 'vendors',
+    title: 'Vendors',
+    description: 'The vendor directory — contact, login, plan, pricing, and renewal for every tool we pay for.',
+    owner: 'erica-finance',
+    taskCategory: 'Finance',
+    path: '/admin/vendors',
+    status: 'active',
+    icon: '🏷️',
+    dashboardPriority: 44,
+    abbr: 'Vn',
+  },
 
   // ── Deprecated ghosts (kept reachable for old bookmarks; NOT in the nav) ──
   {
