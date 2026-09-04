@@ -109,7 +109,7 @@ export default async function AdminDashboard() {
     db.from('employees').select('id, slug, name, role_title, kind, emoji, image_url, status, responsibilities'),
     db.from('employee_logs').select('employee_id, type, created_at'),
     db.from('dashboard_notes').select('id, body, sent_to_takes, created_at, updated_at').order('created_at', { ascending: false }).limit(50),
-    db.from('jill_tasks').select('id, title, done, source, link, created_at, done_at').order('created_at', { ascending: false }).limit(100),
+    db.from('jill_tasks').select('id, title, done, source, link, due_date, created_at, done_at').order('created_at', { ascending: false }).limit(100),
     // Open P1s across the team — the small "everyone's on-fire items" glance.
     db.from('employee_tasks').select('id, employee_slug, title, status, priority').eq('priority', 'P1').neq('status', 'done').order('created_at', { ascending: true }),
     // Team-wide activity chain (mig 666) — what the team shipped, newest first.

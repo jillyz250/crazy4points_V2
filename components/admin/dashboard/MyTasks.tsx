@@ -24,6 +24,7 @@ export default function MyTasks({
   const [tasks, setTasks] = useState<JillTask[]>(initialTasks)
   const [, startTransition] = useTransition()
   const inputRef = useRef<HTMLInputElement>(null)
+  const dateRef = useRef<HTMLInputElement>(null)
 
   const open = tasks.filter((t) => !t.done)
   const done = tasks.filter((t) => t.done)
@@ -33,14 +34,16 @@ export default function MyTasks({
     if (!el) return
     const title = el.value.trim()
     if (!title) return
+    const due = dateRef.current?.value?.trim() || null
     el.value = ''
+    if (dateRef.current) dateRef.current.value = ''
     const temp: JillTask = {
       id: `temp-${Date.now()}`, title, done: false, source: 'manual', link: null,
-      created_at: new Date().toISOString(), done_at: null,
+      due_date: due, created_at: new Date().toISOString(), done_at: null,
     }
     setTasks((t) => [temp, ...t])
     startTransition(async () => {
-      const saved = await addTask(title)
+      const saved = await addTask(title, undefined, due ?? undefined)
       if (saved) setTasks((t) => t.map((x) => (x.id === temp.id ? saved : x)))
     })
   }
@@ -53,6 +56,13 @@ export default function MyTasks({
   const remove = (id: string) => {
     setTasks((t) => t.filter((x) => x.id !== id))
     if (!id.startsWith('temp-')) startTransition(() => { deleteTask(id) })
+  }
+
+  const fmtDue = (d: string | null) => {
+    if (!d) return null
+    const due = new Date(d + 'T00:00:00')
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    return { label: due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), overdue: due < today }
   }
 
   const row = (t: JillTask) => (
@@ -75,6 +85,10 @@ export default function MyTasks({
       ) : (
         <span className="mt-title" title={t.title}>{t.title}</span>
       )}
+      {(() => {
+        const d = fmtDue(t.due_date)
+        return d ? <span className={`mt-due${d.overdue && !t.done ? ' mt-due-over' : ''}`}>{d.label}</span> : null
+      })()}
       <button type="button" className="mt-del" onClick={() => remove(t.id)} title="Delete task" aria-label={`Delete: ${t.title}`}>
         <Icon name="trash" size={14} />
       </button>
@@ -85,17 +99,23 @@ export default function MyTasks({
     <div className="mt">
       <style dangerouslySetInnerHTML={{ __html: MT_CSS }} />
       <div className="mt-add">
-        <input
-          ref={inputRef}
-          className="mt-input"
-          type="text"
-          placeholder="Add a task and press Enter…"
-          maxLength={500}
-          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add() } }}
-        />
-        <button type="button" className="mt-add-btn" onMouseDown={(e) => { e.preventDefault(); add() }} title="Add task" aria-label="Add task">
-          <Icon name="plus" size={16} />
-        </button>
+        <div className="mt-add-main">
+          <input
+            ref={inputRef}
+            className="mt-input"
+            type="text"
+            placeholder="Add a task and press Enter…"
+            maxLength={500}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add() } }}
+          />
+          <button type="button" className="mt-add-btn" onMouseDown={(e) => { e.preventDefault(); add() }} title="Add task" aria-label="Add task">
+            <Icon name="plus" size={16} />
+          </button>
+        </div>
+        <label className="mt-add-due">
+          <span>Due date (optional)</span>
+          <input ref={dateRef} type="date" className="mt-date" aria-label="Due date (optional)" />
+        </label>
       </div>
 
       <div className="mt-list">
@@ -124,7 +144,14 @@ const MT_CSS = `
 .admin .mt { position:relative; }
 
 /* Add-a-task */
-.admin .mt-add { position:relative; margin-bottom:1rem; }
+.admin .mt-add { margin-bottom:1rem; }
+.admin .mt-add-main { position:relative; }
+.admin .mt-add-due { display:flex; align-items:center; gap:8px; margin-top:8px; font-size:var(--admin-text-xs); color:var(--admin-text-subtle); }
+.admin .mt-date { font:inherit; font-size:1rem; padding:6px 10px; border-radius:9px; color:var(--admin-text); background:#fff; border:1px solid var(--admin-border); }
+.admin .mt-date:focus { outline:none; border-color:var(--color-primary); box-shadow:0 0 0 3px var(--admin-accent-soft); }
+/* Due-date chip on a task */
+.admin .mt-due { flex-shrink:0; font-size:var(--admin-text-xs); font-weight:700; color:var(--admin-text-muted); background:color-mix(in srgb, var(--color-primary) 6%, #fff); border:1px solid var(--admin-border); padding:1px 8px; border-radius:9999px; font-variant-numeric:tabular-nums; }
+.admin .mt-due-over { color:var(--admin-danger); background:var(--admin-danger-soft, #fdeaea); border-color:color-mix(in srgb, var(--admin-danger) 30%, transparent); }
 .admin .mt-input {
   width:100%; font:inherit; font-size:1rem; line-height:1.5;
   padding:11px 44px 11px 14px; border-radius:12px; color:var(--admin-text);
