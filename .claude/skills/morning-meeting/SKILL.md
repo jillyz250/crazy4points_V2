@@ -39,6 +39,17 @@ volume; **Jill only touches the decisions.**
    summarizing how the block went + the watch-out — so it shows in their page's **"Reviews & notes"**
    section. This is how the performance log actually fills (it was empty because the retro only lived
    in chat). Save progress: `node scripts/ritual-progress.mjs --complete N`.
+   **⭐ ENDING BRIEF — the close gate before moving to the next head (Jill, 2026-09-04).** Do NOT
+   close a head until you say **"ready for <head>'s ending brief"** and VERIFY, against their actual
+   admin dash (not from memory): (1) **everything is recorded** — today's work is logged to their
+   activity chain and any decisions to the Decision Log; (2) **no open loops** — every item surfaced
+   in their block is either DONE or converted to an owned + dated + auto-escalating task (a real
+   backlog counts as an open loop: name it and give it a dated drain task, don't pretend it's clear);
+   (3) **ideas discussed** — each new idea got act/reject/hold; (4) **process is efficient** — the
+   retro was honest. Report the ending brief as a short checklist (✓/⚠ per item) so Jill sees the
+   head is genuinely closed, not just "we talked about it." The ending brief REGULARLY catches things
+   the block glossed over (2026-09-04: it caught a 24-item triage backlog behind Priya's fresh-6 and
+   that none of her day's work was logged) — that is exactly its job.
 4. **Empty blocks auto-skip** in one line ("🔒 Bill — all green ✅"). Thin heads
    (Charlie/Erica/Megan) appear only if they have something.
 5. **Jill drives:** next / skip / back / done. Never propose skipping a non-empty block.
@@ -154,6 +165,11 @@ welcome-bonus card moves (scraper + `signup_bonus` group) · **[16 — Wed only]
 improvement. Priya also = the **accuracy backstop** on the other heads' claims. (Note: the old
 `build-brief` auto-triage cron is PAUSED 2026-09-03 — revisit Oct 3 — so the triage queue no longer
 auto-drains; Priya triages it live here.)
+**⭐ SOURCES ARE A DAILY JOB (Jill, 2026-09-04):** Priya's block includes adding sources EVERY day,
+not a one-off — (a) the **official-source coverage drive**: enroll ~5 programs/day with a verified
+`reverify_source_url` / `official_sources` row (92% of programs had none as of 2026-09-04), and
+(b) clear **source-gaps** (programs in intel with no active Scout source; live-test Firecrawl->Haiku
+before adding). Report the running coverage number (X/154) so it visibly climbs.
 **⭐ VERIFY-FIRST for welcome-bonus + transfer-bonus (Jill, 2026-09-04):** for these two categories
 the NUMBER is the whole decision and they're almost always worth pursuing if real, so Priya
 multi-source-verifies the figure (official issuer page + ≥1 independent current source; issuer pages
@@ -162,9 +178,13 @@ that 403 → in-app browser) BEFORE presenting them, and shows Jill the CONFIRME
 verify only AFTER Jill says "pursue," to avoid wasted verification on rejects.
 
 ### Block 3 · ✍️ John — Content authored & fresh  *(after Priya: clean facts before content)*
-Brief: `employee-brief.mjs john-content`. Phases: **[4→ handoff]** draft + publish the alerts PRIYA
-approved in Block 2 (Artie/writers draft via `content_variants`; Jill approves EVERY draft; clean
-short_slug; then "add to social calendar?" via `add-social-triage.mjs`) · **[8]** refresh queue ·
+Brief: `employee-brief.mjs john-content`. Phases: **[4→ handoff]** publish the alerts PRIYA approved.
+**⭐ AUTO-DRAFT ON HANDOFF (Jill, 2026-09-04):** the moment Priya hands an item to John (in Block 2),
+John's team DRAFTS it immediately into `content_variants` at `status='needs_review'` — using Priya's
+verified facts + sources — so the finished draft is READY and waiting when Jill reaches John's block,
+not drafted from scratch in front of her. Auto-DRAFT only (needs_review); Jill still approves EVERY
+draft before it PUBLISHES (draft != publish). Clean `short_slug`; then "add to social calendar?" via
+`add-social-triage.mjs`. · **[8]** refresh queue ·
 **[11]** program-page changes / next airline (Paige) · **[12]** roadmap mining + reconcile · **[13]**
 write the day's article + guide (Artie/Gwen) · **[5b]** drain any legacy newsletter-parked item ·
 **[22 — ~2x/month, ON-DEMAND]** newsletter build (Nora) — NOT weekly/Thursday anymore (Jill 2026-09-03).
