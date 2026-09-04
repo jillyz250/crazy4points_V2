@@ -78,23 +78,30 @@ should always use:
      sheet" (all three side-by-side in one ~2172x724 file), which is low-res and unusable as-is
      (learned 2026-09-04). If it still hands back a combined strip, that's fine — see the workflow
      below; Morgan splits it — but ask for separates first so you keep full resolution.
-2. **Give Copilot the naming convention up front** so every output is named correctly, no renaming
-   after. Hand it the token pattern and it fills the descriptor per prompt:
-   - Social: `social-{YYYY-MM-DD}-{slug}-{ig|fb|sq}`
-   - Page art: `page-{card-or-program-slug}-{hero|section|art}`
+2. **⭐ THREE SIZES per concept (Jill, 2026-09-04 — Stories/TikTok coming).** For each concept ask
+   Copilot for the SAME concept in three framings, because a creative reframes badly when cropped
+   (a centered burst loses its effect) — purpose-built beats cropped:
+   - **`-sq`** square 1080x1080 — Instagram/Facebook feed (ChatGPT native 1024x1024)
+   - **`-wide`** landscape 1200x630 — link share cards (`og:image`) + alert-page heroes (ChatGPT native 1536x1024, Morgan finalizes to 1200x630)
+   - **`-story`** vertical 1080x1920 (9:16) — Stories / Reels / TikTok (ChatGPT native 1024x1536, "vertical 9:16 framing"; Morgan finalizes)
+   Skip a size only when a placement truly won't use it. Facebook feed uses the ONE brand card, not these.
+3. **Naming convention** (Morgan applies it after; hand Copilot the pattern too so ZIPs come close):
+   - Arsenal (reusable): `arsenal-{category}-{descriptor}-{sq|wide|story}.png`
+   - Dated social post: `social-{YYYY-MM-DD}-{slug}-{sq|wide|story}.png`
+   - Page art: `page-{card-or-program-slug}-{hero|section|art}.png`
    - (matches our folder convention — see the image-library task on Devon)
-3. **Ask for ONE bulk download** — "package them into a single ZIP." One click, everything together.
+4. **Ask for ONE bulk download** — "package them into a single ZIP." One click, everything together.
    (Copilot also offers PPTX or individual-but-together; ZIP is what we want.)
-4. **⭐ NAMING WORKFLOW (Jill, 2026-09-04): Jill just SAVES; Morgan names + extracts.** Jill saves
+5. **⭐ NAMING WORKFLOW (Jill, 2026-09-04): Jill just SAVES; Morgan names + extracts.** Jill saves
    whatever Copilot gives (a ZIP, individual files, or even a combined strip) into the right subfolder
    of Desktop `Crazy4Points Graphics/` (`social/`, `brand/`, `page-images/`) — she does NOT rename.
    Then Morgan **checks the folder, splits any combined sheet into individual squares (PIL/Python),
    and renames each to the convention.** She never fusses with filenames.
-5. **Back up (close the loop).** Morgan copies keepers into the repo (site assets →
+6. **Back up (close the loop).** Morgan copies keepers into the repo (site assets →
    `public/team|programs|cards`; social one-offs → `public/social-archive/`) so GitHub is a 2nd copy
    beside iCloud, and catalogs each in `campaign_creatives` (category + prompt + image_url) so
    `creative-for.mjs` can reuse + rotate it.
-6. **Always pair the prompt with its target filename** when handing prompts to Jill (so she knows what
+7. **Always pair the prompt with its target filename** when handing prompts to Jill (so she knows what
    each one is), even though Morgan does the actual renaming after.
 
 ## Rules baked in
