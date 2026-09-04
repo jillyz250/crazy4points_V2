@@ -25,7 +25,7 @@ owns the legal/disclosure sections and **Priya** owns the accuracy standards
 |---|---|---|---|
 | [card-bonus-increase](card-bonus-increase.md) | signup_bonus, card_credit | ✅ required | ✅ done |
 | [transfer-bonus](transfer-bonus.md) | transfer_bonus | ⛔ skip (unless card) | ✅ done |
-| devaluation | devaluation, earn_rate_change, category_change | ⛔ skip | ▫️ planned |
+| [devaluation](devaluation.md) | devaluation, earn_rate_change, category_change, fee_change | ⛔ skip | ✅ done |
 | award-sale / buy-points | award_sale, point_purchase | ⛔ skip | ▫️ planned |
 | partner-change | partner_change | ⛔ skip | ▫️ planned |
 | program / policy change | program_change, policy_change, status_change | ⛔ skip | ▫️ planned |
