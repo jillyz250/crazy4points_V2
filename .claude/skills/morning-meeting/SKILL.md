@@ -101,7 +101,14 @@ Each block: **the head gives their brief** (from `employee-brief.mjs <slug>` —
 "📚 field this week"), then walks their phases, logging proposals + surfacing judgment calls.
 Old phase numbers in [brackets] map to `daily-ritual` for the deep mechanics.
 
-**Two extra beats in every head's block:**
+**Three standing beats in every head's block:**
+- **Ideas decision (STANDING — present daily, Jill 2026-09-04).** Every block PRESENTS that
+  head's **new ideas** (`employee_ideas` where status='new', from `data.ideas` in the brief) and
+  Jill decides EACH one: **ACT** (`decideIdea(id,'approved')` — auto-creates an `employee_tasks`
+  row and closes the loop when done), **REJECT** (`decideIdea(id,'rejected')`), or **HOLD** (leave
+  status='new' — revisit another day). Show the idea + its area + a one-line Morgan take, act on her
+  word. If the head has no new ideas, say "no new ideas today" in one line (heads should float ≥1/day,
+  so this should be rare). This replaces "review when she has time" — ideas are now a daily decision.
 - **Field-learn decision (STANDING — ask at the END of EVERY head's block, Jill 2026-09-04).** Every
   block closes with the same one-line question: **"Field → ADD / ACT / IGNORE?"** If the brief has
   `field_this_week` items, the head reports the notable one(s) and Jill decides PER ITEM: **ADD**
@@ -185,9 +192,9 @@ Phases: **[24]** security posture (deep on Mondays) · **[25]** backup & recover
 - **Improvements are CONTINUOUS (Jill, 2026-09-03 — replaced the old rotated Mon/Wed/Fri phases):**
   EVERY head floats ≥1 fresh idea/day (cut costs / work better / try something new) into their
   **Ideas box** (`employee_ideas`), surfaced in their brief (`data.ideas` — see the employee-brief
-  skill). Jill reviews + actions them (approve → ship, via `/admin/org/[slug]`) WHEN SHE HAS TIME —
-  no scheduled improvement phase, no forced daily approval. The old phases [15]/[16]/[17] are now
-  just "here's my idea today" inside each head's block.
+  skill). **Jill decides each new idea DAILY during that head's block — ACT / REJECT / HOLD** (Jill,
+  2026-09-04; see the Ideas-decision beat above). The old phases [15]/[16]/[17] are now just "here's
+  my idea today" inside each head's block, with a same-day decision.
 - **Standing builds (User-Accounts, AI-visibility):** weekly progress, not daily.
 - **Analytics:** deep-dive 2-3×/week; daily = the Pulse trend.
 - **Field digests:** refresh weekly (Mondays) via `field-digest.mjs`.
