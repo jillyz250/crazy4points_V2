@@ -12,6 +12,7 @@ import AllClearArt from '@/components/admin/AllClearArt'
 import { activityStyle, type ActivityRow } from '@/lib/admin/activityStyle'
 import type { DashboardNote } from '@/app/admin/(protected)/notes-actions'
 import type { JillTask } from '@/app/admin/(protected)/tasks-actions'
+import { completeReminder } from '@/app/admin/(protected)/reminders-actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -102,7 +103,7 @@ export default async function AdminDashboard() {
   const nowIso = new Date().toISOString()
   const [
     { data: empData }, { data: logData }, { data: notesData }, { data: tasksData }, { data: p1Data },
-    { data: activityData },
+    { data: activityData }, { data: remindersData },
     alertsCount, programsCount, subsCount, subsTrend, newExperiences, newSweepstakes, pendingDecisions,
     triageCount, draftCount, errorCount, dataIntegrityCount,
   ] = await Promise.all([
@@ -114,6 +115,9 @@ export default async function AdminDashboard() {
     db.from('employee_tasks').select('id, employee_slug, title, status, priority').eq('priority', 'P1').neq('status', 'done').order('created_at', { ascending: true }),
     // Team-wide activity chain (mig 666) — what the team shipped, newest first.
     db.from('employee_activity').select('id, employee_slug, action, summary, ref_type, ref_id, link, created_at').order('created_at', { ascending: false }).limit(12),
+    // Jill's open reminders (dated one-offs) — the list distinct from My Tasks;
+    // soonest-due first so overdue/this-week float to the top of the panel.
+    db.from('reminders').select('id, title, due_date, link, status').neq('status', 'done').order('due_date', { ascending: true, nullsFirst: false }).limit(10),
     tableCount('alerts'),
     tableCount('programs'),
     tableCount('subscribers', true),
@@ -149,6 +153,9 @@ export default async function AdminDashboard() {
   const emps = (empData ?? []) as Emp[]
   const notes = (notesData ?? []) as DashboardNote[]
   const tasks = (tasksData ?? []) as JillTask[]
+  type ReminderRow = { id: string; title: string; due_date: string | null; link: string | null; status: string }
+  const reminders = (remindersData ?? []) as ReminderRow[]
+  const todayStr = nowIso.slice(0, 10)
   // Open P1s across the team, paired with each owner's name for the glance.
   const empName: Record<string, string> = {}
   const empEmoji: Record<string, string> = {}
@@ -322,12 +329,72 @@ export default async function AdminDashboard() {
           </div>
         )}
 
-        {/* ── Your desk — your two to-do surfaces side by side: My tasks (personal
-             checklist) + What needs me (decisions/approvals). One zone, not three. ── */}
+        {/* ── What needs me — decisions/approvals only (owner-only calls) ── */}
+        <section className="dh-section">
+          <div className="dh-sec-head">
+            <h2 className="dh-sec-title">What needs me</h2>
+            <span className="dh-sec-meta">{decisionQ.length} for you</span>
+          </div>
+          {/* Decision Log — proposals from the team awaiting a yes/no. */}
+          {(pendingDecisions ?? 0) > 0 ? (
+            <Link href="/admin/decisions" className="dh-decisions dh-decisions-hot">
+              <span className="dh-decisions-ic"><Icon name="bolt" size={18} /></span>
+              <span className="dh-decisions-body">
+                <span className="dh-decisions-title">Needs you today</span>
+                <span className="dh-decisions-sub">{pendingDecisions} decision{pendingDecisions === 1 ? '' : 's'} the team is waiting on you to approve</span>
+              </span>
+              <span className="dh-decisions-count">{pendingDecisions}</span>
+              <span className="dh-decisions-go"><Icon name="arrow" size={15} /></span>
+            </Link>
+          ) : (
+            <Link href="/admin/decisions" className="dh-decisions dh-decisions-clear">
+              <span className="dh-decisions-ic"><Icon name="check" size={16} /></span>
+              <span className="dh-decisions-body">
+                <span className="dh-decisions-title">No decisions waiting</span>
+                <span className="dh-decisions-sub">The team is caught up on approvals</span>
+              </span>
+              <span className="dh-decisions-go"><Icon name="arrow" size={15} /></span>
+            </Link>
+          )}
+          {/* Open P1s across the team — small glance, links to the owner's page. */}
+          {teamP1s.length > 0 && (
+            <div className="dh-p1s">
+              <span className="dh-p1s-tag"><span className="dh-p1s-chip">P1</span> Across the team</span>
+              <ul className="dh-p1s-list">
+                {teamP1s.map((t) => (
+                  <li key={t.id}>
+                    <Link href={`/admin/org/${t.employee_slug}`} className="dh-p1-row">
+                      <span className="dh-p1-owner">{t.owner.split(' ')[0]}</span>
+                      <span className="dh-p1-title">{t.title}</span>
+                      {t.status === 'blocked' && <span className="dh-p1-blocked">Blocked</span>}
+                      <span className="dh-p1-go"><Icon name="arrow" size={13} /></span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <div className="dh-card dh-queue">
+            <div className="dh-queue-lane">Needs your decision</div>
+            {decisionQ.length > 0
+              ? decisionQ.map((q) => queueRow(q))
+              : <div className="dh-queue-clear"><Icon name="check" size={15} /> Nothing needs your decision right now.</div>}
+            {teamQ.length > 0 && (
+              <details className="dh-more">
+                <summary><span>Team queues ({teamQ.length})</span><Icon name="arrow" size={14} className="dh-more-chev" /></summary>
+                <div>{teamQ.map((q) => queueRow(q, true))}</div>
+              </details>
+            )}
+          </div>
+        </section>
+
+        {/* ── Your desk — your two personal to-do lists, side by side:
+             My tasks (checklist) + Reminders (dated one-offs). Kept as two,
+             not merged (Jill, 2026-09-04). ── */}
         <section className="dh-section">
           <div className="dh-sec-head">
             <h2 className="dh-sec-title">Your desk</h2>
-            <span className="dh-sec-meta">{tasks.filter((t) => !t.done).length + decisionQ.length} to do</span>
+            <span className="dh-sec-meta">{tasks.filter((t) => !t.done).length + reminders.length} to do</span>
           </div>
           <div className="dh-cols">
             <div>
@@ -337,60 +404,33 @@ export default async function AdminDashboard() {
               </div>
             </div>
             <div>
-            <div className="dh-desk-label">What needs me <span className="dh-desk-num">{decisionQ.length} for you</span></div>
-            {/* Decision Log — proposals from the team awaiting a yes/no. */}
-            {(pendingDecisions ?? 0) > 0 ? (
-              <Link href="/admin/decisions" className="dh-decisions dh-decisions-hot">
-                <span className="dh-decisions-ic"><Icon name="bolt" size={18} /></span>
-                <span className="dh-decisions-body">
-                  <span className="dh-decisions-title">Needs you today</span>
-                  <span className="dh-decisions-sub">{pendingDecisions} decision{pendingDecisions === 1 ? '' : 's'} the team is waiting on you to approve</span>
-                </span>
-                <span className="dh-decisions-count">{pendingDecisions}</span>
-                <span className="dh-decisions-go"><Icon name="arrow" size={15} /></span>
-              </Link>
-            ) : (
-              <Link href="/admin/decisions" className="dh-decisions dh-decisions-clear">
-                <span className="dh-decisions-ic"><Icon name="check" size={16} /></span>
-                <span className="dh-decisions-body">
-                  <span className="dh-decisions-title">No decisions waiting</span>
-                  <span className="dh-decisions-sub">The team is caught up on approvals</span>
-                </span>
-                <span className="dh-decisions-go"><Icon name="arrow" size={15} /></span>
-              </Link>
-            )}
-            {/* Open P1s across the team — small glance, links to the owner's page. */}
-            {teamP1s.length > 0 && (
-              <div className="dh-p1s">
-                <span className="dh-p1s-tag"><span className="dh-p1s-chip">P1</span> Across the team</span>
-                <ul className="dh-p1s-list">
-                  {teamP1s.map((t) => (
-                    <li key={t.id}>
-                      <Link href={`/admin/org/${t.employee_slug}`} className="dh-p1-row">
-                        <span className="dh-p1-owner">{t.owner.split(' ')[0]}</span>
-                        <span className="dh-p1-title">{t.title}</span>
-                        {t.status === 'blocked' && <span className="dh-p1-blocked">Blocked</span>}
-                        <span className="dh-p1-go"><Icon name="arrow" size={13} /></span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
+              <div className="dh-desk-label">Reminders <span className="dh-desk-num">{reminders.length} soonest</span></div>
+              <div className="dh-card dh-rem">
+                {reminders.length === 0 ? (
+                  <div className="dh-rem-empty"><Icon name="check" size={15} /> No open reminders.</div>
+                ) : reminders.map((r) => {
+                  const overdue = !!r.due_date && r.due_date < todayStr
+                  const dueLabel = r.due_date
+                    ? new Date(r.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                    : null
+                  return (
+                    <div key={r.id} className="dh-rem-row">
+                      <form action={completeReminder} className="dh-rem-check-form">
+                        <input type="hidden" name="id" value={r.id} />
+                        <button type="submit" className="dh-rem-check" title="Mark done" aria-label={`Mark done: ${r.title}`}>
+                          <span className="dh-rem-box" />
+                        </button>
+                      </form>
+                      {r.link ? (
+                        <a href={r.link} className="dh-rem-title" title={r.title}>{r.title}</a>
+                      ) : (
+                        <span className="dh-rem-title" title={r.title}>{r.title}</span>
+                      )}
+                      {dueLabel && <span className={`dh-rem-due${overdue ? ' dh-rem-over' : ''}`}>{dueLabel}</span>}
+                    </div>
+                  )
+                })}
               </div>
-            )}
-            <div className="dh-card dh-queue">
-              {/* Needs your decision — owner-only calls (approve/publish/send). */}
-              <div className="dh-queue-lane">Needs your decision</div>
-              {decisionQ.length > 0
-                ? decisionQ.map((q) => queueRow(q))
-                : <div className="dh-queue-clear"><Icon name="check" size={15} /> Nothing needs your decision right now.</div>}
-              {/* Team queues — delegable work the heads run down; informational. */}
-              {teamQ.length > 0 && (
-                <details className="dh-more">
-                  <summary><span>Team queues ({teamQ.length})</span><Icon name="arrow" size={14} className="dh-more-chev" /></summary>
-                  <div>{teamQ.map((q) => queueRow(q, true))}</div>
-                </details>
-              )}
-            </div>
             </div>
           </div>
         </section>
@@ -615,6 +655,21 @@ const DH_CSS = `
 
 /* My Tasks host */
 .admin .dh-mytasks { padding:1.25rem 1.4rem; }
+
+/* Reminders panel — Jill's dated one-offs, beside My Tasks */
+.admin .dh-rem { padding:.9rem 1rem; display:flex; flex-direction:column; gap:.35rem; }
+.admin .dh-rem-empty { display:flex; align-items:center; gap:8px; padding:16px 4px; color:var(--admin-text-subtle); font-size:var(--admin-text-sm); }
+.admin .dh-rem-empty svg { color:var(--admin-success); }
+.admin .dh-rem-row { display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:10px; border:1px solid var(--admin-border); background:var(--admin-surface); }
+.admin .dh-rem-row:hover { border-color:color-mix(in srgb, var(--color-primary) 25%, var(--admin-border)); }
+.admin .dh-rem-check-form { display:flex; flex-shrink:0; }
+.admin .dh-rem-check { display:flex; align-items:center; justify-content:center; width:24px; height:24px; padding:0; border:none; background:transparent; cursor:pointer; }
+.admin .dh-rem-box { width:18px; height:18px; border-radius:6px; border:2px solid color-mix(in srgb, var(--color-primary) 35%, var(--admin-border)); transition:border-color .14s ease, background .14s ease; }
+.admin .dh-rem-check:hover .dh-rem-box { border-color:var(--color-primary); background:var(--admin-accent-soft); }
+.admin .dh-rem-title { flex:1; min-width:0; font-size:var(--admin-text-sm); color:var(--admin-text); text-decoration:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.admin a.dh-rem-title:hover { color:var(--color-primary); text-decoration:underline; }
+.admin .dh-rem-due { flex-shrink:0; font-size:var(--admin-text-xs); font-weight:700; color:var(--admin-text-muted); background:color-mix(in srgb, var(--color-primary) 6%, #fff); border:1px solid var(--admin-border); padding:1px 8px; border-radius:9999px; font-variant-numeric:tabular-nums; }
+.admin .dh-rem-over { color:var(--admin-danger); background:var(--admin-danger-soft, #fdeaea); border-color:color-mix(in srgb, var(--admin-danger) 30%, transparent); }
 
 /* Team */
 .admin .dh-team { display:flex; flex-wrap:wrap; gap:1.6rem 1.4rem; justify-content:flex-start; padding:2rem 1.8rem; }
