@@ -595,6 +595,23 @@ export async function publishAlertVariant(
   if (shortSlug) newMeta.short_slug = shortSlug
   if (opts?.approved_at) newMeta.approved_at = opts.approved_at
 
+  // ── CLOSED-LOOP GUARD (Jill, 2026-09-04) ──────────────────────────────────
+  // Every published alert must either EXPIRE (topic.end_date) or be on a
+  // RECHECK clock (last_verified → refresh queue) — never neither, or it can
+  // advertise dead/drifted info forever (the "12 orphan alerts" gap). If this
+  // alert has no end_date, stamp last_verified=now so it enters the recheck
+  // cadence from day one. Mirrors to alerts.last_verified via the variants
+  // trigger; never overwrites an existing stamp. See CLAUDE.md "Closed-loop
+  // principle".
+  const { data: topicEnd } = await supabase
+    .from('topics')
+    .select('end_date')
+    .eq('id', refs.topic_id)
+    .single()
+  if (!topicEnd?.end_date && !currentMeta.last_verified) {
+    newMeta.last_verified = now
+  }
+
   // Topic to active (if archived from a prior rejection)
   await supabase
     .from('topics')
