@@ -27,7 +27,7 @@ owns the legal/disclosure sections and **Priya** owns the accuracy standards
 | [transfer-bonus](transfer-bonus.md) | transfer_bonus | ⛔ skip (unless card) | ✅ done |
 | [devaluation](devaluation.md) | devaluation, earn_rate_change, category_change, fee_change | ⛔ skip | ✅ done |
 | award-sale / buy-points | award_sale, point_purchase | ⛔ skip | ▫️ planned |
-| partner-change | partner_change | ⛔ skip | ▫️ planned |
+| [partner-change](partner-change.md) | partner_change, new_partner, ended_partner | ⛔ skip (page-affecting) | ✅ done |
 | program / policy change | program_change, policy_change, status_change | ⛔ skip | ▫️ planned |
 | status promo | status_promo | ⛔ skip | ▫️ planned |
 | sweepstakes / giveaway | (sweepstakes) | ✅ required | ▫️ planned |
