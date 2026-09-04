@@ -19,6 +19,7 @@ import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createAdminClient } from '@/utils/supabase/server'
 import { createSnapshot } from '@/utils/backups/createSnapshot'
+import { logEmployeeActivity } from '@/utils/org/logEmployeeActivity'
 import { assertCron } from '@/lib/auth/cron'
 
 /**
@@ -87,7 +88,18 @@ async function handle(request: Request) {
   if (isFriday || forceEmail) {
     offsite = await emailOffsiteCopy(result.gzBuffer, result.sizeBytes, result.rowCounts)
     if (!offsite.emailed) console.error('[nightly-snapshot] off-site email failed:', offsite.reason)
-    else console.log('[nightly-snapshot] off-site copy emailed')
+    else {
+      console.log('[nightly-snapshot] off-site copy emailed')
+      // Self-populate Bill's activity chain (weekly, not spammy) so his page
+      // reflects real security/ops work instead of looking idle.
+      await logEmployeeActivity(supabase, {
+        employee_slug: 'bill-security',
+        action: 'shipped',
+        summary: `Off-site DB backup delivered (${(result.sizeBytes / 1024).toFixed(0)} KB, ${result.rowCounts.subscribers ?? '?'} subscribers) — the weekly off-provider copy.`,
+        ref_type: 'other',
+        link: '/admin/backups',
+      })
+    }
   }
 
   return NextResponse.json({
