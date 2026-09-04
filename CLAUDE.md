@@ -11,6 +11,13 @@
 - **Build reusable rails over one-off fixes.** Prefer a vetted helper/field/section that generalizes (and a memory note) over a throwaway script that solves today only.
 - **Leave a trail.** Verify your work (typecheck, real render/DB checks), and record durable lessons so the improvement compounds across sessions.
 
+## ⭐ Closed-loop principle (nothing is ever orphaned)
+**Everything the system creates must be a CLOSED LOOP** (Jill, 2026-09-04): entry → an **owner** → stays **visible** until closed → a **terminal state**, with **aging/escalation OR a re-check date** so it can never rot silently. Before shipping ANY feature that creates or stores a "thing" (alert, program/card page, task, reminder, signal, idea, record), ask: *how does this get closed, and what happens if no one ever touches it?* If the answer is "it sits forever," that's a broken loop — add an expiry, a recheck date, or an escalation.
+- **The alert rule (the canonical example):** a published alert must have an `end_date` (auto-expires) **OR** a re-check date / `last_verified` cadence (refresh queue) — **never neither**, or it can advertise dead/drifted info forever.
+- **In place:** reminders/tasks escalate the moment a due date passes (`lib/orgAging.ts`); intel auto-clears + ages; ideas go new→approved→shipped; change-signals/drift/vendor-radar resolve + age; backups verify weekly (Remy); errors escalate at 2d.
+- **Known gaps being closed:** 12 published alerts had no expiry + stale verification (found 2026-09-04); programs need a `reverify_source_url` (Priya's coverage drive, 17/154 and climbing).
+- When you find an orphan, close its loop (owner + date/expiry/escalation) AND fix the mechanism so the next one can't be orphaned either. See memory `feedback_never_an_open_loop`.
+
 ## Stack
 - Next.js 16 (App Router), React 19, TypeScript
 - Tailwind CSS v4 (no config file — tokens defined in `styles/globals.css` via `@theme inline`)
