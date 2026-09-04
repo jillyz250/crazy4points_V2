@@ -41,6 +41,9 @@ owns the legal/disclosure sections and **Priya** owns the accuracy standards
 Build order follows volume + value: transfer-bonus done next after cards; then the
 big buckets (limited_time_offer 19, program_change 15, partner_change 12).
 
+## Creative prompts
+Copilot image prompts for each type live in `creative-prompts.md` (swap the placeholders per deal; check `creative-for.mjs` and reuse first).
+
 ## Related
 `plans/two-eyes-policy.md` (legal gate), `reference_program_faq_house_style`,
 `reference_sweet_spots_system`, memory `reference_card_bonus_template_and_legal_gate`,
