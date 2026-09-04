@@ -53,6 +53,10 @@
       "schedule": "0 7 * * *"
     },
     {
+      "path": "/api/cron/backup-reminder",
+      "schedule": "0 13 * * 5"
+    },
+    {
       "path": "/api/cron/reminders-sweep",
       "schedule": "30 9 * * *"
     },

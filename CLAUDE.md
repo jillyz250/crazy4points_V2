@@ -96,6 +96,9 @@ Always use these classes for layout and buttons — do not invent new patterns.
 - New components go in `components/` organized by section
 - Do not add `output: 'export'` to `next.config.ts` — Vercel handles server rendering
 
+## Security rules (Bill, Head of Security)
+- **Never run an AI coding agent against an untrusted clone.** A repo's `.git/config` is effectively executable — a malicious `git config` (e.g. a poisoned `core.fsmonitor` / alias / hook) can make Claude, Cursor, Codex, etc. run attacker code when the agent touches the repo. Only run agents on repos you control; treat any third-party clone's `.git/config` and hooks as suspect before working in it. (Added 2026-09-04 from a live advisory; this codebase runs AI agents daily, so it's our direct exposure.)
+
 ## Mobile contract (every new page must pass)
 The site must look right at **375px** (iPhone SE — the floor we design for).
 Before opening a PR for any new page or layout change, verify:

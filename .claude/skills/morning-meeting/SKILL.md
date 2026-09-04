@@ -102,10 +102,14 @@ Each block: **the head gives their brief** (from `employee-brief.mjs <slug>` —
 Old phase numbers in [brackets] map to `daily-ritual` for the deep mechanics.
 
 **Two extra beats in every head's block:**
-- **Field-learn decision.** If the brief has `field_this_week` items, the head reports the notable
-  one(s) and Jill decides PER ITEM: **ADD** (permanently useful → save to the head's knowledge / a
-  rule), **ACT** (worth doing → create an `employee_tasks` row or a decision), or **IGNORE**. Record
-  an ADD/ACT so it's not lost. (Trade press is awareness only — NEVER a citable source for a published fact.)
+- **Field-learn decision (STANDING — ask at the END of EVERY head's block, Jill 2026-09-04).** Every
+  block closes with the same one-line question: **"Field → ADD / ACT / IGNORE?"** If the brief has
+  `field_this_week` items, the head reports the notable one(s) and Jill decides PER ITEM: **ADD**
+  (permanently useful → save to the head's knowledge / a rule / `CLAUDE.md` or the project), **ACT**
+  (worth doing → create an `employee_tasks` row or a decision), or **IGNORE**. Record an ADD/ACT so
+  it's not lost (a durable rule → the right md/project file; a task → `employee_tasks`). If there are
+  no field items that week, still say the one line ("Field → nothing new this week") so the habit
+  never lapses. (Trade press is awareness only — NEVER a citable source for a published fact.)
 - **Daily lore (choose-your-own-adventure).** Unless Jill opened with "good morning, no lore today":
   narrate ONE beat of that character's story — what happened to them in the office yesterday. Tone =
   PG-17, spicy but tasteful; a REAL office (love, breakups, marriage, kids, sports, gossip, happy + sad;

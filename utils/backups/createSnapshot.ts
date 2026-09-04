@@ -58,6 +58,9 @@ export type SnapshotResult =
       sizeBytes: number
       rowCounts: Record<string, number>
       durationMs: number
+      /** The gzipped snapshot bytes, so callers can also ship an OFF-provider
+       *  copy (e.g. email it) without a second storage round-trip. */
+      gzBuffer: Buffer
     }
   | { ok: false; error: string }
 
@@ -193,5 +196,6 @@ export async function createSnapshot({
     sizeBytes: gz.length,
     rowCounts,
     durationMs: Date.now() - start,
+    gzBuffer: gz,
   }
 }
