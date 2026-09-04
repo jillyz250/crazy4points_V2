@@ -1,10 +1,40 @@
-# Alert Creative Prompts (Copilot) — the image arsenal
+# Alert Creative Prompts — the image arsenal
+
+## ⭐⭐ THE DIVISION OF LABOR (Jill, 2026-09-04 — "this is gold")
+**Prompts come from CLAUDE. Image generation happens in CHATGPT. Processing comes back to CLAUDE.**
+This is the proven workflow — whoever owns images (Kesha = social, Devon = page art) follows it every time:
+1. **Claude/Morgan writes the prompt** — brand-accurate, correctly sized, with the exact target filename. (Claude does NOT generate images; it writes the prompts.)
+2. **The owner (or Jill) runs it in ChatGPT** to generate. (ChatGPT is the generator — better output than the alternatives; generate one-at-a-time or as triptychs.)
+3. **Claude does the post-work** — split/rename to convention, background cutout (rembg), composite, catalog in `campaign_creatives`, back up to the repo.
+Never ask ChatGPT to render TEXT-heavy logos/wordmarks (it garbles letters) — Claude builds those from the real logo file.
+
 
 Jill runs these in Copilot to build an **arsenal** of images; we tag what each can be
 used for and **rotate** them across alerts (never repeat the same look back-to-back).
 **3 starter variants per category below.** Owner of the arsenal: **Kesha** (with Reese/
 Devon) — a running task keeps it growing. Always `node scripts/creative-for.mjs` and
 reuse before generating.
+
+## ⭐⭐ THE MASCOT MASTER (Jill, 2026-09-04) — how to make new outfits/poses of the girl
+Our brand mascot is a consistent character (brown hair, brand-purple dress, polished 3D style) —
+she must look like the SAME girl every time. The master reference lives at
+**`Crazy4Points Graphics/mascot/crazy4points-mascot-MASTER.png`** (transparent hero cutout).
+To make ANY new version (seasonal, outfit swap, new pose), **UPLOAD the MASTER to ChatGPT** with a
+prompt like:
+
+> Use this image as my Crazy4Points master mascot. Keep her face, hair, body proportions and 3D
+> illustration style consistent. Create a [OCCASION] version of her — [outfit + pose details]. Keep
+> her sophisticated and stylish, not costume-like. Transparent background.
+
+Example (July 4th): *"…Create a Fourth of July version of her. Give her a chic red, white and blue
+summer outfit and a fun celebratory pose. Keep her sophisticated and stylish, not costume-like.
+Transparent background."*
+
+Then Claude does the post-work: **rembg cutout to remove any halo/background**, crop, name
+`mascot-<descriptor>.png`, catalog + back up. The MASTER is what guarantees she stays on-model —
+never generate the mascot from a text description alone (she'll drift); always seed from the MASTER.
+Established pose library: hero, presenting, thinking, surprised, celebrate, sad, secret, cheer,
+flight-attendant. Flight-attendant = the AVATAR persona; main mascot = the dress look. Both brown-haired.
 
 ## Shared style base (prepend to EVERY prompt)
 > Create a 1080x1080 social graphic. Premium, clean, lots of whitespace. Headline in an

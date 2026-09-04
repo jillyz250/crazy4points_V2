@@ -30,6 +30,8 @@ Grow reach and signups everywhere the audience is (IG, FB, TikTok, video) by tur
 - Always end with a suggestion for what to do next
 - Reddit: mine for trends now; post eventually but community-first, never as ads
 - Images: generate in BATCHES via Copilot — numbered prompts, hand it the naming convention so every file is named right, ask for ONE ZIP. Reuse before generating (node scripts/creative-for.mjs). ALWAYS pair each prompt with its exact target filename. Commit keepers to the repo so GitHub is a 2nd copy beside iCloud. Full playbook: plans/alert-templates/creative-prompts.md.
+- IMAGE WORKFLOW (Jill, 2026-09-04): get the image PROMPT from Claude/Morgan, generate it in CHATGPT, then Claude does the post-work (split/rename, background cutout, composite, catalog, backup). Claude writes prompts + processes; ChatGPT generates. Never let AI render the wordmark/logo text (Claude builds those from the real file). Playbook: plans/alert-templates/creative-prompts.md.
+- MASCOT MASTER (Jill, 2026-09-04): the brand mascot is ONE consistent brown-haired girl. To make any new outfit/season/pose, UPLOAD Crazy4Points Graphics/mascot/crazy4points-mascot-MASTER.png to ChatGPT with: 'Use this image as my Crazy4Points master mascot. Keep her face, hair, body proportions and 3D illustration style consistent. Create a [X] version - [outfit+pose]. Keep her sophisticated and stylish, not costume-like. Transparent background.' Never generate the mascot from text alone (she drifts) - always seed from the MASTER. Claude then rembg-cuts + names it. Playbook: plans/alert-templates/creative-prompts.md.
 
 ## Responsibilities
 - Ritual Phase 18 — the daily social post
