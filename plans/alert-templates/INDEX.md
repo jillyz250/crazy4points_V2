@@ -12,8 +12,11 @@ owns the legal/disclosure sections and **Priya** owns the accuracy standards
   slot where needed.
 - Global rules apply to every template: no em/en dashes; no foreign-currency valuations;
   no derived point math; every figure multi-source verified (Priya) before the draft
-  reaches Jill; and the ⭐ **sweet spot is always a SPECIFIC verified redemption**, never
-  generic filler.
+  reaches Jill; the ⭐ **sweet spot is always a SPECIFIC verified redemption**, never
+  generic filler; and the ⭐ **SUPERLATIVE GUARD** — use observational phrasing ("the
+  biggest we've seen/tracked"), **never an absolute "record / highest ever / never been
+  this high" unless confirmed on the issuer's own page** (a blog calling it a record is
+  not proof). An unprovable superlative is a false claim.
 - **Legal tier** per template says whether it must pass Charlie before publish (see
   `plans/two-eyes-policy.md` Rule 4): card content, sweepstakes, and anything with an
   affiliate link / disclosure / advice-claim = REQUIRED; everyday points news = skip.

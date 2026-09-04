@@ -22,8 +22,17 @@ an increase; 75k was the elevation that ended.)
    cents-per-point or dollar math (house rule).
 4. **Best-ever, or worth the wait?** — anchor on three numbers: the **verified standard
    (baseline)**, **this offer**, and the **recent peak**. Give an honest jump-now-or-hold
-   read. Never predict a specific future offer as likely ("it'll come back") — that is
-   unsubstantiated (FTC). Hedge: "past promotions are no promise it returns."
+   read.
+   - ⭐ **SUPERLATIVE GUARD (Jill, 2026-09-04):** use **observational** phrasing —
+     "the biggest we've seen / the biggest we've tracked on this card." **NEVER an
+     absolute "record / highest ever / never been this high"** unless it's confirmed on
+     the **issuer's own page** (blogs calling it a record is NOT proof, and we can't see
+     every historical offer). An unprovable superlative is a false claim (FTC) and Charlie
+     will bounce it.
+   - Never predict a specific future offer as likely ("it'll come back") — unsubstantiated.
+     Use the clear hedge: **"There's no telling how long it lasts or whether it comes back,
+     so if you can use it, there's little reason to wait."** (NOT the clunky "past offers
+     are no promise it returns.")
 5. **The catch** — the real fine print: unguaranteed/tiered spend, annual fee,
    eligibility (e.g. 5/24), targeted vs public.
 6. **Bottom line** — the call + who it's for.
