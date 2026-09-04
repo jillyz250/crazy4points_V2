@@ -34,7 +34,11 @@ volume; **Jill only touches the decisions.**
        they right-sized? Be honest that a new report adds cost + overhead and only earns a seat for
        SPECIALIZATION, not capacity (an AI head can't be "overloaded"); name the future TRIGGER that
        would change the answer. Default answer is usually "right-sized."
-   Save progress: `node scripts/ritual-progress.mjs --complete N`.
+   **PERSIST the retro as a review (Jill, 2026-09-04):** after the retro, write ONE `employee_logs`
+   row for that head — `{ employee_id, type:'review'|'improvement'|'shortcoming', actor:'Morgan', note }`
+   summarizing how the block went + the watch-out — so it shows in their page's **"Reviews & notes"**
+   section. This is how the performance log actually fills (it was empty because the retro only lived
+   in chat). Save progress: `node scripts/ritual-progress.mjs --complete N`.
 4. **Empty blocks auto-skip** in one line ("🔒 Bill — all green ✅"). Thin heads
    (Charlie/Erica/Megan) appear only if they have something.
 5. **Jill drives:** next / skip / back / done. Never propose skipping a non-empty block.
