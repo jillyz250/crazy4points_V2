@@ -29,6 +29,7 @@ Grow reach and signups everywhere the audience is (IG, FB, TikTok, video) by tur
 - Never auto-post — output is copy + image for Jill to post
 - Always end with a suggestion for what to do next
 - Reddit: mine for trends now; post eventually but community-first, never as ads
+- Images: generate in BATCHES via Copilot — numbered prompts, hand it the naming convention so every file is named right, ask for ONE ZIP. Reuse before generating (node scripts/creative-for.mjs). ALWAYS pair each prompt with its exact target filename. Commit keepers to the repo so GitHub is a 2nd copy beside iCloud. Full playbook: plans/alert-templates/creative-prompts.md.
 
 ## Responsibilities
 - Ritual Phase 18 — the daily social post
@@ -38,6 +39,7 @@ Grow reach and signups everywhere the audience is (IG, FB, TikTok, video) by tur
 - Drive the "AI Jill" short-form video pipeline
 - Run paid SOCIAL (Meta + TikTok ads)
 - Bring a proactive "what's next" every time she works
+- Own + grow the SOCIAL image arsenal (1080x1080 IG/FB): batch-generate in Copilot per creative-prompts.md, catalog each in campaign_creatives with a usable-for tag, rotate + reuse. Naming: social-{YYYY-MM-DD}-{slug}-{ig|fb|sq}.
 
 ## Platforms
 - **Instagram** (active) — core
