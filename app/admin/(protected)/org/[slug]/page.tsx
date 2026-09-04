@@ -386,7 +386,7 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
         {activity.length > 0 && (
           <section className="ep-section">
             <div className="ep-sec-head">
-              <h2 className="ep-sec-title">Activity</h2>
+              <h2 className="ep-sec-title">Recent work</h2>
               <span className="ep-sec-meta">{activity.length} item{activity.length === 1 ? '' : 's'}</span>
             </div>
             <div className="ep-card ep-act">
@@ -657,7 +657,7 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
         {/* ── Recent tasks + Charter (two columns) ── */}
         <div className="ep-cols">
           <section className="ep-section" style={{ margin: 0 }}>
-            <div className="ep-sec-head"><h2 className="ep-sec-title">Recent work</h2></div>
+            <div className="ep-sec-head"><h2 className="ep-sec-title">Reviews &amp; notes</h2></div>
             <div className="ep-card ep-log">
               {logs.length === 0 ? (
                 <p className="ep-empty"><Icon name="clock" size={16} /> No entries yet.</p>
