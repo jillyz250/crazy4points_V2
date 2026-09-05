@@ -5,6 +5,10 @@
       "schedule": "0 11 * * 1"
     },
     {
+      "path": "/api/cron/baseline-guard",
+      "schedule": "30 11 * * 1"
+    },
+    {
       "path": "/api/cron/content-ideas-autoclear",
       "schedule": "52 9 * * *"
     },
