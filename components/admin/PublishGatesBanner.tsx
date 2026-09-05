@@ -79,6 +79,32 @@ export default function PublishGatesBanner({ gates }: Props) {
           ? 'Bypassed with a logged reason'
           : 'Voice check hasn\'t been run yet — run it before publishing to make sure the draft sounds on-brand. The gate auto-passes when never run (legacy compat for pre-Phase 1 alerts).',
     },
+    {
+      key: 'source',
+      label: 'Source',
+      status: gates.source,
+      hint:
+        gates.source === 'pass'
+          ? 'Official issuer/program source (or verified T&Cs) attached'
+          : gates.source === 'fail'
+          ? 'State-claim alert needs an official source, not just a blog'
+          : gates.source === 'overridden'
+          ? 'Bypassed with a logged reason'
+          : 'Only required for alerts asserting a program state (partner/redemption/rate change).',
+    },
+    {
+      key: 'legal',
+      label: 'Legal',
+      status: gates.legal,
+      hint:
+        gates.legal === 'pass'
+          ? 'Legal disclosure attached (not affiliated / not advice)'
+          : gates.legal === 'fail'
+          ? 'Financial or offer alert needs a legal disclosure — route to Charlie'
+          : gates.legal === 'overridden'
+          ? 'Bypassed with a logged reason'
+          : 'Only required for financial-product alerts (bank/card/deposit bonuses, point purchase) or alerts with an outbound offer link.',
+    },
   ]
 
   return (

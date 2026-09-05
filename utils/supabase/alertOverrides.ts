@@ -7,7 +7,7 @@
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
 
-export type OverrideGate = 'tnc' | 'factcheck' | 'voice' | 'source'
+export type OverrideGate = 'tnc' | 'factcheck' | 'voice' | 'source' | 'legal'
 
 export interface AlertOverrideRow {
   id: string

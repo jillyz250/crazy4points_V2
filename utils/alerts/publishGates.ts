@@ -18,6 +18,7 @@ import type { Alert, AlertType } from '@/utils/supabase/queries'
 import { isSupported } from '@/utils/ai/claimStatus'
 import type { VerifyClaim } from '@/utils/ai/verifyAlertDraft'
 import { summaryContainsScrapeNoise } from '@/utils/intel/sanitizeSummary'
+import { needsFinancialDisclosure } from '@/lib/alerts/legalDisclosure'
 
 export type GateStatus = 'pass' | 'fail' | 'overridden' | 'not-applicable'
 
@@ -26,6 +27,13 @@ export interface GateReport {
   factcheck: GateStatus
   voice: GateStatus
   source: GateStatus
+  /**
+   * Legal-disclosure gate. Financial-product alerts (bank/card/deposit
+   * bonuses, point_purchase) and any alert with an outbound offer_url must
+   * carry a not-affiliated / not-advice disclosure (Charlie's gate). 'pass'
+   * when a disclosure will render, 'not-applicable' for non-financial alerts.
+   */
+  legal: GateStatus
   /** True if every gate is pass / overridden / not-applicable. */
   canPublish: boolean
   /** Human-readable reasons for any failing gate (for UI surface). */
@@ -225,12 +233,63 @@ export async function checkAlertGates(
     )
   }
 
+  // 5) Legal-disclosure gate (Charlie, 2026-09-05). Financial-product alerts
+  //    and any alert with an outbound offer_url MUST carry a not-affiliated /
+  //    not-advice disclosure. offer_url + legal_disclosure live in variant
+  //    metadata (not on the alerts mirror), so we read them from the backing
+  //    content_variant. Passes when a custom legal_disclosure is attached;
+  //    fails (with an override path) when an applicable alert has none.
+  let legal: GateStatus
+  if (overriddenGates.has('legal')) {
+    legal = 'overridden'
+  } else {
+    let offerUrl: string | null = null
+    let legalDisclosure: string | null = null
+    try {
+      const { data: topicRow } = await supabase
+        .from('topics')
+        .select('id')
+        .contains('metadata', { original_alert_id: alert.id })
+        .maybeSingle()
+      if (topicRow?.id) {
+        const { data: variant } = await supabase
+          .from('content_variants')
+          .select('metadata')
+          .eq('topic_id', topicRow.id)
+          .eq('format', 'alert')
+          .maybeSingle()
+        const vm = (variant?.metadata ?? {}) as Record<string, unknown>
+        offerUrl = typeof vm.offer_url === 'string' ? vm.offer_url : null
+        legalDisclosure = typeof vm.legal_disclosure === 'string' ? vm.legal_disclosure : null
+      }
+    } catch {
+      /* non-fatal: fall through to type-based applicability */
+    }
+    if (!needsFinancialDisclosure(alert.type, offerUrl)) {
+      legal = 'not-applicable'
+    } else if (legalDisclosure && legalDisclosure.trim().length > 0) {
+      legal = 'pass'
+    } else {
+      legal = 'fail'
+      failures.push(
+        'Financial or offer alert needs a legal disclosure (not affiliated / not financial ' +
+          'advice / not a recommendation). Route to Charlie, attach the reviewed disclosure text, ' +
+          'or override with a reason.',
+      )
+    }
+  }
+
   const passOrSkip = (g: GateStatus): boolean =>
     g === 'pass' || g === 'overridden' || g === 'not-applicable'
   // canPublish requires an actual draft + all gates to pass-or-skip.
   // The draft gate can't be overridden — publishing nothing is never valid.
   const canPublish =
-    hasDraft && passOrSkip(tnc) && passOrSkip(factcheck) && passOrSkip(voice) && passOrSkip(source)
+    hasDraft &&
+    passOrSkip(tnc) &&
+    passOrSkip(factcheck) &&
+    passOrSkip(voice) &&
+    passOrSkip(source) &&
+    passOrSkip(legal)
 
-  return { tnc, factcheck, voice, source, canPublish, failures }
+  return { tnc, factcheck, voice, source, legal, canPublish, failures }
 }

@@ -14,6 +14,7 @@ const GATE_LABEL: Record<AlertOverrideRow['gate'], string> = {
   factcheck: 'Fact-check',
   voice: 'Voice',
   source: 'Source',
+  legal: 'Legal',
 }
 
 export default function AlertOverridesLog({ overrides }: Props) {

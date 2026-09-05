@@ -8,6 +8,7 @@ import { normalizeAlertDescription } from '@/utils/alerts/normalizeDescription'
 import { renderProseMarkdown } from '@/lib/blog/sanitize'
 import ApplyHere from '@/components/alerts/ApplyHere'
 import { safeJsonLd } from '@/lib/jsonLd'
+import { resolveDisclosure } from '@/lib/alerts/legalDisclosure'
 
 // Published alert content; stable after publish.
 export const revalidate = 3600
@@ -167,6 +168,10 @@ export default async function AlertDetailPage({ params }: Props) {
       offerHref = null
     }
   }
+
+  // Legal disclosure text this alert will show (custom, or generic default for
+  // any financial-product / offer alert), or null when none is required.
+  const legalDisclosureText = resolveDisclosure(alert.type, alert.offer_url, alert.legal_disclosure)
 
   // Render description as markdown — promo alerts use a hybrid format
   // (voicey paragraphs + a "What qualifies" bulleted block). Other alert
@@ -343,6 +348,26 @@ export default async function AlertDetailPage({ params }: Props) {
             affiliate link (with disclosure) or the issuer page from the linked
             card; renders nothing when the alert isn't card-linked. */}
         <ApplyHere cardSlug={alert.apply_card_slug} />
+
+        {/* Legal disclosure — financial-product alerts (bank/card/deposit
+            bonuses, point_purchase) and any alert with an outbound offer link
+            carry a not-affiliated / not-advice / not-a-recommendation note.
+            Renders the alert's custom legal_disclosure when set, otherwise a
+            generic default, so an applicable alert can never ship without one
+            (Charlie's legal gate, 2026-09-05). Soft styling per house rules. */}
+        {legalDisclosureText && (
+          <div
+            className="mb-6 rounded-[var(--radius-card)] border-l-4 border-[var(--color-border-soft)] bg-[var(--color-background-soft)] p-4"
+            role="note"
+          >
+            <p className="mb-1 font-ui text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">
+              Disclosure
+            </p>
+            <p className="font-body text-xs leading-relaxed text-[var(--color-text-secondary)]">
+              {legalDisclosureText.replace(/^Disclosure:\s*/i, '')}
+            </p>
+          </div>
+        )}
 
         {/* Sweepstakes / registration disclaimer. Shown for any alert the
             reader has to sign up for (registration_required) so we never imply

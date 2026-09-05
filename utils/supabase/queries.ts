@@ -154,6 +154,15 @@ export interface Alert {
    * populates only on AlertView-adapter reads; never a real column on alerts.
    */
   offer_url?: string | null
+  /**
+   * Legal/compliance disclosure text shown in a note block on the alert page
+   * (not affiliated, not financial/tax/investment advice, not a recommendation,
+   * terms set by provider). REQUIRED on financial-product alerts (bank/card/
+   * brokerage/deposit bonuses, point_purchase) and any alert with an offer_url,
+   * enforced by the `legal` publish gate and routed through Charlie. Stored in
+   * variant metadata; falls back to a generic default at render if unset.
+   */
+  legal_disclosure?: string | null
   registration_required: boolean
   created_by: string | null
   approved_by: string | null

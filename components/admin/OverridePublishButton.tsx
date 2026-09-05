@@ -26,6 +26,7 @@ export default function OverridePublishButton({ alertId, gates, action }: Props)
     factcheck: '',
     voice: '',
     source: '',
+    legal: '',
   })
   const [submitting, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -35,6 +36,7 @@ export default function OverridePublishButton({ alertId, gates, action }: Props)
   if (gates.factcheck === 'fail') failingGates.push('factcheck')
   if (gates.voice === 'fail') failingGates.push('voice')
   if (gates.source === 'fail') failingGates.push('source')
+  if (gates.legal === 'fail') failingGates.push('legal')
 
   if (gates.canPublish || failingGates.length === 0) return null
 
@@ -126,6 +128,8 @@ export default function OverridePublishButton({ alertId, gates, action }: Props)
                     ? 'Fact-check override reason'
                     : g === 'source'
                     ? 'Source override reason'
+                    : g === 'legal'
+                    ? 'Legal disclosure override reason'
                     : 'Voice override reason'}
                 </label>
                 <textarea
@@ -142,6 +146,8 @@ export default function OverridePublishButton({ alertId, gates, action }: Props)
                       ? 'e.g. Flagged claim about XP earning is confirmed via second source (Reddit DP)'
                       : g === 'source'
                       ? 'e.g. Confirmed live on the issuer site today; blog link kept for the write-up'
+                      : g === 'legal'
+                      ? 'e.g. Charlie reviewed; general points-news item, no financial-advice framing'
                       : 'e.g. Voice gate flagged "the headline X" — read draft, fine for context'
                   }
                   style={{

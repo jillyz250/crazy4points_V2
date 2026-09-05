@@ -182,6 +182,7 @@ export function mapVariantRowToAlertView(row: VariantRow): AlertView {
     terms_waived_reason: pickString(variantMeta, 'terms_waived_reason'),
     apply_card_slug: pickString(variantMeta, 'apply_card_slug'),
     offer_url: pickString(variantMeta, 'offer_url'),
+    legal_disclosure: pickString(variantMeta, 'legal_disclosure'),
     context_loaded_at: null,
     originality_checked_at: null,
     originality_pass: null,

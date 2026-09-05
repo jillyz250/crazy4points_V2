@@ -199,9 +199,17 @@ draft before it PUBLISHES (draft != publish). Clean `short_slug`; then "add to s
 alert uses the 7-section template `plans/alert-templates/card-bonus-increase.md` (Lead / Offer / real verified
 Sweet spot / Best-ever anchored on the verified baseline / Catch / Bottom line / Disclosure). Only
 call it an INCREASE when this offer > the card's verified `baseline_bonus_amount`; else fix the page
-only or write "elevated offer ended." **RISK-TIERED LEGAL GATE:** card content, sweepstakes/giveaways,
-and anything with an affiliate link / disclosure / advice-claim route to **Charlie** for a
-GREEN/YELLOW/RED legal check BEFORE publish (everyday points news skips it). See two-eyes-policy Rule 4.
+only or write "elevated offer ended." **RISK-TIERED LEGAL GATE:** any **financial-product** alert
+(bank/deposit/CD/savings-account bonuses, credit/charge cards, brokerage/crypto/insurance, any promo
+with a balance/funding threshold or money in/out), **sweepstakes/giveaways**, anything with an
+**affiliate link / advice-claim**, OR any alert with an **outbound offer button (`offer_url`)** routes
+to **Charlie** for a GREEN/YELLOW/RED check BEFORE publish (everyday points news skips it). One-liner:
+*financial-product OR offer_url = legal gate.* Now ENFORCED in code too — `publishGates.ts` gate `legal`
+blocks a financial/offer alert with no disclosure; the alert page auto-renders one
+(`lib/alerts/legalDisclosure.ts`). See two-eyes-policy Rule 4 + [[feedback_show_disclosure_before_publish]].
+**⭐ SHOW THE DISCLOSURE BEFORE PUBLISH (Jill, 2026-09-05):** in the pre-publish draft, ALWAYS include
+the actual legal disclosure text OR a **"✅ Legal disclosure on page"** line so Jill sees it and never
+has to ask (prompted by a Bask Bank bank-bonus alert that published with no disclosure).
 · **[8]** refresh queue ·
 **[11]** program-page changes / next airline (Paige) · **[12]** roadmap mining + reconcile · **[13]**
 write the day's article + guide (Artie/Gwen) · **[21 — SEO + AI VISIBILITY, John owns 2026-09-04]**
