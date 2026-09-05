@@ -143,7 +143,20 @@ export async function computeAging(db: SupabaseClient): Promise<AgingRow[]> {
     }
   } catch { /* non-fatal */ }
 
-  return [...rows, ...dueRows.filter((r): r is AgingRow => r !== null), ...(sourceHealthRow ? [sourceHealthRow] : [])]
+  // Program-source coverage (Jill, 2026-09-05): a non-stub program with no verified
+  // reverify_source_url is a coverage gap — and a program whose source later 404s is
+  // cleared back to null by the recheck cron, so it re-surfaces here. Escalates the
+  // coverage drive so it can't stall silently.
+  let coverageRow: AgingRow | null = null
+  try {
+    const { data: progs } = await db.from('programs').select('reverify_source_url,is_reference_stub')
+    const missing = (progs ?? []).filter((p: Record<string, unknown>) => !p.reverify_source_url && !p.is_reference_stub).length
+    if (missing > 0) {
+      coverageRow = { key: 'programs_no_source', label: 'Programs with no verified source (coverage drive)', open: missing, oldestDays: null, threshold: 0, overdue: true, link: '/admin/sources' }
+    }
+  } catch { /* non-fatal */ }
+
+  return [...rows, ...dueRows.filter((r): r is AgingRow => r !== null), ...(sourceHealthRow ? [sourceHealthRow] : []), ...(coverageRow ? [coverageRow] : [])]
 }
 
 /** Just the overdue queues (the escalation list), worst-overshoot first. */

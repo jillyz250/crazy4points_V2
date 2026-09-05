@@ -73,3 +73,43 @@ export async function recheckSources(
   }
   return s
 }
+
+export type ProgramRecheckSummary = { checked: number; moved: number; ok: number; broken: number; brokenList: string[] }
+
+/**
+ * Health-check program `reverify_source_url`s (Jill, 2026-09-05) — these weren't
+ * monitored (only the sources table was). Redirects get updated; a truly-dead one
+ * (404/410/gone) is CLEARED and its old URL preserved in the label, so it drops
+ * back into the coverage drive (aging `programs_no_source`) for a fresh hunt.
+ * 403/blocked and feeds are left (valid). Rotates oldest-verified-first.
+ */
+export async function recheckProgramSources(
+  db: SupabaseClient,
+  { limit = 30, apply = true, timeoutMs = 6000 }: { limit?: number; apply?: boolean; timeoutMs?: number } = {},
+): Promise<ProgramRecheckSummary> {
+  const { data } = await db.from('programs')
+    .select('slug,name,reverify_source_url,reverify_source_label,reverified_at')
+  type P = { slug: string; name: string | null; reverify_source_url: string | null; reverify_source_label: string | null; reverified_at: string | null }
+  const withUrl = (data as P[] ?? []).filter((p) => p.reverify_source_url)
+  withUrl.sort((a, b) => (ageDays(a.reverified_at) ?? 9999) - (ageDays(b.reverified_at) ?? 9999) === 0 ? 0 : (ageDays(b.reverified_at) ?? 9999) - (ageDays(a.reverified_at) ?? 9999))
+  const batch = withUrl.slice(0, limit)
+  const r: ProgramRecheckSummary = { checked: batch.length, moved: 0, ok: 0, broken: 0, brokenList: [] }
+  const today = new Date().toISOString().slice(0, 10)
+  for (const p of batch) {
+    const res = await probe(p.reverify_source_url as string, timeoutMs)
+    if ([301, 302, 307, 308].includes(res.status) && res.location) {
+      const nu = res.location.startsWith('http') ? res.location : new URL(res.location, p.reverify_source_url as string).href
+      if (apply) await db.from('programs').update({ reverify_source_url: nu, reverified_at: new Date().toISOString() }).eq('slug', p.slug); r.moved++
+    } else if (res.status >= 200 && res.status < 400 || [403, 405, 429, 406].includes(res.status)) {
+      r.ok++ // 2xx/3xx ok, or blocked-but-valid
+    } else {
+      // 404 / gone / error -> clear it back into the coverage drive, keep old URL in label
+      if (apply) await db.from('programs').update({
+        reverify_source_url: null,
+        reverify_source_label: `[was ${p.reverify_source_url} — ${res.status || 'error'} ${today}, re-hunt]`.slice(0, 300),
+      }).eq('slug', p.slug)
+      r.broken++; r.brokenList.push(`${p.name} (${res.status || 'error'})`)
+    }
+  }
+  return r
+}

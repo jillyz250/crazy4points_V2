@@ -8,7 +8,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/utils/supabase/server'
 import { assertCron } from '@/lib/auth/cron'
-import { recheckSources } from '@/lib/sources/recheckSources'
+import { recheckSources, recheckProgramSources } from '@/lib/sources/recheckSources'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
@@ -20,6 +20,7 @@ async function handle(request: Request) {
   const denied = assertCron(request)
   if (denied) return denied
   const db = createAdminClient()
-  const summary = await recheckSources(db, { limit: 40, apply: true, timeoutMs: 6000 })
-  return NextResponse.json({ ok: true, ...summary })
+  const sources = await recheckSources(db, { limit: 40, apply: true, timeoutMs: 6000 })
+  const programs = await recheckProgramSources(db, { limit: 30, apply: true, timeoutMs: 6000 })
+  return NextResponse.json({ ok: true, sources, programs })
 }
