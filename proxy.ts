@@ -19,9 +19,15 @@ export async function proxy(request: NextRequest) {
     const token = request.cookies.get(ADMIN_SESSION_COOKIE)?.value
     const session = await verifyAdminSession(token)
     if (!session) {
+      // Remember where they were headed so login lands them back there
+      // (bookmark/deep-link to /admin/experiences works in one step) instead of
+      // always dumping on /admin. The login page validates returnTo to a local
+      // /admin path before using it. (Jill, 2026-09-05.)
+      const returnTo = pathname + (request.nextUrl.search || '')
       const url = request.nextUrl.clone()
       url.pathname = '/admin/login'
       url.search = ''
+      url.searchParams.set('returnTo', returnTo)
       return NextResponse.redirect(url)
     }
   }

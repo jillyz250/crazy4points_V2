@@ -21,7 +21,19 @@ export default function AdminLoginPage() {
     })
 
     if (res.ok) {
-      router.push('/admin')
+      // Return to the page they were headed to (set by the admin middleware as
+      // ?returnTo=), so a deep link / bookmark lands correctly after login.
+      // Read from the live URL to avoid a Suspense boundary for useSearchParams.
+      // Only allow local /admin paths (never protocol-relative "//host") so this
+      // can't be turned into an open redirect.
+      let dest = '/admin'
+      try {
+        const rt = new URLSearchParams(window.location.search).get('returnTo')
+        if (rt && rt.startsWith('/admin') && !rt.startsWith('//')) dest = rt
+      } catch {
+        /* no-op: fall back to /admin */
+      }
+      router.push(dest)
     } else {
       setError('Incorrect password.')
       setLoading(false)
