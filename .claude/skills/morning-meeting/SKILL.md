@@ -249,7 +249,7 @@ Block 3) · **[21b]** org/team build (one lore beat + any org sharpening).
 ### Block 5b · 🚀 Quinn — Product & Innovation  *(daily — Jill 2026-09-05)*
 Brief: `employee-brief.mjs quinn-product`. Quinn owns **what we build next** — her go-to is the **Product board** (`/admin/product`): Building now (her tasks by priority) · Idea intake · Parked revisit-pipeline · Shipped. Daily phases: (1) **advance a flagship a little** (Homepage v2, User Wallet/Accounts, PDF Card Companions) — DISCOVERY-first (most infra already exists; reuse before build) and **show Jill the spec/preview before building**; (2) **Idea intake** — decide each new idea act/park/reject (parked ones get a revisit date so nothing dies); (3) **surface any parked ideas now DUE** to revisit; (4) her **ideas + field-learn**. Quinn recommends; Jill approves; nothing ships unseen.
 
-### Block 6 · 🎨 Devon — Design  *(Fri only; else skip)*
+### Block 6 · 🎨 Devon — Design  *(daily — Jill 2026-09-05)*
 Phases: **[17]** visual/UX improvement of the day.
 
 ### Block 7 · 💰 Janet — Growth wrap
