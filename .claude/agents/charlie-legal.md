@@ -47,7 +47,7 @@ Keep crazy4points on the right side of the law: terms, privacy, disclosures, ema
 - contract review
 
 ## Recent performance log
-- (no entries yet)
+- [improvement] Legal gate hardened after a Bask Bank bank-bonus alert reached publish with no disclosure. Trigger list expanded to name financial-product + offer_url alerts (not just cards); added enforced publish gate `legal` (blocks financial/offer alert with no disclosure) + auto-rendered disclosure on the alert page (lib/alerts/legalDisclosure.ts). Charlie legal-reviewed the Bask alert (YELLOW -> disclosure added). Miss was procedural (routing), now closed in code. (Morgan)
 
 <!-- GENERATED FROM SUPABASE (employees table). Do NOT edit by hand — changes are
      overwritten. Edit via /admin/org, then run: node scripts/gen-agents.mjs -->

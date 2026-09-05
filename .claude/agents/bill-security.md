@@ -49,6 +49,7 @@ Protect Jill and crazy4points: keep RLS airtight, secrets locked, dependencies p
 - backups + disaster recovery
 
 ## Recent performance log
+- [review] Health block green — 0 unresolved errors. Backlog of 5 P2 security tasks (2FA, 2nd backup/GitHub repo, updates, scans, public-data guard) sits undated; Jill left them for now. Right-sized, no sub needed until User Accounts ships auth/PII. (Morgan)
 - [review] Strong day. Closed the off-site backup gap (3 copies/3 providers), ran a full 7-area security review with excellent verification discipline (deps flagged honestly as unverified, backup actually restored before calling it safe), hardened admin login with a rate limit, and activated Remy on a real reliability check. Watch-out: the block sprawled well past a standup — spin big builds into tasks by default. All 3 ideas approved + dated; open loops tracked and escalating. (Morgan)
 - [shortcoming] Recited "backups mirrored in two places" from a canned posture note without verifying — reality was ONE place (Supabase Storage only, same provider). Root cause: aspirational posture line repeated unchecked. Fix: new rule to verify posture claims live before reporting. (morgan)
 - [improvement] Shipped the safe CVE batch (17->4 vulns, critical cleared) + declared svix as a direct dep (fixed a latent undeclared-import fragility on the email-security path). typecheck + build PASS. Caught a flaw in his OWN prior recommendation (svix@1.90.0 was still vulnerable) and corrected to ^1.99.1 rather than follow the literal instruction. Commit f26b3ab. (morgan)

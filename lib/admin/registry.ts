@@ -30,6 +30,7 @@ export type OwnerSlug =
   | 'devon-design'
   | 'erica-finance'
   | 'quinn-product'
+  | 'reese-video'
 
 export type Owner = {
   slug: OwnerSlug
@@ -57,6 +58,7 @@ export const OWNERS: Record<OwnerSlug, Owner> = {
   'devon-design': { slug: 'devon-design', name: 'Devon', role: 'Head of Design & UX', emoji: '🎨', order: 7 },
   'erica-finance': { slug: 'erica-finance', name: 'Erica', role: 'Finance & Accounting', emoji: '🧾', order: 8 },
   'quinn-product': { slug: 'quinn-product', name: 'Quinn', role: 'Product & Innovation', emoji: '🚀', order: 9 },
+  'reese-video': { slug: 'reese-video', name: 'Reese', role: 'Head of Visual Content', emoji: '🎬', order: 10 },
 }
 
 // ── Task categories (the "what does this do" sub-label) ─────────────────────
@@ -73,6 +75,7 @@ export type TaskCategory =
   | 'Design'
   | 'Finance'
   | 'Product'
+  | 'Visual'
 
 export type PageStatus = 'active' | 'planned' | 'deprecated'
 
@@ -338,15 +341,15 @@ export const ADMIN_PAGES: AdminPage[] = [
   // ── Kesha · Social ────────────────────────────────────────────────────────
   {
     id: 'creatives',
-    title: 'Creatives',
-    description: 'Social graphics + creative assets.',
-    owner: 'kesha-social',
-    taskCategory: 'Social',
+    title: 'Image Library',
+    description: 'Every visual asset — images, social graphics, brand art, and video — cataloged, tagged, and ready to reuse.',
+    owner: 'reese-video',
+    taskCategory: 'Visual',
     path: '/admin/creatives',
     status: 'active',
-    icon: '🎨',
+    icon: '🖼️',
     dashboardPriority: 42,
-    abbr: 'Cr',
+    abbr: 'Im',
   },
   {
     id: 'social-calendar',

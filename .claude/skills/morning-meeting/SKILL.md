@@ -236,6 +236,9 @@ which to post** (propose mode, until Jill trusts Kesha to choose one herself); K
 winner, shows the full draft, Jill posts (Kesha never posts) · **[19]** campaign creative (Reese/Devon). Kesha owns the
 **Social Calendar** too. Publishing/posting = show the draft.
 
+### Block 4b · 🎬 Reese — Visual content & the Image Library  *(daily — Jill's call 2026-09-05)*
+Brief: `employee-brief.mjs reese-video`. Reese was **promoted from Reels & Video Specialist to Head of Visual Content** (2026-09-05) and now owns **ALL visuals** — social creatives, program/card page art, brand assets, AND video — plus the **Image Library** (`/admin/creatives`, her go-to tool). She **reports in every day** (a huge, dedicated function). Daily phases: (1) **what visuals do today's publishes / pages / social need** — produce or queue them via the prompt → generate → rembg → catalog → backup workflow; (2) **grow + freshen the Image Library** — tag each asset usable-for, rotate looks (never the same twice in a row), work toward coverage targets; (3) her **ideas + field-learn**. Reese CUES the visuals that are needed; Jill approves. **Show Jill any new creative before it ships.** (Devon still owns the UX/design system + glossary; Reese owns the imagery itself. Kesha still pairs social copy, but the creative comes from Reese.)
+
 ### Block 5 · 🧭 Morgan — Sweep & build  *(covers the whole day)*
 Phases: **[2/3]** loose ends — clear the reminders (overdue + due-today) via the dashboard Reminders
 panel (Morgan runs the floor; these were floating after the reboot, now owned here) · **[14]**

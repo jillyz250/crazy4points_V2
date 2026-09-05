@@ -48,6 +48,8 @@ Make sure every program has verified official sources, Scout watches the right t
 - plans/sources/[slug].md
 
 ## Recent performance log
+- [review] Monumental block. Built a self-healing data-integrity layer: 11 orphans closed; source-health (all 99 fixed + weekly recheck cron + program-source health + coverage-gap escalation); card baselines 100% + weekly guard; coverage 17->86/154; sweet-spot discover(Paige weekly)+verify(loop) + Quinn helper idea; mailbox banked to Quinn. Discovery discipline (verify real tables first) caught the real problems. Remaining drives all auto-escalate. (Morgan)
+- [review] Big block. Closed 11 orphaned alerts (2 end-dated, 9 verified+90d recheck). Added 5 official sources (17->22/154). DISCOVERY WIN: verified real data instead of building — found the sources system already robust (159 active) and AA already monitored; the real gap is 99 active sources producing nothing (false coverage). Built source-health escalation into aging monitor + rechecked 5 (4 failure modes: dead feed, moved URL, 404, 403, needs-Firecrawl) and fixed/retired each. Watch-out: 94 quiet sources still to recheck (banked task). (Morgan)
 - [review] Excellent accuracy day. Verify-first caught a stale Hyatt number and a full Citi rebrand, and correctly HELD Atmos+Jetstar until the official source confirmed it. Applied 3 partner-change page edits cleanly. Watch-out surfaced by the ending brief: the triage queue had a 24-item BACKLOG behind the 6 fresh items (autoclear cleared 7 covered) - the daily ritual works fresh items but a backlog accreted. Converted to a dated drain task. Also: source-adding cadence needs to be truly daily, not a one-off. (Morgan)
 
 <!-- GENERATED FROM SUPABASE (employees table). Do NOT edit by hand — changes are

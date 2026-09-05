@@ -129,7 +129,7 @@ function buildOwned(slug: string): { count: number; groups: { cat: TaskCategory;
 const CAT_ICON: Record<TaskCategory, IconName> = {
   Ops: 'compass', Content: 'pencil', Social: 'megaphone', Growth: 'trending',
   Sources: 'globe', Accuracy: 'shield', Reference: 'database', Reliability: 'activity', Design: 'palette',
-  Finance: 'briefcase', Product: 'lightbulb',
+  Finance: 'briefcase', Product: 'lightbulb', Visual: 'image',
 }
 // Per-page icon where a distinct one reads clearer; else the category icon.
 const PAGE_ICON: Record<string, IconName> = {
@@ -298,6 +298,7 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
     'erica-finance': 'expenses',
     'morgan-chief': 'dashboard',
     'quinn-product': 'product',
+    'reese-video': 'creatives',
   }
   const toolPageId = (it: { kind?: string; page?: { id: string } }): string | null =>
     it.kind === 'programs' ? null : it.page?.id ?? null
