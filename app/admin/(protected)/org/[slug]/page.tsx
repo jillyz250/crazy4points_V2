@@ -285,6 +285,30 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
   // into a hub (Accuracy tabs) already collapse into the ONE hub entry.
   const { groups: ownedGroups } = buildOwned(slug)
 
+  // Primary "go-to" tool per employee (Jill, 2026-09-05): the tools section is
+  // hoisted to the top and the primary tool is rendered first + emphasized so
+  // it's the first thing seen and one click away. Defaults to the first owned
+  // tool when no explicit primary is set for this employee.
+  const PRIMARY_TOOL: Record<string, string> = {
+    'kesha-social': 'social-calendar',
+  }
+  const toolPageId = (it: { kind?: string; page?: { id: string } }): string | null =>
+    it.kind === 'programs' ? null : it.page?.id ?? null
+  const primaryPageId =
+    PRIMARY_TOOL[slug] ??
+    ownedGroups.flatMap((g) => g.items).map(toolPageId).find(Boolean) ??
+    null
+  // Float the group holding the primary first, and the primary card first within it.
+  const orderedGroups = ownedGroups
+    .map((g) => ({
+      ...g,
+      items: [...g.items].sort(
+        (a, b) => (toolPageId(b) === primaryPageId ? 1 : 0) - (toolPageId(a) === primaryPageId ? 1 : 0),
+      ),
+      _hasPrimary: g.items.some((it) => toolPageId(it) === primaryPageId),
+    }))
+    .sort((a, b) => (b._hasPrimary ? 1 : 0) - (a._hasPrimary ? 1 : 0))
+
   // Open queues this head owns — the SAME live counts as the dashboard board,
   // filtered to their surfaces (fixes Priya's real queues being invisible on her
   // own page). Only worth the count queries when this person owns a countable
@@ -391,6 +415,63 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
             </details>
           )}
         </header>
+
+        {/* ── Tools (hoisted to the top — Jill 2026-09-05): the employee's tools
+            are the first thing you see and click. Primary "go-to" tool is
+            emphasized and rendered first. Registry-driven, so consistent for
+            every employee. ── */}
+        {orderedGroups.length > 0 && (
+          <section className="ep-section">
+            <div className="ep-sec-head">
+              <h2 className="ep-sec-title">{e.name.split(' ')[0]}&rsquo;s tools</h2>
+              <span className="ep-sec-meta">Jump straight into the work</span>
+            </div>
+            <div className="ep-workspace">
+              {orderedGroups.map((g) => (
+                <div key={g.cat} className="ep-wsgroup">
+                  <div className="ep-wsgroup-head"><Icon name={CAT_ICON[g.cat]} size={15} /> {g.cat} <span className="ep-wsgroup-count">{g.items.length}</span></div>
+                  <div className="ep-wsgrid">
+                    {g.items.map((it) =>
+                      it.kind === 'programs' ? (
+                        <div key="program-pages" className="ep-card ep-tool ep-tool-prog">
+                          <span className="ep-tool-ic"><Icon name="award" size={19} /></span>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div className="ep-tool-title">Program pages</div>
+                            <div className="ep-tool-desc">The loyalty program catalog — one page, filtered by type.</div>
+                            <div className="ep-prog-views">
+                              {it.views.map((v) => (
+                                <Link key={v.id} href={v.path} className="ep-prog-view" title={v.description}>
+                                  {PROGRAM_VIEW_LABEL[v.id] ?? v.title}
+                                </Link>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <Link
+                          key={it.page.id}
+                          href={it.page.path}
+                          className={`ep-card ep-tool${it.page.id === primaryPageId ? ' ep-tool-primary' : ''}`}
+                          title={`Owned by ${e.name} — ${it.page.description}`}
+                        >
+                          <span className="ep-tool-ic"><Icon name={pageIcon(it.page)} size={19} /></span>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div className="ep-tool-title">
+                              {it.page.title}
+                              {it.page.id === primaryPageId && <span className="ep-tool-star">Go-to</span>}
+                            </div>
+                            <div className="ep-tool-desc">{it.page.description}</div>
+                          </div>
+                          <span className="ep-tool-go"><Icon name="arrow" size={15} /></span>
+                        </Link>
+                      ),
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* ── Activity: the chain of finished work this person shipped (mig 666).
             Placed ABOVE Assigned tasks (Jill's call). Newest first, cap 15.
@@ -572,52 +653,6 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
                   </div>
                   <span className="ep-teammate-go"><Icon name="arrow" size={14} /></span>
                 </Link>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* ── What they own (the workspace) ── */}
-        {ownedGroups.length > 0 && (
-          <section className="ep-section">
-            <div className="ep-sec-head">
-              <h2 className="ep-sec-title">{e.name.split(' ')[0]}&rsquo;s workspace</h2>
-              <span className="ep-sec-meta">Everything {e.name.split(' ')[0]} owns</span>
-            </div>
-            <div className="ep-workspace">
-              {ownedGroups.map((g) => (
-                <div key={g.cat} className="ep-wsgroup">
-                  <div className="ep-wsgroup-head"><Icon name={CAT_ICON[g.cat]} size={15} /> {g.cat} <span className="ep-wsgroup-count">{g.items.length}</span></div>
-                  <div className="ep-wsgrid">
-                    {g.items.map((it) =>
-                      it.kind === 'programs' ? (
-                        <div key="program-pages" className="ep-card ep-tool ep-tool-prog">
-                          <span className="ep-tool-ic"><Icon name="award" size={19} /></span>
-                          <div style={{ minWidth: 0, flex: 1 }}>
-                            <div className="ep-tool-title">Program pages</div>
-                            <div className="ep-tool-desc">The loyalty program catalog — one page, filtered by type.</div>
-                            <div className="ep-prog-views">
-                              {it.views.map((v) => (
-                                <Link key={v.id} href={v.path} className="ep-prog-view" title={v.description}>
-                                  {PROGRAM_VIEW_LABEL[v.id] ?? v.title}
-                                </Link>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <Link key={it.page.id} href={it.page.path} className="ep-card ep-tool" title={`Owned by ${e.name} — ${it.page.description}`}>
-                          <span className="ep-tool-ic"><Icon name={pageIcon(it.page)} size={19} /></span>
-                          <div style={{ minWidth: 0, flex: 1 }}>
-                            <div className="ep-tool-title">{it.page.title}</div>
-                            <div className="ep-tool-desc">{it.page.description}</div>
-                          </div>
-                          <span className="ep-tool-go"><Icon name="arrow" size={15} /></span>
-                        </Link>
-                      ),
-                    )}
-                  </div>
-                </div>
               ))}
             </div>
           </section>
@@ -1029,6 +1064,13 @@ const EP_CSS = `
 .admin .ep-tool-desc { font-size:var(--admin-text-sm); color:var(--admin-text-muted); margin-top:2px; line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
 .admin .ep-tool-go { color:var(--admin-text-subtle); opacity:0; transform:translateX(-4px); transition:opacity .14s ease, transform .14s ease; flex-shrink:0; }
 .admin .ep-tool:hover .ep-tool-go { opacity:1; transform:translateX(0); color:var(--color-primary); }
+/* Primary "go-to" tool — spans the full row, accent-tinted, always shows its
+   arrow, so it reads as the employee's headline tool the moment the page opens. */
+.admin .ep-tool-primary { grid-column:1 / -1; padding:18px 20px; background:radial-gradient(120% 150% at 0% 0%, color-mix(in srgb, var(--color-primary) 11%, #fff), #fff 70%); border-color:color-mix(in srgb, var(--color-primary) 34%, var(--admin-border)); box-shadow:0 2px 6px rgba(107,45,143,.06), 0 22px 46px -30px rgba(107,45,143,.45); }
+.admin .ep-tool-primary .ep-tool-ic { width:48px; height:48px; background:var(--color-primary); color:#fff; border-color:var(--color-primary); }
+.admin .ep-tool-primary .ep-tool-title { font-size:1.12rem; }
+.admin .ep-tool-primary .ep-tool-go { opacity:1; transform:none; color:var(--color-primary); }
+.admin .ep-tool-star { display:inline-block; margin-left:9px; padding:1px 7px; border-radius:9999px; font-size:.6rem; font-weight:800; text-transform:uppercase; letter-spacing:.09em; color:#7a5b00; background:color-mix(in srgb, var(--color-accent) 26%, #fff); border:1px solid color-mix(in srgb, var(--color-accent) 45%, #fff); vertical-align:middle; }
 
 /* Team — light person-badges (no big portraits) */
 .admin .ep-team { display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:.7rem; }
