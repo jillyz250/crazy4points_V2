@@ -29,6 +29,7 @@ export type OwnerSlug =
   | 'bill-security'
   | 'devon-design'
   | 'erica-finance'
+  | 'quinn-product'
 
 export type Owner = {
   slug: OwnerSlug
@@ -55,6 +56,7 @@ export const OWNERS: Record<OwnerSlug, Owner> = {
   'bill-security': { slug: 'bill-security', name: 'Bill', role: 'Head of Security', emoji: '🔒', order: 6 },
   'devon-design': { slug: 'devon-design', name: 'Devon', role: 'Head of Design & UX', emoji: '🎨', order: 7 },
   'erica-finance': { slug: 'erica-finance', name: 'Erica', role: 'Finance & Accounting', emoji: '🧾', order: 8 },
+  'quinn-product': { slug: 'quinn-product', name: 'Quinn', role: 'Product & Innovation', emoji: '🚀', order: 9 },
 }
 
 // ── Task categories (the "what does this do" sub-label) ─────────────────────
@@ -70,6 +72,7 @@ export type TaskCategory =
   | 'Reliability'
   | 'Design'
   | 'Finance'
+  | 'Product'
 
 export type PageStatus = 'active' | 'planned' | 'deprecated'
 
@@ -192,6 +195,20 @@ export const ADMIN_PAGES: AdminPage[] = [
     icon: '🧮',
     dashboardPriority: 40,
     abbr: 'Ai',
+  },
+
+  // ── Quinn · Product & Innovation ──────────────────────────────────────────
+  {
+    id: 'product',
+    title: 'Product',
+    description: 'What we build next — feature pipeline, ideas, and parked bets awaiting their revisit.',
+    owner: 'quinn-product',
+    taskCategory: 'Product',
+    path: '/admin/product',
+    status: 'active',
+    icon: '🚀',
+    dashboardPriority: 44,
+    abbr: 'Pd',
   },
 
   // ── John · Content ────────────────────────────────────────────────────────
