@@ -118,7 +118,32 @@ export async function computeAging(db: SupabaseClient): Promise<AgingRow[]> {
     }),
   )
 
-  return [...rows, ...dueRows.filter((r): r is AgingRow => r !== null)]
+  // Source health (Jill, 2026-09-05): an ACTIVE source that scrapes but produces
+  // nothing is false coverage — the URL likely changed/broke. Close the loop by
+  // escalating it here (not just showing it on /admin/sources) so it can't rot.
+  // "Needs recheck" = active AND (never scraped in >14d) OR (produced 0 items ever
+  // despite being active >30d).
+  let sourceHealthRow: AgingRow | null = null
+  try {
+    const { data: srcs } = await db.from('sources').select('is_active,last_scraped_at,items_produced,created_at')
+    const active = (srcs ?? []).filter((s: Record<string, unknown>) => s.is_active)
+    const ageDays = (d: unknown) => (typeof d === 'string' ? Math.floor((Date.now() - Date.parse(d)) / 86_400_000) : null)
+    const needsRecheck = active.filter((s: Record<string, unknown>) => {
+      const scraped = ageDays(s.last_scraped_at)
+      const created = ageDays(s.created_at) ?? 0
+      const stale = scraped === null || scraped > 14
+      const zeroProd = ((s.items_produced as number) ?? 0) === 0 && created > 30
+      return stale || zeroProd
+    })
+    if (needsRecheck.length > 0) {
+      sourceHealthRow = {
+        key: 'sources_recheck', label: 'Active sources producing nothing (recheck)',
+        open: needsRecheck.length, oldestDays: null, threshold: 0, overdue: true, link: '/admin/sources',
+      }
+    }
+  } catch { /* non-fatal */ }
+
+  return [...rows, ...dueRows.filter((r): r is AgingRow => r !== null), ...(sourceHealthRow ? [sourceHealthRow] : [])]
 }
 
 /** Just the overdue queues (the escalation list), worst-overshoot first. */

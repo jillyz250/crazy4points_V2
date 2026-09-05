@@ -126,6 +126,13 @@ Each block: **the head gives their brief** (from `employee-brief.mjs <slug>` —
 "📚 field this week"), then walks their phases, logging proposals + surfacing judgment calls.
 Old phase numbers in [brackets] map to `daily-ritual` for the deep mechanics.
 
+**⭐ OUTSTANDING ITEMS LIST — end every head's brief with it (Jill, 2026-09-05).** Close each
+head's block with a **numbered list of TODAY's open items for that head to tackle** (e.g. "1. Clear
+triage 2. Add 5 sources 3. Recheck 12 orphaned alerts 4. Set card baselines..."). Then **Jill picks
+which to do and we work them ONE BY ONE** — don't batch-blast them. Each item is a real, ownable
+to-do; a completed one gets checked off, an untouched one becomes an owned+dated task (never dropped).
+This is the head's daily worklist, and it doubles as the open-loops check.
+
 **Three standing beats in every head's block:**
 - **Ideas decision (STANDING — present daily, Jill 2026-09-04).** Every block PRESENTS that
   head's **new ideas** (`employee_ideas` where status='new', from `data.ideas` in the brief) and
