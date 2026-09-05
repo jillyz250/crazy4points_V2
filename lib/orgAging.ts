@@ -156,7 +156,24 @@ export async function computeAging(db: SupabaseClient): Promise<AgingRow[]> {
     }
   } catch { /* non-fatal */ }
 
-  return [...rows, ...dueRows.filter((r): r is AgingRow => r !== null), ...(sourceHealthRow ? [sourceHealthRow] : []), ...(coverageRow ? [coverageRow] : [])]
+  // Sweet-spot verification (Jill, 2026-09-05): sweet spots are PUBLIC content, so
+  // each must be verified against an official source and re-checked on a cadence.
+  // Needs-recheck = active sweet spot with no verified_at, or verified >90d ago.
+  // Verifying (set verified_at=now + official_source_url) clears it for 90 days.
+  let sweetSpotRow: AgingRow | null = null
+  try {
+    const { data: ss } = await db.from('sweet_spots').select('verified_at,status')
+    const active = (ss ?? []).filter((s: Record<string, unknown>) => s.status !== 'rejected' && s.status !== 'archived')
+    const needs = active.filter((s: Record<string, unknown>) => {
+      const a = typeof s.verified_at === 'string' ? Math.floor((Date.now() - Date.parse(s.verified_at)) / 86_400_000) : null
+      return a === null || a > 90
+    }).length
+    if (needs > 0) {
+      sweetSpotRow = { key: 'sweet_spots_recheck', label: 'Sweet spots to verify against an official source', open: needs, oldestDays: null, threshold: 0, overdue: true, link: '/admin/sweet-spots' }
+    }
+  } catch { /* non-fatal */ }
+
+  return [...rows, ...dueRows.filter((r): r is AgingRow => r !== null), ...(sourceHealthRow ? [sourceHealthRow] : []), ...(coverageRow ? [coverageRow] : []), ...(sweetSpotRow ? [sweetSpotRow] : [])]
 }
 
 /** Just the overdue queues (the escalation list), worst-overshoot first. */
