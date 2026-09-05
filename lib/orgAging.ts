@@ -169,7 +169,7 @@ export async function computeAging(db: SupabaseClient): Promise<AgingRow[]> {
       return a === null || a > 90
     }).length
     if (needs > 0) {
-      sweetSpotRow = { key: 'sweet_spots_recheck', label: 'Sweet spots to verify against an official source', open: needs, oldestDays: null, threshold: 0, overdue: true, link: '/admin/sweet-spots' }
+      sweetSpotRow = { key: 'sweet_spots_recheck', label: 'Sweet spots to verify against an official source', open: needs, oldestDays: null, threshold: 0, overdue: true, link: '/admin' }
     }
   } catch { /* non-fatal */ }
 
