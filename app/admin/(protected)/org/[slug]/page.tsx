@@ -291,6 +291,12 @@ export default async function EmployeePage({ params }: { params: Promise<{ slug:
   // tool when no explicit primary is set for this employee.
   const PRIMARY_TOOL: Record<string, string> = {
     'kesha-social': 'social-calendar',
+    'john-content': 'drafts',
+    'priya-sources': 'triage',
+    'janet-growth': 'analytics',
+    'bill-security': 'jobs',
+    'erica-finance': 'expenses',
+    'morgan-chief': 'dashboard',
   }
   const toolPageId = (it: { kind?: string; page?: { id: string } }): string | null =>
     it.kind === 'programs' ? null : it.page?.id ?? null
