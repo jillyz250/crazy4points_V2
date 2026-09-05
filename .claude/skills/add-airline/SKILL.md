@@ -428,6 +428,8 @@ Open as a small docs PR.
 
 The Supabase CLI is linked (one-time setup); no admin browser flow needed. I generate the SQL, run it via `supabase db query --linked --file <path>`, and confirm.
 
+> This is what makes every NEW program monitored from day one (Jill, 2026-09-05). The source starts verified-working (curl-tested below), and the **weekly source-health cron** (`/api/cron/recheck-sources`, `lib/sources/recheckSources.ts`) keeps it healthy over time — auto-fixing it if the URL later moves/breaks, or flagging it (aging monitor `sources_recheck`) if it truly dies. So the loop is closed end-to-end: seeded healthy → kept healthy → flagged if it rots.
+
 When announcing the discovered RSS feed to the user (so they can sanity-check it in a browser), present it on its own line in a fenced code block for copy-to-clipboard:
 
 > Press-room RSS feed I'm seeding for `<slug>`:
