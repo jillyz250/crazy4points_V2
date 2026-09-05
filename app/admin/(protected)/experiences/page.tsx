@@ -4,7 +4,8 @@ import { PageHeader } from '@/components/admin/ui/PageHeader'
 import { Card, CardBody } from '@/components/admin/ui/Card'
 import { EmptyState } from '@/components/admin/ui/EmptyState'
 import { isPresaleListing } from '@/lib/experiences/presale'
-import { markReviewed, toggleFeatured, addToSocialCalendar } from './actions'
+import { canonicalKey } from '@/lib/experiences/canonicalKey'
+import { markReviewed, markGroupReviewed, toggleFeatured, addToSocialCalendar } from './actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,6 +23,26 @@ type Row = {
   image_url: string | null
   first_seen_at: string | null
   featured: boolean
+  canonical_experience_key: string | null
+}
+
+// Group near-duplicate listings (ticket tiers / quantities of the same event)
+// by their canonical key, so one event shows as one card instead of N rows.
+// Falls back to computing the key when the column isn't backfilled yet, so new
+// listings still group. Preserves the incoming order (first_seen desc).
+type Group = { key: string; items: Row[] }
+function groupListings(rows: Row[]): Group[] {
+  const map = new Map<string, Row[]>()
+  const order: string[] = []
+  for (const r of rows) {
+    const key = r.canonical_experience_key ?? canonicalKey(r)
+    if (!map.has(key)) {
+      map.set(key, [])
+      order.push(key)
+    }
+    map.get(key)!.push(r)
+  }
+  return order.map((key) => ({ key, items: map.get(key)! }))
 }
 
 // Same "worth an editorial look" rule as the dashboard card: real points
@@ -49,7 +70,7 @@ export default async function AdminExperiencesPage() {
   const nowIso = new Date().toISOString()
   const expSince = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
   const cols =
-    'id, title, category, location, program_slug, source_platform, points_required, current_bid, close_date, detail_url, image_url, first_seen_at, featured'
+    'id, title, category, location, program_slug, source_platform, points_required, current_bid, close_date, detail_url, image_url, first_seen_at, featured, canonical_experience_key'
 
   const [newRes, olderRes, featuredRes] = await Promise.all([
     // New this week, not yet reviewed — the queue that feeds the dashboard card.
@@ -89,6 +110,10 @@ export default async function AdminExperiencesPage() {
   const olderUnreviewed = ((olderRes.data ?? []) as Row[]).filter(reviewable)
   const featured = (featuredRes.data ?? []) as Row[]
 
+  // Group near-duplicate tiers so the queue shows one card per event.
+  const toReviewGroups = groupListings(toReview)
+  const olderGroups = groupListings(olderUnreviewed)
+
   // Which of these are already on the social calendar (so the button shows state).
   const refs = [...toReview, ...olderUnreviewed, ...featured].map((e) => `exp:${e.id}`)
   const { data: onCal } = refs.length
@@ -110,14 +135,17 @@ export default async function AdminExperiencesPage() {
 
       <h2 style={{ fontSize: '1rem', margin: '0 0 0.75rem' }}>
         New this week to review{' '}
-        <span style={{ fontSize: '0.875rem', fontWeight: 400, opacity: 0.6 }}>({toReview.length})</span>
+        <span style={{ fontSize: '0.875rem', fontWeight: 400, opacity: 0.6 }}>
+          ({toReviewGroups.length} event{toReviewGroups.length === 1 ? '' : 's'}
+          {toReview.length !== toReviewGroups.length ? `, ${toReview.length} listings` : ''})
+        </span>
       </h2>
       {toReview.length === 0 ? (
         <EmptyState title="Nothing new to review" description="No new experience listings in the last 7 days." />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          {toReview.map((e) => (
-            <ExperienceRow key={e.id} e={e} onCalendar={onCalSet.has(`exp:${e.id}`)} />
+          {toReviewGroups.map((g) => (
+            <ExperienceGroup key={g.key} group={g} onCalSet={onCalSet} />
           ))}
         </div>
       )}
@@ -126,14 +154,17 @@ export default async function AdminExperiencesPage() {
         <>
           <h2 style={{ fontSize: '1rem', margin: '2rem 0 0.75rem' }}>
             Older unreviewed{' '}
-            <span style={{ fontSize: '0.875rem', fontWeight: 400, opacity: 0.6 }}>({olderUnreviewed.length})</span>
+            <span style={{ fontSize: '0.875rem', fontWeight: 400, opacity: 0.6 }}>
+              ({olderGroups.length} event{olderGroups.length === 1 ? '' : 's'}
+              {olderUnreviewed.length !== olderGroups.length ? `, ${olderUnreviewed.length} listings` : ''})
+            </span>
             <span style={{ fontSize: '0.8125rem', fontWeight: 400, opacity: 0.6, marginLeft: '0.5rem' }}>
               seen &gt;7 days ago, never reviewed
             </span>
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {olderUnreviewed.map((e) => (
-              <ExperienceRow key={e.id} e={e} onCalendar={onCalSet.has(`exp:${e.id}`)} />
+            {olderGroups.map((g) => (
+              <ExperienceGroup key={g.key} group={g} onCalSet={onCalSet} />
             ))}
           </div>
         </>
@@ -153,6 +184,82 @@ export default async function AdminExperiencesPage() {
         </>
       )}
     </div>
+  )
+}
+
+// Renders one canonical group. A singleton is just the normal row; a cluster of
+// tiers (same event, different ticket type/quantity) becomes one card with a
+// "Review all" button, the point range, and the individual tiers nested inside
+// so you can still feature or calendar a specific tier.
+function ExperienceGroup({ group, onCalSet }: { group: Group; onCalSet: Set<string> }) {
+  const items = group.items
+  if (items.length === 1) {
+    return <ExperienceRow e={items[0]} onCalendar={onCalSet.has(`exp:${items[0].id}`)} />
+  }
+  const displayTitle = items.reduce((a, b) => (a.title.length <= b.title.length ? a : b)).title
+  const pts = items.map((i) => i.points_required).filter((x): x is number => x != null)
+  const bids = items.map((i) => i.current_bid).filter((x): x is number => x != null)
+  const range = pts.length
+    ? `${Math.min(...pts).toLocaleString()}–${Math.max(...pts).toLocaleString()} pts`
+    : bids.length
+    ? `bids ${Math.min(...bids).toLocaleString()}–${Math.max(...bids).toLocaleString()} pts`
+    : null
+  const program = items[0].program_slug ?? items[0].source_platform ?? '—'
+  const anyFeatured = items.some((i) => i.featured)
+  const firstSeen = items[0].first_seen_at
+  const ids = items.map((i) => i.id).join(',')
+  return (
+    <Card>
+      <CardBody padding="0.75rem 1rem">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem', flexWrap: 'wrap' }}>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              {anyFeatured && <span title="Has a featured tier" style={{ fontSize: '0.9rem' }}>⭐</span>}
+              <span style={{ fontWeight: 600, fontSize: '0.9375rem' }}>{displayTitle}</span>
+              <span
+                style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  color: 'var(--color-primary)',
+                  border: '1px solid var(--color-border-soft)',
+                  borderRadius: '999px',
+                  padding: '0.0625rem 0.5rem',
+                }}
+                title="Ticket tiers / quantities of the same event"
+              >
+                {items.length} tiers
+              </span>
+            </div>
+            <div style={{ fontSize: '0.8125rem', opacity: 0.7, marginTop: '0.1875rem' }}>
+              {program}
+              {items[0].location ? ` · ${items[0].location}` : ''}
+              {range ? ` · ${range}` : ''}
+              {firstSeen ? ` · seen ${seenLabel(firstSeen)}` : ''}
+            </div>
+          </div>
+          <form action={markGroupReviewed} style={{ flexShrink: 0 }}>
+            <input type="hidden" name="ids" value={ids} />
+            <button type="submit" className="admin-btn admin-btn-ghost" style={{ fontSize: '0.8125rem' }}>
+              ✓ Review all ({items.length})
+            </button>
+          </form>
+        </div>
+        <div
+          style={{
+            marginTop: '0.625rem',
+            paddingLeft: '0.75rem',
+            borderLeft: '2px solid var(--color-border-soft)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.375rem',
+          }}
+        >
+          {items.map((e) => (
+            <ExperienceRow key={e.id} e={e} onCalendar={onCalSet.has(`exp:${e.id}`)} />
+          ))}
+        </div>
+      </CardBody>
+    </Card>
   )
 }
 

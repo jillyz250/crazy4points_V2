@@ -23,6 +23,29 @@ export async function markReviewed(formData: FormData) {
 }
 
 /**
+ * Mark a whole GROUP of near-duplicate listings reviewed at once (Jill,
+ * 2026-09-05). The scrapers ingest each ticket tier of one event as its own
+ * listing; the review UI groups them by canonical_experience_key so a cluster
+ * (e.g. Shaboozey General / VIP / VIP+Stay) clears in one click instead of N.
+ * Takes a comma-separated list of listing ids.
+ */
+export async function markGroupReviewed(formData: FormData) {
+  await assertAdmin()
+  const ids = String(formData.get('ids') ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+  if (ids.length === 0) return
+  const supabase = createAdminClient()
+  await supabase
+    .from('experience_listings')
+    .update({ editorial_reviewed_at: new Date().toISOString() })
+    .in('id', ids)
+  revalidatePath('/admin/experiences')
+  revalidatePath('/admin')
+}
+
+/**
  * Add an experience to the social content calendar with auto-timing (Jill,
  * 2026-09-02). Fixed-price experiences post RIGHT AWAY (tomorrow) because limited
  * packages can sell out well before the close date; auctions post ~5 days before
