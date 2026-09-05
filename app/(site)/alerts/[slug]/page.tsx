@@ -150,6 +150,24 @@ export default async function AlertDetailPage({ params }: Props) {
     }
   }
 
+  // Neutral "Go to the official offer" action — for actionable alerts that
+  // aren't sweepstakes/signups (registration_required) and aren't card-bonuses
+  // (ApplyHere rail): bank/deposit bonuses, transfer/buy-points/award-sale
+  // landings, etc. No giveaway wording, no sweepstakes disclaimer. Suppressed
+  // when the Register button or the card Apply-here rail already covers it, so
+  // an alert never sprouts two competing outbound buttons.
+  let offerHref: string | null = null
+  if (alert.offer_url && !registerHref && !alert.apply_card_slug) {
+    try {
+      const u = new URL(alert.offer_url)
+      if (u.protocol === 'https:' || u.protocol === 'http:') {
+        offerHref = alert.offer_url
+      }
+    } catch {
+      offerHref = null
+    }
+  }
+
   // Render description as markdown — promo alerts use a hybrid format
   // (voicey paragraphs + a "What qualifies" bulleted block). Other alert
   // types are still prose-only so markdown is just a passthrough for them.
@@ -255,6 +273,20 @@ export default async function AlertDetailPage({ params }: Props) {
             className="mt-5 inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-[var(--radius-ui)] bg-[var(--color-accent)] px-6 py-3 font-ui text-sm font-bold uppercase tracking-[0.06em] text-[#1A1A1A] shadow-[var(--shadow-soft)] transition-colors hover:bg-[var(--color-accent-hover)] hover:text-[#1A1A1A]"
           >
             Register free →
+          </a>
+        )}
+
+        {/* Neutral outbound action — "Go to the official offer". Same gold pill
+            as Register, but accurate wording for non-sweepstakes actionable
+            alerts (bank/deposit bonuses, offer landings). No disclaimer. */}
+        {offerHref && (
+          <a
+            href={offerHref}
+            target="_blank"
+            rel="nofollow noopener noreferrer"
+            className="mt-5 inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-[var(--radius-ui)] bg-[var(--color-accent)] px-6 py-3 font-ui text-sm font-bold uppercase tracking-[0.06em] text-[#1A1A1A] shadow-[var(--shadow-soft)] transition-colors hover:bg-[var(--color-accent-hover)] hover:text-[#1A1A1A]"
+          >
+            Go to the official offer →
           </a>
         )}
 

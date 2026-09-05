@@ -144,6 +144,16 @@ export interface Alert {
    * design — never a real column on the alerts table.
    */
   apply_card_slug?: string | null
+  /**
+   * Outbound URL to the OFFICIAL offer/action page, for actionable alerts that
+   * aren't card-bonuses (Apply-here rail) or sweepstakes/signups
+   * (registration_required "Register free" button). Drives the neutral
+   * "Go to the official offer" button — no giveaway wording, no sweepstakes
+   * disclaimer. Use for bank/deposit bonuses, transfer/buy-points/award-sale
+   * landings, etc. Stored in variant metadata (like apply_card_slug), so it
+   * populates only on AlertView-adapter reads; never a real column on alerts.
+   */
+  offer_url?: string | null
   registration_required: boolean
   created_by: string | null
   approved_by: string | null

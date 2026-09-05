@@ -92,6 +92,8 @@ export interface WriteAlertVariantInput {
   editorial_value_add?: unknown[] | null
   verified_terms?: string | null
   apply_card_slug?: string | null
+  /** Outbound URL to the official offer/action page (neutral "Go to the official offer" button). */
+  offer_url?: string | null
   terms_waived_reason?: string | null
   last_verified?: string | null
 
@@ -259,6 +261,7 @@ export async function writeAlertVariant(
     last_verified: normString(input.last_verified),
     verified_terms: normString(input.verified_terms),
     apply_card_slug: normString(input.apply_card_slug),
+    offer_url: normString(input.offer_url),
     gaps: input.gaps ?? null,
     editorial_value_add: normArray(input.editorial_value_add),
     revision_log: normArray(input.revision_log),
