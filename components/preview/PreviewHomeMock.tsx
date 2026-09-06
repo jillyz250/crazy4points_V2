@@ -29,7 +29,8 @@ const CARDS = [
 const TOOLS: { label: string; href: string; desc: string; image: string | null; accent: string; caption?: string }[] = [
   { label: 'Decision Engine', href: '/decision-engine', desc: "Tell us your trip — we'll find the smartest way to book it.", image: '/hero-preview/cards/tool-decision-engine.png', accent: '#6B2D8F' },
   { label: 'Credit Card Explorer', href: '/cards', desc: 'Find the card that earns the points you need.', image: '/hero-preview/cards/tool-cards.png', accent: '#9A7B1F' },
-  { label: 'Alliance Explorer', href: '/tools/alliances', desc: 'See which airlines partner, so your miles go further.', image: null, accent: '#17868A' },
+  // Alliance names in a text caption (nominative — can't use alliance logos); footer disclosure covers it.
+  { label: 'Alliance Explorer', href: '/tools/alliances', desc: 'The three big airline alliances, side by side.', image: '/hero-preview/cards/tool-alliances.png', accent: '#17868A', caption: 'Star Alliance · Oneworld · SkyTeam' },
   // Caption = Charlie-approved nominative fair use (plain names, no logos/®); the
   // footer carries the required not-affiliated disclosure.
   { label: 'Program Explorer', href: '/programs', desc: 'Know your programs — airlines & hotels.', image: '/hero-preview/cards/tool-programs.png', accent: '#33518A', caption: 'Covering United, Marriott, Delta, Hyatt & more' },
