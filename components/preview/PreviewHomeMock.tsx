@@ -1,9 +1,12 @@
 import Link from 'next/link'
 import type { ExperienceGroup } from '@/lib/experiences/marquee'
 import { categoryBucket } from '@/lib/experiences/categories'
-import type { AlertViewWithPrograms } from '@/utils/content/alertView'
 import FullBleedBanner from '@/components/preview/FullBleedBanner'
 import { PERSONAS } from '@/lib/startHere'
+
+// Flight Deals lane data (computed in the page).
+export type FlightBonus = { card: string; dest: string; pct: number | null; end: string | null; slug: string | null }
+export type FlightSweetSpot = { id: string; title: string; route: string | null; points: number | null; cabin: string | null }
 
 // Full homepage mockup, two looks (Jill 2026-09-06): 'editorial' (elegant serif +
 // real destination photos, cream/airy — the B direction) vs 'immersive' (deep-plum
@@ -91,25 +94,43 @@ function ExpCard({ g, serif }: { g: ExperienceGroup; serif: string }) {
   )
 }
 
-// A real published deal alert, luxe card. Reused across the deal sections.
-function AlertCard({ a, serif }: { a: AlertViewWithPrograms; serif: string }) {
-  const href = `/alerts/${a.short_slug || a.slug}`
-  const tag = (a.type || 'deal').replace(/_/g, ' ')
+// Lane 1 — an active transfer bonus to an airline (the "act now" card).
+function BonusCard({ b, serif }: { b: FlightBonus; serif: string }) {
+  const href = b.slug ? `/alerts/${b.slug}` : '/alerts'
+  const ends = b.end ? new Date(b.end + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null
   return (
-    <Link
-      href={href}
-      className="group flex flex-col rounded-2xl bg-white p-5 transition-transform duration-200 hover:-translate-y-1"
-      style={{ border: '1px solid rgba(107,45,143,0.12)', boxShadow: '0 14px 34px -22px rgba(62,26,87,0.4)' }}
-    >
-      <span className="mb-3 inline-flex w-fit rounded-full px-2.5 py-1 text-[11px] font-bold uppercase" style={{ background: 'var(--color-background-soft)', color: 'var(--color-primary)', border: '1px solid var(--color-border-soft)', fontFamily: 'var(--font-ui)' }}>{tag}</span>
-      <h4 style={{ fontFamily: serif, color: 'var(--color-primary)' }} className="line-clamp-2 text-[1.05rem] font-bold leading-snug">{a.title}</h4>
-      {a.summary && <p className="mt-2 line-clamp-2 text-sm" style={{ color: 'var(--color-text-secondary)' }}>{a.summary}</p>}
-      <div className="mt-3 h-[2px] w-6 rounded" style={{ background: 'var(--color-accent)' }} />
+    <Link href={href} className="group flex flex-col rounded-2xl bg-white p-5 transition-transform duration-200 hover:-translate-y-1" style={{ border: '1px solid rgba(107,45,143,0.12)', boxShadow: '0 14px 34px -22px rgba(62,26,87,0.4)' }}>
+      {b.pct != null && (
+        <span className="mb-3 inline-flex w-fit rounded-full px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wide" style={{ background: 'linear-gradient(180deg,#f8e7a8,#cfa63f)', color: '#3E1A57', fontFamily: 'var(--font-ui)' }}>+{b.pct}% bonus</span>
+      )}
+      <h4 style={{ fontFamily: serif, color: 'var(--color-primary)' }} className="text-[1.05rem] font-bold leading-snug">{b.card} → {b.dest}</h4>
+      <p className="mt-1.5 text-sm" style={{ color: 'var(--color-text-secondary)' }}>Transfer bonus{b.pct != null ? ` — ${b.pct}% extra miles` : ''}.</p>
+      {ends && <p className="mt-2 font-ui text-xs font-semibold" style={{ color: 'var(--color-alert)' }}>Ends {ends}</p>}
     </Link>
   )
 }
 
-export default function PreviewHomeMock({ variant, experiences = [], flightDeals = [] }: { variant: 'editorial' | 'immersive' | 'index'; experiences?: ExperienceGroup[]; flightDeals?: AlertViewWithPrograms[] }) {
+// Lane 2 — a flight sweet spot (the evergreen "always smart" card).
+function SweetSpotCard({ s, serif }: { s: FlightSweetSpot; serif: string }) {
+  const cabin = s.cabin ? s.cabin.replace(/_/g, ' ') : null
+  return (
+    <Link href="/sweet-spots" className="group flex flex-col rounded-2xl bg-white p-5 transition-transform duration-200 hover:-translate-y-1" style={{ border: '1px solid rgba(107,45,143,0.12)', boxShadow: '0 14px 34px -22px rgba(62,26,87,0.4)' }}>
+      {cabin && (
+        <span className="mb-3 inline-flex w-fit rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide" style={{ background: 'var(--color-background-soft)', color: 'var(--color-primary)', border: '1px solid var(--color-border-soft)', fontFamily: 'var(--font-ui)' }}>{cabin}</span>
+      )}
+      <h4 style={{ fontFamily: serif, color: 'var(--color-primary)' }} className="line-clamp-2 text-[1.05rem] font-bold leading-snug">{s.title}</h4>
+      {s.route && <p className="mt-1.5 text-sm" style={{ color: 'var(--color-text-secondary)' }}>{s.route}</p>}
+      {s.points != null && (
+        <div className="mt-3 flex items-center gap-2">
+          <span className="h-[2px] w-5 rounded" style={{ background: 'var(--color-accent)' }} />
+          <span className="font-ui text-sm font-semibold" style={{ color: 'var(--color-primary)' }}>from {s.points.toLocaleString('en-US')} pts</span>
+        </div>
+      )}
+    </Link>
+  )
+}
+
+export default function PreviewHomeMock({ variant, experiences = [], flightBonuses = [], flightSweetSpots = [] }: { variant: 'editorial' | 'immersive' | 'index'; experiences?: ExperienceGroup[]; flightBonuses?: FlightBonus[]; flightSweetSpots?: FlightSweetSpot[] }) {
   const dark = variant === 'immersive'
   const isIndex = variant === 'index'
   const serif = 'var(--font-display)'
@@ -205,23 +226,43 @@ export default function PreviewHomeMock({ variant, experiences = [], flightDeals
         </section>
       )}
 
-      {/* ===== Flight Deals section — gold nameplate + real airline alerts ===== */}
-      {isIndex && flightDeals.length > 0 && (
+      {/* ===== Flight Deals section — two lanes: transfer bonuses + sweet spots ===== */}
+      {isIndex && (flightBonuses.length > 0 || flightSweetSpots.length > 0) && (
         <section id="flights" style={{ background: 'var(--color-background-soft)', scrollMarginTop: '84px' }}>
           <FullBleedBanner title="Flight Deals" sub="AWARD SALES & SWEET SPOTS" />
           <div className="rg-container" style={{ paddingTop: '1.5rem', paddingBottom: '3rem' }}>
-            <div className="mx-auto mb-6 flex max-w-5xl flex-wrap items-end justify-between gap-3">
-              <div>
-                <div className="h-[2px] w-8 rounded" style={{ background: 'var(--color-accent)' }} />
-                <h3 style={{ fontFamily: serif, color: 'var(--color-primary)' }} className="mt-2 text-xl font-bold sm:text-2xl">Fly farther for fewer points.</h3>
-              </div>
-              <Link href="/alerts" className="inline-flex items-center gap-1 text-sm font-bold" style={{ color: 'var(--color-primary)', fontFamily: 'var(--font-ui)' }}>See all deals <span aria-hidden>→</span></Link>
-            </div>
-            <div className="mx-auto grid max-w-5xl gap-5 sm:grid-cols-3">
-              {flightDeals.slice(0, 3).map((a) => (
-                <AlertCard key={a.slug} a={a} serif={serif} />
-              ))}
-            </div>
+            {/* Lane 1 — ending soon: transfer bonuses */}
+            {flightBonuses.length > 0 && (
+              <>
+                <div className="mx-auto mb-5 flex max-w-5xl flex-wrap items-end justify-between gap-3">
+                  <div>
+                    <div className="h-[2px] w-8 rounded" style={{ background: 'var(--color-accent)' }} />
+                    <h3 style={{ fontFamily: serif, color: 'var(--color-primary)' }} className="mt-2 text-xl font-bold sm:text-2xl">Ending soon: transfer bonuses</h3>
+                    <p className="mt-1 font-body text-sm text-[var(--color-text-secondary)]">Move points to these airlines for extra miles — while the promo lasts.</p>
+                  </div>
+                  <Link href="/alerts" className="inline-flex items-center gap-1 text-sm font-bold" style={{ color: 'var(--color-primary)', fontFamily: 'var(--font-ui)' }}>See all deals <span aria-hidden>→</span></Link>
+                </div>
+                <div className="mx-auto mb-10 grid max-w-5xl gap-5 sm:grid-cols-3">
+                  {flightBonuses.slice(0, 3).map((b, i) => <BonusCard key={i} b={b} serif={serif} />)}
+                </div>
+              </>
+            )}
+            {/* Lane 2 — sweet spots worth chasing */}
+            {flightSweetSpots.length > 0 && (
+              <>
+                <div className="mx-auto mb-5 flex max-w-5xl flex-wrap items-end justify-between gap-3">
+                  <div>
+                    <div className="h-[2px] w-8 rounded" style={{ background: 'var(--color-accent)' }} />
+                    <h3 style={{ fontFamily: serif, color: 'var(--color-primary)' }} className="mt-2 text-xl font-bold sm:text-2xl">Sweet spots worth chasing</h3>
+                    <p className="mt-1 font-body text-sm text-[var(--color-text-secondary)]">The evergreen redemptions that are always smart, not just on sale.</p>
+                  </div>
+                  <Link href="/sweet-spots" className="inline-flex items-center gap-1 text-sm font-bold" style={{ color: 'var(--color-primary)', fontFamily: 'var(--font-ui)' }}>Explore sweet spots <span aria-hidden>→</span></Link>
+                </div>
+                <div className="mx-auto grid max-w-5xl gap-5 sm:grid-cols-3">
+                  {flightSweetSpots.slice(0, 3).map((s) => <SweetSpotCard key={s.id} s={s} serif={serif} />)}
+                </div>
+              </>
+            )}
           </div>
         </section>
       )}
