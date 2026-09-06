@@ -59,9 +59,10 @@ export default function PreviewHome() {
               fontFamily: 'var(--font-ui)',
             }}
           >
-            {/* left: simple text wordmark */}
-            <Link href="/" className="justify-self-start font-[var(--font-display)] text-xl font-extrabold tracking-tight text-[var(--color-primary)] sm:text-2xl">
-              Crazy<span className="text-[var(--color-accent)]">4</span>Points
+            {/* left: old-style script wordmark logo (Jill 2026-09-06) */}
+            <Link href="/" aria-label="Crazy4Points home" className="justify-self-start">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/hero-preview/wordmark-script.png" alt="Crazy4Points" className="h-7 w-auto drop-shadow-sm sm:h-9" />
             </Link>
 
             {/* center: nav links */}

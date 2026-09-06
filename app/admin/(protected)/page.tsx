@@ -166,7 +166,8 @@ export default async function AdminDashboard() {
   // Open P1s across the team, paired with each owner's name for the glance.
   const empName: Record<string, string> = {}
   const empEmoji: Record<string, string> = {}
-  for (const e of emps) { empName[e.slug] = e.name; if (e.emoji) empEmoji[e.slug] = e.emoji }
+  const empImage: Record<string, string> = {}
+  for (const e of emps) { empName[e.slug] = e.name; if (e.emoji) empEmoji[e.slug] = e.emoji; if (e.image_url) empImage[e.slug] = e.image_url }
   const teamP1s = ((p1Data ?? []) as { id: string; employee_slug: string; title: string; status: string; priority: string }[])
     .map((t) => ({ ...t, owner: empName[t.employee_slug] ?? t.employee_slug }))
   // Team-wide activity chain, each row joined to its person (name + emoji). Falls
@@ -176,6 +177,7 @@ export default async function AdminDashboard() {
     ...a,
     name: empName[a.employee_slug] ?? prettySlug(a.employee_slug),
     emoji: empEmoji[a.employee_slug] ?? null,
+    image: empImage[a.employee_slug] ?? null,
   }))
   const logsBy: Record<string, { type: string; created_at: string }[]> = {}
   for (const l of (logData ?? []) as { employee_id: string; type: string; created_at: string }[]) (logsBy[l.employee_id] ||= []).push(l)
@@ -472,7 +474,11 @@ export default async function AdminDashboard() {
                 return (
                   <div key={a.id} className="dh-act-row">
                     <Link href={`/admin/org/${a.employee_slug}`} className="dh-act-who" title={a.name}>
-                      <span className="dh-act-emoji">{a.emoji || a.name.charAt(0).toUpperCase()}</span>
+                      {a.image ? (
+                        <span className="dh-act-emoji dh-act-av"><Image src={a.image} alt={a.name} fill sizes="28px" style={{ objectFit: 'cover' }} /></span>
+                      ) : (
+                        <span className="dh-act-emoji">{a.emoji || a.name.charAt(0).toUpperCase()}</span>
+                      )}
                       <span className="dh-act-name">{a.name.split(' ')[0]}</span>
                     </Link>
                     <span className="dh-act-badge" style={{ color: s.fg, background: s.bg, borderColor: s.border }}>
@@ -702,6 +708,7 @@ const DH_CSS = `
 .admin .dh-act-who { flex-shrink:0; display:inline-flex; align-items:center; gap:8px; min-width:104px; text-decoration:none; border-radius:9px; padding:3px 6px 3px 3px; transition:background .14s ease; }
 .admin .dh-act-who:hover { background:color-mix(in srgb, var(--color-primary) 6%, var(--admin-surface)); text-decoration:none; }
 .admin .dh-act-emoji { display:flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:50%; flex-shrink:0; font-size:1rem; line-height:1; background:var(--admin-accent-soft); border:1px solid color-mix(in srgb, var(--color-accent) 28%, var(--admin-border)); }
+.admin .dh-act-av { position:relative; overflow:hidden; background:var(--admin-surface-alt); border-color:var(--admin-border); }
 .admin .dh-act-name { font-size:var(--admin-text-sm); font-weight:800; color:var(--admin-text); letter-spacing:-.01em; }
 .admin .dh-act-who:hover .dh-act-name { color:var(--color-primary); }
 .admin .dh-act-badge { flex-shrink:0; display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:9999px; font-size:var(--admin-text-xs); font-weight:800; text-transform:uppercase; letter-spacing:.04em; border:1px solid var(--admin-border); }
