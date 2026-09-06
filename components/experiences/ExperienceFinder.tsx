@@ -183,6 +183,37 @@ function updatedAgo(iso: string | null): string | null {
 
 const notYetOpen = (l: FinderListing) => l.bid_opens_at != null && Date.parse(l.bid_opens_at) > Date.now()
 
+// A listing reads as "VIP" when its title carries premium-access markers (the same
+// tier language canonicalKey strips). Drives the gold VIP ribbon on luxe cards.
+const VIP_MARKERS = /\b(vip|meet\s*(?:and|&|\+)?\s*greet|suites?|hospitality|club\s*level|backstage|courtside|front\s*row|all[-\s]?access|premium|box\s*seats?|field\s*level|private)\b/i
+const isVipExp = (title: string) => VIP_MARKERS.test(title)
+
+// Program brand logos we have in public/brand-logos/ (slug -> filename). Lets a
+// card show the real Hyatt/Amex/Delta mark instead of a plain text label.
+const PROGRAM_LOGO: Record<string, string> = {
+  amex: 'amex', chase: 'chase', citi: 'citi', 'capital-one': 'capitalone',
+  hyatt: 'hyatt', 'marriott-bonvoy': 'marriott', marriott: 'marriott',
+  united: 'united', delta: 'delta', hilton: 'hilton', wyndham: 'wyndham',
+  aa: 'aa', 'american-airlines': 'aa', alaska: 'alaska', atmos: 'alaska',
+  ihg: 'ihg', barclays: 'barclays',
+}
+const logoFor = (slug: string | null): string | null =>
+  slug && PROGRAM_LOGO[slug] ? `/brand-logos/${PROGRAM_LOGO[slug]}.png` : null
+
+// Color-code the "which points do you have?" pills by currency TYPE so a reader
+// finds their kind at a glance: transferable bank points, airline, or hotel.
+type PointType = 'bank' | 'airline' | 'hotel'
+const POINT_TYPE: Record<string, PointType> = {
+  chase: 'bank', amex: 'bank', 'capital-one': 'bank', citi: 'bank', bilt: 'bank',
+  delta: 'airline', united: 'airline', 'flying-blue': 'airline', atmos: 'airline', aa: 'airline', alaska: 'airline',
+  'marriott-bonvoy': 'hotel', marriott: 'hotel', hyatt: 'hotel', hilton: 'hotel', wyndham: 'hotel', choice: 'hotel', accor: 'hotel', ihg: 'hotel',
+}
+// Three clearly-different luxury families so the types never blur: transferable =
+// navy (blue), airline = wine/burgundy (red), hotel = antique gold. Kept off the
+// category-pill colors (music=mulberry, sports=emerald, dining=bronze, travel=teal).
+const TYPE_COLOR: Record<PointType, string> = { bank: '#33518A', airline: '#8A2F4E', hotel: '#9A7B1F' }
+const typeColorFor = (slug: string): string => TYPE_COLOR[POINT_TYPE[slug] ?? 'bank']
+
 // A listing first seen in the last ~48h gets a NEW flag. Time-based, so it
 // clears itself - no "mark as read" to maintain.
 const isNew = (l: FinderListing) =>
@@ -218,12 +249,16 @@ export default function ExperienceFinder({
   cardReach,
   bestBonus,
   initialCats,
+  luxe = false,
 }: {
   listings: FinderListing[]
   cardReach: Record<string, string[]>
   bestBonus: Record<string, BonusInfo>
   /** category pill keys pre-selected from the ?category= URL (top quick-pills). */
   initialCats?: string[]
+  /** Homepage-v2 luxe styling: refined pills, white/hairline panel, collapsed
+   *  advanced filters. Off = the current live look (keeps /experiences unchanged). */
+  luxe?: boolean
 }) {
   const [q, setQ] = useState('')
   const [program, setProgram] = useState<string>('all')
@@ -245,6 +280,9 @@ export default function ExperienceFinder({
   const [budget, setBudget] = useState<number | null>(null)
   const [statusFilter, setStatusFilter] = useState<'all' | 'live' | 'buynow' | 'soon'>('all')
   const [bonusOnly, setBonusOnly] = useState(false)
+  // luxe only: the secondary filters (program/status/NY/sold-out/bonus) collapse
+  // behind a "More filters" toggle so the panel leads with what matters.
+  const [showMore, setShowMore] = useState(false)
   const toggleHeld = (slug: string) =>
     setHeldCards((prev) => (prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug]))
 
@@ -276,8 +314,10 @@ export default function ExperienceFinder({
     const programCurrencies = [...counts.entries()]
       .sort((a, b) => b[1].n - a[1].n)
       .map(([slug, v]) => ({ slug, label: v.label }))
-    return [...TRANSFER_CARDS, ...programCurrencies]
-  }, [listings])
+    const combined = [...TRANSFER_CARDS, ...programCurrencies]
+    // luxe: alphabetize the whole list (color coding shows type, so order is A-Z).
+    return luxe ? [...combined].sort((a, b) => a.label.localeCompare(b.label)) : combined
+  }, [listings, luxe])
 
   // Count listings per category pill so we can show a count and hide empty pills.
   const catCounts = useMemo(() => {
@@ -390,47 +430,105 @@ export default function ExperienceFinder({
   // heavy dark-purple fill (Jill dislikes those). The tint is an INLINE color-mix
   // (an arbitrary bg-[color-mix(...)] class doesn't compile in this Tailwind v4
   // setup — same comma-in-arbitrary issue as the shadow classes).
-  const pillProps = (active: boolean): { className: string; style?: CSSProperties } => ({
-    className: `rg-tap-target inline-flex items-center gap-1.5 rounded-full border-2 px-4 py-2 font-ui text-sm font-semibold shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md ${
-      active
-        ? 'border-[var(--color-primary)] text-[var(--color-primary)]'
-        : 'border-[var(--color-border-soft)] bg-[var(--color-background)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]'
-    }`,
-    style: active ? { background: 'color-mix(in srgb, var(--color-primary) 14%, white)' } : undefined,
+  const pillProps = (active: boolean): { className: string; style?: CSSProperties } => {
+    if (luxe) {
+      // Our luxury pill: GOLD with a purple border when idle, PURPLE with a gold
+      // border when selected — the two-tone look Jill picked.
+      return {
+        className: 'rg-tap-target inline-flex items-center gap-1.5 rounded-full border-2 px-3.5 py-1.5 font-ui text-[0.8125rem] font-bold transition-all duration-150 hover:-translate-y-0.5',
+        style: active
+          ? { background: 'linear-gradient(180deg,#7a34a3,#5a2378 55%,#431a63)', borderColor: '#D4AF37', color: '#f4d97a', boxShadow: '0 7px 16px -7px rgba(74,29,99,0.85), inset 0 1px 0 rgba(255,255,255,0.18)' }
+          : { background: 'linear-gradient(180deg,#f8e7a8,#ebcc66 55%,#cfa63f)', borderColor: 'var(--color-primary)', color: '#3E1A57', boxShadow: '0 5px 12px -6px rgba(201,161,58,0.85), inset 0 1px 0 rgba(255,255,255,0.65)' },
+      }
+    }
+    return {
+      className: `rg-tap-target inline-flex items-center gap-1.5 rounded-full border-2 px-4 py-2 font-ui text-sm font-semibold shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md ${
+        active
+          ? 'border-[var(--color-primary)] text-[var(--color-primary)]'
+          : 'border-[var(--color-border-soft)] bg-[var(--color-background)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]'
+      }`,
+      style: active ? { background: 'color-mix(in srgb, var(--color-primary) 14%, white)' } : undefined,
+    }
+  }
+
+  // The shared luxe pill in an arbitrary color: glossy gradient + top sheen +
+  // depth shadow (idle tinted, active solid). Used by the points, budget, and
+  // category pills so the whole filter bar reads as one dimensional set.
+  const heldPillStyle = (color: string, active: boolean): { className: string; style: CSSProperties } => ({
+    className: 'rg-tap-target inline-flex items-center gap-2 rounded-full border-2 px-4 py-2 font-ui text-sm font-bold transition-all duration-150 hover:-translate-y-0.5',
+    style: active
+      ? {
+          background: `linear-gradient(180deg, rgba(255,255,255,0.22), rgba(255,255,255,0) 45%), ${color}`,
+          borderColor: color, color: '#fff',
+          boxShadow: `0 8px 18px -7px ${color}, inset 0 1px 0 rgba(255,255,255,0.32)`,
+        }
+      : {
+          background: `linear-gradient(180deg, ${color}26, ${color}12)`,
+          borderColor: color, color,
+          boxShadow: `0 5px 12px -6px ${color}66, inset 0 1px 0 rgba(255,255,255,0.8)`,
+        },
   })
 
   // Category pills wear their OWN category color — a tinted fill + colored border
   // + a dot when idle, a solid color fill with a matching glow when active. This
   // is what makes the filter bar colorful instead of a row of grey ovals.
-  const catPillProps = (color: string, active: boolean): { className: string; style: CSSProperties } => ({
-    className:
-      'rg-tap-target inline-flex items-center gap-2 rounded-full border-2 px-4 py-2 font-ui text-sm font-semibold shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md',
-    style: active
-      ? { background: color, borderColor: color, color: '#fff', boxShadow: `0 6px 16px -3px ${color}80` }
-      : { background: `${color}14`, borderColor: `${color}80`, color, boxShadow: `0 2px 6px ${color}22` },
-  })
+  const catPillProps = (color: string, active: boolean): { className: string; style: CSSProperties } => {
+    // luxe: same glossy/dimensional treatment as the points + budget pills, in the
+    // category's own color. Classic (live page): the original flat tint style.
+    if (luxe) return heldPillStyle(color, active)
+    return {
+      className:
+        'rg-tap-target inline-flex items-center gap-2 rounded-full border-2 px-4 py-2 font-ui text-sm font-semibold shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md',
+      style: active
+        ? { background: color, borderColor: color, color: '#fff', boxShadow: `0 6px 16px -3px ${color}80` }
+        : { background: `${color}14`, borderColor: `${color}80`, color, boxShadow: `0 2px 6px ${color}22` },
+    }
+  }
+
+  // "Which points do you have?" pill, colored by currency TYPE (bank/airline/hotel).
+  const heldPillProps = (slug: string, active: boolean) => heldPillStyle(typeColorFor(slug), active)
 
   return (
     <div>
       {/* PRIMARY filter — which points you hold (multi-select, check all that apply).
           This is the question most readers actually have, so it leads. */}
-      <div className="mb-4 rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] p-4">
-        <p className="mb-2 font-ui text-sm font-semibold text-[var(--color-primary)]">
-          Which points do you have?{' '}
-          <span className="font-normal text-[var(--color-text-secondary)]">Check all that apply</span>
-        </p>
+      <div
+        className={luxe ? 'mb-4 rounded-[1.1rem] bg-white p-5' : 'mb-4 rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background-soft)] p-4'}
+        style={luxe ? { border: '1px solid rgba(107,45,143,0.12)', boxShadow: '0 18px 44px -30px rgba(62,26,87,0.35)' } : undefined}
+      >
+        {luxe ? (
+          <p className="mb-3 flex items-center gap-2.5 font-ui text-[0.95rem] font-bold" style={{ color: 'var(--color-primary)' }}>
+            <span className="h-[2px] w-6 rounded" style={{ background: 'var(--color-accent)' }} />
+            Which points do you have?{' '}
+            <span className="font-normal text-[var(--color-text-secondary)]">Check all that apply</span>
+          </p>
+        ) : (
+          <p className="mb-2 font-ui text-sm font-semibold text-[var(--color-primary)]">
+            Which points do you have?{' '}
+            <span className="font-normal text-[var(--color-text-secondary)]">Check all that apply</span>
+          </p>
+        )}
+        {luxe && (
+          <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1.5 font-ui text-[0.72rem] font-semibold" style={{ color: '#5a5560' }}>
+            {([['Transferable', TYPE_COLOR.bank], ['Airline', TYPE_COLOR.airline], ['Hotel', TYPE_COLOR.hotel]] as const).map(([label, color]) => (
+              <span key={label} className="inline-flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ background: color }} aria-hidden />
+                {label}
+              </span>
+            ))}
+          </div>
+        )}
         <div className="flex flex-wrap gap-2">
-          {heldOptions.map((c) => (
-            <button
-              key={c.slug}
-              type="button"
-              {...pillProps(heldCards.includes(c.slug))}
-              aria-pressed={heldCards.includes(c.slug)}
-              onClick={() => toggleHeld(c.slug)}
-            >
-              {c.label}
-            </button>
-          ))}
+          {heldOptions.map((c) => {
+            const on = heldCards.includes(c.slug)
+            const props = luxe ? heldPillProps(c.slug, on) : pillProps(on)
+            return (
+              <button key={c.slug} type="button" {...props} aria-pressed={on} onClick={() => toggleHeld(c.slug)}>
+                {luxe && <span className="inline-block h-2 w-2 rounded-full" style={{ background: on ? '#fff' : typeColorFor(c.slug) }} aria-hidden />}
+                {c.label}
+              </button>
+            )
+          })}
           {heldCards.length > 0 && (
             <button
               type="button"
@@ -442,7 +540,10 @@ export default function ExperienceFinder({
           )}
         </div>
         {/* Category pills (multi-select) */}
-        <p className="mb-2 mt-4 font-ui text-sm font-semibold text-[var(--color-primary)]">Category</p>
+        <p className={`mb-2 mt-4 flex items-center gap-2.5 font-ui font-${luxe ? 'bold' : 'semibold'} text-${luxe ? '[0.95rem]' : 'sm'} text-[var(--color-primary)]`}>
+          {luxe && <span className="h-[2px] w-6 rounded" style={{ background: 'var(--color-accent)' }} />}
+          Category
+        </p>
         <div className="flex flex-wrap gap-2">
           {CATEGORY_PILLS.filter((c) => (catCounts[c.key] ?? 0) > 0).map((c) => {
             const active = selectedCats.includes(c.key)
@@ -469,7 +570,10 @@ export default function ExperienceFinder({
           )}
         </div>
         {/* Budget tier pills */}
-        <p className="mb-2 mt-4 font-ui text-sm font-semibold text-[var(--color-primary)]">Your budget</p>
+        <p className={`mb-2 mt-4 flex items-center gap-2.5 font-ui font-${luxe ? 'bold' : 'semibold'} text-${luxe ? '[0.95rem]' : 'sm'} text-[var(--color-primary)]`}>
+          {luxe && <span className="h-[2px] w-6 rounded" style={{ background: 'var(--color-accent)' }} />}
+          Your budget
+        </p>
         <div className="flex flex-wrap gap-2">
           <button type="button" {...pillProps(budget === null)} onClick={() => setBudget(null)}>
             Any
@@ -488,7 +592,8 @@ export default function ExperienceFinder({
         </div>
       </div>
 
-      {/* Search + program + sort */}
+      {/* Search + sort (always) + secondary filters (collapsed behind "More
+          filters" in luxe, always shown in the classic live layout). */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <input
           type="search"
@@ -496,20 +601,8 @@ export default function ExperienceFinder({
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search experiences, artists, cities..."
           className="min-w-[12rem] flex-1 rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background)] px-3 py-2 font-body text-base"
+          style={luxe ? { borderColor: 'rgba(107,45,143,0.18)' } : undefined}
         />
-        <select
-          value={program}
-          onChange={(e) => setProgram(e.target.value)}
-          className="rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background)] px-3 py-2 font-ui text-base"
-          aria-label="Filter by program"
-        >
-          <option value="all">All programs</option>
-          {programs.map(([slug, label]) => (
-            <option key={slug} value={slug}>
-              {label}
-            </option>
-          ))}
-        </select>
         <select
           value={sort}
           onChange={(e) => setSort(e.target.value as SortKey)}
@@ -522,46 +615,53 @@ export default function ExperienceFinder({
             </option>
           ))}
         </select>
-        {nyCount > 0 && (
-          <button
-            type="button"
-            {...pillProps(nyOnly)}
-            aria-pressed={nyOnly}
-            onClick={() => setNyOnly((v) => !v)}
-          >
-            {nyOnly ? 'New York only' : `New York (${nyCount})`}
+        {luxe && (
+          <button type="button" {...pillProps(showMore)} aria-expanded={showMore} onClick={() => setShowMore((v) => !v)}>
+            {showMore ? 'Fewer filters' : 'More filters'}
           </button>
         )}
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
-          className="rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background)] px-3 py-2 font-ui text-base"
-          aria-label="Filter by status"
-        >
-          <option value="all">Any status</option>
-          <option value="live">Live auctions</option>
-          <option value="buynow">Buy now</option>
-          <option value="soon">Coming soon</option>
-        </select>
-        {soldOutCount > 0 && (
-          <button
-            type="button"
-            {...pillProps(hideSoldOut)}
-            aria-pressed={hideSoldOut}
-            onClick={() => setHideSoldOut((v) => !v)}
-          >
-            {hideSoldOut ? 'Sold out hidden' : `Hide sold out (${soldOutCount})`}
-          </button>
-        )}
-        {bonusCount > 0 && (
-          <button
-            type="button"
-            {...pillProps(bonusOnly)}
-            aria-pressed={bonusOnly}
-            onClick={() => setBonusOnly((v) => !v)}
-          >
-            {bonusOnly ? 'Transfer bonus only' : `Active transfer bonus (${bonusCount})`}
-          </button>
+        {(!luxe || showMore) && (
+          <>
+            <select
+              value={program}
+              onChange={(e) => setProgram(e.target.value)}
+              className="rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background)] px-3 py-2 font-ui text-base"
+              aria-label="Filter by program"
+            >
+              <option value="all">All programs</option>
+              {programs.map(([slug, label]) => (
+                <option key={slug} value={slug}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            {nyCount > 0 && (
+              <button type="button" {...pillProps(nyOnly)} aria-pressed={nyOnly} onClick={() => setNyOnly((v) => !v)}>
+                {nyOnly ? 'New York only' : `New York (${nyCount})`}
+              </button>
+            )}
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+              className="rounded-[var(--radius-ui)] border border-[var(--color-border-soft)] bg-[var(--color-background)] px-3 py-2 font-ui text-base"
+              aria-label="Filter by status"
+            >
+              <option value="all">Any status</option>
+              <option value="live">Live auctions</option>
+              <option value="buynow">Buy now</option>
+              <option value="soon">Coming soon</option>
+            </select>
+            {soldOutCount > 0 && (
+              <button type="button" {...pillProps(hideSoldOut)} aria-pressed={hideSoldOut} onClick={() => setHideSoldOut((v) => !v)}>
+                {hideSoldOut ? 'Sold out hidden' : `Hide sold out (${soldOutCount})`}
+              </button>
+            )}
+            {bonusCount > 0 && (
+              <button type="button" {...pillProps(bonusOnly)} aria-pressed={bonusOnly} onClick={() => setBonusOnly((v) => !v)}>
+                {bonusOnly ? 'Transfer bonus only' : `Active transfer bonus (${bonusCount})`}
+              </button>
+            )}
+          </>
         )}
       </div>
 
@@ -663,6 +763,11 @@ export default function ExperienceFinder({
     const card = (
       <>
         <div className="mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+          {luxe && isVipExp(l.title) && !l.sold_out && !l.image_url && (
+            <span className="rounded-full px-2 py-0.5 font-ui text-[0.6875rem] font-extrabold uppercase tracking-[0.12em]" style={{ background: 'linear-gradient(180deg,#f8e7a8,#cfa63f)', color: '#3E1A57' }}>
+              VIP
+            </span>
+          )}
           {bonus && (
             <span className="rounded-full bg-[var(--color-accent)] px-2 py-0.5 font-ui text-[0.6875rem] font-bold uppercase tracking-wide text-[#1A1A1A]">
               {bonus.card}
@@ -687,16 +792,29 @@ export default function ExperienceFinder({
               {bucket.label}
             </span>
           )}
-          <span className="font-ui text-[0.6875rem] font-semibold uppercase tracking-wide text-[var(--color-primary)]">
-            {l.program_label}
-          </span>
+          {(() => {
+            const logo = luxe ? logoFor(l.program_slug) : null
+            return (
+              <span className="inline-flex items-center gap-1.5 font-ui text-[0.6875rem] font-semibold uppercase tracking-wide text-[var(--color-primary)]">
+                {logo && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={logo} alt="" className="h-4 w-auto object-contain" />
+                )}
+                {l.program_label}
+              </span>
+            )
+          })()}
           {l.format && (
             <span className="font-ui text-[0.6875rem] uppercase tracking-wide text-[var(--color-text-secondary)]">
               {formatLabel(l.format)}
             </span>
           )}
         </div>
-        <p className="font-body font-medium leading-snug text-[var(--color-text-primary)]">{l.title}</p>
+        {luxe ? (
+          <p className="font-display text-[1.05rem] font-bold leading-snug text-[var(--color-primary)]">{l.title}</p>
+        ) : (
+          <p className="font-body font-medium leading-snug text-[var(--color-text-primary)]">{l.title}</p>
+        )}
         {(() => {
           const loc = locationBadge(l.location)
           if (!loc) return null
@@ -754,8 +872,15 @@ export default function ExperienceFinder({
     // tone, so a concert (mulberry) reads differently from a game (emerald) at a
     // glance — without loud borders. `${color}14` ≈ 8% alpha fill. Falls back to
     // the neutral card when a listing has no category.
-    const tint: CSSProperties = bucket
-      ? { borderLeftWidth: '4px', borderLeftColor: bucket.color, backgroundColor: `${bucket.color}14` }
+    // luxe = clean white card (identity comes from the category PILL, not a tint);
+    // classic = the colored left-edge + faint fill.
+    const tint: CSSProperties = luxe
+      ? {}
+      : bucket
+        ? { borderLeftWidth: '4px', borderLeftColor: bucket.color, backgroundColor: `${bucket.color}14` }
+        : {}
+    const luxeCardStyle: CSSProperties = luxe
+      ? { border: '1px solid rgba(107,45,143,0.12)', boxShadow: '0 14px 34px -22px rgba(62,26,87,0.4)' }
       : {}
     // Image-led tile when the listing has a photo, so the browse grid is as rich
     // as the featured hero — a beautiful listing no longer looks plain just
@@ -772,7 +897,26 @@ export default function ExperienceFinder({
         />
       </div>
     ) : null
-    const wrapClass = `overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] shadow-[var(--shadow-soft)] transition hover:border-[var(--color-primary)]${l.sold_out ? '' : ' hover:-translate-y-0.5'}${dim}`
+    const wrapClass = luxe
+      ? `relative overflow-hidden rounded-2xl bg-white transition duration-200${l.sold_out ? '' : ' hover:-translate-y-1'}${dim}`
+      : `relative overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border-soft)] bg-[var(--color-background)] shadow-[var(--shadow-soft)] transition hover:border-[var(--color-primary)]${l.sold_out ? '' : ' hover:-translate-y-0.5'}${dim}`
+    // Gold swallowtail VIP ribbon — only over the IMAGE (imageless cards get an
+    // inline VIP badge in the meta row instead, so nothing collides).
+    const vipRibbon = luxe && isVipExp(l.title) && !l.sold_out && l.image_url ? (
+      <span
+        aria-label="VIP experience"
+        className="pointer-events-none absolute left-0 top-3 z-20 font-ui"
+        style={{
+          background: 'linear-gradient(180deg,#f8e7a8,#ebcc66 55%,#cfa63f)',
+          color: '#3E1A57', fontWeight: 800, fontSize: '0.62rem', letterSpacing: '0.16em', lineHeight: 1,
+          padding: '5px 15px 5px 11px',
+          boxShadow: '0 6px 14px -6px rgba(150,110,30,0.85)',
+          clipPath: 'polygon(0 0, 100% 0, 84% 50%, 100% 100%, 0 100%)',
+        }}
+      >
+        VIP
+      </span>
+    ) : null
     // Monetization: for a reader who doesn't hold this program's points, a soft
     // referral CTA into the Card Explorer, pre-filtered to cards that reach it.
     // A SEPARATE link below the experience link (never nested inside the <a>).
@@ -798,7 +942,8 @@ export default function ExperienceFinder({
       </>
     )
     return (
-      <div key={key} style={tint} className={wrapClass}>
+      <div key={key} style={{ ...tint, ...luxeCardStyle }} className={wrapClass}>
+        {vipRibbon}
         {href ? (
           <a href={href} target="_blank" rel="noopener noreferrer" className="block">
             {body}

@@ -1,4 +1,8 @@
 import Link from 'next/link'
+import type { ExperienceGroup } from '@/lib/experiences/marquee'
+import { categoryBucket } from '@/lib/experiences/categories'
+import type { AlertViewWithPrograms } from '@/utils/content/alertView'
+import FullBleedBanner from '@/components/preview/FullBleedBanner'
 
 // Full homepage mockup, two looks (Jill 2026-09-06): 'editorial' (elegant serif +
 // real destination photos, cream/airy — the B direction) vs 'immersive' (deep-plum
@@ -15,14 +19,86 @@ const CARDS = [
   { t: 'Hotel Deals', s: 'Unlock dream stays', img: '/hero-preview/cards/card-photo-hotels.jpg' },
   { t: 'Card Bonuses', s: 'Maximize your rewards', img: '/hero-preview/cards/card-photo-cards.jpg' },
 ]
+// Gold-pill "jump to" nav (Jill, 2026-09-06): a slim row of gold pills right
+// under the hero that anchor-scroll to each homepage section.
+// "Start here" is a real destination (the tools hub + "what kind of points
+// traveler are you?" guide), so it links to a page; the rest jump to sections.
+const PILLS = [
+  { label: 'Start here', href: '/start-here' },
+  { label: 'Experiences', href: '/experiences' },
+  { label: 'Flight Deals', href: '#flights' },
+  { label: 'Hotel Deals', href: '#hotels' },
+  { label: 'Card Explorer', href: '#cards' },
+  { label: 'Guides', href: '#guides' },
+]
 const ALERTS = [
   { tag: 'Sign-Up Bonus', title: 'Chase Ink Cash & Unlimited Hit 100K', sub: 'Biggest we’ve seen on these no-annual-fee cards.' },
   { tag: 'Sign-Up Bonus', title: 'Citi AAdvantage Executive Jumps to 125,000 Miles', sub: 'The biggest we’ve tracked on this card.' },
   { tag: 'Limited Offer', title: 'Bask Bank: 20,000 AAdvantage Miles', sub: 'A rare non-card way to earn AA miles.' },
 ]
 
-export default function PreviewHomeMock({ variant }: { variant: 'editorial' | 'immersive' }) {
+// One real experience listing, styled to match the luxe homepage (white card,
+// hairline border, gold rule, serif title). Reuses the getHomeExperiences groups.
+function ExpCard({ g, serif }: { g: ExperienceGroup; serif: string }) {
+  const href = g.packages.find((p) => p.detail_url)?.detail_url ?? '/experiences'
+  const ext = href.startsWith('http')
+  const bucket = categoryBucket(g.category)
+  const price =
+    g.fromPoints != null
+      ? `From ${g.fromPoints.toLocaleString('en-US')} pts`
+      : g.isAuction
+        ? g.fromBid != null
+          ? `Bid ${g.fromBid.toLocaleString('en-US')} pts`
+          : 'Bid with points'
+        : 'Redeem or bid'
+  const inner = (
+    <>
+      <div className="relative aspect-[4/3] overflow-hidden">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={g.image_url as string} alt={g.title} loading="lazy" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+        {bucket && (
+          <span className="absolute left-3 top-3 rounded-full px-2.5 py-1 text-[0.6rem] font-bold uppercase tracking-wide text-white" style={{ backgroundColor: bucket.color, fontFamily: 'var(--font-ui)' }}>{bucket.label}</span>
+        )}
+      </div>
+      <div className="flex grow flex-col p-4">
+        <h4 style={{ fontFamily: serif, color: 'var(--color-primary)' }} className="line-clamp-2 text-[1.05rem] leading-snug">{g.title}</h4>
+        <div className="mt-3 flex items-center gap-2">
+          <span className="h-[2px] w-5 rounded" style={{ background: 'var(--color-accent)' }} />
+          <span className="text-sm font-semibold" style={{ color: 'var(--color-text-secondary)', fontFamily: 'var(--font-ui)' }}>{price}</span>
+        </div>
+      </div>
+    </>
+  )
+  const cls = 'group flex flex-col overflow-hidden rounded-2xl bg-white transition-transform duration-200 hover:-translate-y-1'
+  const style = { border: '1px solid rgba(107,45,143,0.12)', boxShadow: '0 14px 34px -22px rgba(62,26,87,0.4)' }
+  return ext ? (
+    <a href={href} target="_blank" rel="noopener noreferrer" className={cls} style={style}>{inner}</a>
+  ) : (
+    <Link href={href} className={cls} style={style}>{inner}</Link>
+  )
+}
+
+// A real published deal alert, luxe card. Reused across the deal sections.
+function AlertCard({ a, serif }: { a: AlertViewWithPrograms; serif: string }) {
+  const href = `/alerts/${a.short_slug || a.slug}`
+  const tag = (a.type || 'deal').replace(/_/g, ' ')
+  return (
+    <Link
+      href={href}
+      className="group flex flex-col rounded-2xl bg-white p-5 transition-transform duration-200 hover:-translate-y-1"
+      style={{ border: '1px solid rgba(107,45,143,0.12)', boxShadow: '0 14px 34px -22px rgba(62,26,87,0.4)' }}
+    >
+      <span className="mb-3 inline-flex w-fit rounded-full px-2.5 py-1 text-[11px] font-bold uppercase" style={{ background: 'var(--color-background-soft)', color: 'var(--color-primary)', border: '1px solid var(--color-border-soft)', fontFamily: 'var(--font-ui)' }}>{tag}</span>
+      <h4 style={{ fontFamily: serif, color: 'var(--color-primary)' }} className="line-clamp-2 text-[1.05rem] font-bold leading-snug">{a.title}</h4>
+      {a.summary && <p className="mt-2 line-clamp-2 text-sm" style={{ color: 'var(--color-text-secondary)' }}>{a.summary}</p>}
+      <div className="mt-3 h-[2px] w-6 rounded" style={{ background: 'var(--color-accent)' }} />
+    </Link>
+  )
+}
+
+export default function PreviewHomeMock({ variant, experiences = [], flightDeals = [] }: { variant: 'editorial' | 'immersive' | 'index'; experiences?: ExperienceGroup[]; flightDeals?: AlertViewWithPrograms[] }) {
   const dark = variant === 'immersive'
+  const isIndex = variant === 'index'
   const serif = 'var(--font-display)'
   return (
     <div style={{ background: dark ? '#1c0a2b' : 'var(--color-background)' }}>
@@ -58,7 +134,87 @@ export default function PreviewHomeMock({ variant }: { variant: 'editorial' | 'i
         <Link href="/newsletter" aria-label="Join the Insider List" className="absolute z-20" style={{ left: '52.5%', top: '54.5%', width: '28%', height: '10%' }} />
       </section>
 
-      {/* ===== Quick tools — photo cards (editorial) / gradient cards (immersive) ===== */}
+      {/* ===== Gold-pill jump nav (index only) ===== */}
+      {isIndex && (
+        <div style={{ background: 'var(--color-background)' }}>
+          <style>{`
+            .c4p-pill{position:relative;overflow:hidden;transition:transform .18s ease}
+            .c4p-pill:hover{transform:translateY(-1.5px)}
+            .c4p-pill-gold{background:linear-gradient(180deg,#f8e7a8 0%,#ebcc66 48%,#cfa63f 100%);color:#3E1A57;border:1.5px solid #b8862a;box-shadow:0 6px 14px -8px rgba(201,161,58,.85),inset 0 1px 0 rgba(255,255,255,.75),inset 0 -2px 4px rgba(150,110,30,.28)}
+            .c4p-pill-new{background:linear-gradient(180deg,#7a34a3 0%,#5a2378 55%,#431a63 100%);color:#f4d97a;border:1.5px solid #D4AF37;box-shadow:0 8px 18px -9px rgba(74,29,99,.85),inset 0 1px 0 rgba(255,255,255,.18)}
+            .c4p-pill .c4p-lbl{position:relative;z-index:1}
+            .c4p-pill-gold::after{content:'';position:absolute;top:0;left:-70%;width:45%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.85),transparent);transform:skewX(-20deg);animation:c4pShimmer 4s ease-in-out infinite}
+            @keyframes c4pShimmer{0%{left:-70%}40%{left:140%}100%{left:140%}}
+            @media (prefers-reduced-motion: reduce){.c4p-pill-gold::after{animation:none;opacity:0}}
+          `}</style>
+          <div className="rg-container" style={{ paddingTop: '1.5rem', paddingBottom: '1.75rem' }}>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {PILLS.map((p) => {
+                const primary = p.href === '/start-here'
+                if (primary) {
+                  return (
+                    <a key={p.label} href={p.href} className="c4p-pill c4p-pill-new inline-flex flex-col items-center justify-center rounded-full px-4 py-1.5 leading-none" style={{ fontFamily: 'var(--font-ui)' }}>
+                      <span className="c4p-lbl text-[0.6rem] font-semibold" style={{ opacity: 0.9 }}>New?</span>
+                      <span className="c4p-lbl mt-0.5 text-[0.8rem] font-extrabold">Start here</span>
+                    </a>
+                  )
+                }
+                return (
+                  <a key={p.label} href={p.href} className="c4p-pill c4p-pill-gold inline-flex items-center rounded-full px-4 py-1.5 text-[0.75rem] font-bold" style={{ fontFamily: 'var(--font-ui)' }}>
+                    <span className="c4p-lbl">{p.label}</span>
+                  </a>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== Experiences section — full-bleed banner right under the hero + real listings ===== */}
+      {experiences.length > 0 && (
+        <section id="experiences" style={{ background: 'var(--color-background)', scrollMarginTop: '84px' }}>
+          <FullBleedBanner image="/hero-preview/cards/experiences-banner.png" alt="VIP Experiences — book with points" />
+          <div className="rg-container" style={{ paddingTop: '2rem', paddingBottom: '3.5rem' }}>
+            {/* real top listings pulled from the DB */}
+            <div className="mx-auto mb-6 mt-10 flex max-w-5xl flex-wrap items-end justify-between gap-3">
+              <div>
+                <div className="h-[2px] w-8 rounded" style={{ background: 'var(--color-accent)' }} />
+                <h3 style={{ fontFamily: serif, color: 'var(--color-primary)' }} className="mt-2 text-xl font-bold sm:text-2xl">Money can&apos;t buy it. Points can.</h3>
+              </div>
+              <Link href="/experiences" className="inline-flex items-center gap-1 text-sm font-bold" style={{ color: 'var(--color-primary)', fontFamily: 'var(--font-ui)' }}>Explore all <span aria-hidden>→</span></Link>
+            </div>
+            <div className="mx-auto grid max-w-5xl gap-5 sm:grid-cols-3">
+              {experiences.slice(0, 3).map((g) => (
+                <ExpCard key={g.key} g={g} serif={serif} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ===== Flight Deals section — gold nameplate + real airline alerts ===== */}
+      {isIndex && flightDeals.length > 0 && (
+        <section id="flights" style={{ background: 'var(--color-background-soft)', scrollMarginTop: '84px' }}>
+          <FullBleedBanner title="Flight Deals" sub="AWARD SALES & SWEET SPOTS" />
+          <div className="rg-container" style={{ paddingTop: '2rem', paddingBottom: '3.5rem' }}>
+            <div className="mx-auto mb-6 flex max-w-5xl flex-wrap items-end justify-between gap-3">
+              <div>
+                <div className="h-[2px] w-8 rounded" style={{ background: 'var(--color-accent)' }} />
+                <h3 style={{ fontFamily: serif, color: 'var(--color-primary)' }} className="mt-2 text-xl font-bold sm:text-2xl">Fly farther for fewer points.</h3>
+              </div>
+              <Link href="/alerts" className="inline-flex items-center gap-1 text-sm font-bold" style={{ color: 'var(--color-primary)', fontFamily: 'var(--font-ui)' }}>See all deals <span aria-hidden>→</span></Link>
+            </div>
+            <div className="mx-auto grid max-w-5xl gap-5 sm:grid-cols-3">
+              {flightDeals.slice(0, 3).map((a) => (
+                <AlertCard key={a.slug} a={a} serif={serif} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ===== Category cards (editorial / immersive only; index uses the pill jump-nav) ===== */}
+      {!isIndex && (
       <section style={{ background: dark ? '#1c0a2b' : 'var(--color-background-soft)' }}>
         <div className="rg-container py-8">
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -83,6 +239,7 @@ export default function PreviewHomeMock({ variant }: { variant: 'editorial' | 'i
           </div>
         </div>
       </section>
+      )}
 
       {/* ===== Latest alerts ===== */}
       <section className="rg-container rg-major-section">
