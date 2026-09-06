@@ -24,12 +24,13 @@ const CARDS = [
 // under the hero that anchor-scroll to each homepage section.
 // "Start here" is a real destination (the tools hub + "what kind of points
 // traveler are you?" guide), so it links to a page; the rest jump to sections.
-// The "Your Toolkit" band — our actual tools, clean cards.
-const TOOLS = [
-  { label: 'Decision Engine', href: '/decision-engine', desc: "Tell us your trip — we'll find the smartest way to book it." },
-  { label: 'Credit Card Explorer', href: '/cards', desc: 'Find the card that earns the points you need.' },
-  { label: 'Alliance Explorer', href: '/tools/alliances', desc: 'See which airlines partner, so your miles go further.' },
-  { label: 'Program Explorer', href: '/programs', desc: 'Every airline + hotel program, and how to use each.' },
+// The "Your Toolkit" band — our actual tools as rich image tiles (baked-text
+// banners). image=null renders an accent placeholder until the art is made.
+const TOOLS: { label: string; href: string; desc: string; image: string | null; accent: string }[] = [
+  { label: 'Decision Engine', href: '/decision-engine', desc: "Tell us your trip — we'll find the smartest way to book it.", image: '/hero-preview/cards/tool-decision-engine.png', accent: '#6B2D8F' },
+  { label: 'Credit Card Explorer', href: '/cards', desc: 'Find the card that earns the points you need.', image: null, accent: '#9A7B1F' },
+  { label: 'Alliance Explorer', href: '/tools/alliances', desc: 'See which airlines partner, so your miles go further.', image: null, accent: '#17868A' },
+  { label: 'Program Explorer', href: '/programs', desc: 'Every airline + hotel program, and how to use each.', image: null, accent: '#33518A' },
 ]
 
 const PILLS = [
@@ -222,20 +223,31 @@ export default function PreviewHomeMock({ variant, experiences = [], flightDeals
         </section>
       )}
 
-      {/* ===== Your Toolkit — nameplate + the real tools (index) ===== */}
+      {/* ===== Your Toolkit — real tools as image tiles (index) ===== */}
       {isIndex && (
-        <section id="tools" style={{ background: 'var(--color-background)', scrollMarginTop: '84px' }}>
-          <FullBleedBanner title="Your Toolkit" sub="PLAN SMARTER, TRAVEL FURTHER" />
-          <div className="rg-container" style={{ paddingTop: '1.5rem', paddingBottom: '3rem' }}>
-            <div className="mx-auto grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <section id="tools" style={{ background: 'var(--color-background-soft)', scrollMarginTop: '84px' }}>
+          <div className="rg-container rg-major-section">
+            <div className="mb-6">
+              <div className="h-[2px] w-8 rounded" style={{ background: 'var(--color-accent)' }} />
+              <h2 style={{ fontFamily: serif, color: 'var(--color-primary)' }} className="mt-2 text-2xl font-bold sm:text-3xl">Your Toolkit</h2>
+              <p className="mt-2 max-w-xl font-body text-[var(--color-text-secondary)]">Plan smarter, travel further — the tools that turn your points into trips.</p>
+            </div>
+            <div className="mx-auto grid max-w-5xl gap-5 sm:grid-cols-2">
               {TOOLS.map((t) => (
-                <Link key={t.label} href={t.href} className="group flex flex-col rounded-2xl bg-white p-5 transition-transform duration-200 hover:-translate-y-1" style={{ border: '1px solid rgba(107,45,143,0.12)', boxShadow: '0 14px 34px -22px rgba(62,26,87,0.4)' }}>
-                  <div className="h-[2px] w-6 rounded" style={{ background: 'var(--color-accent)' }} />
-                  <h3 style={{ fontFamily: serif, color: 'var(--color-primary)' }} className="mt-2 text-lg font-bold leading-tight">{t.label}</h3>
-                  <p className="mt-1.5 grow font-body text-sm text-[var(--color-text-secondary)]">{t.desc}</p>
-                  <span className="mt-3 inline-flex items-center gap-1 font-ui text-sm font-bold" style={{ color: 'var(--color-primary)' }}>
-                    Open <span aria-hidden className="transition-transform group-hover:translate-x-1">→</span>
-                  </span>
+                <Link key={t.label} href={t.href} className="group relative block overflow-hidden rounded-2xl transition-transform duration-200 hover:-translate-y-1" style={{ border: '1px solid rgba(107,45,143,0.12)', boxShadow: '0 14px 34px -22px rgba(62,26,87,0.4)' }}>
+                  <div className="relative aspect-[16/9] w-full overflow-hidden" style={{ background: `linear-gradient(150deg, ${t.accent}, ${t.accent}bb)` }}>
+                    {t.image ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={t.image} alt={t.label} className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                    ) : (
+                      <div className="absolute inset-0 flex flex-col justify-center p-6 text-white">
+                        <div className="h-[2px] w-7 rounded" style={{ background: 'rgba(255,255,255,0.85)' }} />
+                        <div style={{ fontFamily: serif }} className="mt-2 text-2xl font-bold leading-tight">{t.label}</div>
+                        <p className="mt-1.5 max-w-[16rem] text-sm text-white/85">{t.desc}</p>
+                        <span className="mt-3 inline-flex items-center gap-1 font-ui text-sm font-bold text-white">Open <span aria-hidden className="transition-transform group-hover:translate-x-1">→</span></span>
+                      </div>
+                    )}
+                  </div>
                 </Link>
               ))}
             </div>
