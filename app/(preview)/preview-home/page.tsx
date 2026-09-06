@@ -47,40 +47,48 @@ export default function PreviewHome() {
         <img src="/hero-preview/hero-poolside.png" alt="" className="block w-full" />
         <h1 className="sr-only">Because paying full price is so last season — smart travel with points. The latest deals, card bonuses, and insider strategies to fly farther and stay better for less.</h1>
 
-        {/* Dark glass nav — no logo, no CTA (the hero's own button covers it) */}
+        {/* Light frosted-glass nav — simple wordmark left, nav centered (Jill 2026-09-06) */}
         <div className="absolute inset-x-0 top-0 z-20">
           <div
-            className="relative flex items-center gap-4 px-5 py-3 sm:px-8"
+            className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 px-5 py-3 sm:px-8"
             style={{
-              background: 'rgba(30,10,45,0.34)',
-              WebkitBackdropFilter: 'blur(12px)',
-              backdropFilter: 'blur(12px)',
-              borderBottom: '1px solid rgba(255,255,255,0.16)',
+              background: 'rgba(255,255,255,0.55)',
+              WebkitBackdropFilter: 'blur(14px)',
+              backdropFilter: 'blur(14px)',
+              borderBottom: '1px solid rgba(107,45,143,0.12)',
               fontFamily: 'var(--font-ui)',
             }}
           >
-            <nav className="hidden items-center gap-6 md:flex">
+            {/* left: simple text wordmark */}
+            <Link href="/" className="justify-self-start font-[var(--font-display)] text-xl font-extrabold tracking-tight text-[var(--color-primary)] sm:text-2xl">
+              Crazy<span className="text-[var(--color-accent)]">4</span>Points
+            </Link>
+
+            {/* center: nav links */}
+            <nav className="hidden items-center gap-7 justify-self-center md:flex">
               {NAV.map((n) => (
-                <Link key={n} href="/" className="text-sm font-bold text-white/95 drop-shadow hover:text-[var(--color-accent)]">
+                <Link key={n} href="/" className="text-sm font-bold text-[var(--color-primary)] transition-colors hover:text-[var(--color-accent)]">
                   {n}
                 </Link>
               ))}
             </nav>
-            <div className="ml-auto flex items-center gap-3">
+
+            {/* right: socials + search + sign in */}
+            <div className="flex items-center justify-self-end gap-3">
               <div className="hidden items-center gap-2 sm:flex">
                 {SOCIALS.map((s) => (
                   <a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer" aria-label={s.label}
-                    className="text-white/90 transition-colors hover:text-[var(--color-accent)]">
+                    className="text-[var(--color-primary)] transition-colors hover:text-[var(--color-accent)]">
                     <svg viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5" aria-hidden="true"><path d={s.path} /></svg>
                   </a>
                 ))}
               </div>
               <label className="hidden items-center gap-2 rounded-full px-3 py-1.5 lg:flex"
-                style={{ border: '1px solid rgba(255,255,255,0.4)', background: 'rgba(255,255,255,0.14)' }}>
-                <span aria-hidden className="text-white/80 text-xs">{'🔍'}</span>
-                <input placeholder="Search deals, cards…" className="w-40 bg-transparent text-sm text-white outline-none placeholder:text-white/70" style={{ fontSize: '16px' }} />
+                style={{ border: '1px solid rgba(107,45,143,0.25)', background: 'rgba(255,255,255,0.6)' }}>
+                <span aria-hidden className="text-xs text-[var(--color-primary)]">{'🔍'}</span>
+                <input placeholder="Search deals, cards…" className="w-36 bg-transparent text-sm text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-secondary)]" style={{ fontSize: '16px' }} />
               </label>
-              <Link href="/login" className="text-sm font-semibold text-white/90 drop-shadow hover:text-white">Sign In</Link>
+              <Link href="/login" className="text-sm font-semibold text-[var(--color-primary)] hover:text-[var(--color-accent)]">Sign In</Link>
             </div>
           </div>
         </div>
