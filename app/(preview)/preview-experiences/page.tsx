@@ -6,6 +6,7 @@ import FeaturedGallery from '@/components/experiences/FeaturedGallery'
 import ExperienceFinder, { type FinderListing } from '@/components/experiences/ExperienceFinder'
 import ExperiencesDirectory from '@/components/experiences/ExperiencesDirectory'
 import FullBleedBanner from '@/components/preview/FullBleedBanner'
+import LuxeHeader from '@/components/layout/LuxeHeader'
 
 // Luxury redesign of /experiences (Jill, 2026-09-06) — preview only, live page
 // untouched. Leads with the VIP Experiences framed banner, then the real
@@ -100,7 +101,10 @@ export default async function PreviewExperiencesPage({
   const finderListings: FinderListing[] = [...points, ...presales].map(toFinder)
 
   return (
-    <main>
+    <>
+      <LuxeHeader />
+      {/* Real h1 for SEO + screen readers (the visible title is the banner art). */}
+      <h1 className="sr-only">Experiences: redeem points and miles for unforgettable moments</h1>
       {/* ===== Luxury hero — full-bleed VIP Experiences band (gold top/bottom only) ===== */}
       <section style={{ background: 'radial-gradient(120% 90% at 50% -10%, #f3ecfa 0%, var(--color-background) 60%)' }}>
         {/* Full page width, gold edges only on top + bottom, no side borders. */}
@@ -130,6 +134,12 @@ export default async function PreviewExperiencesPage({
       </section>
 
       <div className="rg-container">
+        {/* Quick-jump nav (parity with the old page) */}
+        <nav aria-label="Jump to a section" className="flex flex-wrap items-center gap-2 pt-5">
+          {(us.length > 0 || intl.length > 0) && <JumpPill href="#featured" label="Featured" />}
+          <JumpPill href="#browse" label="Browse &amp; filter" emphasis />
+          <JumpPill href="#programs" label="Programs" />
+        </nav>
         {(us.length > 0 || intl.length > 0) && (
           <section id="featured" className="scroll-mt-24 pb-10 pt-9">
             <LuxeHead title="Featured right now" count={us.length + intl.length} />
@@ -163,7 +173,24 @@ export default async function PreviewExperiencesPage({
           details with the provider before booking or transferring points.
         </p>
       </div>
-    </main>
+    </>
+  )
+}
+
+// Quick-jump pill to a page section (gold = the emphasized "Browse & filter").
+function JumpPill({ href, label, emphasis }: { href: string; label: string; emphasis?: boolean }) {
+  return (
+    <a
+      href={href}
+      className="rg-tap-target inline-flex items-center rounded-full px-4 py-2 font-ui text-sm font-bold transition-all duration-150 hover:-translate-y-0.5"
+      style={
+        emphasis
+          ? { background: 'linear-gradient(180deg,#f8e7a8,#ebcc66 55%,#cfa63f)', border: '1.5px solid #b8862a', color: '#3E1A57', boxShadow: '0 5px 12px -6px rgba(201,161,58,0.8)' }
+          : { background: '#fff', border: '1.5px solid rgba(107,45,143,0.25)', color: 'var(--color-primary)' }
+      }
+    >
+      {label}
+    </a>
   )
 }
 
