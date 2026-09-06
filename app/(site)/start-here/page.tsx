@@ -40,10 +40,10 @@ export default function StartHerePage() {
               style={{ border: '1px solid rgba(107,45,143,0.12)', boxShadow: '0 14px 34px -22px rgba(62,26,87,0.4)' }}
             >
               {/* image (or accent-gradient placeholder until generated) */}
-              <div className="relative aspect-[16/10] w-full overflow-hidden" style={{ background: `linear-gradient(150deg, ${p.accent}, ${p.accent}bb)` }}>
+              <div className="relative aspect-[4/3] w-full overflow-hidden" style={{ background: `linear-gradient(150deg, ${p.accent}, ${p.accent}bb)` }}>
                 {p.image && (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={p.image} alt={p.title} className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                  <img src={p.image} alt={p.title} className="absolute inset-0 h-full w-full object-cover object-top transition-transform duration-300 group-hover:scale-105" />
                 )}
                 <span aria-hidden className="pointer-events-none absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(30,10,45,0.35), transparent 55%)' }} />
                 <span className="absolute bottom-3 left-4 font-display text-xl font-bold text-white" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.4)' }}>{p.title}</span>

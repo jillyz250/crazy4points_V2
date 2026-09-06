@@ -35,7 +35,7 @@ export default async function PersonaPage({ params }: { params: Promise<{ person
             <div className="relative order-first aspect-[4/3] w-full overflow-hidden rounded-2xl md:order-last" style={{ background: `linear-gradient(150deg, ${p.accent}, ${p.accent}bb)`, boxShadow: '0 24px 56px -30px rgba(62,26,87,0.5)' }}>
               {p.image && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={p.image} alt={p.title} className="absolute inset-0 h-full w-full object-cover" />
+                <img src={p.image} alt={p.title} className="absolute inset-0 h-full w-full object-cover object-top" />
               )}
             </div>
             <div>
