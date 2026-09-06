@@ -174,9 +174,9 @@ export default function PreviewHomeMock({ variant, experiences = [], flightDeals
       {experiences.length > 0 && (
         <section id="experiences" style={{ background: 'var(--color-background)', scrollMarginTop: '84px' }}>
           <FullBleedBanner image="/hero-preview/cards/experiences-banner.png" alt="VIP Experiences — book with points" />
-          <div className="rg-container" style={{ paddingTop: '2rem', paddingBottom: '3.5rem' }}>
+          <div className="rg-container" style={{ paddingTop: '1.5rem', paddingBottom: '3rem' }}>
             {/* real top listings pulled from the DB */}
-            <div className="mx-auto mb-6 mt-10 flex max-w-5xl flex-wrap items-end justify-between gap-3">
+            <div className="mx-auto mb-6 flex max-w-5xl flex-wrap items-end justify-between gap-3">
               <div>
                 <div className="h-[2px] w-8 rounded" style={{ background: 'var(--color-accent)' }} />
                 <h3 style={{ fontFamily: serif, color: 'var(--color-primary)' }} className="mt-2 text-xl font-bold sm:text-2xl">Money can&apos;t buy it. Points can.</h3>
@@ -196,7 +196,7 @@ export default function PreviewHomeMock({ variant, experiences = [], flightDeals
       {isIndex && flightDeals.length > 0 && (
         <section id="flights" style={{ background: 'var(--color-background-soft)', scrollMarginTop: '84px' }}>
           <FullBleedBanner title="Flight Deals" sub="AWARD SALES & SWEET SPOTS" />
-          <div className="rg-container" style={{ paddingTop: '2rem', paddingBottom: '3.5rem' }}>
+          <div className="rg-container" style={{ paddingTop: '1.5rem', paddingBottom: '3rem' }}>
             <div className="mx-auto mb-6 flex max-w-5xl flex-wrap items-end justify-between gap-3">
               <div>
                 <div className="h-[2px] w-8 rounded" style={{ background: 'var(--color-accent)' }} />

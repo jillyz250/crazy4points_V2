@@ -7,6 +7,14 @@ import { useState } from "react";
 import type { ResourceNavCounts } from "@/utils/supabase/queries";
 import GlobalSearch from "./GlobalSearch";
 
+// Socials for the utility strip (homepage-v2 two-tier header look).
+const IG_URL = "https://www.instagram.com/crazy4points";
+const FB_URL = "https://www.facebook.com/Crazy4Points";
+const IG_PATH =
+  "M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z";
+const FB_PATH =
+  "M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z";
+
 /**
  * Accessible desktop dropdown.
  *
@@ -141,7 +149,7 @@ export default function Header({
   const resourcesActive = RESOURCE_ITEMS.some((i) => !i.heading && !i.comingSoon && isActive(i.href));
 
   return (
-    <header className="sticky top-0 z-50 border-b border-[var(--color-border-soft)] bg-[var(--color-background)]">
+    <header className="sticky top-0 z-50">
       {/* Skip link — first focusable element, so keyboard users can jump past
           the nav straight to the page content. */}
       <a
@@ -150,10 +158,24 @@ export default function Header({
       >
         Skip to content
       </a>
+      {/* Utility strip — socials + brand line (homepage-v2 two-tier look). */}
+      <div className="flex items-center gap-4 px-5 py-1.5 sm:px-8" style={{ background: "rgba(30,10,45,0.82)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", fontFamily: "var(--font-ui)" }}>
+        <div className="flex items-center gap-2.5">
+          <a href={IG_URL} target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="text-white/85 hover:text-[var(--color-accent)]">
+            <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4"><path d={IG_PATH} /></svg>
+          </a>
+          <a href={FB_URL} target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="text-white/85 hover:text-[var(--color-accent)]">
+            <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4"><path d={FB_PATH} /></svg>
+          </a>
+        </div>
+        <span className="ml-auto hidden text-[11px] font-medium tracking-[0.12em] text-white/80 sm:inline">Champagne travel. Diet Coke prices.</span>
+      </div>
+      {/* Main bar — frosted translucent. */}
+      <div style={{ background: "rgba(255,255,255,0.9)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", borderBottom: "1px solid rgba(107,45,143,0.12)" }}>
       <div className="rg-container px-6 md:px-8">
         {/* gap-* guarantees the nav and the CTA group can never collide — they
             were touching at ~860px before (0px gap). */}
-        <div className="flex h-24 items-center justify-between gap-4 md:h-28 md:gap-6">
+        <div className="flex h-20 items-center justify-between gap-4 md:h-24 md:gap-6">
           <Link href="/" className="flex items-center">
             {logoError ? (
               <span className="font-display text-2xl font-semibold tracking-tight text-[var(--color-text-primary)]">
@@ -194,7 +216,7 @@ export default function Header({
               {toolsMenu.map((item) =>
                 item.comingSoon ? (
                   <span
-                    key={item.label}
+                    key={`${item.label}::${item.href ?? ''}`}
                     className="flex items-center justify-between gap-3 px-4 py-2.5 font-ui text-xs text-[var(--color-text-secondary)] opacity-60"
                   >
                     {item.label}
@@ -204,7 +226,7 @@ export default function Header({
                   </span>
                 ) : (
                   <Link
-                    key={item.label}
+                    key={`${item.label}::${item.href ?? ''}`}
                     href={item.href}
                     aria-current={isActive(item.href) ? "page" : undefined}
                     className={`flex items-center px-4 py-2.5 font-ui text-xs font-medium hover:bg-[var(--color-background-soft)] hover:text-[var(--color-primary)] ${
@@ -229,7 +251,7 @@ export default function Header({
                     "mt-1 border-t border-[var(--color-border-soft)] px-4 pb-1 pt-2 font-ui text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--color-text-secondary)]";
                   return item.href ? (
                     <Link
-                      key={item.label}
+                      key={`${item.label}::${item.href ?? ''}`}
                       href={item.href}
                       aria-current={isActive(item.href) ? "page" : undefined}
                       className={`${headingClass} flex items-center justify-between gap-2 hover:text-[var(--color-primary)]`}
@@ -240,7 +262,7 @@ export default function Header({
                       </span>
                     </Link>
                   ) : (
-                    <div key={item.label} className={headingClass}>
+                    <div key={`${item.label}::${item.href ?? ''}`} className={headingClass}>
                       {item.label}
                     </div>
                   );
@@ -249,7 +271,7 @@ export default function Header({
                 const unavailable = item.comingSoon || count === 0;
                 return unavailable ? (
                   <span
-                    key={item.label}
+                    key={`${item.label}::${item.href ?? ''}`}
                     className="flex items-center justify-between px-4 py-2.5 font-ui text-xs text-[var(--color-text-secondary)] opacity-50"
                   >
                     {item.label}
@@ -259,7 +281,7 @@ export default function Header({
                   </span>
                 ) : (
                   <Link
-                    key={item.label}
+                    key={`${item.label}::${item.href ?? ''}`}
                     href={item.href!}
                     aria-current={isActive(item.href) ? "page" : undefined}
                     className={`flex items-center px-4 py-2.5 font-ui text-xs font-medium hover:text-[var(--color-primary)] ${
@@ -321,6 +343,7 @@ export default function Header({
           </div>
         </div>
       </div>
+      </div>
 
       {/* Mobile nav */}
       {menuOpen && (
@@ -353,7 +376,7 @@ export default function Header({
             toolsMenu.map((item) =>
               item.comingSoon ? (
                 <span
-                  key={item.label}
+                  key={`${item.label}::${item.href ?? ''}`}
                   className="flex min-h-[44px] items-center justify-between border-b border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-8 font-ui text-sm text-[var(--color-text-secondary)] opacity-60"
                 >
                   {item.label}
@@ -363,7 +386,7 @@ export default function Header({
                 </span>
               ) : (
                 <Link
-                  key={item.label}
+                  key={`${item.label}::${item.href ?? ''}`}
                   href={item.href}
                   onClick={() => setMenuOpen(false)}
                   className="flex min-h-[44px] items-center border-b border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-8 font-ui text-sm font-medium text-[var(--color-text-primary)] hover:text-[var(--color-primary)]"
@@ -391,7 +414,7 @@ export default function Header({
                   "border-b border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-6 pt-1 font-ui text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--color-text-secondary)]";
                 return item.href ? (
                   <Link
-                    key={item.label}
+                    key={`${item.label}::${item.href ?? ''}`}
                     href={item.href}
                     onClick={() => setMenuOpen(false)}
                     className={`${hClass} flex min-h-[44px] items-center justify-between hover:text-[var(--color-primary)]`}
@@ -403,7 +426,7 @@ export default function Header({
                   </Link>
                 ) : (
                   <div
-                    key={item.label}
+                    key={`${item.label}::${item.href ?? ''}`}
                     className={`${hClass} flex min-h-[36px] items-center`}
                   >
                     {item.label}
@@ -414,7 +437,7 @@ export default function Header({
               const unavailable = item.comingSoon || count === 0;
               return unavailable ? (
                 <span
-                  key={item.label}
+                  key={`${item.label}::${item.href ?? ''}`}
                   className="flex min-h-[44px] items-center justify-between border-b border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-8 font-ui text-sm text-[var(--color-text-secondary)] opacity-50"
                 >
                   {item.label}
@@ -424,7 +447,7 @@ export default function Header({
                 </span>
               ) : (
                 <Link
-                  key={item.label}
+                  key={`${item.label}::${item.href ?? ''}`}
                   href={item.href!}
                   onClick={() => setMenuOpen(false)}
                   className="flex min-h-[44px] items-center border-b border-[var(--color-border-soft)] bg-[var(--color-background-soft)] px-8 font-ui text-sm font-medium text-[var(--color-text-primary)] hover:text-[var(--color-primary)]"
