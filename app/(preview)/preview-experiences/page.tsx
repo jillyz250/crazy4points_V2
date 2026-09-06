@@ -6,19 +6,18 @@ import FeaturedGallery from '@/components/experiences/FeaturedGallery'
 import ExperienceFinder, { type FinderListing } from '@/components/experiences/ExperienceFinder'
 import ExperiencesDirectory from '@/components/experiences/ExperiencesDirectory'
 import FullBleedBanner from '@/components/preview/FullBleedBanner'
+import LuxeHeader from '@/components/layout/LuxeHeader'
 
-// Luxe experiences page (Jill, 2026-09-06): full-bleed VIP banner hero, the
-// luxe finder (color-coded points pills, VIP ribbons, program logos), featured
-// gallery + program directory. Listings refresh daily.
-export const revalidate = 3600
+// Luxury redesign of /experiences (Jill, 2026-09-06) — preview only, live page
+// untouched. Leads with the VIP Experiences framed banner, then the real
+// featured gallery / finder / directory dressed in the Royal Glow luxe style.
+export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
-  title: 'Experiences — Redeem Points & Miles for Unforgettable Moments | Crazy4Points',
-  description:
-    "The dreamiest experiences you can book with points and miles — private airplane tours, Michelin chef tables, adventure cruises, wellness retreats, and money-can't-buy access, plus every program that offers them.",
+  title: 'Experiences (luxe preview) | Crazy4Points',
+  robots: { index: false },
 }
 
-// Quick category pills — deep-link into the finder pre-filtered.
 const TOP_CATEGORIES: { key: string; label: string; color: string }[] = [
   { key: 'music', label: 'Music', color: '#B03D77' },
   { key: 'sports', label: 'Sports', color: '#2E7D5B' },
@@ -27,7 +26,7 @@ const TOP_CATEGORIES: { key: string; label: string; color: string }[] = [
   { key: 'misc', label: 'Misc', color: '#6E6486' },
 ]
 
-export default async function ExperiencesPage({
+export default async function PreviewExperiencesPage({
   searchParams,
 }: {
   searchParams: Promise<{ category?: string }>
@@ -103,10 +102,12 @@ export default async function ExperiencesPage({
 
   return (
     <>
+      <LuxeHeader />
       {/* Real h1 for SEO + screen readers (the visible title is the banner art). */}
       <h1 className="sr-only">Experiences: redeem points and miles for unforgettable moments</h1>
-      {/* ===== Hero — full-bleed VIP Experiences band (gold top/bottom only) ===== */}
+      {/* ===== Luxury hero — full-bleed VIP Experiences band (gold top/bottom only) ===== */}
       <section style={{ background: 'radial-gradient(120% 90% at 50% -10%, #f3ecfa 0%, var(--color-background) 60%)' }}>
+        {/* Full page width, gold edges only on top + bottom, no side borders. */}
         <FullBleedBanner image="/hero-preview/cards/experiences-banner.png" alt="VIP Experiences — book with points" />
         <div className="rg-container" style={{ paddingTop: '2rem', paddingBottom: '2.75rem' }}>
           <p className="mx-auto max-w-2xl text-center font-body text-[var(--color-text-secondary)] md:text-lg">
@@ -119,7 +120,7 @@ export default async function ExperiencesPage({
               return (
                 <a
                   key={c.key}
-                  href={on ? '/experiences#browse' : `/experiences?category=${c.key}#browse`}
+                  href={on ? '/preview-experiences#browse' : `/preview-experiences?category=${c.key}#browse`}
                   className="rg-tap-target inline-flex items-center gap-2 rounded-full border-2 px-4 py-2 font-ui text-sm font-semibold shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md"
                   style={on ? { background: c.color, borderColor: c.color, color: '#fff', boxShadow: `0 6px 16px -3px ${c.color}80` } : { background: `${c.color}14`, borderColor: `${c.color}80`, color: c.color }}
                 >
@@ -133,6 +134,7 @@ export default async function ExperiencesPage({
       </section>
 
       <div className="rg-container">
+        {/* Quick-jump nav (parity with the old page) */}
         <nav aria-label="Jump to a section" className="flex flex-wrap items-center gap-2 pt-5">
           {(us.length > 0 || intl.length > 0) && <JumpPill href="#featured" label="Featured" />}
           <JumpPill href="#browse" label="Browse &amp; filter" emphasis />

@@ -16,6 +16,7 @@ export type IconName =
   | 'trending' | 'link' | 'globe' | 'creditCard' | 'database' | 'briefcase'
   | 'megaphone' | 'palette' | 'book' | 'clock' | 'arrowLeft' | 'bell'
   | 'settings' | 'plus' | 'trash' | 'send' | 'note' | 'heart' | 'pulse' | 'lightbulb'
+  | 'refresh'
 
 const PATHS: Record<IconName, React.ReactNode> = {
   inbox: <><path d="M22 12h-6l-2 3h-4l-2-3H2" /><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" /></>,
@@ -36,6 +37,7 @@ const PATHS: Record<IconName, React.ReactNode> = {
   fileText: <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /><path d="M16 13H8M16 17H8M10 9H8" /></>,
   tag: <><path d="M20.59 13.41 13.42 20.6a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><circle cx="7" cy="7" r="1.2" /></>,
   activity: <path d="M22 12h-4l-3 9L9 3l-3 9H2" />,
+  refresh: <><path d="M23 4v6h-6" /><path d="M1 20v-6h6" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></>,
   compass: <><circle cx="12" cy="12" r="10" /><path d="m16.24 7.76-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z" /></>,
   award: <><circle cx="12" cy="8" r="6" /><path d="M8.21 13.89 7 22l5-3 5 3-1.21-8.11" /></>,
   image: <><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="1.5" /><path d="m21 15-5-5L5 21" /></>,
