@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Tools cards — lighter options</title>
+<style>
+  :root{ --purple:#6B2D8F; --gold:#c99a25; --ink:#1a1a1a; --muted:#6a6a6a; --border:#e9e2f0; --lav:#f3eefb; }
+  *{box-sizing:border-box} body{margin:0;background:#faf8fc;font-family:'Montserrat',system-ui,sans-serif;color:var(--ink)}
+  .wrap{max-width:1180px;margin:0 auto;padding:24px 20px 60px}
+  h2{font-family:Georgia,serif;color:var(--purple);font-size:1.25rem;margin:34px 0 3px}
+  .sub{color:var(--muted);font-size:.84rem;margin:0 0 14px}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+  .k{font-size:.62rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
+  .t{font-family:Georgia,serif;font-size:1.5rem;color:var(--purple);line-height:1.05;margin-top:4px}
+  .rule{width:34px;height:3px;background:var(--gold);border-radius:2px;margin-top:10px}
+
+  /* 1 — airy white, no photo */
+  .c1{height:150px;border-radius:16px;padding:22px;background:#fff;border:1px solid var(--border);display:flex;flex-direction:column;justify-content:center;box-shadow:0 6px 20px -14px rgba(107,45,143,.25)}
+
+  /* 2 — soft lavender gradient */
+  .c2{height:150px;border-radius:16px;padding:22px;background:linear-gradient(160deg,#f6f1fd,#ece2f7);border:1px solid var(--border);display:flex;flex-direction:column;justify-content:center}
+
+  /* 3 — small contained photo on top, white text zone below */
+  .c3{height:190px;border-radius:16px;overflow:hidden;background:#fff;border:1px solid var(--border);display:flex;flex-direction:column;box-shadow:0 6px 20px -14px rgba(107,45,143,.25)}
+  .c3 .ph{height:96px;background-size:cover;background-position:center}
+  .c3 .bd{padding:14px 18px}
+  .c3 .t{font-size:1.3rem;margin-top:2px}
+
+  /* 4 — washed photo (very light overlay) */
+  .c4{position:relative;height:150px;border-radius:16px;overflow:hidden;border:1px solid var(--border);display:flex;flex-direction:column;justify-content:flex-end;padding:20px}
+  .c4 .bg{position:absolute;inset:0;background-size:cover;background-position:center}
+  .c4 .ov{position:absolute;inset:0;background:linear-gradient(to top, rgba(255,255,255,0.92), rgba(255,255,255,0.7))}
+  .c4 .in{position:relative}
+</style></head>
+<body><div class="wrap">
+
+  <h2>Option 1 · Airy white (no photo)</h2>
+  <p class="sub">Clean white cards, elegant serif word, gold rule. Your B look minus the photo — calm and premium.</p>
+  <div class="grid">
+    <div class="c1"><div class="k">Book with points</div><div class="t">Experiences</div><div class="rule"></div></div>
+    <div class="c1"><div class="k">Fly for less</div><div class="t">Flight Deals</div><div class="rule"></div></div>
+    <div class="c1"><div class="k">Dream stays</div><div class="t">Hotel Deals</div><div class="rule"></div></div>
+    <div class="c1"><div class="k">Max rewards</div><div class="t">Card Bonuses</div><div class="rule"></div></div>
+  </div>
+
+  <h2>Option 2 · Soft lavender gradient</h2>
+  <p class="sub">A whisper of purple (light, not dark), same elegant type. On-brand but airy.</p>
+  <div class="grid">
+    <div class="c2"><div class="k">Book with points</div><div class="t">Experiences</div><div class="rule"></div></div>
+    <div class="c2"><div class="k">Fly for less</div><div class="t">Flight Deals</div><div class="rule"></div></div>
+    <div class="c2"><div class="k">Dream stays</div><div class="t">Hotel Deals</div><div class="rule"></div></div>
+    <div class="c2"><div class="k">Max rewards</div><div class="t">Card Bonuses</div><div class="rule"></div></div>
+  </div>
+
+  <h2>Option 3 · Small photo on top, clean text below</h2>
+  <p class="sub">A little photo for warmth, but contained — the text sits on clean white, so it never gets busy.</p>
+  <div class="grid">
+    <div class="c3"><div class="ph" style="background-image:url('/hero-preview/cards/card-photo-guides.jpg')"></div><div class="bd"><div class="k">Book with points</div><div class="t">Experiences</div></div></div>
+    <div class="c3"><div class="ph" style="background-image:url('/hero-preview/cards/card-photo-flights.jpg')"></div><div class="bd"><div class="k">Fly for less</div><div class="t">Flight Deals</div></div></div>
+    <div class="c3"><div class="ph" style="background-image:url('/hero-preview/cards/card-photo-hotels.jpg')"></div><div class="bd"><div class="k">Dream stays</div><div class="t">Hotel Deals</div></div></div>
+    <div class="c3"><div class="ph" style="background-image:url('/hero-preview/cards/card-photo-cards.jpg')"></div><div class="bd"><div class="k">Max rewards</div><div class="t">Card Bonuses</div></div></div>
+  </div>
+
+  <h2>Option 4 · Washed photo (very light)</h2>
+  <p class="sub">The photo, but faded almost to a tint under white — you feel it without fighting the text.</p>
+  <div class="grid">
+    <div class="c4"><div class="bg" style="background-image:url('/hero-preview/cards/card-photo-guides.jpg')"></div><div class="ov"></div><div class="in"><div class="k">Book with points</div><div class="t">Experiences</div><div class="rule"></div></div></div>
+    <div class="c4"><div class="bg" style="background-image:url('/hero-preview/cards/card-photo-flights.jpg')"></div><div class="ov"></div><div class="in"><div class="k">Fly for less</div><div class="t">Flight Deals</div><div class="rule"></div></div></div>
+    <div class="c4"><div class="bg" style="background-image:url('/hero-preview/cards/card-photo-hotels.jpg')"></div><div class="ov"></div><div class="in"><div class="k">Dream stays</div><div class="t">Hotel Deals</div><div class="rule"></div></div></div>
+    <div class="c4"><div class="bg" style="background-image:url('/hero-preview/cards/card-photo-cards.jpg')"></div><div class="ov"></div><div class="in"><div class="k">Max rewards</div><div class="t">Card Bonuses</div><div class="rule"></div></div></div>
+  </div>
+
+</div></body></html>
