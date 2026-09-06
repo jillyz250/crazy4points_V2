@@ -94,38 +94,57 @@ function ExpCard({ g, serif }: { g: ExperienceGroup; serif: string }) {
   )
 }
 
-// Lane 1 — an active transfer bonus to an airline (the "act now" card).
+// Faint gold plane motif for the deal-card headers.
+const PLANE = <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 16.5V11.5L21 16z" /></svg>
+
+const DEAL_CARD = 'group flex flex-col overflow-hidden rounded-2xl bg-white transition-transform duration-200 hover:-translate-y-1'
+const DEAL_STYLE = { border: '1px solid rgba(107,45,143,0.12)', boxShadow: '0 14px 34px -22px rgba(62,26,87,0.4)' }
+
+// Lane 1 — an active transfer bonus (the "act now" card): gold stat header.
 function BonusCard({ b, serif }: { b: FlightBonus; serif: string }) {
   const href = b.slug ? `/alerts/${b.slug}` : '/alerts'
   const ends = b.end ? new Date(b.end + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null
   return (
-    <Link href={href} className="group flex flex-col rounded-2xl bg-white p-5 transition-transform duration-200 hover:-translate-y-1" style={{ border: '1px solid rgba(107,45,143,0.12)', boxShadow: '0 14px 34px -22px rgba(62,26,87,0.4)' }}>
-      {b.pct != null && (
-        <span className="mb-3 inline-flex w-fit rounded-full px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wide" style={{ background: 'linear-gradient(180deg,#f8e7a8,#cfa63f)', color: '#3E1A57', fontFamily: 'var(--font-ui)' }}>+{b.pct}% bonus</span>
-      )}
-      <h4 style={{ fontFamily: serif, color: 'var(--color-primary)' }} className="text-[1.05rem] font-bold leading-snug">{b.card} → {b.dest}</h4>
-      <p className="mt-1.5 text-sm" style={{ color: 'var(--color-text-secondary)' }}>Transfer bonus{b.pct != null ? ` — ${b.pct}% extra miles` : ''}.</p>
-      {ends && <p className="mt-2 font-ui text-xs font-semibold" style={{ color: 'var(--color-alert)' }}>Ends {ends}</p>}
+    <Link href={href} className={DEAL_CARD} style={DEAL_STYLE}>
+      <div className="relative overflow-hidden p-5" style={{ background: 'linear-gradient(135deg,#f8e7a8 0%,#ebcc66 50%,#cfa63f 100%)' }}>
+        <span className="pointer-events-none absolute -right-2 -top-2 h-16 w-16 rotate-12" style={{ color: '#8a6a1e', opacity: 0.28 }}>{PLANE}</span>
+        <div className="flex items-baseline gap-1.5">
+          <span style={{ fontFamily: serif, color: '#3E1A57' }} className="text-3xl font-extrabold leading-none">{b.pct != null ? `+${b.pct}%` : 'Bonus'}</span>
+          {b.pct != null && <span className="font-ui text-xs font-bold uppercase tracking-[0.14em]" style={{ color: '#6b520f' }}>bonus</span>}
+        </div>
+        <h4 style={{ fontFamily: serif, color: '#3E1A57' }} className="mt-1.5 text-[1.05rem] font-bold leading-snug">{b.card} → {b.dest}</h4>
+      </div>
+      <div className="flex grow flex-col p-4">
+        <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Move your points over for {b.pct != null ? `${b.pct}% ` : ''}extra miles.</p>
+        {ends && <p className="mt-2 font-ui text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--color-alert)' }}>Ends {ends}</p>}
+        <span className="mt-3 inline-flex items-center gap-1 font-ui text-sm font-bold" style={{ color: 'var(--color-primary)' }}>See the deal <span aria-hidden className="transition-transform group-hover:translate-x-1">→</span></span>
+      </div>
     </Link>
   )
 }
 
-// Lane 2 — a flight sweet spot (the evergreen "always smart" card).
+// Lane 2 — a flight sweet spot (evergreen): soft-lavender stat header.
 function SweetSpotCard({ s, serif }: { s: FlightSweetSpot; serif: string }) {
   const cabin = s.cabin ? s.cabin.replace(/_/g, ' ') : null
   return (
-    <Link href="/sweet-spots" className="group flex flex-col rounded-2xl bg-white p-5 transition-transform duration-200 hover:-translate-y-1" style={{ border: '1px solid rgba(107,45,143,0.12)', boxShadow: '0 14px 34px -22px rgba(62,26,87,0.4)' }}>
-      {cabin && (
-        <span className="mb-3 inline-flex w-fit rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide" style={{ background: 'var(--color-background-soft)', color: 'var(--color-primary)', border: '1px solid var(--color-border-soft)', fontFamily: 'var(--font-ui)' }}>{cabin}</span>
-      )}
-      <h4 style={{ fontFamily: serif, color: 'var(--color-primary)' }} className="line-clamp-2 text-[1.05rem] font-bold leading-snug">{s.title}</h4>
-      {s.route && <p className="mt-1.5 text-sm" style={{ color: 'var(--color-text-secondary)' }}>{s.route}</p>}
-      {s.points != null && (
-        <div className="mt-3 flex items-center gap-2">
-          <span className="h-[2px] w-5 rounded" style={{ background: 'var(--color-accent)' }} />
-          <span className="font-ui text-sm font-semibold" style={{ color: 'var(--color-primary)' }}>from {s.points.toLocaleString('en-US')} pts</span>
-        </div>
-      )}
+    <Link href="/sweet-spots" className={DEAL_CARD} style={DEAL_STYLE}>
+      <div className="relative overflow-hidden p-5" style={{ background: 'linear-gradient(135deg,#f3ecfa 0%,#e7d9f5 55%,#d9c7ef 100%)' }}>
+        <span className="pointer-events-none absolute -right-2 -top-2 h-16 w-16 rotate-12" style={{ color: 'var(--color-primary)', opacity: 0.22 }}>{PLANE}</span>
+        {s.points != null ? (
+          <div className="flex items-baseline gap-1.5">
+            <span style={{ fontFamily: serif, color: 'var(--color-primary)' }} className="text-3xl font-extrabold leading-none">{s.points.toLocaleString('en-US')}</span>
+            <span className="font-ui text-xs font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--color-primary)' }}>pts</span>
+          </div>
+        ) : (
+          <span style={{ fontFamily: serif, color: 'var(--color-primary)' }} className="text-2xl font-extrabold">Sweet spot</span>
+        )}
+        {cabin && <span className="mt-2 inline-flex w-fit rounded-full bg-white/70 px-2.5 py-0.5 font-ui text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--color-primary)' }}>{cabin}</span>}
+      </div>
+      <div className="flex grow flex-col p-4">
+        <h4 style={{ fontFamily: serif, color: 'var(--color-primary)' }} className="line-clamp-2 text-[1.02rem] font-bold leading-snug">{s.title}</h4>
+        {s.route && <p className="mt-1.5 text-sm" style={{ color: 'var(--color-text-secondary)' }}>{s.route}</p>}
+        <span className="mt-3 inline-flex items-center gap-1 font-ui text-sm font-bold" style={{ color: 'var(--color-primary)' }}>See how <span aria-hidden className="transition-transform group-hover:translate-x-1">→</span></span>
+      </div>
     </Link>
   )
 }
