@@ -8,6 +8,7 @@ import { PERSONAS } from '@/lib/startHere'
 export type FlightBonus = { card: string; dest: string; pct: number | null; end: string | null; slug: string | null }
 export type FlightSweetSpot = { id: string; title: string; route: string | null; points: number | null; cabin: string | null }
 export type PromoAlert = { title: string; summary: string | null; type: string | null; slug: string }
+export type HomeSweep = { id: string; program: string | null; title: string; prize: string | null; ends_at: string | null; image: string | null }
 
 // Full homepage mockup, two looks (Jill 2026-09-06): 'editorial' (elegant serif +
 // real destination photos, cream/airy — the B direction) vs 'immersive' (deep-plum
@@ -45,6 +46,7 @@ const PILLS = [
   { label: 'Experiences', href: '/experiences' },
   { label: 'Flight Deals', href: '#flights' },
   { label: 'Hotel Deals', href: '#hotels' },
+  { label: 'Giveaways', href: '#sweepstakes' },
   { label: 'Card Explorer', href: '#cards' },
   { label: 'Guides', href: '#guides' },
 ]
@@ -168,7 +170,50 @@ function SweetSpotCard({ s, serif }: { s: FlightSweetSpot; serif: string }) {
   )
 }
 
-export default function PreviewHomeMock({ variant, experiences = [], flightBonuses = [], flightSweetSpots = [], hotelPromos = [], hotelSweetSpots = [] }: { variant: 'editorial' | 'immersive' | 'index'; experiences?: ExperienceGroup[]; flightBonuses?: FlightBonus[]; flightSweetSpots?: FlightSweetSpot[]; hotelPromos?: PromoAlert[]; hotelSweetSpots?: FlightSweetSpot[] }) {
+// Faint gold gift motif for the giveaway-card headers.
+const GIFT = <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 7h-2.18A3 3 0 0 0 12 3.5 3 3 0 0 0 6.18 7H4a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1zm-6-1a1 1 0 1 1 1 1h-1V6zM9 5a1 1 0 0 1 1 1v1H9a1 1 0 0 1 0-2zm2 15H5v-7h6v7zm0-9H5V9h6v2zm8 9h-6v-7h6v7zm0-9h-6V9h6v2z" /></svg>
+
+// A live giveaway (the signup magnet): a photo card when a real hero image
+// exists, else a gold prize nameplate. Links to /sweepstakes so browsers land on
+// the hub + newsletter. `prize` is only shown when it adds info beyond the title.
+function SweepPromoCard({ s, serif }: { s: HomeSweep; serif: string }) {
+  const ends = s.ends_at ? new Date(s.ends_at + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null
+  const prizeDistinct = s.prize && s.prize.trim().toLowerCase() !== s.title.trim().toLowerCase() ? s.prize : null
+  return (
+    <Link href="/sweepstakes" className={DEAL_CARD} style={DEAL_STYLE}>
+      {s.image ? (
+        <>
+          <div className="relative aspect-[16/10] overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={s.image} alt={s.title} loading="lazy" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+            <span className="absolute left-3 top-3 rounded-full px-2.5 py-1 text-[0.6rem] font-bold uppercase tracking-wide text-white" style={{ background: 'linear-gradient(135deg,#cfa63f,#8a6a1e)', fontFamily: 'var(--font-ui)' }}>Free to enter</span>
+          </div>
+          <div className="flex grow flex-col p-4">
+            <h4 style={{ fontFamily: serif, color: 'var(--color-primary)' }} className="line-clamp-2 text-[1.05rem] font-bold leading-snug">{s.title}</h4>
+            {prizeDistinct && <p className="mt-1.5 line-clamp-1 text-sm font-semibold" style={{ color: 'var(--color-text-secondary)' }}>{prizeDistinct}</p>}
+            {ends && <p className="mt-2 font-ui text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--color-alert)' }}>Ends {ends}</p>}
+            <span className="mt-3 inline-flex items-center gap-1 font-ui text-sm font-bold" style={{ color: 'var(--color-primary)' }}>Enter free <span aria-hidden className="transition-transform group-hover:translate-x-1">→</span></span>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="relative flex min-h-[136px] flex-col overflow-hidden p-5" style={{ background: 'linear-gradient(135deg,#f8e7a8 0%,#ebcc66 50%,#cfa63f 100%)' }}>
+            <span className="pointer-events-none absolute -right-2 -top-2 h-16 w-16 rotate-12" style={{ color: '#8a6a1e', opacity: 0.28 }}>{GIFT}</span>
+            <span className="inline-flex w-fit rounded-full bg-white/70 px-2.5 py-0.5 font-ui text-[11px] font-bold uppercase tracking-wide" style={{ color: '#3E1A57' }}>Free to enter</span>
+            <h4 style={{ fontFamily: serif, color: '#3E1A57' }} className="mt-2 line-clamp-3 text-[1.15rem] font-bold leading-snug">{s.title}</h4>
+          </div>
+          <div className="flex grow flex-col p-4">
+            {prizeDistinct && <p className="line-clamp-2 text-sm" style={{ color: 'var(--color-text-secondary)' }}>{prizeDistinct}</p>}
+            {ends && <p className="mt-1 font-ui text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--color-alert)' }}>Ends {ends}</p>}
+            <span className="mt-3 inline-flex items-center gap-1 font-ui text-sm font-bold" style={{ color: 'var(--color-primary)' }}>Enter free <span aria-hidden className="transition-transform group-hover:translate-x-1">→</span></span>
+          </div>
+        </>
+      )}
+    </Link>
+  )
+}
+
+export default function PreviewHomeMock({ variant, experiences = [], flightBonuses = [], flightSweetSpots = [], hotelPromos = [], hotelSweetSpots = [], sweeps = [] }: { variant: 'editorial' | 'immersive' | 'index'; experiences?: ExperienceGroup[]; flightBonuses?: FlightBonus[]; flightSweetSpots?: FlightSweetSpot[]; hotelPromos?: PromoAlert[]; hotelSweetSpots?: FlightSweetSpot[]; sweeps?: HomeSweep[] }) {
   const dark = variant === 'immersive'
   const isIndex = variant === 'index'
   const serif = 'var(--font-display)'
@@ -342,6 +387,31 @@ export default function PreviewHomeMock({ variant, experiences = [], flightBonus
                 </div>
               </>
             )}
+          </div>
+        </section>
+      )}
+
+      {/* ===== Sweepstakes section — the signup magnet: top giveaways + Insider CTA ===== */}
+      {isIndex && sweeps.length > 0 && (
+        <section id="sweepstakes" style={{ background: 'var(--color-background)', scrollMarginTop: '84px' }}>
+          <FullBleedBanner title="Sweepstakes" sub="FREE TO ENTER · WIN POINTS & MILES" />
+          <div className="rg-container" style={{ paddingTop: '1.5rem', paddingBottom: '3rem' }}>
+            <div className="mx-auto mb-5 flex max-w-5xl flex-wrap items-end justify-between gap-3">
+              <div>
+                <div className="h-[2px] w-8 rounded" style={{ background: 'var(--color-accent)' }} />
+                <h3 style={{ fontFamily: serif, color: 'var(--color-primary)' }} className="mt-2 text-xl font-bold sm:text-2xl">Win the trip. Keep your points.</h3>
+                <p className="mt-1 font-body text-sm text-[var(--color-text-secondary)]">Airline miles, hotel points, and money-can&apos;t-buy trips — free to enter, tracked so you never miss one.</p>
+              </div>
+              <Link href="/sweepstakes" className="inline-flex items-center gap-1 text-sm font-bold" style={{ color: 'var(--color-primary)', fontFamily: 'var(--font-ui)' }}>See all giveaways <span aria-hidden>→</span></Link>
+            </div>
+            <div className="mx-auto grid max-w-5xl gap-5 sm:grid-cols-3">
+              {sweeps.slice(0, 3).map((s) => <SweepPromoCard key={s.id} s={s} serif={serif} />)}
+            </div>
+            {/* The magnet: never-miss-a-giveaway signup nudge */}
+            <div className="mx-auto mt-8 flex max-w-5xl flex-col items-center justify-between gap-3 rounded-2xl px-5 py-4 sm:flex-row" style={{ background: 'linear-gradient(135deg,#2a0f3d,#6B2D8F)' }}>
+              <p className="text-center font-body text-sm text-white/90 sm:text-left">Never miss a free giveaway — we&apos;ll email you the ones worth entering.</p>
+              <Link href="/newsletter" className="shrink-0 rounded-full px-5 py-2.5 font-ui text-sm font-bold uppercase tracking-[0.06em] text-[#1a1a1a]" style={{ background: 'linear-gradient(180deg,#e9c757,#c99a25)' }}>Join the Insider List →</Link>
+            </div>
           </div>
         </section>
       )}

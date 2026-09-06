@@ -1,9 +1,10 @@
 import type { Metadata } from 'next'
-import PreviewHomeMock, { type FlightBonus, type FlightSweetSpot, type PromoAlert } from '@/components/preview/PreviewHomeMock'
+import PreviewHomeMock, { type FlightBonus, type FlightSweetSpot, type PromoAlert, type HomeSweep } from '@/components/preview/PreviewHomeMock'
 import { createAdminClient } from '@/utils/supabase/server'
 import { getHomeExperiences } from '@/utils/experiences/getHomeExperiences'
 import { selectAlertViewFromVariants, type AlertViewWithPrograms } from '@/utils/content/alertView'
 import { isAlertActiveET } from '@/lib/alerts/expiry'
+import { isTimeshareSweep, sweepCategory, sweepScore, sweepPrizeValue } from '@/lib/sweepstakes/categories'
 
 export const metadata: Metadata = { title: 'Homepage v2 — Concierge Index (preview)', robots: { index: false } }
 export const dynamic = 'force-dynamic'
@@ -60,6 +61,33 @@ export default async function Page() {
   const flightSweetSpots = ss.filter((s) => s.cabin && s.title).sort((a, b) => (a.points ?? 9e9) - (b.points ?? 9e9)).slice(0, 3)
   const hotelSweetSpots = ss.filter((s) => s.title && ((s.program_slug && hotelSlugs.has(s.program_slug)) || (s.operating_partner && hotelSlugs.has(s.operating_partner)))).slice(0, 3)
 
+  // ---- Sweepstakes (signup magnet) ----
+  // Mirror the /sweepstakes "Featured" logic: running, not past its date, no
+  // timeshare bait; prefer editorial ⭐, else the top prizes by score.
+  type SweepRow = { id: string; program: string | null; title: string; prize: string | null; ends_at: string | null; image_url: string | null; hero_image_url: string | null; featured: boolean | null }
+  const { data: sweepRows } = await supabase
+    .from('sweepstakes')
+    .select('id, program, title, prize, ends_at, image_url, hero_image_url, featured')
+    .eq('status', 'running')
+    .or(`ends_at.is.null,ends_at.gte.${today}`)
+    .order('ends_at', { ascending: true, nullsFirst: false })
+  const runningSweeps = ((sweepRows ?? []) as SweepRow[]).filter((s) => !isTimeshareSweep(s.program, s.prize, s.title))
+  const starredSweeps = runningSweeps.filter((s) => s.featured)
+  const topSweeps = (starredSweeps.length > 0
+    ? starredSweeps
+    : [...runningSweeps].sort(
+        (a, b) =>
+          sweepScore(b.prize, b.title, sweepCategory(b.prize, b.title).key) - sweepScore(a.prize, a.title, sweepCategory(a.prize, a.title).key) ||
+          sweepPrizeValue(b.prize, b.title) - sweepPrizeValue(a.prize, a.title),
+      )
+  ).slice(0, 3)
+  // NOTE: `image_url` is a favicon (used elsewhere as an 18px logo), NOT a photo —
+  // only `hero_image_url` is a real hero. Favicon-only sweeps fall back to the
+  // premium gold prize nameplate rather than stretching a tiny logo.
+  const sweeps: HomeSweep[] = topSweeps.map((s) => ({
+    id: s.id, program: s.program, title: s.title, prize: s.prize, ends_at: s.ends_at, image: s.hero_image_url || null,
+  }))
+
   return (
     <PreviewHomeMock
       variant="index"
@@ -68,6 +96,7 @@ export default async function Page() {
       flightSweetSpots={flightSweetSpots}
       hotelPromos={hotelPromos}
       hotelSweetSpots={hotelSweetSpots}
+      sweeps={sweeps}
     />
   )
 }
