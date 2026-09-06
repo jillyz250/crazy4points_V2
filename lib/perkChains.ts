@@ -49,6 +49,22 @@ export function perkChainsForCard(cardSlug: string): PerkChain[] {
 
 export const PERK_CHAINS: PerkChain[] = [
   {
+    id: 'virgin-delta-jv',
+    title: 'Your Virgin Flying Club account doubles as Delta status and awards',
+    card: 'Virgin Atlantic Flying Club',
+    steps: [
+      'Fly eligible Delta flights with your Virgin Flying Club number and earn Tier Points',
+      'Those Tier Points build Virgin Atlantic elite status',
+      'Virgin Atlantic status grants you reciprocal Delta Medallion status and its perks',
+    ],
+    action: 'Put your Virgin Atlantic Flying Club number in your Delta bookings',
+    payoff: 'Flying Delta ends up earning you Delta elite perks through Virgin, and you can redeem Virgin Points on Delta too, thanks to their joint venture.',
+    source: 'Virgin Atlantic (Flying Club x Delta)',
+    verifiedAt: '2026-09-05',
+    caveat: 'Earning depends on fare class and who operates the flight, and Delta award pricing through Virgin uses separate charts. Confirm current terms before booking.',
+    programSlugs: ['virgin-atlantic', 'delta'],
+  },
+  {
     id: 'amex-plat-walmart-streaming',
     title: 'A travel card that unlocks free streaming',
     card: 'Amex Platinum',
