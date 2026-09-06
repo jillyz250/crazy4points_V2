@@ -147,6 +147,9 @@ const THIN = {
   'charlie-legal': 'No structured legal queue yet. Watch: terms/privacy/disclosure changes, sweepstakes + email compliance, brand/trademark use. Flag anything that needs a review.',
   'erica-finance': 'No expense-tracking tool wired yet (assigned build). Watch: costs going OUT, runway. Once /admin/expenses exists this brief pulls real numbers.',
   'megan-partnerships': 'No structured partnerships pipeline yet. Watch: new affiliate/partnership opportunities to ACQUIRE (Janet then manages the revenue via Avery).',
+  'reese-video': 'Head of Visual Content. Own all imagery + video + the Image Library (/admin/creatives). Daily: what visuals do today\'s publishes/pages/social need; grow + freshen the library (catalog is blind to ~90% of our images — get it current first, then expand); TikTok launch. See plans/image-library-plan.md.',
+  'devon-design': 'Head of Design & UX. Own the design system + glossary + UX polish (the how-it-looks; Reese owns the imagery). Daily: one UX/design improvement. Watch: consistency, mobile contract (375px), admin polish.',
+  'quinn-product': 'Head of Product & Innovation. Own what we build next — the Product board (/admin/product): advance a flagship a little (Homepage v2, User Wallet, PDF Companions), triage the idea intake (act/park/reject), surface parked ideas due to revisit. DISCOVERY-first; show Jill the spec before building.',
 }
 
 async function main() {
