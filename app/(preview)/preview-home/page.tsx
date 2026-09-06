@@ -41,59 +41,54 @@ const EXPERIENCES = [
 export default function PreviewHome() {
   return (
     <div style={{ background: 'var(--color-background)' }}>
-      {/* ===== HERO with the dark-glass nav floating over it ===== */}
+      {/* ===== Two-tier STICKY translucent header (Option C, Jill 2026-09-06) —
+           fixed so it follows on scroll + stays glass. Utility strip (dark) over
+           the main bar (light frosted). Full logo, nav centered, search right. ===== */}
+      <header className="fixed inset-x-0 top-0 z-30" style={{ fontFamily: 'var(--font-ui)' }}>
+        {/* utility strip */}
+        <div className="flex items-center gap-4 px-5 py-1.5 sm:px-8"
+          style={{ background: 'rgba(30,10,45,0.55)', WebkitBackdropFilter: 'blur(12px)', backdropFilter: 'blur(12px)' }}>
+          <div className="flex items-center gap-2.5">
+            {SOCIALS.map((s) => (
+              <a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer" aria-label={s.label}
+                className="text-white/85 transition-colors hover:text-[var(--color-accent)]">
+                <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4" aria-hidden="true"><path d={s.path} /></svg>
+              </a>
+            ))}
+          </div>
+          <div className="ml-auto flex items-center gap-3 text-[13px] font-semibold text-white/90">
+            <Link href="/login" className="hover:text-white">Sign In</Link>
+            <span className="opacity-40">|</span>
+            <Link href="/newsletter" className="text-[var(--color-accent)] hover:brightness-110">Join the Insider List</Link>
+          </div>
+        </div>
+        {/* main bar */}
+        <div className="grid grid-cols-[auto_1fr_auto] items-center gap-4 px-5 py-2 sm:px-8"
+          style={{ background: 'rgba(255,255,255,0.72)', WebkitBackdropFilter: 'blur(14px)', backdropFilter: 'blur(14px)', borderBottom: '1px solid rgba(107,45,143,0.12)' }}>
+          <Link href="/" aria-label="Crazy4Points home" className="justify-self-start">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/hero-preview/logo-full.png" alt="Crazy4Points" className="h-10 w-auto sm:h-12" />
+          </Link>
+          <nav className="hidden items-center gap-7 justify-self-center md:flex">
+            {NAV.map((n) => (
+              <Link key={n} href="/" className="text-sm font-bold text-[var(--color-primary)] transition-colors hover:text-[var(--color-accent)]">
+                {n}
+              </Link>
+            ))}
+          </nav>
+          <label className="hidden items-center gap-2 rounded-full px-3.5 py-2 justify-self-end lg:flex"
+            style={{ border: '1px solid rgba(107,45,143,0.25)', background: 'rgba(255,255,255,0.7)' }}>
+            <span aria-hidden className="text-xs text-[var(--color-primary)]">{'🔍'}</span>
+            <input placeholder="Search deals, cards…" className="w-44 bg-transparent text-sm text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-secondary)]" style={{ fontSize: '16px' }} />
+          </label>
+        </div>
+      </header>
+
+      {/* ===== HERO — starts at the very top, under the fixed translucent header ===== */}
       <section className="relative">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/hero-preview/hero-poolside.png" alt="" className="block w-full" />
         <h1 className="sr-only">Because paying full price is so last season — smart travel with points. The latest deals, card bonuses, and insider strategies to fly farther and stay better for less.</h1>
-
-        {/* Light frosted-glass nav — simple wordmark left, nav centered (Jill 2026-09-06) */}
-        <div className="absolute inset-x-0 top-0 z-20">
-          <div
-            className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 px-5 py-3 sm:px-8"
-            style={{
-              background: 'rgba(255,255,255,0.55)',
-              WebkitBackdropFilter: 'blur(14px)',
-              backdropFilter: 'blur(14px)',
-              borderBottom: '1px solid rgba(107,45,143,0.12)',
-              fontFamily: 'var(--font-ui)',
-            }}
-          >
-            {/* left: old-style script wordmark logo (Jill 2026-09-06) */}
-            <Link href="/" aria-label="Crazy4Points home" className="justify-self-start">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/hero-preview/wordmark-script.png" alt="Crazy4Points" className="h-7 w-auto drop-shadow-sm sm:h-9" />
-            </Link>
-
-            {/* center: nav links */}
-            <nav className="hidden items-center gap-7 justify-self-center md:flex">
-              {NAV.map((n) => (
-                <Link key={n} href="/" className="text-sm font-bold text-[var(--color-primary)] transition-colors hover:text-[var(--color-accent)]">
-                  {n}
-                </Link>
-              ))}
-            </nav>
-
-            {/* right: socials + search + sign in */}
-            <div className="flex items-center justify-self-end gap-3">
-              <div className="hidden items-center gap-2 sm:flex">
-                {SOCIALS.map((s) => (
-                  <a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer" aria-label={s.label}
-                    className="text-[var(--color-primary)] transition-colors hover:text-[var(--color-accent)]">
-                    <svg viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5" aria-hidden="true"><path d={s.path} /></svg>
-                  </a>
-                ))}
-              </div>
-              <label className="hidden items-center gap-2 rounded-full px-3 py-1.5 lg:flex"
-                style={{ border: '1px solid rgba(107,45,143,0.25)', background: 'rgba(255,255,255,0.6)' }}>
-                <span aria-hidden className="text-xs text-[var(--color-primary)]">{'🔍'}</span>
-                <input placeholder="Search deals, cards…" className="w-36 bg-transparent text-sm text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-secondary)]" style={{ fontSize: '16px' }} />
-              </label>
-              <Link href="/login" className="text-sm font-semibold text-[var(--color-primary)] hover:text-[var(--color-accent)]">Sign In</Link>
-            </div>
-          </div>
-        </div>
-
         {/* real clickable button over the baked "JOIN THE INSIDER LIST" */}
         <Link href="/newsletter" aria-label="Join the Insider List" className="absolute z-20"
           style={{ left: '52.5%', top: '54.5%', width: '28%', height: '10%' }} />
