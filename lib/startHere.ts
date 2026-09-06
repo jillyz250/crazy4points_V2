@@ -25,7 +25,7 @@ export const PERSONAS: Persona[] = [
     intro:
       "You want the best, without the best-in-class price tag. Points are how you fly lie-flat, stay in suites, and get into rooms money can't buy.",
     accent: '#9A7B1F',
-    image: null,
+    image: '/start-here/persona-luxury.png',
     steps: [
       'Open a premium rewards card and earn its welcome bonus.',
       'Transfer those points to the sweet spots that unlock premium cabins and suites.',
@@ -44,7 +44,7 @@ export const PERSONAS: Persona[] = [
     intro:
       'You just want to travel more without spending more. Points plus well-timed deals stretch your budget across flights and hotels all year.',
     accent: '#17868A',
-    image: null,
+    image: '/start-here/persona-discounted-travel.png',
     steps: [
       'Subscribe so award sales, transfer bonuses, and welcome offers come to you.',
       "Grab a flexible travel card's welcome bonus to build a starting balance.",
@@ -63,7 +63,7 @@ export const PERSONAS: Persona[] = [
     intro:
       "Points travel sounds complicated. It isn't. Here's the simplest path from zero to your first (nearly) free trip.",
     accent: '#2E7D5B',
-    image: null,
+    image: '/start-here/persona-new.png',
     steps: [
       'Join the Insider List so the good stuff lands in your inbox.',
       'Read the getting-started guides — plain English, no jargon.',
@@ -82,7 +82,7 @@ export const PERSONAS: Persona[] = [
     intro:
       "You've earned points but aren't sure how to use them well. These tools show you exactly what they unlock — and how to get the most out of each one.",
     accent: '#33518A',
-    image: null,
+    image: '/start-here/persona-toolkit.png',
     steps: [
       'See what your points can reach in the Card Explorer.',
       'Find the high-value redemptions in Sweet Spots.',
