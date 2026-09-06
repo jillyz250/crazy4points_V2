@@ -3,6 +3,7 @@ import type { ExperienceGroup } from '@/lib/experiences/marquee'
 import { categoryBucket } from '@/lib/experiences/categories'
 import type { AlertViewWithPrograms } from '@/utils/content/alertView'
 import FullBleedBanner from '@/components/preview/FullBleedBanner'
+import { PERSONAS } from '@/lib/startHere'
 
 // Full homepage mockup, two looks (Jill 2026-09-06): 'editorial' (elegant serif +
 // real destination photos, cream/airy — the B direction) vs 'immersive' (deep-plum
@@ -23,6 +24,14 @@ const CARDS = [
 // under the hero that anchor-scroll to each homepage section.
 // "Start here" is a real destination (the tools hub + "what kind of points
 // traveler are you?" guide), so it links to a page; the rest jump to sections.
+// The "Your Toolkit" band — our actual tools, clean cards.
+const TOOLS = [
+  { label: 'Decision Engine', href: '/decision-engine', desc: "Tell us your trip — we'll find the smartest way to book it." },
+  { label: 'Credit Card Explorer', href: '/cards', desc: 'Find the card that earns the points you need.' },
+  { label: 'Alliance Explorer', href: '/tools/alliances', desc: 'See which airlines partner, so your miles go further.' },
+  { label: 'Program Explorer', href: '/programs', desc: 'Every airline + hotel program, and how to use each.' },
+]
+
 const PILLS = [
   { label: 'Start here', href: '/start-here' },
   { label: 'Experiences', href: '/experiences' },
@@ -207,6 +216,58 @@ export default function PreviewHomeMock({ variant, experiences = [], flightDeals
             <div className="mx-auto grid max-w-5xl gap-5 sm:grid-cols-3">
               {flightDeals.slice(0, 3).map((a) => (
                 <AlertCard key={a.slug} a={a} serif={serif} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ===== Your Toolkit — nameplate + the real tools (index) ===== */}
+      {isIndex && (
+        <section id="tools" style={{ background: 'var(--color-background)', scrollMarginTop: '84px' }}>
+          <FullBleedBanner title="Your Toolkit" sub="PLAN SMARTER, TRAVEL FURTHER" />
+          <div className="rg-container" style={{ paddingTop: '1.5rem', paddingBottom: '3rem' }}>
+            <div className="mx-auto grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {TOOLS.map((t) => (
+                <Link key={t.label} href={t.href} className="group flex flex-col rounded-2xl bg-white p-5 transition-transform duration-200 hover:-translate-y-1" style={{ border: '1px solid rgba(107,45,143,0.12)', boxShadow: '0 14px 34px -22px rgba(62,26,87,0.4)' }}>
+                  <div className="h-[2px] w-6 rounded" style={{ background: 'var(--color-accent)' }} />
+                  <h3 style={{ fontFamily: serif, color: 'var(--color-primary)' }} className="mt-2 text-lg font-bold leading-tight">{t.label}</h3>
+                  <p className="mt-1.5 grow font-body text-sm text-[var(--color-text-secondary)]">{t.desc}</p>
+                  <span className="mt-3 inline-flex items-center gap-1 font-ui text-sm font-bold" style={{ color: 'var(--color-primary)' }}>
+                    Open <span aria-hidden className="transition-transform group-hover:translate-x-1">→</span>
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ===== New here? Find your path — persona funnel into /start-here (index) ===== */}
+      {isIndex && (
+        <section id="new-here" style={{ background: 'var(--color-background)', scrollMarginTop: '84px' }}>
+          <div className="rg-container rg-major-section">
+            <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <div className="h-[2px] w-8 rounded" style={{ background: 'var(--color-accent)' }} />
+                <h2 style={{ fontFamily: serif, color: 'var(--color-primary)' }} className="mt-2 text-2xl font-bold sm:text-3xl">New to points? Find your path.</h2>
+                <p className="mt-2 max-w-xl font-body text-[var(--color-text-secondary)]">Pick the traveler that sounds like you — we&apos;ll show you exactly where to start.</p>
+              </div>
+              <Link href="/start-here" className="inline-flex items-center gap-1 text-sm font-bold" style={{ color: 'var(--color-primary)', fontFamily: 'var(--font-ui)' }}>Start here <span aria-hidden>→</span></Link>
+            </div>
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+              {PERSONAS.map((p) => (
+                <Link key={p.key} href={`/start-here/${p.key}`} className="group flex flex-col overflow-hidden rounded-2xl bg-white transition-transform duration-200 hover:-translate-y-1" style={{ border: '1px solid rgba(107,45,143,0.12)', boxShadow: '0 14px 34px -22px rgba(62,26,87,0.4)' }}>
+                  <div className="relative aspect-[4/3] w-full overflow-hidden" style={{ background: `linear-gradient(150deg, ${p.accent}, ${p.accent}bb)` }}>
+                    {p.image && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={p.image} alt={p.title} className="absolute inset-0 h-full w-full object-cover object-top transition-transform duration-300 group-hover:scale-105" />
+                    )}
+                  </div>
+                  <div className="p-3">
+                    <div style={{ fontFamily: serif, color: 'var(--color-primary)' }} className="text-[0.95rem] font-bold leading-tight">{p.title}</div>
+                  </div>
+                </Link>
               ))}
             </div>
           </div>
