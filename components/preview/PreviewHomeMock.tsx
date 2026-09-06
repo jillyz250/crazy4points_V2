@@ -4,9 +4,10 @@ import { categoryBucket } from '@/lib/experiences/categories'
 import FullBleedBanner from '@/components/preview/FullBleedBanner'
 import { PERSONAS } from '@/lib/startHere'
 
-// Flight Deals lane data (computed in the page).
+// Flight/Hotel Deals lane data (computed in the page).
 export type FlightBonus = { card: string; dest: string; pct: number | null; end: string | null; slug: string | null }
 export type FlightSweetSpot = { id: string; title: string; route: string | null; points: number | null; cabin: string | null }
+export type PromoAlert = { title: string; summary: string | null; type: string | null; slug: string }
 
 // Full homepage mockup, two looks (Jill 2026-09-06): 'editorial' (elegant serif +
 // real destination photos, cream/airy — the B direction) vs 'immersive' (deep-plum
@@ -123,6 +124,24 @@ function BonusCard({ b, serif }: { b: FlightBonus; serif: string }) {
   )
 }
 
+// A current promo (from an alert): gold header with the type tag, summary below.
+function PromoCard({ p, serif }: { p: PromoAlert; serif: string }) {
+  const tag = (p.type || 'deal').replace(/_/g, ' ')
+  return (
+    <Link href={`/alerts/${p.slug}`} className={DEAL_CARD} style={DEAL_STYLE}>
+      <div className="relative overflow-hidden p-5" style={{ background: 'linear-gradient(135deg,#f8e7a8 0%,#ebcc66 50%,#cfa63f 100%)' }}>
+        <span className="pointer-events-none absolute -right-2 -top-2 h-16 w-16 rotate-12" style={{ color: '#8a6a1e', opacity: 0.28 }}>{PLANE}</span>
+        <span className="inline-flex w-fit rounded-full bg-white/70 px-2.5 py-0.5 font-ui text-[11px] font-bold uppercase tracking-wide" style={{ color: '#3E1A57' }}>{tag}</span>
+        <h4 style={{ fontFamily: serif, color: '#3E1A57' }} className="mt-2 line-clamp-2 text-[1.05rem] font-bold leading-snug">{p.title}</h4>
+      </div>
+      <div className="flex grow flex-col p-4">
+        {p.summary && <p className="line-clamp-2 text-sm" style={{ color: 'var(--color-text-secondary)' }}>{p.summary}</p>}
+        <span className="mt-3 inline-flex items-center gap-1 font-ui text-sm font-bold" style={{ color: 'var(--color-primary)' }}>See the deal <span aria-hidden className="transition-transform group-hover:translate-x-1">→</span></span>
+      </div>
+    </Link>
+  )
+}
+
 // Lane 2 — a flight sweet spot (evergreen): soft-lavender stat header.
 function SweetSpotCard({ s, serif }: { s: FlightSweetSpot; serif: string }) {
   const cabin = s.cabin ? s.cabin.replace(/_/g, ' ') : null
@@ -149,7 +168,7 @@ function SweetSpotCard({ s, serif }: { s: FlightSweetSpot; serif: string }) {
   )
 }
 
-export default function PreviewHomeMock({ variant, experiences = [], flightBonuses = [], flightSweetSpots = [] }: { variant: 'editorial' | 'immersive' | 'index'; experiences?: ExperienceGroup[]; flightBonuses?: FlightBonus[]; flightSweetSpots?: FlightSweetSpot[] }) {
+export default function PreviewHomeMock({ variant, experiences = [], flightBonuses = [], flightSweetSpots = [], hotelPromos = [], hotelSweetSpots = [] }: { variant: 'editorial' | 'immersive' | 'index'; experiences?: ExperienceGroup[]; flightBonuses?: FlightBonus[]; flightSweetSpots?: FlightSweetSpot[]; hotelPromos?: PromoAlert[]; hotelSweetSpots?: FlightSweetSpot[] }) {
   const dark = variant === 'immersive'
   const isIndex = variant === 'index'
   const serif = 'var(--font-display)'
@@ -279,6 +298,47 @@ export default function PreviewHomeMock({ variant, experiences = [], flightBonus
                 </div>
                 <div className="mx-auto grid max-w-5xl gap-5 sm:grid-cols-3">
                   {flightSweetSpots.slice(0, 3).map((s) => <SweetSpotCard key={s.id} s={s} serif={serif} />)}
+                </div>
+              </>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* ===== Hotel Deals section — two lanes: current promos + sweet spots ===== */}
+      {isIndex && (hotelPromos.length > 0 || hotelSweetSpots.length > 0) && (
+        <section id="hotels" style={{ background: 'var(--color-background)', scrollMarginTop: '84px' }}>
+          <FullBleedBanner title="Hotel Deals" sub="FREE NIGHTS & DREAM STAYS" />
+          <div className="rg-container" style={{ paddingTop: '1.5rem', paddingBottom: '3rem' }}>
+            {/* Lane 1 — happening now: hotel promos */}
+            {hotelPromos.length > 0 && (
+              <>
+                <div className="mx-auto mb-5 flex max-w-5xl flex-wrap items-end justify-between gap-3">
+                  <div>
+                    <div className="h-[2px] w-8 rounded" style={{ background: 'var(--color-accent)' }} />
+                    <h3 style={{ fontFamily: serif, color: 'var(--color-primary)' }} className="mt-2 text-xl font-bold sm:text-2xl">Happening now: hotel deals</h3>
+                    <p className="mt-1 font-body text-sm text-[var(--color-text-secondary)]">Point sales, elevated card offers, and limited promos worth grabbing.</p>
+                  </div>
+                  <Link href="/alerts" className="inline-flex items-center gap-1 text-sm font-bold" style={{ color: 'var(--color-primary)', fontFamily: 'var(--font-ui)' }}>See all deals <span aria-hidden>→</span></Link>
+                </div>
+                <div className="mx-auto mb-10 grid max-w-5xl gap-5 sm:grid-cols-3">
+                  {hotelPromos.slice(0, 3).map((p, i) => <PromoCard key={i} p={p} serif={serif} />)}
+                </div>
+              </>
+            )}
+            {/* Lane 2 — sweet spots worth chasing */}
+            {hotelSweetSpots.length > 0 && (
+              <>
+                <div className="mx-auto mb-5 flex max-w-5xl flex-wrap items-end justify-between gap-3">
+                  <div>
+                    <div className="h-[2px] w-8 rounded" style={{ background: 'var(--color-accent)' }} />
+                    <h3 style={{ fontFamily: serif, color: 'var(--color-primary)' }} className="mt-2 text-xl font-bold sm:text-2xl">Sweet spots worth chasing</h3>
+                    <p className="mt-1 font-body text-sm text-[var(--color-text-secondary)]">Aspirational stays and free-night tricks that always over-deliver.</p>
+                  </div>
+                  <Link href="/sweet-spots" className="inline-flex items-center gap-1 text-sm font-bold" style={{ color: 'var(--color-primary)', fontFamily: 'var(--font-ui)' }}>Explore sweet spots <span aria-hidden>→</span></Link>
+                </div>
+                <div className="mx-auto grid max-w-5xl gap-5 sm:grid-cols-3">
+                  {hotelSweetSpots.slice(0, 3).map((s) => <SweetSpotCard key={s.id} s={s} serif={serif} />)}
                 </div>
               </>
             )}
