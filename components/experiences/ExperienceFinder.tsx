@@ -456,16 +456,19 @@ export default function ExperienceFinder({
   // category pills so the whole filter bar reads as one dimensional set.
   const heldPillStyle = (color: string, active: boolean): { className: string; style: CSSProperties } => ({
     className: `rg-tap-target inline-flex items-center gap-2 rounded-full border-2 px-4 py-2 font-ui text-sm font-bold transition-all duration-150 ${active ? '-translate-y-0.5' : 'hover:-translate-y-0.5'}`,
-    // Bold glossy ENAMEL pill in the type color (white text, top sheen, raised
-    // shadow). Selected = gilded: a gold border + gold glow ring.
-    style: {
-      background: `linear-gradient(180deg, rgba(255,255,255,0.32), rgba(255,255,255,0.05) 52%), ${color}`,
-      color: '#fff',
-      borderColor: active ? '#D4AF37' : color,
-      boxShadow: active
-        ? `0 11px 24px -8px ${color}, 0 0 0 3px rgba(212,175,55,0.4), inset 0 1px 0 rgba(255,255,255,0.5)`
-        : `0 6px 14px -7px ${color}, inset 0 1px 0 rgba(255,255,255,0.42)`,
-    },
+    // Light, airy pill: a soft tint of the color, colored text + border, gentle
+    // depth. Selected = a touch deeper tint + a gold ring so it still stands out.
+    style: active
+      ? {
+          background: `linear-gradient(180deg, #ffffff, ${color}3A)`,
+          color, borderColor: '#D4AF37',
+          boxShadow: `0 8px 18px -8px ${color}66, 0 0 0 2.5px rgba(212,175,55,0.35), inset 0 1px 0 rgba(255,255,255,0.95)`,
+        }
+      : {
+          background: `linear-gradient(180deg, #ffffff, ${color}1F)`,
+          color, borderColor: `${color}66`,
+          boxShadow: `0 4px 10px -6px ${color}55, inset 0 1px 0 rgba(255,255,255,0.95)`,
+        },
   })
 
   // Category pills wear their OWN category color — a tinted fill + colored border
@@ -548,9 +551,7 @@ export default function ExperienceFinder({
             const p = catPillProps(c.color, active)
             return (
               <button key={c.key} type="button" className={p.className} style={p.style} aria-pressed={active} onClick={() => toggleCat(c.key)}>
-                {!luxe && (
-                  <span className="inline-block h-2 w-2 rounded-full" style={{ background: active ? '#fff' : c.color }} aria-hidden />
-                )}
+                <span className="inline-block h-2 w-2 rounded-full" style={{ background: c.color }} aria-hidden />
                 {c.label}
               </button>
             )
